@@ -89,7 +89,7 @@ character_sets=
   version=0
   def=
     fields=
-      elem0=def=comment VARCHAR(2048) COLLATE utf8_general_ci NOT NULL
+      elem0=def=comment VARCHAR(2048) COLLATE utf8mb3_general_ci NOT NULL
             lbl=FIELD_COMMENT
             pos=3
       elem1=def=default_collation_id BIGINT UNSIGNED NOT NULL
@@ -101,7 +101,7 @@ character_sets=
       elem3=def=mb_max_length INT UNSIGNED NOT NULL
             lbl=FIELD_MB_MAX_LENGTH
             pos=4
-      elem4=def=name VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+      elem4=def=name VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci
             lbl=FIELD_NAME
             pos=1
       elem5=def=options MEDIUMTEXT
@@ -270,7 +270,7 @@ check_constraints=
       elem2=def=is_compiled BOOL NOT NULL
             lbl=FIELD_IS_COMPILED
             pos=3
-      elem3=def=name VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+      elem3=def=name VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci
             lbl=FIELD_NAME
             pos=1
       elem4=def=options MEDIUMTEXT
@@ -750,7 +750,7 @@ events=
       elem13=def=last_executed DATETIME
             lbl=FIELD_LAST_EXECUTED
             pos=17
-      elem14=def=name VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+      elem14=def=name VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci
             lbl=FIELD_NAME
             pos=2
       elem15=def=on_completion ENUM('DROP', 'PRESERVE') NOT NULL
@@ -1006,7 +1006,7 @@ foreign_key_column_usage=
       elem2=def=match_option ENUM('NONE', 'PARTIAL', 'FULL') NOT NULL
             lbl=FIELD_MATCH_OPTION
             pos=5
-      elem3=def=name VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+      elem3=def=name VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci
             lbl=FIELD_NAME
             pos=3
       elem4=def=options MEDIUMTEXT
@@ -1378,7 +1378,7 @@ index_stats=
 ) NOT NULL
             lbl=FIELD_TYPE
             pos=3
-      elem2=def=engine VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+      elem2=def=engine VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci
             lbl=FIELD_ENGINE
             pos=14
       elem3=def=engine_attribute JSON
@@ -1857,7 +1857,7 @@ parameters=
       elem8=def=mode ENUM('IN','OUT','INOUT')
             lbl=FIELD_MODE
             pos=3
-      elem9=def=name VARCHAR(64) COLLATE utf8_general_ci
+      elem9=def=name VARCHAR(64) COLLATE utf8mb3_general_ci
             lbl=FIELD_NAME
             pos=4
     foreign_keys=
@@ -1940,7 +1940,7 @@ resource_groups=
       elem3=def=resource_group_enabled  boolean NOT NULL
             lbl=FIELD_RESOURCE_GROUP_ENABLED
             pos=3
-      elem4=def=resource_group_name VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+      elem4=def=resource_group_name VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci
             lbl=FIELD_RESOURCE_GROUP_NAME
             pos=1
       elem5=def=resource_group_type enum('SYSTEM', 'USER') NOT NULL
@@ -2034,7 +2034,7 @@ routines=
       elem10=def=last_altered TIMESTAMP NOT NULL
             lbl=FIELD_LAST_ALTERED
             pos=25
-      elem11=def=name VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+      elem11=def=name VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci
             lbl=FIELD_NAME
             pos=2
       elem12=def=options MEDIUMTEXT
@@ -2362,14 +2362,14 @@ ON UPDATE CURRENT_TIMESTAMP
             lbl=FIELD_LAST_ALTERED
             pos=3
       elem6=def=name CHARACTER VARYING(80)
-NOT NULL COLLATE utf8_general_ci
+NOT NULL COLLATE utf8mb3_general_ci
             lbl=FIELD_NAME
             pos=2
       elem7=def=options MEDIUMTEXT
             lbl=FIELD_OPTIONS
             pos=9
       elem8=def=organization CHARACTER VARYING(256)
-COLLATE utf8_general_ci
+COLLATE utf8mb3_general_ci
             lbl=FIELD_ORGANIZATION
             pos=5
       elem9=def=organization_coordsys_id INTEGER UNSIGNED
@@ -2518,7 +2518,7 @@ table_partitions=
       elem11=def=table_id BIGINT UNSIGNED NOT NULL
             lbl=FIELD_TABLE_ID
             pos=1
-      elem2=def=engine VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+      elem2=def=engine VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci
             lbl=FIELD_ENGINE
             pos=6
       elem3=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
@@ -2871,7 +2871,7 @@ tables=
       elem4=def=default_subpartitioning ENUM('NO', 'YES', 'NUMBER')
             lbl=FIELD_DEFAULT_SUBPARTITIONING
             pos=21
-      elem5=def=engine VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+      elem5=def=engine VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci
             lbl=FIELD_ENGINE
             pos=4
       elem6=def=engine_attribute JSON
@@ -3087,7 +3087,7 @@ tablespaces=
       elem0=def=comment VARCHAR(2048) NOT NULL
             lbl=FIELD_COMMENT
             pos=4
-      elem1=def=engine VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+      elem1=def=engine VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci
             lbl=FIELD_ENGINE
             pos=5
       elem2=def=engine_attribute JSON
@@ -3178,7 +3178,7 @@ triggers=
       elem10=def=last_altered TIMESTAMP(2) NOT NULL
             lbl=FIELD_LAST_ALTERED
             pos=10
-      elem11=def=name VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+      elem11=def=name VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci
             lbl=FIELD_NAME
             pos=2
       elem12=def=options MEDIUMTEXT
@@ -3328,7 +3328,7 @@ view_routine_usage=
       elem0=def=routine_catalog VARCHAR(64) NOT NULL COLLATE utf8mb3_bin
             lbl=FIELD_ROUTINE_CATALOG
             pos=1
-      elem1=def=routine_name VARCHAR(64) NOT NULL COLLATE  utf8_general_ci
+      elem1=def=routine_name VARCHAR(64) NOT NULL COLLATE  utf8mb3_general_ci
             lbl=FIELD_ROUTINE_NAME
             pos=3
       elem2=def=routine_schema VARCHAR(64) NOT NULL COLLATE utf8mb3_bin

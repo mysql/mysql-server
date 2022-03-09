@@ -207,6 +207,7 @@
     and based on PFS_engine_table_share_proxy mechanism)
   - Bug #33787300 Rename utf8_xxx collations to utf8mb3_xxx
     This patch renames utf8_bin to utf8mb3_bin
+    This patch renames utf8_general_ci
 */
 
 static const uint PFS_DD_VERSION = 80030;

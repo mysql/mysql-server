@@ -2544,7 +2544,7 @@ TEST(StrmxfrmHashTest, HashStability) {
       {"utf8mb3_danish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
       {"utf8mb3_esperanto_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
       {"utf8mb3_estonian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
-      {"utf8_general_ci", {{0xfb66c3f2301bd579LL, 0x0000055fLL}}},
+      {"utf8mb3_general_ci", {{0xfb66c3f2301bd579LL, 0x0000055fLL}}},
       {"utf8mb3_general_mysql500_ci", {{0xfb66c3f2301bd579LL, 0x0000055fLL}}},
       {"utf8mb3_german2_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
       {"utf8mb3_hungarian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},

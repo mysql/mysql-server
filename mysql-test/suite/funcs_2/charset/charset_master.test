@@ -75,7 +75,7 @@ WHERE collation_name IN (
 'ucs2_roman_ci', 'ucs2_romanian_ci', 'ucs2_slovak_ci', 'ucs2_slovenian_ci',
 'ucs2_spanish2_ci', 'ucs2_spanish_ci', 'ucs2_swedish_ci', 'ucs2_turkish_ci',
 'ucs2_unicode_ci', 'ujis_bin', 'ujis_japanese_ci', 'utf8mb3_bin',
-'utf8mb3_czech_ci', 'utf8mb3_danish_ci', 'utf8mb3_estonian_ci', 'utf8_general_ci',
+'utf8mb3_czech_ci', 'utf8mb3_danish_ci', 'utf8mb3_estonian_ci', 'utf8mb3_general_ci',
 'utf8mb3_hungarian_ci', 'utf8mb3_icelandic_ci', 'utf8mb3_latvian_ci', 'utf8mb3_lithuanian_ci',
 'utf8mb3_persian_ci', 'utf8mb3_polish_ci', 'utf8mb3_roman_ci', 'utf8mb3_romanian_ci',
 'utf8mb3_slovak_ci', 'utf8mb3_slovenian_ci', 'utf8mb3_spanish2_ci', 'utf8mb3_spanish_ci',

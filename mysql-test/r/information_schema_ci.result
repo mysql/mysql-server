@@ -209,7 +209,7 @@ Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 a	int	NULL	YES	MUL	NULL		select,insert,update,references	
 show full columns from mysql.db like "Insert%";
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-Insert_priv	enum('N','Y')	utf8_general_ci	NO		N		select,insert,update,references	
+Insert_priv	enum('N','Y')	utf8mb3_general_ci	NO		N		select,insert,update,references	
 show full columns from v1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 c	varchar(64)	utf8_bin	YES		NULL		select,insert,update,references	
@@ -564,11 +564,11 @@ NULL
 drop table t1;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 View	Create View	character_set_client	collation_connection
-CHARACTER_SETS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`CHARACTER_SETS` AS select `cs`.`name` AS `CHARACTER_SET_NAME`,`col`.`name` AS `DEFAULT_COLLATE_NAME`,`cs`.`comment` AS `DESCRIPTION`,`cs`.`mb_max_length` AS `MAXLEN` from (`mysql`.`character_sets` `cs` join `mysql`.`collations` `col` on((`cs`.`default_collation_id` = `col`.`id`)))	utf8mb3	utf8_general_ci
+CHARACTER_SETS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`CHARACTER_SETS` AS select `cs`.`name` AS `CHARACTER_SET_NAME`,`col`.`name` AS `DEFAULT_COLLATE_NAME`,`cs`.`comment` AS `DESCRIPTION`,`cs`.`mb_max_length` AS `MAXLEN` from (`mysql`.`character_sets` `cs` join `mysql`.`collations` `col` on((`cs`.`default_collation_id` = `col`.`id`)))	utf8mb3	utf8mb3_general_ci
 set names latin2;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 View	Create View	character_set_client	collation_connection
-CHARACTER_SETS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`CHARACTER_SETS` AS select `cs`.`name` AS `CHARACTER_SET_NAME`,`col`.`name` AS `DEFAULT_COLLATE_NAME`,`cs`.`comment` AS `DESCRIPTION`,`cs`.`mb_max_length` AS `MAXLEN` from (`mysql`.`character_sets` `cs` join `mysql`.`collations` `col` on((`cs`.`default_collation_id` = `col`.`id`)))	utf8mb3	utf8_general_ci
+CHARACTER_SETS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`CHARACTER_SETS` AS select `cs`.`name` AS `CHARACTER_SET_NAME`,`col`.`name` AS `DEFAULT_COLLATE_NAME`,`cs`.`comment` AS `DESCRIPTION`,`cs`.`mb_max_length` AS `MAXLEN` from (`mysql`.`character_sets` `cs` join `mysql`.`collations` `col` on((`cs`.`default_collation_id` = `col`.`id`)))	utf8mb3	utf8mb3_general_ci
 set names latin1;
 create table t1 select * from information_schema.CHARACTER_SETS
 where CHARACTER_SET_NAME like "latin1" order by character_set_name;
@@ -2967,11 +2967,11 @@ SELECT * FROM information_schema.CHARACTER_SETS
 WHERE CHARACTER_SET_NAME LIKE 'utf8%'
 ORDER BY character_set_name;
 CHARACTER_SET_NAME	DEFAULT_COLLATE_NAME	DESCRIPTION	MAXLEN
-utf8mb3	utf8_general_ci	UTF-8 Unicode	3
+utf8mb3	utf8mb3_general_ci	UTF-8 Unicode	3
 utf8mb4	utf8mb4_0900_ai_ci	UTF-8 Unicode	4
 SHOW CHARACTER SET LIKE 'utf8%';
 Charset	Description	Default collation	Maxlen
-utf8mb3	UTF-8 Unicode	utf8_general_ci	3
+utf8mb3	UTF-8 Unicode	utf8mb3_general_ci	3
 utf8mb4	UTF-8 Unicode	utf8mb4_0900_ai_ci	4
 
 Bug #33787300 Rename utf8_xxx collations to utf8mb3_xxx
@@ -2980,7 +2980,6 @@ SELECT * FROM information_schema.COLLATIONS
 WHERE COLLATION_NAME LIKE "utf8\_%"
 ORDER BY collation_name;
 COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN	PAD_ATTRIBUTE
-utf8_general_ci	utf8mb3	33	Yes	Yes	1	PAD SPACE
 SELECT * FROM information_schema.COLLATIONS
 WHERE COLLATION_NAME LIKE "utf8mb3\_%"
 ORDER BY collation_name;
@@ -2991,6 +2990,7 @@ utf8mb3_czech_ci	utf8mb3	202		Yes	8	PAD SPACE
 utf8mb3_danish_ci	utf8mb3	203		Yes	8	PAD SPACE
 utf8mb3_esperanto_ci	utf8mb3	209		Yes	8	PAD SPACE
 utf8mb3_estonian_ci	utf8mb3	198		Yes	8	PAD SPACE
+utf8mb3_general_ci	utf8mb3	33	Yes	Yes	1	PAD SPACE
 utf8mb3_general_mysql500_ci	utf8mb3	223		Yes	1	PAD SPACE
 utf8mb3_german2_ci	utf8mb3	212		Yes	8	PAD SPACE
 utf8mb3_hungarian_ci	utf8mb3	210		Yes	8	PAD SPACE

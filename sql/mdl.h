@@ -1,6 +1,6 @@
 #ifndef MDL_H
 #define MDL_H
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -614,17 +614,19 @@ struct MDL_key {
     Routine, Event and Resource group names are case sensitive and accent
     sensitive. So normalized object name is used to form a MDL_key.
 
-    With the UTF8MB3 charset space reserved for the db name/object name is
-    64 * 3  bytes. utf8_general_ci collation is used for the Routine, Event and
-    Resource group names. With this collation, the normalized object name uses
-    just 2 bytes for each character (max length = 64 * 2 bytes). MDL_key has
-    still some space to store the object names. If there is a sufficient space
-    for the object name in the MDL_key then it is stored in the MDL_key (similar
-    to the column names in the MDL_key). Actual object name is used by the PFS.
-    Not listing actual object name from the PFS should be OK when there is no
-    space to store it (instead of increasing the MDL_key size). Object name is
-    not used in the key comparisons. So only (mdl_namespace + strlen(db) + 1 +
-    normalized_name_len + 1) value is stored in the m_length member.
+    With the UTF8MB3 charset space reserved for the db name/object
+    name is 64 * 3 bytes. utf8mb3_general_ci collation is used for the
+    Routine, Event and Resource group names. With this collation, the
+    normalized object name uses just 2 bytes for each character (max
+    length = 64 * 2 bytes). MDL_key has still some space to store the
+    object names. If there is a sufficient space for the object name
+    in the MDL_key then it is stored in the MDL_key (similar to the
+    column names in the MDL_key). Actual object name is used by the
+    PFS.  Not listing actual object name from the PFS should be OK
+    when there is no space to store it (instead of increasing the
+    MDL_key size). Object name is not used in the key comparisons. So
+    only (mdl_namespace + strlen(db) + 1 + normalized_name_len + 1)
+    value is stored in the m_length member.
 
     @param  mdl_namespace       Id of namespace of object to be locked.
     @param  db                  Name of database to which the object belongs.

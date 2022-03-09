@@ -61,7 +61,7 @@ View_routine_usage::View_routine_usage() {
               Object_table_definition_impl::fs_name_collation()->m_coll_name));
   m_target_def.add_field(FIELD_ROUTINE_NAME, "FIELD_ROUTINE_NAME",
                          "routine_name VARCHAR(64) NOT NULL COLLATE "
-                         " utf8_general_ci");
+                         " utf8mb3_general_ci");
 
   m_target_def.add_index(INDEX_PK_VIEW_ID_ROUTINE_CATALOG,
                          "INDEX_PK_VIEW_ID_ROUTINE_CATALOG",

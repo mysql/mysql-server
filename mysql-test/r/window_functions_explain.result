@@ -440,7 +440,7 @@ CREATE VIEW v AS
 SELECT i, j, SUM(i+j) OVER (ORDER BY j DESC ROWS UNBOUNDED PRECEDING) foo FROM t;
 SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t`.`i` AS `i`,`t`.`j` AS `j`,sum((`t`.`i` + `t`.`j`)) OVER (ORDER BY `t`.`j` desc ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)  AS `foo` from `t`	utf8mb3	utf8_general_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t`.`i` AS `i`,`t`.`j` AS `j`,sum((`t`.`i` + `t`.`j`)) OVER (ORDER BY `t`.`j` desc ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)  AS `foo` from `t`	utf8mb3	utf8mb3_general_ci
 EXPLAIN FORMAT=JSON SELECT * FROM v;
 EXPLAIN
 {
@@ -4349,7 +4349,7 @@ WINDOW w AS (PARTITION BY sex ORDER BY id
 ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING);
 SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t1`.`id` AS `id`,sum(`t1`.`id`) OVER `w` AS `SUM(id) OVER w`,`t1`.`sex` AS `sex` from `t1` window `w` AS (PARTITION BY `t1`.`sex` ORDER BY `t1`.`id` ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING) 	utf8mb3	utf8_general_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t1`.`id` AS `id`,sum(`t1`.`id`) OVER `w` AS `SUM(id) OVER w`,`t1`.`sex` AS `sex` from `t1` window `w` AS (PARTITION BY `t1`.`sex` ORDER BY `t1`.`id` ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING) 	utf8mb3	utf8mb3_general_ci
 EXPLAIN FORMAT=JSON SELECT * FROM v;
 EXPLAIN
 {
@@ -6886,7 +6886,7 @@ CREATE VIEW v AS
 SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
 SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t1`.`id` AS `id`,first_value(`t1`.`id`) OVER `w` AS `FIRST_VALUE(id) OVER w` from `t1` window `w` AS (ORDER BY `t1`.`id` RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING) 	utf8mb3	utf8_general_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t1`.`id` AS `id`,first_value(`t1`.`id`) OVER `w` AS `FIRST_VALUE(id) OVER w` from `t1` window `w` AS (ORDER BY `t1`.`id` RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING) 	utf8mb3	utf8mb3_general_ci
 EXPLAIN FORMAT=JSON SELECT * FROM v;
 EXPLAIN
 {
@@ -9083,7 +9083,7 @@ CREATE VIEW v AS
 SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
 SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t_date`.`id` AS `id`,first_value(`t_date`.`id`) OVER `w` AS `FIRST_VALUE(id) OVER w` from `t_date` window `w` AS (ORDER BY `t_date`.`id` RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING) 	utf8mb3	utf8_general_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t_date`.`id` AS `id`,first_value(`t_date`.`id`) OVER `w` AS `FIRST_VALUE(id) OVER w` from `t_date` window `w` AS (ORDER BY `t_date`.`id` RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING) 	utf8mb3	utf8mb3_general_ci
 EXPLAIN FORMAT=JSON SELECT * FROM v;
 EXPLAIN
 {
@@ -9264,7 +9264,7 @@ CREATE VIEW v AS
 SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id RANGE BETWEEN INTERVAL 2 DAY FOLLOWING AND INTERVAL 3 DAY FOLLOWING);
 SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t_date`.`id` AS `id`,first_value(`t_date`.`id`) OVER `w` AS `FIRST_VALUE(id) OVER w` from `t_date` window `w` AS (ORDER BY `t_date`.`id` RANGE BETWEEN INTERVAL 2 day  FOLLOWING AND INTERVAL 3 day  FOLLOWING) 	utf8mb3	utf8_general_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t_date`.`id` AS `id`,first_value(`t_date`.`id`) OVER `w` AS `FIRST_VALUE(id) OVER w` from `t_date` window `w` AS (ORDER BY `t_date`.`id` RANGE BETWEEN INTERVAL 2 day  FOLLOWING AND INTERVAL 3 day  FOLLOWING) 	utf8mb3	utf8mb3_general_ci
 EXPLAIN FORMAT=JSON SELECT * FROM v;
 EXPLAIN
 {
@@ -12464,7 +12464,7 @@ w AS (w0 ORDER BY t),
 w1 AS (w RANGE BETWEEN INTERVAL 24 HOUR  PRECEDING AND INTERVAL '2:2' MINUTE_SECOND FOLLOWING);
 SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select count(0) OVER `w0` AS `COUNT(*) OVER w0`,count(0) OVER `w` AS `COUNT(*) OVER w`,count(0) OVER `w1` AS `COUNT(*) OVER w1` from `t6` window `w0` AS () , `w` AS (`w0` ORDER BY `t6`.`t` ) , `w1` AS (`w` RANGE BETWEEN INTERVAL 24 hour  PRECEDING AND INTERVAL '2:2' minute_second  FOLLOWING) 	utf8mb3	utf8_general_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select count(0) OVER `w0` AS `COUNT(*) OVER w0`,count(0) OVER `w` AS `COUNT(*) OVER w`,count(0) OVER `w1` AS `COUNT(*) OVER w1` from `t6` window `w0` AS () , `w` AS (`w0` ORDER BY `t6`.`t` ) , `w1` AS (`w` RANGE BETWEEN INTERVAL 24 hour  PRECEDING AND INTERVAL '2:2' minute_second  FOLLOWING) 	utf8mb3	utf8mb3_general_ci
 EXPLAIN FORMAT=JSON SELECT * FROM v;
 EXPLAIN
 {

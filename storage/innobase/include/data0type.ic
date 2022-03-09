@@ -53,7 +53,7 @@ static inline bool dtype_is_utf8(ulint prtype) /*!< in: precise data type */
   switch (dtype_get_charset_coll(prtype)) {
     case 11: /* ascii_general_ci */
     case 65: /* ascii_bin */
-    case 33: /* utf8_general_ci */
+    case 33: /* utf8mb3_general_ci */
     case 83: /* utf8mb3_bin */
       return true;
   }

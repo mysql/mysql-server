@@ -774,10 +774,10 @@ Warning	1292	Truncated incorrect DECIMAL value: '-19999999999999999999'
 GET DIAGNOSTICS CONDITION 1 @var1 = MESSAGE_TEXT, @var2 = CLASS_ORIGIN;
 SELECT CHARSET(@var1), COLLATION(@var1), COERCIBILITY(@var1);
 CHARSET(@var1)	COLLATION(@var1)	COERCIBILITY(@var1)
-utf8mb3	utf8_general_ci	2
+utf8mb3	utf8mb3_general_ci	2
 SELECT CHARSET(@var2), COLLATION(@var2), COERCIBILITY(@var2);
 CHARSET(@var2)	COLLATION(@var2)	COERCIBILITY(@var2)
-utf8mb3	utf8_general_ci	2
+utf8mb3	utf8mb3_general_ci	2
 #
 # Command statistics
 #

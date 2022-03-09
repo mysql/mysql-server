@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -242,7 +242,7 @@ static void read_server_cost_constants(THD *thd, TABLE *table,
   /*
     The server constant table has the following columns:
 
-    cost_name   VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+    cost_name   VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci
     cost_value  FLOAT DEFAULT NULL
     last_update TIMESTAMP
     comment     VARCHAR(1024) DEFAULT NULL
@@ -305,9 +305,9 @@ static void read_engine_cost_constants(THD *thd, TABLE *table,
   /*
     The engine constant table has the following columns:
 
-    engine_name VARCHAR(64) NOT NULL COLLATE utf8_general_ci,
+    engine_name VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci,
     device_type INTEGER NOT NULL,
-    cost_name   VARCHAR(64) NOT NULL COLLATE utf8_general_ci,
+    cost_name   VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci,
     cost_value  FLOAT DEFAULT NULL,
     last_update TIMESTAMP
     comment     VARCHAR(1024) DEFAULT NULL,

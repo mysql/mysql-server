@@ -1766,7 +1766,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` char(10) CHARACTER SET utf8mb3 COLLATE utf8_general_ci DEFAULT NULL
+  `v` char(10) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (v varchar(10), c char(10)) row_format=fixed;
@@ -1819,7 +1819,7 @@ Note	1246	Converting column 'v' from VARCHAR to TEXT
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` mediumtext CHARACTER SET utf8mb3 COLLATE utf8_general_ci
+  `v` mediumtext CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (v varchar(65535)) charset latin1;
@@ -2437,7 +2437,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 
 MyISAM file:         MYSQLD_DATADIR/test/t1
 Record format:       Packed
-Collation:           utf8_general_ci (33)
+Collation:           utf8mb3_general_ci (33)
 Data records:                    0  Deleted blocks:                 0
 Recordlength:                   94
 

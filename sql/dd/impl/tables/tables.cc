@@ -68,7 +68,7 @@ Tables::Tables() {
                          "NOT NULL");
   m_target_def.add_field(FIELD_ENGINE, "FIELD_ENGINE",
                          "engine VARCHAR(64) NOT NULL "
-                         "COLLATE utf8_general_ci");
+                         "COLLATE utf8mb3_general_ci");
   m_target_def.add_field(FIELD_MYSQL_VERSION_ID, "FIELD_MYSQL_VERSION_ID",
                          "mysql_version_id INT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_ROW_FORMAT, "FIELD_ROW_FORMAT",

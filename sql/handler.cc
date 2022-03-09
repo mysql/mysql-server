@@ -4506,7 +4506,7 @@ int handler::check_collation_compatibility() {
               cs_number == 23 || /* cp1251_ukrainian_ci - bug #29461 */
               cs_number == 26)) || /* cp1250_general_ci - bug #29461 */
             (mysql_version < 50124 &&
-             (cs_number == 33 || /* utf8_general_ci - bug #27877 */
+             (cs_number == 33 || /* utf8mb3_general_ci - bug #27877 */
               cs_number == 35))) /* ucs2_general_ci - bug #27877 */
           return HA_ADMIN_NEEDS_UPGRADE;
       }

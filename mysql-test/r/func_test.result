@@ -368,7 +368,7 @@ DROP TABLE t1, t2;
 #              MULTIBYTE STRINGS TO NUMBERS
 #
 select greatest(1,_utf16'.',_utf8'');
-ERROR HY000: Illegal mix of collations (latin1_swedish_ci,NUMERIC), (utf16_general_ci,COERCIBLE), (utf8_general_ci,COERCIBLE) for operation 'greatest'
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,NUMERIC), (utf16_general_ci,COERCIBLE), (utf8mb3_general_ci,COERCIBLE) for operation 'greatest'
 #
 # Bug#25123839: LEAST AND GREATEST MAKES INCONSISTENT DATA TYPES,
 # COMPARED TO UNION AND COALESCE

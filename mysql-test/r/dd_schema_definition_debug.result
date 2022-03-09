@@ -183,9 +183,9 @@ catalogs	CREATE TABLE `catalogs` (
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 character_sets	CREATE TABLE `character_sets` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   `default_collation_id` bigint unsigned NOT NULL,
-  `comment` varchar(2048) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL,
+  `comment` varchar(2048) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   `mb_max_length` int unsigned NOT NULL,
   `options` mediumtext COLLATE utf8mb3_bin,
   PRIMARY KEY (`id`),
@@ -195,7 +195,7 @@ character_sets	CREATE TABLE `character_sets` (
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 collations	CREATE TABLE `collations` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   `character_set_id` bigint unsigned NOT NULL,
   `is_compiled` tinyint(1) NOT NULL,
   `sort_length` int unsigned NOT NULL,
@@ -275,7 +275,7 @@ dd_properties	CREATE TABLE `dd_properties` (
 events	CREATE TABLE `events` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `schema_id` bigint unsigned NOT NULL,
-  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   `definer` varchar(288) COLLATE utf8mb3_bin NOT NULL,
   `time_zone` varchar(64) COLLATE utf8mb3_bin NOT NULL,
   `definition` longblob NOT NULL,
@@ -323,7 +323,7 @@ foreign_keys	CREATE TABLE `foreign_keys` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `schema_id` bigint unsigned NOT NULL,
   `table_id` bigint unsigned NOT NULL,
-  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   `unique_constraint_name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_tolower_ci DEFAULT NULL,
   `match_option` enum('NONE','PARTIAL','FULL') COLLATE utf8mb3_bin NOT NULL,
   `update_rule` enum('NO ACTION','RESTRICT','CASCADE','SET NULL','SET DEFAULT') COLLATE utf8mb3_bin NOT NULL,
@@ -388,7 +388,7 @@ indexes	CREATE TABLE `indexes` (
   `options` mediumtext COLLATE utf8mb3_bin,
   `se_private_data` mediumtext COLLATE utf8mb3_bin,
   `tablespace_id` bigint unsigned DEFAULT NULL,
-  `engine` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL,
+  `engine` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   `engine_attribute` json DEFAULT NULL,
   `secondary_engine_attribute` json DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -448,7 +448,7 @@ parameters	CREATE TABLE `parameters` (
   `routine_id` bigint unsigned NOT NULL,
   `ordinal_position` int unsigned NOT NULL,
   `mode` enum('IN','OUT','INOUT') COLLATE utf8mb3_bin DEFAULT NULL,
-  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_general_ci DEFAULT NULL,
+  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
   `data_type` enum('MYSQL_TYPE_DECIMAL','MYSQL_TYPE_TINY','MYSQL_TYPE_SHORT','MYSQL_TYPE_LONG','MYSQL_TYPE_FLOAT','MYSQL_TYPE_DOUBLE','MYSQL_TYPE_NULL','MYSQL_TYPE_TIMESTAMP','MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24','MYSQL_TYPE_DATE','MYSQL_TYPE_TIME','MYSQL_TYPE_DATETIME','MYSQL_TYPE_YEAR','MYSQL_TYPE_NEWDATE','MYSQL_TYPE_VARCHAR','MYSQL_TYPE_BIT','MYSQL_TYPE_TIMESTAMP2','MYSQL_TYPE_DATETIME2','MYSQL_TYPE_TIME2','MYSQL_TYPE_NEWDECIMAL','MYSQL_TYPE_ENUM','MYSQL_TYPE_SET','MYSQL_TYPE_TINY_BLOB','MYSQL_TYPE_MEDIUM_BLOB','MYSQL_TYPE_LONG_BLOB','MYSQL_TYPE_BLOB','MYSQL_TYPE_VAR_STRING','MYSQL_TYPE_STRING','MYSQL_TYPE_GEOMETRY','MYSQL_TYPE_JSON') COLLATE utf8mb3_bin NOT NULL,
   `data_type_utf8` mediumtext COLLATE utf8mb3_bin NOT NULL,
   `is_zerofill` tinyint(1) DEFAULT NULL,
@@ -467,7 +467,7 @@ parameters	CREATE TABLE `parameters` (
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 resource_groups	CREATE TABLE `resource_groups` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `resource_group_name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL,
+  `resource_group_name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   `resource_group_type` enum('SYSTEM','USER') COLLATE utf8mb3_bin NOT NULL,
   `resource_group_enabled` tinyint(1) NOT NULL,
   `cpu_id_mask` varchar(1024) COLLATE utf8mb3_bin NOT NULL,
@@ -479,7 +479,7 @@ resource_groups	CREATE TABLE `resource_groups` (
 routines	CREATE TABLE `routines` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `schema_id` bigint unsigned NOT NULL,
-  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   `type` enum('FUNCTION','PROCEDURE') COLLATE utf8mb3_bin NOT NULL,
   `result_data_type` enum('MYSQL_TYPE_DECIMAL','MYSQL_TYPE_TINY','MYSQL_TYPE_SHORT','MYSQL_TYPE_LONG','MYSQL_TYPE_FLOAT','MYSQL_TYPE_DOUBLE','MYSQL_TYPE_NULL','MYSQL_TYPE_TIMESTAMP','MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24','MYSQL_TYPE_DATE','MYSQL_TYPE_TIME','MYSQL_TYPE_DATETIME','MYSQL_TYPE_YEAR','MYSQL_TYPE_NEWDATE','MYSQL_TYPE_VARCHAR','MYSQL_TYPE_BIT','MYSQL_TYPE_TIMESTAMP2','MYSQL_TYPE_DATETIME2','MYSQL_TYPE_TIME2','MYSQL_TYPE_NEWDECIMAL','MYSQL_TYPE_ENUM','MYSQL_TYPE_SET','MYSQL_TYPE_TINY_BLOB','MYSQL_TYPE_MEDIUM_BLOB','MYSQL_TYPE_LONG_BLOB','MYSQL_TYPE_BLOB','MYSQL_TYPE_VAR_STRING','MYSQL_TYPE_STRING','MYSQL_TYPE_GEOMETRY','MYSQL_TYPE_JSON') COLLATE utf8mb3_bin DEFAULT NULL,
   `result_data_type_utf8` mediumtext COLLATE utf8mb3_bin NOT NULL,
@@ -538,10 +538,10 @@ schemata	CREATE TABLE `schemata` (
 st_spatial_reference_systems	CREATE TABLE `st_spatial_reference_systems` (
   `id` int unsigned NOT NULL,
   `catalog_id` bigint unsigned NOT NULL,
-  `name` varchar(80) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL,
+  `name` varchar(80) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   `last_altered` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `organization` varchar(256) CHARACTER SET utf8mb3 COLLATE utf8_general_ci DEFAULT NULL,
+  `organization` varchar(256) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
   `organization_coordsys_id` int unsigned DEFAULT NULL,
   `definition` varchar(4096) COLLATE utf8mb3_bin NOT NULL,
   `description` varchar(2048) COLLATE utf8mb3_bin DEFAULT NULL,
@@ -567,7 +567,7 @@ table_partitions	CREATE TABLE `table_partitions` (
   `number` smallint unsigned NOT NULL,
   `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_tolower_ci NOT NULL,
   `description_utf8` text COLLATE utf8mb3_bin,
-  `engine` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL,
+  `engine` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   `comment` varchar(2048) COLLATE utf8mb3_bin NOT NULL,
   `options` mediumtext COLLATE utf8mb3_bin,
   `se_private_data` mediumtext COLLATE utf8mb3_bin,
@@ -605,7 +605,7 @@ tables	CREATE TABLE `tables` (
   `schema_id` bigint unsigned NOT NULL,
   `name` varchar(64) <LCTN dependent collation> NOT NULL,
   `type` enum('BASE TABLE','VIEW','SYSTEM VIEW') COLLATE utf8mb3_bin NOT NULL,
-  `engine` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL,
+  `engine` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   `mysql_version_id` int unsigned NOT NULL,
   `row_format` enum('Fixed','Dynamic','Compressed','Redundant','Compact','Paged') COLLATE utf8mb3_bin DEFAULT NULL,
   `collation_id` bigint unsigned DEFAULT NULL,
@@ -669,7 +669,7 @@ tablespaces	CREATE TABLE `tablespaces` (
   `options` mediumtext COLLATE utf8mb3_bin,
   `se_private_data` mediumtext COLLATE utf8mb3_bin,
   `comment` varchar(2048) COLLATE utf8mb3_bin NOT NULL,
-  `engine` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL,
+  `engine` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   `engine_attribute` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
@@ -677,7 +677,7 @@ tablespaces	CREATE TABLE `tablespaces` (
 triggers	CREATE TABLE `triggers` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `schema_id` bigint unsigned NOT NULL,
-  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   `event_type` enum('INSERT','UPDATE','DELETE') COLLATE utf8mb3_bin NOT NULL,
   `table_id` bigint unsigned NOT NULL,
   `action_timing` enum('BEFORE','AFTER') COLLATE utf8mb3_bin NOT NULL,
@@ -709,7 +709,7 @@ view_routine_usage	CREATE TABLE `view_routine_usage` (
   `view_id` bigint unsigned NOT NULL,
   `routine_catalog` varchar(64) <LCTN dependent collation> NOT NULL,
   `routine_schema` varchar(64) <LCTN dependent collation> NOT NULL,
-  `routine_name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL,
+  `routine_name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   PRIMARY KEY (`view_id`,`routine_catalog`,`routine_schema`,`routine_name`),
   KEY `routine_catalog` (`routine_catalog`,`routine_schema`,`routine_name`),
   CONSTRAINT `view_routine_usage_ibfk_1` FOREIGN KEY (`view_id`) REFERENCES `tables` (`id`)

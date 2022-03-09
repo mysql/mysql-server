@@ -433,7 +433,8 @@ bool create_system_views(THD *thd, bool is_non_dd_based) {
   Implicit_substatement_state_guard substatement_guard(thd);
 
   resolve_charset("utf8mb3", system_charset_info, &m_client_cs);
-  resolve_collation("utf8_general_ci", system_charset_info, &m_connection_cl);
+  resolve_collation("utf8mb3_general_ci", system_charset_info,
+                    &m_connection_cl);
 
   thd->variables.character_set_client = m_client_cs;
   thd->variables.collation_connection = m_connection_cl;

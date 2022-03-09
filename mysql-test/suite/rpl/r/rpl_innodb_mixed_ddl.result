@@ -30,13 +30,13 @@ DROP DATABASE IF EXISTS test_rpl_1;
 CREATE DATABASE test_rpl_1 CHARACTER SET utf8 COLLATE utf8_general_ci;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 ALTER DATABASE test_rpl_1 CHARACTER SET latin1 COLLATE latin1_general_ci;
 DROP DATABASE test_rpl_1;
 CREATE DATABASE test_rpl CHARACTER SET utf8 COLLATE utf8_general_ci;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 ALTER DATABASE test_rpl CHARACTER SET latin1 COLLATE latin1_swedish_ci;
 ==========MASTER==========
 SHOW DATABASES LIKE 'test_rpl%';

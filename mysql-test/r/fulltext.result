@@ -410,10 +410,10 @@ INSERT t1 VALUES ("Это мы - опилки"),("Отлезь, гнида!"),
 ("Не влезай, убьет!"),("и будет прав!");
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('ОПИЛКИ');
 t	collation(t)
-Это мы - опилки	utf8_general_ci
+Это мы - опилки	utf8mb3_general_ci
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('ПрА*' IN BOOLEAN MODE);
 t	collation(t)
-и будет прав!	utf8_general_ci
+и будет прав!	utf8mb3_general_ci
 SELECT * FROM t1 WHERE MATCH t AGAINST ('это' IN BOOLEAN MODE);
 t
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('OsnabrЭck');
@@ -421,12 +421,12 @@ t	collation(t)
 SET NAMES latin1;
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('OsnabrЭck');
 t	collation(t)
-aus OsnabrЭck	utf8_general_ci
+aus OsnabrЭck	utf8mb3_general_ci
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrueck');
 t	collation(t)
 SELECT t, collation(t),FORMAT(MATCH t AGAINST ('Osnabruck'),6) FROM t1 WHERE MATCH t AGAINST ('Osnabruck');
 t	collation(t)	FORMAT(MATCH t AGAINST ('Osnabruck'),6)
-aus OsnabrЭck	utf8_general_ci	1.591140
+aus OsnabrЭck	utf8mb3_general_ci	1.591140
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 alter table t1 modify t varchar(200) collate latin1_german2_ci not null;
 Warnings:

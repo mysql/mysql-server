@@ -75,7 +75,8 @@ static const char *charset_list[] = {
 
     "ujis_japanese_ci",   "ujis_bin",
 
-    "utf8_general_ci",    "utf8_unicode_ci", "utf8mb3_bin",
+    "utf8mb3_general_ci", "utf8mb3_unicode_ci",
+    "utf8mb3_bin",
 };
 
 class LikeRangeTest : public ::testing::TestWithParam<const char *> {

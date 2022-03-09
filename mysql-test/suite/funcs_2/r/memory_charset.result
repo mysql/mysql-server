@@ -17493,7 +17493,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_bin;
@@ -20042,7 +20042,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_czech_ci;
@@ -22591,7 +22591,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_danish_ci;
@@ -25140,7 +25140,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_estonian_ci;
@@ -27689,7 +27689,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_general_ci;
@@ -30238,7 +30238,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_hungarian_ci;
@@ -32787,7 +32787,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_icelandic_ci;
@@ -35336,7 +35336,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_latvian_ci;
@@ -37885,7 +37885,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_lithuanian_ci;
@@ -40434,7 +40434,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_persian_ci;
@@ -42983,7 +42983,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_polish_ci;
@@ -45532,7 +45532,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_roman_ci;
@@ -48081,7 +48081,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_romanian_ci;
@@ -50630,7 +50630,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_slovak_ci;
@@ -53179,7 +53179,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_slovenian_ci;
@@ -55728,7 +55728,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_spanish2_ci;
@@ -58277,7 +58277,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_spanish_ci;
@@ -60826,7 +60826,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_swedish_ci;
@@ -63375,7 +63375,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_turkish_ci;
@@ -65924,7 +65924,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_unicode_ci;
@@ -78643,12 +78643,12 @@ USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_general_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_general_ci;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
+t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8mb3_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;

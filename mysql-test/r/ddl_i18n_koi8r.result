@@ -63,7 +63,7 @@ koi8r_general_ci	binary
 
 SELECT COLLATION(c1) FROM v2|
 COLLATION(c1)
-utf8_general_ci
+utf8mb3_general_ci
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 
@@ -123,7 +123,7 @@ koi8r_general_ci	binary
 
 SELECT COLLATION(c1) FROM v2|
 COLLATION(c1)
-utf8_general_ci
+utf8mb3_general_ci
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 
@@ -188,7 +188,7 @@ koi8r_general_ci	binary
 
 SELECT COLLATION(c1) FROM v2|
 COLLATION(c1)
-utf8_general_ci
+utf8mb3_general_ci
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 
@@ -492,7 +492,7 @@ CALL p1(@a, @b)|
 c1	c2	c3
 utf8mb3_unicode_ci	utf8mb3_unicode_ci	utf8mb3_unicode_ci
 c4	c5	c6	c7	c8
-koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
+koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r
 Warnings:
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
@@ -503,21 +503,21 @@ utf8mb3_unicode_ci	utf8mb3_unicode_ci
 
 CALL p2(@a, @b)|
 c1	c2	c3
-utf8_general_ci	utf8_general_ci	utf8_general_ci
+utf8mb3_general_ci	utf8mb3_general_ci	utf8mb3_general_ci
 c4	c5	c6	c7	c8
-koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
+koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT COLLATION(@a) AS ca, COLLATION(@b) cb|
 ca	cb
-utf8_general_ci	utf8_general_ci
+utf8mb3_general_ci	utf8mb3_general_ci
 
 CALL mysqltest2.p3(@a, @b)|
 c1	c2	c3
 utf8mb3_unicode_ci	utf8mb3_unicode_ci	utf8mb3_unicode_ci
 c4	c5	c6	c7	c8
-koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
+koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r
 Warnings:
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
@@ -528,15 +528,15 @@ utf8mb3_unicode_ci	utf8mb3_unicode_ci
 
 CALL mysqltest2.p4(@a, @b)|
 c1	c2	c3
-utf8_general_ci	utf8_general_ci	utf8_general_ci
+utf8mb3_general_ci	utf8mb3_general_ci	utf8mb3_general_ci
 c4	c5	c6	c7	c8
-koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
+koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT COLLATION(@a) AS ca, COLLATION(@b) cb|
 ca	cb
-utf8_general_ci	utf8_general_ci
+utf8mb3_general_ci	utf8mb3_general_ci
 
 
 ALTER DATABASE mysqltest1 COLLATE cp866_general_ci|
@@ -550,16 +550,16 @@ CALL p1(@a, @b)|
 c1	c2	c3
 utf8mb3_unicode_ci	utf8mb3_unicode_ci	utf8mb3_unicode_ci
 c4	c5	c6	c7	c8
-koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
+koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r
 Warnings:
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL p2(@a, @b)|
 c1	c2	c3
-utf8_general_ci	utf8_general_ci	utf8_general_ci
+utf8mb3_general_ci	utf8mb3_general_ci	utf8mb3_general_ci
 c4	c5	c6	c7	c8
-koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
+koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -567,16 +567,16 @@ CALL mysqltest2.p3(@a, @b)|
 c1	c2	c3
 utf8mb3_unicode_ci	utf8mb3_unicode_ci	utf8mb3_unicode_ci
 c4	c5	c6	c7	c8
-koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
+koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r
 Warnings:
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL mysqltest2.p4(@a, @b)|
 c1	c2	c3
-utf8_general_ci	utf8_general_ci	utf8_general_ci
+utf8mb3_general_ci	utf8mb3_general_ci	utf8mb3_general_ci
 c4	c5	c6	c7	c8
-koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
+koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -766,37 +766,37 @@ CALL p1(@a, @b)|
 c1	c2	c3
 utf8mb3_unicode_ci	utf8mb3_unicode_ci	utf8mb3_unicode_ci
 c4	c5	c6	c7	c8
-koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
+koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r
 SELECT COLLATION(@a) AS ca, COLLATION(@b) cb|
 ca	cb
 utf8mb3_unicode_ci	utf8mb3_unicode_ci
 
 CALL p2(@a, @b)|
 c1	c2	c3
-utf8_general_ci	utf8_general_ci	utf8_general_ci
+utf8mb3_general_ci	utf8mb3_general_ci	utf8mb3_general_ci
 c4	c5	c6	c7	c8
-koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
+koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r
 SELECT COLLATION(@a) AS ca, COLLATION(@b) cb|
 ca	cb
-utf8_general_ci	utf8_general_ci
+utf8mb3_general_ci	utf8mb3_general_ci
 
 CALL mysqltest2.p3(@a, @b)|
 c1	c2	c3
 utf8mb3_unicode_ci	utf8mb3_unicode_ci	utf8mb3_unicode_ci
 c4	c5	c6	c7	c8
-koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
+koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r
 SELECT COLLATION(@a) AS ca, COLLATION(@b) cb|
 ca	cb
 utf8mb3_unicode_ci	utf8mb3_unicode_ci
 
 CALL mysqltest2.p4(@a, @b)|
 c1	c2	c3
-utf8_general_ci	utf8_general_ci	utf8_general_ci
+utf8mb3_general_ci	utf8mb3_general_ci	utf8mb3_general_ci
 c4	c5	c6	c7	c8
-koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
+koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r
 SELECT COLLATION(@a) AS ca, COLLATION(@b) cb|
 ca	cb
-utf8_general_ci	utf8_general_ci
+utf8mb3_general_ci	utf8mb3_general_ci
 
 ---> Dump of mysqltest1
 
@@ -966,16 +966,16 @@ CALL p1(@a, @b)|
 c1	c2	c3
 utf8mb3_unicode_ci	utf8mb3_unicode_ci	utf8mb3_unicode_ci
 c4	c5	c6	c7	c8
-koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
+koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r
 Warnings:
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL p2(@a, @b)|
 c1	c2	c3
-utf8_general_ci	utf8_general_ci	utf8_general_ci
+utf8mb3_general_ci	utf8mb3_general_ci	utf8mb3_general_ci
 c4	c5	c6	c7	c8
-koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
+koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -983,16 +983,16 @@ CALL mysqltest2.p3(@a, @b)|
 c1	c2	c3
 utf8mb3_unicode_ci	utf8mb3_unicode_ci	utf8mb3_unicode_ci
 c4	c5	c6	c7	c8
-koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
+koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r
 Warnings:
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL mysqltest2.p4(@a, @b)|
 c1	c2	c3
-utf8_general_ci	utf8_general_ci	utf8_general_ci
+utf8mb3_general_ci	utf8mb3_general_ci	utf8mb3_general_ci
 c4	c5	c6	c7	c8
-koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
+koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -1182,37 +1182,37 @@ CALL p1(@a, @b)|
 c1	c2	c3
 utf8mb3_unicode_ci	utf8mb3_unicode_ci	utf8mb3_unicode_ci
 c4	c5	c6	c7	c8
-koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
+koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r
 SELECT COLLATION(@a) AS ca, COLLATION(@b) cb|
 ca	cb
 utf8mb3_unicode_ci	utf8mb3_unicode_ci
 
 CALL p2(@a, @b)|
 c1	c2	c3
-utf8_general_ci	utf8_general_ci	utf8_general_ci
+utf8mb3_general_ci	utf8mb3_general_ci	utf8mb3_general_ci
 c4	c5	c6	c7	c8
-koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
+koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r
 SELECT COLLATION(@a) AS ca, COLLATION(@b) cb|
 ca	cb
-utf8_general_ci	utf8_general_ci
+utf8mb3_general_ci	utf8mb3_general_ci
 
 CALL mysqltest2.p3(@a, @b)|
 c1	c2	c3
 utf8mb3_unicode_ci	utf8mb3_unicode_ci	utf8mb3_unicode_ci
 c4	c5	c6	c7	c8
-koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
+koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r
 SELECT COLLATION(@a) AS ca, COLLATION(@b) cb|
 ca	cb
 utf8mb3_unicode_ci	utf8mb3_unicode_ci
 
 CALL mysqltest2.p4(@a, @b)|
 c1	c2	c3
-utf8_general_ci	utf8_general_ci	utf8_general_ci
+utf8mb3_general_ci	utf8mb3_general_ci	utf8mb3_general_ci
 c4	c5	c6	c7	c8
-koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
+koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r
 SELECT COLLATION(@a) AS ca, COLLATION(@b) cb|
 ca	cb
-utf8_general_ci	utf8_general_ci
+utf8mb3_general_ci	utf8mb3_general_ci
 
 ---> connection: default
 use test|
@@ -1512,9 +1512,9 @@ koi8r_general_ci
 koi8r_general_ci
 koi8r_general_ci
 koi8r_general_ci
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
+utf8mb3_general_ci
+utf8mb3_general_ci
+utf8mb3_general_ci
 utf8mb3_unicode_ci
 
 SELECT
@@ -1525,7 +1525,7 @@ COLLATION(@b1) AS cb1,
 COLLATION(@b2) AS cb2,
 COLLATION(@b3) AS cb3|
 ca1	ca2	ca3	cb1	cb2	cb3
-koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci
+koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci
 
 DELETE FROM log|
 
@@ -1543,9 +1543,9 @@ koi8r_general_ci
 koi8r_general_ci
 koi8r_general_ci
 koi8r_general_ci
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
+utf8mb3_general_ci
+utf8mb3_general_ci
+utf8mb3_general_ci
 utf8mb3_unicode_ci
 
 SELECT
@@ -1556,7 +1556,7 @@ COLLATION(@b1) AS cb1,
 COLLATION(@b2) AS cb2,
 COLLATION(@b3) AS cb3|
 ca1	ca2	ca3	cb1	cb2	cb3
-koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci
+koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci
 
 DELETE FROM mysqltest2.log|
 
@@ -1781,9 +1781,9 @@ koi8r_general_ci
 koi8r_general_ci
 koi8r_general_ci
 koi8r_general_ci
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
+utf8mb3_general_ci
+utf8mb3_general_ci
+utf8mb3_general_ci
 utf8mb3_unicode_ci
 
 SELECT
@@ -1794,7 +1794,7 @@ COLLATION(@b1) AS cb1,
 COLLATION(@b2) AS cb2,
 COLLATION(@b3) AS cb3|
 ca1	ca2	ca3	cb1	cb2	cb3
-koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci
+koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci
 
 DELETE FROM log|
 
@@ -1812,9 +1812,9 @@ koi8r_general_ci
 koi8r_general_ci
 koi8r_general_ci
 koi8r_general_ci
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
+utf8mb3_general_ci
+utf8mb3_general_ci
+utf8mb3_general_ci
 utf8mb3_unicode_ci
 
 SELECT
@@ -1825,7 +1825,7 @@ COLLATION(@b1) AS cb1,
 COLLATION(@b2) AS cb2,
 COLLATION(@b3) AS cb3|
 ca1	ca2	ca3	cb1	cb2	cb3
-koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci
+koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci
 
 DELETE FROM mysqltest2.log|
 
@@ -2208,9 +2208,9 @@ koi8r_general_ci
 koi8r_general_ci
 koi8r_general_ci
 koi8r_general_ci
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
+utf8mb3_general_ci
+utf8mb3_general_ci
+utf8mb3_general_ci
 utf8mb3_unicode_ci
 
 SELECT
@@ -2221,7 +2221,7 @@ COLLATION(@b1) AS cb1,
 COLLATION(@b2) AS cb2,
 COLLATION(@b3) AS cb3|
 ca1	ca2	ca3	cb1	cb2	cb3
-koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci
+koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci
 
 DELETE FROM log|
 
@@ -2239,9 +2239,9 @@ koi8r_general_ci
 koi8r_general_ci
 koi8r_general_ci
 koi8r_general_ci
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
+utf8mb3_general_ci
+utf8mb3_general_ci
+utf8mb3_general_ci
 utf8mb3_unicode_ci
 
 SELECT
@@ -2252,7 +2252,7 @@ COLLATION(@b1) AS cb1,
 COLLATION(@b2) AS cb2,
 COLLATION(@b3) AS cb3|
 ca1	ca2	ca3	cb1	cb2	cb3
-koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci
+koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci	koi8r_general_ci	utf8mb3_general_ci	koi8r_general_ci
 
 DELETE FROM mysqltest2.log|
 

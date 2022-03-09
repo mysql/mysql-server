@@ -54,13 +54,15 @@ Plugin_table table_rpl_async_connection_failover_managed::m_table_def(
     /* Name */
     "replication_asynchronous_connection_failover_managed",
     /* Definition */
-    " CHANNEL_NAME CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8_general_ci "
+    " CHANNEL_NAME CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci "
     "NOT NULL COMMENT 'The replication channel name that connects source and "
     "replica.',\n"
-    " MANAGED_NAME CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT "
+    " MANAGED_NAME CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci "
+    "NOT "
     "NULL"
     " DEFAULT '' COMMENT 'The name of the source which needs to be managed.',\n"
-    " MANAGED_TYPE CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT "
+    " MANAGED_TYPE CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci "
+    "NOT "
     "NULL"
     " DEFAULT '' COMMENT 'Determines the managed type.',\n"
     " CONFIGURATION JSON DEFAULT NULL COMMENT 'The data to help manage group. "

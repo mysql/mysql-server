@@ -4915,7 +4915,7 @@ bool LEX::set_channel_name(LEX_CSTRING name) {
     /*
       Channel names are case insensitive. This means, even the results
       displayed to the user are converted to lower cases.
-      system_charset_info is utf8_general_ci as required by channel name
+      system_charset_info is utf8mb3_general_ci as required by channel name
       restrictions
     */
     char *buf = thd->strmake(name.str, name.length);

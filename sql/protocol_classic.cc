@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -405,7 +405,7 @@
   Number |  Hex  | Character Set Name
   -------|-------|-------------------
        8 |  0x08 | @ref my_charset_latin1 "latin1_swedish_ci"
-      33 |  0x21 | @ref my_charset_utf8_general_ci "utf8_general_ci"
+      33 |  0x21 | @ref my_charset_utf8_general_ci "utf8mb3_general_ci"
       63 |  0x3f | @ref my_charset_bin "binary"
 
 

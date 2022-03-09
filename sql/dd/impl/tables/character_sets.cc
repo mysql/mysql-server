@@ -73,7 +73,7 @@ Character_sets::Character_sets() {
                          "default_collation_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_COMMENT, "FIELD_COMMENT",
                          "comment VARCHAR(2048)"
-                         " COLLATE utf8_general_ci NOT NULL");
+                         " COLLATE utf8mb3_general_ci NOT NULL");
   m_target_def.add_field(FIELD_MB_MAX_LENGTH, "FIELD_MB_MAX_LENGTH",
                          "mb_max_length INT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_OPTIONS, "FIELD_OPTIONS", "options MEDIUMTEXT");

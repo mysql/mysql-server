@@ -73,7 +73,7 @@ Spatial_reference_systems::Spatial_reference_systems() {
                          "DEFAULT CURRENT_TIMESTAMP");
   m_target_def.add_field(FIELD_ORGANIZATION, "FIELD_ORGANIZATION",
                          "organization CHARACTER VARYING(256)\n"
-                         "COLLATE utf8_general_ci");
+                         "COLLATE utf8mb3_general_ci");
   m_target_def.add_field(FIELD_ORGANIZATION_COORDSYS_ID,
                          "FIELD_ORGANIZATION_COORDSYS_ID",
                          "organization_coordsys_id INTEGER UNSIGNED");
