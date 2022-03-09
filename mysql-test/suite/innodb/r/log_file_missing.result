@@ -1,5 +1,5 @@
 # Initialize new data directory...
-# restart: --datadir=DATADIR --log-error=ERROR_LOG --innodb-redo-log-capacity=8388608
+# restart: --datadir=DATADIR --log-error=ERROR_LOG --innodb-redo-log-capacity=8388608 --innodb_page_size=INNODB_PAGE_SIZE
 # Prepare schema used in the tests.
 # Disable checkpointing.
 SET GLOBAL innodb_checkpoint_disabled = ON;
@@ -9,4 +9,4 @@ CALL log_spammer();
 There are >= 3 non-temporary redo log files.
 # Kill the server
 Pattern "Missing redo log file .* \(with start_lsn = REDO_FILE_START_LSN\)" found
-# restart:
+# restart: --innodb_page_size=INNODB_PAGE_SIZE
