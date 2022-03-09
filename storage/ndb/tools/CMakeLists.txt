@@ -161,7 +161,7 @@ NDB_ADD_EXECUTABLE(ndb_import
   ${LINK_NDBCLIENT}
   COMPONENT ClusterTools
   ENABLE_EXPORTS
-  LINK_LIBRARIES ndbtools
+  LINK_LIBRARIES ndbtools ndbgeneral
   )
 
 NDB_ADD_TEST(NdbImportUtil-t NdbImportUtil.cpp
