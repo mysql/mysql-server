@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1104,10 +1104,8 @@ dberr_t Builder::copy_row(Copy_ctx &ctx, size_t &mv_rows_added) noexcept {
     if (unlikely(!key_buffer->will_fit(ctx.m_data_size))) {
       if (!is_multi_value_index) {
         ctx.m_n_rows_added = 0;
-        return DB_OVERFLOW;
-      } else {
-        return DB_SUCCESS;
       }
+      return DB_OVERFLOW;
     }
 
     key_buffer->deep_copy(ctx.m_n_fields, ctx.m_data_size);
