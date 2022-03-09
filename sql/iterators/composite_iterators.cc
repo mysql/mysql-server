@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -835,7 +835,8 @@ bool MaterializeIterator::MaterializeQueryBlock(const QueryBlock &query_block,
 
     // TODO(sgunders): Consider doing this in some iterator instead.
     if (join->m_windows.elements > 0 && !join->m_windowing_steps) {
-      // Initialize state of window functions as end_write_wf() will be shortcut
+      // Initialize state of window functions as window access path
+      // will be shortcut.
       for (Window &w : join->m_windows) {
         w.reset_all_wf_state();
       }
@@ -986,6 +987,16 @@ bool StreamingIterator::Init() {
 
   if (m_provide_rowid) {
     memset(table()->file->ref, 0, table()->file->ref_length);
+  }
+
+  if (m_join != nullptr) {
+    if (m_join->m_windows.elements > 0 && !m_join->m_windowing_steps) {
+      // Initialize state of window functions as window access path
+      // will be shortcut.
+      for (Window &w : m_join->m_windows) {
+        w.reset_all_wf_state();
+      }
+    }
   }
 
   m_input_slice = m_join->get_ref_item_slice();
