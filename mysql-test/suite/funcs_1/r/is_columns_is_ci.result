@@ -500,6 +500,7 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 3.0000	enum	utf8mb3	utf8mb3_bin
 3.0000	set	utf8mb3	utf8mb3_bin
 3.0000	varchar	utf8mb3	utf8mb3_bin
+3.0000	varchar	utf8mb3	utf8mb3_tolower_ci
 3.0000	char	utf8mb3	utf8_general_ci
 3.0000	set	utf8mb3	utf8_general_ci
 3.0000	varchar	utf8mb3	utf8_general_ci
@@ -511,7 +512,6 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 3.2000	varchar	utf8mb3	utf8_general_ci
 3.3333	varchar	utf8mb3	utf8_general_ci
 4.0000	varchar	utf8mb3	utf8_general_ci
-3.0000	varchar	utf8mb3	utf8_tolower_ci
 4.0000	varchar	utf8mb4	utf8mb4_0900_ai_ci
 SELECT DISTINCT
 CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
