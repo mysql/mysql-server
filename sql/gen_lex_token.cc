@@ -144,7 +144,7 @@ struct gen_lex_token_string {
   - mode named tokens from bison (sql_yacc.yy).
   See also YYMAXUTOK.
 */
-const int MY_MAX_TOKEN = 1200;
+const int MY_MAX_TOKEN = 1201;
 
 gen_lex_token_string compiled_token_array[MY_MAX_TOKEN];
 

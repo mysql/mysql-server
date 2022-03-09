@@ -103,6 +103,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/item_strfunc.h"
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"
+#include "sql/a_star.h"
 #include "sql/item_timefunc.h"
 #include "sql/json_dom.h"
 #include "sql/json_syntax_check.h"           // is_valid_json_syntax
@@ -1367,6 +1368,7 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> CHALLENGE_RESPONSE_SYM     1198      /* MYSQL */
 
 %token<lexer.keyword> GTID_ONLY_SYM 1199                       /* MYSQL */
+%token<lexer.keyword> ST_SHORTEST_DIR_PATH_SYM 1200            /*MYSQL*/
 
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
@@ -11100,6 +11102,16 @@ sum_expr:
                                                             Json_object};
             if (object == nullptr) YYABORT;
             $$ = NEW_PTN Item_sum_json_object(
+                @$, $3, $5, $7, std::move(wrapper), std::move(object));
+          }
+        | ST_SHORTEST_DIR_PATH_SYM '(' in_sum_expr ',' in_sum_expr ')' opt_windowing_clause
+          {
+            auto wrapper = make_unique_destroy_only<Json_wrapper>(YYMEM_ROOT);
+            if (wrapper == nullptr) YYABORT;
+            unique_ptr_destroy_only<Json_object> object{::new (YYMEM_ROOT)
+                                                            Json_object};
+            if (object == nullptr) YYABORT;
+            $$ = NEW_PTN a_star_ting (
                 @$, $3, $5, $7, std::move(wrapper), std::move(object));
           }
         | ST_COLLECT_SYM '(' in_sum_expr ')' opt_windowing_clause
