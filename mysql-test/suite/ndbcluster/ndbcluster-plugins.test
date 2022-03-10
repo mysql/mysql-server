@@ -1,0 +1,67 @@
+source include/have_ndb.inc;
+
+echo # All three ndb-plugins should be ENABLED;
+SELECT RPAD(PLUGIN_NAME, 33, ' ') 'PLUGIN_NAME                      ',
+       LOAD_OPTION, PLUGIN_STATUS, PLUGIN_TYPE
+  FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME LIKE 'ndb%'
+  ORDER BY PLUGIN_NAME;
+echo;
+
+echo # Both ndb-engines should be enabled (SUPPORT YES);
+SELECT RPAD(ENGINE, 10, ' ') 'ENGINE    ', SUPPORT
+  FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE LIKE 'ndb%' ORDER BY ENGINE;
+echo;
+
+echo # ndb schemas;
+SELECT DISTINCT TABLE_SCHEMA FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_SCHEMA LIKE 'ndb%' ORDER BY TABLE_SCHEMA;
+echo;
+
+echo # ndb tables;
+SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE
+  FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE 'ndb%'
+  ORDER BY TABLE_SCHEMA, TABLE_NAME;
+echo;
+
+echo # There should be many ndb variables;
+SELECT COUNT(*) >= 69 FROM performance_schema.session_variables
+  WHERE variable_name LIKE 'ndb%';
+
+echo MYSQLD --help --verbose # ALL OFF;
+let $ndb_exec_command= $MYSQLD --no-defaults --help --verbose;
+let $ndb_exec_select= REGEXP_LIKE(output_line,
+                 '^(ndbcluster|ndbinfo|ndb-transid-mysql-connection-map) .*');
+let $ndb_exec_project= output_line;
+source suite/ndb/include/ndb_exec.inc;
+
+echo MYSQLD --ndbcluster=0 --ndbinfo --help --verbose # ALL OFF;
+let $ndb_exec_command= $MYSQLD --no-defaults --ndbcluster=0 --ndbinfo --help
+                               --verbose;
+let $ndb_exec_select= REGEXP_LIKE(output_line,
+                 '^(ndbcluster|ndbinfo|ndb-transid-mysql-connection-map) .*');
+let $ndb_exec_project= output_line;
+source suite/ndb/include/ndb_exec.inc;
+
+echo MYSQLD --ndbcluster --help --verbose # ALL ON;
+let $ndb_exec_command= $MYSQLD --no-defaults --ndbcluster --help --verbose;
+let $ndb_exec_select= REGEXP_LIKE(output_line,
+                 '^(ndbcluster|ndbinfo|ndb-transid-mysql-connection-map) .*');
+let $ndb_exec_project= output_line;
+source suite/ndb/include/ndb_exec.inc;
+
+echo MYSQLD --ndbcluster=1 --ndbinfo=0  --help --verbose # ndbinfo OFF;
+let $ndb_exec_command= $MYSQLD --no-defaults --ndbcluster=1 --ndbinfo=0 --help
+                               --verbose;
+let $ndb_exec_select= REGEXP_LIKE(output_line,
+                 '^(ndbcluster|ndbinfo|ndb-transid-mysql-connection-map) .*');
+let $ndb_exec_project= output_line;
+source suite/ndb/include/ndb_exec.inc;
+
+echo MYSQLD --ndbcluster=1 --ndb-transid-mysql-connection-map=0 --help
+                            --verbose # ndb-transid-mysql-connection-map OFF;
+let $ndb_exec_command= $MYSQLD --no-defaults --ndbcluster=1
+                       --ndb-transid-mysql-connection-map=0 --help --verbose;
+let $ndb_exec_select= REGEXP_LIKE(output_line,
+                 '^(ndbcluster|ndbinfo|ndb-transid-mysql-connection-map) .*');
+let $ndb_exec_project= output_line;
+source suite/ndb/include/ndb_exec.inc;

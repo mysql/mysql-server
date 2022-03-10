@@ -18520,7 +18520,7 @@ mysql_declare_plugin(ndbcluster){
     ndb_status_vars,   /* status variables */
     system_variables,  /* system variables */
     NULL,              /* config options */
-    0                  /* flags */
+    PLUGIN_OPT_DEFAULT_OFF | PLUGIN_OPT_DEPENDENT_EXTRA_PLUGINS /* flags */
 },
     ndbinfo_plugin,
     ndb_transid_mysql_connection_map_table mysql_declare_plugin_end;
