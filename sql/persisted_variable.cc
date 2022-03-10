@@ -921,7 +921,10 @@ void Persisted_variables_cache::set_parse_early_sources() {
   set_persisted_options() will set the options read from persisted config file
 
   This function does nothing when --no-defaults is set or if
-  persisted_globals_load is set to false
+  persisted_globals_load is set to false.
+  Initial call to set_persisted_options(false) is needed to initialize
+  m_persisted_dynamic_plugin_variables set, so that next subsequent
+  set_persisted_options(true) calls will work with correct state.
 
    @param [in] plugin_options      Flag which tells what options are being set.
                                    If set to false non dynamically-registered
