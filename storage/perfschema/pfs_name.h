@@ -28,6 +28,8 @@
   Object names (declarations).
 */
 
+#include <string.h>
+
 #include "m_ctype.h"
 #include "my_hostname.h"  // HOSTNAME_LENGTH
 #include "mysql_com.h"    // NAME_LEN
