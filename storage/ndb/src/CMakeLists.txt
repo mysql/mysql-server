@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -40,19 +40,6 @@ FOREACH(warning
   IF(HAS_WARN_FLAG)
     STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
     STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
-  ENDIF()
-ENDFOREACH()
-
-##################
-# Temporary C++ 8 workarounds:
-# (not supported for C, so only set CXX_FLAGS)
-FOREACH(warning
-    # Workaround for bug#28387760, also failed other places then in NdbEvent*
-    "class-memaccess"
-    )
-  MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
-  IF(HAS_WARN_FLAG)
-    STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
   ENDIF()
 ENDFOREACH()
 
