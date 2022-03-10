@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define T_READONLY (1UL << 16)
 #define T_REP (1UL << 17)
 #define T_REP_BY_SORT (1UL << 18)
-#define T_REP_PARALLEL (1UL << 19)
+#define T_REP_PARALLEL_OBSOLETE (1UL << 19)
 #define T_RETRY_WITHOUT_QUICK (1UL << 20)
 #define T_SAFE_REPAIR (1UL << 21)
 #define T_SILENT (1UL << 22)
@@ -68,6 +68,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define T_WAIT_FOREVER (1UL << 30)
 #define T_WRITE_LOOP (1UL << 31)
 
-#define T_REP_ANY (T_REP | T_REP_BY_SORT | T_REP_PARALLEL)
+#define T_REP_ANY (T_REP | T_REP_BY_SORT)
 
 #endif
