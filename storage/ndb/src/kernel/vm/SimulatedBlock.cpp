@@ -2308,6 +2308,30 @@ SimulatedBlock::allocChunks(AllocChunk dst[],
     m_ctx.m_mm.alloc_pages(rg, &dst[i].ptrI, &cnt, 1);
     if (unlikely(cnt == 0))
       goto fail;
+    // DBLQH error range since this function is only used there.
+    if (ERROR_INSERTED(5107))
+    {
+      /*
+       * Try chop up the allocation in chunks, with unused pages between the
+       * chunks.
+       *
+       * First allocation will typically succeed allocate all memory, we keep
+       * the last pages in the range.  Then the next allocation will also
+       * succeed to allocate all remaining pages (if there are enough page
+       * memory), we keep the last pages again, and there will be a gap between
+       * the chunks.  If there are too little page memory, allocation may
+       * succeed reusing the gaps and there might not be gaps between the
+       * chunks, if that happen try configure more page memory for test.
+       */
+      const Uint32 min_pages_per_chunk = pages / (arraysize - i) + 1;
+      if (cnt > min_pages_per_chunk)
+      {
+        const Uint32 gap_pages = cnt - min_pages_per_chunk;
+        m_ctx.m_mm.release_pages(rg, dst[i].ptrI, gap_pages);
+        dst[i].ptrI += gap_pages;
+        cnt -= gap_pages;
+      }
+    }
     pages -= cnt;
     dst[i].cnt = cnt;
   }

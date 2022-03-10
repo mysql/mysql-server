@@ -1976,13 +1976,14 @@ public:
 
   void check_cache_page_ptr_i(LogPartRecord *logPartPtrP, Uint32 cachePagePtrI)
   {
-    ndbrequire(cachePagePtrI < logPartPtrP->logPageCount);
+    ndbrequire(cachePagePtrI < logPartPtrP->logPageFileSize);
   }
   void check_log_page_ptr_i(LogPartRecord *logPartPtrP, Uint32 logPagePtrI)
   {
     LogPartRecord::RedoPageCache *cache = &logPartPtrP->m_redo_page_cache;
     ndbrequire(logPagePtrI >= cache->m_first_page &&
-               logPagePtrI < (cache->m_first_page + logPartPtrP->logPageCount));
+               logPagePtrI <
+                   (cache->m_first_page + logPartPtrP->logPageFileSize));
   }
   Uint32 get_cache_i_val(LogPartRecord *logPartPtrP, Uint32 logPagePtrI)
   {
@@ -3796,8 +3797,10 @@ private:
   void remove_commit_marker(TcConnectionrec * const regTcPtr);
   // Initialisation
   void initData();
-  void initRecords(const ndb_mgm_configuration_iterator *mgm_cfg);
-protected:
+  void initRecords(const ndb_mgm_configuration_iterator* mgm_cfg,
+                   Uint64 logPageFilesize);
+
+ protected:
   bool getParam(const char* name, Uint32* count) override;
 
 public:
@@ -4059,8 +4062,6 @@ private:
 // RedoBuffer/32K minimum ZLFO_MIN_FILE_SIZE
   LogFileOperationRecord *logFileOperationRecord;
   UintR clfoFileSize;
-
-  UintR clogPageFileSize;
 
 #define ZPAGE_REF_FILE_SIZE 20
   PageRefRecord *pageRefRecord;

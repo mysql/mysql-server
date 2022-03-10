@@ -2194,21 +2194,22 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   /**
    * Always set page size in half MBytes
    */
-  clogPageFileSize= (log_page_size / sizeof(LogPageRecord));
-  Uint32 mega_byte_part= clogPageFileSize & 15;
-  if (mega_byte_part != 0) {
+  Uint64 logPageFileSize = (log_page_size / sizeof(LogPageRecord));
+  Uint32 mega_byte_part = logPageFileSize & 15;
+  if (mega_byte_part != 0)
+  {
     jam();
-    clogPageFileSize+= (16 - mega_byte_part);
+    logPageFileSize += (16 - mega_byte_part);
   }
   /**
    * We use one REDO log buffer per log part, thus LDM instances
    * with no REDO log part need no buffer and instances with
    * multiple log parts need more REDO buffer.
    */
-  clogPageFileSize *= clogPartFileSize;
+  logPageFileSize *= clogPartFileSize;
 
   /* maximum number of log file operations */
-  clfoFileSize = clogPageFileSize;
+  clfoFileSize = logPageFileSize;
   if (clfoFileSize < ZLFO_MIN_FILE_SIZE &&
       clfoFileSize != 0)
   {
@@ -2222,7 +2223,7 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   if (m_is_query_block)
   {
     clfoFileSize = 0;
-    clogPageFileSize = 0;
+    logPageFileSize = 0;
     clogFileFileSize = 0;
   }
 
@@ -2383,8 +2384,8 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
 
   ndb_mgm_get_int_parameter(p, CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT, 
                             &cTransactionDeadlockDetectionTimeout);
-  
-  initRecords(p);
+
+  initRecords(p, logPageFileSize);
   initialiseRecordsLab(signal, 0, ref, senderData);
 
   c_max_redo_lag = 30;
@@ -34914,10 +34915,11 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
     {
       ptrAss(logPartPtr, logPartRecord);
-      infoEvent("LQH: REDO Log pages, part %u : %d Free: %d",
+      infoEvent("LQH: REDO Log pages, part %u : Free: %u of %u, range size %u",
                 logPartPtr.p->logPartNo,
-	        clogPageFileSize / clogPartFileSize,
-	        logPartPtr.p->noOfFreeLogPages);
+                logPartPtr.p->noOfFreeLogPages,
+                logPartPtr.p->logPageCount,
+                logPartPtr.p->logPageFileSize);
     }
   }
 
