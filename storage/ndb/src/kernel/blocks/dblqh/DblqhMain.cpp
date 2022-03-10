@@ -19238,7 +19238,9 @@ Dblqh::send_prepare_copy_frag_conf(Signal *signal,
 void Dblqh::execCOPY_FRAGREQ(Signal* signal) 
 {
   jamEntry();
+  ndbrequire(signal->getLength() >= CopyFragReq::SignalLength);
   const CopyFragReq * const copyFragReq = (CopyFragReq *)&signal->theData[0];
+
   tabptr.i = copyFragReq->tableId;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   const Uint32 fragId = copyFragReq->fragId;
@@ -19246,26 +19248,25 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   const Uint32 userRef = copyFragReq->userRef;
   const Uint32 nodeId = copyFragReq->nodeId;
   const Uint32 gci = copyFragReq->gci;
-  
+  const Uint32 schemaVersion = copyFragReq->schemaVersion;
+  const Uint32 distributionKey = copyFragReq->distributionKey;
+  const Uint32 tableId = copyFragReq->tableId;
+
   ndbrequire(cnoActiveCopy < 3);
   ndbrequire(getFragmentrec(fragId));
   ndbrequire(cfirstfreeTcConrec != RNIL);
 
   Uint32 nodeCount = copyFragReq->nodeCount;
+  ndbrequire(signal->getLength() >= CopyFragReq::SignalLength + nodeCount)
+
   NdbNodeBitmask nodemask;
   {
     ndbrequire(nodeCount <= MAX_REPLICAS);
     for (Uint32 i = 0; i < nodeCount; i++)
       nodemask.set(copyFragReq->nodeList[i]);
   }
-  Uint32 maxPage = copyFragReq->nodeList[nodeCount];
-  Uint32 requestInfo = copyFragReq->nodeList[nodeCount + 1];
-
-  if (signal->getLength() < CopyFragReq::SignalLength + nodeCount)
-  {
-    jam();
-    requestInfo = CopyFragReq::CFR_TRANSACTIONAL;
-  }
+  const Uint32 maxPage = copyFragReq->nodeList[nodeCount];
+  const Uint32 requestInfo = copyFragReq->nodeList[nodeCount + 1];
 
   if (requestInfo == CopyFragReq::CFR_NON_TRANSACTIONAL)
   {
@@ -19273,7 +19274,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   }
   else
   {
-    fragptr.p->fragDistributionKey = copyFragReq->distributionKey;
+    fragptr.p->fragDistributionKey = distributionKey;
   }
   Uint32 key = fragptr.p->fragDistributionKey;
 
@@ -19316,7 +19317,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
                  UpdateFragDistKeyOrd::SignalLength, JBB);
     }
   }
-  if (c_copy_fragment_ongoing && copyFragReq->nodeCount > 0)
+  if (c_copy_fragment_ongoing && nodeCount > 0)
   {
     jam();
     /**
@@ -19330,13 +19331,17 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
      */
     CopyFragRecordPtr copy_fragptr;
     ndbrequire(c_copy_fragment_pool.seize(copy_fragptr));
-    copy_fragptr.p->m_copy_fragreq = *copyFragReq;
-    Uint32 nodeCount = copyFragReq->nodeCount;
+    copy_fragptr.p->m_copy_fragreq.userPtr = copyPtr;
+    copy_fragptr.p->m_copy_fragreq.userRef = userRef;
+    copy_fragptr.p->m_copy_fragreq.tableId = tableId;
+    copy_fragptr.p->m_copy_fragreq.fragId = fragId;
+    copy_fragptr.p->m_copy_fragreq.nodeId = nodeId;
+    copy_fragptr.p->m_copy_fragreq.schemaVersion = schemaVersion;
+    copy_fragptr.p->m_copy_fragreq.distributionKey = distributionKey;
+    copy_fragptr.p->m_copy_fragreq.gci = gci;
     copy_fragptr.p->m_copy_fragreq.nodeCount = 0;
-    copy_fragptr.p->m_copy_fragreq.nodeList[0] =
-      copy_fragptr.p->m_copy_fragreq.nodeList[nodeCount];
-    copy_fragptr.p->m_copy_fragreq.nodeList[1] =
-      copy_fragptr.p->m_copy_fragreq.nodeList[nodeCount + 1];
+    copy_fragptr.p->m_copy_fragreq.nodeList[0] = maxPage;
+    copy_fragptr.p->m_copy_fragreq.nodeList[1] = requestInfo;
     c_copy_fragment_queue.addLast(copy_fragptr);
     return;
   }
@@ -19384,7 +19389,6 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   {
     const Uint32 tcPtrI = tcConnectptr.i;
     const Uint32 fragPtrI = fragptr.i;
-    const Uint32 schemaVersion = copyFragReq->schemaVersion;
     const BlockReference myRef = reference();
     const BlockReference tupRef = ctupBlockref;
 
