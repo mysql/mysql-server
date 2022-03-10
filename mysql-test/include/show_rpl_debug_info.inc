@@ -3,20 +3,15 @@
 # Print status information for replication, typically used to debug
 # test failures.
 #
-# The following is printed on the current connection:
+# First, various debug-related queries are executed on every server
+# configured in rpl_init.inc or master-slave.inc.
 #
-#   SELECT NOW(), @@SERVER_ID, @@SERVER_UUID
-#   SHOW REPLICA STATUS
-#   SHOW MASTER STATUS
-#   SHOW PROCESSLIST
-#   SHOW BINLOG EVENTS IN <binlog_name>
+# Then, global/server-independent debug information is printed.
 #
-# Where <binlog_name> is the currently active binlog.
-#
-# Then, the same is printed from all connections configured by
-# rpl_init.inc - i.e., on connection server_N, where
-# 1 <= N <= $rpl_server_count
-#
+# This script tries to put the most commonly useful information in a
+# summarized form last, since mtr echoes the last 30 lines of the test
+# log to stdout. The full log remains in the var dir, but sometimes that
+# is hard to access whereas mtr's stdout is usually always accessible.
 #
 # ==== Usage ====
 #
@@ -321,6 +316,31 @@ if ($extra_debug_eval) {
   --echo extra evaluated debug expression: '$extra_debug_eval'
   --echo extra evaluated debug info: '$eval_result'
 }
+
+# Print tests executing prior to the current one.
+--connection default
+--let ERROR_LOG_FILENAME = `SELECT IF(@@global.log_error = 'stderr', '$MYSQLTEST_VARDIR/log/mysqld.1.err', @@global.log_error)`
+perl;
+  my $ef = $ENV{'ERROR_LOG_FILENAME'};
+  open ERROR_FILE, "< $ef" or die "Error $? opening $ef: $!";
+  my @tests = ();
+  for my $line (<ERROR_FILE>) {
+    chomp($line);
+    if ($line =~ s/^CURRENT_TEST://) {
+      push(@tests, $line);
+    }
+  }
+  my $test_count = scalar(@tests);
+  if ($test_count <= 20) {
+    print("$test_count tests executed in this mtr thread:");
+  } else {
+    print("$test_count tests executed in this mtr thread; showing the last 20:");
+    @tests = @tests[$test_count-20..$test_count];
+  }
+  print(@tests);
+  print("\n");
+  close ERROR_FILE or die "Error $? closing $ef: $!";
+EOF
 
 --echo last error log entry:$_log_errors
 
