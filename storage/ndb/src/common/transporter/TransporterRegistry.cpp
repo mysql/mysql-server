@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3358,7 +3358,6 @@ TransporterRegistry::start_clients_thread()
 	  if (!connected && t->get_s_port() <= 0) // Port is dynamic
           {
 	    int server_port= 0;
-	    struct ndb_mgm_reply mgm_reply;
             unlockMultiTransporters();
 
             DBUG_PRINT("info", ("connection to node %d should use "
@@ -3378,8 +3377,7 @@ TransporterRegistry::start_clients_thread()
 						     t->getRemoteNodeId(),
 						     t->getLocalNodeId(),
 						     CFG_CONNECTION_SERVER_PORT,
-						     &server_port,
-						     &mgm_reply);
+                                                     &server_port);
 
 	      DBUG_PRINT("info",("Got dynamic port %d for %d -> %d (ret: %d)",
 				 server_port,t->getRemoteNodeId(),
