@@ -50,6 +50,11 @@ let $query= INSERT INTO t SELECT MAX(i1), FLOOR(RAND(0)*1000)
 ANALYZE TABLE t;
 eval EXPLAIN $query;
 eval $query;
-SELECT * FROM t;
+# It depends on the plan which i1 is paired with which i2, so check
+# each column separately.
+--sorted_result
+SELECT i1 FROM t;
+--sorted_result
+SELECT i2 FROM t;
 
 DROP TABLE t;

@@ -94,15 +94,26 @@ Note	1003	insert into `test`.`t` /* select#1 */ select sql_buffer_result max(`te
 + EXTRACT(YEAR FROM NOW()) DIV 1000` from `test`.`t` group by `test`.`t`.`i2`
 INSERT INTO t SELECT MAX(i1), FLOOR(RAND(0)*1000)
 + EXTRACT(YEAR FROM NOW()) DIV 1000 FROM t GROUP BY i2;
-SELECT * FROM t;
-i1	i2
-NULL	157
-1	1
-2	2
-3	3
-3	157
-3	157
-1	622
-2	640
-3	333
+SELECT i1 FROM t;
+i1
+1
+1
+2
+2
+3
+3
+3
+3
+NULL
+SELECT i2 FROM t;
+i2
+1
+157
+157
+157
+2
+3
+333
+622
+640
 DROP TABLE t;

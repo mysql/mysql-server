@@ -1036,8 +1036,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
 
       if (hidden_field_count <= 0) {
         if (thd->lex->current_query_block()->is_implicitly_grouped() &&
-            (item->used_tables() & ~(RAND_TABLE_BIT | INNER_TABLE_BIT)) == 0 &&
-            !item->has_rollup_expr()) {
+            (item->used_tables() & ~(RAND_TABLE_BIT | INNER_TABLE_BIT)) == 0) {
           /*
             This will be evaluated exactly once, regardless of the number
             of rows in the temporary table, as there is only one result row.
