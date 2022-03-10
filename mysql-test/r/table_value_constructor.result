@@ -127,7 +127,7 @@ column_1	decimal(2,1)	NO		0.0
 column_2	double	NO		0	
 column_3	varchar(10)	NO			
 column_4	varchar(10)	NO			
-column_5	varchar(1)	NO			
+column_5	varchar(2)	NO			
 column_6	longblob	YES		NULL	
 column_7	longtext	YES		NULL	
 DROP TABLE t;
@@ -655,3 +655,23 @@ column_0	column_1
 column_0	column_1
 1	9
 2	4
+# Bug#32783943: Item_field::fix_outer_field: assertion `cur_query_block
+CREATE TABLE t (w INTEGER);
+SELECT (VALUES ROW(1) ORDER BY t) AS a FROM t;
+ERROR 42S22: Unknown column 't' in 'order clause'
+SELECT (VALUES ROW(1) ORDER BY w) AS a FROM t;
+a
+DROP TABLE t;
+#
+# BUG#32858783 ASSERTION `NULLPTR != DYNAMIC_CAST<TARGET>(ARG)' FAILED.
+#
+CREATE TABLE t1(a INT);
+CREATE VIEW v1 AS SELECT a FROM t1;
+INSERT INTO v1 VALUES() AS c(a);
+INSERT INTO v1 VALUES(5) AS c(a);
+SELECT * FROM v1;
+a
+NULL
+5
+DROP VIEW v1;
+DROP TABLE t1;

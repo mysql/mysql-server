@@ -37,7 +37,7 @@
  assert((value) >= (min) && (value) <= (max))
 #define ASSERT_MAX(value, max, message) assert((value) <= (max))
 
-#define SECTION(x) STATIC_CONST(x)
+#define SECTION(x) static constexpr Uint32 x
 
 template <typename T>
 inline
@@ -363,6 +363,7 @@ GSN_PRINT_SIGNATURE(printDROP_FK_CONF);
 GSN_PRINT_SIGNATURE(printISOLATE_ORD);
 
 GSN_PRINT_SIGNATURE(printPROCESSINFO_REP);
+GSN_PRINT_SIGNATURE(printTRP_KEEP_ALIVE);
 
 #undef JAM_FILE_ID
 

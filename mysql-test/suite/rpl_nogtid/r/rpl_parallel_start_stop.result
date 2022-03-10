@@ -8,10 +8,10 @@ call mtr.add_suppression("Slave SQL for channel '':.* Could not execute Update_r
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 create view worker_proc_list as SELECT id  from Information_Schema.processlist
 where state like 'Waiting for an event from Coordinator';
-create view coord_proc_list  as SELECT id from Information_Schema.processlist where state like 'Slave has read all relay log%';
+create view coord_proc_list  as SELECT id from Information_Schema.processlist where state like 'Replica has read all relay log%';
 include/stop_slave.inc
-set @save.slave_parallel_workers= @@global.slave_parallel_workers;
-set @@global.slave_parallel_workers= 4;
+set @save.replica_parallel_workers= @@global.replica_parallel_workers;
+set @@global.replica_parallel_workers= 4;
 include/start_slave.inc
 select min(id) from worker_proc_list into @w_id;
 kill query @w_id;
@@ -28,8 +28,8 @@ insert into t1 values (3);
 insert into t1 values (3);
 include/wait_for_slave_sql_to_stop.inc
 delete from t1 where a=3;
-set @save.slave_transaction_retries= @@global.slave_transaction_retries;
-set @@global.slave_transaction_retries= 10;
+set @save.replica_transaction_retries= @@global.replica_transaction_retries;
+set @@global.replica_transaction_retries= 10;
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 delete from t1;
@@ -53,7 +53,7 @@ include/sync_slave_sql_with_master.inc
 stop slave sql_thread;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-set @@global.sql_slave_skip_counter=7;
+set @@global.sql_replica_skip_counter=7;
 begin;
 select max(a) + 1 from t1 into @a;
 insert into t1 set a=@a;
@@ -84,7 +84,7 @@ drop table t2;
 include/sync_slave_sql_with_master.inc
 drop view worker_proc_list;
 drop view coord_proc_list;
-set @@global.slave_transaction_retries= 0;
+set @@global.replica_transaction_retries= 0;
 include/stop_slave.inc
 start slave until sql_after_mts_gaps relay_log_file='dummy';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'relay_log_file='dummy'' at line 1
@@ -127,10 +127,10 @@ start slave until sql_after_mts_gaps;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
-set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+set @@global.replica_parallel_workers= @save.replica_parallel_workers;
 include/start_slave.inc
 drop database d1;
 drop database d2;
 include/sync_slave_sql_with_master.inc
-set @@global.slave_transaction_retries= @save.slave_transaction_retries;
+set @@global.replica_transaction_retries= @save.replica_transaction_retries;
 include/rpl_end.inc

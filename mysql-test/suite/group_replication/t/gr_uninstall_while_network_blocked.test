@@ -36,12 +36,13 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 # Save the variables, for server restart.
 --let $member2_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --echo
 --echo # 1. Kill and restart server 2
---let $restart_parameters=restart:--group_replication_local_address=$member2_group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name
---replace_result $member2_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS2 $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--let $restart_parameters=restart:--group_replication_local_address=$member2_group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --group_replication_communication_stack=$group_replication_comm_stack
+--replace_result $member2_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS2 $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $group_replication_comm_stack GROUP_REPLICATION_COMMUNICATION_STACK
 --source include/kill_and_restart_mysqld.inc
 
 --let $rpl_server_number= 2
@@ -99,8 +100,8 @@ UNINSTALL PLUGIN group_replication;
 --source include/rpl_connection.inc
 
 # terminate send calling reap
---echo # CR_SERVER_LOST, CR_SERVER_GONE_ERROR
---error 2006,2013
+--echo # CR_SERVER_LOST, CR_SERVER_GONE_ERROR or Rollback
+--error 2006,2013,3100
 --reap
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

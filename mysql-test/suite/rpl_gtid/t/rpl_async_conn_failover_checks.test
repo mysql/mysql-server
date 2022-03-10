@@ -31,6 +31,7 @@
 
 --let $use_gtids= 1
 --let $rpl_skip_start_slave= 1
+--source include/not_rpl_gtid_only.inc
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc
@@ -46,12 +47,11 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1;
 --echo #
 --echo # 2. Verify disabling AUTO_POSITION while enabling Asynchronous
 --echo #    Replication Connection Failover results in
---echo #    ER_DISABLE_AUTO_POSITION_REQUIRES_ASYNC_RECONNECT_OFF error.
+--echo #    ER_RPL_ASYNC_RECONNECT_AUTO_POSITION_OFF
 --echo #
 
---error ER_DISABLE_AUTO_POSITION_REQUIRES_ASYNC_RECONNECT_OFF
+--error ER_RPL_ASYNC_RECONNECT_AUTO_POSITION_OFF
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0, SOURCE_CONNECTION_AUTO_FAILOVER=1;
-
 
 --echo #
 --echo # 3. Verify Asynchronous Replication Connection Failover is disabled and
@@ -108,7 +108,9 @@ START SLAVE;
 --echo # 6. Clean up.
 --echo #
 
-CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER = 0, SOURCE_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER = 0;
+SET @@global.gtid_mode = ON_PERMISSIVE;
+SET @@global.gtid_mode = ON;
 
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

@@ -31,6 +31,9 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
 --source include/rpl_connection.inc
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
 --echo
 --echo # 2. Execute switch to single primary mode
 

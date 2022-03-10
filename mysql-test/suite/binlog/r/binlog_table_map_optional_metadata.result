@@ -205,6 +205,8 @@ c_set_4 SET("set4_v1_å", "set4_v2_ä", "set4_v3_ö") CHARACTER SET swe7 COLLATE
 c_set_5 SET("set5_v1_å", "set5_v2_ä", "set5_v3_ö") CHARACTER SET ucs2,
 c_set_6 SET("set6_v1_å", "set6_v2_ä", "set6_v3_ö") CHARACTER SET utf32
 );
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1 VALUES("set1_v1_å", "set2_v2_ä", "set3_v3_ö", "set4_v1_å", "set5_v2_ä", "set6_v3_ö");
 Matching lines are:
@@ -239,6 +241,8 @@ c_enum_4 ENUM("enum4_v1_å", "enum4_v2_ä", "enum4_v3_ö") CHARACTER SET swe7 CO
 c_enum_5 ENUM("enum5_v1_å", "enum5_v2_ä", "enum5_v3_ö") CHARACTER SET ucs2,
 c_enum_6 ENUM("enum6_v1_å", "enum6_v2_ä", "enum6_v3_ö") CHARACTER SET utf32
 );
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1 VALUES("enum1_v1_å", "enum2_v2_ä", "enum3_v3_ö", "enum4_v1_å", "enum5_v2_ä", "enum6_v3_ö");
 Matching lines are:
@@ -420,6 +424,8 @@ c5 VARCHAR(100) CHARSET ucs2 INVISIBLE,
 c6 GEOMETRY INVISIBLE,
 c7 ENUM("enum_v1", "enum_v2", "enum_v3") CHARACTER SET swe7 COLLATE swe7_bin INVISIBLE,
 c8 SET("set_v1", "set_v2", "set_v3") CHARACTER SET swe7 COLLATE swe7_bin INVISIBLE);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET GLOBAL binlog_row_metadata = FULL;
 INSERT INTO t1 VALUES(1);
 Matching lines are:

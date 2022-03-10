@@ -29,8 +29,8 @@
 
 
 struct LqhTransReq {
-  STATIC_CONST( SignalLength = 4 );
-  STATIC_CONST( OldSignalLength = 3 );
+  static constexpr Uint32 SignalLength = 4;
+  static constexpr Uint32 OldSignalLength = 3;
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 failedNodeId;

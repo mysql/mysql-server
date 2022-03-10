@@ -66,7 +66,8 @@ int mi_close_share(MI_INFO *info, bool *closed_share) {
 
   my_free(mi_get_rec_buff_ptr(info, info->rec_buff));
   if (flag) {
-    DBUG_EXECUTE_IF("crash_before_flush_keys", if (share->kfile >= 0) abort(););
+    DBUG_EXECUTE_IF("crash_before_flush_keys",
+                    if (share->kfile >= 0) my_abort(););
     if (share->kfile >= 0 &&
         flush_key_blocks(
             share->key_cache, keycache_thread_var(), share->kfile,

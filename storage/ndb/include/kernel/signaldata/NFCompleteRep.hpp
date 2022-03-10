@@ -45,7 +45,7 @@ struct NFCompleteRep {
 
   friend bool printNF_COMPLETE_REP(FILE *, const Uint32 *, Uint32, Uint16);
   
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
   /**
    * Which block has completed...

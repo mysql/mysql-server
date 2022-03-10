@@ -94,7 +94,7 @@ class Routine : virtual public Entity_object {
   };
 
  public:
-  ~Routine() override {}
+  ~Routine() override = default;
 
  public:
   /////////////////////////////////////////////////////////////////////////
@@ -214,6 +214,14 @@ class Routine : virtual public Entity_object {
     @return pointer to dynamically allocated copy
   */
   virtual Routine *clone() const = 0;
+
+  /**
+    Allocate a new object which can serve as a placeholder for the original
+    object in the Dictionary_client's dropped registry. Such object has the
+    same keys as the original but has no other info and as result occupies
+    less memory.
+  */
+  virtual Routine *clone_dropped_object_placeholder() const = 0;
 
   static void create_mdl_key(enum_routine_type type,
                              const String_type &schema_name,

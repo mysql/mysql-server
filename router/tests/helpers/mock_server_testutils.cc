@@ -31,15 +31,13 @@
 
 #include <gmock/gmock.h>
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
 #include <rapidjson/error/en.h>
 
 #include "config_builder.h"
-#include "mock_server_rest_client.h"
+#include "mysqlrouter/mock_server_rest_client.h"
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
 
@@ -53,7 +51,7 @@ std::string json_to_string(const JsonValue &json_doc) {
 
 JsonValue mock_GR_metadata_as_json(
     const std::string &gr_id, const std::vector<uint16_t> &gr_node_ports,
-    unsigned primary_id, unsigned view_id, bool error_on_md_query,
+    unsigned primary_id, uint64_t view_id, bool error_on_md_query,
     const std::string &gr_node_host,
     const std::vector<uint32_t> &gr_node_xports,
     const std::vector<std::string> &node_attributes) {
@@ -92,7 +90,7 @@ JsonValue mock_GR_metadata_as_json(
   json_doc.AddMember("gr_nodes", gr_nodes_json, allocator);
   json_doc.AddMember("primary_id", static_cast<int>(primary_id), allocator);
   if (view_id > 0) {
-    json_doc.AddMember("view_id", static_cast<int>(view_id), allocator);
+    json_doc.AddMember("view_id", view_id, allocator);
   }
   json_doc.AddMember("error_on_md_query", error_on_md_query ? 1 : 0, allocator);
   json_doc.AddMember(
@@ -105,7 +103,7 @@ JsonValue mock_GR_metadata_as_json(
 
 void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
                        const std::vector<uint16_t> &gr_node_ports,
-                       unsigned primary_id, unsigned view_id,
+                       unsigned primary_id, uint64_t view_id,
                        bool error_on_md_query, const std::string &gr_node_host,
                        const std::vector<uint32_t> &gr_node_xports,
                        const std::vector<std::string> &node_attributes) {
@@ -115,7 +113,7 @@ void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
 
   const auto json_str = json_to_string(json_doc);
 
-  EXPECT_NO_THROW(MockServerRestClient(http_port).set_globals(json_str));
+  ASSERT_NO_THROW(MockServerRestClient(http_port).set_globals(json_str));
 }
 
 void set_mock_bootstrap_data(

@@ -1,12 +1,14 @@
 ############################################################
 # 0. Check that there are no persisted variable settings.
-include/assert.inc ['Expect 0 persisted variables.']
+include/assert.inc [Expect 0 persisted variables.]
 
 ############################################################
 # 1. Initialization. Test SET PERSIST_ONLY. Verify persisted
 #    variables.
 CALL mtr.add_suppression("Unsafe statement written to the binary log");
 # Install semi-sync related plugins
+INSTALL PLUGIN rpl_semi_sync_source SONAME 'SEMISYNC_SOURCE_PLUGIN';
+INSTALL PLUGIN rpl_semi_sync_replica SONAME 'SEMISYNC_REPLICA_PLUGIN';
 CREATE TABLE rplvars (id INT PRIMARY KEY AUTO_INCREMENT, varname VARCHAR(64), varvalue VARCHAR(256));
 INSERT INTO rplvars (varname, varvalue)
 SELECT * FROM performance_schema.global_variables
@@ -15,14 +17,37 @@ VARIABLE_NAME LIKE '%gtid%' OR
 VARIABLE_NAME LIKE '%log_bin%' OR
 VARIABLE_NAME LIKE '%master%' OR
 VARIABLE_NAME LIKE '%relay%' OR
+VARIABLE_NAME LIKE '%replica%' OR
 VARIABLE_NAME LIKE '%rpl%' OR
 VARIABLE_NAME LIKE '%semi_sync%' OR
-VARIABLE_NAME LIKE '%slave%') AND
+VARIABLE_NAME LIKE '%slave%' OR
+VARIABLE_NAME LIKE '%source%') AND
 (VARIABLE_NAME NOT IN ('innodb_api_enable_binlog',
-'innodb_master_thread_disabled_debug'))
+'innodb_master_thread_disabled_debug', 'innodb_replication_delay'))
 ORDER BY VARIABLE_NAME;
+CREATE TABLE non_persisted (name VARCHAR(100) PRIMARY KEY);
+INSERT INTO non_persisted VALUES
+('gtid_executed'), ('gtid_owned'), ('log_bin'), ('log_bin_basename'),
+('log_bin_index'), ('relay_log'), ('relay_log_basename'),
+('relay_log_index'), ('relay_log_info_file'), ('replica_load_tmpdir'),
+('slave_load_tmpdir'), ('log_bin_use_v1_row_events');
+CREATE TABLE aliases (
+name VARCHAR(100) PRIMARY KEY
+);
+INSERT INTO aliases(name) VALUES
+('init_slave'), ('rpl_stop_slave_timeout'), ('log_slow_slave_statements'),
+('slave_max_allowed_packet'), ('slave_compressed_protocol'),
+('slave_exec_mode'), ('slave_type_conversions'),
+('slave_sql_verify_checksum'), ('slave_parallel_type'),
+('slave_preserve_commit_order'), ('master_verify_checksum'),
+('log_slave_updates'), ('slave_allow_batching'), ('slave_load_tmpdir'),
+('slave_net_timeout'), ('sql_slave_skip_counter'), ('slave_skip_errors'),
+('slave_checkpoint_period'), ('slave_checkpoint_group'),
+('sync_master_info'), ('slave_transaction_retries'),
+('slave_parallel_workers'), ('slave_pending_jobs_size_max'),
+('pseudo_slave_mode'), ('skip_slave_start');
 
-include/assert.inc ['Expect 86 variables in the table.']
+include/assert.inc [Expect 113 variables in the table.]
 
 # Test SET PERSIST_ONLY
 SET PERSIST_ONLY binlog_cache_size = @@GLOBAL.binlog_cache_size;
@@ -52,6 +77,7 @@ SET PERSIST_ONLY binlog_transaction_compression_level_zstd = @@GLOBAL.binlog_tra
 SET PERSIST_ONLY binlog_transaction_dependency_history_size = @@GLOBAL.binlog_transaction_dependency_history_size;
 SET PERSIST_ONLY binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
 SET PERSIST_ONLY enforce_gtid_consistency = @@GLOBAL.enforce_gtid_consistency;
+SET PERSIST_ONLY group_replication_consistency = @@GLOBAL.group_replication_consistency;
 SET PERSIST_ONLY gtid_executed = @@GLOBAL.gtid_executed;
 ERROR HY000: Variable 'gtid_executed' is a non persistent read only variable
 SET PERSIST_ONLY gtid_executed_compression_period = @@GLOBAL.gtid_executed_compression_period;
@@ -59,7 +85,11 @@ SET PERSIST_ONLY gtid_mode = @@GLOBAL.gtid_mode;
 SET PERSIST_ONLY gtid_owned = @@GLOBAL.gtid_owned;
 ERROR HY000: Variable 'gtid_owned' is a non persistent read only variable
 SET PERSIST_ONLY gtid_purged = @@GLOBAL.gtid_purged;
+SET PERSIST_ONLY init_replica = @@GLOBAL.init_replica;
 SET PERSIST_ONLY init_slave = @@GLOBAL.init_slave;
+Warnings:
+Warning	1287	'@@init_slave' is deprecated and will be removed in a future release. Please use init_replica instead.
+Warning	1287	'@@init_slave' is deprecated and will be removed in a future release. Please use init_replica instead.
 SET PERSIST_ONLY log_bin = @@GLOBAL.log_bin;
 ERROR HY000: Variable 'log_bin' is a non persistent read only variable
 SET PERSIST_ONLY log_bin_basename = @@GLOBAL.log_bin_basename;
@@ -69,14 +99,25 @@ ERROR HY000: Variable 'log_bin_index' is a non persistent read only variable
 SET PERSIST_ONLY log_bin_trust_function_creators = @@GLOBAL.log_bin_trust_function_creators;
 SET PERSIST_ONLY log_bin_use_v1_row_events = @@GLOBAL.log_bin_use_v1_row_events;
 ERROR HY000: Variable 'log_bin_use_v1_row_events' is a non persistent variable
+SET PERSIST_ONLY log_replica_updates = @@GLOBAL.log_replica_updates;
 SET PERSIST_ONLY log_slave_updates = @@GLOBAL.log_slave_updates;
+Warnings:
+Warning	1287	'@@log_slave_updates' is deprecated and will be removed in a future release. Please use log_replica_updates instead.
+Warning	1287	'@@log_slave_updates' is deprecated and will be removed in a future release. Please use log_replica_updates instead.
+SET PERSIST_ONLY log_slow_replica_statements = @@GLOBAL.log_slow_replica_statements;
 SET PERSIST_ONLY log_slow_slave_statements = @@GLOBAL.log_slow_slave_statements;
+Warnings:
+Warning	1287	'@@log_slow_slave_statements' is deprecated and will be removed in a future release. Please use log_slow_replica_statements instead.
+Warning	1287	'@@log_slow_slave_statements' is deprecated and will be removed in a future release. Please use log_slow_replica_statements instead.
 SET PERSIST_ONLY log_statements_unsafe_for_binlog = @@GLOBAL.log_statements_unsafe_for_binlog;
 SET PERSIST_ONLY master_info_repository = @@GLOBAL.master_info_repository;
 Warnings:
 Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY master_verify_checksum = @@GLOBAL.master_verify_checksum;
+Warnings:
+Warning	1287	'@@master_verify_checksum' is deprecated and will be removed in a future release. Please use source_verify_checksum instead.
+Warning	1287	'@@master_verify_checksum' is deprecated and will be removed in a future release. Please use source_verify_checksum instead.
 SET PERSIST_ONLY max_binlog_cache_size = @@GLOBAL.max_binlog_cache_size;
 SET PERSIST_ONLY max_binlog_size = @@GLOBAL.max_binlog_size;
 SET PERSIST_ONLY max_binlog_stmt_cache_size = @@GLOBAL.max_binlog_stmt_cache_size;
@@ -96,55 +137,136 @@ Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in 
 SET PERSIST_ONLY relay_log_purge = @@GLOBAL.relay_log_purge;
 SET PERSIST_ONLY relay_log_recovery = @@GLOBAL.relay_log_recovery;
 SET PERSIST_ONLY relay_log_space_limit = @@GLOBAL.relay_log_space_limit;
+SET PERSIST_ONLY replica_allow_batching = @@GLOBAL.replica_allow_batching;
+SET PERSIST_ONLY replica_checkpoint_group = @@GLOBAL.replica_checkpoint_group;
+SET PERSIST_ONLY replica_checkpoint_period = @@GLOBAL.replica_checkpoint_period;
+SET PERSIST_ONLY replica_compressed_protocol = @@GLOBAL.replica_compressed_protocol;
+SET PERSIST_ONLY replica_exec_mode = @@GLOBAL.replica_exec_mode;
+SET PERSIST_ONLY replica_load_tmpdir = @@GLOBAL.replica_load_tmpdir;
+ERROR HY000: Variable 'replica_load_tmpdir' is a non persistent read only variable
+SET PERSIST_ONLY replica_max_allowed_packet = @@GLOBAL.replica_max_allowed_packet;
+SET PERSIST_ONLY replica_net_timeout = @@GLOBAL.replica_net_timeout;
+SET PERSIST_ONLY replica_parallel_type = @@GLOBAL.replica_parallel_type;
+SET PERSIST_ONLY replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
+SET PERSIST_ONLY replica_pending_jobs_size_max = @@GLOBAL.replica_pending_jobs_size_max;
+SET PERSIST_ONLY replica_preserve_commit_order = @@GLOBAL.replica_preserve_commit_order;
+SET PERSIST_ONLY replica_skip_errors = @@GLOBAL.replica_skip_errors;
+SET PERSIST_ONLY replica_sql_verify_checksum = @@GLOBAL.replica_sql_verify_checksum;
+SET PERSIST_ONLY replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
+SET PERSIST_ONLY replica_type_conversions = @@GLOBAL.replica_type_conversions;
+SET PERSIST_ONLY replication_optimize_for_static_plugin_config = @@GLOBAL.replication_optimize_for_static_plugin_config;
+SET PERSIST_ONLY replication_sender_observe_commit_only = @@GLOBAL.replication_sender_observe_commit_only;
 SET PERSIST_ONLY rpl_read_size = @@GLOBAL.rpl_read_size;
-SET PERSIST_ONLY rpl_semi_sync_master_enabled = @@GLOBAL.rpl_semi_sync_master_enabled;
-SET PERSIST_ONLY rpl_semi_sync_master_timeout = @@GLOBAL.rpl_semi_sync_master_timeout;
-SET PERSIST_ONLY rpl_semi_sync_master_trace_level = @@GLOBAL.rpl_semi_sync_master_trace_level;
-SET PERSIST_ONLY rpl_semi_sync_master_wait_for_slave_count = @@GLOBAL.rpl_semi_sync_master_wait_for_slave_count;
-SET PERSIST_ONLY rpl_semi_sync_master_wait_no_slave = @@GLOBAL.rpl_semi_sync_master_wait_no_slave;
-SET PERSIST_ONLY rpl_semi_sync_master_wait_point = @@GLOBAL.rpl_semi_sync_master_wait_point;
-SET PERSIST_ONLY rpl_semi_sync_slave_enabled = @@GLOBAL.rpl_semi_sync_slave_enabled;
-SET PERSIST_ONLY rpl_semi_sync_slave_trace_level = @@GLOBAL.rpl_semi_sync_slave_trace_level;
+SET PERSIST_ONLY rpl_semi_sync_replica_enabled = @@GLOBAL.rpl_semi_sync_replica_enabled;
+SET PERSIST_ONLY rpl_semi_sync_replica_trace_level = @@GLOBAL.rpl_semi_sync_replica_trace_level;
+SET PERSIST_ONLY rpl_semi_sync_source_enabled = @@GLOBAL.rpl_semi_sync_source_enabled;
+SET PERSIST_ONLY rpl_semi_sync_source_timeout = @@GLOBAL.rpl_semi_sync_source_timeout;
+SET PERSIST_ONLY rpl_semi_sync_source_trace_level = @@GLOBAL.rpl_semi_sync_source_trace_level;
+SET PERSIST_ONLY rpl_semi_sync_source_wait_for_replica_count = @@GLOBAL.rpl_semi_sync_source_wait_for_replica_count;
+SET PERSIST_ONLY rpl_semi_sync_source_wait_no_replica = @@GLOBAL.rpl_semi_sync_source_wait_no_replica;
+SET PERSIST_ONLY rpl_semi_sync_source_wait_point = @@GLOBAL.rpl_semi_sync_source_wait_point;
+SET PERSIST_ONLY rpl_stop_replica_timeout = @@GLOBAL.rpl_stop_replica_timeout;
 SET PERSIST_ONLY rpl_stop_slave_timeout = @@GLOBAL.rpl_stop_slave_timeout;
+Warnings:
+Warning	1287	'@@rpl_stop_slave_timeout' is deprecated and will be removed in a future release. Please use rpl_stop_replica_timeout instead.
+Warning	1287	'@@rpl_stop_slave_timeout' is deprecated and will be removed in a future release. Please use rpl_stop_replica_timeout instead.
 SET PERSIST_ONLY session_track_gtids = @@GLOBAL.session_track_gtids;
+SET PERSIST_ONLY skip_replica_start = @@GLOBAL.skip_replica_start;
 SET PERSIST_ONLY skip_slave_start = @@GLOBAL.skip_slave_start;
+Warnings:
+Warning	1287	'@@skip_slave_start' is deprecated and will be removed in a future release. Please use skip_replica_start instead.
+Warning	1287	'@@skip_slave_start' is deprecated and will be removed in a future release. Please use skip_replica_start instead.
 SET PERSIST_ONLY slave_allow_batching = @@GLOBAL.slave_allow_batching;
+Warnings:
+Warning	1287	'@@slave_allow_batching' is deprecated and will be removed in a future release. Please use replica_allow_batching instead.
+Warning	1287	'@@slave_allow_batching' is deprecated and will be removed in a future release. Please use replica_allow_batching instead.
 SET PERSIST_ONLY slave_checkpoint_group = @@GLOBAL.slave_checkpoint_group;
+Warnings:
+Warning	1287	'@@slave_checkpoint_group' is deprecated and will be removed in a future release. Please use replica_checkpoint_group instead.
+Warning	1287	'@@slave_checkpoint_group' is deprecated and will be removed in a future release. Please use replica_checkpoint_group instead.
 SET PERSIST_ONLY slave_checkpoint_period = @@GLOBAL.slave_checkpoint_period;
+Warnings:
+Warning	1287	'@@slave_checkpoint_period' is deprecated and will be removed in a future release. Please use replica_checkpoint_period instead.
+Warning	1287	'@@slave_checkpoint_period' is deprecated and will be removed in a future release. Please use replica_checkpoint_period instead.
 SET PERSIST_ONLY slave_compressed_protocol = @@GLOBAL.slave_compressed_protocol;
+Warnings:
+Warning	1287	'@@slave_compressed_protocol' is deprecated and will be removed in a future release. Please use replica_compressed_protocol instead.
+Warning	1287	'@@slave_compressed_protocol' is deprecated and will be removed in a future release. Please use replica_compressed_protocol instead.
 SET PERSIST_ONLY slave_exec_mode = @@GLOBAL.slave_exec_mode;
+Warnings:
+Warning	1287	'@@slave_exec_mode' is deprecated and will be removed in a future release. Please use replica_exec_mode instead.
+Warning	1287	'@@slave_exec_mode' is deprecated and will be removed in a future release. Please use replica_exec_mode instead.
 SET PERSIST_ONLY slave_load_tmpdir = @@GLOBAL.slave_load_tmpdir;
 ERROR HY000: Variable 'slave_load_tmpdir' is a non persistent read only variable
 SET PERSIST_ONLY slave_max_allowed_packet = @@GLOBAL.slave_max_allowed_packet;
+Warnings:
+Warning	1287	'@@slave_max_allowed_packet' is deprecated and will be removed in a future release. Please use replica_max_allowed_packet instead.
+Warning	1287	'@@slave_max_allowed_packet' is deprecated and will be removed in a future release. Please use replica_max_allowed_packet instead.
 SET PERSIST_ONLY slave_net_timeout = @@GLOBAL.slave_net_timeout;
+Warnings:
+Warning	1287	'@@slave_net_timeout' is deprecated and will be removed in a future release. Please use replica_net_timeout instead.
+Warning	1287	'@@slave_net_timeout' is deprecated and will be removed in a future release. Please use replica_net_timeout instead.
 SET PERSIST_ONLY slave_parallel_type = @@GLOBAL.slave_parallel_type;
+Warnings:
+Warning	1287	'@@slave_parallel_type' is deprecated and will be removed in a future release. Please use replica_parallel_type instead.
+Warning	1287	'@@slave_parallel_type' is deprecated and will be removed in a future release. Please use replica_parallel_type instead.
 SET PERSIST_ONLY slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
+Warnings:
+Warning	1287	'@@slave_parallel_workers' is deprecated and will be removed in a future release. Please use replica_parallel_workers instead.
+Warning	1287	'@@slave_parallel_workers' is deprecated and will be removed in a future release. Please use replica_parallel_workers instead.
 SET PERSIST_ONLY slave_pending_jobs_size_max = @@GLOBAL.slave_pending_jobs_size_max;
+Warnings:
+Warning	1287	'@@slave_pending_jobs_size_max' is deprecated and will be removed in a future release. Please use replica_pending_jobs_size_max instead.
+Warning	1287	'@@slave_pending_jobs_size_max' is deprecated and will be removed in a future release. Please use replica_pending_jobs_size_max instead.
 SET PERSIST_ONLY slave_preserve_commit_order = @@GLOBAL.slave_preserve_commit_order;
+Warnings:
+Warning	1287	'@@slave_preserve_commit_order' is deprecated and will be removed in a future release. Please use replica_preserve_commit_order instead.
+Warning	1287	'@@slave_preserve_commit_order' is deprecated and will be removed in a future release. Please use replica_preserve_commit_order instead.
 SET PERSIST_ONLY slave_rows_search_algorithms = @@GLOBAL.slave_rows_search_algorithms;
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY slave_skip_errors = @@GLOBAL.slave_skip_errors;
+Warnings:
+Warning	1287	'@@slave_skip_errors' is deprecated and will be removed in a future release. Please use replica_skip_errors instead.
+Warning	1287	'@@slave_skip_errors' is deprecated and will be removed in a future release. Please use replica_skip_errors instead.
 SET PERSIST_ONLY slave_sql_verify_checksum = @@GLOBAL.slave_sql_verify_checksum;
+Warnings:
+Warning	1287	'@@slave_sql_verify_checksum' is deprecated and will be removed in a future release. Please use replica_sql_verify_checksum instead.
+Warning	1287	'@@slave_sql_verify_checksum' is deprecated and will be removed in a future release. Please use replica_sql_verify_checksum instead.
 SET PERSIST_ONLY slave_transaction_retries = @@GLOBAL.slave_transaction_retries;
+Warnings:
+Warning	1287	'@@slave_transaction_retries' is deprecated and will be removed in a future release. Please use replica_transaction_retries instead.
+Warning	1287	'@@slave_transaction_retries' is deprecated and will be removed in a future release. Please use replica_transaction_retries instead.
 SET PERSIST_ONLY slave_type_conversions = @@GLOBAL.slave_type_conversions;
+Warnings:
+Warning	1287	'@@slave_type_conversions' is deprecated and will be removed in a future release. Please use replica_type_conversions instead.
+Warning	1287	'@@slave_type_conversions' is deprecated and will be removed in a future release. Please use replica_type_conversions instead.
+SET PERSIST_ONLY source_verify_checksum = @@GLOBAL.source_verify_checksum;
+SET PERSIST_ONLY sql_replica_skip_counter = @@GLOBAL.sql_replica_skip_counter;
 SET PERSIST_ONLY sql_slave_skip_counter = @@GLOBAL.sql_slave_skip_counter;
+Warnings:
+Warning	1287	'@@sql_slave_skip_counter' is deprecated and will be removed in a future release. Please use sql_replica_skip_counter instead.
+Warning	1287	'@@sql_slave_skip_counter' is deprecated and will be removed in a future release. Please use sql_replica_skip_counter instead.
 SET PERSIST_ONLY sync_binlog = @@GLOBAL.sync_binlog;
 SET PERSIST_ONLY sync_master_info = @@GLOBAL.sync_master_info;
+Warnings:
+Warning	1287	'@@sync_master_info' is deprecated and will be removed in a future release. Please use sync_source_info instead.
+Warning	1287	'@@sync_master_info' is deprecated and will be removed in a future release. Please use sync_source_info instead.
 SET PERSIST_ONLY sync_relay_log = @@GLOBAL.sync_relay_log;
 SET PERSIST_ONLY sync_relay_log_info = @@GLOBAL.sync_relay_log_info;
+SET PERSIST_ONLY sync_source_info = @@GLOBAL.sync_source_info;
 
-include/assert.inc ['Expect 75 persisted variables in persisted_variables table.']
+include/assert.inc [Expect 101 persisted variables in persisted_variables table.]
 
 ############################################################
 # 2. Restart server, it must preserve the persisted variable
 #    settings. Verify persisted configuration.
 # restart
 
-include/assert.inc ['Expect 75 persisted variables in persisted_variables table.']
-include/assert.inc ['Expect 74 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc ['Expect 74 persisted variables with matching persisted and global values.']
+include/assert.inc [Expect 101 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 101 persisted variables shown as PERSISTED in variables_info table.]
+include/assert.inc [Expect 101 persisted variables with matching persisted and global values.]
 
 ############################################################
 # 3. Test RESET PERSIST. Verify persisted variable settings
@@ -173,6 +295,7 @@ RESET PERSIST binlog_transaction_compression_level_zstd;
 RESET PERSIST binlog_transaction_dependency_history_size;
 RESET PERSIST binlog_transaction_dependency_tracking;
 RESET PERSIST enforce_gtid_consistency;
+RESET PERSIST group_replication_consistency;
 RESET PERSIST gtid_executed;
 ERROR HY000: Variable gtid_executed does not exist in persisted config file
 RESET PERSIST gtid_executed_compression_period;
@@ -180,7 +303,7 @@ RESET PERSIST gtid_mode;
 RESET PERSIST gtid_owned;
 ERROR HY000: Variable gtid_owned does not exist in persisted config file
 RESET PERSIST gtid_purged;
-RESET PERSIST init_slave;
+RESET PERSIST init_replica;
 RESET PERSIST log_bin;
 ERROR HY000: Variable log_bin does not exist in persisted config file
 RESET PERSIST log_bin_basename;
@@ -190,11 +313,10 @@ ERROR HY000: Variable log_bin_index does not exist in persisted config file
 RESET PERSIST log_bin_trust_function_creators;
 RESET PERSIST log_bin_use_v1_row_events;
 ERROR HY000: Variable log_bin_use_v1_row_events does not exist in persisted config file
-RESET PERSIST log_slave_updates;
-RESET PERSIST log_slow_slave_statements;
+RESET PERSIST log_replica_updates;
+RESET PERSIST log_slow_replica_statements;
 RESET PERSIST log_statements_unsafe_for_binlog;
 RESET PERSIST master_info_repository;
-RESET PERSIST master_verify_checksum;
 RESET PERSIST max_binlog_cache_size;
 RESET PERSIST max_binlog_size;
 RESET PERSIST max_binlog_stmt_cache_size;
@@ -211,47 +333,52 @@ RESET PERSIST relay_log_info_repository;
 RESET PERSIST relay_log_purge;
 RESET PERSIST relay_log_recovery;
 RESET PERSIST relay_log_space_limit;
+RESET PERSIST replica_allow_batching;
+RESET PERSIST replica_checkpoint_group;
+RESET PERSIST replica_checkpoint_period;
+RESET PERSIST replica_compressed_protocol;
+RESET PERSIST replica_exec_mode;
+RESET PERSIST replica_load_tmpdir;
+ERROR HY000: Variable replica_load_tmpdir does not exist in persisted config file
+RESET PERSIST replica_max_allowed_packet;
+RESET PERSIST replica_net_timeout;
+RESET PERSIST replica_parallel_type;
+RESET PERSIST replica_parallel_workers;
+RESET PERSIST replica_pending_jobs_size_max;
+RESET PERSIST replica_preserve_commit_order;
+RESET PERSIST replica_skip_errors;
+RESET PERSIST replica_sql_verify_checksum;
+RESET PERSIST replica_transaction_retries;
+RESET PERSIST replica_type_conversions;
+RESET PERSIST replication_optimize_for_static_plugin_config;
+RESET PERSIST replication_sender_observe_commit_only;
 RESET PERSIST rpl_read_size;
-RESET PERSIST rpl_semi_sync_master_enabled;
-RESET PERSIST rpl_semi_sync_master_timeout;
-RESET PERSIST rpl_semi_sync_master_trace_level;
-RESET PERSIST rpl_semi_sync_master_wait_for_slave_count;
-RESET PERSIST rpl_semi_sync_master_wait_no_slave;
-RESET PERSIST rpl_semi_sync_master_wait_point;
-RESET PERSIST rpl_semi_sync_slave_enabled;
-RESET PERSIST rpl_semi_sync_slave_trace_level;
-RESET PERSIST rpl_stop_slave_timeout;
+RESET PERSIST rpl_semi_sync_replica_enabled;
+RESET PERSIST rpl_semi_sync_replica_trace_level;
+RESET PERSIST rpl_semi_sync_source_enabled;
+RESET PERSIST rpl_semi_sync_source_timeout;
+RESET PERSIST rpl_semi_sync_source_trace_level;
+RESET PERSIST rpl_semi_sync_source_wait_for_replica_count;
+RESET PERSIST rpl_semi_sync_source_wait_no_replica;
+RESET PERSIST rpl_semi_sync_source_wait_point;
+RESET PERSIST rpl_stop_replica_timeout;
 RESET PERSIST session_track_gtids;
-RESET PERSIST skip_slave_start;
-RESET PERSIST slave_allow_batching;
-RESET PERSIST slave_checkpoint_group;
-RESET PERSIST slave_checkpoint_period;
-RESET PERSIST slave_compressed_protocol;
-RESET PERSIST slave_exec_mode;
-RESET PERSIST slave_load_tmpdir;
-ERROR HY000: Variable slave_load_tmpdir does not exist in persisted config file
-RESET PERSIST slave_max_allowed_packet;
-RESET PERSIST slave_net_timeout;
-RESET PERSIST slave_parallel_type;
-RESET PERSIST slave_parallel_workers;
-RESET PERSIST slave_pending_jobs_size_max;
-RESET PERSIST slave_preserve_commit_order;
+RESET PERSIST skip_replica_start;
 RESET PERSIST slave_rows_search_algorithms;
-RESET PERSIST slave_skip_errors;
-RESET PERSIST slave_sql_verify_checksum;
-RESET PERSIST slave_transaction_retries;
-RESET PERSIST slave_type_conversions;
-RESET PERSIST sql_slave_skip_counter;
+RESET PERSIST source_verify_checksum;
+RESET PERSIST sql_replica_skip_counter;
 RESET PERSIST sync_binlog;
-RESET PERSIST sync_master_info;
 RESET PERSIST sync_relay_log;
 RESET PERSIST sync_relay_log_info;
+RESET PERSIST sync_source_info;
 
-include/assert.inc ['Expect 0 persisted variables.']
+include/assert.inc [Expect 0 persisted variables.]
 
 ############################################################
 # 4. Clean up.
-SET @varvalues= NULL;
-UNINSTALL PLUGIN rpl_semi_sync_master;
-UNINSTALL PLUGIN rpl_semi_sync_slave;
+SET @varvalue=NULL;
+UNINSTALL PLUGIN rpl_semi_sync_source;
+UNINSTALL PLUGIN rpl_semi_sync_replica;
 DROP TABLE rplvars;
+DROP TABLE aliases;
+DROP TABLE non_persisted;

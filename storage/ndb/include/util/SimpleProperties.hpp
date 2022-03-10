@@ -27,6 +27,7 @@
 
 #include <ndb_global.h>
 #include <NdbOut.hpp>
+#include <EventLogger.hpp>
 
 /**
  * @class SimpleProperties
@@ -175,8 +176,9 @@ public:
      * Print the complete simple properties (for debugging)
      */
     void printAll(NdbOut& ndbout);
+    void printAll(EventLogger* logger);
 
-  private:
+   private:
     bool readValue();
     
     Uint16 m_key;

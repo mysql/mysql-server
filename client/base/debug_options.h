@@ -25,9 +25,10 @@
 #ifndef DEBUG_OPTIONS_INCLUDED
 #define DEBUG_OPTIONS_INCLUDED
 
+#include <optional>
+
 #include "client/base/abstract_options_provider.h"
 #include "my_compiler.h"
-#include "nullable.h"
 
 namespace Mysql {
 namespace Tools {
@@ -58,12 +59,12 @@ class Debug_options : public Abstract_options_provider {
   void options_parsed() override;
 
  private:
-  void debug_option_callback(char *argument MY_ATTRIBUTE((unused)));
+  void debug_option_callback(char *argument [[maybe_unused]]);
 
   Abstract_program *m_program;
   bool m_debug_info_flag{false};
   bool m_debug_check_flag{false};
-  Nullable<std::string> m_dbug_option;
+  std::optional<std::string> m_dbug_option;
 };
 
 }  // namespace Options

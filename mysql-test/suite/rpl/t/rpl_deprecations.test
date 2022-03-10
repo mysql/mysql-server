@@ -39,6 +39,13 @@ SELECT @@global.relay_log_info_file;
 --replace_regex /INDEX_SCAN,HASH_SCAN/SCAN_METHOD,SCAN_METHOD/ /TABLE_SCAN,INDEX_SCAN/SCAN_METHOD,SCAN_METHOD/
 SELECT @@global.slave_rows_search_algorithms;
 
+# assert deprecation warning (WRITESET), deprecation warning (MURMUR32) and revert
+SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
+SET @@global.transaction_write_set_extraction='XXHASH64';
+SET @@global.transaction_write_set_extraction='MURMUR32';
+SET @@session.transaction_write_set_extraction='XXHASH64';
+SET @@session.transaction_write_set_extraction='MURMUR32';
+
 # Check bootstrap warnings ######
 
 --let $i = 2
@@ -46,7 +53,7 @@ while($i > 0) {
 
   if ($i == 2)
   {
-    --let $rpl_server_parameters= --master-info-repository=TABLE --master-info-file=$mi_file --log-bin-use-v1-row-events --skip-slave-start --relay-log-info-repository=FILE --relay-log-info-file=$rli_file --slave-rows-search-algorithms=INDEX_SCAN,HASH_SCAN --log_error=$ofile --no-console
+    --let $rpl_server_parameters= --master-info-repository=TABLE --master-info-file=$mi_file --log-bin-use-v1-row-events --skip-replica-start --relay-log-info-repository=FILE --relay-log-info-file=$rli_file --slave-rows-search-algorithms=INDEX_SCAN,HASH_SCAN --transaction-write-set-extraction=XXHASH64 --log_error=$ofile --no-console
   }
 
   if ($i == 1)
@@ -54,17 +61,24 @@ while($i > 0) {
     # check that warnings are emited when setting persist_only as well
     SET PERSIST_ONLY relay_log_info_repository='FILE';
     SET PERSIST_ONLY master_info_repository='TABLE';
+    SET PERSIST_ONLY transaction_write_set_extraction='MURMUR32';
+    SET PERSIST_ONLY transaction_write_set_extraction='XXHASH64';
+
     # check that warnings are emited when setting persist as well
     SET PERSIST relay_log_info_repository='FILE';
     SET PERSIST master_info_repository='TABLE';
     SET PERSIST slave_rows_search_algorithms=TABLE_SCAN;
+    SET PERSIST binlog_transaction_dependency_tracking = COMMIT_ORDER;
+    SET PERSIST transaction_write_set_extraction='MURMUR32';
+    SET PERSIST transaction_write_set_extraction='XXHASH64';
+
     --error ER_INCORRECT_GLOBAL_LOCAL_VAR
     SET PERSIST_ONLY log_bin_use_v1_row_events = TRUE;
     --replace_result $rli_file RLI_FILE
     --error ER_INCORRECT_GLOBAL_LOCAL_VAR
     --eval SET PERSIST_ONLY relay_log_info_file = "$rli_file"
 
-    --let $rpl_server_parameters= --skip-slave-start --log_error=$ofile --no-console
+    --let $rpl_server_parameters= --skip-replica-start --log_error=$ofile --no-console
   }
   --source include/rpl_restart_server.inc
 
@@ -90,6 +104,12 @@ while($i > 0) {
     --let $assert_text= Assert that there is a warning at bootstrap when setting --slave-rows-search-algorithms
     --let $assert_file= $ofile
     --let $assert_select= The syntax '--slave-rows-search-algorithms' is deprecated and will be removed in a future release.
+    --let $assert_count= 1
+    --source include/assert_grep.inc
+
+    --let $assert_text= Assert that there is a warning at bootstrap when setting --transaction-write-set-extraction
+    --let $assert_file= $ofile
+    --let $assert_select= The syntax '--transaction-write-set-extraction' is deprecated and will be removed in a future release.
     --let $assert_count= 1
     --source include/assert_grep.inc
   }

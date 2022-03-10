@@ -29,7 +29,7 @@
 #include "my_inttypes.h"
 #include "sql/filesort_utils.h"
 #include "unittest/gunit/benchmark.h"
-#include "unittest/gunit/test_utils.h"
+#include "unittest/gunit/gunit_test_main.h"
 
 namespace filesort_compare_unittest {
 
@@ -394,27 +394,25 @@ static void BM_StdStableSortCompare5(size_t num_iterations) {
 BENCHMARK(BM_StdStableSortCompare5)
 
 // Disabled: experimental.
-static void MY_ATTRIBUTE((unused)) BM_StdSortIntCompare(size_t num_iterations) {
+[[maybe_unused]] static void BM_StdSortIntCompare(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_int>(num_iterations, /*stable_sort=*/false);
 }
 // BENCHMARK(BM_StdSortIntCompare)
 
-static void MY_ATTRIBUTE((unused))
-    BM_StdStableSortIntCompare(size_t num_iterations) {
+[[maybe_unused]] static void BM_StdStableSortIntCompare(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_int>(num_iterations, /*stable_sort=*/true);
 }
 // BENCHMARK(BM_StdStableSortIntCompare)
 
 // Disabled: experimental.
-static void MY_ATTRIBUTE((unused))
-    BM_StdSortIntIntIntInt(size_t num_iterations) {
+[[maybe_unused]] static void BM_StdSortIntIntIntInt(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_int_4>(num_iterations, /*stable_sort=*/false);
 }
 // BENCHMARK(BM_StdSortIntIntIntInt)
 
 // Disabled: experimental.
-static void MY_ATTRIBUTE((unused))
-    BM_StdStableSortIntIntIntInt(size_t num_iterations) {
+[[maybe_unused]] static void BM_StdStableSortIntIntIntInt(
+    size_t num_iterations) {
   RunSortBenchmark<Mem_compare_int_4>(num_iterations, /*stable_sort=*/true);
 }
 // BENCHMARK(BM_StdStableSortIntIntIntInt)

@@ -80,8 +80,7 @@ static inline int native_cond_init(native_cond_t *cond) {
 #endif
 }
 
-static inline int native_cond_destroy(
-    native_cond_t *cond MY_ATTRIBUTE((unused))) {
+static inline int native_cond_destroy(native_cond_t *cond [[maybe_unused]]) {
 #ifdef _WIN32
   return 0; /* no destroy function */
 #else

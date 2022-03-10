@@ -51,35 +51,36 @@ public:
   {
   public:
 
-    enum Type
+    const enum Type
     {
       String = 1,
       Number = 2,
       Number64 = 3
     } m_type;
 
-    Uint32 m_column_id;
-    BaseString m_name;
+    const Uint32 m_column_id;
+    const BaseString m_name;
 
     Column(const char* name, Uint32 col_id, Type type);
     Column(const Column & col);
-    Column & operator=(const Column & col);
+    Column & operator=(const Column & col) = delete;
   };
 
   class Table
   {
   public:
-
-
-    Table(const char *name, Uint32 id,
-          const class VirtualTable* virt = NULL);
+    Table(const char *name, Uint32 id, Uint32 rows_estimate = 0,
+          bool exact_row_count = false,
+          const class VirtualTable* virt = nullptr);
     Table(const Table& tab);
-    const Table & operator=(const Table& tab);
+    const Table & operator=(const Table& tab) = delete;
     ~Table();
 
     const char * getName() const;
     static const Uint32 InvalidTableId = ~0;
     Uint32 getTableId() const;
+    Uint32 getRowsEstimate() const { return m_rows_estimate; }
+    bool rowCountIsExact() const { return m_exact_row_count; }
 
     bool addColumn(const Column aCol);
     unsigned columns(void) const;
@@ -90,8 +91,10 @@ public:
 
   private:
     friend class NdbInfo;
-    BaseString m_name;
+    const BaseString m_name;
     Uint32 m_table_id;
+    Uint32 m_rows_estimate;
+    bool m_exact_row_count;
     Vector<Column*> m_columns;
     const class VirtualTable * m_virt;
   };

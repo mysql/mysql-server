@@ -53,6 +53,12 @@ struct st_string_iterator {
 */
 class mysql_string_imp {
  public: /* service implementations */
+  /* mysql_charset service. */
+
+  static DEFINE_METHOD(CHARSET_INFO_h, get_charset_utf8mb4, ());
+
+  static DEFINE_METHOD(CHARSET_INFO_h, get_charset_by_name, (const char *name));
+
   /**
     Creates a new instance of string object
 
@@ -99,6 +105,8 @@ class mysql_string_imp {
   static DEFINE_BOOL_METHOD(toupper,
                             (my_h_string * out_string, my_h_string in_string));
 
+  /* mysql_string_converter service. */
+
   /**
     Allocates a string object and converts the character buffer to string
     and just sets the specified charset_name in the string object. It does
@@ -137,6 +145,16 @@ class mysql_string_imp {
   static DEFINE_BOOL_METHOD(convert_to_buffer,
                             (my_h_string in_string, char *out_buffer,
                              uint64 length, const char *charset_name));
+
+  /* mysql_string_converter_v2 service. */
+
+  static DEFINE_BOOL_METHOD(convert_from_buffer_v2,
+                            (my_h_string dest_string, const char *src_buffer,
+                             uint64 src_length, CHARSET_INFO_h src_charset));
+
+  static DEFINE_BOOL_METHOD(convert_to_buffer_v2,
+                            (my_h_string src_string, char *dest_buffer,
+                             uint64 dest_length, CHARSET_INFO_h dest_charset));
 
   /**
     Gets character code of character on specified index position in
@@ -265,5 +283,17 @@ class mysql_string_imp {
     @retval true failure
   */
   static DEFINE_BOOL_METHOD(is_digit, (my_h_string_iterator iter, bool *out));
+
+  static DEFINE_BOOL_METHOD(reset, (my_h_string s));
+
+  static DEFINE_BOOL_METHOD(append, (my_h_string s1, my_h_string s2));
+
+  static DEFINE_BOOL_METHOD(compare,
+                            (my_h_string s1, my_h_string s2, int *cmp));
+
+  static DEFINE_BOOL_METHOD(get_data,
+                            (my_h_string s, const char **buffer_pointer,
+                             size_t *buffer_length,
+                             CHARSET_INFO_h *buffer_charset));
 };
 #endif /* MYSQL_SERVER_STRING_SERVICE_H */

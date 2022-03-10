@@ -6,11 +6,11 @@
 
 [mysqld.3]
 skip-log-bin
-skip-log-slave-updates
+skip-log-replica-updates
 
 [mysqld.4]
 disable-log-bin
-disable-log-slave-updates
+disable-log-replica-updates
 
 [ENV]
 SERVER_MYPORT_3=                @mysqld.3.port

@@ -1375,10 +1375,11 @@ static PFS_engine_table_share *find_table_share(const char *db,
   @retval false                   Success - no errors.
 */
 
-static bool pfs_dict_init(
-    dict_init_mode_t dict_init_mode, uint version MY_ATTRIBUTE((unused)),
-    List<const Plugin_table> *tables,
-    List<const Plugin_tablespace> *tablespaces MY_ATTRIBUTE((unused))) {
+static bool pfs_dict_init(dict_init_mode_t dict_init_mode,
+                          uint version [[maybe_unused]],
+                          List<const Plugin_table> *tables,
+                          List<const Plugin_tablespace> *tablespaces
+                          [[maybe_unused]]) {
   if (dict_init_mode != DICT_INIT_CREATE_FILES) {
     return false;
   }
@@ -1540,7 +1541,7 @@ mysql_declare_plugin_end;
 ha_perfschema::ha_perfschema(handlerton *hton, TABLE_SHARE *share)
     : handler(hton, share), m_table_share(nullptr), m_table(nullptr) {}
 
-ha_perfschema::~ha_perfschema() {}
+ha_perfschema::~ha_perfschema() = default;
 
 int ha_perfschema::open(const char *, int, uint, const dd::Table *) {
   DBUG_TRACE;

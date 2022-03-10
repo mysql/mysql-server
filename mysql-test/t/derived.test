@@ -980,6 +980,12 @@ flush status;
 
 select count(*) from t1 join (
   select t1.f1 from t1 join t1 as t2 join t1 as t3) tt on t1.f1 = tt.f1;
+# The query should write more than 1000 rows since it also includes
+# rows dumped from memory to disk when the temporary table overflows.
+# The hypergraph optimizer creates slightly more compact rows on
+# 32-bit platforms, and can write some more rows to the temporary
+# table before it overflows.
+--replace_result 1031 1021
 show status like 'Handler_write';
 set @@max_heap_table_size= @save_heap_size;
 set session internal_tmp_mem_storage_engine= @save_internal_tmp_mem_storage_engine;

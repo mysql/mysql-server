@@ -31,7 +31,7 @@ include/assert.inc [REQUIRE_ROW_FORMAT disabled for default channel "" in perfor
 #     Start the server using a file repository that has no privileged user
 #     REQUIRE_ROW_FORMAT must be 0
 include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start]
+include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start]
 include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
 include/assert.inc [REQUIRE_ROW_FORMAT disabled for default channel "" in performance_schema.replication_applier_configuration]
 
@@ -39,7 +39,7 @@ include/assert.inc [REQUIRE_ROW_FORMAT disabled for default channel "" in perfor
 #     Start the server using a file repository that has a privileged user
 #     REQUIRE_ROW_FORMAT must be 0
 include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start]
+include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start]
 include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
 include/assert.inc [REQUIRE_ROW_FORMAT disabled for default channel "" in performance_schema.replication_applier_configuration]
 # Reset the repository to default values
@@ -52,7 +52,7 @@ include/assert.inc [REQUIRE_ROW_FORMAT disabled for default channel "" in perfor
 #     REQUIRE_ROW_FORMAT must be 0
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_row_format;
 include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start --relay-log-info-repository=TABLE --upgrade=FORCE]
+include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start --relay-log-info-repository=TABLE --upgrade=FORCE]
 include/assert.inc [Check that mysql.slave_relay_log_info has an entry with REQUIRE_ROW_FORMAT set to 0]
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 
@@ -62,7 +62,7 @@ include/assert.inc [Check entry for default channel "" in performance_schema.rep
 include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=FILE]
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_row_format;
 include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start --relay-log-info-repository=TABLE --upgrade=FORCE]
+include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start --relay-log-info-repository=TABLE --upgrade=FORCE]
 include/assert.inc [Check that mysql.slave_relay_log_info has an entry with REQUIRE_ROW_FORMAT set to 0]
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 
@@ -72,12 +72,13 @@ include/assert.inc [Check entry for default channel "" in performance_schema.rep
 #       2. A group_replication channel (group_replication_recovery)
 #       3. A channel with a privileged user (default channel)
 #     REQUIRE_ROW_FORMAT must be 0 for 1) and 3). It must be 1 for 2)
+include/rpl_set_gtid_mode.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "ch1" ;
 CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER = 'replication_applier'@'localhost' FOR CHANNEL "";
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_row_format;
 UPDATE mysql.slave_relay_log_info SET Number_of_lines = 10;
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start --relay-log-info-repository=TABLE --upgrade=FORCE]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start --relay-log-info-repository=TABLE --upgrade=FORCE]
 include/assert.inc [Check the number of channels with enabled REQUIRE_ROW_FORMAT]
 include/assert.inc [Check the number of channels with disabled REQUIRE_ROW_FORMAT]
 include/assert.inc [Check that mysql.slave_relay_log_info has an entry with REQUIRE_ROW_FORMAT set to 0]
@@ -92,6 +93,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+include/rpl_set_gtid_mode.inc
 include/rpl_end.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.

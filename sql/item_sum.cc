@@ -33,6 +33,7 @@
 #include <bitset>
 #include <cstring>
 #include <functional>
+#include <optional>
 #include <string>
 #include <utility>  // std::forward
 
@@ -56,7 +57,6 @@
 #include "sql/gis/geometries.h"
 #include "sql/gis/geometry_extraction.h"
 #include "sql/gis/relops.h"
-#include "sql/gis/rtree_support.h"
 #include "sql/handler.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
@@ -74,12 +74,13 @@
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_exception_handler.h"  // handle_std_exception
-#include "sql/sql_executor.h"           // copy_fields
+#include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_resolver.h"  // setup_order
 #include "sql/sql_select.h"
 #include "sql/sql_tmp_table.h"  // create_tmp_table
+#include "sql/srs_fetcher.h"    // Srs_fetcher
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/temp_table_param.h"  // Temp_table_param
@@ -313,6 +314,18 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref) {
     return true;
   }
 
+  for (uint i = 0; i < arg_count; i++) {
+    if (args[i]->has_aggregation() &&
+        WalkItem(args[i], enum_walk::SUBQUERY_POSTFIX, [this](Item *subitem) {
+          if (subitem->type() != Item::SUM_FUNC_ITEM) return false;
+          Item_sum *si = down_cast<Item_sum *>(subitem);
+          return si->aggr_query_block == this->aggr_query_block;
+        })) {
+      my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
+      return true;
+    }
+  }
+
   if (aggr_query_block != base_query_block) {
     referenced_by[0] = ref;
     /*
@@ -501,7 +514,8 @@ bool Item_sum::resolve_type(THD *thd) {
   @see Item_cond::fix_fields()
   @see Item_cond::remove_const_cond()
  */
-bool Item_sum::clean_up_after_removal(uchar *arg) {
+bool Item_sum::clean_up_after_removal(uchar *arg [[maybe_unused]]) {
+  assert(arg != nullptr);
   /*
     Don't do anything if
     1) this is an unresolved item (This may happen if an
@@ -522,15 +536,12 @@ bool Item_sum::clean_up_after_removal(uchar *arg) {
 
   if (m_window) {
     // Cleanup the reference for this window function from m_functions
-    auto *ctx = pointer_cast<Cleanup_after_removal_context *>(arg);
-    if (ctx != nullptr) {
-      List_iterator<Item_sum> li(m_window->functions());
-      Item *item = nullptr;
-      while ((item = li++)) {
-        if (item == this) {
-          li.remove();
-          break;
-        }
+    List_iterator<Item_sum> li(m_window->functions());
+    Item *item = nullptr;
+    while ((item = li++)) {
+      if (item == this) {
+        li.remove();
+        break;
       }
     }
   } else {
@@ -545,6 +556,17 @@ bool Item_sum::clean_up_after_removal(uchar *arg) {
 
       if (aggr_query_block->inner_sum_func_list == this)
         aggr_query_block->inner_sum_func_list = prev;
+    }
+    // Replace the removed item with a NULL value. Perform a replace rather
+    // than a removal so that the size of the array stays the same. A hidden
+    // NULL value will not affect processing of the query block.
+    for (size_t i = 0; i < aggr_query_block->fields.size(); i++) {
+      if (aggr_query_block->fields[i] == this) {
+        Item_null *null_item = new Item_null();
+        null_item->hidden = true;
+        aggr_query_block->fields[i] = null_item;
+        break;
+      }
     }
   }
 
@@ -568,10 +590,7 @@ bool Item_sum::eq(const Item *item, bool binary_cmp) const {
       (my_sum_func == Item_sum::UDF_SUM_FUNC &&
        my_strcasecmp(system_charset_info, func_name(), item_sum->func_name())))
     return false;
-  for (uint i = 0; i < arg_count; i++) {
-    if (!args[i]->eq(item_sum->args[i], binary_cmp)) return false;
-  }
-  return true;
+  return AllItemsAreEqual(args, item_sum->args, arg_count, binary_cmp);
 }
 
 bool Item_sum::aggregate_check_distinct(uchar *arg) {
@@ -781,10 +800,10 @@ void Item_sum::add_used_tables_for_aggr_func() {
           ? base_query_block->all_tables_map()
           : OUTER_REF_TABLE_BIT;
   /*
-    Aggregate functions are not allowed to be const, but they may
-    be const-for-execution.
+    Aggregate functions are not allowed to be const, so if there are no tables
+    to depend them on, ensure they are executed anyway:
   */
-  if (used_tables_cache == 0) used_tables_cache = INNER_TABLE_BIT;
+  if (const_for_execution()) used_tables_cache |= RAND_TABLE_BIT;
 }
 
 Item *Item_sum::set_arg(THD *thd, uint i, Item *new_val) {
@@ -829,7 +848,7 @@ void Item_sum::cleanup() {
   forced_const = false;
 }
 
-bool Item_sum::fix_fields(THD *thd, Item **ref MY_ATTRIBUTE((unused))) {
+bool Item_sum::fix_fields(THD *thd, Item **ref [[maybe_unused]]) {
   assert(fixed == 0);
   if (m_window != nullptr) {
     if (m_window_resolved) return false;
@@ -942,7 +961,7 @@ static enum enum_field_types calc_tmp_field_type(
       break;
     case INT_RESULT:
       table_field_type = MYSQL_TYPE_LONGLONG;
-      /* fallthrough */
+      [[fallthrough]];
     case DECIMAL_RESULT:
       if (table_field_type != MYSQL_TYPE_LONGLONG)
         table_field_type = MYSQL_TYPE_NEWDECIMAL;
@@ -1229,7 +1248,6 @@ bool Aggregator_distinct::add() {
       sum->count = 1;
       return false;
     }
-    if (copy_fields(tmp_table_param, thd)) return true;
     if (copy_funcs(tmp_table_param, thd)) return true;
 
     for (Field **field = table->field; *field; field++)
@@ -2701,6 +2719,11 @@ void Item_sum_hybrid::clear() {
   m_saved_last_value_at = 0;
 }
 
+void Item_sum_hybrid::update_after_wf_arguments_changed(THD *) {
+  value->setup(args[0]);
+  arg_cache->setup(args[0]);
+}
+
 bool Item_sum_hybrid::check_wf_semantics1(THD *thd, Query_block *select,
                                           Window_evaluation_requirements *r) {
   bool result = Item_sum::check_wf_semantics1(thd, select, r);
@@ -2969,7 +2992,7 @@ void Item_sum_hybrid::split_sum_func(THD *thd, Ref_item_array ref_item_array,
     replaced with aggregate ref's in split_sum_func. So need to redo the cache
     setup.
   */
-  arg_cache->setup(args[0]);
+  update_after_wf_arguments_changed(thd);
 }
 
 void Item_sum_hybrid::cleanup() {
@@ -4007,7 +4030,7 @@ int group_concat_key_cmp_with_order(const void *arg, const void *key1,
   Append data from current leaf to item->result.
 */
 
-int dump_leaf_key(void *key_arg, element_count count MY_ATTRIBUTE((unused)),
+int dump_leaf_key(void *key_arg, element_count count [[maybe_unused]],
                   void *item_arg) {
   DBUG_TRACE;
   Item_func_group_concat *item = (Item_func_group_concat *)item_arg;
@@ -4232,14 +4255,20 @@ Field *Item_func_group_concat::make_string_field(TABLE *table_arg) const {
 
   const uint32 max_characters =
       group_concat_max_len / collation.collation->mbminlen;
+
+  // Avoid arithmetic overflow
+  const uint32 field_length = min<uint64>(
+      static_cast<uint64>(max_characters) * collation.collation->mbmaxlen,
+      UINT_MAX32);
+
   if (max_characters > CONVERT_IF_BIGGER_TO_BLOB)
     field = new (*THR_MALLOC)
-        Field_blob(max_characters * collation.collation->mbmaxlen,
-                   is_nullable(), item_name.ptr(), collation.collation, true);
+        Field_blob(field_length, is_nullable(), item_name.ptr(),
+                   collation.collation, true);
   else
-    field = new (*THR_MALLOC) Field_varstring(
-        max_characters * collation.collation->mbmaxlen, is_nullable(),
-        item_name.ptr(), table_arg->s, collation.collation);
+    field = new (*THR_MALLOC)
+        Field_varstring(field_length, is_nullable(), item_name.ptr(),
+                        table_arg->s, collation.collation);
 
   if (field) field->init(table_arg);
   return field;
@@ -4270,7 +4299,6 @@ void Item_func_group_concat::clear() {
 bool Item_func_group_concat::add() {
   if (always_null) return false;
   THD *thd = current_thd;
-  if (copy_fields(tmp_table_param, thd)) return true;
   if (copy_funcs(tmp_table_param, thd)) return true;
 
   for (uint i = 0; i < m_field_arg_count; i++) {
@@ -4343,8 +4371,16 @@ bool Item_func_group_concat::fix_fields(THD *thd, Item **ref) {
 
   result.set_charset(collation.collation);
   group_concat_max_len = thd->variables.group_concat_max_len;
+  if (thd->variables.group_concat_max_len > UINT_MAX32)
+    group_concat_max_len = UINT_MAX32;
+  else
+    group_concat_max_len =
+        static_cast<uint>(thd->variables.group_concat_max_len);
   uint32 max_chars = group_concat_max_len / collation.collation->mbminlen;
-  uint max_byte_length = max_chars * collation.collation->mbmaxlen;
+  // Avoid arithmetic overflow
+  uint32 max_byte_length = min<uint64>(
+      static_cast<uint64>(max_chars) * collation.collation->mbmaxlen,
+      UINT_MAX32);
   max_chars > CONVERT_IF_BIGGER_TO_BLOB ? set_data_type_blob(max_byte_length)
                                         : set_data_type_string(max_chars);
 
@@ -4413,7 +4449,12 @@ bool Item_func_group_concat::setup(THD *thd) {
 
   assert(thd->lex->current_query_block() == aggr_query_block);
 
-  if (group_concat_max_len < thd->variables.group_concat_max_len) {
+  uint new_max_len;
+  if (thd->variables.group_concat_max_len > UINT_MAX32)
+    new_max_len = UINT_MAX32;
+  else
+    new_max_len = static_cast<uint>(thd->variables.group_concat_max_len);
+  if (group_concat_max_len < new_max_len) {
     /*
       Probably the user increased @@group_concat_max_len between preparation
       and execution. The Field we have set up may be too short for the
@@ -4648,6 +4689,19 @@ my_decimal *Item_row_number::val_decimal(my_decimal *buffer) {
 
 void Item_row_number::clear() { m_ctr = 0; }
 
+void Item_rank::update_after_wf_arguments_changed(THD *thd) {
+  const PT_order_list *order = m_window->effective_order_by();
+  if (!order) return;
+  ORDER *o = order->value.first;
+  for (unsigned i = 0; i < m_previous.size(); ++i, o = o->next) {
+    if (thd->lex->is_exec_started())
+      thd->change_item_tree(m_previous[i]->get_item_ptr(),
+                            (*o->item)->real_item());
+    else
+      *m_previous[i]->get_item_ptr() = (*o->item)->real_item();
+  }
+}
+
 bool Item_rank::check_wf_semantics1(THD *thd, Query_block *select,
                                     Window_evaluation_requirements *) {
   const PT_order_list *order = m_window->effective_order_by();
@@ -4674,14 +4728,11 @@ longlong Item_rank::val_int() {
 
   bool change = false;
   if (m_window->has_windowing_steps()) {
-    List_iterator<Cached_item> li(m_previous);
-    Cached_item *item;
-
     /*
       Check if any of the ORDER BY expressions have changed. If so, we
       need to update the rank, considering any duplicates.
     */
-    while ((item = li++)) {
+    for (Cached_item *item : m_previous) {
       change |= item->cmp();
     }
   }
@@ -4719,19 +4770,15 @@ void Item_rank::clear() {
 
   // Reset comparator
   if (m_window->has_windowing_steps()) {
-    List_iterator<Cached_item> li(m_previous);
-    Cached_item *item;
-    while ((item = li++)) {
+    for (Cached_item *item : m_previous) {
       item->cmp();  // set baseline
     }
   }  // if no windowing steps, no comparison needed.
 }
 
 Item_rank::~Item_rank() {
-  List_iterator<Cached_item> li(m_previous);
-  Cached_item *ci;
-  while ((ci = li++)) {
-    ci->~Cached_item();
+  for (Cached_item *ci : m_previous) {
+    destroy(ci);
   }
   m_previous.clear();
 }
@@ -4848,7 +4895,7 @@ void Item_percent_rank::clear() {
   m_last_peer_visited = false;
 }
 
-Item_percent_rank::~Item_percent_rank() {}
+Item_percent_rank::~Item_percent_rank() = default;
 
 bool Item_nth_value::check_wf_semantics2(Window_evaluation_requirements *r) {
   /*
@@ -4989,11 +5036,9 @@ bool Item_first_last_value::fix_fields(THD *thd, Item **items) {
       args[0]->check_cols(1))
     return true;
 
-  if (setup_first_last()) return true;
-
-  result_field = nullptr;
-
   if (resolve_type(thd)) return true;
+
+  if (setup_first_last()) return true;
 
   if (check_sum_func(thd, items)) return true;
 
@@ -5006,7 +5051,7 @@ void Item_first_last_value::split_sum_func(THD *thd,
                                            mem_root_deque<Item *> *fields) {
   super::split_sum_func(thd, ref_item_array, fields);
   // Need to redo this now:
-  m_value->setup(args[0]);
+  update_after_wf_arguments_changed(thd);
 }
 
 bool Item_first_last_value::setup_first_last() {
@@ -5024,6 +5069,10 @@ void Item_first_last_value::clear() {
   m_value->clear();
   null_value = true;
   cnt = 0;
+}
+
+void Item_first_last_value::update_after_wf_arguments_changed(THD *) {
+  m_value->setup(args[0]);
 }
 
 bool Item_first_last_value::compute() {
@@ -5177,7 +5226,7 @@ void Item_nth_value::split_sum_func(THD *thd, Ref_item_array ref_item_array,
                                     mem_root_deque<Item *> *fields) {
   super::split_sum_func(thd, ref_item_array, fields);
   // If function was set up, need to redo this now:
-  m_value->setup(args[0]);
+  update_after_wf_arguments_changed(thd);
 }
 
 bool Item_nth_value::setup_nth() {
@@ -5195,6 +5244,10 @@ void Item_nth_value::clear() {
   m_value->clear();
   null_value = true;
   m_cnt = 0;
+}
+
+void Item_nth_value::update_after_wf_arguments_changed(THD *) {
+  m_value->setup(args[0]);
 }
 
 bool Item_nth_value::check_wf_semantics1(THD *thd, Query_block *select,
@@ -5418,8 +5471,7 @@ void Item_lead_lag::split_sum_func(THD *thd, Ref_item_array ref_item_array,
                                    mem_root_deque<Item *> *fields) {
   super::split_sum_func(thd, ref_item_array, fields);
   // If function was set up, need to redo these now:
-  m_value->setup(args[0]);
-  if (m_default != nullptr) m_default->setup(args[2]);
+  update_after_wf_arguments_changed(thd);
 }
 
 bool Item_lead_lag::setup_lead_lag() {
@@ -5438,9 +5490,9 @@ bool Item_lead_lag::setup_lead_lag() {
   return false;
 }
 
-bool Item_lead_lag::check_wf_semantics1(
-    THD *thd MY_ATTRIBUTE((unused)), Query_block *select MY_ATTRIBUTE((unused)),
-    Window_evaluation_requirements *r) {
+bool Item_lead_lag::check_wf_semantics1(THD *thd [[maybe_unused]],
+                                        Query_block *select [[maybe_unused]],
+                                        Window_evaluation_requirements *r) {
   if (m_null_treatment == NT_IGNORE_NULLS) {
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "IGNORE NULLS");
     return true;
@@ -5455,6 +5507,11 @@ void Item_lead_lag::clear() {
   null_value = true;
   m_has_value = false;
   m_use_default = false;
+}
+
+void Item_lead_lag::update_after_wf_arguments_changed(THD *) {
+  m_value->setup(args[0]);
+  if (m_default != nullptr) m_default->setup(args[2]);
 }
 
 longlong Item_lead_lag::val_int() {
@@ -6085,7 +6142,7 @@ longlong Item_func_grouping::val_int() {
     while (real_item->type() == REF_ITEM)
       real_item = *((down_cast<Item_ref *>(real_item))->ref);
     if (has_rollup_result(real_item)) {
-      result += 1 << (arg_count - (i + 1));
+      result += 1ULL << (arg_count - (i + 1));
     }
   }
   return result;
@@ -6241,7 +6298,7 @@ bool Item_rollup_sum_switcher::aggregator_setup(THD *thd) {
 namespace {
 std::unique_ptr<gis::Geometrycollection> filtergeometries(
     std::unique_ptr<gis::Geometrycollection> geometrycollection,
-    dd::Spatial_reference_system *srs) {
+    const dd::Spatial_reference_system *srs) {
   assert(geometrycollection.get() != nullptr);
   auto filtered_geometries = std::unique_ptr<gis::Geometrycollection>(
       gis::Geometrycollection::create_geometrycollection(
@@ -6301,7 +6358,7 @@ bool Item_sum_collect::check_wf_semantics1(THD *, Query_block *,
 void Item_sum_collect::clear() {
   m_geometrycollection.reset();
   null_value = true;
-  srid = Mysql::Nullable<gis::srid_t>{};
+  srid = std::optional<gis::srid_t>{};
 }
 
 bool Item_sum_collect::add() {
@@ -6414,11 +6471,20 @@ String *Item_sum_collect::val_str(String *str) {
       if (add()) return error_str();
     }
   }
-  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser =
-      std::make_unique<dd::cache::Dictionary_client::Auto_releaser>(
-          current_thd->dd_client());
-  dd::Spatial_reference_system *srs =
-      this->srid.has_value() ? fetch_srs(this->srid.value()) : nullptr;
+  const dd::Spatial_reference_system *srs = nullptr;
+  auto releaser = std::make_unique<dd::cache::Dictionary_client::Auto_releaser>(
+      current_thd->dd_client());
+  if (srid.has_value() && srid.value() != 0) {
+    Srs_fetcher fetcher(current_thd);
+    if (fetcher.acquire(srid.value(), &srs)) {
+      return error_str();
+    }
+    if (srs == nullptr) {
+      my_error(ER_SRS_NOT_FOUND, MYF(0), srid.value());
+      return error_str();
+    }
+  }
+
   if (m_geometrycollection.get() == nullptr) {
     null_value = true;
     return error_str();
@@ -6445,11 +6511,35 @@ void Item_sum_collect::update_field() {
 
 void Item_sum_collect::store_result_field() {
   if (m_geometrycollection.get() != nullptr) {
-    std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser =
+    const dd::Spatial_reference_system *srs = nullptr;
+    auto releaser =
         std::make_unique<dd::cache::Dictionary_client::Auto_releaser>(
             current_thd->dd_client());
-    dd::Spatial_reference_system *srs =
-        this->srid.has_value() ? fetch_srs(this->srid.value()) : nullptr;
+    if (srid.has_value() && srid.value() != 0) {
+      if (Srs_fetcher(current_thd).acquire(srid.value(), &srs) ||
+          srs == nullptr) {
+        // We may end up here in two cases:
+        //
+        // 1) Something went wrong during DD lookup and an error has
+        // already been flagged in the thd. It's unclear if this may
+        // actually happen at this point.
+        //
+        // 2) The SRS doesn't exist. This should not happen since the
+        // SRS has been looked up earlier without error.
+        //
+        // Since this function doesn't have a way to signal errors, our
+        // only option is to make sure an error is flagged in the thd
+        // and return and hope it will caught by the caller. In case
+        // (2), we have to report a new error. In case (1), an error has
+        // already been reported, but it doesn't hurt to do it again.
+        //
+        // If any of these cases actually occur, the error handling in
+        // and around this function must be reviewed.
+        assert(false);
+        my_error(ER_SRS_NOT_FOUND, MYF(0), srid.value());
+        return;
+      }
+    }
 
     std::unique_ptr<gis::Geometrycollection> narrowerCollection;
     narrowerCollection =

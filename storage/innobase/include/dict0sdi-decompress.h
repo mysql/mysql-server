@@ -42,7 +42,7 @@ class Sdi_Decompressor {
     ut_ad(m_comp_sdi != nullptr);
   }
 
-  ~Sdi_Decompressor() {}
+  ~Sdi_Decompressor() = default;
 
   /** Decompress the SDI and store in the buffer passed. */
   inline void decompress() {
@@ -63,9 +63,9 @@ class Sdi_Decompressor {
       switch (ret) {
         case Z_BUF_ERROR:
 #ifdef UNIV_NO_ERR_MSGS
-          ib::fatal()
+          ib::fatal(UT_LOCATION_HERE)
 #else
-          ib::fatal(ER_IB_ERR_ZLIB_BUF_ERROR)
+          ib::fatal(UT_LOCATION_HERE, ER_IB_ERR_ZLIB_BUF_ERROR)
 #endif
 
               << "retval = Z_BUF_ERROR";
@@ -73,27 +73,27 @@ class Sdi_Decompressor {
 
         case Z_MEM_ERROR:
 #ifdef UNIV_NO_ERR_MSGS
-          ib::fatal()
+          ib::fatal(UT_LOCATION_HERE)
 #else
-          ib::fatal(ER_IB_ERR_ZLIB_MEM_ERROR)
+          ib::fatal(UT_LOCATION_HERE, ER_IB_ERR_ZLIB_MEM_ERROR)
 #endif
               << "retval = Z_MEM_ERROR";
           break;
 
         case Z_DATA_ERROR:
 #ifdef UNIV_NO_ERR_MSGS
-          ib::fatal()
+          ib::fatal(UT_LOCATION_HERE)
 #else
-          ib::fatal(ER_IB_ERR_ZLIB_DATA_ERROR)
+          ib::fatal(UT_LOCATION_HERE, ER_IB_ERR_ZLIB_DATA_ERROR)
 #endif
               << "retval = Z_DATA_ERROR";
           break;
 
         default:
 #ifdef UNIV_NO_ERR_MSGS
-          ib::fatal()
+          ib::fatal(UT_LOCATION_HERE)
 #else
-          ib::fatal(ER_IB_ERR_ZLIB_UNKNOWN_ERROR)
+          ib::fatal(UT_LOCATION_HERE, ER_IB_ERR_ZLIB_UNKNOWN_ERROR)
 #endif
               << "retval = UNKNOWN_ERROR";
           break;

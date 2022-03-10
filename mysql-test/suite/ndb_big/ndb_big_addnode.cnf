@@ -31,7 +31,7 @@ ndb-cluster-connection-pool=2
 #interactive_timeout    =28800
 #net_read_timeout       =1130
 net_write_timeout      =1160
-#slave_net_timeout      =1120
+#replica_net_timeout      =1120
 #Table_lock_wait_timeout=1150
 #wait_timeout =  28800
 

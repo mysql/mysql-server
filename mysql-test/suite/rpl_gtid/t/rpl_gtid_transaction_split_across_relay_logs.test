@@ -25,6 +25,7 @@
 --source include/not_relay_log_info_file.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
+--source include/not_rpl_gtid_only.inc
 
 # Disable auto position protocol
 --let use_gtids=0
@@ -46,7 +47,7 @@ INSERT INTO t1 VALUES(repeat('a',8192)), (repeat('b', 8192));
 # Set simulation point to restart IO thread, so that the transaction
 #  is split across the relay logs.
 SET @saved_debug=@@GLOBAL.debug;
-SET GLOBAL debug="d,stop_io_after_reading_write_rows_log_event";
+SET GLOBAL debug="+d,stop_io_after_reading_write_rows_log_event";
 START SLAVE IO_THREAD;
 --source include/wait_for_slave_io_to_stop.inc
 SET GLOBAL debug=@saved_debug;

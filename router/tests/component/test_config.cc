@@ -22,7 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
+
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
 
@@ -37,8 +38,6 @@ class RouterConfigTest : public RouterComponentTest {
     return ProcessManager::launch_router(params, expected_exit_code, true,
                                          false, wait_ready);
   }
-
-  TcpPortPool port_pool_;
 };
 
 // Bug #25800863 WRONG ERRORMSG IF DIRECTORY IS PROVIDED AS CONFIGFILE
@@ -131,12 +130,13 @@ TEST_F(RouterConfigTest,
 }
 
 #ifdef _WIN32
-static bool isRouterServiceInstalled() {
+static bool isRouterServiceInstalled(const std::string &service_name) {
   SC_HANDLE service, scm;
   bool result = false;
 
   if ((scm = OpenSCManager(0, 0, SC_MANAGER_ENUMERATE_SERVICE))) {
-    if ((service = OpenService(scm, "MySQLRouter", SERVICE_QUERY_STATUS))) {
+    if ((service =
+             OpenService(scm, service_name.c_str(), SERVICE_QUERY_STATUS))) {
       CloseServiceHandle(service);
       result = true;
     }
@@ -145,29 +145,43 @@ static bool isRouterServiceInstalled() {
   return result;
 }
 
+class RouterConfigServiceTest
+    : public RouterConfigTest,
+      public ::testing::WithParamInterface<std::string> {};
+
 /**
  * ensure that the router exits with proper error when launched with --service
  * and the service is not installed
  */
-TEST_F(RouterConfigTest, IsErrorReturnedWhenServiceDoesNotExist) {
+TEST_P(RouterConfigServiceTest, IsErrorReturnedWhenDefaultServiceDoesNotExist) {
+  std::string service_name = GetParam();
+  const std::string param =
+      service_name.empty() ? "--service" : ("--service=" + service_name);
+  if (service_name.empty()) service_name = "MySQLRouter";
+
   // first we need to make sure the service really is not installed on the
   // system that the test is running on. If it is we can't do much about it and
   // we just skip testing.
-  if (!isRouterServiceInstalled()) {
+  if (!isRouterServiceInstalled(service_name)) {
     TempDirectory conf_dir("conf");
     const std::string conf_file =
         create_config_file(conf_dir.name(), "[keepalive]\ninterval = 60\n");
 
     // run the router and wait for it to exit
-    auto &router = launch_router({"-c", conf_file, "--service"}, EXIT_FAILURE);
+    auto &router = launch_router({"-c", conf_file, param}, EXIT_FAILURE);
     check_exit_code(router, EXIT_FAILURE);
 
     EXPECT_THAT(router.get_full_output(),
-                StartsWith("ERROR: Could not find service 'MySQLRouter'!\n"
+                StartsWith("Error: Could not find service '" + service_name +
+                           "'!\n"
                            "Use --install-service or --install-service-manual "
                            "option to install the service first.\n"));
   }
 }
+
+INSTANTIATE_TEST_SUITE_P(Spec, RouterConfigServiceTest,
+                         ::testing::Values("", "MySQLRouterCustomServiceName"));
+
 #endif  // _WIN32
 
 int main(int argc, char *argv[]) {

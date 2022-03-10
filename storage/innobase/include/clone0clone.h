@@ -39,9 +39,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 #include "ut0mutex.h"
 
+#include "clone0api.h"
 #include "clone0desc.h"
 #include "clone0repl.h"
 #include "clone0snapshot.h"
+
+#include <tuple>
 
 /** Directory under data directory for all clone status files. */
 #define CLONE_FILES_DIR OS_FILE_PREFIX "clone" OS_PATH_SEPARATOR_STR
@@ -83,11 +86,18 @@ const char CLONE_INNODB_REPLACED_FILES[] =
 const char CLONE_INNODB_OLD_FILES[] =
     CLONE_FILES_DIR OS_FILE_PREFIX "old_files";
 
+/** Clone file name for list of temp files renamed by ddl. */
+const char CLONE_INNODB_DDL_FILES[] =
+    CLONE_FILES_DIR OS_FILE_PREFIX "ddl_files";
+
 /** Clone file extension for files to be replaced. */
 const char CLONE_INNODB_REPLACED_FILE_EXTN[] = "." OS_FILE_PREFIX "clone";
 
 /** Clone file extension for saved old files. */
 const char CLONE_INNODB_SAVED_FILE_EXTN[] = "." OS_FILE_PREFIX "clone_save";
+
+/** Clone file extension for temporary renamed file. */
+const char CLONE_INNODB_DDL_FILE_EXTN[] = "." OS_FILE_PREFIX "clone_ddl";
 
 using Clone_Msec = std::chrono::milliseconds;
 using Clone_Sec = std::chrono::seconds;
@@ -148,6 +158,10 @@ struct Clone_Task {
 
   /** Serial descriptor allocated length */
   uint m_alloc_len;
+
+  /** If task is currently pinning file. Before opening
+  the file we must have a pin on file metadata. */
+  bool m_pinned_file;
 
   /** Current file descriptor */
   pfs_os_file_t m_current_file_des;
@@ -215,10 +229,7 @@ class Clone_Task_Manager {
       m_saved_error = err;
 
       if (file_name != nullptr) {
-        ut_ad(m_err_file_name != nullptr);
-        ut_ad(m_err_file_len != 0);
-
-        strncpy(m_err_file_name, file_name, m_err_file_len);
+        m_err_file_name.assign(file_name);
       }
     }
 
@@ -239,6 +250,13 @@ class Clone_Task_Manager {
   @param[out]	is_master	true, if master task
   @return true if needs to wait for re-start */
   bool drop_task(THD *thd, uint task_id, bool &is_master);
+
+  /** Check if chunk is already reserved.
+  @param[in]	chunk_num	chunk number
+  @return true, iff chunk is reserved. */
+  bool is_chunk_reserved(uint32_t chunk_num) {
+    return m_chunk_info.m_reserved_chunks[chunk_num];
+  }
 
   /** Reset chunk information for task
   @param[in]	task	current task */
@@ -318,7 +336,7 @@ class Clone_Task_Manager {
   /** Reset error information */
   void reset_error() {
     m_saved_error = 0;
-    strncpy(m_err_file_name, "Clone File", m_err_file_len);
+    m_err_file_name.assign("Clone File");
   }
 
   /** Get current clone state
@@ -422,10 +440,19 @@ class Clone_Task_Manager {
   int alloc_buffer(Clone_Task *task);
 
 #ifdef UNIV_DEBUG
+  /** Check if needs to wait for debug sync point
+  @param[in]	chunk_num	chunk number to process
+  @param[in]	task		current task
+  @return true, if clone needs to check and wait */
+  bool debug_sync_check(uint32_t chunk_num, Clone_Task *task);
+
   /** Wait during clone operation
   @param[in]	chunk_num	chunk number to process
   @param[in]	task		current task */
   void debug_wait(uint chunk_num, Clone_Task *task);
+
+  /** Wait before sending DDL metadata. */
+  void debug_wait_ddl_meta();
 
   /** Force restart clone operation by raising network error
   @param[in]	task		current task
@@ -433,6 +460,9 @@ class Clone_Task_Manager {
   @param[in]	restart_count	restart counter
   @return error code */
   int debug_restart(Clone_Task *task, int in_err, int restart_count);
+
+  /** @return clone master task. */
+  Clone_Task *find_master_task();
 #endif /* UNIV_DEBUG */
 
  private:
@@ -535,10 +565,7 @@ class Clone_Task_Manager {
   int m_saved_error;
 
   /** File name related to the saved error */
-  char *m_err_file_name;
-
-  /** File name length */
-  size_t m_err_file_len;
+  std::string m_err_file_name;
 
   /** Attached snapshot handle */
   Clone_Snapshot *m_clone_snapshot;
@@ -646,6 +673,9 @@ class Clone_Handle {
   @return version */
   uint get_version() { return (m_clone_desc_version); }
 
+  /** @return active snapshot */
+  Clone_Snapshot *get_snapshot() { return m_clone_task_manager.get_snapshot(); }
+
   /** Check if it is copy clone
   @return true if copy clone handle */
   bool is_copy_clone() const { return (m_clone_handle_type == CLONE_HDL_COPY); }
@@ -660,6 +690,9 @@ class Clone_Handle {
   /** Set current clone state
   @param[in]	state	clone handle state */
   void set_state(Clone_Handle_State state) { m_clone_handle_state = state; }
+
+  /** Set clone to ABORT sate end any attached snapshot. */
+  void set_abort();
 
   /** Check if clone state is active
   @return true if in active state */
@@ -711,10 +744,22 @@ class Clone_Handle {
   @return error code */
   int send_keep_alive(Clone_Task *task, Ha_clone_cbk *callback);
 
+  /** @return true iff DDL should abort running clone. */
+  bool abort_by_ddl() const { return m_abort_ddl; }
+
+  /** Allow concurrent DDL to abort clone. */
+  void set_ddl_abort() { m_abort_ddl = true; }
+
+#ifdef UNIV_DEBUG
+  /** Close master task file if open and unpin. */
+  void close_master_file();
+#endif /* UNIV_DEBUG */
+
  private:
   /** Check if enough space is there to clone.
+  @param[in]	task	current task
   @return error if not enough space */
-  int check_space();
+  int check_space(const Clone_Task *task);
 
   /** Create clone data directory.
   @return error code */
@@ -727,22 +772,53 @@ class Clone_Handle {
   @param[in,out]	disp_time	last displayed time */
   void display_progress(uint32_t cur_chunk, uint32_t max_chunk,
                         uint32_t &percent_done,
-                        ib_time_monotonic_ms_t &disp_time);
+                        std::chrono::steady_clock::time_point &disp_time);
+
+  /** Create a tablespace file and initialize.
+  @param[in]	file_ctx	file information
+  @param[in]	file_type	file type (data, log etc.)
+  @param[in]	init		true, if needs to write initial pages.
+  @return error code */
+  int file_create_init(const Clone_file_ctx *file_ctx, ulint file_type,
+                       bool init);
+
+  using File_init_cbk = std::function<dberr_t(pfs_os_file_t)>;
 
   /** Open file for the task
   @param[in]	task		clone task
-  @param[in]	file_meta	file information
+  @param[in]	file_ctx	file information
   @param[in]	file_type	file type (data, log etc.)
   @param[in]	create_file	create if not present
-  @param[in]	set_and_close	set size and close
+  @param[in]	init_cbk	callback to fill initial data
   @return error code */
-  int open_file(Clone_Task *task, Clone_File_Meta *file_meta, ulint file_type,
-                bool create_file, bool set_and_close);
+  int open_file(Clone_Task *task, const Clone_file_ctx *file_ctx,
+                ulint file_type, bool create_file, File_init_cbk &init_cbk);
 
   /** Close file for the task
   @param[in]	task	clone task
   @return error code */
   int close_file(Clone_Task *task);
+
+  /** Check and pin a file context if not already pinned.
+  @param[in,out]	task		clone task
+  @param[in,out]	file_ctx	snapshot file context
+  @param[out]		handle_deleted	true, iff caller needs to handle
+                                        deleted file state
+  @return error code */
+  int check_and_pin_file(Clone_Task *task, Clone_file_ctx *file_ctx,
+                         bool &handle_deleted);
+
+  /** Unpin and close currently pinned file.
+  @param[in,out]	task	clone task
+  @return error code */
+  int close_and_unpin_file(Clone_Task *task);
+
+  /** Check if the task pins a file context.
+  @param[in]	task		clone task
+  @param[in]	file_ctx	snapshot file context
+  @return true, if task pins the file, other file. */
+  std::tuple<bool, bool> pins_file(const Clone_Task *task,
+                                   const Clone_file_ctx *file_ctx);
 
   /** Callback providing the file reference and data length to copy
   @param[in]	cbk	callback interface
@@ -783,6 +859,12 @@ class Clone_Handle {
   @return error code */
   int send_task_metadata(Clone_Task *task, Ha_clone_cbk *callback);
 
+  /** Send all DDL metadata generated.
+  @param[in]	task		task that is sending the information
+  @param[in]	callback	callback interface
+  @return error code */
+  int send_all_ddl_metadata(Clone_Task *task, Ha_clone_cbk *callback);
+
   /** Send all file information via callback
   @param[in]	task		task that is sending the information
   @param[in]	callback	callback interface
@@ -792,22 +874,24 @@ class Clone_Handle {
   /** Send current file information via callback
   @param[in]	task		task that is sending the information
   @param[in]	file_meta	file meta information
+  @param[in]	is_redo		true if redo file
   @param[in]	callback	callback interface
   @return error code */
-  int send_file_metadata(Clone_Task *task, Clone_File_Meta *file_meta,
-                         Ha_clone_cbk *callback);
+  int send_file_metadata(Clone_Task *task, const Clone_File_Meta *file_meta,
+                         bool is_redo, Ha_clone_cbk *callback);
 
   /** Send cloned data via callback
   @param[in]	task		task that is sending the information
-  @param[in]	file_meta	file information
+  @param[in]	file_ctx	file information
   @param[in]	offset		file offset
   @param[in]	buffer		data buffer or NULL if send from file
   @param[in]	size		data buffer size
+  @param[in]	new_file_size	updated file size from page 0
   @param[in]	callback	callback interface
   @return error code */
-  int send_data(Clone_Task *task, Clone_File_Meta *file_meta,
-                ib_uint64_t offset, byte *buffer, uint size,
-                Ha_clone_cbk *callback);
+  int send_data(Clone_Task *task, const Clone_file_ctx *file_ctx,
+                uint64_t offset, byte *buffer, uint32_t size,
+                uint64_t new_file_size, Ha_clone_cbk *callback);
 
   /** Process a data chunk and send data blocks via callback
   @param[in]	task		task that is sending the information
@@ -852,6 +936,31 @@ class Clone_Handle {
   @param[in]	callback	callback interface
   @return error code */
   int apply_file_metadata(Clone_Task *task, Ha_clone_cbk *callback);
+
+  /** Apply DDL delete to existing file to update chunk and block information.
+  @param[in,out]	task		task performing the operation
+  @param[in,out]	file_ctx	current file context
+  @param[in]		new_meta	new file metadata
+  @return error code */
+  int apply_file_delete(Clone_Task *task, Clone_file_ctx *file_ctx,
+                        const Clone_File_Meta *new_meta);
+
+  /** Apply DDL changes to file at the end of FILE_COPY stage.
+  @param[in]		new_meta	new file metadata
+  @param[in,out]	file_ctx	current file context
+  @return error code. */
+  int apply_ddl(const Clone_File_Meta *new_meta, Clone_file_ctx *file_ctx);
+
+  /** Set compression type based on local capability.
+  @param[in,out]	file_ctx	file context
+  @return error code. */
+  int set_compression(Clone_file_ctx *file_ctx);
+
+  /** Fix the file name and meta information for all files that are renamed
+  with DDL extension.
+  @param[in]	task	current task
+  @return error code. */
+  int fix_all_renamed(const Clone_Task *task);
 
   /** Apply data received via callback
   @param[in]	task		current task
@@ -927,6 +1036,9 @@ class Clone_Handle {
   /** Allow restart of clone operation after network failure */
   bool m_allow_restart;
 
+  /** If concurrent DDL should abort clone. */
+  bool m_abort_ddl;
+
   /** Clone data directory */
   const char *m_clone_dir;
 
@@ -937,6 +1049,37 @@ class Clone_Handle {
 /** Clone System */
 class Clone_Sys {
  public:
+  /** RAII style wrapper to enter and exit wait stage. */
+  class Wait_stage : private ut::Non_copyable {
+   public:
+    /** Constructor to change the THD information string.
+    @param[in]	new_info	new information string */
+    explicit Wait_stage(const char *new_info);
+
+    /** Destructor to revert back the old information string. */
+    ~Wait_stage();
+
+   private:
+    /** Saved old THD information string. */
+    const char *m_saved_info;
+  };
+
+  class Acquire_clone : private ut::Non_copyable {
+   public:
+    /** Constructor to get and pin clone handle. */
+    explicit Acquire_clone();
+
+    /** Destructor to release and free clone handle if necessary. */
+    ~Acquire_clone();
+
+    /** Get current clone snapshot. */
+    Clone_Snapshot *get_snapshot();
+
+   private:
+    /** Acquired clone handle */
+    Clone_Handle *m_clone{};
+  };
+
   /** Construct clone system */
   Clone_Sys();
 
@@ -994,17 +1137,42 @@ class Clone_Sys {
   /** Mark clone state to active if no other abort request */
   void mark_active();
 
-  /** Mark to indicate that new clone operations should wait.
-  @return true, if no active clone and mark is set successfully */
-  bool mark_wait();
+  /** Mark to indicate that new clone operations should wait. */
+  void mark_wait();
 
   /** Free the wait marker. */
   void mark_free();
+
+#ifdef UNIV_DEBUG
+  /** Debug wait while starting clone and waiting for free marker. */
+  void debug_wait_clone_begin();
+
+  /** Close donor master task file if open and unpin. */
+  void close_donor_master_file();
+#endif /* UNIV_DEBUG */
 
   /** Wait for marker to get freed.
   @param[in,out]	thd	user session
   @return, error if timeout */
   int wait_for_free(THD *thd);
+
+  /** Begin restricted state during some critical ddl phase.
+  @param[in]	type		ddl notification type
+  @param[in]	space		tablespace ID for which notification is sent
+  @param[in]	no_wait		return with error if needs to wait
+  @param[in]	check_intr	check for interrupt during wait
+  @param[out]	blocked_state	blocked state when state change is blocked
+  @param[out]	error		mysql error code
+  @return true iff clone needs to wait for state change. */
+  bool begin_ddl_state(Clone_notify::Type type, space_id_t space, bool no_wait,
+                       bool check_intr, uint32_t &blocked_state, int &error);
+
+  /** End restricted state during some critical ddl phase.
+  @param[in]	type		ddl notification type
+  @param[in]	space		tablespace ID for which notification is sent
+  @param[in]	blocked_state	blocked state when state change is blocked */
+  void end_ddl_state(Clone_notify::Type type, space_id_t space,
+                     uint32_t blocked_state);
 
   /** Get next unique ID
   @return unique ID */
@@ -1113,6 +1281,10 @@ class Clone_Sys {
   @return true, if concurrent clone in progress */
   bool check_active_clone(bool print_alert);
 
+  /** Check if any active clone is running.
+  @return (true, handle) if concurrent clone in progress */
+  std::tuple<bool, Clone_Handle *> check_active_clone();
+
   /** @return GTID persistor */
   Clone_persist_gtid &get_gtid_persistor() { return (m_gtid_persister); }
 
@@ -1128,6 +1300,14 @@ class Clone_Sys {
   @param[out]	free_index	free index in array
   @return error code */
   int find_free_index(Clone_Handle_Type hdl_type, uint &free_index);
+
+  /** Handle restricted state during critical ddl phase.
+  @param[in]	type	ddl notification type
+  @param[in]	space	tablespace ID for which notification is sent
+  @param[in]	begin	true, if beginning state
+                        false, if ending
+  @return true iff clone needs to wait for state change. */
+  bool handle_ddl_state(Clone_notify::Type type, space_id_t space, bool begin);
 
  private:
   /** Array of clone handles */

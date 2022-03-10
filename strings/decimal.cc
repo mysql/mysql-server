@@ -298,34 +298,44 @@ static inline int count_leading_zeroes(int i, dec1 val) {
     /* @note Intentional fallthrough in all case labels */
     case 9:
       if (val >= 1000000000) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 8:
       if (val >= 100000000) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 7:
       if (val >= 10000000) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 6:
       if (val >= 1000000) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 5:
       if (val >= 100000) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 4:
       if (val >= 10000) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 3:
       if (val >= 1000) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 2:
       if (val >= 100) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 1:
       if (val >= 10) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 0:
       if (val >= 1) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     default: {
       assert(false);
     }
@@ -354,34 +364,44 @@ static inline int count_trailing_zeroes(int i, dec1 val) {
     /* @note Intentional fallthrough in all case labels */
     case 0:
       if ((uval % 1) != 0) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 1:
       if ((uval % 10) != 0) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 2:
       if ((uval % 100) != 0) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 3:
       if ((uval % 1000) != 0) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 4:
       if ((uval % 10000) != 0) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 5:
       if ((uval % 100000) != 0) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 6:
       if ((uval % 1000000) != 0) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 7:
       if ((uval % 10000000) != 0) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 8:
       if ((uval % 100000000) != 0) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 9:
       if ((uval % 1000000000) != 0) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     default: {
       assert(false);
     }
@@ -1886,9 +1906,10 @@ static int do_sub(const decimal_t *from1, const decimal_t *from2,
   int intg1 = ROUND_UP(from1->intg), intg2 = ROUND_UP(from2->intg),
       frac1 = ROUND_UP(from1->frac), frac2 = ROUND_UP(from2->frac);
   int frac0 = std::max(frac1, frac2), error;
-  dec1 *buf1, *buf2, *buf0, *stop1, *stop2, *start1, *start2, carry = 0;
+  dec1 *buf1, *buf2, *buf0, *stop1, *stop2, *start1, *start2;
+  bool carry = false;
 
-  /* let carry:=1 if from2 > from1 */
+  /* let carry:=true if from2 > from1 */
   start1 = buf1 = from1->buf;
   stop1 = buf1 + intg1;
   start2 = buf2 = from2->buf;
@@ -1904,7 +1925,7 @@ static int do_sub(const decimal_t *from1, const decimal_t *from2,
     intg2 = (int)(stop2 - buf2);
   }
   if (intg2 > intg1)
-    carry = 1;
+    carry = true;
   else if (intg2 == intg1) {
     dec1 *end1 = stop1 + (frac1 - 1);
     dec1 *end2 = stop2 + (frac2 - 1);
@@ -1917,10 +1938,10 @@ static int do_sub(const decimal_t *from1, const decimal_t *from2,
       if (buf2 <= end2)
         carry = *buf2 > *buf1;
       else
-        carry = 0;
+        carry = false;
     } else {
       if (buf2 <= end2)
-        carry = 1;
+        carry = true;
       else /* short-circuit everything: from1 == from2 */
       {
         if (to == nullptr) /* decimal_cmp() */
@@ -1958,7 +1979,7 @@ static int do_sub(const decimal_t *from1, const decimal_t *from2,
     frac2 = std::min(frac2, frac0);
     intg2 = std::min(intg2, intg1);
   }
-  carry = 0;
+  carry = false;
 
   /* part 1 - max(frac) ... min (frac) */
   if (frac1 > frac2) {

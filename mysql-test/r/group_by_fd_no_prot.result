@@ -378,26 +378,26 @@ select sin(a) as z from v1 group by d,b;
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select sin(a) as z from v1 group by c,b;
 z
-0.9092974268256817
-0.9092974268256817
--0.7568024953079282
--0.7568024953079282
+0.909297426825682
+0.909297426825682
+-0.756802495307928
+-0.756802495307928
 select (select sin(a)) as z from v1 group by d,b;
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select (select sin(a)) as z from v1 group by c,b;
 z
-0.9092974268256817
-0.9092974268256817
--0.7568024953079282
--0.7568024953079282
+0.909297426825682
+0.909297426825682
+-0.756802495307928
+-0.756802495307928
 select sin(a) as z from t1 group by c*2,b*2;
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select sin(a+b*c) as z from v1 group by c,b;
 z
-0.9092974268256817
-0.9092974268256817
--0.7568024953079282
--0.7568024953079282
+0.909297426825682
+0.909297426825682
+-0.756802495307928
+-0.756802495307928
 SELECT show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
@@ -416,10 +416,10 @@ z
 select sin(t2.a) as z from v1, v1 as t2
 where t2.a=v1.a group by v1.b,v1.c;
 z
-0.9092974268256817
-0.9092974268256817
--0.7568024953079282
--0.7568024953079282
+0.909297426825682
+0.909297426825682
+-0.756802495307928
+-0.756802495307928
 SELECT show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
@@ -436,10 +436,10 @@ show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 select sin(t2.a) as z from v1, v1 as t2
 where t2.b=v1.b and t2.c=v1.c group by v1.b,v1.c;
 z
-0.9092974268256817
-0.9092974268256817
--0.7568024953079282
--0.7568024953079282
+0.909297426825682
+0.909297426825682
+-0.756802495307928
+-0.756802495307928
 # With materialized view we get more dependencies than needed, due to implementation.
 select t3.a from v1, v1 as t2, v1 as t3
 where
@@ -585,26 +585,26 @@ select sin(a) as z from v1 group by d,b;
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select sin(a) as z from v1 group by c,b;
 z
-0.9092974268256817
-0.9092974268256817
--0.7568024953079282
--0.7568024953079282
+0.909297426825682
+0.909297426825682
+-0.756802495307928
+-0.756802495307928
 select (select sin(a)) as z from v1 group by d,b;
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select (select sin(a)) as z from v1 group by c,b;
 z
-0.9092974268256817
-0.9092974268256817
--0.7568024953079282
--0.7568024953079282
+0.909297426825682
+0.909297426825682
+-0.756802495307928
+-0.756802495307928
 select sin(a) as z from t1 group by c*2,b*2;
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select sin(a+b*c) as z from v1 group by c,b;
 z
-0.9092974268256817
-0.9092974268256817
--0.7568024953079282
--0.7568024953079282
+0.909297426825682
+0.909297426825682
+-0.756802495307928
+-0.756802495307928
 SELECT show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
@@ -633,10 +633,10 @@ z
 select sin(t2.a) as z from v1, v1 as t2
 where t2.a=v1.a group by v1.b,v1.c;
 z
-0.9092974268256817
-0.9092974268256817
--0.7568024953079282
--0.7568024953079282
+0.909297426825682
+0.909297426825682
+-0.756802495307928
+-0.756802495307928
 SELECT show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
@@ -666,10 +666,10 @@ show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 select sin(t2.a) as z from v1, v1 as t2
 where t2.b=v1.b and t2.c=v1.c group by v1.b,v1.c;
 z
-0.9092974268256817
-0.9092974268256817
--0.7568024953079282
--0.7568024953079282
+0.909297426825682
+0.909297426825682
+-0.756802495307928
+-0.756802495307928
 # With materialized view we get more dependencies than needed, due to implementation.
 select t3.a from v1, v1 as t2, v1 as t3
 where
@@ -947,26 +947,26 @@ select sin(a) as z from (select t1.a*2 as a, t1.b as b, t1.c as c, t1.d as d, t1
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select sin(a) as z from (select t1.a*2 as a, t1.b as b, t1.c as c, t1.d as d, t1.a as e from t1) as v1 group by c,b;
 z
-0.9092974268256817
-0.9092974268256817
--0.7568024953079282
--0.7568024953079282
+0.909297426825682
+0.909297426825682
+-0.756802495307928
+-0.756802495307928
 select (select sin(a)) as z from (select t1.a*2 as a, t1.b as b, t1.c as c, t1.d as d, t1.a as e from t1) as v1 group by d,b;
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select (select sin(a)) as z from (select t1.a*2 as a, t1.b as b, t1.c as c, t1.d as d, t1.a as e from t1) as v1 group by c,b;
 z
-0.9092974268256817
-0.9092974268256817
--0.7568024953079282
--0.7568024953079282
+0.909297426825682
+0.909297426825682
+-0.756802495307928
+-0.756802495307928
 select sin(a) as z from t1 group by c*2,b*2;
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select sin(a+b*c) as z from (select t1.a*2 as a, t1.b as b, t1.c as c, t1.d as d, t1.a as e from t1) as v1 group by c,b;
 z
-0.9092974268256817
-0.9092974268256817
--0.7568024953079282
--0.7568024953079282
+0.909297426825682
+0.909297426825682
+-0.756802495307928
+-0.756802495307928
 SELECT show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
@@ -995,10 +995,10 @@ z
 select sin(t2.a) as z from (select t1.a*2 as a, t1.b as b, t1.c as c, t1.d as d, t1.a as e from t1) as v1, (select t1.a*2 as a, t1.b as b, t1.c as c, t1.d as d, t1.a as e from t1) as t2
 where t2.a=v1.a group by v1.b,v1.c;
 z
-0.9092974268256817
-0.9092974268256817
--0.7568024953079282
--0.7568024953079282
+0.909297426825682
+0.909297426825682
+-0.756802495307928
+-0.756802495307928
 SELECT show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
@@ -1028,10 +1028,10 @@ show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 select sin(t2.a) as z from (select t1.a*2 as a, t1.b as b, t1.c as c, t1.d as d, t1.a as e from t1) as v1, (select t1.a*2 as a, t1.b as b, t1.c as c, t1.d as d, t1.a as e from t1) as t2
 where t2.b=v1.b and t2.c=v1.c group by v1.b,v1.c;
 z
-0.9092974268256817
-0.9092974268256817
--0.7568024953079282
--0.7568024953079282
+0.909297426825682
+0.909297426825682
+-0.756802495307928
+-0.756802495307928
 # With materialized view we get more dependencies than needed, due to implementation.
 select t3.a from (select t1.a*2 as a, t1.b as b, t1.c as c, t1.d as d, t1.a as e from t1) as v1, (select t1.a*2 as a, t1.b as b, t1.c as c, t1.d as d, t1.a as e from t1) as t2, (select t1.a*2 as a, t1.b as b, t1.c as c, t1.d as d, t1.a as e from t1) as t3
 where

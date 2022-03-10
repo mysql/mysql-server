@@ -279,7 +279,8 @@ mem_block_t *mem_heap_create_block_func(
   if (type == MEM_HEAP_DYNAMIC || len < UNIV_PAGE_SIZE / 2) {
     ut_ad(type == MEM_HEAP_DYNAMIC || n <= MEM_MAX_ALLOC_IN_BUF);
 
-    block = static_cast<mem_block_t *>(ut_malloc_nokey(len));
+    block = static_cast<mem_block_t *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, len));
   } else {
     len = UNIV_PAGE_SIZE;
 
@@ -303,9 +304,9 @@ mem_block_t *mem_heap_create_block_func(
 
   if (block == nullptr) {
 #ifdef UNIV_NO_ERR_MSGS
-    ib::fatal()
+    ib::fatal(UT_LOCATION_HERE)
 #else
-    ib::fatal(ER_IB_MSG_1274)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1274)
 #endif /* !UNIV_NO_ERR_MSGS */
         << "Unable to allocate memory of size " << len << ".";
   }
@@ -320,7 +321,8 @@ mem_block_t *mem_heap_create_block_func(
 
 #else  /* !UNIV_LIBRARY && !UNIV_HOTBACKUP */
   len = MEM_BLOCK_HEADER_SIZE + MEM_SPACE_NEEDED(n);
-  block = static_cast<mem_block_t *>(ut_malloc_nokey(len));
+  block = static_cast<mem_block_t *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, len));
   ut_a(block);
   block->free_block = nullptr;
 #endif /* !UNIV_LIBRARY && !UNIV_HOTBACKUP */
@@ -438,7 +440,7 @@ void mem_heap_block_free(mem_heap_t *heap,   /*!< in: heap */
 #if !defined(UNIV_LIBRARY) && !defined(UNIV_HOTBACKUP)
   if (type == MEM_HEAP_DYNAMIC || len < UNIV_PAGE_SIZE / 2) {
     ut_ad(!buf_block);
-    ut_free(block);
+    ut::free(block);
   } else {
     ut_ad(type & MEM_HEAP_BUFFER);
 
@@ -448,7 +450,7 @@ void mem_heap_block_free(mem_heap_t *heap,   /*!< in: heap */
     buf_block_free(buf_block);
   }
 #else  /* !UNIV_LIBRARY && !UNIV_HOTBACKUP */
-  ut_free(block);
+  ut::free(block);
 #endif /* !UNIV_LIBRARY && !UNIV_HOTBACKUP */
 }
 

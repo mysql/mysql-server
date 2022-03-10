@@ -32,9 +32,4 @@
 void check_config_file_access_rights(const std::string &file_name,
                                      const bool read_only);
 
-bool file_contains_regex(const mysql_harness::Path &file_path,
-                         const std::string &needle);
-
-std::string read_file(const std::string &filename);
-
 #endif  // MYSQLROUTER_TESTS_FILESYSTEM_UTILS_INCLUDED

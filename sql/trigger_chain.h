@@ -39,7 +39,7 @@ struct TABLE_LIST;
 
 class Trigger_chain {
  public:
-  Trigger_chain() {}
+  Trigger_chain() = default;
 
   ~Trigger_chain();
   /**

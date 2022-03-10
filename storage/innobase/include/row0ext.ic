@@ -33,55 +33,29 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0types.h"
 #include "rem0types.h"
 
-/** Looks up a column prefix of an externally stored column.
- @return column prefix, or NULL if the column is not stored externally,
- or pointer to field_ref_zero if the BLOB pointer is unset */
-UNIV_INLINE
-const byte *row_ext_lookup_ith(
-    const row_ext_t *ext, /*!< in/out: column prefix cache */
-    ulint i,              /*!< in: index of ext->ext[] */
-    ulint *len)           /*!< out: length of prefix, in bytes,
-                          at most ext->max_len */
-{
-  ut_ad(ext);
-  ut_ad(len);
+inline const byte *row_ext_lookup_ith(const row_ext_t *ext, ulint i,
+                                      ulint *len) {
   ut_ad(i < ext->n_ext);
 
   *len = ext->len[i];
 
-  ut_ad(*len <= ext->max_len);
   ut_ad(ext->max_len > 0);
+  ut_ad(*len <= ext->max_len);
 
   if (*len == 0) {
     /* The BLOB could not be fetched to the cache. */
-    return (field_ref_zero);
+    return field_ref_zero;
   } else {
-    return (ext->buf + i * ext->max_len);
+    return ext->buf + i * ext->max_len;
   }
 }
 
-/** Looks up a column prefix of an externally stored column.
- @return column prefix, or NULL if the column is not stored externally,
- or pointer to field_ref_zero if the BLOB pointer is unset */
-UNIV_INLINE
-const byte *row_ext_lookup(const row_ext_t *ext, /*!< in: column prefix cache */
-                           ulint col,  /*!< in: column number in the InnoDB
-                                       table object, as reported by
-                                       dict_col_get_no(); NOT relative to the
-                                       records in the clustered index */
-                           ulint *len) /*!< out: length of prefix, in bytes,
-                                       at most ext->max_len */
-{
-  ulint i;
-
-  ut_ad(ext);
-  ut_ad(len);
-
-  for (i = 0; i < ext->n_ext; i++) {
+inline const byte *row_ext_lookup(const row_ext_t *ext, ulint col, ulint *len) {
+  for (size_t i = 0; i < ext->n_ext; ++i) {
     if (col == ext->ext[i]) {
-      return (row_ext_lookup_ith(ext, i, len));
+      return row_ext_lookup_ith(ext, i, len);
     }
   }
 
-  return (nullptr);
+  return nullptr;
 }

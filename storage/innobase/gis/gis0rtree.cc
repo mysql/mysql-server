@@ -1401,7 +1401,7 @@ void rtr_page_copy_rec_list_end_no_locks(buf_block_t *new_block,
               ulong{new_block->page.id.page_no()},
               ulong{block->page.id.page_no()});
 
-      ib::fatal(ER_IB_MSG_520)
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_520)
           << "rec offset " << page_offset(rec) << ", cur1 offset "
           << page_offset(page_cur_get_rec(&cur1)) << ", cur_rec offset "
           << page_offset(cur_rec);
@@ -1515,7 +1515,7 @@ void rtr_page_copy_rec_list_start_no_locks(
               (long)new_block->page.id.page_no(),
               (long)block->page.id.page_no());
 
-      ib::fatal(ER_IB_MSG_521)
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_521)
           << "rec offset " << page_offset(rec) << ", cur1 offset "
           << page_offset(page_cur_get_rec(&cur1)) << ", cur_rec offset "
           << page_offset(cur_rec);
@@ -1633,8 +1633,9 @@ void rtr_node_ptr_delete(dict_index_t *index, btr_cur_t *sea_cur,
   ibool compressed;
   dberr_t err;
 
-  compressed = btr_cur_pessimistic_delete(&err, TRUE, sea_cur, BTR_CREATE_FLAG,
-                                          false, 0, 0, 0, mtr);
+  compressed =
+      btr_cur_pessimistic_delete(&err, TRUE, sea_cur, BTR_CREATE_FLAG, false, 0,
+                                 0, 0, mtr, nullptr, nullptr);
   ut_a(err == DB_SUCCESS);
 
   if (!compressed) {
@@ -1732,7 +1733,7 @@ int64_t rtr_estimate_n_rows_in_range(dict_index_t *index, const dtuple_t *tuple,
 
   /* Read mbr from tuple. */
   const dfield_t *dtuple_field;
-  ulint dtuple_f_len MY_ATTRIBUTE((unused));
+  ulint dtuple_f_len [[maybe_unused]];
   rtr_mbr_t range_mbr;
   double range_area;
   byte *range_mbr_ptr;

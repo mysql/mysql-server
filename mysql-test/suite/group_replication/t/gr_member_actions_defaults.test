@@ -1,0 +1,41 @@
+###############################################################################
+# Validate Group Replication members actions default values.
+#
+# Test:
+#   0. This test requires one server
+#   1. Validate Group Replication members actions default values.
+#   2. Clean up.
+###############################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Validate Group Replication members actions default values.
+--let $assert_text= There must be two member actions
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions] = 2
+--source include/assert.inc
+
+--let $assert_text= mysql_disable_super_read_only_if_primary action default value
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_disable_super_read_only_if_primary\' AND enabled=1 AND type=\'INTERNAL\' AND event=\'AFTER_PRIMARY_ELECTION\' AND priority=1 AND error_handling=\'IGNORE\'] = 1
+--source include/assert.inc
+
+--let $assert_text= mysql_start_failover_channels_if_primary action default value
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_start_failover_channels_if_primary\' AND enabled=1 AND type=\'INTERNAL\' AND event=\'AFTER_PRIMARY_ELECTION\' AND priority=10 AND error_handling=\'CRITICAL\'] = 1
+--source include/assert.inc
+
+--let $assert_text= There must be one GR configuration version
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_configuration_version] = 1
+--source include/assert.inc
+
+--let $assert_text= The version of replication_group_member_actions must be 1
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_group_member_actions\', version, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Clean up.
+--source include/group_replication_end.inc

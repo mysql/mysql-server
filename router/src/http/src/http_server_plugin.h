@@ -26,19 +26,15 @@
 #define MYSQLROUTER_HTTP_SERVER_PLUGIN_INCLUDED
 
 #include <mutex>
+#include <regex>
 #include <string>
 #include <thread>
 #include <vector>
 
-#include <event2/event.h>  // event_base
-#include <event2/http.h>   // evhttp_new
-#include <event2/util.h>   // evutil_socket_t
-
 #include "mysql/harness/net_ts/impl/socket_constants.h"
+#include "mysql/harness/stdx/monitor.h"
+#include "mysqlrouter/http_common.h"
 #include "mysqlrouter/http_server_component.h"
-#include "posix_re.h"
-
-void stop_eventloop(evutil_socket_t, short, void *cb_arg);
 
 class HttpRequestRouter {
  public:
@@ -58,7 +54,7 @@ class HttpRequestRouter {
  private:
   struct RouterData {
     std::string url_regex_str;
-    PosixRE url_regex;
+    std::regex url_regex;
     std::unique_ptr<BaseRequestHandler> handler;
   };
   std::vector<RouterData> request_handlers_;
@@ -83,24 +79,22 @@ class HttpRequestRouter {
  */
 class HttpRequestThread {
  public:
-  HttpRequestThread()
-      : ev_base(event_base_new(), &event_base_free),
-        ev_http(evhttp_new(ev_base.get()), &evhttp_free),
-        ev_shutdown_timer(event_new(ev_base.get(), -1, EV_PERSIST,
-                                    stop_eventloop, ev_base.get()),
-                          &event_free) {
+  HttpRequestThread() {
     // enable all methods to allow the higher layers to handle them
     //
     // CONNECT, TRACE and OPTIONS are disabled by default if not explicitly
     // enabled.
-    evhttp_set_allowed_methods(
-        ev_http.get(), EVHTTP_REQ_CONNECT | EVHTTP_REQ_DELETE | EVHTTP_REQ_GET |
-                           EVHTTP_REQ_HEAD | EVHTTP_REQ_OPTIONS |
-                           EVHTTP_REQ_PATCH | EVHTTP_REQ_POST | EVHTTP_REQ_PUT |
-                           EVHTTP_REQ_TRACE);
+    event_http_.set_allowed_http_methods(
+        HttpMethod::Bitset().set(/*all types*/));
   }
 
-  using native_handle_type = net::impl::socket::native_handle_type;
+  HttpRequestThread(HttpRequestThread &&object)
+      : event_base_(std::move(object.event_base_)),
+        event_http_(std::move(object.event_http_)),
+        accept_fd_(object.accept_fd_) /* just copy */,
+        initialized_(object.is_initalized()) /* just copy */ {}
+
+  using native_handle_type = EventBaseSocket;
 
   native_handle_type get_socket_fd() { return accept_fd_; }
 
@@ -108,12 +102,20 @@ class HttpRequestThread {
   void set_request_router(HttpRequestRouter &router);
   void wait_and_dispatch();
 
- protected:
-  std::unique_ptr<event_base, decltype(&event_base_free)> ev_base;
-  std::unique_ptr<evhttp, decltype(&evhttp_free)> ev_http;
-  std::unique_ptr<event, decltype(&event_free)> ev_shutdown_timer;
+ public:  // Thread safe methods
+  void break_dispatching();
+  void wait_until_ready();
 
-  native_handle_type accept_fd_{net::impl::socket::kInvalidSocket};
+ protected:
+  static void on_event_loop_ready(native_handle_type, short, void *);
+
+  bool is_initalized() const;
+  void initialization_finished();
+
+  EventBase event_base_;
+  EventHttp event_http_{&event_base_};
+  native_handle_type accept_fd_{kEventBaseInvalidSocket};
+  WaitableMonitor<bool> initialized_{false};
 };
 
 class HttpServer {
@@ -132,6 +134,8 @@ class HttpServer {
   virtual ~HttpServer() { join_all(); }
 
   virtual void start(size_t max_threads);
+  void stop();
+
   void add_route(const std::string &url_regex,
                  std::unique_ptr<BaseRequestHandler> cb);
   void remove_route(const std::string &url_regex);

@@ -60,39 +60,39 @@ def	performance_schema	events_errors_summary_by_account_by_error	ERROR_NAME	4	NU
 def	performance_schema	events_errors_summary_by_account_by_error	SQL_STATE	5	NULL	YES	varchar	5	20	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(5)			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_account_by_error	SUM_ERROR_RAISED	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_account_by_error	SUM_ERROR_HANDLED	7	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
-def	performance_schema	events_errors_summary_by_account_by_error	FIRST_SEEN	8	0000-00-00 00:00:00	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
-def	performance_schema	events_errors_summary_by_account_by_error	LAST_SEEN	9	0000-00-00 00:00:00	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
+def	performance_schema	events_errors_summary_by_account_by_error	FIRST_SEEN	8	NULL	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
+def	performance_schema	events_errors_summary_by_account_by_error	LAST_SEEN	9	NULL	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_host_by_error	HOST	1	NULL	YES	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	MUL		select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_host_by_error	ERROR_NUMBER	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_host_by_error	ERROR_NAME	3	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_host_by_error	SQL_STATE	4	NULL	YES	varchar	5	20	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(5)			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_host_by_error	SUM_ERROR_RAISED	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_host_by_error	SUM_ERROR_HANDLED	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
-def	performance_schema	events_errors_summary_by_host_by_error	FIRST_SEEN	7	0000-00-00 00:00:00	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
-def	performance_schema	events_errors_summary_by_host_by_error	LAST_SEEN	8	0000-00-00 00:00:00	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
+def	performance_schema	events_errors_summary_by_host_by_error	FIRST_SEEN	7	NULL	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
+def	performance_schema	events_errors_summary_by_host_by_error	LAST_SEEN	8	NULL	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_thread_by_error	THREAD_ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned	MUL		select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_thread_by_error	ERROR_NUMBER	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_thread_by_error	ERROR_NAME	3	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_thread_by_error	SQL_STATE	4	NULL	YES	varchar	5	20	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(5)			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_thread_by_error	SUM_ERROR_RAISED	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_thread_by_error	SUM_ERROR_HANDLED	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
-def	performance_schema	events_errors_summary_by_thread_by_error	FIRST_SEEN	7	0000-00-00 00:00:00	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
-def	performance_schema	events_errors_summary_by_thread_by_error	LAST_SEEN	8	0000-00-00 00:00:00	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
+def	performance_schema	events_errors_summary_by_thread_by_error	FIRST_SEEN	7	NULL	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
+def	performance_schema	events_errors_summary_by_thread_by_error	LAST_SEEN	8	NULL	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_user_by_error	USER	1	NULL	YES	char	32	128	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(32)	MUL		select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_user_by_error	ERROR_NUMBER	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_user_by_error	ERROR_NAME	3	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_user_by_error	SQL_STATE	4	NULL	YES	varchar	5	20	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(5)			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_user_by_error	SUM_ERROR_RAISED	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_by_user_by_error	SUM_ERROR_HANDLED	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
-def	performance_schema	events_errors_summary_by_user_by_error	FIRST_SEEN	7	0000-00-00 00:00:00	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
-def	performance_schema	events_errors_summary_by_user_by_error	LAST_SEEN	8	0000-00-00 00:00:00	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
+def	performance_schema	events_errors_summary_by_user_by_error	FIRST_SEEN	7	NULL	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
+def	performance_schema	events_errors_summary_by_user_by_error	LAST_SEEN	8	NULL	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_global_by_error	ERROR_NUMBER	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int	UNI		select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_global_by_error	ERROR_NAME	2	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_global_by_error	SQL_STATE	3	NULL	YES	varchar	5	20	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(5)			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_global_by_error	SUM_ERROR_RAISED	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_errors_summary_global_by_error	SUM_ERROR_HANDLED	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
-def	performance_schema	events_errors_summary_global_by_error	FIRST_SEEN	6	0000-00-00 00:00:00	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
-def	performance_schema	events_errors_summary_global_by_error	LAST_SEEN	7	0000-00-00 00:00:00	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
+def	performance_schema	events_errors_summary_global_by_error	FIRST_SEEN	6	NULL	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
+def	performance_schema	events_errors_summary_global_by_error	LAST_SEEN	7	NULL	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
 def	performance_schema	events_stages_current	THREAD_ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned	PRI		select,insert,update,references			NULL
 def	performance_schema	events_stages_current	EVENT_ID	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned	PRI		select,insert,update,references			NULL
 def	performance_schema	events_stages_current	END_EVENT_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
@@ -206,6 +206,7 @@ def	performance_schema	events_statements_current	NESTING_EVENT_ID	39	NULL	YES	bi
 def	performance_schema	events_statements_current	NESTING_EVENT_TYPE	40	NULL	YES	enum	11	44	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('TRANSACTION','STATEMENT','STAGE','WAIT')			select,insert,update,references			NULL
 def	performance_schema	events_statements_current	NESTING_EVENT_LEVEL	41	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	performance_schema	events_statements_current	STATEMENT_ID	42	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
+def	performance_schema	events_statements_current	CPU_TIME	43	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_histogram_by_digest	SCHEMA_NAME	1	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)	MUL		select,insert,update,references			NULL
 def	performance_schema	events_statements_histogram_by_digest	DIGEST	2	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	events_statements_histogram_by_digest	BUCKET_NUMBER	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references			NULL
@@ -262,6 +263,7 @@ def	performance_schema	events_statements_history	NESTING_EVENT_ID	39	NULL	YES	bi
 def	performance_schema	events_statements_history	NESTING_EVENT_TYPE	40	NULL	YES	enum	11	44	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('TRANSACTION','STATEMENT','STAGE','WAIT')			select,insert,update,references			NULL
 def	performance_schema	events_statements_history	NESTING_EVENT_LEVEL	41	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	performance_schema	events_statements_history	STATEMENT_ID	42	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
+def	performance_schema	events_statements_history	CPU_TIME	43	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_history_long	THREAD_ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_history_long	EVENT_ID	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_history_long	END_EVENT_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
@@ -304,6 +306,7 @@ def	performance_schema	events_statements_history_long	NESTING_EVENT_ID	39	NULL	Y
 def	performance_schema	events_statements_history_long	NESTING_EVENT_TYPE	40	NULL	YES	enum	11	44	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('TRANSACTION','STATEMENT','STAGE','WAIT')			select,insert,update,references			NULL
 def	performance_schema	events_statements_history_long	NESTING_EVENT_LEVEL	41	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	performance_schema	events_statements_history_long	STATEMENT_ID	42	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
+def	performance_schema	events_statements_history_long	CPU_TIME	43	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_account_by_event_name	USER	1	NULL	YES	char	32	128	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(32)	MUL		select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_account_by_event_name	HOST	2	NULL	YES	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_account_by_event_name	EVENT_NAME	3	NULL	NO	varchar	128	512	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(128)			select,insert,update,references			NULL
@@ -331,6 +334,7 @@ def	performance_schema	events_statements_summary_by_account_by_event_name	SUM_SO
 def	performance_schema	events_statements_summary_by_account_by_event_name	SUM_SORT_SCAN	25	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_account_by_event_name	SUM_NO_INDEX_USED	26	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_account_by_event_name	SUM_NO_GOOD_INDEX_USED	27	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
+def	performance_schema	events_statements_summary_by_account_by_event_name	SUM_CPU_TIME	28	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_digest	SCHEMA_NAME	1	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)	MUL		select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_digest	DIGEST	2	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_digest	DIGEST_TEXT	3	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	longtext			select,insert,update,references			NULL
@@ -358,14 +362,15 @@ def	performance_schema	events_statements_summary_by_digest	SUM_SORT_ROWS	24	NULL
 def	performance_schema	events_statements_summary_by_digest	SUM_SORT_SCAN	25	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_digest	SUM_NO_INDEX_USED	26	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_digest	SUM_NO_GOOD_INDEX_USED	27	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
-def	performance_schema	events_statements_summary_by_digest	FIRST_SEEN	28	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
-def	performance_schema	events_statements_summary_by_digest	LAST_SEEN	29	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
-def	performance_schema	events_statements_summary_by_digest	QUANTILE_95	30	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
-def	performance_schema	events_statements_summary_by_digest	QUANTILE_99	31	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
-def	performance_schema	events_statements_summary_by_digest	QUANTILE_999	32	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
-def	performance_schema	events_statements_summary_by_digest	QUERY_SAMPLE_TEXT	33	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	longtext			select,insert,update,references			NULL
-def	performance_schema	events_statements_summary_by_digest	QUERY_SAMPLE_SEEN	34	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
-def	performance_schema	events_statements_summary_by_digest	QUERY_SAMPLE_TIMER_WAIT	35	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
+def	performance_schema	events_statements_summary_by_digest	SUM_CPU_TIME	28	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
+def	performance_schema	events_statements_summary_by_digest	FIRST_SEEN	29	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
+def	performance_schema	events_statements_summary_by_digest	LAST_SEEN	30	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
+def	performance_schema	events_statements_summary_by_digest	QUANTILE_95	31	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
+def	performance_schema	events_statements_summary_by_digest	QUANTILE_99	32	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
+def	performance_schema	events_statements_summary_by_digest	QUANTILE_999	33	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
+def	performance_schema	events_statements_summary_by_digest	QUERY_SAMPLE_TEXT	34	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	longtext			select,insert,update,references			NULL
+def	performance_schema	events_statements_summary_by_digest	QUERY_SAMPLE_SEEN	35	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
+def	performance_schema	events_statements_summary_by_digest	QUERY_SAMPLE_TIMER_WAIT	36	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_host_by_event_name	HOST	1	NULL	YES	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	MUL		select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_host_by_event_name	EVENT_NAME	2	NULL	NO	varchar	128	512	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(128)			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_host_by_event_name	COUNT_STAR	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
@@ -392,6 +397,7 @@ def	performance_schema	events_statements_summary_by_host_by_event_name	SUM_SORT_
 def	performance_schema	events_statements_summary_by_host_by_event_name	SUM_SORT_SCAN	24	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_host_by_event_name	SUM_NO_INDEX_USED	25	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_host_by_event_name	SUM_NO_GOOD_INDEX_USED	26	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
+def	performance_schema	events_statements_summary_by_host_by_event_name	SUM_CPU_TIME	27	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_program	OBJECT_TYPE	1	NULL	NO	enum	9	36	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('EVENT','FUNCTION','PROCEDURE','TABLE','TRIGGER')	PRI		select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_program	OBJECT_SCHEMA	2	NULL	NO	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)	PRI		select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_program	OBJECT_NAME	3	NULL	NO	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)	PRI		select,insert,update,references			NULL
@@ -424,6 +430,7 @@ def	performance_schema	events_statements_summary_by_program	SUM_SORT_ROWS	29	NUL
 def	performance_schema	events_statements_summary_by_program	SUM_SORT_SCAN	30	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_program	SUM_NO_INDEX_USED	31	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_program	SUM_NO_GOOD_INDEX_USED	32	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
+def	performance_schema	events_statements_summary_by_program	SUM_CPU_TIME	33	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_thread_by_event_name	THREAD_ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned	PRI		select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_thread_by_event_name	EVENT_NAME	2	NULL	NO	varchar	128	512	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(128)	PRI		select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_thread_by_event_name	COUNT_STAR	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
@@ -450,6 +457,7 @@ def	performance_schema	events_statements_summary_by_thread_by_event_name	SUM_SOR
 def	performance_schema	events_statements_summary_by_thread_by_event_name	SUM_SORT_SCAN	24	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_thread_by_event_name	SUM_NO_INDEX_USED	25	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_thread_by_event_name	SUM_NO_GOOD_INDEX_USED	26	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
+def	performance_schema	events_statements_summary_by_thread_by_event_name	SUM_CPU_TIME	27	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_user_by_event_name	USER	1	NULL	YES	char	32	128	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(32)	MUL		select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_user_by_event_name	EVENT_NAME	2	NULL	NO	varchar	128	512	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(128)			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_user_by_event_name	COUNT_STAR	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
@@ -476,6 +484,7 @@ def	performance_schema	events_statements_summary_by_user_by_event_name	SUM_SORT_
 def	performance_schema	events_statements_summary_by_user_by_event_name	SUM_SORT_SCAN	24	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_user_by_event_name	SUM_NO_INDEX_USED	25	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_user_by_event_name	SUM_NO_GOOD_INDEX_USED	26	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
+def	performance_schema	events_statements_summary_by_user_by_event_name	SUM_CPU_TIME	27	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_global_by_event_name	EVENT_NAME	1	NULL	NO	varchar	128	512	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(128)	PRI		select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_global_by_event_name	COUNT_STAR	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_global_by_event_name	SUM_TIMER_WAIT	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
@@ -501,6 +510,7 @@ def	performance_schema	events_statements_summary_global_by_event_name	SUM_SORT_R
 def	performance_schema	events_statements_summary_global_by_event_name	SUM_SORT_SCAN	23	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_global_by_event_name	SUM_NO_INDEX_USED	24	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_global_by_event_name	SUM_NO_GOOD_INDEX_USED	25	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
+def	performance_schema	events_statements_summary_global_by_event_name	SUM_CPU_TIME	26	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	events_transactions_current	THREAD_ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned	PRI		select,insert,update,references			NULL
 def	performance_schema	events_transactions_current	EVENT_ID	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned	PRI		select,insert,update,references			NULL
 def	performance_schema	events_transactions_current	END_EVENT_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
@@ -840,10 +850,10 @@ def	performance_schema	host_cache	COUNT_DEFAULT_DATABASE_ERRORS	22	NULL	NO	bigin
 def	performance_schema	host_cache	COUNT_INIT_CONNECT_ERRORS	23	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select,insert,update,references			NULL
 def	performance_schema	host_cache	COUNT_LOCAL_ERRORS	24	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select,insert,update,references			NULL
 def	performance_schema	host_cache	COUNT_UNKNOWN_ERRORS	25	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select,insert,update,references			NULL
-def	performance_schema	host_cache	FIRST_SEEN	26	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
-def	performance_schema	host_cache	LAST_SEEN	27	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
-def	performance_schema	host_cache	FIRST_ERROR_SEEN	28	0000-00-00 00:00:00	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
-def	performance_schema	host_cache	LAST_ERROR_SEEN	29	0000-00-00 00:00:00	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
+def	performance_schema	host_cache	FIRST_SEEN	26	NULL	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
+def	performance_schema	host_cache	LAST_SEEN	27	NULL	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
+def	performance_schema	host_cache	FIRST_ERROR_SEEN	28	NULL	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
+def	performance_schema	host_cache	LAST_ERROR_SEEN	29	NULL	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
 def	performance_schema	keyring_component_status	STATUS_KEY	1	NULL	NO	varchar	256	1024	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(256)			select,insert,update,references			NULL
 def	performance_schema	keyring_component_status	STATUS_VALUE	2	NULL	NO	varchar	1024	4096	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(1024)			select,insert,update,references			NULL
 def	performance_schema	keyring_keys	KEY_ID	1	NULL	NO	varchar	255	1020	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	varchar(255)			select,insert,update,references			NULL
@@ -935,7 +945,7 @@ def	performance_schema	objects_summary_global_by_type	SUM_TIMER_WAIT	5	NULL	NO	b
 def	performance_schema	objects_summary_global_by_type	MIN_TIMER_WAIT	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	objects_summary_global_by_type	AVG_TIMER_WAIT	7	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	objects_summary_global_by_type	MAX_TIMER_WAIT	8	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
-def	performance_schema	performance_timers	TIMER_NAME	1	NULL	NO	enum	11	44	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('CYCLE','NANOSECOND','MICROSECOND','MILLISECOND')			select,insert,update,references			NULL
+def	performance_schema	performance_timers	TIMER_NAME	1	NULL	NO	enum	11	44	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('CYCLE','NANOSECOND','MICROSECOND','MILLISECOND','THREAD_CPU')			select,insert,update,references			NULL
 def	performance_schema	performance_timers	TIMER_FREQUENCY	2	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select,insert,update,references			NULL
 def	performance_schema	performance_timers	TIMER_RESOLUTION	3	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select,insert,update,references			NULL
 def	performance_schema	performance_timers	TIMER_OVERHEAD	4	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select,insert,update,references			NULL
@@ -976,9 +986,10 @@ def	performance_schema	prepared_statements_instances	SUM_SORT_ROWS	32	NULL	NO	bi
 def	performance_schema	prepared_statements_instances	SUM_SORT_SCAN	33	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	prepared_statements_instances	SUM_NO_INDEX_USED	34	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	prepared_statements_instances	SUM_NO_GOOD_INDEX_USED	35	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
+def	performance_schema	prepared_statements_instances	SUM_CPU_TIME	36	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	processlist	ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned	PRI		select,insert,update,references			NULL
 def	performance_schema	processlist	USER	2	NULL	YES	varchar	32	128	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(32)			select,insert,update,references			NULL
-def	performance_schema	processlist	HOST	3	NULL	YES	varchar	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	varchar(255)			select,insert,update,references			NULL
+def	performance_schema	processlist	HOST	3	NULL	YES	varchar	261	261	NULL	NULL	NULL	ascii	ascii_general_ci	varchar(261)			select,insert,update,references			NULL
 def	performance_schema	processlist	DB	4	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	processlist	COMMAND	5	NULL	YES	varchar	16	64	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(16)			select,insert,update,references			NULL
 def	performance_schema	processlist	TIME	6	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select,insert,update,references			NULL
@@ -995,12 +1006,12 @@ def	performance_schema	replication_applier_filters	CHANNEL_NAME	1	NULL	NO	char	6
 def	performance_schema	replication_applier_filters	FILTER_NAME	2	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(64)			select,insert,update,references			NULL
 def	performance_schema	replication_applier_filters	FILTER_RULE	3	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	longtext			select,insert,update,references			NULL
 def	performance_schema	replication_applier_filters	CONFIGURED_BY	4	NULL	NO	enum	37	148	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('STARTUP_OPTIONS','CHANGE_REPLICATION_FILTER','STARTUP_OPTIONS_FOR_CHANNEL','CHANGE_REPLICATION_FILTER_FOR_CHANNEL')			select,insert,update,references			NULL
-def	performance_schema	replication_applier_filters	ACTIVE_SINCE	5	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
+def	performance_schema	replication_applier_filters	ACTIVE_SINCE	5	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
 def	performance_schema	replication_applier_filters	COUNTER	6	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	replication_applier_global_filters	FILTER_NAME	1	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(64)			select,insert,update,references			NULL
 def	performance_schema	replication_applier_global_filters	FILTER_RULE	2	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	longtext			select,insert,update,references			NULL
 def	performance_schema	replication_applier_global_filters	CONFIGURED_BY	3	NULL	NO	enum	25	100	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('STARTUP_OPTIONS','CHANGE_REPLICATION_FILTER')			select,insert,update,references			NULL
-def	performance_schema	replication_applier_global_filters	ACTIVE_SINCE	4	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
+def	performance_schema	replication_applier_global_filters	ACTIVE_SINCE	4	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status	CHANNEL_NAME	1	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(64)	PRI		select,insert,update,references			NULL
 def	performance_schema	replication_applier_status	SERVICE_STATE	2	NULL	NO	enum	3	12	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('ON','OFF')			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status	REMAINING_DELAY	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references			NULL
@@ -1044,14 +1055,14 @@ def	performance_schema	replication_applier_status_by_worker	APPLYING_TRANSACTION
 def	performance_schema	replication_applier_status_by_worker	APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_NUMBER	22	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status_by_worker	APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_MESSAGE	23	NULL	YES	varchar	1024	4096	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(1024)			select,insert,update,references			NULL
 def	performance_schema	replication_applier_status_by_worker	APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_TIMESTAMP	24	NULL	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
-def	performance_schema	replication_asynchronous_connection_failover	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	The replication channel name that connects source and replica.		NULL
-def	performance_schema	replication_asynchronous_connection_failover	HOST	2	NULL	NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references	The source hostname that the replica will attempt to switch over the replication connection to in case of a failure.		NULL
-def	performance_schema	replication_asynchronous_connection_failover	PORT	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int	PRI		select,insert,update,references	The source port that the replica will attempt to switch over the replication connection to in case of a failure.		NULL
-def	performance_schema	replication_asynchronous_connection_failover	NETWORK_NAMESPACE	4	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(64)	PRI		select,insert,update,references	The source network namespace that the replica will attempt to switch over the replication connection to in case of a failure. If its value is empty, connections use the default (global) namespace.		NULL
+def	performance_schema	replication_asynchronous_connection_failover	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	The replication channel name that connects source and replica.		NULL
+def	performance_schema	replication_asynchronous_connection_failover	HOST	2	NULL	NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)			select,insert,update,references	The source hostname that the replica will attempt to switch over the replication connection to in case of a failure.		NULL
+def	performance_schema	replication_asynchronous_connection_failover	PORT	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references	The source port that the replica will attempt to switch over the replication connection to in case of a failure.		NULL
+def	performance_schema	replication_asynchronous_connection_failover	NETWORK_NAMESPACE	4	NULL	YES	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(64)			select,insert,update,references	The source network namespace that the replica will attempt to switch over the replication connection to in case of a failure. If its value is empty, connections use the default (global) namespace.		NULL
 def	performance_schema	replication_asynchronous_connection_failover	WEIGHT	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references	The order in which the replica shall try to switch the connection over to when there are failures. Weight can be set to a number between 1 and 100, where 100 is the highest weight and 1 the lowest.		NULL
-def	performance_schema	replication_asynchronous_connection_failover	MANAGED_NAME	6		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	The name of the group which this server belongs to.		NULL
-def	performance_schema	replication_asynchronous_connection_failover_managed	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	The replication channel name that connects source and replica.		NULL
-def	performance_schema	replication_asynchronous_connection_failover_managed	MANAGED_NAME	2		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	The name of the source which needs to be managed.		NULL
+def	performance_schema	replication_asynchronous_connection_failover	MANAGED_NAME	6		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	The name of the group which this server belongs to.		NULL
+def	performance_schema	replication_asynchronous_connection_failover_managed	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	The replication channel name that connects source and replica.		NULL
+def	performance_schema	replication_asynchronous_connection_failover_managed	MANAGED_NAME	2		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	The name of the source which needs to be managed.		NULL
 def	performance_schema	replication_asynchronous_connection_failover_managed	MANAGED_TYPE	3		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	Determines the managed type.		NULL
 def	performance_schema	replication_asynchronous_connection_failover_managed	CONFIGURATION	4	NULL	YES	json	NULL	NULL	NULL	NULL	NULL	NULL	NULL	json			select,insert,update,references	The data to help manage group. For Managed_type = GroupReplication, Configuration value should contain {"Primary_weight": 80, "Secondary_weight": 60}, so that it assigns weight=80 to PRIMARY of the group, and weight=60 for rest of the members in mysql.replication_asynchronous_connection_failover table.		NULL
 def	performance_schema	replication_connection_configuration	CHANNEL_NAME	1	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(64)	PRI		select,insert,update,references			NULL
@@ -1071,7 +1082,7 @@ def	performance_schema	replication_connection_configuration	SSL_CRL_FILE	14	NULL
 def	performance_schema	replication_connection_configuration	SSL_CRL_PATH	15	NULL	NO	varchar	255	1020	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)			select,insert,update,references			NULL
 def	performance_schema	replication_connection_configuration	CONNECTION_RETRY_INTERVAL	16	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	performance_schema	replication_connection_configuration	CONNECTION_RETRY_COUNT	17	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
-def	performance_schema	replication_connection_configuration	HEARTBEAT_INTERVAL	18	NULL	NO	double	NULL	NULL	10	3	NULL	NULL	NULL	double(10,3) unsigned			select,insert,update,references	Number of seconds after which a heartbeat will be sent .		NULL
+def	performance_schema	replication_connection_configuration	HEARTBEAT_INTERVAL	18	NULL	NO	double	NULL	NULL	10	3	NULL	NULL	NULL	double(10,3)			select,insert,update,references	Number of seconds after which a heartbeat will be sent .		NULL
 def	performance_schema	replication_connection_configuration	TLS_VERSION	19	NULL	NO	varchar	255	1020	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)			select,insert,update,references			NULL
 def	performance_schema	replication_connection_configuration	PUBLIC_KEY_PATH	20	NULL	NO	varchar	512	2048	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(512)			select,insert,update,references			NULL
 def	performance_schema	replication_connection_configuration	GET_PUBLIC_KEY	21	NULL	NO	enum	3	12	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('YES','NO')			select,insert,update,references			NULL
@@ -1080,6 +1091,7 @@ def	performance_schema	replication_connection_configuration	COMPRESSION_ALGORITH
 def	performance_schema	replication_connection_configuration	ZSTD_COMPRESSION_LEVEL	24	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references	Compression level associated with zstd compression algorithm.		NULL
 def	performance_schema	replication_connection_configuration	TLS_CIPHERSUITES	25	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references			NULL
 def	performance_schema	replication_connection_configuration	SOURCE_CONNECTION_AUTO_FAILOVER	26	NULL	NO	enum	1	4	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('1','0')			select,insert,update,references			NULL
+def	performance_schema	replication_connection_configuration	GTID_ONLY	27	NULL	NO	enum	1	4	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('1','0')			select,insert,update,references	Indicates if this channel only uses GTIDs and does not persist positions.		NULL
 def	performance_schema	replication_connection_status	CHANNEL_NAME	1	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(64)	PRI		select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	GROUP_NAME	2	NULL	NO	char	36	144	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(36)			select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	SOURCE_UUID	3	NULL	NO	char	36	144	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(36)			select,insert,update,references			NULL
@@ -1107,6 +1119,7 @@ def	performance_schema	replication_group_members	MEMBER_PORT	4	NULL	YES	int	NULL
 def	performance_schema	replication_group_members	MEMBER_STATE	5	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(64)			select,insert,update,references			NULL
 def	performance_schema	replication_group_members	MEMBER_ROLE	6	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(64)			select,insert,update,references			NULL
 def	performance_schema	replication_group_members	MEMBER_VERSION	7	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(64)			select,insert,update,references			NULL
+def	performance_schema	replication_group_members	MEMBER_COMMUNICATION_STACK	8	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(64)			select,insert,update,references			NULL
 def	performance_schema	replication_group_member_stats	CHANNEL_NAME	1	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(64)			select,insert,update,references			NULL
 def	performance_schema	replication_group_member_stats	VIEW_ID	2	NULL	NO	char	60	240	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(60)			select,insert,update,references			NULL
 def	performance_schema	replication_group_member_stats	MEMBER_ID	3	NULL	NO	char	36	144	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(36)			select,insert,update,references			NULL

@@ -56,8 +56,8 @@ public:
     Refused = 3,
     NoFreeOp = 4
   };
-  STATIC_CONST( LockSignalLength = 14 );
-  STATIC_CONST( UndoSignalLength = 3 );
+  static constexpr Uint32 LockSignalLength = 14;
+  static constexpr Uint32 UndoSignalLength = 3;
 private:
   Uint32 returnCode;
   Uint32 requestInfo;

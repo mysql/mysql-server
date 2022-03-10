@@ -80,8 +80,8 @@ t1	1	a	1	a	NULL	5	NULL	NULL	YES	FULLTEXT			YES	NULL
 t1	1	a	2	b	NULL	5	NULL	NULL	YES	FULLTEXT			YES	NULL
 select * from t1 where MATCH(a,b) AGAINST ("collections");
 a	b
-Only MyISAM tables	support collections
 Full-text indexes	are called collections
+Only MyISAM tables	support collections
 explain select * from t1 where MATCH(a,b) AGAINST ("collections");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where

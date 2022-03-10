@@ -29,10 +29,12 @@ END IF;
 CASE p_dml_type
 WHEN 0 THEN
 SET @clol3_text = CONCAT('Clone Test Row - ', v_key);
-INSERT INTO t1 VALUES(v_key, v_key * 10,
+INSERT INTO t1 (col1, col2, col3, col4) VALUES (
+v_key, v_key * 10,
 @clol3_text, REPEAT('Large Column Data ', 2048))
 ON DUPLICATE KEY UPDATE col2 = col2 + 1;
-INSERT INTO t2 VALUES(v_key, v_key * 10,
+INSERT INTO t2 (col1, col2, col3, col4) VALUES (
+v_key, v_key * 10,
 @clol3_text, REPEAT('Large Column Data ', 2048))
 ON DUPLICATE KEY UPDATE col2 = col2 + 1;
 WHEN 1 THEN
@@ -58,6 +60,7 @@ START TRANSACTION;
 END IF;
 END IF;
 END WHILE;
+COMMIT;
 END|
 DROP TABLE t1;
 DROP TABLE t2;
@@ -424,6 +427,5 @@ DROP TABLESPACE tbs1;
 UNINSTALL PLUGIN clone;
 UNINSTALL PLUGIN keyring_file;
 SET DEBUG_SYNC = 'RESET';
-# restart:
 # Restart server and remove encrypted data directory
 # restart:

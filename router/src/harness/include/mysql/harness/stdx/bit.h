@@ -57,65 +57,6 @@ namespace impl {
 //    selects impl::bswap_N() with an 'if'
 // 2. impl::bswap() is automatically selected with std::if_enable_t<>
 //
-#if defined(__SUNPRO_CC)
-// Implementation works with all compilers, but is only used with devstudio.
-//
-// - gcc [
-//   2 byte: 1x rol
-//   4 byte: 1x bswap
-//   8 byte: 1x bswap
-//   ]
-// - clang [
-//   2 byte: 1x rol
-//   4 byte: 1x bswap
-//   8 byte: 1x bswap
-//   ]
-// - msvc (bad) [
-//   2 byte: 1x rol
-//   4 byte: 2x shl, 2x, shr, 3x or, 2x and
-//   8 byte: lots of shifts, or and ands
-//   ]
-// - devstudio [
-//   2 byte: 2x shift, 1 and, 1 or
-//   4 byte: 2x shl, 2x, shr, 3x or, 2x and
-//   8 byte:  lots of shifts, or and ands
-//
-
-constexpr uint8_t bswap_1(uint8_t t) noexcept { return t; }
-
-constexpr uint16_t bswap_2(uint16_t t) noexcept {
-  return (t & UINT16_C(0x00ff)) << (1 * 8) | (t & UINT16_C(0xff00)) >> (1 * 8);
-}
-
-constexpr uint32_t bswap_4(uint32_t t) noexcept {
-  return (t & UINT32_C(0x0000'00ff)) << (3 * 8) |
-         (t & UINT32_C(0x0000'ff00)) << (1 * 8) |
-         (t & UINT32_C(0x00ff'0000)) >> (1 * 8) |
-         (t & UINT32_C(0xff00'0000)) >> (3 * 8);
-}
-
-constexpr uint64_t bswap_8(uint64_t t) noexcept {
-  return (t & UINT64_C(0x0000'0000'0000'00ff)) << (7 * 8) |
-         (t & UINT64_C(0x0000'0000'0000'ff00)) << (5 * 8) |
-         (t & UINT64_C(0x0000'0000'00ff'0000)) << (3 * 8) |
-         (t & UINT64_C(0x0000'0000'ff00'0000)) << (1 * 8) |
-         (t & UINT64_C(0x0000'00ff'0000'0000)) >> (1 * 8) |
-         (t & UINT64_C(0x0000'ff00'0000'0000)) >> (3 * 8) |
-         (t & UINT64_C(0x00ff'0000'0000'0000)) >> (5 * 8) |
-         (t & UINT64_C(0xff00'0000'0000'0000)) >> (7 * 8);
-}
-
-template <class T>
-constexpr std::enable_if_t<
-    sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 || sizeof(T) == 8, T>
-bswap(T t) noexcept {
-  if (1 == sizeof(t)) return bswap_1(t);
-  if (2 == sizeof(t)) return bswap_2(t);
-  if (4 == sizeof(t)) return bswap_4(t);
-  if (8 == sizeof(t)) return bswap_8(t);
-}
-
-#else  // __SUNPRO_CC
 // implementation for
 //
 // - gcc [
@@ -142,11 +83,6 @@ bswap(T t) noexcept {
 //
 // MSVC provides _byteswap_uint64() and friends as instrincts, but they aren't
 // marked as constexpr.
-//
-// with devstudio it fails with:
-//
-//   Error: std::enable_if_t<sizeof((T))==1, T> stdx::impl::bswap<T>(T) already
-//   had a body defined.
 //
 template <class T>
 constexpr std::enable_if_t<sizeof(T) == 1, T> bswap(T t) noexcept {
@@ -197,7 +133,6 @@ constexpr std::enable_if_t<sizeof(T) == 8, T> bswap(T t) noexcept {
          (t & UINT64_C(0xff00'0000'0000'0000)) >> (7 * 8);
 #endif
 }
-#endif  // __SUNPRO_CC
 
 }  // namespace impl
 
@@ -206,10 +141,6 @@ std::enable_if_t<std::is_integral<IntegerType>::value,
                  IntegerType> constexpr byteswap(IntegerType t) noexcept {
   return impl::bswap(static_cast<std::make_unsigned_t<IntegerType>>(t));
 }
-
-#if 0
-// Note: in case the other bitops are also needs, an implementation is provided.
-//
 
 // [bitops.ret]
 template <class T>
@@ -406,6 +337,9 @@ countr_zero_builtin(T x) noexcept {
   return impl::countr_zero_logarithmic(x);
 }
 
+#if 0
+// only for reference.
+
 /**
  * popcount.
  *
@@ -436,6 +370,7 @@ constexpr std::enable_if_t<std::is_unsigned<T>::value, int> popcount_linear_kr(
   }
   return cnt;
 }
+#endif
 
 /**
  * popcount.
@@ -556,7 +491,6 @@ constexpr std::enable_if_t<std::is_unsigned<T>::value, int> countl_one(
   // countl_zero(0b1111'1100) == 6
   return countl_zero(static_cast<T>(~x));
 }
-#endif
 
 }  // namespace stdx
 #endif

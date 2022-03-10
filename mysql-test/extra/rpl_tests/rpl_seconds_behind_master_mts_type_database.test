@@ -1,7 +1,7 @@
 # ==== Purpose ====
 #
 # Verify that Seconds_Behind_Master is calculated correctly on a
-# Multi-threaded Slave when slave_parallel_type = 'DATABASE'.
+# Multi-threaded Slave when replica_parallel_type = 'DATABASE'.
 # The test covers these scenarios:
 #
 # 1) With two workers, check if Seconds_Behind_Master is calculated correctly
@@ -61,7 +61,7 @@ let $wait_condition= SELECT count(*) = 2 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Executing event'
                                                                              OR State = 'update';
 --source include/wait_condition.inc
---source include/wait_for_mts_checkpoint.inc
+--source include/wait_for_mta_checkpoint.inc
 
 # Calculate the upper bound for Seconds_Behind_Master.
 # $upper_bound = "timestamp on slave after reading Seconds_Behind_Master" -
@@ -82,7 +82,7 @@ let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Executing event'
                                                                              OR State = 'update';
 --source include/wait_condition.inc
---source include/wait_for_mts_checkpoint.inc
+--source include/wait_for_mta_checkpoint.inc
 
 # Since we have unlocked test.t1, now the first worker which was 5s behind
 # the master has completed its task. However the second worker is still
@@ -103,7 +103,7 @@ UNLOCK TABLES;
 
 let $wait_condition= SELECT count(*) = 4 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for an event from Coordinator';
 --source include/wait_condition.inc
---source include/wait_for_mts_checkpoint.inc
+--source include/wait_for_mta_checkpoint.inc
 
 # Now both the workers have completed their tasks and no new tasks have arrived, thus
 # Seconds_Behind_Master should be equal to 0.
@@ -143,7 +143,7 @@ let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Executing event'
                                                                              OR State = 'update';
 --source include/wait_condition.inc
---source include/wait_for_mts_checkpoint.inc
+--source include/wait_for_mta_checkpoint.inc
 
 # First worker has completed its task, second worker is still executing.
 # This means that Seconds_Behind_Master should now be 2s or slightly more.
@@ -160,7 +160,7 @@ UNLOCK TABLES;
 # Check that all the workers are free.
 let $wait_condition= SELECT count(*) = 4 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for an event from Coordinator';
 --source include/wait_condition.inc
---source include/wait_for_mts_checkpoint.inc
+--source include/wait_for_mta_checkpoint.inc
 
 let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
 let $assert_text= Seconds_Behind_Master must be 0;
@@ -212,7 +212,7 @@ let $wait_condition= SELECT count(*) = 2 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Executing event'
                                                                              OR State = 'update';
 --source include/wait_condition.inc
---source include/wait_for_mts_checkpoint.inc
+--source include/wait_for_mta_checkpoint.inc
 
 # Only second worker has completed. This means that longest running worker is
 # the first one, thus slave should be at least 7s behind the master.
@@ -232,7 +232,7 @@ let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Executing event'
                                                                              OR State = 'update';
 --source include/wait_condition.inc
---source include/wait_for_mts_checkpoint.inc
+--source include/wait_for_mta_checkpoint.inc
 
 # Only third worker is running. This means that slave should be at least 2s
 # behind the master.
@@ -249,7 +249,7 @@ UNLOCK TABLES;
 # Now all four workers have completed. Seconds_Behind_Master should be 0.
 let $wait_condition= SELECT count(*) = 4 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for an event from Coordinator';
 --source include/wait_condition.inc
---source include/wait_for_mts_checkpoint.inc
+--source include/wait_for_mta_checkpoint.inc
 
 let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
 let $assert_text= Seconds_Behind_Master must be 0;

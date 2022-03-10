@@ -85,6 +85,11 @@ void unsupported_json_comparison(size_t arg_count, Item **args,
 void report_conversion_error(const CHARSET_INFO *to_cs, const char *from,
                              size_t from_length, const CHARSET_INFO *from_cs);
 
+bool simplify_string_args(THD *thd, const DTCollation &c, Item **items,
+                          uint nitems);
+
+String *eval_string_arg(const CHARSET_INFO *to_cs, Item *arg, String *buffer);
+
 class Item_func : public Item_result_field {
  protected:
   /**
@@ -254,6 +259,8 @@ class Item_func : public Item_result_field {
     NULLIF_FUNC,
     CASE_FUNC,
     YEAR_FUNC,
+    YEARWEEK_FUNC,
+    MAKEDATE_FUNC,
     MONTH_FUNC,
     MONTHNAME_FUNC,
     DAY_FUNC,
@@ -273,6 +280,7 @@ class Item_func : public Item_result_field {
     DATEADD_FUNC,
     FROM_UNIXTIME_FUNC,
     CONVERT_TZ_FUNC,
+    LAST_DAY_FUNC,
     UNIX_TIMESTAMP_FUNC,
     TIME_TO_SEC_FUNC,
     TIMESTAMPDIFF_FUNC,
@@ -597,8 +605,7 @@ class Item_func : public Item_result_field {
     @retval true   arg can be cached
     @retval false  otherwise
   */
-  virtual enum_const_item_cache can_cache_json_arg(
-      Item *arg MY_ATTRIBUTE((unused))) {
+  virtual enum_const_item_cache can_cache_json_arg(Item *arg [[maybe_unused]]) {
     return CACHE_NONE;
   }
 
@@ -690,8 +697,7 @@ class Item_func : public Item_result_field {
     }
     return false;
   }
-  bool check_column_from_derived_table(
-      uchar *arg MY_ATTRIBUTE((unused))) override {
+  bool check_column_from_derived_table(uchar *arg [[maybe_unused]]) override {
     return false;
   }
   bool check_column_in_window_functions(uchar *arg) override;
@@ -1116,36 +1122,41 @@ class Item_func_mul final : public Item_num_op {
   enum Functype functype() const override { return MUL_FUNC; }
 };
 
-class Item_func_div final : public Item_num_op {
+class Item_func_div_base : public Item_num_op {
  public:
-  uint prec_increment;
-  Item_func_div(const POS &pos, Item *a, Item *b) : Item_num_op(pos, a, b) {}
-  longlong int_op() override {
-    assert(false);
-    return 0;
-  }
+  Item_func_div_base(const POS &pos, Item *a, Item *b)
+      : Item_num_op(pos, a, b) {}
+  Item_func_div_base(Item *a, Item *b) : Item_num_op(a, b) {}
+  longlong int_op() override;
   double real_op() override;
   my_decimal *decimal_op(my_decimal *) override;
+  enum Functype functype() const override { return DIV_FUNC; }
+
+ protected:
+  uint m_prec_increment;
+};
+
+class Item_func_div final : public Item_func_div_base {
+ public:
+  Item_func_div(const POS &pos, Item *a, Item *b)
+      : Item_func_div_base(pos, a, b) {}
   const char *func_name() const override { return "/"; }
   bool resolve_type(THD *thd) override;
   void result_precision() override;
-  enum Functype functype() const override { return DIV_FUNC; }
 };
 
-class Item_func_int_div final : public Item_int_func {
+class Item_func_div_int final : public Item_func_div_base {
  public:
-  Item_func_int_div(Item *a, Item *b) : Item_int_func(a, b) {}
-  Item_func_int_div(const POS &pos, Item *a, Item *b)
-      : Item_int_func(pos, a, b) {}
-  longlong val_int() override;
+  Item_func_div_int(Item *a, Item *b) : Item_func_div_base(a, b) {}
+  Item_func_div_int(const POS &pos, Item *a, Item *b)
+      : Item_func_div_base(pos, a, b) {}
   const char *func_name() const override { return "DIV"; }
-  bool resolve_type(THD *thd) override;
-
-  void print(const THD *thd, String *str,
-             enum_query_type query_type) const override {
-    print_op(thd, str, query_type);
+  enum_field_types default_data_type() const override {
+    return MYSQL_TYPE_LONGLONG;
   }
-
+  bool resolve_type(THD *thd) override;
+  void result_precision() override;
+  void set_numeric_type() override;
   bool check_partition_func_processor(uchar *) override { return false; }
   bool check_function_as_value_generator(uchar *) override { return false; }
 };
@@ -1178,9 +1189,6 @@ class Item_func_neg final : public Item_func_num1 {
   enum Functype functype() const override { return NEG_FUNC; }
   bool resolve_type(THD *thd) override;
   void fix_num_length_and_dec() override;
-  uint decimal_precision() const override {
-    return args[0]->decimal_precision();
-  }
   bool check_partition_func_processor(uchar *) override { return false; }
   bool check_function_as_value_generator(uchar *) override { return false; }
 };
@@ -1592,9 +1600,11 @@ class Item_rollup_group_item final : public Item_func {
   table_map used_tables() const override {
     /*
       If underlying item is non-constant, return its used_tables value.
-      Otherwise, ensure it is non-constant by returning RAND_TABLE_BIT.
+      Otherwise, ensure it is non-constant by adding RAND_TABLE_BIT.
     */
-    return args[0]->used_tables() ? args[0]->used_tables() : RAND_TABLE_BIT;
+    return args[0]->const_for_execution()
+               ? (args[0]->used_tables() | RAND_TABLE_BIT)
+               : args[0]->used_tables();
   }
   Item_result result_type() const override { return args[0]->result_type(); }
   bool resolve_type(THD *) override {
@@ -1606,9 +1616,6 @@ class Item_rollup_group_item final : public Item_func {
     return false;
   }
   Item *inner_item() const { return args[0]; }
-  uint decimal_precision() const override {
-    return args[0]->decimal_precision();
-  }
   bool rollup_null() const {
     return m_current_rollup_level <= m_min_rollup_level;
   }
@@ -1681,7 +1688,6 @@ class Item_func_coercibility final : public Item_int_func {
 
 class Item_func_locate : public Item_int_func {
   String value1, value2;
-  DTCollation cmp_collation;
 
  public:
   Item_func_locate(Item *a, Item *b) : Item_int_func(a, b) {}
@@ -1723,7 +1729,6 @@ class Item_func_validate_password_strength final : public Item_int_func {
 class Item_func_field final : public Item_int_func {
   String value, tmp;
   Item_result cmp_type;
-  DTCollation cmp_collation;
 
  public:
   Item_func_field(const POS &pos, PT_item_list *opt_list)
@@ -1976,7 +1981,6 @@ class Item_func_last_insert_id final : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_LONGLONG)) return true;
     unsigned_flag = true;
-    if (arg_count) max_length = args[0]->max_length;
     return false;
   }
   bool check_function_as_value_generator(uchar *checker_args) override {
@@ -2067,7 +2071,7 @@ class Item_udf_func : public Item_func {
       : Item_func(pos, opt_list), udf(udf_arg) {
     null_on_null = false;
   }
-  ~Item_udf_func() override {}
+  ~Item_udf_func() override = default;
 
   bool itemize(Parse_context *pc, Item **res) override;
   const char *func_name() const override { return udf.name(); }
@@ -2276,7 +2280,6 @@ class Item_func_get_lock final : public Item_int_func {
     func_arg->banned_function_name = func_name();
     return true;
   }
-  uint decimal_precision() const override { return max_length; }
 };
 
 class Item_func_release_lock final : public Item_int_func {
@@ -2304,7 +2307,6 @@ class Item_func_release_lock final : public Item_int_func {
     func_arg->banned_function_name = func_name();
     return true;
   }
-  uint decimal_precision() const override { return max_length; }
 };
 
 class Item_func_release_all_locks final : public Item_int_func {
@@ -2332,21 +2334,21 @@ class Item_func_release_all_locks final : public Item_int_func {
 
 /* replication functions */
 
-class Item_master_pos_wait final : public Item_int_func {
+class Item_source_pos_wait : public Item_int_func {
   typedef Item_int_func super;
   String value;
 
  public:
-  Item_master_pos_wait(const POS &pos, Item *a, Item *b)
+  Item_source_pos_wait(const POS &pos, Item *a, Item *b)
       : Item_int_func(pos, a, b) {}
-  Item_master_pos_wait(const POS &pos, Item *a, Item *b, Item *c)
+  Item_source_pos_wait(const POS &pos, Item *a, Item *b, Item *c)
       : Item_int_func(pos, a, b, c) {}
-  Item_master_pos_wait(const POS &pos, Item *a, Item *b, Item *c, Item *d)
+  Item_source_pos_wait(const POS &pos, Item *a, Item *b, Item *c, Item *d)
       : Item_int_func(pos, a, b, c, d) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
-  const char *func_name() const override { return "master_pos_wait"; }
+  const char *func_name() const override { return "source_pos_wait"; }
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1)) return true;
     if (param_type_is_default(thd, 1, 3, MYSQL_TYPE_LONGLONG)) return true;
@@ -2362,6 +2364,17 @@ class Item_master_pos_wait final : public Item_int_func {
     func_arg->banned_function_name = func_name();
     return true;
   }
+};
+
+class Item_master_pos_wait : public Item_source_pos_wait {
+ public:
+  Item_master_pos_wait(const POS &pos, Item *a, Item *b)
+      : Item_source_pos_wait(pos, a, b) {}
+  Item_master_pos_wait(const POS &pos, Item *a, Item *b, Item *c)
+      : Item_source_pos_wait(pos, a, b, c) {}
+  Item_master_pos_wait(const POS &pos, Item *a, Item *b, Item *c, Item *d)
+      : Item_source_pos_wait(pos, a, b, c, d) {}
+  longlong val_int() override;
 };
 
 /**
@@ -3101,7 +3114,7 @@ class user_var_entry {
   query_id_t m_used_query_id;
 
  public:
-  user_var_entry() {} /* Remove gcc warning */
+  user_var_entry() = default; /* Remove gcc warning */
 
   THD *owner_session() const { return m_owner; }
 
@@ -3435,7 +3448,10 @@ class Item_func_match final : public Item_real_func {
  public:
   Item *against;
   uint key, flags;
-  bool join_key;
+  /// True if we are doing a full-text index scan with this MATCH function as a
+  /// predicate, and the score can be retrieved with get_relevance(). If it is
+  /// false, the score of the document must be retrieved with find_relevance().
+  bool score_from_index_scan{false};
   DTCollation cmp_collation;
   FT_INFO *ft_handler;
   TABLE_LIST *table_ref;
@@ -3463,7 +3479,6 @@ class Item_func_match final : public Item_real_func {
         against(against_arg),
         key(0),
         flags(b),
-        join_key(false),
         ft_handler(nullptr),
         table_ref(nullptr),
         master(nullptr),
@@ -3482,6 +3497,7 @@ class Item_func_match final : public Item_real_func {
     if (master == nullptr && ft_handler != nullptr) {
       ft_handler->please->close_search(ft_handler);
     }
+    score_from_index_scan = false;
     ft_handler = nullptr;
     concat_ws = nullptr;
     return;
@@ -4002,5 +4018,11 @@ Item_field *get_gc_for_expr(const Item *func, Field *fld, Item_result type,
 void retrieve_tablespace_statistics(THD *thd, Item **args, bool *null_value);
 
 extern bool volatile mqh_used;
+
+/// Checks if "item" is a function of the specified type.
+bool is_function_of_type(const Item *item, Item_func::Functype type);
+
+/// Checks if "item" contains a function of the specified type.
+bool contains_function_of_type(Item *item, Item_func::Functype type);
 
 #endif /* ITEM_FUNC_INCLUDED */

@@ -682,7 +682,7 @@ static void set_query_in_com_data(const char *query, union COM_DATA *cmd) {
 
 static void run_statement(MYSQL_SESSION session, const char *query,
                           struct st_plugin_ctx *ctx, bool generates_result_set,
-                          void *p MY_ATTRIBUTE((unused))) {
+                          void *p [[maybe_unused]]) {
   char buffer[STRING_BUFFER_SIZE];
   COM_DATA cmd;
 
@@ -720,7 +720,7 @@ again:
 
 void static change_current_db(MYSQL_SESSION session, const char *db,
                               struct st_plugin_ctx *ctx,
-                              void *p MY_ATTRIBUTE((unused))) {
+                              void *p [[maybe_unused]]) {
   char buffer[STRING_BUFFER_SIZE];
   COM_DATA cmd;
   cmd.com_init_db.db_name = db;
@@ -857,7 +857,7 @@ static int test_sql_service_plugin_init(void *p) {
   return 0;
 }
 
-static int test_sql_service_plugin_deinit(void *p MY_ATTRIBUTE((unused))) {
+static int test_sql_service_plugin_deinit(void *p [[maybe_unused]]) {
   DBUG_TRACE;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Uninstallation.");
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);

@@ -150,6 +150,11 @@ typedef struct MYSQL_PLUGIN_VIO {
       struct MYSQL_PLUGIN_VIO *vio, const unsigned char *pkt, int pkt_len,
       int *result);
 } MYSQL_PLUGIN_VIO;
+struct auth_factor_desc {
+  const char *auth_string;
+  unsigned long auth_string_length;
+  unsigned int is_registration_required;
+};
 struct MYSQL_SERVER_AUTH_INFO {
   char *user_name;
   unsigned int user_name_length;
@@ -162,6 +167,8 @@ struct MYSQL_SERVER_AUTH_INFO {
   unsigned int host_or_ip_length;
   const char *additional_auth_string;
   unsigned long additional_auth_string_length;
+  unsigned int current_auth_factor;
+  auth_factor_desc *multi_factor_auth_info;
 };
 typedef int (*authenticate_user_t)(MYSQL_PLUGIN_VIO *vio,
                                    MYSQL_SERVER_AUTH_INFO *info);

@@ -1,0 +1,5 @@
+!include suite/ndb_opt/my.cnf
+
+[cluster_config]
+# Reduce delay to ensure that the stats are updated frequently
+IndexStatUpdateDelay=1

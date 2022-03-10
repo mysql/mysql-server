@@ -25,14 +25,52 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "mysql_session.h"
+#include "mysqlrouter/mysql_session.h"
 #include "mysqlxclient.h"
+#include "mysqlxclient/xerror.h"
+#include "mysqlxclient/xrow.h"
 #include "router_component_test.h"
 #include "router_config.h"
 #include "tcp_port_pool.h"
 
 using namespace std::chrono_literals;
 using namespace std::string_literals;
+
+const char *xcl_column_type_to_string(xcl::Column_type type) {
+  switch (type) {
+    case xcl::Column_type::BIT:
+      return "BIT";
+    case xcl::Column_type::BYTES:
+      return "BYTES";
+    case xcl::Column_type::DATETIME:
+      return "DATETIME";
+    case xcl::Column_type::DECIMAL:
+      return "DECIMAL";
+    case xcl::Column_type::SET:
+      return "SET";
+    case xcl::Column_type::ENUM:
+      return "ENUM";
+    case xcl::Column_type::TIME:
+      return "TIME";
+    case xcl::Column_type::SINT:
+      return "SINT";
+    case xcl::Column_type::UINT:
+      return "UINT";
+    case xcl::Column_type::DOUBLE:
+      return "DOUBLE";
+    case xcl::Column_type::FLOAT:
+      return "FLOAT";
+  }
+
+  return "unknown";
+}
+
+namespace xcl {
+std::ostream &operator<<(std::ostream &os, xcl::Column_type type) {
+  os << xcl_column_type_to_string(type);
+  return os;
+}
+}  // namespace xcl
 
 struct MockServerCLITestParam {
   const char *test_name;
@@ -58,8 +96,7 @@ TEST_P(MockServerCLITest, check) {
                              GetParam().expected_exit_code, true);
 
   SCOPED_TRACE("// wait for exit");
-  check_exit_code(cmd, GetParam().expected_exit_code,
-                  1000ms);  // should be quick, and return 0
+  check_exit_code(cmd, GetParam().expected_exit_code, 5s);
   SCOPED_TRACE("// checking stdout");
 
   GetParam().checker(cmd.get_full_output());
@@ -199,6 +236,57 @@ INSTANTIATE_TEST_CASE_P(Spec, MockServerCLITest,
 
 class MockServerCLITestBase : public RouterComponentTest {};
 
+TEST_F(MockServerCLITestBase, classic_many_connections) {
+  auto mysql_server_mock_path = get_mysqlserver_mock_exec().str();
+  auto bind_port = port_pool_.get_next_available();
+  ASSERT_THAT(mysql_server_mock_path, ::testing::StrNe(""));
+
+  std::map<std::string, std::string> config{
+      {"--module-prefix", get_data_dir().str()},
+      {"--filename", get_data_dir().join("my_port.js").str()},
+      {"--port", std::to_string(bind_port)},
+  };
+
+  std::vector<std::string> cmdline_args;
+
+  for (const auto &arg : config) {
+    cmdline_args.push_back(arg.first);
+    cmdline_args.push_back(arg.second);
+  }
+
+  SCOPED_TRACE("// start " + mysql_server_mock_path);
+  spawner(mysql_server_mock_path).spawn(cmdline_args);
+
+  // Opening a new connection takes ~12ms on a dev-machine.
+  //
+  // Spawning 80 connections sequentially takes ~1sec.
+  //
+  // ideas to improve this time:
+  //
+  // - use libmysqlclient's async connect code.
+  // - make the mock handle connections faster.
+  constexpr int kNumConnections{80};
+  std::vector<mysqlrouter::MySQLSession> classic_sessions{kNumConnections};
+
+  for (auto &sess : classic_sessions) {
+    try {
+      sess.connect("127.0.0.1", bind_port, "root", "fake-pass", "", "");
+    } catch (const std::exception &e) {
+      FAIL() << e.what();
+    }
+  }
+
+  for (auto &sess : classic_sessions) {
+    try {
+      auto row = sess.query_one("select @@port");
+      ASSERT_EQ(row->size(), 1);
+      EXPECT_EQ((*row)[0], std::to_string(bind_port));
+    } catch (const std::exception &e) {
+      FAIL() << e.what();
+    }
+  }
+}
+
 struct MockServerConnectOkTestParam {
   const char *test_name;
 
@@ -207,10 +295,7 @@ struct MockServerConnectOkTestParam {
 
 class MockServerConnectOkTest
     : public RouterComponentTest,
-      public ::testing::WithParamInterface<MockServerConnectOkTestParam> {
- protected:
-  TcpPortPool port_pool_;
-};
+      public ::testing::WithParamInterface<MockServerConnectOkTestParam> {};
 
 /**
  * replace named placeholders in a string.
@@ -322,8 +407,7 @@ TEST_P(MockServerConnectOkTest, classic_protocol) {
   cmdline_args.push_back(std::to_string(bind_port));
 
   SCOPED_TRACE("// start binary");
-  launch_command(mysql_server_mock_path, cmdline_args, EXIT_SUCCESS, true,
-                 1000ms);
+  launch_command(mysql_server_mock_path, cmdline_args, EXIT_SUCCESS, true, 1s);
 
   SCOPED_TRACE("// checking "s + GetParam().test_name);
   classic_protocol_connect_ok(config.at("hostname"), bind_port);
@@ -332,6 +416,7 @@ TEST_P(MockServerConnectOkTest, classic_protocol) {
 TEST_P(MockServerConnectOkTest, x_protocol) {
   auto mysql_server_mock_path = get_mysqlserver_mock_exec().str();
   auto bind_port = port_pool_.get_next_available();
+  auto other_bind_port = port_pool_.get_next_available();
   ASSERT_THAT(mysql_server_mock_path, ::testing::StrNe(""));
 
   std::map<std::string, std::string> config{
@@ -351,12 +436,17 @@ TEST_P(MockServerConnectOkTest, x_protocol) {
     }
   }
 
+  // set the classic port even though we don't use it.
+  // otherwise it defaults to bind to port 3306 which may lead to "Address
+  // already in use"
+  cmdline_args.emplace_back("--port");
+  cmdline_args.push_back(std::to_string(other_bind_port));
+
   cmdline_args.emplace_back("--xport");
   cmdline_args.push_back(std::to_string(bind_port));
 
   SCOPED_TRACE("// start binary");
-  launch_command(mysql_server_mock_path, cmdline_args, EXIT_SUCCESS, true,
-                 1000ms);
+  launch_command(mysql_server_mock_path, cmdline_args, EXIT_SUCCESS, true, 1s);
 
   SCOPED_TRACE("// checking "s + GetParam().test_name);
   x_protocol_connect_ok(config.at("hostname"), bind_port);
@@ -489,10 +579,7 @@ struct MockServerConnectTestParam {
 
 class MockServerConnectTest
     : public RouterComponentTest,
-      public ::testing::WithParamInterface<MockServerConnectTestParam> {
- protected:
-  TcpPortPool port_pool_;
-};
+      public ::testing::WithParamInterface<MockServerConnectTestParam> {};
 
 TEST_P(MockServerConnectTest, check) {
   auto mysql_server_mock_path = get_mysqlserver_mock_exec().str();
@@ -519,8 +606,7 @@ TEST_P(MockServerConnectTest, check) {
   }
 
   SCOPED_TRACE("// start binary");
-  launch_command(mysql_server_mock_path, cmdline_args, EXIT_SUCCESS, true,
-                 1000ms);
+  launch_command(mysql_server_mock_path, cmdline_args, EXIT_SUCCESS, true, 1s);
 
   SCOPED_TRACE("// checking "s + GetParam().test_name);
   GetParam().checker(config);
@@ -892,12 +978,18 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
            replace_placeholders("@certdir@/crl-client-cert.pem", config),
            replace_placeholders("@certdir@/crl-client-key.pem", config));
 
-       sess.set_ssl_options(SSL_MODE_REQUIRED, "TLSv1.1",
-                            "",  //
-                            "",  //
-                            "",  //
-                            "",  //
-                            "");
+       // TLSv1.1 may be forbidden in libmysqlclient.
+       try {
+         sess.set_ssl_options(SSL_MODE_REQUIRED, "TLSv1.1",
+                              "",  //
+                              "",  //
+                              "",  //
+                              "",  //
+                              "");
+       } catch (const std::exception &e) {
+         // Error setting TLS_VERSION option for MySQL connection
+         GTEST_SKIP() << e.what();
+       }
 
        try {
          sess.connect(config.at("hostname"), atol(config.at("port").c_str()),
@@ -911,6 +1003,58 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
          ASSERT_EQ(e.code(), 2026);
        }
      }},
+    {"xproto_mysqlsh_select_connection_id",
+     {
+         "--filename", "@datadir@/tls_endpoint.js",      //
+         "--module-prefix", "@datadir@",                 //
+         "--xport", "@xport@",                           //
+         "--ssl-mode", "required",                       //
+         "--ssl-ca", "@certdir@/crl-ca-cert.pem",        //
+         "--ssl-key", "@certdir@/crl-server-key.pem",    //
+         "--ssl-cert", "@certdir@/crl-server-cert.pem",  //
+         "--tls-version", "TLSv1.2",                     //
+     },
+     [](const std::map<std::string, std::string> &config) {
+       auto sess = xcl::create_session();
+       ASSERT_THAT(
+           sess->set_mysql_option(xcl::XSession::Mysqlx_option::Ssl_mode,
+                                  mysqlrouter::MySQLSession::ssl_mode_to_string(
+                                      SSL_MODE_PREFERRED)),
+           ::testing::Truly([](const xcl::XError &xerr) { return !xerr; }));
+       ASSERT_THAT(
+           sess->connect(config.at("hostname").c_str(),
+                         atol(config.at("xport").c_str()), "someuser",
+                         "somepass", ""),
+           ::testing::Truly([](auto const &err) { return err.error() == 0; }));
+       xcl::XError xerr;
+       auto query_result = sess->execute_sql(
+           "select "
+           "@@lower_case_table_names, @@version, connection_id(), "
+           "variable_value "
+           "from performance_schema.session_status "
+           "where variable_name = 'mysqlx_ssl_cipher'",
+           &xerr);
+
+       ASSERT_TRUE(query_result->has_resultset());
+
+       const auto &meta = query_result->get_metadata();
+       ASSERT_THAT(meta, ::testing::SizeIs(::testing::Eq(4)));
+       EXPECT_EQ(meta[0].type,
+                 xcl::Column_type::SINT);  // lower_case_table_names
+       EXPECT_EQ(meta[1].type, xcl::Column_type::BYTES);  // version
+       EXPECT_EQ(meta[2].type, xcl::Column_type::SINT);   // connection_id
+       EXPECT_EQ(meta[3].type, xcl::Column_type::BYTES);  // cipher
+
+       auto row = query_result->get_next_row();
+       ASSERT_TRUE(row);
+       ASSERT_EQ(row->get_number_of_fields(), 4);
+
+       // check if there something like a version-string in field[1]
+       std::string version_string;
+       ASSERT_TRUE(row->get_string(1, &version_string));
+       ASSERT_THAT(version_string,
+                   ::testing::SizeIs(::testing::Gt(5)));  // x.y.z
+     }},
 };
 
 INSTANTIATE_TEST_CASE_P(Spec, MockServerConnectTest,
@@ -918,6 +1062,7 @@ INSTANTIATE_TEST_CASE_P(Spec, MockServerConnectTest,
                         [](const auto &info) { return info.param.test_name; });
 
 int main(int argc, char *argv[]) {
+  net::impl::socket::init();
   ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

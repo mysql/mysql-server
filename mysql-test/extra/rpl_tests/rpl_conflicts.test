@@ -13,9 +13,9 @@
 # to stop with an error and the second conflict is ignored.
 #
 # In row-logging mode, the slave behavior depends the value of
-# @@slave_exec_mode on the slave: if @@slave_exec_mode is IDEMPOTENT,
+# @@replica_exec_mode on the slave: if @@replica_exec_mode is IDEMPOTENT,
 # the slave should ignore the conflicting statement and continue
-# normally.  If @@slave_exec_mode is STRICT, the slave should stop
+# normally.  If @@replica_exec_mode is STRICT, the slave should stop
 # with an error.
 #
 # This test was previously named rpl_stm_mystery22/rpl_row_mystery22.
@@ -47,7 +47,7 @@
 # - The test language variable $slave_is_idempotent is set to 1 if the
 #   slave is expected to stop on duplicate key errors (i.e., if the
 #   binlog is in statement mode or
-#   @@global.slave_exec_mode=STRICT). It is set to 0 otherwise.
+#   @@global.replica_exec_mode=STRICT). It is set to 0 otherwise.
 #
 # - Replication has been initialized by include/master-slave.inc
 #
@@ -80,11 +80,11 @@ SELECT * FROM t1;
 --echo [on slave]
 connection slave;
 
-# If we are statement-logging or if slave_exec_mode=STRICT, we now
+# If we are statement-logging or if replica_exec_mode=STRICT, we now
 # expect to see an error on the slave.  Otherwise (i.e., we are
-# row-logging and slave_exec_mode=IDEMPOTENT), we expect that the
+# row-logging and replica_exec_mode=IDEMPOTENT), we expect that the
 # duplicate row is ignored by the slave and replication continues.
-if (`SELECT @@global.binlog_format != 'ROW' OR @@global.slave_exec_mode = 'STRICT'`) {
+if (`SELECT @@global.binlog_format != 'ROW' OR @@global.replica_exec_mode = 'STRICT'`) {
   --echo ---- Wait until slave stops with an error ----
   # Wait until the slave tries to run the query, fails with duplicate
   # key error, and stops the SQL thread.
@@ -133,12 +133,12 @@ save_master_pos;
 --echo [on slave]
 connection slave;
 
-# If we are row-logging and slave_exec_mode is STRICT, we now expect
+# If we are row-logging and replica_exec_mode is STRICT, we now expect
 # an error since the row to delete does not exist on slave.  Otherwise
-# (i.e., either we are statement-logging or slave_exec_mode is
+# (i.e., either we are statement-logging or replica_exec_mode is
 # IDEMPOTENT), the absence of the row to delete is ignored and
 # replication continues.
-if (`SELECT @@global.binlog_format = 'ROW' AND @@global.slave_exec_mode = 'STRICT'`) {
+if (`SELECT @@global.binlog_format = 'ROW' AND @@global.replica_exec_mode = 'STRICT'`) {
   --echo ---- Wait until slave stops with an error ----
   call mtr.add_suppression("Slave SQL.*Can.t find record in .t1., Error_code: 1032");
 

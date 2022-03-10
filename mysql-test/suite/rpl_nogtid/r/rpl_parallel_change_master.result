@@ -7,8 +7,8 @@ call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Write_ro
 call mtr.add_suppression("Slave SQL for channel '': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
 call mtr.add_suppression("Error writing relay log configuration.");
 include/stop_slave.inc
-SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
-SET @@global.slave_parallel_workers=2;
+SET @save.replica_parallel_workers=@@global.replica_parallel_workers;
+SET @@global.replica_parallel_workers=2;
 include/start_slave.inc
 CREATE DATABASE d1;
 CREATE DATABASE d2;
@@ -45,8 +45,8 @@ include/wait_for_slave_sql_error.inc [errno=1062]
 include/stop_slave_io.inc
 CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE=FILE,  RELAY_LOG_POS= POS;
 ERROR HY000: CHANGE MASTER cannot be executed when the slave was stopped with an error or killed in MTS mode. Consider using RESET SLAVE or START SLAVE UNTIL.
-SET @@global.slave_parallel_workers= @save.slave_parallel_workers;
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery --skip-slave-start]
+SET @@global.replica_parallel_workers= @save.replica_parallel_workers;
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery --skip-replica-start]
 SELECT @@global.relay_log_recovery as 'must be ON';
 must be ON
 1
@@ -54,7 +54,7 @@ call mtr.add_suppression("MTS recovery: automatic recovery failed.*");
 call mtr.add_suppression("Failed to initialize the master info structure");
 call mtr.add_suppression("Failed to create or recover replication info repositories.");
 call mtr.add_suppression("It is not possible to change the type of the relay log repository because there are workers repositories with possible execution gaps. The value of --relay_log_info_repository is altered to one of the found Worker repositories");
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-replica-start]
 SELECT @@global.relay_log_recovery as 'must be OFF';
 must be OFF
 0
@@ -65,8 +65,8 @@ DROP DATABASE d2;
 include/sync_slave_sql_with_master.inc
 [connection slave]
 include/stop_slave.inc
-SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
-SET @@global.slave_parallel_workers=2;
+SET @save.replica_parallel_workers=@@global.replica_parallel_workers;
+SET @@global.replica_parallel_workers=2;
 SET @save.relay_log_info_repository=@@global.relay_log_info_repository;
 Warnings:
 Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
@@ -109,7 +109,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= MASTER_PORT,
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-SET @@global.slave_parallel_workers= @save.slave_parallel_workers;
+SET @@global.replica_parallel_workers= @save.replica_parallel_workers;
 SET @@global.relay_log_info_repository= @save.relay_log_info_repository;
 include/start_slave.inc
 [connection master]

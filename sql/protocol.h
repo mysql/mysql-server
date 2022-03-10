@@ -45,7 +45,7 @@ class Protocol {
   Protocol *m_previous_protocol = nullptr;
 
  public:
-  virtual ~Protocol() {}
+  virtual ~Protocol() = default;
 
   /**
     Remove the reference to the previous protocol and return it.

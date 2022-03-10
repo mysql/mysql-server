@@ -499,15 +499,8 @@ class Item_typecast_json final : public Item_json_func {
 class Item_func_json_length final : public Item_int_func {
   String m_doc_value;
 
-  // Cache for constant path expressions
-  Json_path_cache m_path_cache;
-
  public:
-  Item_func_json_length(THD *thd, const POS &pos, Item *a)
-      : Item_int_func(pos, a), m_path_cache(thd, 1) {}
-
-  Item_func_json_length(THD *thd, const POS &pos, Item *a, Item *b)
-      : Item_int_func(pos, a, b), m_path_cache(thd, 2) {}
+  Item_func_json_length(const POS &pos, Item *doc) : Item_int_func(pos, doc) {}
 
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
@@ -519,8 +512,6 @@ class Item_func_json_length final : public Item_int_func {
   const char *func_name() const override { return "json_length"; }
 
   longlong val_int() override;
-
-  void cleanup() override;
 };
 
 /**

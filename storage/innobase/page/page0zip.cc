@@ -183,9 +183,9 @@ bool page_zip_is_too_big(const dict_index_t *index, const dtuple_t *entry) {
 
 /** Find the slot of the given non-free record in the dense page directory.
  @return dense directory slot, or NULL if record not found */
-UNIV_INLINE
-byte *page_zip_dir_find(page_zip_des_t *page_zip, /*!< in: compressed page */
-                        ulint offset) /*!< in: offset of user record */
+static inline byte *page_zip_dir_find(
+    page_zip_des_t *page_zip, /*!< in: compressed page */
+    ulint offset)             /*!< in: offset of user record */
 {
   byte *end = page_zip->data + page_zip_get_size(page_zip);
 
@@ -957,7 +957,7 @@ ibool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
   byte *storage; /* storage of uncompressed
                  columns */
 #ifndef UNIV_HOTBACKUP
-  const auto usec = ut_time_monotonic_us();
+  const auto start_time = std::chrono::steady_clock::now();
 #endif /* !UNIV_HOTBACKUP */
 #ifdef PAGE_ZIP_COMPRESS_DBG
   FILE *logfile = nullptr;
@@ -1179,11 +1179,13 @@ ibool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
       dict_index_zip_failure(index);
     }
 
-    const auto time_diff = ut_time_monotonic_us() - usec;
-    page_zip_stat[page_zip->ssize - 1].compressed_usec += time_diff;
+    const auto time_diff =
+        std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now() - start_time);
+    page_zip_stat[page_zip->ssize - 1].compress_time += time_diff;
     if (cmp_per_index_enabled) {
       mutex_enter(&page_zip_stat_per_index_mutex);
-      page_zip_stat_per_index[ind_id].compressed_usec += time_diff;
+      page_zip_stat_per_index[ind_id].compress_time += time_diff;
       mutex_exit(&page_zip_stat_per_index_mutex);
     }
 #endif /* !UNIV_HOTBACKUP */
@@ -1247,13 +1249,14 @@ ibool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
   }
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
-  const auto time_diff = ut_time_monotonic_us() - usec;
+  const auto time_diff = std::chrono::duration_cast<std::chrono::microseconds>(
+      std::chrono::steady_clock::now() - start_time);
   page_zip_stat[page_zip->ssize - 1].compressed_ok++;
-  page_zip_stat[page_zip->ssize - 1].compressed_usec += time_diff;
+  page_zip_stat[page_zip->ssize - 1].compress_time += time_diff;
   if (cmp_per_index_enabled) {
     mutex_enter(&page_zip_stat_per_index_mutex);
     page_zip_stat_per_index[ind_id].compressed_ok++;
-    page_zip_stat_per_index[ind_id].compressed_usec += time_diff;
+    page_zip_stat_per_index[ind_id].compress_time += time_diff;
     mutex_exit(&page_zip_stat_per_index_mutex);
   }
 
@@ -1279,7 +1282,7 @@ ibool page_zip_decompress(
                               after page creation */
 {
 #ifndef UNIV_HOTBACKUP
-  const auto usec = ut_time_monotonic_us();
+  const auto start_time = std::chrono::steady_clock::now();
 #endif /* !UNIV_HOTBACKUP */
 
   if (!page_zip_decompress_low(page_zip, page, all)) {
@@ -1287,16 +1290,17 @@ ibool page_zip_decompress(
   }
 
 #ifndef UNIV_HOTBACKUP
-  const auto time_diff = ut_time_monotonic_us() - usec;
+  const auto time_diff = std::chrono::duration_cast<std::chrono::microseconds>(
+      std::chrono::steady_clock::now() - start_time);
   page_zip_stat[page_zip->ssize - 1].decompressed++;
-  page_zip_stat[page_zip->ssize - 1].decompressed_usec += time_diff;
+  page_zip_stat[page_zip->ssize - 1].decompress_time += time_diff;
 
   if (srv_cmp_per_index_enabled) {
     index_id_t index_id(page_get_space_id(page), btr_page_get_index_id(page));
 
     mutex_enter(&page_zip_stat_per_index_mutex);
     page_zip_stat_per_index[index_id].decompressed++;
-    page_zip_stat_per_index[index_id].decompressed_usec += time_diff;
+    page_zip_stat_per_index[index_id].decompress_time += time_diff;
     mutex_exit(&page_zip_stat_per_index_mutex);
   }
 #endif /* !UNIV_HOTBACKUP */
@@ -1358,7 +1362,6 @@ ibool page_zip_validate_low(
                                     TRUE=ignore the MIN_REC_FLAG */
 {
   page_zip_des_t temp_page_zip;
-  byte *temp_page_buf;
   page_t *temp_page;
   ibool valid;
 
@@ -1382,8 +1385,8 @@ ibool page_zip_validate_low(
 
   /* page_zip_decompress() expects the uncompressed page to be
   UNIV_PAGE_SIZE aligned. */
-  temp_page_buf = static_cast<byte *>(ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
-  temp_page = static_cast<byte *>(ut_align(temp_page_buf, UNIV_PAGE_SIZE));
+  temp_page =
+      static_cast<byte *>(ut::aligned_alloc(UNIV_PAGE_SIZE, UNIV_PAGE_SIZE));
 
   UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
   UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
@@ -1527,7 +1530,7 @@ func_exit:
     page_zip_hexdump(page, UNIV_PAGE_SIZE);
     page_zip_hexdump(temp_page, UNIV_PAGE_SIZE);
   }
-  ut_free(temp_page_buf);
+  ut::aligned_free(temp_page);
   return (valid);
 }
 

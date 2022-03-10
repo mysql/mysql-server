@@ -34,9 +34,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 // Value must be a multiple of 16 (or TEST_TEXT_LIT_LENGTH)
 #define MAX_BUFFER_LENGTH 4096
 
-#define WRITE_LOG(format, lit_log_text)                   \
-  log_text_len = sprintf(log_text, format, lit_log_text); \
-  fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile)
+#define WRITE_LOG(format, lit_log_text)                                 \
+  log_text_len = sprintf(log_text, format, lit_log_text);               \
+  if (fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile) != \
+      static_cast<size_t>(log_text_len))                                \
+    return true;
 
 /**
   This file contains a test (example) component, which tests the service
@@ -196,7 +198,7 @@ mysql_service_status_t test_string_service_init() {
         uint count = 0;
         WRITE_LOG("%s\n", "Create iterator passed.");
         while (mysql_service_mysql_string_iterator->iterator_get_next(
-                   out_iterator, &out_iter_char) != true) {
+                   out_iterator, &out_iter_char) == 0) {
           count++;
         }
         if (count < MAX_BUFFER_LENGTH) {

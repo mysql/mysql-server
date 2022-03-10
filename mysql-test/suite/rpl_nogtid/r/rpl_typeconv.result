@@ -3,7 +3,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-set @saved_slave_type_conversions = @@global.slave_type_conversions;
+set @saved_replica_type_conversions = @@global.replica_type_conversions;
 CREATE TABLE type_conversions (
 TestNo INT AUTO_INCREMENT PRIMARY KEY,
 Source TEXT,
@@ -14,35 +14,35 @@ On_Slave TEXT,
 Expected TEXT,
 Compare INT,
 Error TEXT);
-SELECT @@global.slave_type_conversions;
-@@global.slave_type_conversions
+SELECT @@global.replica_type_conversions;
+@@global.replica_type_conversions
 
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='';
-SELECT @@global.slave_type_conversions;
-@@global.slave_type_conversions
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='';
+SELECT @@global.replica_type_conversions;
+@@global.replica_type_conversions
 
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
-SELECT @@global.slave_type_conversions;
-@@global.slave_type_conversions
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_NON_LOSSY';
+SELECT @@global.replica_type_conversions;
+@@global.replica_type_conversions
 ALL_NON_LOSSY
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY';
-SELECT @@global.slave_type_conversions;
-@@global.slave_type_conversions
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_LOSSY';
+SELECT @@global.replica_type_conversions;
+@@global.replica_type_conversions
 ALL_LOSSY
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY';
-SELECT @@global.slave_type_conversions;
-@@global.slave_type_conversions
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY';
+SELECT @@global.replica_type_conversions;
+@@global.replica_type_conversions
 ALL_LOSSY,ALL_NON_LOSSY
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY,NONEXISTING_BIT';
-ERROR 42000: Variable 'slave_type_conversions' can't be set to the value of 'NONEXISTING_BIT'
-SELECT @@global.slave_type_conversions;
-@@global.slave_type_conversions
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY,NONEXISTING_BIT';
+ERROR 42000: Variable 'replica_type_conversions' can't be set to the value of 'NONEXISTING_BIT'
+SELECT @@global.replica_type_conversions;
+@@global.replica_type_conversions
 ALL_LOSSY,ALL_NON_LOSSY
 SET @@global.log_error_verbosity=1;
 include/stop_slave.inc
 include/start_slave.inc
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='';
-**** Running tests with @@SLAVE_TYPE_CONVERSIONS = '' ****
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='';
+**** Running tests with @@REPLICA_TYPE_CONVERSIONS = '' ****
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Warnings:
@@ -237,8 +237,8 @@ Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
-**** Running tests with @@SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY' ****
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_NON_LOSSY';
+**** Running tests with @@REPLICA_TYPE_CONVERSIONS = 'ALL_NON_LOSSY' ****
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Warnings:
@@ -347,8 +347,8 @@ Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY';
-**** Running tests with @@SLAVE_TYPE_CONVERSIONS = 'ALL_LOSSY' ****
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_LOSSY';
+**** Running tests with @@REPLICA_TYPE_CONVERSIONS = 'ALL_LOSSY' ****
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Warnings:
@@ -447,8 +447,8 @@ Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY';
-**** Running tests with @@SLAVE_TYPE_CONVERSIONS = 'ALL_LOSSY,ALL_NON_LOSSY' ****
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY';
+**** Running tests with @@REPLICA_TYPE_CONVERSIONS = 'ALL_LOSSY,ALL_NON_LOSSY' ****
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Warnings:
@@ -953,5 +953,5 @@ call mtr.add_suppression("Slave SQL.*Column 1 of table .test.t1. cannot be conve
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
-set global slave_type_conversions = @saved_slave_type_conversions;
+set global replica_type_conversions = @saved_replica_type_conversions;
 include/rpl_end.inc

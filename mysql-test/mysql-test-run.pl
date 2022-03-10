@@ -93,6 +93,7 @@ $SIG{INT} = sub {
 sub env_or_val($$) { defined $ENV{ $_[0] } ? $ENV{ $_[0] } : $_[1] }
 
 # Local variables
+my $parent_pid;
 my $opt_boot_dbx;
 my $opt_boot_ddd;
 my $opt_boot_gdb;
@@ -159,6 +160,7 @@ my %opts_extern;
 
 my $auth_plugin;            # The path to the authentication test plugin
 my $baseport;
+my $ctest_parallel;         # Number of parallel jobs to run unit tests
 my $ctest_report;           # Unit test report stored here for delayed printing
 my $current_config_name;    # The currently running config file template
 my $exe_ndb_mgm;
@@ -177,7 +179,6 @@ my $build_thread       = 0;
 my $daemonize_mysqld   = 0;
 my $debug_d            = "d";
 my $exe_ndbmtd_counter = 0;
-my $ports_per_thread   = 30;
 my $source_dist        = 0;
 my $shutdown_report    = 0;
 my $valgrind_reports   = 0;
@@ -221,6 +222,7 @@ our $opt_suite_opt;
 our $opt_summary_report;
 our $opt_vardir;
 our $opt_xml_report;
+our $ports_per_thread   = 30;
 
 #
 # Suites run by default (i.e. when invoking ./mtr without parameters)
@@ -279,6 +281,7 @@ our $opt_gcov_err                  = "mysql-test-gcov.err";
 our $opt_gcov_exe                  = "gcov";
 our $opt_gcov_msg                  = "mysql-test-gcov.msg";
 our $opt_hypergraph                = 0;
+our $opt_keep_ndbfs                = 0;
 our $opt_mem                       = $ENV{'MTR_MEM'} ? 1 : 0;
 our $opt_only_big_test             = 0;
 our $opt_parallel                  = $ENV{MTR_PARALLEL};
@@ -339,7 +342,7 @@ our $start_only;
 our $glob_debugger       = 0;
 our $group_replication   = 0;
 our $ndbcluster_enabled  = 0;
-our $ndbcluster_only     = 0;
+our $ndbcluster_only     = $ENV{'MTR_NDB_ONLY'} || 0;
 our $mysqlbackup_enabled = 0;
 
 our @share_locations;
@@ -405,7 +408,12 @@ BEGIN {
 }
 
 END {
-  if (defined $opt_tmpdir_pid and $opt_tmpdir_pid == $$) {
+    my $current_id = $$;
+    if ($parent_pid && $current_id == $parent_pid) {
+        remove_redundant_thread_id_file_locations();
+	clean_unique_id_dir();
+    }
+    if (defined $opt_tmpdir_pid and $opt_tmpdir_pid == $$) {
     if (!$opt_start_exit) {
       # Remove the tempdir this process has created
       mtr_verbose("Removing tmpdir $opt_tmpdir");
@@ -615,6 +623,9 @@ sub main {
   my $tests = collect_test_cases($opt_reorder, $opt_suites,
                                  \@opt_cases,  $opt_skip_test_list);
   mark_time_used('collect');
+  # A copy of the tests list, that will not be modified even after the tests
+  # are executed.
+  my @tests_list = @{$tests};
 
   check_secondary_engine_option($tests) if $secondary_engine_support;
 
@@ -638,7 +649,12 @@ sub main {
 
   initialize_servers();
 
-  # Limit parallel workers to number of tests to avoid idle workers
+  # Run unit tests in parallel with the same number of workers as
+  # specified to MTR.
+  $ctest_parallel = $opt_parallel;
+
+  # Limit parallel workers to the number of regular tests to avoid
+  # idle workers.
   $opt_parallel = $num_tests if $opt_parallel > $num_tests;
   $ENV{MTR_PARALLEL} = $opt_parallel;
   mtr_report("Using parallel: $opt_parallel");
@@ -686,6 +702,8 @@ sub main {
 
   if ($secondary_engine_support) {
     secondary_engine_offload_count_report_init();
+    # Create virtual environment
+    create_virtual_env($bindir);
   }
 
   if ($opt_summary_report) {
@@ -707,7 +725,7 @@ sub main {
   }
 
   # Simplify reference to semisync plugins
-  $ENV{'SEMISYNC_PLUGIN_OPT'} = $ENV{'SEMISYNC_MASTER_PLUGIN_OPT'};
+  $ENV{'SEMISYNC_PLUGIN_OPT'} = $ENV{'SEMISYNC_SOURCE_PLUGIN_OPT'};
 
   if (IS_WINDOWS) {
     $ENV{'PLUGIN_SUFFIX'} = "dll";
@@ -728,6 +746,8 @@ sub main {
 
   # Create child processes
   my %children;
+
+  $parent_pid = $$;
   for my $child_num (1 .. $opt_parallel) {
     my $child_pid = My::SafeProcess::Base::_safe_fork();
     if ($child_pid == 0) {
@@ -787,7 +807,21 @@ sub main {
     # Not all tests completed, failure
     mtr_report();
     mtr_report("Only ", int(@$completed), " of $num_tests completed.");
-    mtr_error("Not all tests completed");
+    foreach (@tests_list) {
+      $_->{key} = "$_" unless defined $_->{key};
+    }
+    my %is_completed_map = map { $_->{key} => 1 } @$completed;
+    my @not_completed;
+    foreach (@tests_list) {
+      if (!exists $is_completed_map{$_->{key}}) {
+        push (@not_completed, $_->{name});
+      }
+    }
+    if (int(@not_completed) <= 100) {
+      mtr_error("Not all tests completed:", join(" ", @not_completed));
+    } else {
+      mtr_error("Not all tests completed:", join(" ", @not_completed[0...49]), "... and", int(@not_completed)-50, "more");
+    }
   }
 
   mark_time_used('init');
@@ -857,6 +891,11 @@ sub main {
   remove_redundant_thread_id_file_locations();
   clean_unique_id_dir();
 
+  # Cleanup the secondary engine environment
+  if ($secondary_engine_support) {
+    clean_virtual_env();
+  }
+
   print_total_times($opt_parallel) if $opt_report_times;
 
   mtr_report_stats("Completed", $completed);
@@ -887,7 +926,7 @@ sub run_test_server ($$$) {
   my ($server, $tests, $childs) = @_;
 
   my $num_failed_test   = 0; # Number of tests failed so far
-  my $num_saved_cores   = 0; # Number of core files saved in vardir/log/ so far.
+  my %saved_cores_paths;     # Paths of core files found in vardir/log/ so far
   my $num_saved_datadir = 0; # Number of datadirs saved in vardir/log/ so far.
 
   # Scheduler variables
@@ -900,6 +939,7 @@ sub run_test_server ($$$) {
 
   my $completed_wid_count = 0;
   my $non_parallel_tests  = [];
+  my %closed_sock;
 
   my $suite_timeout = start_timer(suite_timeout());
 
@@ -988,6 +1028,12 @@ sub run_test_server ($$$) {
                       if (($core_name =~ /^core/ and $core_name !~ /\.gz$/) or
                           (IS_WINDOWS and $core_name =~ /\.dmp$/)) {
                         # Ending with .dmp
+
+                        if (exists $saved_cores_paths{$core_file}) {
+                          mtr_report(" - found '$core_name' again, keeping it");
+                          return;
+                        }
+                        my $num_saved_cores = %saved_cores_paths;
                         mtr_report(" - found '$core_name'",
                                    "($num_saved_cores/$opt_max_save_core)");
 
@@ -1006,8 +1052,8 @@ sub run_test_server ($$$) {
                           unlink("$core_file");
                         } else {
                           mtr_compress_file($core_file) unless @opt_cases;
+                          $saved_cores_paths{$core_file} = 1;
                         }
-                        ++$num_saved_cores;
                       }
                     }
                   },
@@ -1099,7 +1145,10 @@ sub run_test_server ($$$) {
           # Unknown message from worker
           mtr_error("Unknown response: '$line' from client");
         }
-
+	# Thread has received 'BYE', no need to look for more tests
+	if (exists $closed_sock{$sock}) {
+	  next;
+	}
         # Find next test to schedule
         # - Try to use same configuration as worker used last time
         # - Limit number of parallel ndb tests
@@ -1157,6 +1206,8 @@ sub run_test_server ($$$) {
                 my $tt = $tests->[$j];
                 last unless defined $tt;
                 last if $tt->{criteria} ne $criteria;
+		# Do not pick up not_parallel tests, they are run separately
+		last if $tt->{'not_parallel'};
                 $tt->{reserved} = $wid;
               }
             }
@@ -1204,6 +1255,9 @@ sub run_test_server ($$$) {
           } else {
             # No more test, tell child to exit
             print $sock "BYE\n";
+	    # Mark socket as unused, no more tests will be allocated
+	    $closed_sock{$sock} = 1;
+
           }
         }
       }
@@ -1277,7 +1331,8 @@ sub run_worker ($) {
       # A sanity check. Should this happen often we need to look at it.
       if (defined $test->{reserved} && $test->{reserved} != $thread_num) {
         my $tres = $test->{reserved};
-        mtr_warning("Test reserved for w$tres picked up by w$thread_num");
+        my $name = $test->{name};
+        mtr_warning("Test $name reserved for w$tres picked up by w$thread_num");
       }
       $test->{worker} = $thread_num if $opt_parallel > 1;
 
@@ -1421,7 +1476,8 @@ sub create_unique_id_dir() {
 
 # Remove all the unique files created to reserve ports.
 sub clean_unique_id_dir () {
-  open(FH, "<", $build_thread_id_file) or
+    if(-e $build_thread_id_file) {
+    open(FH, "<", $build_thread_id_file) or
     die "Can't open file $build_thread_id_file: $!";
 
   while (<FH>) {
@@ -1434,10 +1490,11 @@ sub clean_unique_id_dir () {
   unlink($build_thread_id_file) or
     die "Can't delete file $build_thread_id_file: $!";
 }
-
+}
 # Remove redundant entries from build thread id file.
 sub remove_redundant_thread_id_file_locations() {
-  my $build_thread_id_tmp_file =
+  if(-e $build_thread_id_file) {
+    my $build_thread_id_tmp_file =
     "$build_thread_id_dir/" . $$ . "_unique_ids_tmp.log";
 
   open(RH, "<", $build_thread_id_file);
@@ -1452,6 +1509,7 @@ sub remove_redundant_thread_id_file_locations() {
   close(WH);
 
   File::Copy::move($build_thread_id_tmp_file, $build_thread_id_file);
+}
 }
 
 sub ignore_option {
@@ -1680,6 +1738,7 @@ sub command_line_setup {
     'fast'                  => \$opt_fast,
     'force-restart'         => \$opt_force_restart,
     'help|h'                => \$opt_usage,
+    'keep-ndbfs'            => \$opt_keep_ndbfs,
     'max-connections=i'     => \$opt_max_connections,
     'print-testcases'       => \&collect_option,
     'quiet'                 => \$opt_quiet,
@@ -2236,6 +2295,23 @@ sub command_line_setup {
   check_ndbcluster_support(\%mysqld_variables);
 
   executable_setup();
+
+  check_fips_support();
+}
+
+sub check_fips_support() {
+  # Run $exe_mysqltest to see if FIPS mode is supported.
+  my $args;
+  mtr_init_args(\$args);
+  mtr_add_arg($args, "--test-ssl-fips-mode");
+  my $cmd = join(" ", $exe_mysqltest, @$args);
+  my $result= `$cmd`;
+  mtr_verbose("Testing FIPS: $result");
+  if($result =~ /Success$/) {
+    $ENV{'OPENSSL_FIPS_INSTALLED'} = 1;
+  } else {
+    $ENV{'OPENSSL_FIPS_INSTALLED'} = 0;
+  }
 }
 
 # Create global manifest file
@@ -3099,7 +3175,8 @@ sub environment_setup {
 
   # mysql clients
   $ENV{'EXE_MYSQL'}           = $exe_mysql;
-  $ENV{'MYSQL'}               = client_arguments("mysql");
+  $ENV{'MYSQL'}               = my $mysql_cmd = client_arguments("mysql");
+  $ENV{'MYSQL_OPTIONS'}       = substr($mysql_cmd, index($mysql_cmd, " "));
   $ENV{'MYSQL_BINLOG'}        = client_arguments("mysqlbinlog");
   $ENV{'MYSQL_CHECK'}         = client_arguments("mysqlcheck");
   $ENV{'MYSQL_CLIENT_TEST'}   = mysql_client_test_arguments();
@@ -5138,6 +5215,10 @@ sub run_testcase ($) {
       return 1;
     }
 
+    my $driver_ret = check_secondary_driver_crash($tinfo, $proc, $test)
+      if $tinfo->{'secondary-engine'};
+    return 1 if $driver_ret;
+
     # Check if it was a server that died
     if (grep($proc eq $_, started(all_servers()))) {
       # Server failed, probably crashed
@@ -5897,9 +5978,11 @@ sub after_failure ($) {
       my $cluster_dir = "$opt_vardir/" . $cluster->{name};
 
       # Remove the fileystem of each ndbd
-      foreach my $ndbd (in_cluster($cluster, ndbds())) {
-        my $ndbd_datadir = $ndbd->value("DataDir");
-        remove_ndbfs_from_ndbd_datadir($ndbd_datadir);
+      if (!$opt_keep_ndbfs) {
+        foreach my $ndbd (in_cluster($cluster, ndbds())) {
+          my $ndbd_datadir = $ndbd->value("DataDir");
+          remove_ndbfs_from_ndbd_datadir($ndbd_datadir);
+        }
       }
 
       save_datadir_after_failure($cluster_dir, $save_dir);
@@ -6120,8 +6203,8 @@ sub mysqld_arguments ($$$) {
       $found_no_console = 1;
       next;
     } elsif ($arg =~ /--loose[-_]skip[-_]log[-_]bin/ and
-             $mysqld->option("log-slave-updates")) {
-      # Dont add --skip-log-bin when mysqld has --log-slave-updates in config
+             $mysqld->option("log-replica-updates")) {
+      # Dont add --skip-log-bin when mysqld has --log-replica-updates in config
       next;
     } elsif ($arg eq "") {
       # We can get an empty argument when  we set environment variables to ""
@@ -7417,11 +7500,20 @@ sub run_ctest() {
   # Special override: also ignore in Pushbuild, some platforms may
   # not have it. Now, run ctest and collect output.
   $ENV{CTEST_OUTPUT_ON_FAILURE} = 1;
-  # Run unit tests in parallel with the same number of threads as
-  # the MTR tests.
-  mtr_report("Running ctest parallel=$opt_parallel");
-  $ENV{CTEST_PARALLEL_LEVEL} = $opt_parallel;
-  my $ctest_out = `ctest --test-timeout $opt_ctest_timeout $ctest_vs 2>&1`;
+
+  $ENV{CTEST_PARALLEL_LEVEL} = $ctest_parallel;
+  mtr_report("Running ctest parallel=$ctest_parallel");
+
+  my $ctest_opts = "";
+  if ($ndbcluster_only) {
+    # Run only tests with label NDB
+    $ctest_opts .= "-L " . ((IS_WINDOWS) ? "^^NDB\$" : "^NDB\\\$");
+  }
+  if ($opt_skip_ndbcluster) {
+    # Skip tests with label NDB
+    $ctest_opts .= "-LE " . ((IS_WINDOWS) ? "^^NDB\$" : "^NDB\\\$");
+  }
+  my $ctest_out = `ctest $ctest_opts --test-timeout $opt_ctest_timeout $ctest_vs 2>&1`;
   if ($? == $no_ctest && ($opt_ctest == -1 || defined $ENV{PB2WORKDIR})) {
     chdir($olddir);
     return;
@@ -7725,6 +7817,7 @@ Misc options
                         The result is a gcov file per source and header file.
   gprof                 Collect profiling information using gprof.
   help                  Get this help text.
+  keep-ndbfs            Keep ndbfs files when saving files on test failures.
   max-connections=N     Max number of open connection to server in mysqltest.
   no-skip               This option is used to run all MTR tests even if the
                         condition required for running the test as specified

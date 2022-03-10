@@ -151,8 +151,6 @@ bool IsValidIndex(size_t hi) {
   return (hi >= 0 && hi < hiv.size());
 }
 
-bool IsValidDescr(File fd) { return IsValidIndex(ToIndex(fd)); }
-
 HandleInfo GetHandleInfo(File fd) {
   HandleInfoVector &hiv = *hivp;
   size_t hi = ToIndex(fd);
@@ -207,7 +205,7 @@ LARGE_INTEGER MakeLargeInteger(int64_t src) {
   return li;
 }
 
-OVERLAPPED MakeOverlapped(DWORD l, DWORD h) { return {0, 0, {l, h}, 0}; }
+OVERLAPPED MakeOverlapped(DWORD l, DWORD h) { return {0, 0, {{l, h}}, 0}; }
 
 OVERLAPPED MakeOverlapped(int64_t src) {
   LARGE_INTEGER li = MakeLargeInteger(src);
@@ -856,7 +854,7 @@ int my_win_stat(const char *path, struct _stati64 *buf) {
   if (!GetFileAttributesEx(path, GetFileExInfoStandard, &data)) return -1;
 
   buf->st_size =
-      LARGE_INTEGER{data.nFileSizeLow, (LONG)data.nFileSizeHigh}.QuadPart;
+      LARGE_INTEGER{{data.nFileSizeLow, (LONG)data.nFileSizeHigh}}.QuadPart;
 
   return 0;
 }

@@ -1,0 +1,58 @@
+--source include/have_hypergraph.inc
+
+--echo #
+--echo # Bug#32980875: WL#14422: ASSERTION `FALSE' FAILED|SQL/BASIC_ROW_ITERATORS.H
+--echo #
+
+# This should have been a unit test in hypergraph_optimizer-t.cc, but
+# the unit test framework does not currently allow creating temporary
+# tables.
+#
+# We want to test that the hypergraph optimizer doesn't try to do
+# sort-ahead on an aggregate.
+#
+# We expect the hypergraph optimizer to set up a plan like this:
+#
+# -> Remove duplicates from input grouped on t.x, `MIN(t2.x)`
+#   -> Stream results
+#       -> Group aggregate: min(t2.x)
+#           -> Sort: t2.x
+#               -> Inner hash join (t1.x = t2.x)
+#                   -> Table scan on t1
+#                   -> Hash
+#                       -> Table scan on t2
+#
+# Before, it would set up this plan, which tried to sort on MIN(t2.x)
+# before the aggregation had happened:
+#
+# -> Remove duplicates from input grouped on t1.x, min(t2.x)
+#   -> Stream results
+#       -> Group aggregate: min(t2.x)
+#           -> Sort: t1.x, min(t2.x)
+#               -> Inner hash join (t1.x = t2.x)
+#                   -> Table scan on t1
+#                   -> Hash
+#                       -> Table scan on t2
+#
+# Note that because MIN(t2.x) is functionally dependent on the GROUP BY
+# expression (which happens to be t2.x as well here), we avoid a sort
+# in the final DISTINCT pass. We further shuffle the SELECT expressions
+# around a bit (putting the MIN() first) to demonstrate that our sorting of
+# expressions in an interesting grouping is robust.
+#
+# Of course, we should have been able to remove the entire DISTINCT operation,
+# and if we wrote t2.x instead of t1.x, we would be able to do that. However,
+# the interesting order framework does not track uniqueness (so can not do it),
+# and the hard-coded DISTINCT removal, which runs before the join optimizer,
+# does not take functional dependencies into account, so it does not know that
+# t1.x (in the SELECT list) = t2.x (in the GROUP BY list).
+
+CREATE TABLE t (x INTEGER);
+INSERT INTO t VALUES (1), (2), (3);
+ANALYZE TABLE t;
+--replace_regex / *\(cost=.*//
+EXPLAIN FORMAT=TREE
+ SELECT DISTINCT MIN(t2.x), t1.x
+ FROM t t1 JOIN t t2 USING (x)
+ GROUP BY t2.x;
+DROP TABLE t;

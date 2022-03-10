@@ -35,6 +35,7 @@
 #include "lex_string.h"
 #include "lf.h"
 
+#include "my_dbug.h"
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_systime.h"
@@ -50,6 +51,7 @@
 #include "storage/perfschema/pfs_program.h"
 #include "storage/perfschema/pfs_setup_object.h"
 #include "storage/perfschema/pfs_timer.h"
+#include "storage/perfschema/terminology_use_previous.h"
 
 /**
   @defgroup performance_schema_buffers Performance Schema Buffers
@@ -63,14 +65,6 @@
   This flag is set at startup, and never changes.
 */
 bool pfs_enabled = true;
-
-/**
-  Global flag used to enable and disable SHOW PROCESSLIST in the
-  performance schema. This flag only takes effect if the performance schema
-  is configured to support SHOW PROCESSLIST.
-  @sa performance-schema-enable-processlist
-*/
-bool pfs_processlist_enabled = false;
 
 /**
   Global performance schema reference count for plugin and component events.
@@ -227,6 +221,61 @@ uint cond_class_start = 0;
 uint file_class_start = 0;
 uint wait_class_max = 0;
 uint socket_class_start = 0;
+
+const char *PFS_instr_name::str() const {
+  DBUG_TRACE;
+  if (m_private_old_name != nullptr &&
+      terminology_use_previous::is_older_required(m_private_version))
+    return m_private_old_name;
+  else
+    return m_private_name;
+}
+
+uint PFS_instr_name::length() const {
+  if (m_private_old_name != nullptr &&
+      terminology_use_previous::is_older_required(m_private_version))
+    return m_private_old_name_length;
+  else
+    return m_private_name_length;
+}
+
+/**
+  Like strlen (or POSIX strnlen), but don't read past the max_len'th
+  character.
+
+  This is useful when the string may be terminated without '\0' at the
+  end of the buffer.
+
+  @param s The string
+  @param max_len The maxmium length
+  @return The length of the string, or max_len if the string is longer
+  than that.
+*/
+static uint safe_strlen(const char *s, uint max_len) {
+  const char *end =
+      static_cast<const char *>(memchr(s, '\0', static_cast<size_t>(max_len)));
+  return end == nullptr ? max_len : static_cast<uint>(end - s);
+}
+
+constexpr uint PFS_instr_name::max_length;
+
+void PFS_instr_name::set(PFS_class_type class_type, const char *name,
+                         uint max_length_arg) {
+  // Copy the given name to the member.
+  uint length = safe_strlen(name, std::min(max_length, max_length_arg));
+  memcpy(m_private_name, name, length);
+  m_private_name[length] = '\0';
+  m_private_name_length = length;
+
+  // Check if there is an alternative name to use when
+  // @@terminology_use_previous is enabled.
+  auto compatible_name =
+      terminology_use_previous::lookup(class_type, std::string{name, length});
+  m_private_old_name = compatible_name.old_name;
+  m_private_old_name_length =
+      compatible_name.old_name ? strlen(compatible_name.old_name) : 0;
+  m_private_version = compatible_name.version;
+}
 
 void init_event_name_sizing(const PFS_global_param *param) {
   /* global table I/O, table lock, idle, metadata */
@@ -956,8 +1005,7 @@ static void init_instr_class(PFS_instr_class *klass, const char *name,
                              PFS_class_type class_type) {
   assert(name_length <= PFS_MAX_INFO_NAME_LENGTH);
   memset(klass, 0, sizeof(PFS_instr_class));
-  strncpy(klass->m_name, name, name_length);
-  klass->m_name_length = name_length;
+  klass->m_name.set(class_type, name, name_length);
   klass->m_flags = flags;
   klass->m_volatility = volatility;
   klass->m_enabled = true;
@@ -996,8 +1044,8 @@ static void configure_instr_class(PFS_instr_class *entry) {
 
       Consecutive wildcards affect the count.
     */
-    if (!my_wildcmp(&my_charset_latin1, entry->m_name,
-                    entry->m_name + entry->m_name_length, e->m_name,
+    if (!my_wildcmp(&my_charset_latin1, entry->m_name.str(),
+                    entry->m_name.str() + entry->m_name.length(), e->m_name,
                     e->m_name + e->m_name_length, '\\', '?', '%')) {
       if (e->m_name_length >= match_length) {
         entry->m_enabled = e->m_enabled;
@@ -1009,10 +1057,10 @@ static void configure_instr_class(PFS_instr_class *entry) {
 }
 
 #define REGISTER_CLASS_BODY_PART(INDEX, ARRAY, MAX, NAME, NAME_LENGTH) \
-  for (INDEX = 0; INDEX < MAX; INDEX++) {                              \
+  for (INDEX = 0; INDEX < MAX; ++INDEX) {                              \
     entry = &ARRAY[INDEX];                                             \
-    if ((entry->m_name_length == NAME_LENGTH) &&                       \
-        (strncmp(entry->m_name, NAME, NAME_LENGTH) == 0)) {            \
+    if ((entry->m_name.length() == NAME_LENGTH) &&                     \
+        (strncmp(entry->m_name.str(), NAME, NAME_LENGTH) == 0)) {      \
       assert(entry->m_flags == info->m_flags);                         \
       return (INDEX + 1);                                              \
     }                                                                  \
@@ -1260,18 +1308,15 @@ PFS_cond_class *sanitize_cond_class(PFS_cond_class *unsafe) {
 */
 PFS_thread_key register_thread_class(const char *name, uint name_length,
                                      PSI_thread_info *info) {
+  assert(info != nullptr);
+  assert(info->m_os_name != nullptr);
+
   /* See comments in register_mutex_class */
   uint32 index;
   PFS_thread_class *entry;
 
-  for (index = 0; index < thread_class_max; index++) {
-    entry = &thread_class_array[index];
-
-    if ((entry->m_name_length == name_length) &&
-        (strncmp(entry->m_name, name, name_length) == 0)) {
-      return (index + 1);
-    }
-  }
+  REGISTER_CLASS_BODY_PART(index, thread_class_array, thread_class_max, name,
+                           name_length);
 
   index = thread_class_dirty_count++;
 
@@ -1285,10 +1330,31 @@ PFS_thread_key register_thread_class(const char *name, uint name_length,
     entry->m_history = true;
 
     entry->enforce_valid_flags(PSI_FLAG_SINGLETON | PSI_FLAG_USER |
-                               PSI_FLAG_THREAD_SYSTEM);
+                               PSI_FLAG_THREAD_SYSTEM | PSI_FLAG_AUTO_SEQNUM |
+                               PSI_FLAG_NO_SEQNUM);
 
     configure_instr_class(entry);
     ++thread_class_allocated_count;
+
+    entry->m_seqnum.store(1);
+
+    if (entry->has_seqnum()) {
+      /*
+        Ensure room for "-%d" suffix with 2 digits minimum,
+        so that:
+        - the "-%d" format fits into the class
+        - the "-NN" suffix fits into the instance
+      */
+      assert(strlen(info->m_os_name) < PFS_MAX_OS_NAME_LENGTH - 3);
+
+      snprintf(entry->m_os_name, PFS_MAX_OS_NAME_LENGTH, "%s-%%d",
+               info->m_os_name);
+    } else {
+      assert(strlen(info->m_os_name) < PFS_MAX_OS_NAME_LENGTH);
+      strncpy(entry->m_os_name, info->m_os_name, PFS_MAX_OS_NAME_LENGTH);
+    }
+    entry->m_os_name[PFS_MAX_OS_NAME_LENGTH - 1] = '\0';
+
     return (index + 1);
   }
 
@@ -1570,7 +1636,8 @@ PFS_memory_key register_memory_class(const char *name, uint name_length,
                      PFS_CLASS_MEMORY);
     entry->m_event_name_index = index;
 
-    entry->enforce_valid_flags(PSI_FLAG_ONLY_GLOBAL_STAT);
+    entry->enforce_valid_flags(
+        (PSI_FLAG_ONLY_GLOBAL_STAT | PSI_FLAG_MEM_COLLECT));
 
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);

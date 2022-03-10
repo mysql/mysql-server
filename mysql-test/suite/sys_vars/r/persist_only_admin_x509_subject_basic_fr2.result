@@ -12,6 +12,8 @@ SET PERSIST_ONLY bind_address = DEFAULT;
 SET PERSIST_ONLY character_sets_dir = DEFAULT;
 SET PERSIST_ONLY datadir = DEFAULT;
 SET PERSIST_ONLY default_authentication_plugin = DEFAULT;
+Warnings:
+Warning	1287	'@@default_authentication_plugin' is deprecated and will be removed in a future release. Please use authentication_policy instead.
 SET PERSIST_ONLY ft_stopword_file = DEFAULT;
 SET PERSIST_ONLY init_file = DEFAULT;
 SET PERSIST_ONLY keyring_operations = DEFAULT;
@@ -29,7 +31,7 @@ Warnings:
 Warning	1287	'@@relay_log_info_file' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY secure_file_priv = DEFAULT;
 SET PERSIST_ONLY skip_networking = DEFAULT;
-SET PERSIST_ONLY slave_load_tmpdir = DEFAULT;
+SET PERSIST_ONLY replica_load_tmpdir = DEFAULT;
 SET PERSIST_ONLY socket = DEFAULT;
 SET PERSIST_ONLY tmpdir = DEFAULT;
 SET PERSIST_ONLY caching_sha2_password_auto_generate_rsa_keys = DEFAULT;

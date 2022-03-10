@@ -1495,10 +1495,11 @@ retry_page_get:
         retrying_for_search_prev = true;
 
         prev_tree_blocks = static_cast<buf_block_t **>(
-            ut_malloc_nokey(sizeof(buf_block_t *) * leftmost_from_level));
+            ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                               sizeof(buf_block_t *) * leftmost_from_level));
 
-        prev_tree_savepoints = static_cast<ulint *>(
-            ut_malloc_nokey(sizeof(ulint) * leftmost_from_level));
+        prev_tree_savepoints = static_cast<ulint *>(ut::malloc_withkey(
+            UT_NEW_THIS_FILE_PSI_KEY, sizeof(ulint) * leftmost_from_level));
 
         /* back to the level (leftmost_from_level+1) */
         ulint idx = n_blocks - (leftmost_from_level - 1);
@@ -1676,8 +1677,8 @@ func_exit:
   }
 
   if (retrying_for_search_prev) {
-    ut_free(prev_tree_blocks);
-    ut_free(prev_tree_savepoints);
+    ut::free(prev_tree_blocks);
+    ut::free(prev_tree_savepoints);
   }
 
   if (has_search_latch) {
@@ -2299,7 +2300,7 @@ bool btr_cur_open_at_rnd_pos_func(
     case BTR_CONT_MODIFY_TREE:
     case BTR_CONT_SEARCH_TREE:
       ut_ad(0);
-      /* fall through */
+      [[fallthrough]];
     default:
       if (!srv_read_only_mode) {
         mtr_s_lock(dict_index_get_lock(index), mtr);
@@ -2507,7 +2508,7 @@ bool btr_cur_open_at_rnd_pos_func(
  or by invoking ibuf_reset_free_bits() before mtr_commit().
 
  @return pointer to inserted record if succeed, else NULL */
-static MY_ATTRIBUTE((warn_unused_result)) rec_t *btr_cur_insert_if_possible(
+[[nodiscard]] static rec_t *btr_cur_insert_if_possible(
     btr_cur_t *cursor,     /*!< in: cursor on page after which to insert;
                            cursor stays valid */
     const dtuple_t *tuple, /*!< in: tuple to insert; the size info need not
@@ -2544,18 +2545,17 @@ static MY_ATTRIBUTE((warn_unused_result)) rec_t *btr_cur_insert_if_possible(
 
 /** For an insert, checks the locks and does the undo logging if desired.
  @return DB_SUCCESS, DB_WAIT_LOCK, DB_FAIL, or error number */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    btr_cur_ins_lock_and_undo(
-        ulint flags,       /*!< in: undo logging and locking flags: if
-                           not zero, the parameters index and thr
-                           should be specified */
-        btr_cur_t *cursor, /*!< in: cursor on page after which to insert */
-        dtuple_t *entry,   /*!< in/out: entry to insert */
-        que_thr_t *thr,    /*!< in: query thread or NULL */
-        mtr_t *mtr,        /*!< in/out: mini-transaction */
-        ibool *inherit)    /*!< out: TRUE if the inserted new record maybe
-                           should inherit LOCK_GAP type locks from the
-                           successor record */
+[[nodiscard]] static inline dberr_t btr_cur_ins_lock_and_undo(
+    ulint flags,       /*!< in: undo logging and locking flags: if
+                       not zero, the parameters index and thr
+                       should be specified */
+    btr_cur_t *cursor, /*!< in: cursor on page after which to insert */
+    dtuple_t *entry,   /*!< in/out: entry to insert */
+    que_thr_t *thr,    /*!< in: query thread or NULL */
+    mtr_t *mtr,        /*!< in/out: mini-transaction */
+    ibool *inherit)    /*!< out: TRUE if the inserted new record maybe
+                       should inherit LOCK_GAP type locks from the
+                       successor record */
 {
   dict_index_t *index;
   dberr_t err = DB_SUCCESS;
@@ -2802,9 +2802,8 @@ dberr_t btr_cur_optimistic_insert(
     const rec_t *page_cursor_rec = page_cur_get_rec(page_cursor);
 
     if (index->table->is_intrinsic()) {
-      index->rec_cache.rec_size = rec_size;
-
-      *rec = page_cur_tuple_direct_insert(page_cursor, entry, index, mtr);
+      *rec = page_cur_tuple_direct_insert(page_cursor, entry, index, mtr,
+                                          rec_size);
     } else {
       /* Check locks and write to the undo log,
       if specified */
@@ -2870,7 +2869,7 @@ dberr_t btr_cur_optimistic_insert(
     *rec = page_cur_tuple_insert(page_cursor, entry, index, offsets, heap, mtr);
 
     if (UNIV_UNLIKELY(!*rec)) {
-      ib::fatal(ER_IB_MSG_44)
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_44)
           << "Cannot insert tuple " << *entry << "into index " << index->name
           << " of table " << index->table->name << ". Max size: " << max_size;
     }
@@ -3070,18 +3069,17 @@ dberr_t btr_cur_pessimistic_insert(
 
 /** For an update, checks the locks and does the undo logging.
  @return DB_SUCCESS, DB_WAIT_LOCK, or error number */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    btr_cur_upd_lock_and_undo(
-        ulint flags,          /*!< in: undo logging and locking flags */
-        btr_cur_t *cursor,    /*!< in: cursor on record to update */
-        const ulint *offsets, /*!< in: rec_get_offsets() on cursor */
-        const upd_t *update,  /*!< in: update vector */
-        ulint cmpl_info,      /*!< in: compiler info on secondary index
-                            updates */
-        que_thr_t *thr,       /*!< in: query thread
-                              (can be NULL if BTR_NO_LOCKING_FLAG) */
-        mtr_t *mtr,           /*!< in/out: mini-transaction */
-        roll_ptr_t *roll_ptr) /*!< out: roll pointer */
+[[nodiscard]] static inline dberr_t btr_cur_upd_lock_and_undo(
+    ulint flags,          /*!< in: undo logging and locking flags */
+    btr_cur_t *cursor,    /*!< in: cursor on record to update */
+    const ulint *offsets, /*!< in: rec_get_offsets() on cursor */
+    const upd_t *update,  /*!< in: update vector */
+    ulint cmpl_info,      /*!< in: compiler info on secondary index
+                        updates */
+    que_thr_t *thr,       /*!< in: query thread
+                          (can be NULL if BTR_NO_LOCKING_FLAG) */
+    mtr_t *mtr,           /*!< in/out: mini-transaction */
+    roll_ptr_t *roll_ptr) /*!< out: roll pointer */
 {
   dict_index_t *index;
   const rec_t *rec;
@@ -4157,8 +4155,7 @@ return_after_reservations:
 
 /** Writes the redo log record for delete marking or unmarking of an index
  record. */
-UNIV_INLINE
-void btr_cur_del_mark_set_clust_rec_log(
+static inline void btr_cur_del_mark_set_clust_rec_log(
     rec_t *rec,          /*!< in: record */
     dict_index_t *index, /*!< in: index of the record */
     trx_id_t trx_id,     /*!< in: transaction id */
@@ -4350,10 +4347,10 @@ dberr_t btr_cur_del_mark_set_clust_rec(
 
 /** Writes the redo log record for a delete mark setting of a secondary
  index record. */
-UNIV_INLINE
-void btr_cur_del_mark_set_sec_rec_log(rec_t *rec, /*!< in: record */
-                                      ibool val,  /*!< in: value to set */
-                                      mtr_t *mtr) /*!< in: mtr */
+static inline void btr_cur_del_mark_set_sec_rec_log(
+    rec_t *rec, /*!< in: record */
+    ibool val,  /*!< in: value to set */
+    mtr_t *mtr) /*!< in: mtr */
 {
   byte *log_ptr = nullptr;
   ut_ad(val <= 1);
@@ -4626,7 +4623,7 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
                                  btr_cur_t *cursor, uint32_t flags,
                                  bool rollback, trx_id_t trx_id,
                                  undo_no_t undo_no, ulint rec_type, mtr_t *mtr,
-                                 btr_pcur_t *pcur) {
+                                 btr_pcur_t *pcur, purge_node_t *node) {
   DBUG_TRACE;
 
   buf_block_t *block;
@@ -4654,8 +4651,7 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
         index->table->is_intrinsic());
   ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
 
-  std::unique_ptr<mem_heap_t, decltype(&mem_heap_free)> heap_ptr(
-      mem_heap_create(1024), mem_heap_free);
+  MEM_HEAP_NEW(heap_ptr, 1024);
   mem_heap_t *heap = heap_ptr.get();
 
   rec = btr_cur_get_rec(cursor);
@@ -4671,7 +4667,8 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
 
     /* The following call will restart the btr_mtr, which could change the
     cursor position. */
-    btr_ctx.free_externally_stored_fields(trx_id, undo_no, rollback, rec_type);
+    btr_ctx.free_externally_stored_fields(trx_id, undo_no, rollback, rec_type,
+                                          node);
 
     /* The cursor position could have changed now. */
     if (pcur != nullptr) {
@@ -4695,7 +4692,7 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
     if (!rollback && rec_type != 0 &&
         !rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
       /* This is the purge thread.  For the purge thread, rec_type will have a
-       * valid value. */
+      valid value. */
       *err = DB_SUCCESS;
       return TRUE;
     }
@@ -5447,7 +5444,7 @@ bool btr_estimate_number_of_different_key_vals(
     case SRV_STATS_NULLS_IGNORED:
       n_not_null =
           (ib_uint64_t *)mem_heap_zalloc(heap, n_cols * sizeof *n_not_null);
-      /* fall through */
+      [[fallthrough]];
 
     case SRV_STATS_NULLS_UNEQUAL:
       /* for both SRV_STATS_NULLS_IGNORED and SRV_STATS_NULLS_UNEQUAL

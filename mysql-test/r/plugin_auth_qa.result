@@ -128,23 +128,23 @@ DROP USER plüg_dest;
 SET NAMES ascii;
 CREATE USER 'plüg' IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
 Warnings:
-Warning	1300	Cannot convert string 'pl\xC3\xBCg' from ascii to utf8
-Warning	1300	Cannot convert string 'pl\xC3\xBCg_...' from ascii to utf8
+Warning	1300	Cannot convert string 'pl\xC3\xBCg' from ascii to utf8mb3
+Warning	1300	Cannot convert string 'pl\xC3\xBCg_...' from ascii to utf8mb3
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
 pl??g	test_plugin_server
 DROP USER 'plüg';
 Warnings:
-Warning	1300	Cannot convert string 'pl\xC3\xBCg' from ascii to utf8
+Warning	1300	Cannot convert string 'pl\xC3\xBCg' from ascii to utf8mb3
 CREATE USER 'plüg_dest' IDENTIFIED BY 'plug_dest_passwd';
 Warnings:
-Warning	1300	Cannot convert string 'pl\xC3\xBCg_...' from ascii to utf8
+Warning	1300	Cannot convert string 'pl\xC3\xBCg_...' from ascii to utf8mb3
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
 pl??g_dest	caching_sha2_password
 DROP USER 'plüg_dest';
 Warnings:
-Warning	1300	Cannot convert string 'pl\xC3\xBCg_...' from ascii to utf8
+Warning	1300	Cannot convert string 'pl\xC3\xBCg_...' from ascii to utf8mb3
 SET NAMES latin1;
 ========== test 1.1.1.5 ====================================
 CREATE USER 'plüg' IDENTIFIED WITH 'test_plügin_server' AS 'plüg_dest';

@@ -17,3 +17,8 @@ CREATE UNIQUE INDEX test_index
 -- error ER_DBACCESS_DENIED_ERROR
 DROP INDEX `OBJECT`
   ON performance_schema.objects_summary_global_by_type;
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.objects_summary_global_by_type;
+
+DROP TABLE test.create_select;

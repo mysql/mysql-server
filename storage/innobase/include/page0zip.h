@@ -34,11 +34,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef page0zip_h
 #define page0zip_h
 
-#ifdef UNIV_MATERIALIZE
-#undef UNIV_INLINE
-#define UNIV_INLINE
-#endif
-
 #include <sys/types.h>
 #include <zlib.h>
 
@@ -82,9 +77,9 @@ extern bool page_zip_log_pages;
 /** Set the size of a compressed page in bytes.
 @param[in,out]	page_zip	compressed page
 @param[in]	size		size in bytes */
-UNIV_INLINE
-void page_zip_set_size(page_zip_des_t *page_zip, ulint size);
+static inline void page_zip_set_size(page_zip_des_t *page_zip, ulint size);
 
+#ifndef UNIV_HOTBACKUP
 /** Determine if a record is so big that it needs to be stored externally.
 @param[in]	rec_size	length of the record in bytes
 @param[in]	comp		nonzero=compact format
@@ -92,10 +87,9 @@ void page_zip_set_size(page_zip_des_t *page_zip, ulint size);
 tablespace is not compressed
 @param[in]	page_size	page size
 @return false if the entire record can be stored locally on the page */
-UNIV_INLINE
-ibool page_zip_rec_needs_ext(ulint rec_size, ulint comp, ulint n_fields,
-                             const page_size_t &page_size)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline ibool page_zip_rec_needs_ext(
+    ulint rec_size, ulint comp, ulint n_fields, const page_size_t &page_size);
+#endif /* !UNIV_HOTBACKUP */
 
 /** Determine the guaranteed free space on an empty page.
 @param[in]  n_fields  number of columns in the index
@@ -112,9 +106,9 @@ bool page_zip_is_too_big(const dict_index_t *index, const dtuple_t *entry);
 #endif /* !UNIV_HOTBACKUP */
 
 /** Initialize a compressed page descriptor. */
-UNIV_INLINE
-void page_zip_des_init(page_zip_des_t *page_zip); /*!< in/out: compressed page
-                                                  descriptor */
+static inline void page_zip_des_init(
+    page_zip_des_t *page_zip); /*!< in/out: compressed page
+                               descriptor */
 
 /** Configure the zlib allocator to use the given memory heap.
 @param[in,out] stream zlib stream
@@ -178,22 +172,18 @@ ibool page_zip_validate(
 /** Determine how big record can be inserted without recompressing the page.
  @return a positive number indicating the maximum size of a record
  whose insertion is guaranteed to succeed, or zero or negative */
-UNIV_INLINE
-lint page_zip_max_ins_size(
+[[nodiscard]] static inline lint page_zip_max_ins_size(
     const page_zip_des_t *page_zip, /*!< in: compressed page */
-    ibool is_clust)                 /*!< in: TRUE if clustered index */
-    MY_ATTRIBUTE((warn_unused_result));
+    ibool is_clust);                /*!< in: TRUE if clustered index */
 
 /** Determine if enough space is available in the modification log.
  @return true if page_zip_write_rec() will succeed */
-UNIV_INLINE
-ibool page_zip_available(
+[[nodiscard]] static inline ibool page_zip_available(
     const page_zip_des_t *page_zip, /*!< in: compressed page */
     bool is_clust,                  /*!< in: TRUE if clustered index */
     ulint length,                   /*!< in: combined size of the record */
-    ulint create)                   /*!< in: nonzero=add the record to
-                                    the heap */
-    MY_ATTRIBUTE((warn_unused_result));
+    ulint create);                  /*!< in: nonzero=add the record to
+                                   the heap */
 
 /** Write data to the uncompressed header portion of a page.  The data must
 already have been written to the uncompressed page.
@@ -203,9 +193,9 @@ compressed page when a record is being inserted in page_cur_insert_rec_low().
 @param[in]      str             Address on the uncompressed page
 @param[in]      length          Length of the data
 @param[in]      mtr             Mini-transaction, or NULL */
-UNIV_INLINE
-void page_zip_write_header(page_zip_des_t *page_zip, const byte *str,
-                           ulint length, mtr_t *mtr);
+static inline void page_zip_write_header(page_zip_des_t *page_zip,
+                                         const byte *str, ulint length,
+                                         mtr_t *mtr);
 
 /** Write an entire record on the compressed page.  The data must already
  have been written to the uncompressed page. */
@@ -358,9 +348,10 @@ page.
 @param[in]	page	page that is compressed
 @param[in]	index	index
 @param[in]	mtr	mtr */
-UNIV_INLINE
-void page_zip_compress_write_log_no_data(ulint level, const page_t *page,
-                                         dict_index_t *index, mtr_t *mtr);
+static inline void page_zip_compress_write_log_no_data(ulint level,
+                                                       const page_t *page,
+                                                       dict_index_t *index,
+                                                       mtr_t *mtr);
 
 /** Parses a log record of compressing an index page without the data.
 @param[in]	ptr		buffer
@@ -369,21 +360,16 @@ void page_zip_compress_write_log_no_data(ulint level, const page_t *page,
 @param[out]	page_zip	compressed page
 @param[in]	index		index
 @return end of log record or NULL */
-UNIV_INLINE
-byte *page_zip_parse_compress_no_data(byte *ptr, byte *end_ptr, page_t *page,
-                                      page_zip_des_t *page_zip,
-                                      dict_index_t *index);
+static inline byte *page_zip_parse_compress_no_data(byte *ptr, byte *end_ptr,
+                                                    page_t *page,
+                                                    page_zip_des_t *page_zip,
+                                                    dict_index_t *index);
 
 #ifndef UNIV_HOTBACKUP
 /** Reset the counters used for filling
  INFORMATION_SCHEMA.innodb_cmp_per_index. */
-UNIV_INLINE
-void page_zip_reset_stat_per_index();
+static inline void page_zip_reset_stat_per_index();
 
-#ifdef UNIV_MATERIALIZE
-#undef UNIV_INLINE
-#define UNIV_INLINE UNIV_INLINE_ORIGINAL
-#endif
 #endif /* !UNIV_HOTBACKUP */
 
 #include "page0zip.ic"

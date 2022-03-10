@@ -97,7 +97,6 @@ SELECT @must_be_present;
 
 let $orig_cipher= query_get_value(SHOW STATUS LIKE 'Ssl_cipher', Value, 1);
 SET @orig_admin_ssl_cipher = @@global.admin_ssl_cipher;
-SET @orig_admin_tls_version = @@global.admin_tls_version;
 
 --echo # check if the session has the original values
 --replace_result $orig_cipher orig_cipher
@@ -137,7 +136,6 @@ SHOW STATUS LIKE 'Ssl_cipher';
 --disconnect admin_conn2
 
 SET GLOBAL admin_ssl_cipher = @orig_ssl_cipher;
-SET GLOBAL admin_tls_version = @orig_tls_version;
 ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
 
 --echo # new values effective only after RELOAD TLS
@@ -211,6 +209,7 @@ SET GLOBAL admin_ssl_crl = 'gizmo';
 SET GLOBAL admin_ssl_crlpath = 'gizmo';
 SET GLOBAL admin_ssl_cipher = 'gizmo';
 SET GLOBAL admin_tls_ciphersuites = 'gizmo';
+--error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL admin_tls_version = 'gizmo';
 
 --echo # Must fail

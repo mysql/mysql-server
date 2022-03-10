@@ -105,6 +105,20 @@ if ($rpl_debug)
   --echo @@$_debug_type.debug was '$_to_display'
 }
 
+# If the current debug setting is already too big it might compromise the above checks
+# as the shown debug info will be cut and end with '...'
+# In this case we simply revert to the +d strategy
+if(`SELECT LENGTH(@@$_debug_type.debug) >= 512`)
+{
+  SET @before_debug_point="+d,";
+  --let $_debug_point= $debug_point
+  SET @after_debug_point='';
+  if ($rpl_debug)
+  {
+    --echo Warning: the current value for @@$_debug_type.debug is too big to be displayed.
+  }
+}
+
 --eval SET @@$_debug_type.debug=CONCAT(@before_debug_point, '$_debug_point', @after_debug_point)
 
 if ($rpl_debug)

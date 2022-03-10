@@ -137,15 +137,15 @@ struct Fil_page_header {
 
   /** Get the space id from the page header.
   @return the space identifier. */
-  space_id_t get_space_id() const noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] space_id_t get_space_id() const noexcept;
 
   /** Get the page number from the page header.
   @return the page number. */
-  page_no_t get_page_no() const noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] page_no_t get_page_no() const noexcept;
 
   /** Get the page type from the page header.
   @return the page type. */
-  uint16_t get_page_type() const noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] uint16_t get_page_type() const noexcept;
 
   /** Print the page header to the given output stream.
   @param[in]  out  the output stream.

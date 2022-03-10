@@ -23,26 +23,18 @@
 */
 
 ////////////////////////////////////////
-// Test system include files
-#include "dim.h"
-#include "test/helpers.h"
-
-////////////////////////////////////////
 // Standard include files
 #include <memory>
 
 ////////////////////////////////////////
 // Third-party include files
 
-// #include GMock, but ignore GMock warnings
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wsign-conversion"
-#endif
-#include "gmock/gmock.h"
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
+#include <gmock/gmock.h>
+
+////////////////////////////////////////
+// Test system include files
+#include "dim.h"
+#include "test/helpers.h"
 
 using mysql_harness::UniquePtr;
 using ::testing::_;
@@ -58,8 +50,10 @@ class Notifier {
 // GMock objects cannot be global, because EXPECT_CALL()s are evaluated in their
 // destructors. The simplest workaround is to set a ptr to such a local object,
 // and make that globally-accessible to the things that need it.
-Notifier *g_notifier = NULL;
-void set_notifier(Notifier &notifier) { g_notifier = &notifier; }
+::testing::StrictMock<Notifier> *g_notifier = NULL;
+void set_notifier(::testing::StrictMock<Notifier> *notifier) {
+  g_notifier = notifier;
+}
 
 class A {
  public:
@@ -131,7 +125,7 @@ class UniquePtrTest : public ::testing::Test {
   Notifier &get_notifier() { return notifier_; }
 
  private:
-  Notifier notifier_;
+  ::testing::StrictMock<Notifier> notifier_;
 };
 
 TEST_F(UniquePtrTest, test_illegal_operations_warning) {
@@ -450,7 +444,7 @@ class B : public A {
 TEST_F(DIMTest, singleton_simple) {
   // 1st get_A() call should create a new istance
   {
-    Notifier notifier;
+    ::testing::StrictMock<Notifier> notifier;
     set_notifier(notifier);
     EXPECT_CALL(notifier, called_ctor("B")).Times(1);
     EXPECT_CALL(notifier, called_dtor("B"))
@@ -474,7 +468,7 @@ TEST_F(DIMTest, singleton_simple) {
 
   // subsequent get_A() calls should not create new instances
   {
-    Notifier notifier;
+    ::testing::StrictMock<Notifier> notifier;
     set_notifier(notifier);
     EXPECT_CALL(notifier, called_ctor("B"))
         .Times(0);  // no new instance should be created
@@ -488,7 +482,7 @@ TEST_F(DIMTest, singleton_simple) {
 
   // calling set_A() should have no effect if singleton has already been created
   {
-    Notifier notifier;
+    ::testing::StrictMock<Notifier> notifier;
     set_notifier(notifier);
     EXPECT_CALL(notifier, called_ctor("B")).Times(0);
     EXPECT_CALL(notifier, called_dtor("B")).Times(0);
@@ -544,7 +538,7 @@ TEST_F(DIMTest, singleton_dependency_cascade) {
 
   // should trigger creation of Foo, Bar and Baz
   {
-    Notifier notifier;
+    ::testing::StrictMock<Notifier> notifier;
     set_notifier(notifier);
     EXPECT_CALL(notifier, called_ctor("Foo")).Times(1);
     EXPECT_CALL(notifier, called_ctor("Bar")).Times(1);
@@ -576,7 +570,7 @@ void deleter2(A *ptr) {
 void deleterX(A *) { FAIL() << "This deleter should never be called"; }
 
 TEST_F(DIMTest, factory_simple) {
-  Notifier notifier;
+  ::testing::StrictMock<Notifier> notifier;
   set_notifier(notifier);
   EXPECT_CALL(notifier, called_ctor("B")).Times(1);
   EXPECT_CALL(notifier, called_ctor("B(arg1)")).Times(1);
@@ -601,7 +595,7 @@ TEST_F(DIMTest, factory_simple) {
 }
 
 TEST_F(DIMTest, factory_object_should_remember_its_deleter) {
-  Notifier notifier;
+  ::testing::StrictMock<Notifier> notifier;
   set_notifier(notifier);
   EXPECT_CALL(notifier, called_ctor("B")).Times(1);
   EXPECT_CALL(notifier, called_ctor("B(arg1)")).Times(1);
@@ -634,7 +628,7 @@ TEST_F(DIMTest, factory_object_should_remember_its_deleter) {
 }
 
 TEST_F(DIMTest, factory_object_should_remember_its_deleter2) {
-  Notifier notifier;
+  ::testing::StrictMock<Notifier> notifier;
   set_notifier(notifier);
   EXPECT_CALL(notifier, called_ctor("B")).Times(1);
   EXPECT_CALL(notifier, called_ctor("B(arg1)")).Times(1);

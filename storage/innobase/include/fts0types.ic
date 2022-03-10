@@ -37,10 +37,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "rem0cmp.h"
 
 /** Duplicate a string. */
-UNIV_INLINE
-void fts_string_dup(fts_string_t *dst,       /*!< in: dup to here */
-                    const fts_string_t *src, /*!< in: src string */
-                    mem_heap_t *heap)        /*!< in: heap to use */
+static inline void fts_string_dup(
+    fts_string_t *dst,       /*!< in: dup to here */
+    const fts_string_t *src, /*!< in: src string */
+    mem_heap_t *heap)        /*!< in: heap to use */
 {
   dst->f_str = (byte *)mem_heap_alloc(heap, src->f_len + 1);
   memcpy(dst->f_str, src->f_str, src->f_len);
@@ -52,9 +52,8 @@ void fts_string_dup(fts_string_t *dst,       /*!< in: dup to here */
 
 /** Compare two fts_trx_row_t doc_ids.
  @return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
-UNIV_INLINE
-int fts_trx_row_doc_id_cmp(const void *p1, /*!< in: id1 */
-                           const void *p2) /*!< in: id2 */
+static inline int fts_trx_row_doc_id_cmp(const void *p1, /*!< in: id1 */
+                                         const void *p2) /*!< in: id2 */
 {
   const fts_trx_row_t *tr1 = (const fts_trx_row_t *)p1;
   const fts_trx_row_t *tr2 = (const fts_trx_row_t *)p2;
@@ -64,9 +63,8 @@ int fts_trx_row_doc_id_cmp(const void *p1, /*!< in: id1 */
 
 /** Compare two fts_ranking_t doc_ids.
  @return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
-UNIV_INLINE
-int fts_ranking_doc_id_cmp(const void *p1, /*!< in: id1 */
-                           const void *p2) /*!< in: id2 */
+static inline int fts_ranking_doc_id_cmp(const void *p1, /*!< in: id1 */
+                                         const void *p2) /*!< in: id2 */
 {
   const fts_ranking_t *rk1 = (const fts_ranking_t *)p1;
   const fts_ranking_t *rk2 = (const fts_ranking_t *)p2;
@@ -76,9 +74,8 @@ int fts_ranking_doc_id_cmp(const void *p1, /*!< in: id1 */
 
 /** Compare two fts_update_t doc_ids.
  @return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
-UNIV_INLINE
-int fts_update_doc_id_cmp(const void *p1, /*!< in: id1 */
-                          const void *p2) /*!< in: id2 */
+static inline int fts_update_doc_id_cmp(const void *p1, /*!< in: id1 */
+                                        const void *p2) /*!< in: id2 */
 {
   const fts_update_t *up1 = (const fts_update_t *)p1;
   const fts_update_t *up2 = (const fts_update_t *)p2;
@@ -95,8 +92,7 @@ extern ulint innobase_strnxfrm(const CHARSET_INFO *cs, /*!< in: Character set */
 @param[in]	cs	charset
 @retval	true	if the charset is cjk
 @retval	false	if not. */
-UNIV_INLINE
-bool fts_is_charset_cjk(const CHARSET_INFO *cs) {
+static inline bool fts_is_charset_cjk(const CHARSET_INFO *cs) {
   if (strcmp(cs->name, "gb2312_chinese_ci") == 0 ||
       strcmp(cs->name, "gbk_chinese_ci") == 0 ||
       strcmp(cs->name, "big5_chinese_ci") == 0 ||
@@ -117,9 +113,8 @@ bool fts_is_charset_cjk(const CHARSET_INFO *cs) {
 @param[in]	str	string
 @param[in]	len	string length
 @retval	the index to use for the string */
-UNIV_INLINE
-ulint fts_select_index_by_range(const CHARSET_INFO *cs, const byte *str,
-                                ulint len) {
+static inline ulint fts_select_index_by_range(const CHARSET_INFO *cs,
+                                              const byte *str, ulint len) {
   ulint selected = 0;
   ulint value = innobase_strnxfrm(cs, str, len);
 
@@ -144,9 +139,8 @@ ulint fts_select_index_by_range(const CHARSET_INFO *cs, const byte *str,
 @param[in]	str	string
 @param[in]	len	string length
 @retval the index to use for the string */
-UNIV_INLINE
-ulint fts_select_index_by_hash(const CHARSET_INFO *cs, const byte *str,
-                               ulint len) {
+static inline ulint fts_select_index_by_hash(const CHARSET_INFO *cs,
+                                             const byte *str, ulint len) {
   int char_len;
 
   ut_ad(!(str == nullptr && len > 0));
@@ -177,8 +171,8 @@ ulint fts_select_index_by_hash(const CHARSET_INFO *cs, const byte *str,
 @param[in]	str	string
 @param[in]	len	string length in bytes
 @retval	the index to use for the string */
-UNIV_INLINE
-ulint fts_select_index(const CHARSET_INFO *cs, const byte *str, ulint len) {
+static inline ulint fts_select_index(const CHARSET_INFO *cs, const byte *str,
+                                     ulint len) {
   ulint selected;
 
   if (fts_is_charset_cjk(cs)) {
@@ -191,8 +185,8 @@ ulint fts_select_index(const CHARSET_INFO *cs, const byte *str, ulint len) {
 }
 
 /** Return the selected FTS aux index suffix. */
-UNIV_INLINE
-const char *fts_get_suffix(ulint selected) /*!< in: selected index */
+static inline const char *fts_get_suffix(
+    ulint selected) /*!< in: selected index */
 {
   return (fts_index_selector[selected].suffix);
 }
@@ -200,8 +194,7 @@ const char *fts_get_suffix(ulint selected) /*!< in: selected index */
 /** Return the selected FTS aux index suffix in 5.7 compatible format
 @param[in]	selected	selected index
 @return the suffix name */
-UNIV_INLINE
-const char *fts_get_suffix_5_7(ulint selected) {
+static inline const char *fts_get_suffix_5_7(ulint selected) {
   return (fts_index_selector_5_7[selected].suffix);
 }
 

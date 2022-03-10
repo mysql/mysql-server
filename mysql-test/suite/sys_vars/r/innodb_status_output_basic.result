@@ -73,8 +73,8 @@ set global innodb_status_output=1e1;
 ERROR 42000: Incorrect argument type to variable 'innodb_status_output'
 set global innodb_status_output=2;
 ERROR 42000: Variable 'innodb_status_output' can't be set to the value of '2'
-NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
 set global innodb_status_output=-3;
+ERROR 42000: Variable 'innodb_status_output' can't be set to the value of '-3'
 select @@global.innodb_status_output;
 @@global.innodb_status_output
 1

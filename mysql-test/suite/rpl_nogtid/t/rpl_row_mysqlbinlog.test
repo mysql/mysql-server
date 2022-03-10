@@ -126,7 +126,7 @@ DROP TABLE t3;
 
 sync_slave_with_master;
 #we expect STOP SLAVE to produce a warning as the slave is stopped
-#(the server was started with skip-slave-start)
+#(the server was started with skip-replica-start)
 --disable_warnings
 stop slave;
 --source include/wait_for_slave_to_stop.inc
@@ -207,7 +207,7 @@ DROP TABLE t3;
 sync_slave_with_master;
 
 #we expect STOP SLAVE to produce a warning as the slave is stopped
-#(the server was started with skip-slave-start)
+#(the server was started with skip-replica-start)
 
 --disable_warnings
 stop slave;
@@ -287,7 +287,7 @@ select "--- Test 8 switch internal charset --" as "";
 sync_slave_with_master;
 
 #we expect STOP SLAVE to produce a warning as the slave is stopped
-#(the server was started with skip-slave-start)
+#(the server was started with skip-replica-start)
 
 --disable_warnings
 stop slave;

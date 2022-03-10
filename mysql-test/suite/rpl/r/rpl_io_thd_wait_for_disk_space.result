@@ -10,6 +10,7 @@ CALL mtr.add_suppression("Disk is full writing");
 CALL mtr.add_suppression("Retry in 60 secs");
 CALL mtr.add_suppression("Relay log write failure");
 CALL mtr.add_suppression("Recovery from master pos");
+CALL mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1*");
 CALL mtr.add_suppression("Waiting until I/O thread .* finish writing to disk before stopping");
 #
 # Step 1 - Monitor and kill I/O thread while waiting for disk space
@@ -52,9 +53,10 @@ INSERT INTO t1 VALUES(9);
 [connection slave]
 include/wait_for_slave_param.inc [Slave_IO_State]
 include/stop_slave_sql.inc
-include/rpl_restart_server.inc [server_number=2 parameters: --relay_log_recovery --log-error-verbosity=3]
+include/rpl_restart_server.inc [server_number=2]
 include/start_slave.inc
 include/assert_grep.inc [Found no warning messages about I/O thread waiting before stopping]
 [connection master]
 DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

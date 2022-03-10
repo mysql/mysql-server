@@ -7,9 +7,9 @@ create database if not exists mysqltest;
 use mysqltest;
 create temporary table mysqltest.t1 (n int)ENGINE=MyISAM;
 create temporary table mysqltest.t2 (n int)ENGINE=MyISAM;
-show status like 'Slave_open_temp_tables';
+show status like 'Replica_open_temp_tables';
 Variable_name	Value
-Slave_open_temp_tables	0
+Replica_open_temp_tables	0
 drop database mysqltest;
 DROP TEMPORARY TABLE IF EXISTS tmp1;
 Warnings:
@@ -31,13 +31,13 @@ Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reset.inc
 CREATE TABLE t1 ( i INT );
-SHOW STATUS LIKE 'Slave_open_temp_tables';
+SHOW STATUS LIKE 'Replica_open_temp_tables';
 Variable_name	Value
-Slave_open_temp_tables	0
+Replica_open_temp_tables	0
 CREATE TEMPORARY TABLE ttmp1 ( i INT );
-SHOW STATUS LIKE 'Slave_open_temp_tables';
+SHOW STATUS LIKE 'Replica_open_temp_tables';
 Variable_name	Value
-Slave_open_temp_tables	0
+Replica_open_temp_tables	0
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 ( i INT )

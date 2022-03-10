@@ -44,9 +44,9 @@ class mem_root_deque;
 
 class Sql_cmd_handler_open : public Sql_cmd {
  public:
-  Sql_cmd_handler_open() {}
+  Sql_cmd_handler_open() = default;
 
-  ~Sql_cmd_handler_open() override {}
+  ~Sql_cmd_handler_open() override = default;
 
   enum_sql_command sql_command_code() const override { return SQLCOM_HA_OPEN; }
 
@@ -71,7 +71,7 @@ class Sql_cmd_handler_read : public Sql_cmd {
         m_key_expr(key_expr),
         m_rkey_mode(rkey_mode) {}
 
-  ~Sql_cmd_handler_read() override {}
+  ~Sql_cmd_handler_read() override = default;
 
   enum_sql_command sql_command_code() const override { return SQLCOM_HA_READ; }
 
@@ -103,9 +103,9 @@ class Sql_cmd_handler_read : public Sql_cmd {
 
 class Sql_cmd_handler_close : public Sql_cmd {
  public:
-  Sql_cmd_handler_close() {}
+  Sql_cmd_handler_close() = default;
 
-  ~Sql_cmd_handler_close() override {}
+  ~Sql_cmd_handler_close() override = default;
 
   enum_sql_command sql_command_code() const override { return SQLCOM_HA_CLOSE; }
 

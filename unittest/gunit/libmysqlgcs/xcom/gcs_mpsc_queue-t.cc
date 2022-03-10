@@ -35,7 +35,7 @@ namespace gcs_xcom_mpsc_queue_unittest {
 
 class GcsMpscQueueTest : public GcsBaseTest {
  protected:
-  GcsMpscQueueTest() {}
+  GcsMpscQueueTest() = default;
 
   void SetUp() override {}
 

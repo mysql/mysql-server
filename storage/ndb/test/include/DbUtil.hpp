@@ -102,6 +102,12 @@ public:
 
   unsigned long long selectCountTable(const char * table);
 
+  /*
+     Usage of DbUtil initializes the MySQL library and allocates resources in
+     the thread that need to be released.
+     */
+  static void thread_end();
+
 protected:
 
   bool runQuery(const char* query,

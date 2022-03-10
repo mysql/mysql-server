@@ -48,6 +48,7 @@ set @@session.innodb_redo_log_encrypt='some';
 set global innodb_redo_log_encrypt=1.1;
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_redo_log_encrypt='foo';
+--error ER_WRONG_VALUE_FOR_VAR
 set global innodb_redo_log_encrypt=-2;
 --error ER_WRONG_TYPE_FOR_VAR
 set global innodb_redo_log_encrypt=1e1;

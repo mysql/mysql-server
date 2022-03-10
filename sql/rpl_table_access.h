@@ -38,7 +38,7 @@ struct TABLE;
 
 class System_table_access {
  public:
-  virtual ~System_table_access() {}
+  virtual ~System_table_access() = default;
 
   /**
     Opens and locks a system table.

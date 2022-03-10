@@ -149,9 +149,9 @@ class SysTablespace : public Tablespace {
   @param[out] sum_new_sizes	sum of sizes of the new files added
   @param[out] flush_lsn		FIL_PAGE_FILE_FLUSH_LSN of first file
   @return DB_SUCCESS or error code */
-  dberr_t open_or_create(bool is_temp, bool create_new_db,
-                         page_no_t *sum_new_sizes, lsn_t *flush_lsn)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t open_or_create(bool is_temp, bool create_new_db,
+                                       page_no_t *sum_new_sizes,
+                                       lsn_t *flush_lsn);
 
  private:
   /** Check the tablespace header for this tablespace.

@@ -25,15 +25,11 @@
 /**
  * Tests the metadata cache plugin implementation.
  */
+#include <gtest/gtest.h>
 
 #include "cluster_metadata.h"
 
-#include "gmock/gmock.h"
-
-class MetadataCacheInstanceAttributesTest : public ::testing::Test {
- public:
-  void TearDown() override {}
-};
+class MetadataCacheInstanceAttributesTest : public ::testing::Test {};
 
 TEST_F(MetadataCacheInstanceAttributesTest, IsHidden) {
   std::string warning;

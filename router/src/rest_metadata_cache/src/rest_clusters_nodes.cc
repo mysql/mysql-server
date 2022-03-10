@@ -25,8 +25,6 @@
 #include "rest_clusters_nodes.h"
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -52,7 +50,7 @@ static const char *server_mode_to_string(metadata_cache::ServerMode mode) {
 
 bool RestClustersNodes::on_handle_request(
     HttpRequest &req, const std::string & /* base_path */,
-    const std::vector<std::string> &path_matches) {
+    const std::vector<std::string> & /*path_matches*/) {
   if (!ensure_no_params(req)) return true;
 
   auto out_hdrs = req.get_output_headers();
@@ -63,18 +61,15 @@ bool RestClustersNodes::on_handle_request(
     rapidjson::Document::AllocatorType &allocator = json_doc.GetAllocator();
 
     metadata_cache::LookupResult res =
-        metadata_cache::MetadataCacheAPI::instance()->lookup_replicaset(
-            path_matches[1]);
+        metadata_cache::MetadataCacheAPI::instance()->get_cluster_nodes();
 
     rapidjson::Value items(rapidjson::kArrayType);
 
     for (auto &inst : res.instance_vector) {
       rapidjson::Value o(rapidjson::kObjectType);
 
-      o.AddMember(
-          "replicasetName",
-          rapidjson::Value(inst.replicaset_name.c_str(), allocator).Move(),
-          allocator);
+      o.AddMember("replicasetName",
+                  rapidjson::Value("default", allocator).Move(), allocator);
       o.AddMember(
           "mysqlServerUuid",
           rapidjson::Value(inst.mysql_server_uuid.c_str(), allocator).Move(),

@@ -3,7 +3,7 @@
 # Including:
 # - user interface, grammar, checking the range and warnings about
 #   unreasonable values for the heartbeat period
-# - no rotation of relay log if heartbeat is less that slave_net_timeout
+# - no rotation of relay log if heartbeat is less that replica_net_timeout
 # - SELECT  COUNT_RECEIVED_HEARTBEATS FROM p_S.replication_connection_status
 # - SELECT  HEARTBEAT_INTERVAL FROM p_s.replication_connection_configuration
 # - SELECT LAST_HEARTBEAT_TIMESTAMP FROM p_s.replication_connection_status
@@ -17,8 +17,8 @@
 --let $rpl_connection_name= slave
 --source include/rpl_connection.inc
 
-set @restore_slave_net_timeout= @@global.slave_net_timeout;
-set @@global.slave_net_timeout= 10;
+set @restore_replica_net_timeout= @@global.replica_net_timeout;
+set @@global.replica_net_timeout= 10;
 
 #
 # check for null value of the last_heartbeat_timestamp variable when the slave is not enabled
@@ -30,7 +30,7 @@ set @@global.slave_net_timeout= 10;
 ###
 
 #
-# default period slave_net_timeout/2
+# default period replica_net_timeout/2
 #
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --replace_column 2 ####
@@ -75,9 +75,9 @@ eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MY
 reset slave;
 
 #
-# A warning if heartbeat_interval greater than slave_net_timeout
+# A warning if heartbeat_interval greater than replica_net_timeout
 #
-set @@global.slave_net_timeout= 5;
+set @@global.replica_net_timeout= 5;
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_HEARTBEAT_PERIOD= 5.001;
@@ -86,14 +86,14 @@ eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MY
 reset slave;
 
 #
-# A warning if slave_net_timeout is set to less than the current HB period
+# A warning if replica_net_timeout is set to less than the current HB period
 #
-set @@global.slave_net_timeout= 5;
+set @@global.replica_net_timeout= 5;
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_HEARTBEAT_PERIOD= 4;
 --query_vertical SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration
-set @@global.slave_net_timeout= 3 /* must be a warning */;
+set @@global.replica_net_timeout= 3 /* must be a warning */;
 
 reset slave;
 
@@ -108,7 +108,7 @@ drop table if exists t1;
 --enable_warnings
 #
 # Even though master_heartbeat_period= 0.5 is 20 times less than
-# @@global.slave_net_timeout= 10 in some circumstances master will
+# @@global.replica_net_timeout= 10 in some circumstances master will
 # not be able to send any heartbeat during the slave's net timeout
 # and slave's relay log will rotate.
 # The probability for such a scenario is pretty small so the following
@@ -117,7 +117,7 @@ drop table if exists t1;
 
 --let $rpl_connection_name= slave
 --source include/rpl_connection.inc
-set @@global.slave_net_timeout= 10;
+set @@global.replica_net_timeout= 10;
 --replace_result $MASTER_MYPORT SOURCE_PORT
 # no error this time but rather a warning
 --replace_column 2 ####
@@ -135,7 +135,7 @@ create table t1 (f1 int);
 let $slave_param= Relay_Log_File;
 let $slave_param_value= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
 
-# there is an explicit sleep lasting longer than slave_net_timeout
+# there is an explicit sleep lasting longer than replica_net_timeout
 # to ensure that nothing will come to slave from master for that period.
 # That would cause reconnecting and relaylog rotation w/o the fix i.e
 # without a heartbeat received.
@@ -177,7 +177,7 @@ source include/check_slave_param.inc;
 drop table t1;
 
 --source include/sync_slave_sql_with_master.inc
-set @@global.slave_net_timeout= @restore_slave_net_timeout;
+set @@global.replica_net_timeout= @restore_replica_net_timeout;
 
 
 # ==== Bug#18185490: IF MASTER_HEARTBEAT_PERIOD OPTION IS NOT PROVIDED IT IS AUTO SETTING TO DEFAULT ====
@@ -267,7 +267,7 @@ if (`SELECT @@GLOBAL.gtid_mode = 'ON'`)
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'localhost', SOURCE_PORT= $MASTER_MYPORT;
 --source include/start_slave.inc
 
---let $default_heartbeat_period= @@global.slave_net_timeout/2;
+--let $default_heartbeat_period= @@global.replica_net_timeout/2;
 --let $assert_cond= [SELECT  HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration] = $default_heartbeat_period
 --let $assert_text= HEARTBEAT_INTERVAL should reset to default.
 --source include/assert.inc

@@ -34,7 +34,7 @@ CREATE TABLE t1 ( f1 INT );
 CREATE TABLE t2 ( f2 INT );
 EXPLAIN FORMAT=tree DELETE t1, t2 FROM t1, t2;
 EXPLAIN
--> Delete from t1 (immediate), t2 (buffered)
+-> Delete from t1 (immediate), t2 (buffered)  (cost=0.80 rows=1)
     -> Nested loop inner join  (cost=0.70 rows=1)
         -> Table scan on t1  (cost=0.35 rows=1)
         -> Table scan on t2  (cost=0.35 rows=1)
@@ -51,7 +51,7 @@ EXPLAIN FORMAT=tree SELECT f1, (SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1) < 3
 EXPLAIN
 -> Table scan on t1  (cost=0.55 rows=3)
 -> Select #2 (subquery in projection; dependent)
-    -> Aggregate: min(i.f1)
+    -> Aggregate: min(i.f1)  (cost=0.45 rows=1)
         -> Filter: (i.f1 > t1.f1)  (cost=0.35 rows=1)
             -> Table scan on i  (cost=0.35 rows=3)
 
@@ -79,22 +79,22 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT SUM(f1) FROM t1;
 EXPLAIN
--> Aggregate: sum(t1.f1)
+-> Aggregate: sum(t1.f1)  (cost=0.85 rows=3)
     -> Index scan on t1 using f1  (cost=0.55 rows=3)
 
 EXPLAIN FORMAT=tree SELECT f1 FROM t1 GROUP BY f1;
 EXPLAIN
--> Group (no aggregates)
+-> Group (no aggregates)  (cost=0.85 rows=3)
     -> Index scan on t1 using f1  (cost=0.55 rows=3)
 
 EXPLAIN FORMAT=tree SELECT f1,COUNT(*) FROM t1 GROUP BY f1;
 EXPLAIN
--> Group aggregate: count(0)
+-> Group aggregate: count(0)  (cost=0.85 rows=3)
     -> Index scan on t1 using f1  (cost=0.55 rows=3)
 
 EXPLAIN FORMAT=tree SELECT f1,COUNT(*) FROM t1 GROUP BY f1 WITH ROLLUP;
 EXPLAIN
--> Group aggregate with rollup: count(0)
+-> Group aggregate with rollup: count(0)  (cost=0.85 rows=3)
     -> Index scan on t1 using f1  (cost=0.55 rows=3)
 
 DROP TABLE t1;
@@ -294,11 +294,11 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT DISTINCT (COUNT(DISTINCT b) + 1) AS c FROM t1 GROUP BY a;
 EXPLAIN
--> Table scan on <temporary>  (cost=2.50..2.50 rows=0)
-    -> Temporary table with deduplication  (cost=5.00..5.00 rows=0)
-        -> Table scan on <temporary>  (cost=2.50..2.50 rows=0)
-            -> Temporary table  (cost=2.50..2.50 rows=0)
-                -> Group aggregate: count(distinct t1.b)
+-> Table scan on <temporary>  (cost=0.24..2.64 rows=11)
+    -> Temporary table with deduplication  (cost=7.53..9.93 rows=11)
+        -> Table scan on <temporary>  (cost=0.24..2.64 rows=11)
+            -> Temporary table  (cost=3.79..6.19 rows=11)
+                -> Group aggregate: count(distinct t1.b)  (cost=2.45 rows=11)
                     -> Sort: t1.a  (cost=1.35 rows=11)
                         -> Table scan on t1  (cost=1.35 rows=11)
 
@@ -315,7 +315,7 @@ EXPLAIN
 -> Filter: (t1.f1 = (select #2))  (cost=0.55 rows=3)
     -> Index scan on t1 using PRIMARY  (cost=0.55 rows=3)
     -> Select #2 (subquery in condition; dependent)
-        -> Aggregate: min(i.f1)
+        -> Aggregate: min(i.f1)  (cost=0.45 rows=1)
             -> Filter: (i.f1 > t1.f1)  (cost=0.35 rows=1)
                 -> Index range scan on i (re-planned for each iteration)  (cost=0.35 rows=3)
 
@@ -327,7 +327,7 @@ EXPLAIN
     -> Index scan on t1 using PRIMARY  (cost=0.55 rows=3)
     -> Select #2 (subquery in condition; run only once)
         -> Limit: 1 row(s)  (cost=0.55 rows=1)
-            -> Index scan on t1 using PRIMARY  (cost=0.55 rows=3)
+            -> Covering index scan on t1 using PRIMARY  (cost=0.55 rows=3)
 
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
@@ -344,7 +344,7 @@ EXPLAIN
     -> Select #2 (subquery in condition; dependent)
         -> Index scan on i using PRIMARY  (cost=0.55 rows=3)
         -> Select #3 (subquery in projection; dependent)
-            -> Aggregate: min(ii.f1)
+            -> Aggregate: min(ii.f1)  (cost=0.45 rows=1)
                 -> Filter: (ii.f1 > t1.f1)  (cost=0.35 rows=1)
                     -> Index range scan on ii (re-planned for each iteration)  (cost=0.35 rows=3)
 
@@ -362,7 +362,7 @@ EXPLAIN FORMAT=tree SELECT ( SELECT ( SELECT ( SELECT MIN(f1) FROM t1 i WHERE i.
 EXPLAIN
 -> Index scan on t1 using PRIMARY  (cost=0.55 rows=3)
 -> Select #4 (subquery in projection; dependent)
-    -> Aggregate: min(i.f1)
+    -> Aggregate: min(i.f1)  (cost=0.45 rows=1)
         -> Filter: (i.f1 > t1.f1)  (cost=0.35 rows=1)
             -> Index range scan on i (re-planned for each iteration)  (cost=0.35 rows=3)
 
@@ -477,7 +477,7 @@ EXPLAIN
                 -> Table scan on t2  (cost=0.35 rows=1)
                 -> Filter: (t3.a = t2.a)  (cost=0.35 rows=1)
                     -> Table scan on t3  (cost=0.35 rows=1)
-        -> Index lookup on t4d using <auto_key0> (a=t1.a)
+        -> Covering index lookup on t4d using <auto_key0> (a=t1.a)
             -> Materialize (invalidate on row from t3)  (cost=0.45..0.45 rows=1)
                 -> Limit: 1 row(s)  (cost=0.35 rows=1)
                     -> Filter: (t4.a = t3.a)  (cost=0.35 rows=1)
@@ -490,12 +490,15 @@ CREATE TABLE t1 ( f1 INTEGER );
 EXPLAIN FORMAT=TREE SELECT * FROM ( SELECT * FROM t1 LIMIT 2 OFFSET 1 ) AS alias1
 WHERE f1 <= ANY ( SELECT f1 FROM t1 ) ORDER BY f1;
 EXPLAIN
--> Sort: alias1.f1
-    -> Filter: <nop>((alias1.f1 <= (select #3)))  (cost=2.62 rows=2) [other sub-iterators not shown]
+-> Sort: alias1.f1  (cost=0.35..0.35 rows=0)
+    -> Filter: <nop>((alias1.f1 <= (select #3)))  (cost=2.62 rows=2)
         -> Table scan on alias1  (cost=2.62 rows=2)
             -> Materialize  (cost=0.35..0.35 rows=0)
                 -> Limit/Offset: 2/1 row(s)  (cost=0.35 rows=0)
                     -> Table scan on t1  (cost=0.35 rows=1)
+        -> Select #3 (subquery in condition; run only once)
+            -> Aggregate: max(t1.f1)  (cost=0.45 rows=1)
+                -> Table scan on t1  (cost=0.35 rows=1)
 
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT );
@@ -606,9 +609,9 @@ EXPLAIN
 -> Filter: <in_optimizer>(t1.a,<exists>(select #2))  (cost=0.55 rows=3)
     -> Table scan on t1  (cost=0.55 rows=3)
     -> Select #2 (subquery in condition; dependent)
-        -> Limit: 1 row(s)
-            -> Filter: (<cache>(t1.a) = <ref_null_helper>(max(t1.a)))
-                -> Aggregate: max(t1.a)
+        -> Limit: 1 row(s)  (cost=0.65 rows=1)
+            -> Filter: (<cache>(t1.a) = <ref_null_helper>(max(t1.a)))  (cost=0.65 rows=1)
+                -> Aggregate: max(t1.a)  (cost=0.65 rows=1)
                     -> Filter: (t1.b = 2)  (cost=0.55 rows=1)
                         -> Table scan on t1  (cost=0.55 rows=3)
 
@@ -672,7 +675,7 @@ EXPLAIN
     -> Remove duplicates from input sorted on i1  (cost=0.65 rows=4)
         -> Filter: (t2.i is not null)  (cost=0.65 rows=4)
             -> Index scan on t2 using i1  (cost=0.65 rows=4)
-    -> Single-row index lookup on t1 using PRIMARY (i=t2.i)  (cost=1.10 rows=1)
+    -> Single-row covering index lookup on t1 using PRIMARY (i=t2.i)  (cost=1.10 rows=1)
 
 DROP TABLE t1;
 DROP TABLE t2;
@@ -772,7 +775,7 @@ EXPLAIN ANALYZE SELECT f1, ( SELECT COUNT(*) FROM t1 AS inner_t1 WHERE inner_t1.
 EXPLAIN
 -> Table scan on t1  (cost=1.25 rows=10) (actual time=N.NNN..N.NNN rows=10 loops=1)
 -> Select #2 (subquery in projection; dependent)
-    -> Aggregate: count(0)  (actual time=N.NNN..N.NNN rows=1 loops=10)
+    -> Aggregate: count(0)  (cost=0.92 rows=3) (actual time=N.NNN..N.NNN rows=1 loops=10)
         -> Filter: (inner_t1.f1 < t1.f1)  (cost=0.58 rows=3) (actual time=N.NNN..N.NNN rows=4 loops=10)
             -> Table scan on inner_t1  (cost=0.58 rows=10) (actual time=N.NNN..N.NNN rows=10 loops=10)
 
@@ -805,14 +808,14 @@ EXPLAIN
 
 EXPLAIN FORMAT=TREE DELETE t1.*,t2.* FROM t1,t2;
 EXPLAIN
--> Delete from t1 (immediate), t2 (buffered)
+-> Delete from t1 (immediate), t2 (buffered)  (cost=0.80 rows=1)
     -> Nested loop inner join  (cost=0.70 rows=1)
         -> Table scan on t1  (cost=0.35 rows=1)
         -> Table scan on t2  (cost=0.35 rows=1)
 
 EXPLAIN FORMAT=TREE DELETE t1.*,t1bis.* FROM t1, t1 AS t1bis;
 EXPLAIN
--> Delete from t1 (buffered), t1bis (buffered)
+-> Delete from t1 (buffered), t1bis (buffered)  (cost=0.90 rows=1)
     -> Nested loop inner join  (cost=0.70 rows=1)
         -> Table scan on t1  (cost=0.35 rows=1)
         -> Table scan on t1bis  (cost=0.35 rows=1)
@@ -836,3 +839,124 @@ EXPLAIN
 -> Zero rows (Impossible WHERE)  (cost=0.00..0.00 rows=0)
 
 DROP TABLE t1;
+#
+# Bug #32688540: MATERIALIZE ITERATORS HAVE SKEWED TIMINGS FROM SKIPPED MATERIALIZATIONS
+#
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN ANALYZE SELECT * FROM t1 LEFT JOIN ( SELECT * FROM t1 ORDER BY t1.a LIMIT 3 ) d1 ON TRUE;
+EXPLAIN
+-> Nested loop left join  (cost=14.94 rows=15) (actual time=N.NNN..N.NNN rows=15 loops=1)
+    -> Table scan on t1  (cost=0.75 rows=5) (actual time=N.NNN..N.NNN rows=5 loops=1)
+    -> Table scan on d1  (cost=0.85..2.54 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=5)
+        -> Materialize  (cost=1.57..2.60 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
+            -> Limit: 3 row(s)  (cost=0.75 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
+                -> Sort: t1.a, limit input to 3 row(s) per chunk  (cost=0.75 rows=5) (actual time=N.NNN..N.NNN rows=3 loops=1)
+                    -> Table scan on t1  (cost=0.75 rows=5) (actual time=N.NNN..N.NNN rows=5 loops=1)
+
+DROP TABLE t1;
+#
+# Bug #32915233: RECENT REGRESSION:ASSERTION `EXPLAIN.CHILDREN.SIZE() <= 1' FAILED.
+#
+CREATE TABLE t1 (a int);
+SET sql_mode='';
+EXPLAIN FORMAT=tree SELECT a IN (SELECT a FROM (table t1) AS d) FROM t1 GROUP BY (@b:=5);
+EXPLAIN
+-> Group (no aggregates)  (cost=0.45 rows=1)
+    -> Table scan on t1  (cost=0.35 rows=1)
+-> Select #2 (subquery in projection; dependent)
+    -> Limit: 1 row(s)  (cost=0.45..0.45 rows=1)
+        -> Filter: <if>(outer_field_is_not_null, <is_not_null_test>(d.a), true)  (cost=0.45..0.45 rows=1)
+            -> Alternative plans for IN subquery: Index lookup unless a IS NULL [other sub-iterators not shown]
+                -> Covering index lookup on d using <auto_key0> (a=<cache>(t1.a) or NULL)
+                    -> Materialize  (cost=0.45..0.45 rows=1)
+                        -> Table scan on t1  (cost=0.35 rows=1)
+
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+SET sql_mode=DEFAULT;
+DROP TABLE t1;
+#
+# Bug #33030136: EXPLAIN: ASSERTION `CURRENT_THD->LEX->USING_HYPERGRAPH_OPTIMIZER' FAILED.
+#
+CREATE TABLE t1 (a INTEGER);
+EXPLAIN FORMAT=tree
+(SELECT 1 FROM t1)
+UNION ALL
+SELECT 1 IN (SELECT 1 FROM t1) FROM t1 WHERE 1=2;
+EXPLAIN
+-> Append
+    -> Stream results  (cost=0.35 rows=1)
+        -> Table scan on t1  (cost=0.35 rows=1)
+    -> Stream results  (cost=0.00..0.00 rows=0)
+        -> Zero rows (Impossible WHERE)  (cost=0.00..0.00 rows=0)
+
+DROP TABLE t1;
+CREATE TABLE t1 (pk INTEGER NOT NULL, a INTEGER, b INTEGER, KEY (a), KEY (b), PRIMARY KEY (pk));
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree
+SELECT * FROM t1 WHERE a IN (2,4,6,8,10);
+EXPLAIN
+-> Index range scan on t1 using a over (a = 2) OR (a = 4) OR (3 more), with index condition: (t1.a in (2,4,6,8,10))  (cost=2.07 rows=5)
+
+EXPLAIN ANALYZE
+SELECT /*+ INDEX_MERGE(t1) */ * FROM t1 WHERE pk > 1 OR a > 2 OR b > 3;
+EXPLAIN
+-> Filter: ((t1.pk > 1) or (t1.a > 2) or (t1.b > 3))  (cost=1.97 rows=1) (actual time=N.NNN..N.NNN rows=0 loops=1)
+    -> Sort-deduplicate by row ID  (cost=1.97 rows=1) (actual time=N.NNN..N.NNN rows=0 loops=1)
+        -> Clustered primary key (scanned separately)
+            -> Index range scan on t1 using PRIMARY over (1 < pk)  (cost=0.36 rows=1) (actual time=N.NNN..N.NNN rows=0 loops=1)
+        -> Index range scan on t1 using a over (2 < a)  (cost=0.36 rows=1) (actual time=N.NNN..N.NNN rows=0 loops=1)
+        -> Index range scan on t1 using b over (3 < b)  (cost=0.36 rows=1) (actual time=N.NNN..N.NNN rows=0 loops=1)
+
+DROP TABLE t1;
+CREATE TABLE t1 (a INTEGER, b INTEGER, c INTEGER, d INTEGER, e INTEGER, KEY idx1 (a,b,c,d,e));
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree
+SELECT /*+ SKIP_SCAN(t1) */ * FROM t1 WHERE a IN (2,4,6,8,10) AND b=5 AND e BETWEEN 100 AND 200;
+EXPLAIN
+-> Filter: ((t1.b = 5) and (t1.a in (2,4,6,8,10)) and (t1.e between 100 and 200))  (cost=1.50 rows=5)
+    -> Covering index skip scan on t1 using idx1 over a IN (2, 4, (3 more)), b = 5, 100 <= e <= 200  (cost=1.50 rows=5)
+
+DROP TABLE t1;
+#
+# Bug#33343948: Multi-valued index ranges are printed as binary
+#
+CREATE TABLE t(a VARCHAR(10) COLLATE utf8mb4_0900_bin, KEY (a));
+INSERT INTO t VALUES ('abc'), ('def'), ('ghi');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t WHERE a > 'abc' AND a < 'ghi';
+EXPLAIN
+-> Filter: ((t.a > 'abc') and (t.a < 'ghi'))  (cost=0.46 rows=1)
+    -> Covering index range scan on t using a over ('abc' < a < 'ghi')  (cost=0.46 rows=1)
+
+EXPLAIN FORMAT=tree
+SELECT * FROM t WHERE a > 'abc''def' AND a < CONCAT('z', UNHEX('090A1A5C0D'));
+EXPLAIN
+-> Filter: ((t.a > 'abc\'def') and (t.a < <cache>(concat('z',unhex('090A1A5C0D')))))  (cost=0.66 rows=2)
+    -> Covering index range scan on t using a over ('abc\'def' < a < 'z	\n\Z\\\r')  (cost=0.66 rows=2)
+
+DROP TABLE t;
+#
+# Bug#33364732: Preliminary fixes for WL#14673
+#
+CREATE TABLE t(x INTEGER);
+INSERT INTO t VALUES (1), (2), (3);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=TREE DELETE t FROM t WHERE 0=1;
+EXPLAIN
+-> Delete from t (buffered)  (cost=0.00..0.00 rows=0)
+    -> Zero rows (Impossible WHERE)  (cost=0.00..0.00 rows=0)
+
+DROP TABLE t;

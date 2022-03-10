@@ -136,7 +136,7 @@ dict_v_col_t *dict_mem_table_add_v_col(dict_table_t *table, mem_heap_t *heap,
   v_col->num_base = num_base;
 
   /* Initialize the index list for virtual columns */
-  v_col->v_indexes = UT_NEW_NOKEY(dict_v_idx_list());
+  v_col->v_indexes = ut::new_withkey<dict_v_idx_list>(UT_NEW_THIS_FILE_PSI_KEY);
 
   v_col->m_col.is_visible = is_visible;
   return (v_col);
@@ -153,7 +153,7 @@ void dict_mem_table_add_s_col(dict_table_t *table, ulint num_base) {
   ut_ad(col != nullptr);
 
   if (table->s_cols == nullptr) {
-    table->s_cols = UT_NEW_NOKEY(dict_s_col_list());
+    table->s_cols = ut::new_withkey<dict_s_col_list>(UT_NEW_THIS_FILE_PSI_KEY);
   }
 
   s_col.m_col = col;
@@ -423,7 +423,7 @@ static void dict_mem_fill_vcol_has_index(const dict_index_t *index,
 
       if (v_idx.index == index) {
         if (*v_cols == nullptr) {
-          *v_cols = UT_NEW_NOKEY(dict_vcol_set());
+          *v_cols = ut::new_withkey<dict_vcol_set>(UT_NEW_THIS_FILE_PSI_KEY);
         }
 
         (*v_cols)->insert(v_col);
@@ -479,7 +479,7 @@ static void dict_mem_fill_vcol_set_for_base_col(const char *col_name,
     for (ulint j = 0; j < v_col->num_base; j++) {
       if (strcmp(col_name, table->get_col_name(v_col->base_col[j]->ind)) == 0) {
         if (*v_cols == nullptr) {
-          *v_cols = UT_NEW_NOKEY(dict_vcol_set());
+          *v_cols = ut::new_withkey<dict_vcol_set>(UT_NEW_THIS_FILE_PSI_KEY);
         }
 
         (*v_cols)->insert(v_col);
@@ -537,7 +537,7 @@ void dict_mem_table_free_foreign_vcol_set(dict_table_t *table) {
     foreign = *it;
 
     if (foreign->v_cols != nullptr) {
-      UT_DELETE(foreign->v_cols);
+      ut::delete_(foreign->v_cols);
       foreign->v_cols = nullptr;
     }
   }
@@ -573,13 +573,13 @@ void dict_col_t::set_default(const byte *value, size_t length,
 
 bool dict_col_default_t::operator==(const dict_col_default_t &other) {
   /* If the lengths are different, trivially the default values are not
-   * the same, return false immediately */
+  the same, return false immediately */
   if (len != other.len) {
     return false;
   }
   /* If the lengths are null or 0, the values are empty and equal.
-   * No need to check both lengths since we only reach this point
-   * if len == other.len */
+  No need to check both lengths since we only reach this point
+  if len == other.len */
   if (len == UNIV_SQL_NULL || len == 0) {
     return true;
   }
@@ -725,7 +725,7 @@ void dict_mem_index_free(dict_index_t *index) /*!< in: index */
 
     mutex_destroy(&index->rtr_ssn.mutex);
     mutex_destroy(&index->rtr_track->rtr_active_mutex);
-    UT_DELETE(index->rtr_track->rtr_active);
+    ut::delete_(index->rtr_track->rtr_active);
   }
   dict_index_remove_from_v_col_list(index);
 #endif /* !UNIV_HOTBACKUP */
@@ -772,7 +772,8 @@ char *dict_mem_create_temporary_tablename(mem_heap_t *heap, const char *dbtab,
 /** Initialize dict memory variables */
 void dict_mem_init(void) {
   /* Initialize a randomly distributed temporary file number */
-  ib_uint32_t now = static_cast<ib_uint32_t>(ut_time());
+  ib_uint32_t now = static_cast<ib_uint32_t>(
+      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
 
   const byte *buf = reinterpret_cast<const byte *>(&now);
   auto file_num = ut_crc32(buf, sizeof(now));

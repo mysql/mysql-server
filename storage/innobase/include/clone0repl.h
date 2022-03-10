@@ -232,7 +232,7 @@ class Clone_persist_gtid {
 
   /** @return current active GTID list */
   Gitd_info_list &get_active_list() {
-    ut_ad(trx_sys_mutex_own());
+    ut_ad(trx_sys_serialisation_mutex_own());
     return (get_list(m_active_number));
   }
 
@@ -253,7 +253,7 @@ class Clone_persist_gtid {
   @param[in]	compress	request compression of GTID table
   @return flush list number to track and wait for flush to complete. */
   uint64_t request_immediate_flush(bool compress) {
-    trx_sys_mutex_enter();
+    trx_sys_serialisation_mutex_enter();
     /* We want to flush all GTIDs. */
     uint64_t request_number = m_active_number.load();
     /* If no GTIDs added to active, wait for previous index. */
@@ -262,7 +262,7 @@ class Clone_persist_gtid {
       --request_number;
     }
     m_flush_request_number = request_number;
-    trx_sys_mutex_exit();
+    trx_sys_serialisation_mutex_exit();
 
     if (compress) {
       m_explicit_request.store(true);
@@ -289,7 +289,7 @@ class Clone_persist_gtid {
   /** Switch active GTID list. */
   uint64_t switch_active_list() {
     /* Switch active list under transaction system mutex. */
-    ut_ad(trx_sys_mutex_own());
+    ut_ad(trx_sys_serialisation_mutex_own());
     uint64_t flush_number = m_active_number;
     ++m_active_number;
     m_compression_gtid_counter += m_num_gtid_mem;
@@ -324,7 +324,7 @@ class Clone_persist_gtid {
  private:
   /** Time threshold to trigger persisting GTID. Insert GTID once per 1k
   transactions or every 100 millisecond. */
-  const static uint32_t s_time_threshold_ms = 100;
+  static constexpr std::chrono::milliseconds s_time_threshold{100};
 
   /** Threshold for the count for compressing GTID. */
   const static uint32_t s_compression_threshold = 50;

@@ -85,21 +85,24 @@ include/sync_slave_sql_with_master.inc
 ### same number of queries in slow log: 1
 ********************************************************************
 **** TRUNCATE the slow log then check whether runtime changes of
-**** log_slow_slave_statements work without slave restart.
+**** log_slow_replica_statements work without slave restart.
 ********************************************************************
-SET @old_log_slow_slave_statements= @@global.log_slow_slave_statements;
-SET @@global.log_slow_slave_statements = off;
+SET @old_log_slow_replica_statements= @@global.log_slow_replica_statements;
+SET @@global.log_slow_replica_statements = off;
 TRUNCATE mysql.slow_log;
 INSERT INTO t1 values(1, sleep(3));;
 include/sync_slave_sql_with_master.inc
-SET @@global.log_slow_slave_statements = on;
+SET @@global.log_slow_replica_statements = on;
 INSERT INTO t1 values(1, sleep(3));;
 include/sync_slave_sql_with_master.inc
 SET @@global.log_output= @old_log_output;
 SET @@global.long_query_time= @old_long_query_time;
+TRUNCATE TABLE mysql.slow_log;
+TRUNCATE TABLE mysql.general_log;
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 SET @@global.log_output= @old_log_output;
+TRUNCATE TABLE mysql.general_log;
 SET @@global.long_query_time= @old_long_query_time;
-SET @@global.log_slow_slave_statements= @old_log_slow_slave_statements;
+SET @@global.log_slow_replica_statements= @old_log_slow_replica_statements;
 include/rpl_end.inc

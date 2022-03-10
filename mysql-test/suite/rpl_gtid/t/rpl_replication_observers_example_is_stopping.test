@@ -54,7 +54,7 @@
 # Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
 --source include/have_slave_repository_type_table.inc
 # This test cannot run with MTS
---source include/not_mts_slave_parallel_workers.inc
+--source include/not_mts_replica_parallel_workers.inc
 --let $rpl_skip_start_slave= 1
 --source include/master-slave.inc
 

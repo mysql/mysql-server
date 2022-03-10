@@ -51,7 +51,7 @@
 #include "sql/mysqld.h"  // set_remaining_args
 #include "sql/mysqld_thd_manager.h"
 #include "sql/opt_costconstantcache.h"  // optimizer cost constant cache
-#include "sql/opt_range.h"
+#include "sql/range_optimizer/range_optimizer.h"
 #include "sql/rpl_filter.h"
 #include "sql/rpl_handler.h"  // delegates_init()
 #include "sql/set_var.h"
@@ -61,6 +61,9 @@
 #include "sql/sql_plugin.h"
 #include "sql/xa.h"
 #include "unicode/uclean.h"
+#include "unittest/gunit/fake_table.h"
+
+void my_server_abort();
 
 namespace my_testing {
 
@@ -93,8 +96,11 @@ void setup_server_for_unit_tests() {
   sys_var_init();
   init_common_variables();
   test_flags |= TEST_SIGINT;
+  test_flags |= TEST_NO_TEMP_TABLES;
   test_flags &= ~TEST_CORE_ON_SIGNAL;
   my_init_signals();
+  // Install server's abort handler to better represent server environment.
+  set_my_abort(my_server_abort);
   randominit(&sql_rand, 0, 0);
   transaction_cache_init();
   delegates_init();
@@ -132,6 +138,8 @@ void teardown_server_for_unit_tests() {
   Global_THD_manager::destroy_instance();
   my_end(0);
   clean_up_mysqld_mutexes();
+  // Restore standard's abort.
+  set_my_abort(abort);
 }
 
 void Server_initializer::set_expected_error(uint val) { expected_error = val; }
@@ -146,11 +154,15 @@ void Server_initializer::SetUp() {
   m_thd->thread_stack = (char *)&stack_thd;
   m_thd->store_globals();
   lex_start(m_thd);
+  Fake_TABLE::reset_highest_table_id();
 }
 
 void Server_initializer::TearDown() {
-  m_thd->cleanup_after_query();
-  delete m_thd;
+  if (m_thd != nullptr) {
+    m_thd->cleanup_after_query();
+    delete m_thd;
+    m_thd = nullptr;
+  }
 }
 
 Mock_error_handler::Mock_error_handler(THD *thd, uint expected_error)

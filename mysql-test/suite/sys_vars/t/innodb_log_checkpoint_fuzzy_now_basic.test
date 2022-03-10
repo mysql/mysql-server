@@ -65,6 +65,7 @@ set @@session.innodb_log_checkpoint_fuzzy_now='some';
 set global innodb_log_checkpoint_fuzzy_now=1.1;
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_log_checkpoint_fuzzy_now='foo';
+--error ER_WRONG_VALUE_FOR_VAR
 set global innodb_log_checkpoint_fuzzy_now=-2;
 --error ER_WRONG_TYPE_FOR_VAR
 set global innodb_log_checkpoint_fuzzy_now=1e1;

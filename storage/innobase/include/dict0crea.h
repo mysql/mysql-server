@@ -94,9 +94,8 @@ the number is not global, as it used to be before MySQL 4.0.18.
 @param[in,out]	id_nr	number to use in id generation; incremented if used
 @param[in]	name	table name
 @param[in,out]	foreign	foreign key */
-UNIV_INLINE
-dberr_t dict_create_add_foreign_id(ulint *id_nr, const char *name,
-                                   dict_foreign_t *foreign);
+static inline dberr_t dict_create_add_foreign_id(ulint *id_nr, const char *name,
+                                                 dict_foreign_t *foreign);
 
 /** Check if a foreign constraint is on columns served as base columns
 of any stored column. This is to prevent creating SET NULL or CASCADE
@@ -177,22 +176,19 @@ of Sys_columns. The column number includes both its virtual column sequence
 @param[in]	v_pos		virtual column sequence
 @param[in]	col_pos		column position in original table definition
 @return	composed column position number */
-UNIV_INLINE
-ulint dict_create_v_col_pos(ulint v_pos, ulint col_pos);
+static inline ulint dict_create_v_col_pos(ulint v_pos, ulint col_pos);
 
 /** Get the column number for a virtual column (the column position in
 original table), stored in the "POS" field of Sys_columns
 @param[in]	pos		virtual column position
 @return column position in original table */
-UNIV_INLINE
-ulint dict_get_v_col_mysql_pos(ulint pos);
+static inline ulint dict_get_v_col_mysql_pos(ulint pos);
 
 /** Get a virtual column sequence (the "nth" virtual column) for a
 virtual column, stord in the "POS" field of Sys_columns
 @param[in]	pos		virtual column position
 @return virtual column sequence */
-UNIV_INLINE
-ulint dict_get_v_col_pos(ulint pos);
+static inline ulint dict_get_v_col_pos(ulint pos);
 
 #include "dict0crea.ic"
 

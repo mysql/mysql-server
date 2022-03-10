@@ -10,6 +10,8 @@
   Modifications Copyright (c) 2000, 2021, Oracle and/or its affiliates.
   All rights reserved.
 */
+#ifdef _WIN32
+
 #include "nt_servc.h"
 
 #include <VersionHelpers.h>  // IsWindowsXPOrGreater
@@ -509,3 +511,4 @@ BOOL NTService::is_super_user() {
   FreeSid(psidAdministrators);
   return ret_value;
 }
+#endif

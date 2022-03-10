@@ -31,8 +31,8 @@
 
 struct AccKeyReq
 {
-  STATIC_CONST( SignalLength_localKey = 10 );
-  STATIC_CONST( SignalLength_keyInfo  =  8 /* + keyLen */ );
+  static constexpr Uint32 SignalLength_localKey = 10;
+  static constexpr Uint32 SignalLength_keyInfo = 8 /* + keyLen */;
 
   Uint32 connectPtr;
   Uint32 fragmentPtr;

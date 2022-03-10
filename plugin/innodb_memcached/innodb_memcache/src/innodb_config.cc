@@ -165,7 +165,7 @@ static bool innodb_read_cache_policy(
   ib_crsr_t idx_crsr = NULL;
   ib_tpl_t tpl = NULL;
   ib_err_t err = DB_SUCCESS;
-  int n_cols MY_ATTRIBUTE((unused));
+  int n_cols [[maybe_unused]];
   int i;
   ib_ulint_t data_len;
   ib_col_meta_t col_meta;
@@ -279,7 +279,7 @@ static bool innodb_read_config_option(
   ib_crsr_t idx_crsr = NULL;
   ib_tpl_t tpl = NULL;
   ib_err_t err = DB_SUCCESS;
-  int n_cols MY_ATTRIBUTE((unused));
+  int n_cols [[maybe_unused]];
   int i;
   ib_ulint_t data_len;
   ib_col_meta_t col_meta;

@@ -83,7 +83,7 @@ Keyring_services::Keyring_services(const std::string implementation_name)
   if (keyring_load_service_) return;
 
   /* We do not support non-default location for config file yet */
-  if (keyring_load_service_->load(Options::s_component_dir, nullptr) == true)
+  if (keyring_load_service_->load(Options::s_component_dir, nullptr) != 0)
     return;
 
   ok_ = true;
@@ -126,7 +126,7 @@ bool Keyring_encryption_test::test_aes() {
   std::string aes_key_1("AES_test_key_1");
   if (writer->store("aes_key_1", "keyring_aes_test",
                     reinterpret_cast<const unsigned char *>(aes_key_1.c_str()),
-                    aes_key_1.length(), "AES") == true) {
+                    aes_key_1.length(), "AES") != 0) {
     std::cerr << "Failed to store key [aes_key_1, keyring_aes_test] in keyring"
               << std::endl;
     return false;
@@ -134,7 +134,7 @@ bool Keyring_encryption_test::test_aes() {
 
   if (writer->store("secret_key_1", "keyring_aes_test",
                     reinterpret_cast<const unsigned char *>(aes_key_1.c_str()),
-                    aes_key_1.length(), "SECRET") == true) {
+                    aes_key_1.length(), "SECRET") != 0) {
     std::cerr
         << "Failed to store key [secret_key_1, keyring_aes_test] in keyring"
         << std::endl;
@@ -147,7 +147,7 @@ bool Keyring_encryption_test::test_aes() {
   size_t plaintext_length = strlen(reinterpret_cast<const char *>(plaintext));
   size_t ciphertext_length = 0;
   if (aes->get_size(plaintext_length, mode.c_str(), block_size,
-                    &ciphertext_length) == true) {
+                    &ciphertext_length) != 0) {
     std::cerr << "Failed to obtain ciphertext size" << std::endl;
     return false;
   }
@@ -180,7 +180,7 @@ bool Keyring_encryption_test::test_aes() {
   if (aes->encrypt("aes_key_1", "keyring_aes_test", mode.c_str(), block_size,
                    reinterpret_cast<const unsigned char *>(iv1.c_str()),
                    padding, plaintext, plaintext_length, output_1.get(),
-                   ciphertext_length, &ciphertext_length) == true) {
+                   ciphertext_length, &ciphertext_length) != 0) {
     std::cerr << "Failed to encrypt plaintext using AES-CBC-256" << std::endl;
     return false;
   }
@@ -189,7 +189,7 @@ bool Keyring_encryption_test::test_aes() {
 
   size_t decrypted_length = 0;
   if (aes->get_size(ciphertext_length, mode.c_str(), block_size,
-                    &decrypted_length) == true) {
+                    &decrypted_length) != 0) {
     std::cerr << "Failed to obtain painttext size" << std::endl;
     return false;
   }
@@ -222,7 +222,7 @@ bool Keyring_encryption_test::test_aes() {
   if (aes->decrypt("aes_key_1", "keyring_aes_test", mode.c_str(), block_size,
                    reinterpret_cast<const unsigned char *>(iv1.c_str()),
                    padding, output_1.get(), ciphertext_length, output_2.get(),
-                   decrypted_length, &decrypted_length) == true) {
+                   decrypted_length, &decrypted_length) != 0) {
     std::cerr << "Failed to decrypt plaintext using AES-CBC-256" << std::endl;
     return false;
   }
@@ -231,14 +231,14 @@ bool Keyring_encryption_test::test_aes() {
 
   std::cout << "Decrypted plaintext: '" << output_2.get() << "'" << std::endl;
 
-  if (writer->remove("secret_key_1", "keyring_aes_test") == true) {
+  if (writer->remove("secret_key_1", "keyring_aes_test") != 0) {
     std::cerr
         << "Failed to remove key [secret_key_1, keyring_aes_test] from keyring"
         << std::endl;
     return false;
   }
 
-  if (writer->remove("aes_key_1", "keyring_aes_test") == true) {
+  if (writer->remove("aes_key_1", "keyring_aes_test") != 0) {
     std::cerr
         << "Failed to remove key [aes_key_1, keyring_aes_test] from keyring"
         << std::endl;

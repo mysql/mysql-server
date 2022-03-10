@@ -62,7 +62,7 @@ class Mock_field : public Field_long {
   explicit Mock_field(uchar auto_flags_arg)
       : Field_long(nullptr, 0, nullptr, 0, auto_flags_arg, "", false, false) {}
 
-  MOCK_METHOD1(store_timestamp, void(const timeval *));
+  MOCK_METHOD1(store_timestamp, void(const my_timeval *));
 };
 
 /*
@@ -285,7 +285,7 @@ TEST_F(CopyInfoTest, setFunctionDefaults) {
   // We do not care about the argument to store_timestamp().
   EXPECT_CALL(b, store_timestamp(_)).Times(1);
   EXPECT_CALL(c, store_timestamp(_)).Times(0);
-  insert.set_function_defaults(&table);
+  EXPECT_FALSE(insert.set_function_defaults(&table));
 }
 
 }  // namespace copy_info_unittest

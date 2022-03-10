@@ -40,6 +40,7 @@ public:
   const class NdbInfoRecAttr* getValue(Uint32 anAttrId) override;
   int execute() override;
   int nextResult() override;
+  bool seek(NdbInfoScanOperation::Seek, int) override;
 
   NdbInfoScanNodes(class Ndb_cluster_connection*,
                    const NdbInfo::Table*,

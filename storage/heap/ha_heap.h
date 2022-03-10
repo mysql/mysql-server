@@ -41,7 +41,7 @@ class ha_heap : public handler {
 
  public:
   ha_heap(handlerton *hton, TABLE_SHARE *table);
-  ~ha_heap() override {}
+  ~ha_heap() override = default;
   handler *clone(const char *name, MEM_ROOT *mem_root) override;
   const char *table_type() const override;
   enum ha_key_alg get_default_index_algorithm() const override {
@@ -66,8 +66,8 @@ class ha_heap : public handler {
                 : HA_ONLY_WHOLE_INDEX | HA_KEY_SCAN_NOT_ROR);
   }
   uint max_supported_keys() const override { return MAX_KEY; }
-  uint max_supported_key_part_length(
-      HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) const override {
+  uint max_supported_key_part_length(HA_CREATE_INFO *create_info
+                                     [[maybe_unused]]) const override {
     return MAX_KEY_LENGTH;
   }
   double scan_time() override {

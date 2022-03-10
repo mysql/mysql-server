@@ -259,5 +259,6 @@ INSERT INTO t1 (id, first_name, last_name) VALUES
 (16, 'Nelson', 'Muntz');
 
 analyze table t1;
+--sorted_result
 SELECT fts_doc_id, first_name, last_name, MATCH(first_name) AGAINST('Homer' IN BOOLEAN MODE) AS score FROM t1;
 DROP TABLE t1;

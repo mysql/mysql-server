@@ -235,6 +235,7 @@ SET GLOBAL ssl_crl = 'gizmo';
 SET GLOBAL ssl_crlpath = 'gizmo';
 SET GLOBAL ssl_cipher = 'gizmo';
 SET GLOBAL tls_ciphersuites = 'gizmo';
+--error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL tls_version = 'gizmo';
 
 --echo # Must fail

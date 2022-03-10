@@ -484,12 +484,16 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 VALUES ('6'),('6');
 
---error ER_SUBQUERY_NO_1_ROW
+# The hypergraph optimizer does not evaluate the subquery during
+# optimization, and does not get an error.
+--disable_result_log
+--error 0, ER_SUBQUERY_NO_1_ROW
 EXPLAIN FORMAT=tree SELECT 1 WHERE (
   SELECT 1
   FROM t1 LEFT JOIN t1 AS t2 ON 'f' IN ( SELECT f1 FROM t1 )
   WHERE EXISTS ( SELECT * FROM t1 LEFT JOIN t1 AS t3 ON t3.f1='a' )
 );
+--enable_result_log
 
 DROP TABLE t1;
 
@@ -646,8 +650,9 @@ CREATE TABLE t1 ( pk integer, f1 varchar(1) );
 INSERT INTO t1 VALUES (1,'D'), (20,'G');
 ANALYZE TABLE t1;
 --skip_if_hypergraph  # Depends on the query plan.
-EXPLAIN FORMAT=TREE SELECT * FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
-SELECT * FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
+EXPLAIN FORMAT=TREE SELECT d0.f1, d0.pk, t1.pk, t1.f1 FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
+--partially_sorted_result 1
+SELECT d0.f1, d0.pk, t1.pk, t1.f1 FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
 DROP TABLE t1;
 
 --echo #
@@ -657,6 +662,7 @@ DROP TABLE t1;
 CREATE TABLE t1(a TINYBLOB);
 INSERT INTO t1 VALUES('aaa'),('bbb'),(''),('ccc');
 
+--skip_if_hypergraph  # Optimizes away the entire ORDER BY, leaving no error.
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 SELECT DISTINCT * FROM t1
 ORDER BY UUID_TO_BIN(
@@ -1543,3 +1549,164 @@ CREATE TABLE t1 (a INTEGER);
 CREATE TABLE t2 (b INTEGER);
 SELECT ( SELECT b FROM t2 ORDER BY a, MIN(a) LIMIT 1 ) FROM t1 GROUP BY a;
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #32680367: ASSERTION `PATH->COST >= PATH->INIT_COST' FAILED|JOIN_OPTIMIZER.CC - HYPERGRAPH
+--echo #
+
+CREATE TABLE t1 (a VARCHAR(1));
+INSERT INTO t1 VALUES (NULL), ('r');
+ANALYZE TABLE t1;
+
+# We don't care about the output, just that the access paths are consistent
+# (which is verified by assertion).
+SELECT * FROM t1 WHERE a <= ALL (
+  SELECT 'a' FROM t1 AS t2
+  WHERE t2.a < t1.a AND t2.a NOT IN (SELECT a FROM t1)
+);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32937950 - HYPERGRAPH: CACHED_ITEM* NEW_CACHED_ITEM: ASSERTION `0' FAILED.
+--echo #
+
+CREATE TABLE t1 (
+  a INTEGER,
+  PRIMARY KEY (a)
+) PARTITION BY LINEAR KEY () PARTITIONS 4;
+
+# Sets up a semijoin on ROW(a) = ROW(a) for some reason,
+# and the WHERE happens to make it cheapest to execute
+# by means of deduplication and inverting the join.
+SELECT 1 FROM t1 WHERE
+  ( SELECT a FROM ( SELECT 1 ) AS q )
+   IN ( SELECT a FROM t1 WHERE a > 0 GROUP BY a );
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32934187: HYPERGRAPH: CRASHING IN ITEM_IN_SUBSELECT::EXEC
+--echo #
+
+CREATE TABLE t1 (a DATETIME);
+INSERT INTO t1 VALUES ('2000-01-01 00:00:00');
+INSERT INTO t1 VALUES ('2000-01-01 00:00:00');
+
+SET @b := _latin1 'a';
+--disable_result_log
+# The hypergraph optimizer errors out, the old optimizer does not.
+--error 0,ER_WRONG_VALUE
+SELECT 1 FROM t1 WHERE (@b IN ( SELECT a FROM t1 )) = a;
+--enable_result_log
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#32895824: SIGNAL 6 ASSERTION`!NULL_VALUE || IS_NULLABLE()'
+--echo #               FAILED IN ../SQL/ITEM_FUNC.CC
+--echo #
+CREATE TABLE t(pk INT PRIMARY KEY);
+SELECT 1 FROM t
+WHERE CAST(pk AS UNSIGNED INTEGER) = 1
+      AND pk = (SELECT 1 FROM t);
+DROP TABLE t;
+
+--echo #
+--echo # Bug #32932969: ASSERTION `ITEM->IS_NULLABLE()' FAILED.
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1);
+--error ER_GIS_INVALID_DATA
+SELECT 1 FROM t1 GROUP BY (
+  SELECT COALESCE(18446744073709551614, COUNT(ST_AREA(ST_ASWKT(a))))
+) WITH ROLLUP;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33076462: PB2: FAILURE IN RQG_MULTI_UPDATE_DELETE TEST
+--echo #
+
+CREATE TABLE t1 ( c INTEGER, KEY (c) );
+
+CREATE TABLE t2 ( pk INTEGER );
+INSERT INTO t2 VALUES (7);
+
+CREATE TABLE t3 (
+  a INTEGER,
+  b INTEGER,
+  c INTEGER,
+  KEY (a)
+);
+INSERT INTO t3 VALUES (3,4,NULL);
+
+ANALYZE TABLE t1, t2, t3;
+
+UPDATE t1, t2
+  SET t1.c = 0
+  WHERE t1.c <> (
+    SELECT
+      t3.c
+    FROM
+      t3
+      JOIN t3 AS t3_b ON t3_b.a > t3.a
+    WHERE t3.b <= t3.b XOR t2.pk = 3
+  );
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #33030793: WL#14419: ASSERTION `NEW_PATH->COST >= NEW_PATH->INIT_COST' FAILED
+--echo #
+
+CREATE TABLE t1 ( a BLOB );
+
+SELECT t1.a
+FROM
+  t1,
+  LATERAL ( SELECT t1.a FROM t1 AS inner_t1 LIMIT 1 ) AS d1
+WHERE 1 IN ( SELECT a FROM t1 )
+ORDER BY a;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33045256: WL#14419: ASSERTION `NULLPTR != DYNAMIC_CAST<TARGET>(ARG)' FAILED
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1);
+
+# Disable the output, since only the hypergraph optimizer can actually run this query.
+--disable_result_log
+--error 0,ER_NOT_SUPPORTED_YET
+SELECT * FROM (
+  SELECT a, JSON_ARRAYAGG(a) OVER () AS b FROM t1
+) AS d1
+WHERE (a,b) IN (
+  SELECT a, JSON_ARRAYAGG(a) OVER () AS b FROM t1
+);
+--enable_result_log
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33075707: HYPERGRAPH: ASSERTION `COND->REAL_ITEM()->IS_BOOL_FUNC()' FAILED
+--echo #
+
+CREATE TABLE t1 ( a VARCHAR(1) );
+INSERT INTO t1 VALUES ('0');
+
+# NOTE: The regexp_like() contains an error (the empty pattern is
+# not allowed), but it will never be evaluated.
+SELECT 1
+FROM t1
+WHERE a NOT IN (
+  SELECT 1
+  FROM
+    t1 AS t2
+    LEFT JOIN t1 AS t3 ON (t2.a = t3.a OR 0 IN ( SELECT REGEXP_LIKE(a, '') FROM t1 ))
+);
+
+DROP TABLE t1;

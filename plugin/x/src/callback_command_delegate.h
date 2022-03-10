@@ -62,7 +62,7 @@ class Callback_command_delegate : public ngs::Command_delegate {
   };
 
   struct Row_data {
-    Row_data() {}
+    Row_data() = default;
     Row_data(const Row_data &other);
     Row_data &operator=(const Row_data &other);
     ~Row_data();

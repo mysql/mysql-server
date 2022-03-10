@@ -31,10 +31,10 @@ SET(include_dirs
   ${PROJECT_SOURCE_DIR}/tests/
 )
 
-IF(NOT WIN32)
-  ADD_LIBRARY(plugin_info_tests SHARED ${PLUGIN_INFO_SOURCES})
-ELSE()
+IF(WIN32)
   ADD_LIBRARY(plugin_info_tests STATIC ${PLUGIN_INFO_SOURCES})
+ELSE()
+  ADD_LIBRARY(plugin_info_tests SHARED ${PLUGIN_INFO_SOURCES})
 ENDIF()
 
 TARGET_LINK_LIBRARIES(plugin_info_tests harness-library router_lib)

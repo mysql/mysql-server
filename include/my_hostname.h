@@ -48,9 +48,10 @@ static constexpr int HOSTNAME_LENGTH = 255;
 static constexpr int PORTNUMBER_LENGTH = 5;
 
 /**
-  Number of bytes required to hold "hostname:portnumber"
+  Length of "hostname:portnumber".
+  This does not include the trailing '\0'.
 */
 static constexpr int HOST_AND_PORT_LENGTH =
-    (HOSTNAME_LENGTH + 1 + PORTNUMBER_LENGTH + 1);
+    (HOSTNAME_LENGTH + 1 + PORTNUMBER_LENGTH);
 
 #endif /* MY_HOSTNAME_INCLUDED */

@@ -6,3 +6,6 @@ ALTER TABLE performance_schema.data_locks ADD INDEX test_index(LOCK_DATA);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 CREATE UNIQUE INDEX test_index ON performance_schema.data_locks(LOCK_DATA);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE TABLE test.create_select
+AS SELECT * from performance_schema.data_locks;
+DROP TABLE test.create_select;

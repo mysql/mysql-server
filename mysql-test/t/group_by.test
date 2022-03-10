@@ -246,8 +246,10 @@ select value,description,bug_id from t2 left join t1 on t2.program=t1.product an
 select value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value;
 --sorted_result
 select value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value having COUNT(bug_id) IN (0,2);
+# NOTE: The DISTINCT is to force sort-based aggregation, making the query somewhat
+# more deterministic between the hypergraph and non-hypergraph optimizers.
 --sorted_result
-select row_number() over (), value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value having COUNT(bug_id) IN (0,2);
+select row_number() over (), value,description,COUNT(DISTINCT bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value having COUNT(DISTINCT bug_id) IN (0,2);
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table t1,t2;
@@ -396,7 +398,7 @@ CREATE TABLE t1 (
   value int(11) unsigned NOT NULL default '0',
   UNIQUE KEY pid2 (pid,c1id,c2id),
   UNIQUE KEY pid (pid,value)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 INSERT INTO t1 VALUES (1, 1, NULL, 1),(1, 2, NULL, 2),(1, NULL, 3, 3),(1, 4, NULL, 4),(1, 5, NULL, 5);
 
@@ -404,7 +406,7 @@ CREATE TABLE t2 (
   id int(11) unsigned NOT NULL default '0',
   active enum('Yes','No') NOT NULL default 'Yes',
   PRIMARY KEY  (id)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 INSERT INTO t2 VALUES (1, 'Yes'),(2, 'No'),(4, 'Yes'),(5, 'No');
 
@@ -577,7 +579,7 @@ DROP TABLE t1;
 
 # Following is a Myisam specific bug.
 # Test for BUG#9213 GROUP BY query on utf-8 key returns wrong results
-create table t1(a int) engine=myisam;
+create table t1(a int) ENGINE=INNODB;
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(8),(9);
 create table t2 (
   a int,
@@ -586,7 +588,7 @@ create table t2 (
   d varchar(100) NOT NULL,
   primary key (a,b(132),c,d),
   key a (a,b)
-) engine=myisam charset=utf8;
+) ENGINE=INNODB charset=utf8;
 
 insert into t2 select 
    x3.a,  -- 3
@@ -597,7 +599,8 @@ from t1 x3, t1 x4, t1 C, t1 D where x3.a < 3 and x4.a < 4 and D.a < 4
 order by x3.a, x4.a, C.a, D.a;
 
 delete from t2  where a = 2 and b = 'val-2' order by a,b,c,d limit 30;
-
+ANALYZE TABLE t1, t2;
+--replace_column 10 6
 explain select c from t2 where a = 2 and b = 'val-2' group by c;
 select c from t2 where a = 2 and b = 'val-2' group by c;
 drop table t1,t2;
@@ -1112,7 +1115,7 @@ FLUSH STATUS;
 --disable_result_log
 --eval $query
 --enable_result_log
---skip_if_hypergraph  # Does not use indexes for GROUP BY yet.
+--skip_if_hypergraph  # Does not support this hint yet.
 SHOW SESSION STATUS LIKE 'Sort_scan%';
 --let $query=SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY,i2) ORDER BY a
 --eval EXPLAIN $query
@@ -1120,7 +1123,7 @@ FLUSH STATUS;
 --disable_result_log
 --eval $query
 --enable_result_log
---skip_if_hypergraph  # Does not use indexes for GROUP BY yet.
+--skip_if_hypergraph  # Does not support this hint yet.
 SHOW SESSION STATUS LIKE 'Sort_scan%';
 SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY,i2) ORDER BY a;
 EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY)
@@ -1702,6 +1705,7 @@ let $query=SELECT SQL_BIG_RESULT col1 AS field1, col1 AS field2
 --eval EXPLAIN $query;
 FLUSH STATUS;
 --eval $query;
+--skip_if_hypergraph  # Manages to use index for GROUP BY on this query.
 SHOW SESSION STATUS LIKE 'Sort_scan%';
 
 CREATE VIEW v1 AS SELECT * FROM t1;
@@ -1728,13 +1732,13 @@ CREATE TABLE it (
   pk INT NOT NULL,
   col_int_nokey INT NOT NULL,
   PRIMARY KEY (pk)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 CREATE TABLE ot (
   pk int(11) NOT NULL,
   col_int_nokey int(11) NOT NULL,
   PRIMARY KEY (pk)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 INSERT INTO ot VALUES (10,8);
 
 --source include/turn_off_only_full_group_by.inc
@@ -1753,10 +1757,10 @@ DROP TABLE it,ot;
 --echo # Bug#13430588: WRONG RESULT FROM IMPLICITLY GROUPED QUERY WITH
 --echo #               CONST TABLE AND NO MATCHING ROWS
 --echo #
-CREATE TABLE t1 (i INT) ENGINE=MyISAM;
+CREATE TABLE t1 (i INT) ENGINE=INNODB;
 INSERT INTO t1 VALUES (1);
 
-CREATE TABLE t2 (j INT) ENGINE=MyISAM;
+CREATE TABLE t2 (j INT) ENGINE=INNODB;
 INSERT INTO t2 VALUES (1),(2);
 
 --source include/turn_off_only_full_group_by.inc
@@ -1776,14 +1780,14 @@ DROP TABLE t1,t2;
 
 CREATE TABLE t1 (
   a varchar(1)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 INSERT INTO t1 VALUES ('a'), ('b');
 
 CREATE TABLE t2 (
   a varchar(1),
   b int(11)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 INSERT INTO t2 VALUES ('a',1);
 
@@ -2392,7 +2396,7 @@ key (col_varchar_10_utf8_key ),
 key (col_int_key ),
 key (col_varchar_1024_utf8_key ),
 primary key (pk),
-key (col_varchar_10_latin1_key )) ENGINE=myisam;
+key (col_varchar_10_latin1_key )) ENGINE=INNODB;
 
 INSERT INTO B VALUES  ('at', repeat('a',1000), 'the',
 -1622540288, 'as', repeat('a',1000), 'want', 1810890752, NULL, 'v', 'just');
@@ -3136,6 +3140,41 @@ SELECT
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#32248291: ENABLE THE HYPERGRAPH OPTIMIZER FOR SQL_BUFFER_RESULT
+--echo #
+--echo # Verify that expressions in the SELECT list are evaluated only once
+--echo # per row.
+--echo #
+CREATE TABLE t(x INTEGER);
+INSERT INTO t VALUES (1), (2), (3);
+# The hypergraph optimizer streams the results through a temporary
+# table when a query has both GROUP BY and ORDER BY. It used to
+# evaluate RAND(1) twice per row when copying the expressions in the
+# SELECT list into the temporary table, and it therefore returned
+# different results than the old optimizer, which evaluated RAND(1)
+# once per row. Now they both evaluate it once per row and should
+# produce the same results.
+SELECT RAND(1) r, COUNT(*) FROM t GROUP BY x ORDER BY r;
+DROP TABLE t;
+
+--echo #
+--echo # Bug #32598902: WL#14325: ASSERTION `RECEIVER.HASSECONDARYENGINECOSTHOOK()' FAILED|JOIN_OPTIMIZE
+--echo #
+
+CREATE TABLE t1 (
+  a INTEGER,
+  b INTEGER
+);
+
+SELECT t1.b
+FROM t1, t1 AS t2
+WHERE t1.a = t1.b AND t1.a = t2.b
+GROUP BY t1.b
+ORDER BY t2.b;
+
+DROP TABLE t1;
+
 --echo # Bug#32717969: Wrong result of execute prepare on 'smallint'
 
 CREATE TABLE t1(
@@ -3179,3 +3218,71 @@ EXECUTE stmt USING @a;
 set @a=32767;
 EXECUTE stmt USING @a;
 DROP TABLE t1;
+
+--echo #
+--echo # Verify that ROLLUP and DISTINCT on nullable GROUP BY expressions
+--echo # work as expected (the sort is not elided).
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (NULL), (1), (2);
+
+--sorted_result
+SELECT DISTINCT a, COUNT(*) FROM t1 GROUP BY a WITH ROLLUP;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33007298: RECENT REGRESSION: CRASH IN QEP_SHARED_OWNER::TABLE
+--echo #
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+select is_uuid(avg(distinct json_storage_free('$b*<*#]E')));
+
+--echo #
+--echo # Bug#31894023 THE RESULTS OF AGGREGATION ON BIT TYPE ARE INCONSISTENT WHEN JOIN TYPE DIFFERS
+--echo #
+
+CREATE TABLE t1(id INT, b1 BIT, b9 BIT(9), b64 BIT(64));
+INSERT INTO t1 VALUES
+(1, b'0', b'000000000', b'0000000000000000000000000000000000000000000000000000000000000000'),
+(2, b'1', b'100000000', b'1000000000000000000000000000000000000000000000000000000000000000');
+CREATE INDEX i1 ON t1(id);
+ANALYZE TABLE t1;
+
+SELECT HEX(CONCAT(MIN(b1))), HEX(CONCAT(MIN(b9))), HEX(CONCAT(MIN(b64))) FROM t1 GROUP BY id;
+SELECT HEX(CONCAT(MIN(b1))), HEX(CONCAT(MIN(b9))), HEX(CONCAT(MIN(b64))) FROM t1 IGNORE INDEX(i1) GROUP BY id;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#33515752: Data insertion exception in version 8.0.27
+--echo #
+
+CREATE TABLE t1(f1 INTEGER);
+INSERT INTO t1 VALUES(1);
+
+SELECT SQL_BUFFER_RESULT MAX(f1)+1, 1 AS f2  FROM t1 GROUP BY f2;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33603911: Incorrect result with aggregation by temporary table
+--echo #
+
+CREATE TABLE t1 ( a INTEGER, b VARCHAR(1) );
+INSERT INTO t1 VALUES (3, 'Q'), (4, '5');
+
+CREATE TABLE t2 ( a INTEGER );
+INSERT INTO t2 VALUES (3), (4);
+
+SELECT
+  t2d.a,
+  SUM(t1.b) AS field2
+FROM
+  t1
+  JOIN ( SELECT * FROM t2 ) AS t2d ON t1.a = t2d.a
+GROUP BY t2d.a
+HAVING t2d.a <> 3 OR field2 < 5;
+
+DROP TABLE t1, t2;

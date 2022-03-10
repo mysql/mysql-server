@@ -39,6 +39,7 @@
 #include "prealloced_array.h"
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
+#include "sql/gis/buffer_strategies.h"  // gis::buffer_strategies
 #include "sql/gis/srid.h"
 #include "sql/parse_location.h"  // POS
 /* This file defines all spatial functions */
@@ -178,12 +179,7 @@ class BG_geometry_collection {
             boost::geometry::cs.
     @param[out] pnull_value takes back null_value set during the operation.
    */
-  template <typename Coordsys>
-  void merge_components(bool *pnull_value);
-
  private:
-  template <typename Coordsys>
-  bool merge_one_run(Item_func_st_union *ifsu, bool *pnull_value);
   bool store_geometry(const Geometry *geo, bool break_multi_geom);
   Geometry *store(const Geometry *geo);
 };
@@ -979,59 +975,6 @@ class Item_func_spatial_mbr_rel : public Item_bool_func2 {
   }
 };
 
-class Item_func_spatial_rel : public Item_bool_func2 {
- public:
-  Item_func_spatial_rel(const POS &pos, Item *a, Item *b)
-      : Item_bool_func2(pos, a, b) {}
-  longlong val_int() override;
-
-  // Use is not restricted to subclasses. Also used by setops,
-  // BG_geometry_collection::merge_one_run() and
-  // linear_areal_intersect_infinite().
-  static int bg_geo_relation_check(Geometry *g1, Geometry *g2,
-                                   Functype relchk_type, bool *);
-
- private:
-  template <typename Geom_types>
-  friend class BG_wrap;
-
-  template <typename Geotypes>
-  static int within_check(Geometry *g1, Geometry *g2, bool *pnull_value);
-  template <typename Geotypes>
-  static int equals_check(Geometry *g1, Geometry *g2, bool *pnull_value);
-  template <typename Geotypes>
-  static int disjoint_check(Geometry *g1, Geometry *g2, bool *pnull_value);
-  template <typename Geotypes>
-  static int intersects_check(Geometry *g1, Geometry *g2, bool *pnull_value);
-  template <typename Geotypes>
-  static int overlaps_check(Geometry *g1, Geometry *g2, bool *pnull_value);
-  template <typename Geotypes>
-  static int touches_check(Geometry *g1, Geometry *g2, bool *pnull_value);
-  template <typename Geotypes>
-  static int crosses_check(Geometry *g1, Geometry *g2, bool *pnull_value);
-
-  template <typename Coordsys>
-  int multipoint_within_geometry_collection(
-      Gis_multi_point *mpts,
-      const typename BG_geometry_collection::Geometry_list *gv2,
-      const void *prtree);
-
-  template <typename Coordsys>
-  int geocol_relation_check(Geometry *g1, Geometry *g2);
-  int geocol_relcheck_intersect_disjoint(
-      const BG_geometry_collection::Geometry_list *gv1,
-      const BG_geometry_collection::Geometry_list *gv2);
-  template <typename Coordsys>
-  int geocol_relcheck_within(
-      const typename BG_geometry_collection::Geometry_list *gv1,
-      const typename BG_geometry_collection::Geometry_list *gv2,
-      Functype spatial_rel);
-  template <typename Coordsys>
-  int geocol_equals_check(
-      const typename BG_geometry_collection::Geometry_list *gv1,
-      const typename BG_geometry_collection::Geometry_list *gv2);
-};
-
 class Item_func_spatial_relation : public Item_bool_func2 {
  public:
   Item_func_spatial_relation(const POS &pos, Item *a, Item *b)
@@ -1267,76 +1210,11 @@ class Item_func_st_within final : public Item_func_spatial_relation {
   Spatial operations
 */
 class Item_func_spatial_operation : public Item_geometry_func {
- public:
-  String *val_str(String *) override;
-
  protected:
-  enum op_type {
-    op_union = 0x10000000,
-    op_intersection = 0x20000000,
-    op_symdifference = 0x30000000,
-    op_difference = 0x40000000,
-  };
-
-  Item_func_spatial_operation(const POS &pos, Item *a, Item *b, op_type sp_op)
-      : Item_geometry_func(pos, a, b), m_spatial_op(sp_op) {}
+  Item_func_spatial_operation(const POS &pos, Item *a, Item *b)
+      : Item_geometry_func(pos, a, b) {}
 
  private:
-  // It will call the protected member functions in this class,
-  // no data member accessed directly.
-  template <typename Geotypes>
-  friend class BG_setop_wrapper;
-
-  // Calls bg_geo_set_op.
-  friend class BG_geometry_collection;
-
-  template <typename Coordsys>
-  Geometry *bg_geo_set_op(Geometry *g1, Geometry *g2, String *result);
-
-  template <typename Coordsys>
-  Geometry *combine_sub_results(Geometry *g1, Geometry *g2,
-                                gis::srid_t default_srid, String *result);
-  Geometry *simplify_multilinestring(Gis_multi_line_string *mls,
-                                     String *result);
-
-  template <typename Coordsys>
-  Geometry *geometry_collection_set_operation(Geometry *g1, Geometry *g2,
-                                              String *result);
-
-  Geometry *empty_result(String *str, gis::srid_t srid);
-
-  bool assign_result(Geometry *geo, String *result);
-
-  template <typename Geotypes>
-  Geometry *intersection_operation(Geometry *g1, Geometry *g2, String *result);
-  template <typename Geotypes>
-  Geometry *union_operation(Geometry *g1, Geometry *g2, String *result);
-  template <typename Geotypes>
-  Geometry *difference_operation(Geometry *g1, Geometry *g2, String *result);
-  template <typename Geotypes>
-  Geometry *symdifference_operation(Geometry *g1, Geometry *g2, String *result);
-  template <typename Coordsys>
-  Geometry *geocol_symdifference(const BG_geometry_collection &bggc1,
-                                 const BG_geometry_collection &bggc2,
-                                 String *result);
-  template <typename Coordsys>
-  Geometry *geocol_difference(const BG_geometry_collection &bggc1,
-                              const BG_geometry_collection &bggc2,
-                              String *result);
-  template <typename Coordsys>
-  Geometry *geocol_intersection(const BG_geometry_collection &bggc1,
-                                const BG_geometry_collection &bggc2,
-                                String *result);
-  template <typename Coordsys>
-  Geometry *geocol_union(const BG_geometry_collection &bggc1,
-                         const BG_geometry_collection &bggc2, String *result);
-
-  op_type m_spatial_op;
-  String m_result_buffer;
-  String m_tmp_value1;
-  String m_tmp_value2;
-  BG_result_buf_mgr m_bg_resbuf_mgr;
-
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     return Item_geometry_func::resolve_type(thd);
@@ -1346,28 +1224,32 @@ class Item_func_spatial_operation : public Item_geometry_func {
 class Item_func_st_difference final : public Item_func_spatial_operation {
  public:
   Item_func_st_difference(const POS &pos, Item *a, Item *b)
-      : Item_func_spatial_operation(pos, a, b, op_difference) {}
+      : Item_func_spatial_operation(pos, a, b) {}
+  String *val_str(String *) override;
   const char *func_name() const override { return "st_difference"; }
 };
 
 class Item_func_st_intersection final : public Item_func_spatial_operation {
  public:
   Item_func_st_intersection(const POS &pos, Item *a, Item *b)
-      : Item_func_spatial_operation(pos, a, b, op_intersection) {}
+      : Item_func_spatial_operation(pos, a, b) {}
+  String *val_str(String *) override;
   const char *func_name() const override { return "st_intersection"; }
 };
 
 class Item_func_st_symdifference final : public Item_func_spatial_operation {
  public:
   Item_func_st_symdifference(const POS &pos, Item *a, Item *b)
-      : Item_func_spatial_operation(pos, a, b, op_symdifference) {}
+      : Item_func_spatial_operation(pos, a, b) {}
+  String *val_str(String *) override;
   const char *func_name() const override { return "st_symdifference"; }
 };
 
 class Item_func_st_union final : public Item_func_spatial_operation {
  public:
   Item_func_st_union(const POS &pos, Item *a, Item *b)
-      : Item_func_spatial_operation(pos, a, b, op_union) {}
+      : Item_func_spatial_operation(pos, a, b) {}
+  String *val_str(String *) override;
   const char *func_name() const override { return "st_union"; }
 };
 
@@ -1440,7 +1322,6 @@ class Item_func_buffer : public Item_geometry_func {
  public:
   Item_func_buffer(const POS &pos, PT_item_list *ilist);
   const char *func_name() const override { return "st_buffer"; }
-  String *val_str(String *) override;
 };
 
 class Item_func_buffer_strategy : public Item_str_func {
@@ -1754,6 +1635,25 @@ class Item_func_st_area : public Item_real_func {
     // ST_Area returns NULL if the geometry is empty.
     set_nullable(true);
     return false;
+  }
+};
+
+class Item_func_st_buffer : public Item_geometry_func {
+ public:
+  /// Parses strategy stored in String object, and sets values in strats.
+  bool parse_strategy(String *arg, gis::BufferStrategies &strats);
+
+  Item_func_st_buffer(const POS &pos, PT_item_list *ilist)
+      : Item_geometry_func(pos, ilist) {}
+
+  String *val_str(String *) override;
+  const char *func_name() const override { return "st_buffer"; }
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
+    if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_DOUBLE)) return true;
+    if (param_type_is_default(thd, 2, -1))
+      return true;  // Does nothing with the strategy args
+    return Item_geometry_func::resolve_type(thd);
   }
 };
 

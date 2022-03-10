@@ -1,0 +1,2 @@
+--relay_log_recovery
+--log-error-verbosity=3

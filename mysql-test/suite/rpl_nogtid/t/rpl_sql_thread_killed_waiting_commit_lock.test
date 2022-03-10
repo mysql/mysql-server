@@ -112,7 +112,6 @@ if (`SELECT @@GLOBAL.relay_log_info_repository = 'FILE'`)
 --source include/diff_tables.inc
 
 # Cleanup
-SET @@GLOBAL.DEBUG= '$debug_saved';
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
 --source include/rpl_end.inc

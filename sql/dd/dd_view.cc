@@ -314,7 +314,7 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
       Field *from_field, *default_field;
       tmp_field = create_tmp_field(thd, &table, item, item->type(), nullptr,
                                    &from_field, &default_field, false, false,
-                                   false, false, false);
+                                   false, false);
     }
     if (!tmp_field) {
       my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
@@ -650,8 +650,9 @@ bool read_view(TABLE_LIST *view, const dd::View &view_obj, MEM_ROOT *mem_root) {
   CHARSET_INFO *collation =
       dd_get_mysql_charset(view_obj.client_collation_id());
   assert(collation);
-  view->view_client_cs_name.length = strlen(collation->csname);
-  view->view_client_cs_name.str = strdup_root(mem_root, collation->csname);
+  const char *csname = replace_utf8_utf8mb3(collation->csname);
+  view->view_client_cs_name.length = strlen(csname);
+  view->view_client_cs_name.str = strdup_root(mem_root, csname);
 
   // Get view_connection_cl_name. Note that this is the collation name.
   collation = dd_get_mysql_charset(view_obj.connection_collation_id());

@@ -58,7 +58,7 @@ class Tablespace_file_impl : public Weak_object_impl, public Tablespace_file {
   Tablespace_file_impl(const Tablespace_file_impl &src,
                        Tablespace_impl *parent);
 
-  ~Tablespace_file_impl() override {}
+  ~Tablespace_file_impl() override = default;
 
  public:
   const Object_table &object_table() const override;

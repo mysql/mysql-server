@@ -41,10 +41,24 @@ SELECT @@global.slave_rows_search_algorithms;
 SCAN_METHOD,SCAN_METHOD
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
+SET @@global.transaction_write_set_extraction='XXHASH64';
+Warnings:
+Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
+SET @@global.transaction_write_set_extraction='MURMUR32';
+Warnings:
+Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
+SET @@session.transaction_write_set_extraction='XXHASH64';
+Warnings:
+Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
+SET @@session.transaction_write_set_extraction='MURMUR32';
+Warnings:
+Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
 include/rpl_restart_server.inc [server_number=2]
 include/assert_grep.inc [Assert that there is a warning at bootstrap when setting --relay-log-info-repository=FILE]
 include/assert_grep.inc [Assert that there is a warning at bootstrap when setting --master-info-repository=FILE]
 include/assert_grep.inc [Assert that there is a warning at bootstrap when setting --slave-rows-search-algorithms]
+include/assert_grep.inc [Assert that there is a warning at bootstrap when setting --transaction-write-set-extraction]
 include/assert_grep.inc [Assert that there is a warning at bootstrap when setting --log-bin-use-v1-row-events]
 include/assert_grep.inc [Assert that there is a warning at bootstrap when setting --relay-log-info-file]
 include/assert_grep.inc [Assert that there is a warning at bootstrap when setting --master-info-file]
@@ -54,6 +68,12 @@ Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in 
 SET PERSIST_ONLY master_info_repository='TABLE';
 Warnings:
 Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
+SET PERSIST_ONLY transaction_write_set_extraction='MURMUR32';
+Warnings:
+Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
+SET PERSIST_ONLY transaction_write_set_extraction='XXHASH64';
+Warnings:
+Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
 SET PERSIST relay_log_info_repository='FILE';
 Warnings:
 Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
@@ -63,6 +83,13 @@ Warning	1287	'@@master_info_repository' is deprecated and will be removed in a f
 SET PERSIST slave_rows_search_algorithms=TABLE_SCAN;
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+SET PERSIST binlog_transaction_dependency_tracking = COMMIT_ORDER;
+SET PERSIST transaction_write_set_extraction='MURMUR32';
+Warnings:
+Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
+SET PERSIST transaction_write_set_extraction='XXHASH64';
+Warnings:
+Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY log_bin_use_v1_row_events = TRUE;
 ERROR HY000: Variable 'log_bin_use_v1_row_events' is a non persistent variable
 SET PERSIST_ONLY relay_log_info_file = "RLI_FILE";

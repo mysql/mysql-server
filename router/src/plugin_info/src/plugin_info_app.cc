@@ -31,9 +31,8 @@
 #include "library_file.h"
 #include "mysql/harness/vt100.h"
 #include "print_version.h"
+#include "router_config.h"  // MYSQL_ROUTER_PACKAGE_NAME
 #include "welcome_copyright_notice.h"
-
-#include "router_config.h"
 
 PluginInfoFrontend::PluginInfoFrontend(
     const std::string &exe_name, const std::vector<std::string> &arguments,

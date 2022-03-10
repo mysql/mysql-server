@@ -71,7 +71,7 @@ class PFS_index_esmh_by_digest : public PFS_engine_index {
         m_key_2("DIGEST"),
         m_key_3("BUCKET_NUMBER") {}
 
-  ~PFS_index_esmh_by_digest() override {}
+  ~PFS_index_esmh_by_digest() override = default;
 
   bool match_digest(PFS_statements_digest_stat *pfs);
   bool match_bucket(ulong bucket_index);
@@ -147,7 +147,7 @@ class table_esmh_by_digest : public PFS_engine_table {
   table_esmh_by_digest();
 
  public:
-  ~table_esmh_by_digest() override {}
+  ~table_esmh_by_digest() override = default;
 
  protected:
   void materialize(PFS_statements_digest_stat *stat);

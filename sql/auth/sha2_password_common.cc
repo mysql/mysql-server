@@ -433,9 +433,9 @@ bool generate_sha256_scramble(unsigned char *scramble, size_t scramble_size,
 */
 
 bool validate_sha256_scramble(const unsigned char *scramble,
-                              size_t scramble_size MY_ATTRIBUTE((unused)),
+                              size_t scramble_size [[maybe_unused]],
                               const unsigned char *known,
-                              size_t known_size MY_ATTRIBUTE((unused)),
+                              size_t known_size [[maybe_unused]],
                               const unsigned char *rnd, size_t rnd_size) {
   DBUG_TRACE;
 

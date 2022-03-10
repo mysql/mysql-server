@@ -65,7 +65,7 @@ static int my_mb_wc_utf8mb4(my_wc_t *pwc, const uchar *s, const uchar *e);
   to a wide character.
 */
 struct Mb_wc_utf8 {
-  Mb_wc_utf8() {}
+  Mb_wc_utf8() = default;
 
   ALWAYS_INLINE
   int operator()(my_wc_t *pwc, const uchar *s, const uchar *e) const {
@@ -78,7 +78,7 @@ struct Mb_wc_utf8 {
   to a wide character.
 */
 struct Mb_wc_utf8mb4 {
-  Mb_wc_utf8mb4() {}
+  Mb_wc_utf8mb4() = default;
 
   ALWAYS_INLINE
   int operator()(my_wc_t *pwc, const uchar *s, const uchar *e) const {

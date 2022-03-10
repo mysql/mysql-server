@@ -58,7 +58,7 @@ INSERT INTO t1 VALUES (1);
 
 #
 # Restart the server with relay-log-recovery set - this will reset the positions
---let $rpl_server_parameters= --relay-log-recovery=1 --skip-slave-start --log_error=$slave_error_log --no-console
+--let $rpl_server_parameters= --relay-log-recovery=1 --skip-replica-start --log_error=$slave_error_log --no-console
 --let $rpl_omit_print_server_parameters= 1
 --echo Omitting server parameters, since there is a path in one of them.
 --source include/rpl_restart_server.inc

@@ -37,9 +37,11 @@ google::protobuf::LogHandler *g_lh = nullptr;
 
 Connection_manager::Connection_manager(const Connection_options &co,
                                        Variable_container *variables,
+                                       const Console &console_with_flow_history,
                                        const Console &console)
     : m_default_connection_options(co),
       m_variables(variables),
+      m_console_with_flow_history(console_with_flow_history),
       m_console(console) {
   g_lh = google::protobuf::SetLogHandler([](google::protobuf::LogLevel level,
                                             const char *filename, int line,
@@ -109,8 +111,9 @@ Connection_manager::Connection_manager(const Connection_options &co,
   m_variables->make_special_variable(k_variable_option_compression_level,
                                      new Variable_string_readonly(level));
 
-  m_active_holder.reset(new Session_holder(xcl::create_session(), m_console,
-                                           m_default_connection_options));
+  m_active_holder.reset(
+      new Session_holder(xcl::create_session(), m_console_with_flow_history,
+                         m_console, m_default_connection_options));
 
   m_session_holders[""] = m_active_holder;
 }
@@ -221,8 +224,8 @@ void Connection_manager::create(const std::string &name,
   }
 
   auto session = xcl::create_session();
-  std::shared_ptr<Session_holder> holder{
-      new Session_holder(std::move(session), m_console, co)};
+  std::shared_ptr<Session_holder> holder{new Session_holder(
+      std::move(session), m_console_with_flow_history, m_console, co)};
 
   xcl::XError error = holder->connect(is_raw_connection);
 

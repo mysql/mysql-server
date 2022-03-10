@@ -1,0 +1,15 @@
+!include ../my.cnf
+
+[mysqld.1]
+loose-group_replication_communication_stack=MySQL
+
+[mysqld.2]
+loose-group_replication_communication_stack=MySQL
+
+[mysqld.3]
+local-infile=       true
+loose-group_replication_communication_stack=MySQL
+
+[ENV]
+SERVER_MYPORT_3=		@mysqld.3.port
+SERVER_MYSOCK_3=		@mysqld.3.socket

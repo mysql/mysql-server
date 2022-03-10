@@ -60,6 +60,8 @@ struct my_timer_info {
   struct my_timer_unit_info milliseconds;
   /** Characteristics of the tick timer. */
   struct my_timer_unit_info ticks;
+  /** Characteristics of the thread cpu timer. */
+  struct my_timer_unit_info thread_cpu;
 };
 
 typedef struct my_timer_info MY_TIMER_INFO;
@@ -95,6 +97,12 @@ ulonglong my_timer_milliseconds(void);
 ulonglong my_timer_ticks(void);
 
 /**
+  A THREAD CPU timer.
+  @return the current timer value, in thread cpu.
+*/
+ulonglong my_timer_thread_cpu(void);
+
+/**
   Timer initialization function.
   @param [out] mti the timer characteristics.
 */
@@ -119,14 +127,15 @@ void my_timer_init(MY_TIMER_INFO *mti);
 #define MY_TIMER_ROUTINE_TIMES 17
 /* #define MY_TIMER_ROUTINE_FTIME                   18  - No longer used */
 #define MY_TIMER_ROUTINE_ASM_PPC64 19
-#define MY_TIMER_ROUTINE_ASM_SUNPRO_SPARC64 20
-#define MY_TIMER_ROUTINE_ASM_SUNPRO_SPARC32 21
-#define MY_TIMER_ROUTINE_ASM_SUNPRO_I386 22
+/* #define MY_TIMER_ROUTINE_ASM_SUNPRO_SPARC64      20  - No longer used */
+/* #define MY_TIMER_ROUTINE_ASM_SUNPRO_SPARC32      21  - No longer used */
+/* #define MY_TIMER_ROUTINE_ASM_SUNPRO_I386         22  - No longer used */
 #define MY_TIMER_ROUTINE_ASM_GCC_SPARC64 23
-#define MY_TIMER_ROUTINE_ASM_GCC_SPARC32 24
+/* #define MY_TIMER_ROUTINE_ASM_GCC_SPARC32         24  - No longer used */
 #define MY_TIMER_ROUTINE_MACH_ABSOLUTE_TIME 25
 #define MY_TIMER_ROUTINE_GETSYSTEMTIMEASFILETIME 26
-#define MY_TIMER_ROUTINE_ASM_SUNPRO_X86_64 27
+/* #define MY_TIMER_ROUTINE_ASM_SUNPRO_X86_64       27  - No longer used */
 #define MY_TIMER_ROUTINE_ASM_AARCH64 28
+#define MY_TIMER_ROUTINE_GET_THREAD_TIMES 29
 
 #endif

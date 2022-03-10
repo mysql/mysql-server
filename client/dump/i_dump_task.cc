@@ -26,4 +26,4 @@
 
 using namespace Mysql::Tools::Dump;
 
-I_dump_task::~I_dump_task() {}
+I_dump_task::~I_dump_task() = default;

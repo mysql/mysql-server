@@ -8,8 +8,8 @@ SET default_storage_engine=ndb;
 === NDB -> MYISAM ===
 
 [connection slave]
-set @old_slave_exec_mode= @@global.slave_exec_mode;
-set @@global.slave_exec_mode= 'IDEMPOTENT';
+set @old_replica_exec_mode= @@global.replica_exec_mode;
+set @@global.replica_exec_mode= 'IDEMPOTENT';
 CREATE TABLE mysql.ndb_apply_status
 ( server_id INT UNSIGNED NOT NULL,
 epoch BIGINT UNSIGNED NOT NULL,
@@ -882,6 +882,6 @@ DROP TABLE t1;
 include/stop_slave.inc
 [connection slave]
 drop table mysql.ndb_apply_status;
-set @@global.slave_exec_mode= @old_slave_exec_mode;
+set @@global.replica_exec_mode= @old_replica_exec_mode;
 SET @@global.default_storage_engine=@old_slave_storage_engine;
 include/rpl_end.inc

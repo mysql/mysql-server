@@ -1,8 +1,9 @@
 # This is wrapper testcase of rpl_mts_spco_check_worker_states.test to check different
-# states of MTS worker threads with slave-preserve-commit-order enabled binlogless slave.
+# states of MTS worker threads with replica-preserve-commit-order enabled binlogless slave.
 
 --source include/big_test.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
-
+--source include/only_mts_replica_parallel_type_logical_clock.inc
+--source include/only_replica_preserve_commit_order.inc
 --source extra/rpl_tests/rpl_mts_spco_check_worker_states.test

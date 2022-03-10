@@ -1,5 +1,5 @@
 # Copyright (c) 2006, 2021, Oracle and/or its affiliates.
-# 
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -141,6 +141,7 @@ SET(CLIENT_API_FUNCTIONS
   mysql_warning_count
   mysql_real_connect_dns_srv
   mysql_bind_param
+  mysql_plugin_get_option
   CACHE INTERNAL "Functions exported by client API"
 )
 
@@ -191,7 +192,7 @@ SET(CLIENT_SOURCES
 )
 
 IF (WIN32 AND OPENSSL_APPLINK_C)
-  ADD_COMPILE_DEFINITIONS(
+  MY_ADD_COMPILE_DEFINITIONS(
     ../sql-common/client_authentication.cc
     COMPILE_DEFINITIONS HAVE_OPENSSL_APPLINK_C
   )
@@ -261,7 +262,7 @@ IF(HAVE_DNS_SRV EQUAL 0)
   MESSAGE(FATAL_ERROR "Can't find neither Win32 nor Unix DNS SRV APIs")
 ENDIF()
 #
-# On Windows platform client library includes the client-side 
+# On Windows platform client library includes the client-side
 # Windows Native Authentication plugin.
 #
 IF(WIN32)
@@ -270,12 +271,23 @@ IF(WIN32)
   LIST(APPEND LIBS_TO_MERGE auth_win_client)
 ENDIF()
 
-# LDAP authentication SASL client plugin
+# LDAP authentication SASL client plug-in
 ADD_SUBDIRECTORY(authentication_ldap)
 
+# FIDO authentication client plugin
+ADD_SUBDIRECTORY(authentication_fido)
+
+# authentication kerberos client plug-in
+ADD_SUBDIRECTORY(authentication_kerberos)
+
+# authentication IAM client plug-in
+ADD_SUBDIRECTORY(authentication_oci_client)
+
 # Merge several convenience libraries into one big mysqlclient
-MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE} COMPONENT Development)
-TARGET_LINK_LIBRARIES(mysqlclient PRIVATE ${LIBS_TO_LINK})
+MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE}
+  COMPONENT Development
+  LINK_LIBRARIES ${LIBS_TO_LINK}
+  )
 
 # Visual Studio users need debug  static library for debug projects
 IF(MSVC)
@@ -297,15 +309,27 @@ ENDIF()
 IF(UNIX)
   MACRO(GET_VERSIONED_LIBNAME LIBNAME EXTENSION VERSION OUTNAME)
     SET(DOT_VERSION ".${VERSION}")
-    IF(DOT_VERSION STREQUAL ".") 
+    IF(DOT_VERSION STREQUAL ".")
       SET(DOT_VERSION "")
     ENDIF()
     IF(APPLE)
       SET(${OUTNAME} ${LIBNAME}${DOT_VERSION}${EXTENSION})
     ELSE()
       SET(${OUTNAME} ${LIBNAME}${EXTENSION}${DOT_VERSION})
-    ENDIF() 
+    ENDIF()
   ENDMACRO()
+ENDIF()
+
+IF(UNIX)
+  SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}")
+  IF(NOT FREEBSD AND NOT APPLE)
+    STRING_APPEND(OS_SHARED_LIB_VERSION
+      ".${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
+  ENDIF()
+  # Name of shared library is libmysqlclient on Unix
+  SET(UNIX_OUTPUT_NAME OUTPUT_NAME mysqlclient)
+  SET(UNIX_VERSION     VERSION     "${OS_SHARED_LIB_VERSION}")
+  SET(UNIX_SOVERSION   SOVERSION   "${SHARED_LIB_MAJOR_VERSION}")
 ENDIF()
 
 # Merge several convenience libraries into one big mysqlclient
@@ -315,59 +339,38 @@ MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
   ${CLIENT_API_FUNCTIONS}
   ${CLIENT_API_FUNCTIONS_UNDOCUMENTED}
   ${CLIENT_API_NONBLOCKING_FUNCTIONS}
-  COMPONENT SharedLibraries)
-TARGET_LINK_LIBRARIES(libmysql PRIVATE ${LIBS_TO_LINK})
+  COMPONENT SharedLibraries
+  LINK_LIBRARIES ${LIBS_TO_LINK}
+  ${UNIX_OUTPUT_NAME}
+  ${UNIX_SOVERSION}
+  ${UNIX_VERSION}
+  )
+
+# Downgrade warning for strncat in my_crypt_genhash.
+IF((WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO) AND MY_COMPILER_IS_GNU)
+  MY_TARGET_LINK_OPTIONS(libmysql "-Wno-error=stringop-truncation")
+ENDIF()
 
 IF(LINUX_STANDALONE AND KERBEROS_CUSTOM_LIBRARY)
   ADD_DEPENDENCIES(libmysql ${kerberos_target})
   ADD_DEPENDENCIES(mysqlclient ${kerberos_target})
 ENDIF()
 
-IF(WIN32)
-  # So that libmysql_api_test below can find the .dll
-  ADD_CUSTOM_COMMAND(TARGET libmysql POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    "${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/libmysql.dll"
-    "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/libmysql.dll"
-    )
-ENDIF()
-
 IF(UNIX)
-  # libtool compatability
-  IF(FREEBSD OR APPLE)
-    SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}")
-  ELSE()
-    SET(OS_SHARED_LIB_VERSION
-      "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
-  ENDIF()
-  # Name of shared library is mysqlclient on Unix
-  SET_TARGET_PROPERTIES(libmysql PROPERTIES 
-    OUTPUT_NAME mysqlclient 
-    VERSION "${OS_SHARED_LIB_VERSION}" 
-    SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
-  CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
-
-  IF(APPLE)
-    SET_TARGET_PROPERTIES(libmysql PROPERTIES
-      MACOSX_RPATH ON 
-      )
-  ENDIF()
-
-  ADD_INSTALL_RPATH_FOR_OPENSSL(libmysql)
-
   IF(LINK_FLAG_Z_DEFS)
     MY_TARGET_LINK_OPTIONS(libmysql "LINKER:${LINK_FLAG_Z_DEFS}")
   ENDIF()
 
   IF(LINUX)
+    CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
     MY_TARGET_LINK_OPTIONS(libmysql
       "LINKER:--version-script=${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver")
-  ENDIF() 
+  ENDIF()
+
   # clean direct output needs to be set several targets have the same name
   #(mysqlclient in this case)
   SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
   SET_TARGET_PROPERTIES(libmysql PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-
 ENDIF()
 
 #

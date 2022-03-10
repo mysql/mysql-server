@@ -1,0 +1,154 @@
+
+####
+# 0) The test requires three servers.
+####
+
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("A member is joining the group while a group configuration operation is occurring*");
+SET SESSION sql_log_bin = 1;
+[connection server2]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("A member is joining the group while a group configuration operation is occurring*");
+SET SESSION sql_log_bin = 1;
+[connection server3]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("A member is joining the group while a group configuration operation is occurring*");
+SET SESSION sql_log_bin = 1;
+
+####
+# 1) Switch to SPM on every member. For each member that was elected as
+# primary in SPM, the WRITE_CONSENSUS_LEADERS_MEMBER_ID_PREFERRED and
+# WRITE_CONSENSUS_LEADERS_MEMBER_ID_ACTIVE fields of the
+# performance_schema.replication_group_communication_information PFS
+# table should contain *only* the UUID of that member.
+####
+
+[connection server1]
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
+group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
+Mode switched to single-primary successfully.
+include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+[connection server2]
+include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+[connection server3]
+include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+[connection server3]
+include/stop_group_replication.inc
+[connection server2]
+include/stop_group_replication.inc
+[connection server1]
+include/stop_group_replication.inc
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+[connection server2]
+SELECT group_replication_switch_to_multi_primary_mode();
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+SELECT group_replication_switch_to_single_primary_mode("MEMBER2_UUID");
+group_replication_switch_to_single_primary_mode("MEMBER2_UUID")
+Mode switched to single-primary successfully.
+include/assert.inc [The second server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [The second server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+[connection server1]
+include/assert.inc [The second server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [The second server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+[connection server3]
+include/assert.inc [The second server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [The second server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+[connection server3]
+SELECT group_replication_switch_to_multi_primary_mode();
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+SELECT group_replication_switch_to_single_primary_mode("MEMBER3_UUID");
+group_replication_switch_to_single_primary_mode("MEMBER3_UUID")
+Mode switched to single-primary successfully.
+include/assert.inc [The third server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [The third server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+[connection server1]
+include/assert.inc [The third server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [The third server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+[connection server2]
+include/assert.inc [The third server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [The third server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+
+####
+# 2) Change the communication protocol to 8.0.21.
+####
+
+SELECT group_replication_set_communication_protocol("8.0.21");
+group_replication_set_communication_protocol("8.0.21")
+The operation group_replication_set_communication_protocol completed successfully
+
+####
+# 3) Switch to SPM on every member. For each member that was elected as
+# primary in SPM the WRITE_CONSENSUS_LEADERS_MEMBER_ID_PREFERRED and
+# WRITE_CONSENSUS_LEADERS_MEMBER_ID_ACTIVE fields of the
+# performance_schema.replication_group_communication_information PFS
+# table should contain the UUIDs of *all* the members in the group.
+####
+
+[connection server1]
+SELECT group_replication_switch_to_multi_primary_mode();
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
+group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
+Mode switched to single-primary successfully.
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL]
+[connection server2]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL]
+[connection server3]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL]
+[connection server2]
+SELECT group_replication_switch_to_multi_primary_mode();
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+SELECT group_replication_switch_to_single_primary_mode("MEMBER2_UUID");
+group_replication_switch_to_single_primary_mode("MEMBER2_UUID")
+Mode switched to single-primary successfully.
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL]
+[connection server1]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL]
+[connection server3]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL]
+[connection server3]
+SELECT group_replication_switch_to_multi_primary_mode();
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+SELECT group_replication_switch_to_single_primary_mode("MEMBER3_UUID");
+group_replication_switch_to_single_primary_mode("MEMBER3_UUID")
+Mode switched to single-primary successfully.
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL]
+[connection server1]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL]
+[connection server2]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL]
+
+####
+# 4) Cleanup.
+####
+
+[connection server1]
+include/stop_group_replication.inc
+include/group_replication_end.inc

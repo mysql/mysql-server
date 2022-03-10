@@ -47,7 +47,7 @@ class FailRep {
   friend bool printFAIL_REP(FILE *, const Uint32 *, Uint32, Uint16);
 
 public:
-  STATIC_CONST( OrigSignalLength = 2 );
+  static constexpr Uint32 OrigSignalLength = 2;
   /**
    * PartitionedExtraLength_v1 can be reduced to 1 by removing
    * the partition_v1 array in later versions when 7.6.9 and 8.0.15 are
@@ -55,9 +55,9 @@ public:
    * The two words are used for sending node bitmask which is sent in
    * a signal section for later versions.
    */
-  STATIC_CONST( PartitionedExtraLength_v1 = 1 + 2 );
-  STATIC_CONST( SourceExtraLength = 1 );
-  STATIC_CONST( SignalLength = OrigSignalLength + SourceExtraLength );
+  static constexpr Uint32 PartitionedExtraLength_v1 = 1 + 2;
+  static constexpr Uint32 SourceExtraLength = 1;
+  static constexpr Uint32 SignalLength = OrigSignalLength + SourceExtraLength;
   
   enum FailCause {
     ZOWN_FAILURE=0,

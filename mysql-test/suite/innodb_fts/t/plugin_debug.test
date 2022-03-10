@@ -74,9 +74,11 @@ SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('full text');
 
 # Test query expansion
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('full-text' WITH QUERY EXPANSION);
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('full text' WITH QUERY EXPANSION);
 
@@ -187,6 +189,7 @@ INSERT INTO articles (title, body) VALUES
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('+mysql -database' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('>mysql <database ~search' IN BOOLEAN MODE);
 
@@ -220,9 +223,11 @@ SELECT * FROM articles WHERE
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('+("dbms stands") -good' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('+("dbms stands" search) -good' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('+("dbms stands" "full text") -good' IN BOOLEAN MODE);
 
@@ -249,6 +254,7 @@ INSERT INTO articles (title, body) VALUES
   ('要 想 将 数据 添加 到 数据库','或 访问、处理 计算机 数据库 中 保存 的 数据'),
   ('需要 使用 数据库 管理系统','计算机 是 处理 大量 数据 的 理想 工具');
 
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('数据库');
 
@@ -257,6 +263,7 @@ SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('数据');
 
 # Test wildcard
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('数据*');
 

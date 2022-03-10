@@ -66,7 +66,7 @@ int Uuid::parse(const char *in_string, size_t len,
     case TEXT_LENGTH + 2:
       if (*in_string != '{' || in_string[TEXT_LENGTH + 1] != '}') return 1;
       in_string++;
-      // intentionally fall through
+      [[fallthrough]];
     // standard UUID ex 12345678-1234-5678-1234-567812345678
     case TEXT_LENGTH:
       for (int i = 0; i < NUMBER_OF_SECTIONS - 1; i++) {

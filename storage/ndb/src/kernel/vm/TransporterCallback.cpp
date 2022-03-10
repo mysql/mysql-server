@@ -24,6 +24,7 @@
 
 #include <ndb_global.h>
 
+#include <cstring>
 #include <TransporterRegistry.hpp>
 #include <FastScheduler.hpp>
 #include <Emulator.hpp>
@@ -44,7 +45,6 @@
 #include <trpman.hpp>
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define DEBUG_MULTI_TRP 1
@@ -265,16 +265,16 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
   // if this node is not MT LQH then instance bits are stripped at execute
 
 #ifdef TRACE_DISTRIBUTED
-  ndbout_c("recv: %s(%d) from (%s, %d)",
-	   getSignalName(header->theVerId_signalNumber), 
-	   header->theVerId_signalNumber,
-	   getBlockName(refToBlock(header->theSendersBlockRef)),
-	   refToNode(header->theSendersBlockRef));
+  g_eventLogger->info("recv: %s(%d) from (%s, %d)",
+                      getSignalName(header->theVerId_signalNumber),
+                      header->theVerId_signalNumber,
+                      getBlockName(refToBlock(header->theSendersBlockRef)),
+                      refToNode(header->theSendersBlockRef));
 #endif
 
   bool ok = true;
   Ptr<SectionSegment> secPtr[3];
-  bzero(secPtr, sizeof(secPtr));
+  std::memset(secPtr, 0, sizeof(secPtr));
   secPtr[0].p = secPtr[1].p = secPtr[2].p = 0;
 
 #ifdef NDB_DEBUG_RES_OWNERSHIP
@@ -299,10 +299,10 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
   switch(secCount){
   case 3:
     ok &= import(SPC_CACHE_ARG secPtr[2], ptr[2].p, ptr[2].sz);
-    // Fall through
+    [[fallthrough]];
   case 2:
     ok &= import(SPC_CACHE_ARG secPtr[1], ptr[1].p, ptr[1].sz);
-    // Fall through
+    [[fallthrough]];
   case 1:
     ok &= import(SPC_CACHE_ARG secPtr[0], ptr[0].p, ptr[0].sz);
   }
@@ -484,7 +484,8 @@ TransporterReceiveHandleKernel::reportError(NodeId nodeId,
                                             const char *info)
 {
 #ifdef DEBUG_TRANSPORTER
-  ndbout_c("reportError (%d, 0x%x) %s", nodeId, errorCode, info ? info : "");
+  g_eventLogger->info("reportError (%d, 0x%x) %s", nodeId, errorCode,
+                      info ? info : "");
 #endif
 
   DBUG_ENTER("reportError");
@@ -527,7 +528,7 @@ TransporterReceiveHandleKernel::reportError(NodeId nodeId,
   }
   
   SignalT<3> signal;
-  memset(&signal.header, 0, sizeof(signal.header));
+  std::memset(&signal.header, 0, sizeof(signal.header));
 
 
   if(errorCode & TE_DO_DISCONNECT)
@@ -570,7 +571,7 @@ TransporterCallbackKernelNonMT::reportSendLen(NodeId nodeId, Uint32 count,
                                               Uint64 bytes)
 {
   SignalT<3> signal;
-  memset(&signal.header, 0, sizeof(signal.header));
+  std::memset(&signal.header, 0, sizeof(signal.header));
 
   signal.header.theLength = 3;
   signal.header.theSendersSignalId = 0;
@@ -918,7 +919,7 @@ TransporterReceiveHandleKernel::reportReceiveLen(NodeId nodeId, Uint32 count,
 {
 
   SignalT<3> signal;
-  memset(&signal.header, 0, sizeof(signal.header));
+  std::memset(&signal.header, 0, sizeof(signal.header));
 
   signal.header.theLength = 3;  
   signal.header.theSendersSignalId = 0;
@@ -947,7 +948,7 @@ TransporterReceiveHandleKernel::reportConnect(NodeId nodeId)
 {
 
   SignalT<1> signal;
-  memset(&signal.header, 0, sizeof(signal.header));
+  std::memset(&signal.header, 0, sizeof(signal.header));
 
 #ifndef NDBD_MULTITHREADED
   Uint32 trpman_instance = 1;
@@ -984,7 +985,7 @@ TransporterReceiveHandleKernel::reportDisconnect(NodeId nodeId, Uint32 errNo)
   DBUG_ENTER("reportDisconnect");
 
   SignalT<DisconnectRep::SignalLength> signal;
-  memset(&signal.header, 0, sizeof(signal.header));
+  std::memset(&signal.header, 0, sizeof(signal.header));
 
 #ifndef NDBD_MULTITHREADED
   Uint32 trpman_instance = 1;

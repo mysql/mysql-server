@@ -629,23 +629,23 @@ err:
   switch (errpos) {
     case 6:
       my_free(m_info);
-      /* fall through */
+      [[fallthrough]];
     case 5:
       (void)mysql_file_close(info.dfile, MYF(0));
       if (old_share) break; /* Don't remove open table */
 
-      /* fall through */
+      [[fallthrough]];
     case 4:
       my_free(share);
-      /* fall through */
+      [[fallthrough]];
     case 3:
       if (!lock_error) (void)my_lock(kfile, F_UNLCK, MYF(MY_SEEK_NOT_DONE));
-      /* fall through */
+      [[fallthrough]];
     case 2:
-      /* fall through */
+      [[fallthrough]];
     case 1:
       (void)mysql_file_close(kfile, MYF(0));
-      /* fall through */
+      [[fallthrough]];
     case 0:
     default:
       break;
@@ -1227,7 +1227,7 @@ exist a dup()-like call that would give us two different file descriptors.
 *************************************************************************/
 
 int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, const char *org_name,
-                     File file_to_dup MY_ATTRIBUTE((unused))) {
+                     File file_to_dup [[maybe_unused]]) {
   char *data_name = share->data_file_name;
   char real_data_name[FN_REFLEN];
   ST_FILE_ID file_id = {0, 0};

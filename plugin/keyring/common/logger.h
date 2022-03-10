@@ -35,12 +35,12 @@ class ILogger {
  public:
   virtual void log(longlong level, const char *message) = 0;
   virtual void log(longlong level, longlong errcode, ...) = 0;
-  virtual ~ILogger() {}
+  virtual ~ILogger() = default;
 };
 
 class Logger : public ILogger {
  public:
-  ~Logger() override {}
+  ~Logger() override = default;
   void log(longlong level, const char *message) override {
     LogPluginErr(level, ER_KEYRING_LOGGER_ERROR_MSG, message);
   }

@@ -81,11 +81,10 @@
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/tty.h"
 #include "mysql/harness/vt100_filter.h"
-#include "mysql_session.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
+#include "mysqlrouter/mysql_session.h"
 #include "random_generator.h"
 #include "router_app.h"
-#include "utils.h"
 #include "windows/main-windows.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -155,13 +154,6 @@ int real_main(int argc, char **argv, bool use_os_logger_initially) {
   preconfig_log_init(use_os_logger_initially);
 
   init_DIM();
-
-  // TODO This is very ugly, it should not be a global. It's defined in
-  // config_generator.cc and
-  //      used in find_executable_path() to provide path to Router binary when
-  //      generating start.sh.
-  extern std::string g_program_name;
-  g_program_name = argv[0];
 
   mysqlrouter::MySQLClientThreadToken api_token;
   if (mysql_library_init(argc, argv, nullptr)) {

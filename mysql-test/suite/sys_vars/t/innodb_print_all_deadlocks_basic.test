@@ -72,7 +72,7 @@ SET global innodb_print_all_deadlocks=1.1;
 SET global innodb_print_all_deadlocks=1e1;
 --error ER_WRONG_VALUE_FOR_VAR
 SET global innodb_print_all_deadlocks=2;
---echo NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
+--error ER_WRONG_VALUE_FOR_VAR
 SET global innodb_print_all_deadlocks=-3;
 SELECT @@global.innodb_print_all_deadlocks;
 --disable_warnings

@@ -21,6 +21,7 @@ NAME	ENABLED
 events_stages_current	NO
 events_stages_history	NO
 events_stages_history_long	NO
+events_statements_cpu	NO
 events_statements_current	NO
 events_statements_history	NO
 events_statements_history_long	NO

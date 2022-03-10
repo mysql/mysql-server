@@ -88,7 +88,7 @@ class Bit_stream_base {
     Print all the bits before the current position to the debug trace.
     @param str Descriptive text that will be prefixed before the bit string.
   */
-  void dbug_print(const char *str) const;
+  void dbug_print(const char *str [[maybe_unused]]) const;
 };
 
 /**

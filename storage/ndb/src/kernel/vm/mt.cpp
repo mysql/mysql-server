@@ -22,6 +22,7 @@
 
 #include <atomic>
 #include <ndb_global.h>
+#include <cstring>
 
 #define NDBD_MULTITHREADED
 
@@ -70,7 +71,6 @@
 static constexpr Uint32 NUM_JOB_BUFFERS_PER_THREAD = 32;
 static constexpr Uint32 SIGNAL_RNIL = 0xFFFFFFFF;
 
-extern EventLogger * g_eventLogger;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define DEBUG_MULTI_TRP 1
@@ -113,6 +113,7 @@ inline
 SimulatedBlock*
 GlobalData::mt_getBlock(BlockNumber blockNo, Uint32 instanceNo)
 {
+  require(blockNo >= MIN_BLOCK_NO && blockNo <= MAX_BLOCK_NO);
   SimulatedBlock* b = getBlock(blockNo);
   if (b != 0 && instanceNo != 0)
     b = b->getInstance(instanceNo);
@@ -616,9 +617,8 @@ struct alignas(NDB_CL) thr_safe_pool
                                              false);
                 if (returned != 0)
                 {
-                  ndbout_c("seize_list: returns %u from instance %u",
-                           returned,
-                           i);
+                  g_eventLogger->info("seize_list: returns %u from instance %u",
+                                      returned, i);
                   return returned;
                 }
               }
@@ -1878,7 +1878,7 @@ struct thr_send_thread_instance
                m_kernel_time_os(0),
                m_elapsed_time_os(0),
                m_measured_spintime(0),
-               m_awake(FALSE),
+               m_awake(false),
                m_first_trp(0),
                m_last_trp(0),
                m_next_is_high_prio_trp(false),
@@ -1986,7 +1986,7 @@ struct thr_send_thread_instance
   bool data_available() const
   {
     rmb();
-    return (m_more_trps == TRUE);
+    return (m_more_trps == true);
   }
 
   bool check_pending_data()
@@ -2251,7 +2251,7 @@ public:
     }
     for (Uint32 i = 0; i < MAX_NTRANSPORTERS; i++)
     {
-      m_trp_state[i].m_neighbour_trp = FALSE;
+      m_trp_state[i].m_neighbour_trp = false;
     }
   }
   void setNeighbourNode(NodeId nodeId)
@@ -2270,7 +2270,7 @@ public:
     {
       Uint32 this_id = id[index];
       Uint32 send_instance = get_send_instance(this_id);
-      m_trp_state[this_id].m_neighbour_trp = TRUE;
+      m_trp_state[this_id].m_neighbour_trp = true;
       for (Uint32 i = 0; i < MAX_NEIGHBOURS; i++)
       {
         require(m_send_threads[send_instance].m_neighbour_trps[i] != this_id);
@@ -2345,7 +2345,7 @@ mt_send_thread_main(void *thr_arg)
 }
 
 thr_send_threads::thr_send_threads()
-  : m_started_threads(FALSE),
+  : m_started_threads(false),
     m_node_overload_status((OverloadStatus)LIGHT_LOAD_CONST)
 {
   struct thr_repository *rep = g_thr_repository;
@@ -2355,9 +2355,9 @@ thr_send_threads::thr_send_threads()
     m_trp_state[i].m_next = 0;
     m_trp_state[i].m_data_available = 0;
     m_trp_state[i].m_thr_no_sender = Uint16(NO_OWNER_THREAD);
-    m_trp_state[i].m_send_overload = FALSE;
+    m_trp_state[i].m_send_overload = false;
     m_trp_state[i].m_micros_delayed = 0;
-    m_trp_state[i].m_neighbour_trp = FALSE;
+    m_trp_state[i].m_neighbour_trp = false;
     m_trp_state[i].m_overload_counter = 0;
     NdbTick_Invalidate(&m_trp_state[i].m_inserted_time);
   }
@@ -2569,7 +2569,7 @@ thr_send_threads::start_send_threads()
         m_send_threads[i].m_thread,
         SendThread);
   }
-  m_started_threads = TRUE;
+  m_started_threads = true;
 }
 
 struct thr_send_thread_instance*
@@ -2606,7 +2606,7 @@ thr_send_threads::insert_trp(TrpId trp_id,
   struct thr_send_trps &trp_state = m_trp_state[trp_id];
 
   send_instance->m_more_trps = true;
-  /* Ensure the lock free ::data_available see 'm_more_trps == TRUE' */
+  /* Ensure the lock free ::data_available see 'm_more_trps == true' */
   wmb();
 
   if (trp_state.m_neighbour_trp)
@@ -2658,7 +2658,7 @@ thr_send_threads::set_overload_delay(TrpId trp_id,
 {
   struct thr_send_trps &trp_state = m_trp_state[trp_id];
   assert(trp_state.m_data_available > 0);
-  trp_state.m_send_overload = TRUE;
+  trp_state.m_send_overload = true;
   trp_state.m_micros_delayed = delay_usec;
   trp_state.m_inserted_time = now;
   trp_state.m_overload_counter++;
@@ -2701,7 +2701,7 @@ thr_send_threads::check_delay_expired(TrpId trp_id, NDB_TICKS now)
   {
     trp_state.m_inserted_time = now;
     trp_state.m_micros_delayed = 0;
-    trp_state.m_send_overload = FALSE;
+    trp_state.m_send_overload = false;
     return 0;
   }
 
@@ -3207,12 +3207,12 @@ yield_rt_break(NdbThread *thread,
   Configuration * conf = globalEmulatorData.theConfiguration;
   conf->setRealtimeScheduler(thread,
                              type,
-                             FALSE,
-                             FALSE);
+                             false,
+                             false);
   conf->setRealtimeScheduler(thread,
                              type,
                              real_time,
-                             FALSE);
+                             false);
 }
 
 static void
@@ -3241,7 +3241,7 @@ check_real_time_break(NDB_TICKS now,
      * other threads and processes gets a chance to be scheduled
      * if we run for an extended time.
      */
-    yield_rt_break(thread, type, TRUE);
+    yield_rt_break(thread, type, true);
     *yield_time = now;
   }
 }
@@ -3787,8 +3787,7 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
       tmp.appfmt("Successfully set thread prio to %u ", thread_prio);
     }
 
-    printf("%s\n", tmp.c_str());
-    fflush(stdout);
+    g_eventLogger->info("%s", tmp.c_str());
     if (fail)
     {
       abort();
@@ -3803,7 +3802,7 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
   require(succ);
 
   NdbMutex_Lock(this_send_thread->send_thread_mutex);
-  this_send_thread->m_awake = FALSE;
+  this_send_thread->m_awake = false;
   NdbMutex_Unlock(this_send_thread->send_thread_mutex);
 
   NDB_TICKS yield_ticks;
@@ -3850,7 +3849,7 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
     }
     this_send_thread->m_exec_time += exec_time;
     this_send_thread->m_sleep_time += sleep_time;
-    this_send_thread->m_awake = TRUE;
+    this_send_thread->m_awake = true;
 
     /**
      * If waited for a specific transporter, reinsert it such that
@@ -3924,7 +3923,7 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
     } // while (get_trp()...)
 
     /* No more trps having data to send right now, prepare to sleep */
-    this_send_thread->m_awake = FALSE;
+    this_send_thread->m_awake = false;
     const Uint32 trp_wait = (trp_id != 0) ?
       m_trp_state[trp_id].m_micros_delayed : 0;
     NdbMutex_Unlock(this_send_thread->send_thread_mutex);
@@ -3994,7 +3993,7 @@ static
 void
 job_buffer_full(struct thr_data* selfptr)
 {
-  ndbout_c("job buffer full");
+  g_eventLogger->info("job buffer full");
   dumpJobQueues();
   abort();
 }
@@ -4004,7 +4003,7 @@ static
 void
 out_of_job_buffer(struct thr_data* selfptr)
 {
-  ndbout_c("out of job buffer");
+  g_eventLogger->info("out of job buffer");
   dumpJobQueues();
   abort();
 }
@@ -4168,7 +4167,7 @@ scan_queue(struct thr_data* selfptr, Uint32 cnt, Uint32 end, Uint32* ptr)
       const SignalHeader *s = reinterpret_cast<SignalHeader*>(page + pos);
       const Uint32 *data = page + pos + (sizeof(*s)>>2);
       if (0)
-	ndbout_c("found %p val: %d end: %d", s, val & 0xFFFF, end);
+        g_eventLogger->info("found %p val: %d end: %d", s, val & 0xFFFF, end);
       /*
        * ToDo: Do measurements of the frequency of these prio A timed signals.
        *
@@ -4516,14 +4515,12 @@ senddelay(Uint32 thr_no, const SignalHeader* s, Uint32 delay)
   memcpy(ptr, s, 4*siglen);
 
   if (0)
-    ndbout_c("now: %d alarm: %d send %s from %s to %s delay: %d idx: %x %p",
-	     selfptr->m_tq.m_current_time,
-	     alarm,
-	     getSignalName(s->theVerId_signalNumber),
-	     getBlockName(refToBlock(s->theSendersBlockRef)),
-	     getBlockName(s->theReceiversBlockNumber),
-	     delay,
-	     idx, ptr);
+    g_eventLogger->info(
+        "now: %d alarm: %d send %s from %s to %s delay: %d idx: %x %p",
+        selfptr->m_tq.m_current_time, alarm,
+        getSignalName(s->theVerId_signalNumber),
+        getBlockName(refToBlock(s->theSendersBlockRef)),
+        getBlockName(s->theReceiversBlockNumber), delay, idx, ptr);
 
   Uint32 i;
   Uint32 cnt = *cntptr;
@@ -4657,13 +4654,12 @@ dumpJobQueues(void)
         {
           tmp.appfmt(" HIGH LOAD (free:%d)", free);
         }
-        tmp.appfmt("\n");
       }
     }
   }
   if (!tmp.empty())
   {
-    ndbout_c("Dumping non-empty job queues:\n%s", tmp.c_str());
+    g_eventLogger->info("Dumping non-empty job queues: %s", tmp.c_str());
   }
 }
 
@@ -6525,7 +6521,7 @@ void handle_scheduling_decisions(thr_data *selfptr,
     sendpacked(selfptr, signal);
     selfptr->m_watchdog_counter = 6;
     flush_all_local_signals_and_wakeup(selfptr);
-    pending_send = do_send(selfptr, FALSE, FALSE);
+    pending_send = do_send(selfptr, false, false);
     selfptr->m_watchdog_counter = 20;
     send_sum = 0;
     flush_sum = 0;
@@ -7243,7 +7239,7 @@ calculate_max_signals_parameters(thr_data *selfptr)
       selfptr->m_max_signals_before_send_flush = 10;
       break;
     default:
-      assert(FALSE);
+      assert(false);
   }
   return;
 }
@@ -7362,8 +7358,7 @@ init_thread(thr_data *selfptr)
              selfptr->m_max_signals_before_send,
              selfptr->m_max_signals_before_send_flush);
 
-  printf("%s\n", tmp.c_str());
-  fflush(stdout);
+  g_eventLogger->info("%s", tmp.c_str());
   if (fail)
   {
 #ifndef HAVE_MAC_OS_X_THREAD_INFO
@@ -7532,7 +7527,7 @@ mt_receiver_thread_main(void *thr_arg)
       check_congestion(selfptr);
     }
 
-    const bool pending_send = do_send(selfptr, TRUE, FALSE);
+    const bool pending_send = do_send(selfptr, true, false);
 
     watchDogCounter = 7;
 
@@ -7768,9 +7763,10 @@ loop:
        * we've slept for 1ms...run a bit anyway
        */
       selfptr->m_max_signals_per_jb = 1;
-      ndbout_c("thr_no:%u - sleeploop 10!! "
-               "(Worker thread blocked (>= 1ms) by slow consumer threads)",
-               selfptr->m_thr_no);
+      g_eventLogger->info(
+          "thr_no:%u - sleeploop 10!! "
+          "(Worker thread blocked (>= 1ms) by slow consumer threads)",
+          selfptr->m_thr_no);
       return true;
     }
 
@@ -7786,7 +7782,7 @@ loop:
     if (pending_send)
     {
       /* About to sleep, _must_ send now. */
-      pending_send = do_send(selfptr, TRUE, TRUE);
+      pending_send = do_send(selfptr, true, true);
       send_sum = 0;
       flush_sum = 0;
     }
@@ -8002,7 +7998,7 @@ mt_job_thread_main(void *thr_arg)
       {
         /* About to sleep, _must_ send now. */
         flush_all_local_signals_and_wakeup(selfptr);
-        pending_send = do_send(selfptr, TRUE, TRUE);
+        pending_send = do_send(selfptr, true, true);
         send_sum = 0;
         flush_sum = 0;
       }
@@ -9162,6 +9158,37 @@ mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
   return ss;
 }
 
+SendStatus
+mt_send_remote_over_all_links(Uint32 self, const SignalHeader *sh, Uint8 prio,
+                              const Uint32 * data, NodeId nodeId)
+{
+  thr_repository *rep = g_thr_repository;
+  struct thr_data *selfptr = &rep->m_thread[self];
+  SendStatus ss;
+
+  mt_send_handle handle(selfptr);
+  /* prepareSend() is lock-free, as we have per-thread send buffers. */
+  TrpBitmask trp_ids;
+  ss = globalTransporterRegistry.prepareSendOverAllLinks(&handle,
+                                                         sh,
+                                                         prio,
+                                                         data,
+                                                         nodeId,
+                                                         trp_ids);
+  if (likely(ss == SEND_OK))
+  {
+    unsigned trp_id = trp_ids.find(0);
+    while (trp_id != trp_ids.NotFound)
+    {
+      require(trp_id < MAX_NTRANSPORTERS);
+      register_pending_send(selfptr, trp_id);
+      trp_id = trp_ids.find(trp_id + 1);
+    }
+  }
+  return ss;
+}
+
+
 /*
  * This functions sends a prio A STOP_FOR_CRASH signal to a thread.
  *
@@ -9188,7 +9215,7 @@ sendprioa_STOP_FOR_CRASH(const struct thr_data *selfptr, Uint32 dst)
   struct thr_data *dstptr = &rep->m_thread[dst];
   Uint32 bno = dstptr->m_instance_list[0];
 
-  memset(&signalT.header, 0, sizeof(SignalHeader));
+  std::memset(&signalT.header, 0, sizeof(SignalHeader));
   signalT.header.theVerId_signalNumber   = GSN_STOP_FOR_CRASH;
   signalT.header.theReceiversBlockNumber = bno;
   signalT.header.theSendersBlockRef      = 0;
@@ -9255,7 +9282,7 @@ queue_init(struct thr_tq* tq)
   tq->m_current_time = 0;
   tq->m_next_free = RNIL;
   tq->m_cnt[0] = tq->m_cnt[1] = tq->m_cnt[2] = 0;
-  bzero(tq->m_delayed_signals, sizeof(tq->m_delayed_signals));
+  std::memset(tq->m_delayed_signals, 0, sizeof(tq->m_delayed_signals));
 }
 
 static bool
@@ -9346,7 +9373,7 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
   }
   queue_init(&selfptr->m_tq);
 
-  bzero(&selfptr->m_stat, sizeof(selfptr->m_stat));
+  std::memset(&selfptr->m_stat, 0, sizeof(selfptr->m_stat));
 
   selfptr->m_pending_send_count = 0;
   selfptr->m_pending_send_mask.clear();
@@ -9355,7 +9382,7 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
   for (i = 0; i < MAX_INSTANCES_PER_THREAD; i++)
     selfptr->m_instance_list[i] = 0;
 
-  bzero(&selfptr->m_send_buffers, sizeof(selfptr->m_send_buffers));
+  std::memset(&selfptr->m_send_buffers, 0, sizeof(selfptr->m_send_buffers));
 
   selfptr->m_thread = 0;
   selfptr->m_cpu = NO_LOCK_CPU;
@@ -9389,9 +9416,9 @@ send_buffer_init(Uint32 id, thr_repository::send_buffer * sb)
   sb->m_bytes_sent = 0;
   sb->m_send_thread = NO_SEND_THREAD;
   sb->m_enabled = false;
-  bzero(&sb->m_buffer, sizeof(sb->m_buffer));
-  bzero(&sb->m_sending, sizeof(sb->m_sending));
-  bzero(sb->m_read_index, sizeof(sb->m_read_index));
+  std::memset(&sb->m_buffer, 0, sizeof(sb->m_buffer));
+  std::memset(&sb->m_sending, 0, sizeof(sb->m_sending));
+  std::memset(sb->m_read_index, 0, sizeof(sb->m_read_index));
 }
 
 static
@@ -9419,7 +9446,7 @@ rep_init(struct thr_repository* rep, unsigned int cnt, Ndbd_mem_manager *mm)
     send_buffer_init(i, rep->m_send_buffers+i);
   }
 
-  bzero(rep->m_thread_send_buffers, sizeof(rep->m_thread_send_buffers));
+  std::memset(rep->m_thread_send_buffers, 0, sizeof(rep->m_thread_send_buffers));
 }
 
 
@@ -9703,7 +9730,7 @@ ThreadConfig::init()
   if (glob_num_tc_threads == 0)
     glob_num_tc_threads = 1;
 
-  ndbout << "NDBMT: number of block threads=" << glob_num_threads << endl;
+  g_eventLogger->info("NDBMT: number of block threads=%u", glob_num_threads);
 
   ::rep_init(g_thr_repository, glob_num_threads,
              globalEmulatorData.m_mem_manager);
@@ -10004,7 +10031,7 @@ int
 ThreadConfig::doStart(NodeState::StartLevel startLevel)
 {
   SignalT<3> signalT;
-  memset(&signalT.header, 0, sizeof(SignalHeader));
+  std::memset(&signalT.header, 0, sizeof(SignalHeader));
   
   signalT.header.theVerId_signalNumber   = GSN_START_ORD;
   signalT.header.theReceiversBlockNumber = CMVMI;
@@ -10106,8 +10133,9 @@ FastScheduler::traceDumpPrepare(NdbShutdownType& nst)
     {
       nst = NST_Watchdog; // Make this abort fast
     }
-    ndbout_c("Warning: %d thread(s) did not stop before starting crash dump.",
-             waitFor_count - g_thr_repository->stopped_threads);
+    g_eventLogger->info(
+        "Warning: %d thread(s) did not stop before starting crash dump.",
+        waitFor_count - g_thr_repository->stopped_threads);
   }
   NdbMutex_Unlock(&g_thr_repository->stop_for_crash_mutex);
 
@@ -10649,8 +10677,7 @@ mt_assert_own_thread(SimulatedBlock* block)
 
   if (unlikely(my_thread_equal(thrptr->m_thr_id, my_thread_self()) == 0))
   {
-    fprintf(stderr, "mt_assert_own_thread() - assertion-failure\n");
-    fflush(stderr);
+    g_eventLogger->info("mt_assert_own_thread() - assertion-failure");
     abort();
   }
 }
@@ -10703,7 +10730,7 @@ void mt_set_spin_stat(class SimulatedBlock *block, ndb_spin_stat *src)
 void
 mt_get_thr_stat(class SimulatedBlock * block, ndb_thr_stat* dst)
 {
-  bzero(dst, sizeof(* dst));
+  std::memset(dst, 0, sizeof(* dst));
   Uint32 thr_no = block->getThreadId();
   struct thr_data *selfptr = &g_thr_repository->m_thread[thr_no];
 

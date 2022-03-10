@@ -81,7 +81,7 @@ INSERT INTO t1 VALUES (GET_LOCK('tmp', 1));   #marked unsafe in BUG#47995
 INSERT INTO t1 VALUES (IS_FREE_LOCK('tmp'));  #marked unsafe in BUG#47995
 INSERT INTO t1 VALUES (IS_USED_LOCK('tmp'));  #marked unsafe in BUG#47995
 INSERT INTO t1 VALUES (LOAD_FILE('../../std_data/words2.dat')); #marked unsafe in BUG#39701
-INSERT INTO t1 VALUES (MASTER_POS_WAIT('dummy arg', 4711, 1));
+INSERT INTO t1 VALUES (SOURCE_POS_WAIT('dummy arg', 4711, 1));
 INSERT INTO t1 VALUES (RELEASE_LOCK('tmp'));  #marked unsafe in BUG#47995
 INSERT INTO t1 VALUES (ROW_COUNT());          #marked unsafe before BUG#47995
 INSERT INTO t1 VALUES (SESSION_USER());       #marked unsafe before BUG#47995

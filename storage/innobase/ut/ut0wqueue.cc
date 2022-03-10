@@ -42,13 +42,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 struct ib_wqueue_t {
   ib_mutex_t mutex; /*!< mutex protecting everything */
   ib_list_t *items; /*!< work item list */
+  uint64_t count;   /*!< total number of work items */
   os_event_t event; /*!< event we use to signal additions to list */
 };
 
 /** Create a new work queue.
  @return work queue */
 ib_wqueue_t *ib_wqueue_create(void) {
-  ib_wqueue_t *wq = static_cast<ib_wqueue_t *>(ut_malloc_nokey(sizeof(*wq)));
+  ib_wqueue_t *wq = static_cast<ib_wqueue_t *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*wq)));
 
   /* Function ib_wqueue_create() has not been used anywhere,
   not necessary to instrument this mutex */
@@ -57,6 +59,7 @@ ib_wqueue_t *ib_wqueue_create(void) {
 
   wq->items = ib_list_create();
   wq->event = os_event_create();
+  wq->count = 0;
 
   return (wq);
 }
@@ -68,7 +71,7 @@ void ib_wqueue_free(ib_wqueue_t *wq) /*!< in: work queue */
   ib_list_free(wq->items);
   os_event_destroy(wq->event);
 
-  ut_free(wq);
+  ut::free(wq);
 }
 
 /** Add a work item to the queue.
@@ -79,17 +82,26 @@ void ib_wqueue_add(ib_wqueue_t *wq, void *item, mem_heap_t *heap) {
   mutex_enter(&wq->mutex);
 
   ib_list_add_last(wq->items, item, heap);
+  wq->count++;
   os_event_set(wq->event);
 
   mutex_exit(&wq->mutex);
+}
+
+uint64_t ib_wqueue_get_count(ib_wqueue_t *wq) {
+  uint64_t count;
+  mutex_enter(&wq->mutex);
+  count = wq->count;
+  mutex_exit(&wq->mutex);
+  return count;
 }
 
 /********************************************************************
 Wait for a work item to appear in the queue for specified time. */
 void *ib_wqueue_timedwait(
     /* out: work item or NULL on timeout*/
-    ib_wqueue_t *wq,         /* in: work queue */
-    ib_time_t wait_in_usecs) /* in: wait time in micro seconds */
+    ib_wqueue_t *wq,                /* in: work queue */
+    std::chrono::microseconds wait) /* in: wait time */
 {
   ib_list_node_t *node = nullptr;
 
@@ -103,6 +115,7 @@ void *ib_wqueue_timedwait(
 
     if (node) {
       ib_list_remove(wq->items, node);
+      wq->count--;
 
       mutex_exit(&wq->mutex);
       break;
@@ -112,7 +125,7 @@ void *ib_wqueue_timedwait(
 
     mutex_exit(&wq->mutex);
 
-    error = os_event_wait_time_low(wq->event, (ulint)wait_in_usecs, sig_count);
+    error = os_event_wait_time_low(wq->event, wait, sig_count);
 
     if (error == OS_SYNC_TIME_EXCEEDED) {
       break;

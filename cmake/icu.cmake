@@ -102,13 +102,22 @@ MACRO (FIND_ICU install_root)
 
 ENDMACRO()
 
+SET(ICU_VERSION_DIR "icu-release-69-1")
+SET(BUNDLED_ICU_PATH ${CMAKE_SOURCE_DIR}/extra/icu/${ICU_VERSION_DIR})
+
+# ICU data files come in two flavours, big and little endian.
+# (Actually, there's an 'e' for EBCDIC version as well.)
+IF(SOLARIS_SPARC)
+  SET(ICUDT_DIR "icudt69b")
+ELSE()
+  SET(ICUDT_DIR "icudt69l")
+ENDIF()
+
+
 MACRO (MYSQL_USE_BUNDLED_ICU)
   SET(WITH_ICU "bundled" CACHE STRING "Use bundled icu library")
-  SET(BUILD_BUNDLED_ICU 1)
-  # To do: remove
-  SET(UDATA_DEBUG 1)
-  SET(ICU_DIR ${CMAKE_SOURCE_DIR}/extra/icu)
-  SET(ICU_SOURCE_DIR ${ICU_DIR}/source)
+
+  SET(ICU_SOURCE_DIR ${BUNDLED_ICU_PATH}/source)
   SET(ICU_COMMON_DIR ${ICU_SOURCE_DIR}/common)
 
   SET(ICU_INCLUDE_DIRS
@@ -122,7 +131,7 @@ MACRO (MYSQL_USE_BUNDLED_ICU)
   UNSET(ICU_LIB_PATH)
   UNSET(ICU_LIB_PATH CACHE)
 
-  ADD_SUBDIRECTORY(${ICU_DIR})
+  ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/extra/icu)
 
   SET(ICU_LIBRARIES icui18n icuuc icustubdata)
 

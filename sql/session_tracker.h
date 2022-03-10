@@ -39,11 +39,20 @@ enum enum_session_tracker {
   SESSION_SYSVARS_TRACKER, /* Session system variables */
   CURRENT_SCHEMA_TRACKER,  /* Current schema */
   SESSION_STATE_CHANGE_TRACKER,
-  SESSION_GTIDS_TRACKER,   /* Tracks GTIDs */
-  TRANSACTION_INFO_TRACKER /* Transaction state */
+  SESSION_GTIDS_TRACKER,    /* Tracks GTIDs */
+  TRANSACTION_INFO_TRACKER, /* Transaction state */
+  /*
+    There should be a one-to-one mapping between this enum members and the
+    members from enum enum_session_state_type defined in mysql_com.h.
+    TRANSACTION_INFO_TRACKER maps to 2 types of tracker which are:
+    SESSION_TRACK_TRANSACTION_CHARACTERISTICS, SESSION_TRACK_TRANSACTION_STATE.
+    Thus introduced a dummy tracker type on server side to keep trackers in sync
+    between client and server.
+  */
+  TRACK_TRANSACTION_STATE,
 };
 
-#define SESSION_TRACKER_END TRANSACTION_INFO_TRACKER
+#define SESSION_TRACKER_END TRACK_TRANSACTION_STATE
 
 #define TX_TRACKER_GET(a)                                            \
   Transaction_state_tracker *a =                                     \
@@ -83,7 +92,7 @@ class State_tracker {
   State_tracker() : m_enabled(false), m_changed(false) {}
 
   /** Destructor */
-  virtual ~State_tracker() {}
+  virtual ~State_tracker() = default;
 
   /** Getters */
   bool is_enabled() const { return m_enabled; }
@@ -105,7 +114,7 @@ class State_tracker {
   /** Mark the entity as changed. */
   virtual void mark_as_changed(THD *thd, LEX_CSTRING *name) = 0;
 
-  virtual void claim_memory_ownership(bool claim MY_ATTRIBUTE((unused))) {}
+  virtual void claim_memory_ownership(bool claim [[maybe_unused]]) {}
 };
 
 /**
@@ -126,10 +135,10 @@ class Session_tracker {
   Session_tracker &operator=(Session_tracker const &) = delete;
 
   /** Constructor */
-  Session_tracker() {}
+  Session_tracker() = default;
 
   /** Destructor */
-  ~Session_tracker() {}
+  ~Session_tracker() = default;
   /**
     Initialize Session_tracker objects and enable them based on the
     tracker_xxx variables' value that the session inherit from global

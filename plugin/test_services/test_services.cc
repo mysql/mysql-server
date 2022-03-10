@@ -76,7 +76,7 @@ static SYS_VAR *test_services_sysvars[] = {MYSQL_SYSVAR(with_log_message),
                                            nullptr};
 
 /* The test cases for the log_message service. */
-static int test_log_plugin_error(void *p MY_ATTRIBUTE((unused))) {
+static int test_log_plugin_error(void *p [[maybe_unused]]) {
   DBUG_TRACE;
   /* Writes to mysqld.1.err: Plugin test_services reports an info text */
   LogPluginErr(

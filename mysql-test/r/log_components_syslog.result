@@ -102,7 +102,7 @@ SELECT @@syseventlog.tag;
 
 SET GLOBAL log_error_services= default;
 
-# cleanup
+UNINSTALL COMPONENT "file://component_log_sink_syseventlog";
 SET @@session.debug="-d,parser_stmt_to_error_log_with_system_prio";
 SET @@session.debug="-d,parser_stmt_to_error_log";
 SET @@session.debug="-d,log_error_normalize";
@@ -110,6 +110,7 @@ FLUSH ERROR LOGS;
  Variable 'syseventlog.tag' can't be set to the value of 'wl11828/2'
  Variable 'syseventlog.facility' can't be set to the value of 'localZ'
  option 'syseventlog.include-pid': boolean value 'PIKA' was not recognized. Set to OFF.
+# restart:
 
 ###
 ### done

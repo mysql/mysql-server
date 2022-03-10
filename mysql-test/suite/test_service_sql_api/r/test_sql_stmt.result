@@ -157,7 +157,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -194,7 +194,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -233,7 +233,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -272,7 +272,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -345,7 +345,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -382,7 +382,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -421,7 +421,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -496,7 +496,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -533,7 +533,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -572,7 +572,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -692,7 +692,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -729,7 +729,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -768,7 +768,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -807,7 +807,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -873,7 +873,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -910,7 +910,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -949,7 +949,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -988,7 +988,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1059,7 +1059,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1096,7 +1096,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1135,7 +1135,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1174,7 +1174,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1296,7 +1296,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1333,7 +1333,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1372,7 +1372,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1411,7 +1411,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1531,7 +1531,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1568,7 +1568,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1607,7 +1607,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1710,7 +1710,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1782,7 +1782,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1854,7 +1854,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1926,7 +1926,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -1998,7 +1998,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -2070,7 +2070,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -2142,7 +2142,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -2214,7 +2214,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -2304,7 +2304,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -2418,7 +2418,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -2676,7 +2676,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -2713,7 +2713,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -2780,7 +2780,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -2817,7 +2817,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -2845,7 +2845,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -3028,7 +3028,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -3153,7 +3153,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -3203,7 +3203,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -3297,7 +3297,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -3422,7 +3422,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -3472,7 +3472,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -3560,7 +3560,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -3656,7 +3656,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -3781,7 +3781,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -3831,7 +3831,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -3919,7 +3919,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -4046,7 +4046,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -4122,7 +4122,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -4247,7 +4247,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -4297,7 +4297,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -4385,7 +4385,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -4512,7 +4512,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -4616,7 +4616,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -4642,7 +4642,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -4659,7 +4659,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -4676,7 +4676,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -4776,7 +4776,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -4844,7 +4844,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5317,7 +5317,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5354,7 +5354,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5393,7 +5393,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5432,7 +5432,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5505,7 +5505,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5542,7 +5542,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5581,7 +5581,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5656,7 +5656,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5693,7 +5693,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5732,7 +5732,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5852,7 +5852,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5889,7 +5889,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5928,7 +5928,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -5967,7 +5967,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6033,7 +6033,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6070,7 +6070,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6109,7 +6109,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6148,7 +6148,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6219,7 +6219,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6256,7 +6256,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6295,7 +6295,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6334,7 +6334,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6456,7 +6456,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6493,7 +6493,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6532,7 +6532,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6571,7 +6571,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6691,7 +6691,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6728,7 +6728,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6767,7 +6767,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6870,7 +6870,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -6942,7 +6942,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7014,7 +7014,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7086,7 +7086,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7158,7 +7158,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7230,7 +7230,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7302,7 +7302,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7374,7 +7374,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7464,7 +7464,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7578,7 +7578,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7836,7 +7836,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7873,7 +7873,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7940,7 +7940,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -7977,7 +7977,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -8005,7 +8005,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -8188,7 +8188,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -8313,7 +8313,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -8363,7 +8363,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -8457,7 +8457,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -8582,7 +8582,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -8632,7 +8632,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -8720,7 +8720,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -8816,7 +8816,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -8941,7 +8941,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -8991,7 +8991,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -9079,7 +9079,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -9206,7 +9206,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -9282,7 +9282,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -9407,7 +9407,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -9457,7 +9457,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -9545,7 +9545,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -9672,7 +9672,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -9776,7 +9776,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -9802,7 +9802,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -9819,7 +9819,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -9836,7 +9836,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -9936,7 +9936,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 
@@ -10004,7 +10004,7 @@ handle_ok
 
 
 	[meta][charset result] number: 33
-	[meta][charset result] name: utf8
+	[meta][charset result] name: utf8mb3
 	[meta][charset result] collation: utf8_general_ci
 	[meta][charset result] sort order: 
 

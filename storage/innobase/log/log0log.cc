@@ -368,10 +368,14 @@ Read more about redo log details:
 *******************************************************/
 
 /** Redo log system. Singleton used to populate global pointer. */
-aligned_pointer<log_t> *log_sys_object;
+ut::aligned_pointer<log_t, ut::INNODB_CACHE_LINE_SIZE> *log_sys_object;
 
 /** Redo log system (singleton). */
 log_t *log_sys;
+
+#ifdef UNIV_PFS_MEMORY
+PSI_memory_key log_buffer_memory_key;
+#endif /* UNIV_PFS_MEMORY */
 
 #ifdef UNIV_PFS_THREAD
 
@@ -496,9 +500,11 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
   exit without proper cleanup for redo log in some cases, we
   need to forbid dtor calls then. */
 
-  log_sys_object = UT_NEW_NOKEY(aligned_pointer<log_t>{});
+  using log_t_aligned_pointer = std::decay_t<decltype(*log_sys_object)>;
+  log_sys_object =
+      ut::new_withkey<log_t_aligned_pointer>(UT_NEW_THIS_FILE_PSI_KEY);
+  log_sys_object->alloc_withkey(UT_NEW_THIS_FILE_PSI_KEY);
 
-  log_sys_object->create();
   log_sys = *log_sys_object;
 
   log_t &log = *log_sys;
@@ -552,8 +558,8 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
 #endif /* UNIV_PFS_RWLOCK */
 #ifdef UNIV_DEBUG
   /* initialize rw_lock without pfs_psi */
-  log.sn_lock_inst =
-      static_cast<rw_lock_t *>(ut_zalloc_nokey(sizeof(*log.sn_lock_inst)));
+  log.sn_lock_inst = static_cast<rw_lock_t *>(
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*log.sn_lock_inst)));
   new (log.sn_lock_inst) rw_lock_t;
   rw_lock_create_func(log.sn_lock_inst, SYNC_LOG_SN, "log.sn_lock_inst",
                       __FILE__, __LINE__);
@@ -595,19 +601,20 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
 }
 
 void log_start(log_t &log, checkpoint_no_t checkpoint_no, lsn_t checkpoint_lsn,
-               lsn_t start_lsn) {
+               lsn_t start_lsn, bool allow_checkpoints) {
   ut_a(log_sys != nullptr);
   ut_a(checkpoint_lsn >= OS_FILE_LOG_BLOCK_SIZE);
   ut_a(checkpoint_lsn >= LOG_START_LSN);
   ut_a(start_lsn >= checkpoint_lsn);
 
   log.write_to_file_requests_total.store(0);
-  log.write_to_file_requests_interval.store(0);
+  log.write_to_file_requests_interval.store(std::chrono::seconds::zero());
 
   log.recovered_lsn = start_lsn;
   log.last_checkpoint_lsn = checkpoint_lsn;
   log.next_checkpoint_no = checkpoint_no;
   log.available_for_checkpoint_lsn = checkpoint_lsn;
+  log.m_allow_checkpoints.store(allow_checkpoints);
 
   ut_a((log.sn.load(std::memory_order_acquire) & SN_LOCKED) == 0);
   log.sn = log_translate_lsn_to_sn(log.recovered_lsn);
@@ -681,7 +688,7 @@ void log_sys_close() {
 
 #ifdef UNIV_DEBUG
   rw_lock_free_func(log.sn_lock_inst);
-  ut_free(log.sn_lock_inst);
+  ut::free(log.sn_lock_inst);
   log.sn_lock_inst = nullptr;
 #endif /* UNIV_DEBUG */
 #ifdef UNIV_PFS_RWLOCK
@@ -710,9 +717,8 @@ void log_sys_close() {
   os_event_destroy(log.writer_threads_resume_event);
   os_event_destroy(log.sn_lock_event);
 
-  log_sys_object->destroy();
-
-  UT_DELETE(log_sys_object);
+  log_sys_object->dealloc();
+  ut::delete_(log_sys_object);
   log_sys_object = nullptr;
 
   log_sys = nullptr;
@@ -768,19 +774,19 @@ void log_start_background_threads(log_t &log) {
   log.writer_threads_paused.store(false);
 
   srv_threads.m_log_checkpointer =
-      os_thread_create(log_checkpointer_thread_key, log_checkpointer, &log);
+      os_thread_create(log_checkpointer_thread_key, 0, log_checkpointer, &log);
 
-  srv_threads.m_log_flush_notifier =
-      os_thread_create(log_flush_notifier_thread_key, log_flush_notifier, &log);
+  srv_threads.m_log_flush_notifier = os_thread_create(
+      log_flush_notifier_thread_key, 0, log_flush_notifier, &log);
 
   srv_threads.m_log_flusher =
-      os_thread_create(log_flusher_thread_key, log_flusher, &log);
+      os_thread_create(log_flusher_thread_key, 0, log_flusher, &log);
 
-  srv_threads.m_log_write_notifier =
-      os_thread_create(log_write_notifier_thread_key, log_write_notifier, &log);
+  srv_threads.m_log_write_notifier = os_thread_create(
+      log_write_notifier_thread_key, 0, log_write_notifier, &log);
 
   srv_threads.m_log_writer =
-      os_thread_create(log_writer_thread_key, log_writer, &log);
+      os_thread_create(log_writer_thread_key, 0, log_writer, &log);
 
   srv_threads.m_log_checkpointer.start();
   srv_threads.m_log_flush_notifier.start();
@@ -888,6 +894,14 @@ static void log_pause_writer_threads(log_t &log) {
     }
     for (size_t i = 0; i < log.flush_events_size; ++i) {
       os_event_set(log.flush_events[i]);
+    }
+
+    /* confirms *_notifier_thread accepted to pause */
+    while (log.write_notifier_resume_lsn.load(std::memory_order_acquire) == 0 ||
+           log.flush_notifier_resume_lsn.load(std::memory_order_acquire) == 0) {
+      ut_a(log_write_notifier_is_active());
+      ut_a(log_flush_notifier_is_active());
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
   }
 }
@@ -1031,7 +1045,8 @@ bool log_buffer_resize_low(log_t &log, size_t new_size, lsn_t end_lsn) {
   }
 
   /* Save the contents. */
-  byte *tmp_buf = UT_NEW_ARRAY_NOKEY(byte, end_lsn - start_lsn);
+  byte *tmp_buf = ut::new_arr_withkey<byte>(UT_NEW_THIS_FILE_PSI_KEY,
+                                            ut::Count(end_lsn - start_lsn));
   for (auto i = start_lsn; i < end_lsn; i += OS_FILE_LOG_BLOCK_SIZE) {
     std::memcpy(&tmp_buf[i - start_lsn], &log.buf[i % log.buf_size],
                 OS_FILE_LOG_BLOCK_SIZE);
@@ -1047,7 +1062,7 @@ bool log_buffer_resize_low(log_t &log, size_t new_size, lsn_t end_lsn) {
     std::memcpy(&log.buf[i % new_size], &tmp_buf[i - start_lsn],
                 OS_FILE_LOG_BLOCK_SIZE);
   }
-  UT_DELETE_ARRAY(tmp_buf);
+  ut::delete_arr(tmp_buf);
 
   log_calc_buf_size(log);
 
@@ -1124,29 +1139,32 @@ static void log_allocate_buffer(log_t &log) {
   ut_a(srv_log_buffer_size <= INNODB_LOG_BUFFER_SIZE_MAX);
   ut_a(srv_log_buffer_size >= 4 * UNIV_PAGE_SIZE);
 
-  log.buf.create(srv_log_buffer_size);
+  log.buf.alloc_withkey(ut::make_psi_memory_key(log_buffer_memory_key),
+                        ut::Count{srv_log_buffer_size});
 }
 
-static void log_deallocate_buffer(log_t &log) { log.buf.destroy(); }
+static void log_deallocate_buffer(log_t &log) { log.buf.dealloc(); }
 
 static void log_allocate_write_ahead_buffer(log_t &log) {
   ut_a(srv_log_write_ahead_size >= INNODB_LOG_WRITE_AHEAD_SIZE_MIN);
   ut_a(srv_log_write_ahead_size <= INNODB_LOG_WRITE_AHEAD_SIZE_MAX);
 
   log.write_ahead_buf_size = srv_log_write_ahead_size;
-  log.write_ahead_buf.create(log.write_ahead_buf_size);
+  log.write_ahead_buf.alloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                                    ut::Count{log.write_ahead_buf_size});
 }
 
 static void log_deallocate_write_ahead_buffer(log_t &log) {
-  log.write_ahead_buf.destroy();
+  log.write_ahead_buf.dealloc();
 }
 
 static void log_allocate_checkpoint_buffer(log_t &log) {
-  log.checkpoint_buf.create(OS_FILE_LOG_BLOCK_SIZE);
+  log.checkpoint_buf.alloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                                   ut::Count{OS_FILE_LOG_BLOCK_SIZE});
 }
 
 static void log_deallocate_checkpoint_buffer(log_t &log) {
-  log.checkpoint_buf.destroy();
+  log.checkpoint_buf.dealloc();
 }
 
 static void log_allocate_flush_events(log_t &log) {
@@ -1157,7 +1175,8 @@ static void log_allocate_flush_events(log_t &log) {
   ut_a((n & (n - 1)) == 0);
 
   log.flush_events_size = n;
-  log.flush_events = UT_NEW_ARRAY_NOKEY(os_event_t, n);
+  log.flush_events =
+      ut::new_arr_withkey<os_event_t>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{n});
 
   for (size_t i = 0; i < log.flush_events_size; ++i) {
     log.flush_events[i] = os_event_create();
@@ -1171,7 +1190,7 @@ static void log_deallocate_flush_events(log_t &log) {
     os_event_destroy(log.flush_events[i]);
   }
 
-  UT_DELETE_ARRAY(log.flush_events);
+  ut::delete_arr(log.flush_events);
   log.flush_events = nullptr;
 }
 
@@ -1183,7 +1202,8 @@ static void log_allocate_write_events(log_t &log) {
   ut_a((n & (n - 1)) == 0);
 
   log.write_events_size = n;
-  log.write_events = UT_NEW_ARRAY_NOKEY(os_event_t, n);
+  log.write_events =
+      ut::new_arr_withkey<os_event_t>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{n});
 
   for (size_t i = 0; i < log.write_events_size; ++i) {
     log.write_events[i] = os_event_create();
@@ -1197,7 +1217,7 @@ static void log_deallocate_write_events(log_t &log) {
     os_event_destroy(log.write_events[i]);
   }
 
-  UT_DELETE_ARRAY(log.write_events);
+  ut::delete_arr(log.write_events);
   log.write_events = nullptr;
 }
 
@@ -1221,12 +1241,13 @@ static void log_deallocate_recent_closed(log_t &log) {
 static void log_allocate_file_header_buffers(log_t &log) {
   const uint32_t n_files = log.n_files;
 
-  using Buf_ptr = aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE>;
-
-  log.file_header_bufs = UT_NEW_ARRAY_NOKEY(Buf_ptr, n_files);
+  using Buf_ptr = ut::aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE>;
+  log.file_header_bufs = ut::new_arr_withkey<Buf_ptr>(UT_NEW_THIS_FILE_PSI_KEY,
+                                                      ut::Count{n_files});
 
   for (uint32_t i = 0; i < n_files; i++) {
-    log.file_header_bufs[i].create(LOG_FILE_HDR_SIZE);
+    log.file_header_bufs[i].alloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                                          ut::Count{LOG_FILE_HDR_SIZE});
   }
 }
 
@@ -1234,7 +1255,7 @@ static void log_deallocate_file_header_buffers(log_t &log) {
   ut_a(log.n_files > 0);
   ut_a(log.file_header_bufs != nullptr);
 
-  UT_DELETE_ARRAY(log.file_header_bufs);
+  ut::delete_arr(log.file_header_bufs);
   log.file_header_bufs = nullptr;
 }
 

@@ -4,8 +4,8 @@
 # not.
 # ==== Usage ====
 #
-# --let $assert_text= rpl_semi_sync_master_yes_tx should be 2
-# --let $assert_status_name= rpl_semi_sync_master_yes_tx
+# --let $assert_text= rpl_semi_sync_source_yes_tx should be 2
+# --let $assert_status_name= rpl_semi_sync_source_yes_tx
 # --let $assert_status_value= 2
 # --let $assert_comparator= >
 # [--let $rpl_debug= 1]

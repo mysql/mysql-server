@@ -84,7 +84,7 @@ class Dictionary_client;
 class ha_innobase : public handler {
  public:
   ha_innobase(handlerton *hton, TABLE_SHARE *table_arg);
-  ~ha_innobase() override;
+  ~ha_innobase() override = default;
 
   row_type get_real_row_type(const HA_CREATE_INFO *create_info) const override;
 
@@ -214,10 +214,11 @@ class ha_innobase : public handler {
   @param[in]  sampling_seed       random seed that the random generator will use
   @param[in]  sampling_method     sampling method to be used; currently only
   SYSTEM sampling is supported
+  @param[in]  tablesample         true if the sampling is for tablesample
   @return 0 for success, else one of the HA_xxx values in case of error. */
   int sample_init(void *&scan_ctx, double sampling_percentage,
-                  int sampling_seed,
-                  enum_sampling_method sampling_method) override;
+                  int sampling_seed, enum_sampling_method sampling_method,
+                  const bool tablesample) override;
 
   /** Get the next record for sampling.
   @param[in]  scan_ctx  Scan context of the sampling
@@ -641,6 +642,10 @@ class ha_innobase : public handler {
   */
   void mv_key_capacity(uint *num_keys, size_t *keys_length) const override;
 
+  /** Can reuse the template. Mainly used for partition.
+  @retval       true Can reuse the mysql_template */
+  virtual bool can_reuse_mysql_template() const { return false; }
+
   /** The multi range read session object */
   DsMrr_impl m_ds_mrr;
 
@@ -728,19 +733,18 @@ bool innobase_match_index_columns(const KEY *key_info,
  matches, this function pushes an warning message to the client,
  and returns true.
  @return true if the index name matches the reserved name */
-bool innobase_index_name_is_reserved(
+[[nodiscard]] bool innobase_index_name_is_reserved(
     THD *thd,            /*!< in/out: MySQL connection */
     const KEY *key_info, /*!< in: Indexes to be
                          created */
-    ulint num_of_keys)   /*!< in: Number of indexes to
+    ulint num_of_keys);  /*!< in: Number of indexes to
                          be created. */
-    MY_ATTRIBUTE((warn_unused_result));
 
 /** Check if the explicit tablespace targeted is file_per_table.
 @param[in]	create_info	Metadata for the table to create.
 @return true if the table is intended to use a file_per_table tablespace. */
-UNIV_INLINE
-bool tablespace_is_file_per_table(const HA_CREATE_INFO *create_info) {
+static inline bool tablespace_is_file_per_table(
+    const HA_CREATE_INFO *create_info) {
   return (create_info->tablespace != nullptr &&
           (0 ==
            strcmp(create_info->tablespace, dict_sys_t::s_file_per_table_name)));
@@ -750,8 +754,8 @@ bool tablespace_is_file_per_table(const HA_CREATE_INFO *create_info) {
 or system tablespace.
 @param[in]	create_info	Metadata for the table to create.
 @return true if the table will use a shared general or system tablespace. */
-UNIV_INLINE
-bool tablespace_is_shared_space(const HA_CREATE_INFO *create_info) {
+static inline bool tablespace_is_shared_space(
+    const HA_CREATE_INFO *create_info) {
   return (create_info->tablespace != nullptr &&
           create_info->tablespace[0] != '\0' &&
           (0 !=
@@ -761,8 +765,8 @@ bool tablespace_is_shared_space(const HA_CREATE_INFO *create_info) {
 /** Check if table will be explicitly put in a general tablespace.
 @param[in]	create_info	Metadata for the table to create.
 @return true if the table will use a general tablespace. */
-UNIV_INLINE
-bool tablespace_is_general_space(const HA_CREATE_INFO *create_info) {
+static inline bool tablespace_is_general_space(
+    const HA_CREATE_INFO *create_info) {
   return (
       create_info->tablespace != nullptr &&
       create_info->tablespace[0] != '\0' &&
@@ -775,8 +779,7 @@ bool tablespace_is_general_space(const HA_CREATE_INFO *create_info) {
 /** Check if tablespace is shared tablespace.
 @param[in]	tablespace_name	Name of the tablespace
 @return true if tablespace is a shared tablespace. */
-UNIV_INLINE
-bool is_shared_tablespace(const char *tablespace_name) {
+static inline bool is_shared_tablespace(const char *tablespace_name) {
   if (tablespace_name != nullptr && tablespace_name[0] != '\0' &&
       (strcmp(tablespace_name, dict_sys_t::s_file_per_table_name) != 0)) {
     return true;
@@ -789,13 +792,12 @@ bool is_shared_tablespace(const char *tablespace_name) {
 /** Validate AUTOEXTEND_SIZE attribute for a tablespace.
 @param[in]	ext_size	Value of autoextend_size attribute
 @return DB_SUCCESS if the value of AUTOEXTEND_SIZE is valid. */
-UNIV_INLINE
-int validate_autoextend_size_value(uint64_t ext_size) {
+static inline int validate_autoextend_size_value(uint64_t ext_size) {
   ut_ad(ext_size > 0);
 
-  page_no_t extent_size_pages =
-      fsp_get_extent_size_in_pages({static_cast<uint32_t>(srv_page_size),
-                                    static_cast<uint32_t>(srv_page_size), 0});
+  page_no_t extent_size_pages = fsp_get_extent_size_in_pages(
+      {static_cast<uint32_t>(srv_page_size),
+       static_cast<uint32_t>(srv_page_size), false});
 
   /* Validate following for the AUTOEXTEND_SIZE attribute
   1. The autoextend_size should be a multiple of size of 4 extents
@@ -1186,11 +1188,10 @@ class innobase_truncate {
 /**
 Initialize the table FTS stopword list
 @return true if success */
-ibool innobase_fts_load_stopword(
+[[nodiscard]] ibool innobase_fts_load_stopword(
     dict_table_t *table, /*!< in: Table has the FTS */
     trx_t *trx,          /*!< in: transaction */
-    THD *thd)            /*!< in: current thread */
-    MY_ATTRIBUTE((warn_unused_result));
+    THD *thd);           /*!< in: current thread */
 
 /** Some defines for innobase_fts_check_doc_id_index() return value */
 enum fts_doc_id_index_enum {
@@ -1203,23 +1204,21 @@ enum fts_doc_id_index_enum {
 Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column.
 @return the status of the FTS_DOC_ID index */
-fts_doc_id_index_enum innobase_fts_check_doc_id_index(
+[[nodiscard]] fts_doc_id_index_enum innobase_fts_check_doc_id_index(
     const dict_table_t *table,  /*!< in: table definition */
     const TABLE *altered_table, /*!< in: MySQL table
                                 that is being altered */
-    ulint *fts_doc_col_no)      /*!< out: The column number for
-                                Doc ID */
-    MY_ATTRIBUTE((warn_unused_result));
+    ulint *fts_doc_col_no);     /*!< out: The column number for
+                               Doc ID */
 
 /**
 Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column in MySQL create index definition.
 @return FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
 FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
-fts_doc_id_index_enum innobase_fts_check_doc_id_index_in_def(
-    ulint n_key,         /*!< in: Number of keys */
-    const KEY *key_info) /*!< in: Key definitions */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] fts_doc_id_index_enum innobase_fts_check_doc_id_index_in_def(
+    ulint n_key,          /*!< in: Number of keys */
+    const KEY *key_info); /*!< in: Key definitions */
 
 /**
 Copy table flags from MySQL's TABLE_SHARE into an InnoDB table object.
@@ -1246,9 +1245,6 @@ void innodb_base_col_setup_for_stored(const dict_table_t *table,
 
 /** whether this is a stored column */
 #define innobase_is_s_fld(field) ((field)->gcol_info && (field)->stored_in_db)
-
-/** whether this is a computed virtual column */
-#define innobase_is_v_fld(field) ((field)->gcol_info && !(field)->stored_in_db)
 
 /** Whether this is a computed multi-value virtual column.
 This condition check should be equal to the following one:

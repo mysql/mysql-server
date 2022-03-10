@@ -16,3 +16,8 @@ CREATE UNIQUE INDEX test_index
 -- error ER_DBACCESS_DENIED_ERROR
 DROP INDEX `THREAD_ID`
   ON performance_schema.events_errors_summary_by_thread_by_error;
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.events_errors_summary_by_thread_by_error;
+
+DROP TABLE test.create_select;

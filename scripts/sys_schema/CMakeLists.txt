@@ -201,7 +201,8 @@ ADD_CUSTOM_COMMAND(
   VERBATIM
 )
 
-ADD_CUSTOM_TARGET(all_sys_schema DEPENDS ALL_SYS_SCHEMA.sql)
+MY_ADD_CUSTOM_TARGET(all_sys_schema
+  DEPENDS ALL_SYS_SCHEMA.sql)
 
 
 ADD_CUSTOM_COMMAND(
@@ -216,18 +217,17 @@ ADD_CUSTOM_COMMAND(
   VERBATIM
 )
 
-ADD_CUSTOM_TARGET(sql_commands
+MY_ADD_CUSTOM_TARGET(sql_commands
   DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/sql_commands.h)
 
-ADD_CUSTOM_TARGET(
-  GenSysSchemaC
+MY_ADD_CUSTOM_TARGET(GenSysSchemaC
   ALL
   DEPENDS comp_sql sql_commands
   COMMENT "Generating Sys Schema C code"
 )
 
 IF(NOT WITHOUT_SERVER)
-  ADD_CUSTOM_TARGET(GenSysSchema
+  MY_ADD_CUSTOM_TARGET(GenSysSchema
     ALL
     DEPENDS sql_commands
   )

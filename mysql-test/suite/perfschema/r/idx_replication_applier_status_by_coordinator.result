@@ -2,8 +2,8 @@ include/master-slave.inc
 [connection master]
 include/stop_slave.inc
 RESET SLAVE ALL;
-SET @old_slave_parallel_workers= @@global.slave_parallel_workers;
-SET GLOBAL slave_parallel_workers = 4;
+SET @old_replica_parallel_workers= @@global.replica_parallel_workers;
+SET GLOBAL replica_parallel_workers = 4;
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 select CHANNEL_NAME, THREAD_ID
@@ -86,6 +86,6 @@ include/stop_slave.inc [FOR CHANNEL 'channel_1']
 RESET SLAVE ALL;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-SET GLOBAL slave_parallel_workers= @old_slave_parallel_workers;
+SET GLOBAL replica_parallel_workers= @old_replica_parallel_workers;
 include/start_slave.inc
 include/rpl_end.inc

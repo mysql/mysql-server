@@ -1,11 +1,5 @@
 -- source include/have_ndb.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
-DROP TABLE IF EXISTS t2;
-DROP TABLE IF EXISTS t3;
---enable_warnings
-
 #
 # Basic test of UPDATE in NDB 
 #
@@ -110,3 +104,36 @@ DROP TABLE IF EXISTS t1;
 
 --echo End of 5.1 tests
 
+# Bug#32495182 ERROR DURING EXECUTION OF BULK UPDATE WITH LIMITS LED TO
+# A DEBUG ASSERT FAILURE
+#
+
+CREATE TABLE t1 (
+  a INT PRIMARY KEY,
+  b INT,
+  UNIQUE (b)
+) ENGINE NDB;
+
+# Insert 64 rows
+INSERT INTO t1 VALUES (1,1);
+INSERT INTO t1 SELECT a+1, b+1 FROM t1;
+INSERT INTO t1 SELECT a+2, b+2 FROM t1;
+INSERT INTO t1 SELECT a+4, b+4 FROM t1;
+INSERT INTO t1 SELECT a+8, b+8 FROM t1;
+INSERT INTO t1 SELECT a+16, b+16 FROM t1;
+INSERT INTO t1 SELECT a+32, b+32 FROM t1;
+
+# Start a transaction and execute an update modifying the unique indexed
+# column such that it fails due to duplicate entries
+BEGIN;
+--replace_regex /Duplicate entry \'[0-9]+\'/Duplicate entry \'<duplicate entry>\'/
+--error ER_DUP_ENTRY
+UPDATE t1 SET b=b+10;
+
+# Repeat the above but this time with LIMIT
+BEGIN;
+--replace_regex /Duplicate entry \'[0-9]+\'/Duplicate entry \'<duplicate entry>\'/
+--error ER_DUP_ENTRY
+UPDATE t1 SET b=b+10 LIMIT 20;
+
+DROP TABLE t1;

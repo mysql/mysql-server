@@ -2166,7 +2166,7 @@ NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
       }
       Uint32 zero = 0;
       Vector<Uint32> values;
-      values.fill(hm.getMapLen() - 1, zero);
+      values.fill(hm.getMapLen(), zero);
       hm.getMapValues(values.getBase(), values.size());
       for (Uint32 i = 0; i<hm.getMapLen(); i++)
       {

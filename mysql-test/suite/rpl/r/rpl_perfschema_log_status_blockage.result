@@ -3,6 +3,9 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
+[connection slave]
+SET @@GLOBAL.replica_checkpoint_period= 1;
+[connection master]
 CREATE TABLE ils_copy (
 uuid VARCHAR(36) PRIMARY KEY,
 master JSON NOT NULL,
@@ -74,6 +77,7 @@ include/assert.inc [Collected InnoDB LSN is in correct boundaries]
 include/assert.inc [Collected InnoDB LSN_checkpoint is in correct boundaries]
 [connection slave]
 # Removing debug point 'pause_collecting_instance_logs_info' from @@GLOBAL.debug
+SET @@GLOBAL.replica_checkpoint_period= REPLICA_CHECKPOINT_PERIOD;
 RESET SLAVE ALL FOR CHANNEL 'ch2';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

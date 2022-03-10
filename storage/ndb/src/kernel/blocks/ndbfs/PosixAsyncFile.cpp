@@ -23,6 +23,7 @@
 */
 
 #include <ndb_global.h>
+#include <cstring>
 #include "my_sys.h"
 #include "my_thread.h"
 
@@ -48,7 +49,6 @@
 
 #define JAM_FILE_ID 384
 
-extern EventLogger* g_eventLogger;
 
 
 PosixAsyncFile::PosixAsyncFile(Ndbfs& fs) :

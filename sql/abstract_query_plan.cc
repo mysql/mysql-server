@@ -32,8 +32,10 @@
 #include "my_inttypes.h"
 #include "sql/handler.h"
 #include "sql/item.h"
+#include "sql/join_optimizer/access_path.h"
 #include "sql/key.h"
-#include "sql/opt_range.h"  // QUICK_SELECT_I
+#include "sql/range_optimizer/path_helpers.h"
+#include "sql/range_optimizer/range_optimizer.h"
 #include "sql/sql_const.h"
 #include "sql/sql_executor.h"  // QEP_TAB
 #include "sql/sql_opt_exec_shared.h"
@@ -52,7 +54,7 @@ Join_plan::Join_plan(const JOIN *join)
     be written to handle it.
   */
   assert(!m_qep_tabs[0].dynamic_range() || (m_qep_tabs[0].type() == JT_ALL) ||
-         (m_qep_tabs[0].quick() == nullptr));
+         (m_qep_tabs[0].range_scan() == nullptr));
 
   // Discard trailing allocated, but unused, tables.
   while (m_qep_tabs[m_access_count - 1].position() == nullptr) {
@@ -162,10 +164,10 @@ void Table_access::dbug_print() const {
 
   DBUG_PRINT("info", ("dynamic_range:%d", (int)get_qep_tab()->dynamic_range()));
   DBUG_PRINT("info", ("index:%d", get_qep_tab()->index()));
-  DBUG_PRINT("info", ("quick:%p", get_qep_tab()->quick()));
-  if (get_qep_tab()->quick()) {
+  DBUG_PRINT("info", ("range_scan:%p", get_qep_tab()->range_scan()));
+  if (get_qep_tab()->range_scan()) {
     DBUG_PRINT("info",
-               ("quick->get_type():%d", get_qep_tab()->quick()->get_type()));
+               ("range_scan->type():%d", get_qep_tab()->range_scan()->type));
   }
 }
 
@@ -253,8 +255,8 @@ void Table_access::compute_type_and_index() const {
         m_access_type = AT_UNDECIDED;
         m_index_no = -1;
       } else {
-        if (qep_tab->quick() != nullptr) {
-          QUICK_SELECT_I *quick = qep_tab->quick();
+        if (qep_tab->range_scan() != nullptr) {
+          AccessPath *path = qep_tab->range_scan();
 
           /** QUICK_SELECT results in execution of MRR (Multi Range Read).
            *  Depending on each range, it may require execution of
@@ -266,19 +268,11 @@ void Table_access::compute_type_and_index() const {
            **/
 
           const KEY *key_info = qep_tab->table()->s->key_info;
-          DBUG_EXECUTE("info", quick->dbug_dump(0, true););
-
-          // Temporary assert as we are still investigation the relation between
-          // 'quick->index == MAX_KEY' and the different quick_types
-          assert(
-              (quick->index == MAX_KEY) ==
-              ((quick->get_type() == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE) ||
-               (quick->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
-               (quick->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_UNION)));
+          DBUG_EXECUTE("info", dbug_dump(0, true, path););
 
           // JT_INDEX_MERGE: We have a set of qualifying PKs as root of pushed
           // joins
-          if (quick->index == MAX_KEY) {
+          if (used_index(path) == MAX_KEY) {
             m_index_no = qep_tab->table()->s->primary_key;
             m_access_type =
                 AT_MULTI_PRIMARY_KEY;  // Multiple PKs are produced by merge
@@ -286,14 +280,14 @@ void Table_access::compute_type_and_index() const {
 
           // Else JT_RANGE: May be both exact PK and/or index scans when sorted
           // index available
-          else if (quick->index == qep_tab->table()->s->primary_key) {
-            m_index_no = quick->index;
+          else if (used_index(path) == qep_tab->table()->s->primary_key) {
+            m_index_no = used_index(path);
             if (key_info[m_index_no].algorithm == HA_KEY_ALG_HASH)
               m_access_type = AT_MULTI_PRIMARY_KEY;  // MRR w/ multiple PK's
             else
               m_access_type = AT_MULTI_MIXED;  // MRR w/ both range and PKs
           } else {
-            m_index_no = quick->index;
+            m_index_no = used_index(path);
             if (key_info[m_index_no].algorithm == HA_KEY_ALG_HASH)
               m_access_type =
                   AT_MULTI_UNIQUE_KEY;  // MRR with multiple unique keys
@@ -405,13 +399,6 @@ int Table_access::get_last_sj_inner() const {
 bool Table_access::is_sj_firstmatch() const {
   const QEP_TAB *qep_tab = get_qep_tab();
   return (qep_tab->get_sj_strategy() == SJ_OPT_FIRST_MATCH);
-}
-int Table_access::get_firstmatch_return() const {
-  const int last_sj_inner = get_last_sj_inner();
-  if (last_sj_inner < 0) return -1;
-
-  const QEP_TAB *last_sj_inner_tab = m_join_plan->get_qep_tab(last_sj_inner);
-  return last_sj_inner_tab->firstmatch_return;
 }
 
 bool Table_access::is_antijoin() const {

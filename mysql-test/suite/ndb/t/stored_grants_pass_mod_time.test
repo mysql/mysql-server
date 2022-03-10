@@ -1,0 +1,28 @@
+# Bug#33172887 password_last_changed is geting updated on sql node restart
+#              for user with NDB_STORED_USER privilege
+
+--source include/have_ndb.inc
+--disable_result_log
+--disable_query_log
+
+# Create a stored user
+CREATE USER t331@localhost;
+GRANT NDB_STORED_USER ON *.* to "t331"@"localhost";
+
+# Check the password mod time
+let $mt1=`SELECT password_last_changed from mysql.user WHERE User = "t331"`;
+
+# Restart the server
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.1.expect
+--enable_reconnect
+--shutdown_server
+--source include/wait_until_connected_again.inc
+
+# Check the password mod time again
+let $mt2=`SELECT password_last_changed from mysql.user WHERE User = "t331"`;
+
+# It should not have changed since the first time
+assert ($mt1 == $mt2);
+
+## Cleanup
+DROP USER t331@localhost;

@@ -31,7 +31,7 @@ if ($_rrli_expected != "N")
 if ($is_slave_sql_running == 'Yes' )
 {
   --let $slave_param= Slave_SQL_Running_State
-  --let $slave_param_value= Slave has read all relay log; waiting for more updates
+  --let $slave_param_value= Replica has read all relay log; waiting for more updates
   --source include/wait_for_slave_param.inc
 }
 

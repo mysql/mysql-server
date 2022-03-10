@@ -51,7 +51,7 @@ class Number_option
 };
 
 template <typename T_value>
-Number_option<T_value>::Number_option() {}
+Number_option<T_value>::Number_option() = default;
 
 /**
   32-bit signed number option.

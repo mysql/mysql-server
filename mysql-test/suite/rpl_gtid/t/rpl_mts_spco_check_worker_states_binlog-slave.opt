@@ -1,4 +1,2 @@
---slave-parallel-workers=5
---slave-parallel-type=LOGICAL_CLOCK
---slave-preserve-commit-order=ON
---slave-transaction-retries=10
+--replica-parallel-workers=5
+--replica-transaction-retries=10

@@ -61,7 +61,7 @@ class PFS_index_file_summary_by_event_name : public PFS_engine_index {
   PFS_index_file_summary_by_event_name()
       : PFS_engine_index(&m_key), m_key("EVENT_NAME") {}
 
-  ~PFS_index_file_summary_by_event_name() override {}
+  ~PFS_index_file_summary_by_event_name() override = default;
 
   bool match(const PFS_file_class *pfs);
 
@@ -93,7 +93,7 @@ class table_file_summary_by_event_name : public PFS_engine_table {
   table_file_summary_by_event_name();
 
  public:
-  ~table_file_summary_by_event_name() override {}
+  ~table_file_summary_by_event_name() override = default;
 
  private:
   int make_row(PFS_file_class *klass);

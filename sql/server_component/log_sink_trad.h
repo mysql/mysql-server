@@ -39,6 +39,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 log_service_error log_sink_trad_parse_log_line(const char *line_start,
                                                size_t line_length);
 
-int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll);
+int log_sink_trad(void *instance [[maybe_unused]], log_line *ll);
 
 #endif /* LOG_SINK_BUFFER_H */

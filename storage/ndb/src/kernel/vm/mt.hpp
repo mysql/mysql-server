@@ -142,6 +142,9 @@ SendStatus mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
                           const Uint32 *data, NodeId nodeId,
                           class SectionSegmentPool *thePool,
                           const SegmentedSectionPtr ptr[3]);
+SendStatus mt_send_remote_over_all_links(Uint32 self, const SignalHeader *sh,
+                                         Uint8 prio, const Uint32 *data,
+                                         NodeId nodeId);
 
 #ifdef ERROR_INSERT
 void mt_set_delayed_prepare(Uint32 self);

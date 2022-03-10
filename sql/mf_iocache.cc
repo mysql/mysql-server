@@ -58,7 +58,7 @@
 */
 
 int _my_b_net_read(IO_CACHE *info, uchar *Buffer,
-                   size_t Count MY_ATTRIBUTE((unused))) {
+                   size_t Count [[maybe_unused]]) {
   ulong read_length;
   NET *net = current_thd->get_protocol_classic()->get_net();
   DBUG_TRACE;

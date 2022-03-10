@@ -30,8 +30,10 @@
 #include "m_ctype.h"
 #include "my_command.h"
 #include "my_sqlcommand.h"
-#include "mysql_com.h"    // enum_server_command
-#include "sql/handler.h"  // enum_schema_tables
+#include "mysql_com.h"             // enum_server_command
+#include "sql/handler.h"           // enum_schema_tables
+#include "sql/system_variables.h"  // System_variables
+#include "storage/perfschema/terminology_use_previous_enum.h"
 
 struct mysql_rwlock_t;
 template <typename T>
@@ -125,7 +127,133 @@ bool show_precheck(THD *thd, LEX *lex, bool lock);
 /* Variables */
 
 extern uint sql_command_flags[];
-extern const LEX_CSTRING command_name[];
+
+/**
+  Map from enumeration values of type enum_server_command to
+  descriptions of type std::string.
+
+  In this context, a "command" is a type code for a remote procedure
+  call in the client-server protocol; for instance, a "connect" or a
+  "ping" or a "query".
+
+  The getter functions use @@terminology_use_previous to
+  decide which version of the name to use, for names that depend on
+  it.
+*/
+class Command_names {
+ private:
+  /**
+    Array indexed by enum_server_command, where each element is a
+    description string.
+  */
+  static const std::string m_names[];
+  /**
+    Command whose name depends on @@terminology_use_previous.
+
+    Currently, there is only one such command, so we use a single
+    member variable.  In case we ever change any other command name
+    and control the use of the old or new name using
+    @@terminology_use_previous, we need to change the
+    following three members into some collection type, e.g.,
+    std::unordered_set.
+  */
+  static constexpr enum_server_command m_replace_com{COM_REGISTER_SLAVE};
+  /**
+    Name to use when compatibility is enabled.
+  */
+  static const std::string m_replace_str;
+  /**
+    The version when the name was changed.
+  */
+  static constexpr terminology_use_previous::enum_compatibility_version
+      m_replace_version{terminology_use_previous::BEFORE_8_0_26};
+  /**
+    Given a system_variable object, returns the string to use for
+    m_replace_com, according to the setting of
+    terminology_use_previous stored in the object.
+
+    @param sysvars The System_variables object holding the
+    configuration that should be considered when doing the translation.
+
+    @return The instrumentation name that was in use in the configured
+    version, for m_replace_com.
+  */
+  static const std::string &translate(const System_variables &sysvars);
+  /**
+    Cast an integer to enum_server_command, and assert it is in range.
+
+    @param cmd The integer value
+    @return The enum_server_command
+  */
+  static enum_server_command int_to_cmd(int cmd) {
+    assert(cmd >= 0);
+    assert(cmd <= COM_END);
+    return static_cast<enum_server_command>(cmd);
+  }
+
+ public:
+  /**
+    Return a description string for a given enum_server_command.
+
+    This bypasses @@terminology_use_previous and acts as if
+    it was set to NONE.
+
+    @param cmd The enum_server_command
+    @retval The description string
+  */
+  static const std::string &str_notranslate(enum_server_command cmd) {
+    return m_names[cmd];
+  }
+  /**
+    Return a description string for an integer that is the numeric
+    value of an enum_server_command.
+
+    This bypasses @@terminology_use_previous and acts as if
+    it was set to NONE.
+
+    @param cmd The integer value
+    @retval The description string
+  */
+  static const std::string &str_notranslate(int cmd) {
+    return str_notranslate(int_to_cmd(cmd));
+  }
+  /**
+    Return a description string for a given enum_server_command.
+
+    This takes @@session.terminology_use_previous into
+    account, and returns an old name if one has been defined and the
+    option is enabled.
+
+    @param cmd The enum_server_command
+    @retval The description string
+  */
+  static const std::string &str_session(enum_server_command cmd);
+  /**
+    Return a description string for a given enum_server_command.
+
+    This takes @@global.terminology_use_previous into
+    account, and returns an old name if one has been defined and the
+    option is enabled.
+
+    @param cmd The enum_server_command
+    @retval The description string
+  */
+  static const std::string &str_global(enum_server_command cmd);
+  /**
+    Return a description string for an integer that is the numeric
+    value of an enum_server_command.
+
+    This takes @@session.terminology_use_previous into
+    account, and returns an old name if one has been defined and the
+    option is enabled.
+
+    @param cmd The integer value
+    @retval The description string
+  */
+  static const std::string &str_session(int cmd) {
+    return str_session(int_to_cmd(cmd));
+  }
+};
 
 bool sqlcom_can_generate_row_events(enum enum_sql_command command);
 

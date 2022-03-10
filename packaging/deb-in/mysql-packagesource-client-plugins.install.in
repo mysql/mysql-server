@@ -22,6 +22,10 @@
 
 # plugins
 usr/lib/mysql/plugin/authentication_ldap_sasl_client.so
+usr/lib/mysql/plugin/authentication_fido_client.so
+usr/lib/mysql/plugin/authentication_kerberos_client.so
+usr/lib/mysql/plugin/authentication_oci_client.so
+usr/lib/mysql/private/libfido2.*
 # legal
 usr/share/mysql-@MYSQL_BASE_VERSION@/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-client-plugins/
 usr/share/mysql-@MYSQL_BASE_VERSION@/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-client-plugins/

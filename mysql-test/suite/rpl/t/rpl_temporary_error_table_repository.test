@@ -15,7 +15,6 @@
 
 # This test case is binary log format agnostic though.
 --source include/have_binlog_format_row.inc
---source include/not_mts_slave_parallel_workers.inc
 --source include/not_group_replication_plugin.inc
 
 --source include/master-slave.inc
@@ -25,7 +24,9 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT) ENGINE= InnoDB;
 
 --sync_slave_with_master
 --source include/stop_slave.inc
-SET @saved_slave_transaction_retries = @@GLOBAL.slave_transaction_retries;
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression(".*worker thread retried transaction.*time.*in vain, giving up.*");
+SET @saved_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
 SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
 SET @saved_master_info_repository = @@GLOBAL.master_info_repository;
 SET @saved_relay_log_info_repository = @@GLOBAL.relay_log_info_repository;
@@ -52,7 +53,7 @@ INSERT INTO t1 VALUES (7,7);
 while ($retry_number < 2)
 {
   --source include/rpl_connection_slave.inc
-  --eval SET @@GLOBAL.slave_transaction_retries = $retry_number
+  --eval SET @@GLOBAL.replica_transaction_retries = $retry_number
   --source include/start_slave.inc
 
   --echo ### Specified retry number is expected ###
@@ -80,7 +81,7 @@ ROLLBACK;
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
 --disable_warnings
-SET @@GLOBAL.slave_transaction_retries = @saved_slave_transaction_retries;
+SET @@GLOBAL.replica_transaction_retries = @saved_replica_transaction_retries;
 SET @@GLOBAL.master_info_repository = @saved_master_info_repository;
 SET @@GLOBAL.relay_log_info_repository = @saved_relay_log_info_repository;
 SET @@GLOBAL.innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout ;

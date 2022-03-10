@@ -240,7 +240,7 @@ call test.doit(200);
 --echo -- Restart slave on Primary Cluster
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 # TODO : Reenable with new slave counts
-#--source suite/ndb_rpl/include/ndb_init_slave_counts.inc
+#--source suite/ndb_rpl/include/ndb_init_replica_counts.inc
 start slave;
 
 --source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc

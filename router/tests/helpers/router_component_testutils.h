@@ -28,18 +28,21 @@
 #include <chrono>
 #include <string>
 #include <vector>
-#include "mysql_session.h"
+
+#include "mysqlrouter/cluster_metadata.h"
+#include "mysqlrouter/mysql_session.h"
 
 std::string create_state_file_content(
-    const std::string &replication_goup_id,
+    const std::string &cluster_type_specific_id,
+    const std::string &clusterset_id,
     const std::vector<uint16_t> &metadata_servers_ports,
-    const unsigned view_id = 0);
+    const uint64_t view_id = 0);
 
 void check_state_file(
-    const std::string &state_file,
-    const std::string &expected_group_replication_id,
+    const std::string &state_file, const mysqlrouter::ClusterType cluster_type,
+    const std::string &expected_cluster_type_specific_id,
     const std::vector<uint16_t> expected_cluster_nodes,
-    const unsigned expected_view_id = 0,
+    const uint64_t expected_view_id = 0,
     const std::string node_address = "127.0.0.1",
     std::chrono::milliseconds max_wait_time = std::chrono::milliseconds(5000));
 
@@ -47,6 +50,8 @@ int get_int_field_value(const std::string &json_string,
                         const std::string &field_name);
 
 int get_transaction_count(const std::string &json_string);
+
+int get_transaction_count(const uint16_t http_port);
 
 bool wait_for_transaction_count(
     const uint16_t http_port, const int expected_queries_count,
@@ -59,5 +64,9 @@ bool wait_for_transaction_count_increase(
 bool wait_connection_dropped(
     mysqlrouter::MySQLSession &session,
     std::chrono::milliseconds timeout = std::chrono::seconds(5));
+
+size_t count_str_occurences(const std::string &s, const std::string &needle);
+
+void make_bad_connection(uint16_t port);
 
 #endif  // _ROUTER_COMPONENT_TESTUTILS_H_

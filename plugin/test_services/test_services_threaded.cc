@@ -90,7 +90,7 @@ static int test_log_plugin_error() {
 }
 
 /* This fucntion is needed to be called in a thread. */
-static void *test_services(void *p MY_ATTRIBUTE((unused))) {
+static void *test_services(void *p [[maybe_unused]]) {
   DBUG_TRACE;
 
   int ret = 0;

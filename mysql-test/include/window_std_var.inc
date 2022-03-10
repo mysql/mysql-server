@@ -74,6 +74,7 @@ SELECT k, STD(k) OVER (ROWS UNBOUNDED PRECEDING) std,
       VARIANCE(k) OVER (ROWS UNBOUNDED PRECEDING) variance FROM t; # simple
 --sorted_result
 SELECT k, STD(i), SUM(j), STD(k) OVER (ROWS UNBOUNDED PRECEDING) std_wf FROM t GROUP BY (k);
+--sorted_result
 SELECT k, STD(i), SUM(j), VAR_POP(k) OVER (ROWS UNBOUNDED PRECEDING) variance_wf FROM t GROUP BY (k);
 --sorted_result
 SELECT k, STD(i), SUM(j), STD(k) OVER (ROWS UNBOUNDED PRECEDING) std_wf FROM t GROUP BY (k) ORDER BY std_wf DESC;
@@ -84,13 +85,19 @@ SELECT k, STD(i), SUM(j), VARIANCE(k) OVER (ROWS UNBOUNDED PRECEDING) variance_w
 SELECT k, STD(i), SUM(j), VAR_POP(k) OVER (ROWS UNBOUNDED PRECEDING) variance_wf FROM t GROUP BY (k) ORDER BY variance_wf DESC;
 SELECT k, STD(i), SUM(j), VAR_SAMP(k) OVER (ROWS UNBOUNDED PRECEDING) variance_wf FROM t GROUP BY (k) ORDER BY variance_wf DESC;
 
+--sorted_result
 SELECT k, GROUP_CONCAT(j ORDER BY j), STD(k) OVER (ROWS UNBOUNDED PRECEDING) std,
       VAR_SAMP(k) OVER (ROWS UNBOUNDED PRECEDING) variance FROM t GROUP BY (k); # combined with two tmp files GROUP BY
+--sorted_result
 SELECT k, AVG(DISTINCT j), STD(k) OVER (ROWS UNBOUNDED PRECEDING) std,
       VARIANCE(k) OVER (ROWS UNBOUNDED PRECEDING) variance FROM t GROUP BY (k);
+--sorted_result
 SELECT k, GROUP_CONCAT(j ORDER BY j), STD(k+1) OVER (ROWS UNBOUNDED PRECEDING) std FROM t GROUP BY (k); # expression argument to std
+--sorted_result
 SELECT k, GROUP_CONCAT(j ORDER BY j), VARIANCE(k+1) OVER (ROWS UNBOUNDED PRECEDING) variance FROM t GROUP BY (k); # expression argument to VARIANCE
+--sorted_result
 SELECT k, GROUP_CONCAT(j ORDER BY j), STD(k+1) OVER (ORDER BY k DESC ROWS UNBOUNDED PRECEDING) std FROM t GROUP BY (k);
+--sorted_result
 SELECT k, GROUP_CONCAT(j ORDER BY j), VAR_POP(k+1) OVER (ORDER BY k DESC ROWS UNBOUNDED PRECEDING) variance FROM t GROUP BY (k);
 
 CREATE TABLE t1 (id INTEGER, sex CHAR(1));
@@ -150,7 +157,7 @@ SELECT k, STD(i), SUM(j), STDDEV_SAMP(k) OVER (ROWS UNBOUNDED PRECEDING) std_wf 
 GROUP BY (k) WITH ROLLUP;
 SELECT k, STD(i), SUM(j), VAR_SAMP(k) OVER (ROWS UNBOUNDED PRECEDING) variance_wf FROM t
 GROUP BY (k) WITH ROLLUP;
-SELECT k, STD(i), SUM(j), STD(k) OVER (ROWS UNBOUNDED PRECEDING) std_wf FROM t
+SELECT k, STD(i), SUM(j), STD(k) OVER (ORDER BY k DESC ROWS UNBOUNDED PRECEDING) std_wf FROM t
 GROUP BY (k) WITH ROLLUP ORDER BY k DESC;
 SELECT k, STD(i), SUM(j), STDDEV(k) OVER (ROWS UNBOUNDED PRECEDING) std_wf FROM t
 GROUP BY k,j WITH ROLLUP;
@@ -484,8 +491,11 @@ INSERT INTO tj(j) VALUES ('3.14');
 INSERT INTO tj(j) VALUES ('[1,2,3]');
 INSERT INTO tj(j) VALUES (NULL);
 SELECT STD(j) OVER () AS JSON FROM tj;
+# Different line numbers in warnings in hypergraph optimizer.
+--disable_warnings
 SELECT j, JSON_TYPE(j), STD(j) OVER (ORDER BY j ROWS 3 PRECEDING) FROM tj;
 SELECT j, JSON_TYPE(j), VARIANCE(j) OVER (ORDER BY j ROWS 3 PRECEDING) FROM tj;
+--enable_warnings
 --error ER_WINDOW_RANGE_FRAME_ORDER_TYPE
 SELECT j, JSON_TYPE(j), JSON_TYPE(STD(j) OVER (ORDER BY j RANGE 3 PRECEDING)) FROM tj;
 INSERT INTO tj(j) VALUES ('3.14');
@@ -505,17 +515,26 @@ CREATE TABLE tj2 AS SELECT * FROM tj;
 UPDATE tj2 SET i=MOD(i,3);
 SELECT * FROM tj2;
 --echo With GROUP BY
+--sorted_result
 SELECT          COUNT(*) OVER (), MOD(STD(i),2) FROM tj2 GROUP BY i ;
+--sorted_result
 SELECT DISTINCT COUNT(*) OVER (), MOD(VARIANCE(i),2) FROM tj2 GROUP BY i ;
 SELECT DISTINCT COUNT(*) OVER (), MOD(STD(i),2) as a FROM tj2 GROUP BY i ORDER BY MOD(STD(i),2);
 SELECT DISTINCT COUNT(*) OVER (), MOD(STD(i),2) as a FROM tj2 GROUP BY i ORDER BY MOD(STD(i),2) DESC;
 
 --echo Bug fix GROUP BY with window function referring column used in grouping expression
+--sorted_result
 SELECT i, STD(i) OVER (), MOD(STD(i),2) FROM tj2 GROUP BY i ;
+--sorted_result
 SELECT i, VARIANCE(VARIANCE(i)) OVER (), VARIANCE(i) OVER (ORDER BY i), MOD(VARIANCE(i),2), VARIANCE(i) FROM tj2 GROUP BY i ;
+--sorted_result
 SELECT i, STD(i) OVER (ORDER BY i) FROM tj UNION ALL SELECT i, STD(i) OVER (ORDER BY i) FROM tj;
+# Different line numbers in warnings, and roundoff (due to different window ordering), in hypergraph optimizer.
+--disable_warnings
+--replace_numeric_round 14
 SELECT j,CAST(STD(j) OVER (PARTITION BY i) AS JSON), CAST(VARIANCE(j) OVER () AS JSON) FROM tj;
 SELECT j,CAST(STD(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON), CAST(VARIANCE(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON) FROM tj;
+--enable_warnings
 
 DROP TABLE tj,tj2;
 

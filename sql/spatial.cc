@@ -4324,7 +4324,10 @@ void Gis_wkb_vector<T>::reassemble() {
   // the space for ring count is already counted above.
   totlen += (nbytes ? nbytes : (is_inns ? 0 : sizeof(uint32)));
 
-  size_t len = 0, total_len = 0, last_i = 0, numgeoms = 0;
+  size_t len = 0;
+  size_t total_len [[maybe_unused]] = 0;
+  size_t last_i = 0;
+  size_t numgeoms = 0;
   // Allocate extra space as free space for the WKB buffer, and write it as
   // defined pattern.
   const size_t extra_wkb_free_space = 32;

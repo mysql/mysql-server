@@ -39,7 +39,7 @@ enum class enum_plugin_type { SOURCE_PLUGIN = 0, DESTINATION_PLUGIN };
 
 class Key_info {
  public:
-  Key_info() {}
+  Key_info() = default;
   Key_info(char *key_id, char *user_id) {
     m_key_id = key_id;
     m_user_id = user_id;

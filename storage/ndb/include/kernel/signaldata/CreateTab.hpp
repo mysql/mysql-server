@@ -32,8 +32,8 @@
 
 struct CreateTabReq
 {
-  STATIC_CONST( SignalLength = 6 );
-  STATIC_CONST( SignalLengthLDM = 6 + 11 );
+  static constexpr Uint32 SignalLength = 6;
+  static constexpr Uint32 SignalLengthLDM = 6 + 11;
 
   enum RequestType {
   };
@@ -65,7 +65,7 @@ struct CreateTabReq
 };
 
 struct CreateTabConf {
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -78,7 +78,7 @@ struct CreateTabConf {
 };
 
 struct CreateTabRef {
-  STATIC_CONST( SignalLength = 6 );
+  static constexpr Uint32 SignalLength = 6;
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -105,14 +105,14 @@ struct TcSchVerReq
   Uint32 userDefinedPartition;
   Uint32 readBackup;
   Uint32 fullyReplicated;
-  STATIC_CONST( SignalLength = 11 );
+  static constexpr Uint32 SignalLength = 11;
 };
 
 struct TcSchVerConf
 {
   Uint32 senderRef;
   Uint32 senderData;
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 };
 
 

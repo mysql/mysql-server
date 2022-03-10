@@ -427,5 +427,7 @@ DROP SCHEMA testdb;
 --echo # Should show a deprecation warning in all cases.
 SELECT * FROM INFORMATION_SCHEMA.TABLESPACES;
 SELECT * FROM INFORMATION_SCHEMA.tablespaces;
+--skip_if_hypergraph  # The warning is repeated a different amount of times.
 SELECT * FROM INFORMATION_SCHEMA.TABLES JOIN INFORMATION_SCHEMA.TABLESPACES;
+--skip_if_hypergraph  # The warning is repeated a different amount of times.
 SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME IN (SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLESPACES);

@@ -22,16 +22,16 @@ INSERT INTO t1 VALUES (1, 1, '[1,2,3,4]'), (2, 2, '[5,6,7,8]');
 UPDATE t1 SET j = '[2,9,10]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 include/sync_slave_sql_with_master.inc
 [Connection Slave]
-SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
-Slave_rows_last_search_algorithm_used	TABLE_SCAN
+Replica_rows_last_search_algorithm_used	TABLE_SCAN
 [connection master]
 DELETE FROM t1 WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 include/sync_slave_sql_with_master.inc
 [Connection Slave]
-SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
-Slave_rows_last_search_algorithm_used	TABLE_SCAN
+Replica_rows_last_search_algorithm_used	TABLE_SCAN
 [connection master]
 DROP TABLE t1;
 # Test nullable MV index
@@ -42,16 +42,16 @@ INSERT INTO t1 VALUES (3, 3, NULL);
 UPDATE t1 SET j = '[2,9,10]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 include/sync_slave_sql_with_master.inc
 [Connection Slave]
-SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
-Slave_rows_last_search_algorithm_used	TABLE_SCAN
+Replica_rows_last_search_algorithm_used	TABLE_SCAN
 [connection master]
 DELETE FROM t1 WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 include/sync_slave_sql_with_master.inc
 [Connection Slave]
-SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
-Slave_rows_last_search_algorithm_used	TABLE_SCAN
+Replica_rows_last_search_algorithm_used	TABLE_SCAN
 [connection master]
 DROP TABLE t1;
 # Test non-unique MV index
@@ -62,16 +62,16 @@ INSERT INTO t1 VALUES (1, 1, '[1,2,3,4]'), (2, 2, '[5,6,7,8]');
 UPDATE t1 SET j = '[2,9,10]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 include/sync_slave_sql_with_master.inc
 [Connection Slave]
-SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
-Slave_rows_last_search_algorithm_used	TABLE_SCAN
+Replica_rows_last_search_algorithm_used	TABLE_SCAN
 [connection master]
 DELETE FROM t1 WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 include/sync_slave_sql_with_master.inc
 [Connection Slave]
-SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
-Slave_rows_last_search_algorithm_used	TABLE_SCAN
+Replica_rows_last_search_algorithm_used	TABLE_SCAN
 [connection master]
 DROP TABLE t1;
 # Test composite MV index
@@ -82,16 +82,16 @@ INSERT INTO t1 VALUES (1, 1, '[1,2,3,4]'), (2, 2, '[5,6,7,8]');
 UPDATE t1 SET j = '[2,9,10]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 include/sync_slave_sql_with_master.inc
 [Connection Slave]
-SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
-Slave_rows_last_search_algorithm_used	TABLE_SCAN
+Replica_rows_last_search_algorithm_used	TABLE_SCAN
 [connection master]
 DELETE FROM t1 WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 include/sync_slave_sql_with_master.inc
 [Connection Slave]
-SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
-Slave_rows_last_search_algorithm_used	TABLE_SCAN
+Replica_rows_last_search_algorithm_used	TABLE_SCAN
 [connection master]
 DROP TABLE t1;
 SET @@global.slave_rows_search_algorithms= "INTITAL_ROW_SEARCH_CONF";

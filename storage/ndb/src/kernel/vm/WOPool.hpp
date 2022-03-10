@@ -32,7 +32,7 @@
 
 struct WOPage
 {
-  STATIC_CONST( WOPAGE_WORDS = GLOBAL_PAGE_SIZE_WORDS - 2 );
+  static constexpr Uint32 WOPAGE_WORDS = GLOBAL_PAGE_SIZE_WORDS - 2;
 
   Uint32 m_type_id;
   Uint32 m_ref_count;

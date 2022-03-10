@@ -33,6 +33,7 @@
 #include <memory>
 #include <new>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "decimal.h"
@@ -661,8 +662,8 @@ class sp_rcontext;
 
 class Settable_routine_parameter {
  public:
-  Settable_routine_parameter() {}
-  virtual ~Settable_routine_parameter() {}
+  Settable_routine_parameter() = default;
+  virtual ~Settable_routine_parameter() = default;
   /**
     Set required privileges for accessing the parameter.
 
@@ -672,7 +673,7 @@ class Settable_routine_parameter {
                       MODE_OUT   - UPDATE_ACL
                       MODE_INOUT - SELECT_ACL | UPDATE_ACL
   */
-  virtual void set_required_privilege(ulong privilege MY_ATTRIBUTE((unused))) {}
+  virtual void set_required_privilege(ulong privilege [[maybe_unused]]) {}
 
   /*
     Set parameter value.
@@ -690,7 +691,7 @@ class Settable_routine_parameter {
   */
   virtual bool set_value(THD *thd, sp_rcontext *ctx, Item **it) = 0;
 
-  virtual void set_out_param_info(Send_field *info MY_ATTRIBUTE((unused))) {}
+  virtual void set_out_param_info(Send_field *info [[maybe_unused]]) {}
 
   virtual const Send_field *get_out_param_info() const { return nullptr; }
 };
@@ -773,6 +774,31 @@ class Item_tree_walker {
   const Item *stopped_at_item;
 };
 
+/**
+  Base class that is used to represent any kind of expression in a
+  relational query. The class provides subclasses for simple components, like
+  literal (constant) values, column references and variable references,
+  as well as more complex expressions like comparison predicates,
+  arithmetic and string functions, row objects, function references and
+  subqueries.
+
+  The lifetime of an Item class object is often the same as a relational
+  statement, which may be used for several executions, but in some cases
+  it may also be generated for an optimized statement and thus be valid
+  only for one execution.
+
+  For Item objects with longer lifespan than one execution, we must take
+  special precautions when referencing objects with shorter lifespan.
+  For example, TABLE and Field objects against most tables are valid only for
+  one execution. For such objects, Item classes should rather reference
+  TABLE_LIST and Item_field objects instead of TABLE and Field, because
+  these classes support dynamic rebinding of objects before each execution.
+  See Item::bind_fields() which binds new objects per execution and
+  Item::cleanup() that deletes references to such objects.
+
+  These mechanisms can also be used to handle other objects with shorter
+  lifespan, such as function references and variable references.
+*/
 class Item : public Parse_tree_node {
   typedef Parse_tree_node super;
 
@@ -797,13 +823,13 @@ class Item : public Parse_tree_node {
     return (*THR_MALLOC)->Alloc(size);
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
-                                std::nothrow) noexcept {
+                            const std::nothrow_t &arg
+                            [[maybe_unused]] = std::nothrow) noexcept {
     return mem_root->Alloc(size);
   }
 
-  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
-                              size_t size MY_ATTRIBUTE((unused))) {
+  static void operator delete(void *ptr [[maybe_unused]],
+                              size_t size [[maybe_unused]]) {
     TRASH(ptr, size);
   }
   static void operator delete(void *, MEM_ROOT *,
@@ -1023,11 +1049,11 @@ class Item : public Parse_tree_node {
   */
   explicit Item(const POS &);
 
-  ~Item() override {
 #ifdef EXTRA_DEBUG
-    item_name.set(0);
+  ~Item() override { item_name.set(0); }
+#else
+  ~Item() override = default;
 #endif
-  } /*lint -e1509 */
 
  private:
   /*
@@ -1109,9 +1135,10 @@ class Item : public Parse_tree_node {
     @param removed_query_block query_block that tables are moved away from,
                           child of parent_query_block.
   */
-  virtual void fix_after_pullout(
-      Query_block *parent_query_block MY_ATTRIBUTE((unused)),
-      Query_block *removed_query_block MY_ATTRIBUTE((unused))) {}
+  virtual void fix_after_pullout(Query_block *parent_query_block
+                                 [[maybe_unused]],
+                                 Query_block *removed_query_block
+                                 [[maybe_unused]]) {}
   /*
     should be used in case where we are sure that we do not need
     complete fix_fields() procedure.
@@ -1128,9 +1155,8 @@ class Item : public Parse_tree_node {
 
     @returns false if success, true if error
   */
-  virtual bool propagate_type(THD *thd MY_ATTRIBUTE((unused)),
-                              const Type_properties &type
-                                  MY_ATTRIBUTE((unused))) {
+  virtual bool propagate_type(THD *thd [[maybe_unused]],
+                              const Type_properties &type [[maybe_unused]]) {
     return false;
   }
 
@@ -1222,6 +1248,17 @@ class Item : public Parse_tree_node {
   */
   type_conversion_status save_in_field(Field *field, bool no_conversions);
 
+  /**
+    A slightly faster value of save_in_field() that returns no error value
+    (you will need to check thd->is_error() yourself), and does not support
+    saving into hidden fields for functional indexes. Used by copy_funcs(),
+    to avoid the functional call overhead and RAII setup of save_in_field().
+   */
+  void save_in_field_no_error_check(Field *field, bool no_conversions) {
+    assert(!field->is_field_for_functional_index());
+    save_in_field_inner(field, no_conversions);
+  }
+
   virtual void save_org_in_field(Field *field) { save_in_field(field, true); }
 
   virtual bool send(Protocol *protocol, String *str);
@@ -1294,7 +1331,7 @@ class Item : public Parse_tree_node {
   }
 
   inline void set_data_type_bool() {
-    set_data_type(MYSQL_TYPE_LONG);
+    set_data_type(MYSQL_TYPE_LONGLONG);
     collation.set_numeric();
     max_length = 1;
   }
@@ -1315,14 +1352,14 @@ class Item : public Parse_tree_node {
     The unsigned property must have been set before calling this function.
 
     @param precision Number of digits of precision
-    @param dec       Number of digits after decimal point.
+    @param scale     Number of digits after decimal point.
   */
-  inline void set_data_type_decimal(uint8 precision, uint8 dec) {
+  inline void set_data_type_decimal(uint8 precision, uint8 scale) {
     set_data_type(MYSQL_TYPE_NEWDECIMAL);
     collation.set_numeric();
-    decimals = dec;
+    decimals = scale;
     fix_char_length(my_decimal_precision_to_length_no_truncation(
-        precision, dec, unsigned_flag));
+        precision, scale, unsigned_flag));
   }
 
   /// Set the data type of the Item to be double precision floating point.
@@ -1595,8 +1632,8 @@ class Item : public Parse_tree_node {
         - If the value of the function is NULL then the bound is the
           smallest possible value of LLONG_MIN
   */
-  virtual longlong val_int_endpoint(bool left_endp MY_ATTRIBUTE((unused)),
-                                    bool *incl_endp MY_ATTRIBUTE((unused))) {
+  virtual longlong val_int_endpoint(bool left_endp [[maybe_unused]],
+                                    bool *incl_endp [[maybe_unused]]) {
     assert(0);
     return 0;
   }
@@ -1817,7 +1854,7 @@ class Item : public Parse_tree_node {
     @return false if successful, true on failure
   */
   /* purecov: begin deadcode */
-  virtual bool val_json(Json_wrapper *result MY_ATTRIBUTE((unused))) {
+  virtual bool val_json(Json_wrapper *result [[maybe_unused]]) {
     assert(false);
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "item type for JSON");
     return error_json();
@@ -1845,12 +1882,13 @@ class Item : public Parse_tree_node {
     @return                  the filtering effect (between 0 and 1) this
                              Item contributes with.
   */
-  virtual float get_filtering_effect(
-      THD *thd MY_ATTRIBUTE((unused)),
-      table_map filter_for_table MY_ATTRIBUTE((unused)),
-      table_map read_tables MY_ATTRIBUTE((unused)),
-      const MY_BITMAP *fields_to_ignore MY_ATTRIBUTE((unused)),
-      double rows_in_table MY_ATTRIBUTE((unused))) {
+  virtual float get_filtering_effect(THD *thd [[maybe_unused]],
+                                     table_map filter_for_table
+                                     [[maybe_unused]],
+                                     table_map read_tables [[maybe_unused]],
+                                     const MY_BITMAP *fields_to_ignore
+                                     [[maybe_unused]],
+                                     double rows_in_table [[maybe_unused]]) {
     // Filtering effect cannot be calculated for a table already read.
     assert((read_tables & filter_for_table) == 0);
     return COND_FILTER_ALLPASS;
@@ -2086,6 +2124,13 @@ class Item : public Parse_tree_node {
   */
   virtual bool basic_const_item() const { return false; }
   /**
+    @returns true when a const item may be evaluated during resolving.
+             Only const items that are basic const items are evaluated when
+             resolving CREATE VIEW statements. For other statements, all
+             const items may be evaluated during resolving.
+  */
+  bool may_eval_const_item(const THD *thd) const;
+  /**
     @return cloned item if it is constant
       @retval nullptr  if this is not const
   */
@@ -2199,6 +2244,10 @@ class Item : public Parse_tree_node {
     Updates used tables, not null tables information and accumulates
     properties up the item tree, cf. used_tables_cache, not_null_tables_cache
     and m_accum_properties.
+
+    TODO(sgunders): Consider just removing these caches; it causes a lot of bugs
+    (cache invalidation is known to be a complex problem), and the performance
+    benefits are dubious.
   */
   virtual void update_used_tables() {}
 
@@ -2215,7 +2264,7 @@ class Item : public Parse_tree_node {
     @retval  false on success
     @retval  true  on error
   */
-  virtual bool get_timeval(struct timeval *tm, int *warnings);
+  virtual bool get_timeval(my_timeval *tm, int *warnings);
   /**
     The method allows to determine nullness of a complex expression
     without fully evaluating it, instead of calling val*() then
@@ -2263,7 +2312,13 @@ class Item : public Parse_tree_node {
   virtual void no_rows_in_result() {}
   virtual Item *copy_or_same(THD *) { return this; }
   virtual Item *copy_andor_structure(THD *) { return this; }
+  /**
+    @returns the "real item" underlying the owner object. Used to strip away
+             Item_ref objects.
+    @note remember to implement both real_item() functions in sub classes!
+  */
   virtual Item *real_item() { return this; }
+  virtual const Item *real_item() const { return this; }
   /**
     If an Item is materialized in a temporary table, a different Item may have
     to be used in the part of the query that runs after the materialization.
@@ -2309,15 +2364,21 @@ class Item : public Parse_tree_node {
                        by agreement, an error may have been reported
   */
 
-  virtual bool walk(Item_processor processor,
-                    enum_walk walk MY_ATTRIBUTE((unused)), uchar *arg) {
+  virtual bool walk(Item_processor processor, enum_walk walk [[maybe_unused]],
+                    uchar *arg) {
     return (this->*processor)(arg);
   }
 
-  /** @see WalkItem */
+  /** @see WalkItem, CompileItem */
   template <class T>
-  bool walk_helper_thunk(uchar *arg) {
-    return (*reinterpret_cast<T *>(arg))(this);
+  auto walk_helper_thunk(uchar *arg) {
+    return (*reinterpret_cast<std::remove_reference_t<T> *>(arg))(this);
+  }
+
+  /** See CompileItem */
+  template <class T>
+  auto analyze_helper_thunk(uchar **arg) {
+    return (*reinterpret_cast<std::remove_reference_t<T> *>(*arg))(this);
   }
 
   /**
@@ -2477,7 +2538,7 @@ class Item : public Parse_tree_node {
      @param arg  A MY_BITMAP* cast to unsigned char*, where the bits represent
                  Field::field_index values.
    */
-  virtual bool remove_column_from_bitmap(uchar *arg MY_ATTRIBUTE((unused))) {
+  virtual bool remove_column_from_bitmap(uchar *arg [[maybe_unused]]) {
     return false;
   }
   virtual bool find_item_in_field_list_processor(uchar *) { return false; }
@@ -2495,9 +2556,7 @@ class Item : public Parse_tree_node {
 
     @param arg        Mark_field object
   */
-  virtual bool mark_field_in_map(uchar *arg MY_ATTRIBUTE((unused))) {
-    return false;
-  }
+  virtual bool mark_field_in_map(uchar *arg [[maybe_unused]]) { return false; }
 
   /// Traverse the item tree and replace fields that are outside of reach with
   /// fields that are within reach. This is used by hash join when it detects
@@ -2534,9 +2593,7 @@ class Item : public Parse_tree_node {
     @param arg   pointing to a bool which, if true, says to reset state
                  for framing window function, else for non-framing
   */
-  virtual bool reset_wf_state(uchar *arg MY_ATTRIBUTE((unused))) {
-    return false;
-  }
+  virtual bool reset_wf_state(uchar *arg [[maybe_unused]]) { return false; }
 
   /**
     Return used table information for the specified query block (level).
@@ -2552,7 +2609,7 @@ class Item : public Parse_tree_node {
     @note This function is used to update used tables information after
           merging a query block (a subquery) with its parent.
   */
-  virtual bool used_tables_for_level(uchar *arg MY_ATTRIBUTE((unused))) {
+  virtual bool used_tables_for_level(uchar *arg [[maybe_unused]]) {
     return false;
   }
   /**
@@ -2560,7 +2617,7 @@ class Item : public Parse_tree_node {
 
     @param thd   thread handle
   */
-  virtual bool check_column_privileges(uchar *thd MY_ATTRIBUTE((unused))) {
+  virtual bool check_column_privileges(uchar *thd [[maybe_unused]]) {
     return false;
   }
   virtual bool inform_item_in_cond_of_tab(uchar *) { return false; }
@@ -2571,22 +2628,35 @@ class Item : public Parse_tree_node {
   */
   virtual void bind_fields() {}
 
-  struct Cleanup_after_removal_context {
+  /**
+     Context object for (functions that override)
+     Item::clean_up_after_removal().
+   */
+  class Cleanup_after_removal_context final {
+   public:
+    Cleanup_after_removal_context(Query_block *root) : m_root(root) {
+      assert(root != nullptr);
+    }
+
+    Query_block *get_root() { return m_root; }
+
+   private:
     /**
       Pointer to Cleanup_after_removal_context containing from which
       select the walk started, i.e., the Query_block that contained the clause
       that was removed.
     */
-    Query_block *m_root;
-
-    Cleanup_after_removal_context(Query_block *root) : m_root(root) {}
+    Query_block *const m_root;
   };
   /**
      Clean up after removing the item from the item tree.
 
      param arg pointer to a Cleanup_after_removal_context object
   */
-  virtual bool clean_up_after_removal(uchar *) { return false; }
+  virtual bool clean_up_after_removal(uchar *arg [[maybe_unused]]) {
+    assert(arg != nullptr);
+    return false;
+  }
 
   /**
     Propagate components that use referenced columns from derived tables.
@@ -2653,7 +2723,7 @@ class Item : public Parse_tree_node {
     int8 m_location{0};
     Item *m_join_condition_context{nullptr};
     bool m_collect_unconditionally{false};
-    Collect_scalar_subquery_info() {}
+    Collect_scalar_subquery_info() = default;
     friend class Item_sum;
     friend class Item_singlerow_subselect;
   };
@@ -2673,7 +2743,7 @@ class Item : public Parse_tree_node {
   */
   virtual bool has_aggregate_ref_in_group_by(uchar *) { return false; }
 
-  virtual bool visit_all_analyzer(uchar **) { return true; }
+  bool visit_all_analyzer(uchar **) { return true; }
   virtual bool cache_const_expr_analyzer(uchar **cache_item);
   Item *cache_const_expr_transformer(uchar *item);
 
@@ -2768,8 +2838,8 @@ class Item : public Parse_tree_node {
 
     @returns false if the function is not DEFAULT(args), otherwise true.
   */
-  virtual bool check_gcol_depend_default_processor(
-      uchar *args MY_ATTRIBUTE((unused))) {
+  virtual bool check_gcol_depend_default_processor(uchar *args
+                                                   [[maybe_unused]]) {
     return false;
   }
   /**
@@ -2777,8 +2847,7 @@ class Item : public Parse_tree_node {
     derived table. Used in determining if a condition can be pushed
     down to derived table.
   */
-  virtual bool check_column_from_derived_table(
-      uchar *arg MY_ATTRIBUTE((unused))) {
+  virtual bool check_column_from_derived_table(uchar *arg [[maybe_unused]]) {
     // A generic item cannot be pushed down unless constant.
     return !const_item();
   }
@@ -2788,8 +2857,7 @@ class Item : public Parse_tree_node {
     in PARTITION clause of window functions of the derived table.
     Used in checking if a condition can be pushed down to derived table.
   */
-  virtual bool check_column_in_window_functions(
-      uchar *arg MY_ATTRIBUTE((unused))) {
+  virtual bool check_column_in_window_functions(uchar *arg [[maybe_unused]]) {
     return false;
   }
   /**
@@ -2797,7 +2865,7 @@ class Item : public Parse_tree_node {
     in GROUP BY clause of the derived table. Used in checking if
     a condition can be pushed down to derived table.
   */
-  virtual bool check_column_in_group_by(uchar *arg MY_ATTRIBUTE((unused))) {
+  virtual bool check_column_in_group_by(uchar *arg [[maybe_unused]]) {
     return false;
   }
   /**
@@ -2807,7 +2875,7 @@ class Item : public Parse_tree_node {
     in the derived table's definition. We replace with a clone, because the
     condition can be pushed further down in case of nested derived tables.
   */
-  virtual Item *replace_with_derived_expr(uchar *arg MY_ATTRIBUTE((unused))) {
+  virtual Item *replace_with_derived_expr(uchar *arg [[maybe_unused]]) {
     return this;
   }
   /**
@@ -2818,8 +2886,17 @@ class Item : public Parse_tree_node {
     clone is not used because HAVING condition will not be pushed further
     down in case of nested derived tables.
   */
-  virtual Item *replace_with_derived_expr_ref(
-      uchar *arg MY_ATTRIBUTE((unused))) {
+  virtual Item *replace_with_derived_expr_ref(uchar *arg [[maybe_unused]]) {
+    return this;
+  }
+  /**
+    Assuming this expression is part of a condition that would be pushed to a
+    materialized derived table, replace, in this expression, each view reference
+    with a clone of the expression in merged derived table's definition.
+    We replace with a clone, because the referenced item in a view reference
+    is shared by all the view references to that expression.
+  */
+  virtual Item *replace_view_refs_with_clone(uchar *arg [[maybe_unused]]) {
     return this;
   }
   /*
@@ -2853,8 +2930,8 @@ class Item : public Parse_tree_node {
     @param thd   Thread handle
     @param test  Truth test
   */
-  virtual Item *truth_transformer(THD *thd MY_ATTRIBUTE((unused)),
-                                  Bool_test test MY_ATTRIBUTE((unused))) {
+  virtual Item *truth_transformer(THD *thd [[maybe_unused]],
+                                  Bool_test test [[maybe_unused]]) {
     return nullptr;
   }
   virtual Item *update_value_transformer(uchar *) { return this; }
@@ -2868,15 +2945,10 @@ class Item : public Parse_tree_node {
         : m_trans_block(transformed_block), m_curr_block(current_block) {}
   };
   struct Item_field_replacement : Item_replacement {
-    Field *m_target;           ///< The field to be replaced
-    Item_field *m_item;        ///< The replacement field
-    bool m_keep_alias{false};  ///< Needed for SELECT list alias preservation
-    Item_field_replacement(Field *target, Item_field *item, Query_block *select,
-                           bool keep)
-        : Item_replacement(select, select),
-          m_target(target),
-          m_item(item),
-          m_keep_alias(keep) {}
+    Field *m_target;     ///< The field to be replaced
+    Item_field *m_item;  ///< The replacement field
+    Item_field_replacement(Field *target, Item_field *item, Query_block *select)
+        : Item_replacement(select, select), m_target(target), m_item(item) {}
   };
 
   struct Item_view_ref_replacement : Item_replacement {
@@ -3020,6 +3092,13 @@ class Item : public Parse_tree_node {
     return max_len;
   }
 
+  uint32 max_char_length(const CHARSET_INFO *cs) const {
+    if (cs == &my_charset_bin && result_type() == STRING_RESULT) {
+      return max_length;
+    }
+    return max_char_length();
+  }
+
   inline void fix_char_length(uint32 max_char_length_arg) {
     max_length = char_to_byte_length_safe(max_char_length_arg,
                                           collation.collation->mbmaxlen);
@@ -3156,7 +3235,7 @@ class Item : public Parse_tree_node {
 
     @param arg  Keep track of whether an Item_ref refers to an Item_field.
   */
-  virtual bool repoint_const_outer_ref(uchar *arg MY_ATTRIBUTE((unused))) {
+  virtual bool repoint_const_outer_ref(uchar *arg [[maybe_unused]]) {
     return false;
   }
   virtual bool strip_db_table_name_processor(uchar *) { return false; }
@@ -3348,8 +3427,8 @@ class Item : public Parse_tree_node {
     @return true if this expression can be used for partial update,
       false otherwise
   */
-  virtual bool supports_partial_update(
-      const Field_json *field MY_ATTRIBUTE((unused))) const {
+  virtual bool supports_partial_update(const Field_json *field
+                                       [[maybe_unused]]) const {
     return false;
   }
 
@@ -3392,6 +3471,21 @@ template <class T>
 inline bool WalkItem(Item *item, enum_walk walk, T &&functor) {
   return item->walk(&Item::walk_helper_thunk<T>, walk,
                     reinterpret_cast<uchar *>(&functor));
+}
+
+/**
+  Same as WalkItem, but for Item::compile(). Use as e.g.:
+
+  Item *item = CompileItem(root_item,
+     [](Item *item) { return true; },   // Analyzer.
+     [](Item *item) { return item; });  // Transformer.
+ */
+template <class T, class U>
+inline Item *CompileItem(Item *item, T &&analyzer, U &&transformer) {
+  uchar *analyzer_ptr = reinterpret_cast<uchar *>(&analyzer);
+  return item->compile(&Item::analyze_helper_thunk<T>, &analyzer_ptr,
+                       &Item::walk_helper_thunk<U>,
+                       reinterpret_cast<uchar *>(&transformer));
 }
 
 class sp_head;
@@ -3463,8 +3557,7 @@ class Item_sp_variable : public Item {
     // ZEROFILL attribute.
     return this_item()->send(protocol, str);
   }
-  bool check_column_from_derived_table(
-      uchar *arg MY_ATTRIBUTE((unused))) override {
+  bool check_column_from_derived_table(uchar *arg [[maybe_unused]]) override {
     // It is ok to push down a condition like "column > SP_variable"
     return false;
   }
@@ -3751,6 +3844,13 @@ class Item_ident : public Item {
     If column is from a non-aliased base table or view, the name of the
     column in that base table or view.
     If column is from an expression, a string generated from that expression.
+
+    Notice that a column can be aliased in two ways:
+    1. With an explicit column alias, or <as clause>, or
+    2. With only a column name specified, which differs from the table's
+       column name due to case insensitivity.
+    In both cases field_name will differ from m_orig_field_name.
+    field_name is normally identical to Item::item_name.
   */
   const char *field_name;
 
@@ -3812,15 +3912,16 @@ class Item_ident : public Item {
   bool itemize(Parse_context *pc, Item **res) override;
 
   const char *full_name() const override;
-  void set_orig_db_name(const char *name_arg) { m_orig_db_name = name_arg; }
-  void set_orig_table_name(const char *name_arg) {
+  void set_orignal_db_name(const char *name_arg) { m_orig_db_name = name_arg; }
+  void set_original_table_name(const char *name_arg) {
     m_orig_table_name = name_arg;
   }
-  void set_orig_field_name(const char *name_arg) {
+  void set_original_field_name(const char *name_arg) {
     m_orig_field_name = name_arg;
   }
-  const char *orig_db_name() const { return m_orig_db_name; }
-  const char *orig_table_name() const { return m_orig_table_name; }
+  const char *original_db_name() const { return m_orig_db_name; }
+  const char *original_table_name() const { return m_orig_table_name; }
+  const char *original_field_name() const { return m_orig_field_name; }
   void fix_after_pullout(Query_block *parent_query_block,
                          Query_block *removed_query_block) override;
   bool aggregate_check_distinct(uchar *arg) override;
@@ -3974,6 +4075,21 @@ class Item_field : public Item_ident {
   /// Result field
   Field *result_field{nullptr};
 
+  // save_in_field() and save_org_in_field() are often called repeatedly
+  // with the same destination field (although the destination for the
+  // two are distinct, thus two distinct caches). We detect this case by
+  // storing the last destination, and whether it was of a compatible type
+  // that we can memcpy into (see fields_are_memcpyable()). This saves time
+  // doing the same type checking over and over again.
+  //
+  // The _memcpyable fields are uint32_t(-1) if the fields are not memcpyable,
+  // and pack_length() (ie., the amount of bytes to copy) if they are.
+  // See field_conv_with_cache(), where this logic is encapsulated.
+  Field *last_org_destination_field{nullptr};
+  Field *last_destination_field{nullptr};
+  uint32_t last_org_destination_field_memcpyable = -1;
+  uint32_t last_destination_field_memcpyable = -1;
+
   /**
     If this field is derived from another field, e.g. it is reading a column
     from a temporary table which is populated from a base table, this member
@@ -4084,7 +4200,7 @@ class Item_field : public Item_ident {
   }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
-  bool get_timeval(struct timeval *tm, int *warnings) override;
+  bool get_timeval(my_timeval *tm, int *warnings) override;
   bool is_null() override {
     // NOTE: May return true even if maybe_null is not set!
     // This can happen if the underlying TABLE did not have a NULL row
@@ -4396,6 +4512,37 @@ class Item_param final : public Item, private Settable_routine_parameter {
   */
   bool m_type_pinned{false};
   /**
+    Parameter objects have a rather complex handling of data type, in order
+    to consistently handle required type conversion semantics. There are
+    three data type properties involved:
+
+    1. The data_type() property contains the desired type of the parameter
+       value, as defined by an explicit CAST, the operation the parameter
+       is part of, and/or the context given by other values and expressions.
+       After implicit repreparation it may also be assigned from provided
+       parameter values.
+
+    2. The data_type_source() property is the data type of the parameter value,
+       as given by the supplied user variable or from the protocol buffer.
+
+    3. The data_type_actual() property is the data type of the parameter value,
+       after possible conversion from the source data type.
+       Conversions may involve
+       - Character set conversion of string value.
+       - Conversion from string or number into temporal value, if the
+         resolved data type is a temporal.
+       - Conversion from string to number, if the resolved data type is numeric.
+
+    In addition, each data type property may have extra attributes to enforce
+    correct character set, collation and signedness of integers.
+  */
+  /**
+    The "source" data type of the provided parameter.
+    Used when the parameter comes through protocol buffers.
+    Notice that signedness of integers is stored in m_unsigned_actual.
+  */
+  enum_field_types m_data_type_source{MYSQL_TYPE_INVALID};
+  /**
     The actual data type of the parameter value provided by the user.
     For example:
 
@@ -4406,29 +4553,34 @@ class Item_param final : public Item, private Settable_routine_parameter {
         SET @a='1';
         EXECUTE s USING @a;
 
-    data_type() is still MYSQL_TYPE_DOUBLE, while m_param_state is
-    STRING_VALUE and m_data_type_actual is MYSQL_TYPE_VAR_STRING.
-    Compatibility of data_type() and m_data_type_actual is later tested
+    data_type() is still MYSQL_TYPE_DOUBLE, while data_type_source() is
+    MYSQL_TYPE_VARCHAR and data_type_actual() is MYSQL_TYPE_VARCHAR.
+    Compatibility of data_type() and data_type_actual() is later tested
     in check_parameter_types().
+    Only a limited set of field types are possible values:
+      MYSQL_TYPE_LONGLONG, MYSQL_TYPE_NEWDECIMAL, MYSQL_TYPE_DOUBLE,
+      MYSQL_TYPE_DATE,     MYSQL_TYPE_TIME,       MYSQL_TYPE_DATETIME,
+      MYSQL_TYPE_VARCHAR,  MYSQL_TYPE_NULL,       MYSQL_TYPE_INVALID
   */
   enum_field_types m_data_type_actual{MYSQL_TYPE_INVALID};
   /// Used when actual value is integer to indicate whether value is unsigned
   bool m_unsigned_actual{false};
   /**
-    The character set and collation of the actual parameter value.
+    The character set and collation of the source parameter value.
     Ignored if not a string value.
     - If parameter value is sent over the protocol: the client collation
     - If parameter value is a user variable: the variable's collation
   */
-  const CHARSET_INFO *m_collation_actual{nullptr};
+  const CHARSET_INFO *m_collation_source{nullptr};
   /**
     The character set and collation of the value stored in str_value, possibly
-    after being converted from the m_collation_actual collation.
+    after being converted from the m_collation_source collation.
     Ignored if not a string value.
     - If the derived collation is binary, the connection collation.
     - Otherwise, the derived collation (@see Item::collation).
   */
-  const CHARSET_INFO *m_collation_stored{nullptr};
+  const CHARSET_INFO *m_collation_actual{nullptr};
+  ///  Result type of parameter. @todo replace with type_to_result(data_type()
   Item_result m_result_type{STRING_RESULT};
   /**
     m_param_state is used to indicate that no parameter value is available
@@ -4484,23 +4636,21 @@ class Item_param final : public Item, private Settable_routine_parameter {
   /// @returns true if actual data value (integer) is unsigned
   bool is_unsigned_actual() const { return m_unsigned_actual; }
 
+  void set_collation_source(const CHARSET_INFO *coll) {
+    assert(is_string_type(m_data_type_source));
+    m_collation_source = coll;
+  }
   void set_collation_actual(const CHARSET_INFO *coll) {
     assert(is_string_type(m_data_type_actual));
     m_collation_actual = coll;
   }
-  void set_collation_stored(const CHARSET_INFO *coll) {
-    assert(is_string_type(m_data_type_actual));
-    m_collation_stored = coll;
-  }
+  /// @returns the source collation of the supplied string parameter
+  const CHARSET_INFO *collation_source() const { return m_collation_source; }
+
   /// @returns the actual collation of the supplied string parameter
   const CHARSET_INFO *collation_actual() const {
     assert(is_string_type(m_data_type_actual));
     return m_collation_actual;
-  }
-  /// @returns the stored collation of the supplied string parameter
-  const CHARSET_INFO *collation_stored() const {
-    assert(is_string_type(m_data_type_actual));
-    return m_collation_stored;
   }
   bool fix_fields(THD *thd, Item **ref) override;
 
@@ -4514,10 +4664,21 @@ class Item_param final : public Item, private Settable_routine_parameter {
   bool get_time(MYSQL_TIME *tm) override;
   bool get_date(MYSQL_TIME *tm, my_time_flags_t fuzzydate) override;
 
-  void set_type_actual(enum_field_types data_type, bool unsigned_act) {
-    m_data_type_actual = data_type;
-    m_unsigned_actual = unsigned_act;
+  void set_data_type_source(enum_field_types data_type, bool unsigned_val) {
+    m_data_type_source = data_type;
+    m_unsigned_actual = unsigned_val;
   }
+  // For use with non-integer field types only
+  void set_data_type_actual(enum_field_types data_type) {
+    m_data_type_actual = data_type;
+  }
+  /// For use with all field types, especially integer types
+  void set_data_type_actual(enum_field_types data_type, bool unsigned_val) {
+    m_data_type_actual = data_type;
+    m_unsigned_actual = unsigned_val;
+  }
+  enum_field_types data_type_source() const { return m_data_type_source; }
+
   enum_field_types data_type_actual() const { return m_data_type_actual; }
 
   enum_field_types actual_data_type() const override {
@@ -4536,14 +4697,10 @@ class Item_param final : public Item, private Settable_routine_parameter {
   bool set_from_user_var(THD *thd, const user_var_entry *entry);
   void copy_param_actual_type(Item_param *from);
   void reset();
-  /*
-    Assign placeholder value from bind data.
-  */
-  void (*set_param_func)(Item_param *param, uchar **pos, ulong len);
 
   const String *query_val_str(const THD *thd, String *str) const;
 
-  bool convert_str_value();
+  bool convert_value();
 
   /*
     Parameter is treated as constant during execution, thus it will not be
@@ -4604,8 +4761,7 @@ class Item_param final : public Item, private Settable_routine_parameter {
     func_arg->err_code = func_arg->get_unnamed_function_error_code();
     return true;
   }
-  bool check_column_from_derived_table(
-      uchar *arg MY_ATTRIBUTE((unused))) override {
+  bool check_column_from_derived_table(uchar *arg [[maybe_unused]]) override {
     // It is ok to push down a condition like "column > PS_parameter"
     return false;
   }
@@ -4642,26 +4798,26 @@ class Item_int : public Item_num {
   Item_int(int32 i, uint length = MY_INT32_NUM_DECIMAL_DIGITS)
       : value((longlong)i) {
     set_data_type(MYSQL_TYPE_LONGLONG);
-    max_length = length;
+    set_max_size(length);
     fixed = true;
   }
   Item_int(const POS &pos, int32 i, uint length = MY_INT32_NUM_DECIMAL_DIGITS)
       : super(pos), value((longlong)i) {
     set_data_type(MYSQL_TYPE_LONGLONG);
-    max_length = length;
+    set_max_size(length);
     fixed = true;
   }
   Item_int(longlong i, uint length = MY_INT64_NUM_DECIMAL_DIGITS) : value(i) {
     set_data_type(MYSQL_TYPE_LONGLONG);
-    max_length = length;
+    set_max_size(length);
     fixed = true;
   }
   Item_int(ulonglong i, uint length = MY_INT64_NUM_DECIMAL_DIGITS)
       : value((longlong)i) {
     set_data_type(MYSQL_TYPE_LONGLONG);
-    max_length = length;
-    fixed = true;
     unsigned_flag = true;
+    set_max_size(length);
+    fixed = true;
   }
   Item_int(const Item_int *item_arg) {
     set_data_type(item_arg->data_type());
@@ -4672,14 +4828,14 @@ class Item_int : public Item_num {
   }
   Item_int(const Name_string &name_arg, longlong i, uint length) : value(i) {
     set_data_type(MYSQL_TYPE_LONGLONG);
-    max_length = length;
+    set_max_size(length);
     item_name = name_arg;
     fixed = true;
   }
   Item_int(const POS &pos, const Name_string &name_arg, longlong i, uint length)
       : super(pos), value(i) {
     set_data_type(MYSQL_TYPE_LONGLONG);
-    max_length = length;
+    set_max_size(length);
     item_name = name_arg;
     fixed = true;
   }
@@ -4698,6 +4854,10 @@ class Item_int : public Item_num {
 
  private:
   void init(const char *str_arg, uint length);
+  void set_max_size(uint length) {
+    max_length = length;
+    if (!unsigned_flag && value >= 0) max_length++;
+  }
 
  protected:
   type_conversion_status save_in_field_inner(Field *field,
@@ -4728,7 +4888,7 @@ class Item_int : public Item_num {
     return this;
   }
   uint decimal_precision() const override {
-    return (uint)(max_length - (value < 0));
+    return static_cast<uint>(max_length - 1);
   }
   bool eq(const Item *, bool) const override;
   bool check_partition_func_processor(uchar *) override { return false; }
@@ -5470,7 +5630,7 @@ class Item_ref : public Item_ident {
         ref(item->ref) {}
   enum Type type() const override { return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const override {
-    const Item *it = const_cast<Item *>(item)->real_item();
+    const Item *it = item->real_item();
     return ref && (*ref)->eq(it, binary_cmp);
   }
   double val_real() override;
@@ -5527,6 +5687,10 @@ class Item_ref : public Item_ident {
   bool is_result_field() const override { return true; }
   Field *get_result_field() const override { return result_field; }
   Item *real_item() override { return ref ? (*ref)->real_item() : this; }
+  const Item *real_item() const override {
+    return ref ? (*ref)->real_item() : this;
+  }
+
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override {
     return ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) ||
            // For having clauses 'ref' will consistently =NULL.
@@ -5536,6 +5700,13 @@ class Item_ref : public Item_ident {
   Item *transform(Item_transformer, uchar *arg) override;
   Item *compile(Item_analyzer analyzer, uchar **arg_p,
                 Item_transformer transformer, uchar *arg_t) override;
+  void traverse_cond(Cond_traverser traverser, void *arg,
+                     traverse_order order) override {
+    assert((*ref) != nullptr);
+    if (order == PREFIX) (*traverser)(this, arg);
+    (*ref)->traverse_cond(traverser, arg, order);
+    if (order == POSTFIX) (*traverser)(this, arg);
+  }
   bool explain_subquery_checker(uchar **) override {
     /*
       Always return false: we don't need to go deeper into referenced
@@ -5631,10 +5802,11 @@ class Item_view_ref final : public Item_ref {
   Item_view_ref(Name_resolution_context *context_arg, Item **item,
                 const char *db_name_arg, const char *alias_name_arg,
                 const char *table_name_arg, const char *field_name_arg,
-                TABLE_LIST *tl)
+                TABLE_LIST *tl, Name_resolution_context *merged_derived_context)
       : Item_ref(context_arg, item, db_name_arg, alias_name_arg,
                  field_name_arg),
-        first_inner_table(nullptr) {
+        first_inner_table(nullptr),
+        m_merged_derived_context(merged_derived_context) {
     if (tl->is_view()) {
       m_orig_db_name = db_name_arg;
       m_orig_table_name = table_name_arg;
@@ -5721,6 +5893,7 @@ class Item_view_ref final : public Item_ref {
   bool send(Protocol *prot, String *tmp) override;
   bool collect_item_field_or_view_ref_processor(uchar *arg) override;
   Item *replace_item_view_ref(uchar *arg) override;
+  Item *replace_view_refs_with_clone(uchar *arg) override;
 
  protected:
   type_conversion_status save_in_field_inner(Field *field,
@@ -5737,6 +5910,11 @@ class Item_view_ref final : public Item_ref {
     then this field points to the first leaf table of the view, otherwise NULL.
   */
   TABLE_LIST *first_inner_table;
+  /**
+    Original Context of the underlying field in case of a merged derived
+    table.
+  */
+  Name_resolution_context *m_merged_derived_context;
 };
 
 /*
@@ -5866,6 +6044,7 @@ class Item_int_with_ref : public Item_int {
   }
   Item *clone_item() const override;
   Item *real_item() override { return ref; }
+  const Item *real_item() const override { return ref; }
 };
 
 /*
@@ -6014,30 +6193,27 @@ class Item_cache;
 class Cached_item {
  protected:
   Item *item;  ///< The item whose value to cache.
+  explicit Cached_item(Item *i) : item(i), null_value(false) {}
+
  public:
   bool null_value;
-  Cached_item(Item *i) : item(i), null_value(false) {}
+  virtual ~Cached_item() = default;
   /**
     If cached value is different from item's, returns true and updates
     cached value with item's.
   */
   virtual bool cmp() = 0;
-  virtual ~Cached_item(); /*line -e1509 */
   Item *get_item() { return item; }
-  virtual void copy_to_Item_cache(Item_cache *i_c MY_ATTRIBUTE((unused))) {
-    assert(false); /* purecov: inspected */
-  }
+  Item **get_item_ptr() { return &item; }
 };
 
 class Cached_item_str : public Cached_item {
-  uint32 value_max_length;
   String value, tmp_value;
 
  public:
-  Cached_item_str(THD *thd, Item *arg);
+  explicit Cached_item_str(Item *arg);
   bool cmp() override;
   ~Cached_item_str() override;  // Deallocate String:s
-  void copy_to_Item_cache(Item_cache *i_c) override;
 };
 
 /// Cached_item subclass for JSON values.
@@ -6047,7 +6223,6 @@ class Cached_item_json : public Cached_item {
   explicit Cached_item_json(Item *item);
   ~Cached_item_json() override;
   bool cmp() override;
-  void copy_to_Item_cache(Item_cache *i_c) override;
 };
 
 class Cached_item_real : public Cached_item {
@@ -6056,7 +6231,6 @@ class Cached_item_real : public Cached_item {
  public:
   Cached_item_real(Item *item_par) : Cached_item(item_par), value(0.0) {}
   bool cmp() override;
-  void copy_to_Item_cache(Item_cache *i_c) override;
 };
 
 class Cached_item_int : public Cached_item {
@@ -6065,7 +6239,6 @@ class Cached_item_int : public Cached_item {
  public:
   Cached_item_int(Item *item_par) : Cached_item(item_par), value(0) {}
   bool cmp() override;
-  void copy_to_Item_cache(Item_cache *i_c) override;
 };
 
 class Cached_item_temporal : public Cached_item {
@@ -6074,7 +6247,6 @@ class Cached_item_temporal : public Cached_item {
  public:
   Cached_item_temporal(Item *item_par) : Cached_item(item_par), value(0) {}
   bool cmp() override;
-  void copy_to_Item_cache(Item_cache *i_c) override;
 };
 
 class Cached_item_decimal : public Cached_item {
@@ -6083,7 +6255,6 @@ class Cached_item_decimal : public Cached_item {
  public:
   Cached_item_decimal(Item *item_par);
   bool cmp() override;
-  void copy_to_Item_cache(Item_cache *i_c) override;
 };
 
 class Item_default_value final : public Item_field {
@@ -6339,6 +6510,8 @@ class Item_cache : public Item_basic_constant {
   bool value_cached{false};
 
   friend bool has_rollup_result(Item *item);
+  friend bool replace_contents_of_rollup_wrappers_with_tmp_fields(
+      THD *thd, Query_block *select, Item *item_arg);
 
  public:
   Item_cache() {
@@ -6449,9 +6622,10 @@ class Item_cache : public Item_basic_constant {
     if (!example) return INT_RESULT;
     return Field::result_merge_type(example->data_type());
   }
+  Item *get_example() const { return example; }
 };
 
-class Item_cache_int final : public Item_cache {
+class Item_cache_int : public Item_cache {
  protected:
   longlong value;
 
@@ -6477,6 +6651,27 @@ class Item_cache_int final : public Item_cache {
   bool get_time(MYSQL_TIME *ltime) override { return get_time_from_int(ltime); }
   Item_result result_type() const override { return INT_RESULT; }
   bool cache_value() override;
+};
+
+/**
+  Cache class for BIT type expressions. The BIT data type behaves like unsigned
+  integer numbers in all situations, except when formatted as a string, where
+  it is directly interpreted as a byte string, possibly right-extended with
+  zero-bits.
+*/
+class Item_cache_bit final : public Item_cache_int {
+ public:
+  Item_cache_bit(enum_field_types field_type_arg)
+      : Item_cache_int(field_type_arg) {
+    assert(field_type_arg == MYSQL_TYPE_BIT);
+  }
+
+  /**
+    Transform the result Item_cache_int::value in bit format. The process is
+    similar to Field_bit_as_char::store().
+  */
+  String *val_str(String *str) override;
+  uint string_length() { return ((max_length + 7) / 8); }
 };
 
 class Item_cache_real final : public Item_cache {
@@ -6851,5 +7046,18 @@ inline Item *GetNthVisibleField(const mem_root_deque<Item *> &fields,
   assert(false);
   return nullptr;
 }
+
+/**
+  Returns true iff the two items are equal, as in a->eq(b),
+  after unwrapping refs and Item_cache objects.
+ */
+bool ItemsAreEqual(const Item *a, const Item *b, bool binary_cmp);
+
+/**
+  Returns true iff all items in the two arrays (which must be of the same size)
+  are equal, as in a->eq(b), after unwrapping refs and Item_cache objects.
+ */
+bool AllItemsAreEqual(const Item *const *a, const Item *const *b, int num_items,
+                      bool binary_cmp);
 
 #endif /* ITEM_INCLUDED */

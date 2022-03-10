@@ -173,7 +173,8 @@ class Table {
       return;
     } else {
       WRITE_VAL("\t[meta][charset result] number: %d\n", cs_info->number);
-      WRITE_VAL("\t[meta][charset result] name: %s\n", cs_info->csname);
+      WRITE_VAL("\t[meta][charset result] name: %s\n",
+                replace_utf8_utf8mb3(cs_info->csname));
       WRITE_VAL("\t[meta][charset result] collation: %s\n", cs_info->name);
       WRITE_VAL("\t[meta][charset result] sort order: %s\n",
                 cs_info->sort_order);
@@ -727,7 +728,7 @@ static void set_query_in_com_data(union COM_DATA *cmd, const char *query) {
 
 static void run_cmd(MYSQL_SESSION session, enum_server_command cmd,
                     COM_DATA *data, Server_context *ctx,
-                    bool generates_result_set, void *p MY_ATTRIBUTE((unused))) {
+                    bool generates_result_set, void *p [[maybe_unused]]) {
   char buffer[STRING_BUFFER_SIZE];
   WRITE_DASHED_LINE();
 
@@ -1955,7 +1956,7 @@ static int test_sql_service_plugin_init(void *p) {
   return 0;
 }
 
-static int test_sql_service_plugin_deinit(void *p MY_ATTRIBUTE((unused))) {
+static int test_sql_service_plugin_deinit(void *p [[maybe_unused]]) {
   DBUG_TRACE;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Uninstallation.");
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);

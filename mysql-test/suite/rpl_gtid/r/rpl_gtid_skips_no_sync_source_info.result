@@ -1,0 +1,33 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+include/stop_slave.inc
+UPDATE performance_schema.setup_objects SET ENABLED='yes', TIMED='yes' WHERE OBJECT_SCHEMA='mysql';
+include/start_slave.inc
+[connection master]
+CREATE TABLE t1 (f INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (10);
+INSERT INTO t1 VALUES (20);
+INSERT INTO t1 VALUES (30);
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+SET GLOBAL debug="+d,reached_heart_beat_queue_event";
+START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+SET DEBUG_SYNC="now WAIT_FOR check_replica_source_info";
+SET DEBUG_SYNC="now SIGNAL proceed_write_rotate";
+SET GLOBAL debug="-d,reached_heart_beat_queue_event";
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Assert that sync_source_info io_requests are the same]
+include/diff_tables.inc [master:t1, slave:t1]
+include/stop_slave.inc
+UPDATE performance_schema.setup_objects SET ENABLED='no', TIMED='no' WHERE OBJECT_SCHEMA='mysql';
+include/start_slave.inc
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

@@ -1,6 +1,5 @@
 --source include/have_ndb.inc
 --source include/have_log_bin.inc
---source suite/ndb/include/backup_restore_setup.inc
 
 set @is_enable_default = @@global.ndb_index_stat_enable;
 
@@ -24,18 +23,11 @@ select count(*) from t1 where b = 1;
 select count(*) from t1 where c = 1;
 show status like 'ndb_index_stat_cache%';
 
-# fetch current backup id to be able to restore it after initital restart
---source include/ndb_backup_id.inc
-
 --echo # restart cluster --initial
 --exec $NDB_MGM -e "all restart -i -n" >> $NDB_TOOLS_OUTPUT
 --exec $NDB_WAITER --not-started >> $NDB_TOOLS_OUTPUT
 --exec $NDB_MGM -e "all start" >> $NDB_TOOLS_OUTPUT
 --exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
-
-# now make a backup with explicit id to restore the backup id after initial start
---inc $the_backup_id
---exec $NDB_MGM -e "start backup $the_backup_id" >> $NDB_TOOLS_OUTPUT
 
 --echo # wait for mysqld
 --source include/ndb_not_readonly.inc
@@ -82,5 +74,4 @@ connect(mysqld2,127.0.0.1,root,,test,$MASTER_MYPORT1);
 connection mysqld2;
 --disable_query_log ONCE
 call mtr.add_suppression("cluster disconnect An incident event has been written");
---source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT

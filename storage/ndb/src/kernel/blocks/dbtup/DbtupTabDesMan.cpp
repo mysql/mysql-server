@@ -437,10 +437,6 @@ Dbtup::verifytabdes()
   }
   delete [] wt;
   ndbrequire(used_words + free_words == cnoOfTabDescrRec);
-  ndbout << "verifytabdes:"
-         << " total: " << cnoOfTabDescrRec
-         << " used: " << used_words
-         << " free: " << free_words
-         << " frags: " << free_frags
-         << endl;
+  g_eventLogger->info("verifytabdes: total: %u used: %u free: %u frags: %u",
+                      cnoOfTabDescrRec, used_words, free_words, free_frags);
 }

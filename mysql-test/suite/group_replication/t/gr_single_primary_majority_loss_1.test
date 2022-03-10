@@ -27,6 +27,7 @@
 --source include/group_replication.inc
 
 # Start group replication on all the servers
+
 --source include/start_and_bootstrap_group_replication.inc
 --let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -37,6 +38,7 @@
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
 --source include/start_group_replication.inc
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 # save this, since it will be used to recover the server later on
@@ -45,6 +47,7 @@
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
+
 --source include/start_group_replication.inc
 --let $member3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 # save this, since it will be used to recover the server later on

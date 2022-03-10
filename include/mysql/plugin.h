@@ -45,6 +45,7 @@
   for functions.
 */
 #if defined(_MSC_VER)
+
 #if defined(MYSQL_DYNAMIC_PLUGIN)
 #ifdef __cplusplus
 #define MYSQL_PLUGIN_EXPORT extern "C" __declspec(dllexport)
@@ -58,9 +59,16 @@
 #define MYSQL_PLUGIN_EXPORT
 #endif
 #endif /*MYSQL_DYNAMIC_PLUGIN */
-#else  /*_MSC_VER */
+
+#else /*_MSC_VER */
+
+#if defined(MYSQL_DYNAMIC_PLUGIN)
+#define MYSQL_PLUGIN_EXPORT MY_ATTRIBUTE((visibility("default")))
+#else
 #define MYSQL_PLUGIN_EXPORT
 #endif
+
+#endif /*_MSC_VER */
 
 #ifdef __cplusplus
 class THD;

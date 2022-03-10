@@ -59,7 +59,7 @@ Note	3084	Replication thread(s) for channel '' are already stopped.
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER='repli_priv_checks_user_more_than_32'@'localhost' FOR CHANNEL "";
 ERROR HY000: String 'repli_priv_checks_user_more_than_32' is too long for user name (should be no longer than 32)
 include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start --debug=d,simulate_priv_check_username_above_limit]
+include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start --debug=d,simulate_priv_check_username_above_limit]
 SELECT * FROM performance_schema.replication_applier_configuration;
 CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
 	0	<INVALID>	NO	STREAM	OFF	NULL
@@ -77,7 +77,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than255' FOR CHANNEL "" ;
 ERROR HY000: String 'replication_privilege_checks_hostname_more_than_255_replication_privil' is too long for host name (should be no longer than 255)
 include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start --debug=d,simulate_priv_check_hostname_above_limit]
+include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start --debug=d,simulate_priv_check_hostname_above_limit]
 SELECT * FROM performance_schema.replication_applier_configuration;
 CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
 	0	<INVALID>	NO	STREAM	OFF	NULL
@@ -95,7 +95,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'l@calhost' FOR CHANNEL "" ;
 ERROR HY000: Malformed hostname (illegal symbol: '@')
 include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start]
+include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start]
 Matching lines are:
 replication_applier
 Occurrences of 'replication_applier' in the input file: 1
@@ -118,7 +118,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER=''@'localhost' FOR CHANNEL "" ;
 ERROR HY000: PRIVILEGE_CHECKS_USER for replication channel '' was set to ``@`localhost`, but anonymous users are disallowed for PRIVILEGE_CHECKS_USER.
 include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start]
+include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start]
 SELECT * FROM performance_schema.replication_applier_configuration;
 CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
 	0	<INVALID>	NO	STREAM	OFF	NULL
@@ -135,7 +135,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier_nonexist'@'localhost' FOR CHANNEL "" ;
 ERROR HY000: PRIVILEGE_CHECKS_USER for replication channel '' was set to `replication_applier_nonexist`@`localhost`, but this is not an existing user.
 include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start]
+include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start]
 Matching lines are:
 replication_applier_nonexist
 Occurrences of 'replication_applier_nonexist' in the input file: 1
@@ -216,7 +216,7 @@ ERROR HY000: String 'repli_priv_checks_user_more_than_32' is too long for user n
 BEGIN;
 UPDATE mysql.slave_relay_log_info SET Privilege_checks_username="repl_priv_chcks_usr_more_than_32", Privilege_checks_hostname="localhost" WHERE Channel_name="ch1";
 COMMIT;
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=TABLE --skip_slave_start --debug=d,simulate_priv_check_username_above_limit,simulate_priv_check_user_nullptr_t]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=TABLE --skip_replica_start --debug=d,simulate_priv_check_username_above_limit,simulate_priv_check_user_nullptr_t]
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
 # Removing debug point 'simulate_priv_check_username_above_limit' from @@GLOBAL.debug
 START SLAVE FOR CHANNEL "ch1";
@@ -233,7 +233,7 @@ ERROR HY000: String 'replication_privilege_checks_hostname_more_than_255_replica
 BEGIN;
 UPDATE mysql.slave_relay_log_info SET Privilege_checks_username="replication_applier", Privilege_checks_hostname="replication_applier_hostname_more_than_255" WHERE Channel_name="ch1";
 COMMIT;
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=TABLE --skip_slave_start --debug=d,simulate_priv_check_hostname_above_limit,simulate_priv_check_user_nullptr_t]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=TABLE --skip_replica_start --debug=d,simulate_priv_check_hostname_above_limit,simulate_priv_check_user_nullptr_t]
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
 # Removing debug point 'simulate_priv_check_hostname_above_limit' from @@GLOBAL.debug
 START SLAVE FOR CHANNEL "ch1";
@@ -250,7 +250,7 @@ ERROR HY000: Malformed hostname (illegal symbol: '@')
 BEGIN;
 UPDATE mysql.slave_relay_log_info SET Privilege_checks_username='replication_applier', Privilege_checks_hostname='l@calhost' WHERE Channel_name="ch1";
 COMMIT;
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=TABLE --skip_slave_start]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=TABLE --skip_replica_start]
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
 START SLAVE FOR CHANNEL "ch1";
 ERROR HY000: Slave failed to initialize relay log info structure from the repository
@@ -264,7 +264,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL
 BEGIN;
 UPDATE mysql.slave_relay_log_info SET Privilege_checks_username=NULL, Privilege_checks_hostname="localhost" WHERE Channel_name="ch1";
 COMMIT;
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=TABLE --skip_slave_start]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=TABLE --skip_replica_start]
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
 START SLAVE FOR CHANNEL "ch1";
 ERROR HY000: Slave failed to initialize relay log info structure from the repository
@@ -280,7 +280,7 @@ ERROR HY000: PRIVILEGE_CHECKS_USER for replication channel 'ch1' was set to ``@`
 BEGIN;
 UPDATE mysql.slave_relay_log_info SET Privilege_checks_username="", Privilege_checks_hostname="localhost" WHERE Channel_name="ch1";
 COMMIT;
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=TABLE --skip_slave_start]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=TABLE --skip_replica_start]
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
 START SLAVE FOR CHANNEL "ch1";
 ERROR HY000: Slave failed to initialize relay log info structure from the repository
@@ -296,17 +296,27 @@ ERROR HY000: PRIVILEGE_CHECKS_USER for replication channel 'ch1' was set to `rep
 BEGIN;
 UPDATE mysql.slave_relay_log_info SET Privilege_checks_username="replication_applier_nonexist", Privilege_checks_hostname="localhost" WHERE Channel_name="ch1";
 COMMIT;
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=TABLE --skip_slave_start]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=TABLE --skip_replica_start]
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
 START SLAVE FOR CHANNEL "ch1";
 ERROR HY000: Slave failed to initialize relay log info structure from the repository
 RESET SLAVE FOR CHANNEL "ch1";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_PORT=11 FOR CHANNEL "ch1";
 include/assert_grep.inc [Found 5 warning in the error log]
 include/assert_grep.inc [Found 1 warning in the error log]
 DROP USER 'replication_applier'@'localhost';
-include/rpl_end.inc
+include/stop_slave.inc
 Warnings:
 Note	3084	Replication thread(s) for channel 'ch1' are already stopped.
+RESET REPLICA ALL;
+SET @@global.relay_log_info_repository=FILE;
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST="127.0.0.1", SOURCE_PORT=MASTER_MYPORT;;
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+include/rpl_end.inc

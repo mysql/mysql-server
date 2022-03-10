@@ -324,6 +324,16 @@ class Commit_order_queue {
     return out;
   }
 
+  /**
+    Returns the expected next number in the ticket sequence.
+
+    @param current_seq_nr The current sequence number, for which the next
+                          should be computed.
+
+    @return The expected next number in the ticket sequence.
+   */
+  static sequence_type get_next_sequence_nr(sequence_type current_seq_nr);
+
  private:
   /** The commit sequence number counter */
   memory::Aligned_atomic<sequence_type> m_commit_sequence_generator{

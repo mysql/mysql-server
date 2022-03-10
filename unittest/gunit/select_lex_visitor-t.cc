@@ -77,7 +77,7 @@ class Remembering_visitor : public Select_lex_visitor {
     return m_saw_query_block_query_expression;
   }
 
-  ~Remembering_visitor() override {}
+  ~Remembering_visitor() override = default;
 
  private:
   bool m_saw_query_block, m_saw_query_block_query_expression;

@@ -1,0 +1,60 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 1. Create a table on the source and use Slap to apply load on the server
+[connection master]
+CREATE TABLE test.t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+#
+# 2. Create 20 channels, 1 per second in the replica
+[connection slave]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h', SOURCE_PORT = 1 FOR CHANNEL 'channel_1' ;;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h', SOURCE_PORT = 1 FOR CHANNEL 'channel_2' ;;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h', SOURCE_PORT = 1 FOR CHANNEL 'channel_3' ;;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h', SOURCE_PORT = 1 FOR CHANNEL 'channel_4' ;;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h', SOURCE_PORT = 1 FOR CHANNEL 'channel_5' ;;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h', SOURCE_PORT = 1 FOR CHANNEL 'channel_6' ;;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h', SOURCE_PORT = 1 FOR CHANNEL 'channel_7' ;;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h', SOURCE_PORT = 1 FOR CHANNEL 'channel_8' ;;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h', SOURCE_PORT = 1 FOR CHANNEL 'channel_9' ;;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h', SOURCE_PORT = 1 FOR CHANNEL 'channel_10' ;;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h', SOURCE_PORT = 1 FOR CHANNEL 'channel_11' ;;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h', SOURCE_PORT = 1 FOR CHANNEL 'channel_12' ;;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h', SOURCE_PORT = 1 FOR CHANNEL 'channel_13' ;;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h', SOURCE_PORT = 1 FOR CHANNEL 'channel_14' ;;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h', SOURCE_PORT = 1 FOR CHANNEL 'channel_15' ;;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h', SOURCE_PORT = 1 FOR CHANNEL 'channel_16' ;;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h', SOURCE_PORT = 1 FOR CHANNEL 'channel_17' ;;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h', SOURCE_PORT = 1 FOR CHANNEL 'channel_18' ;;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h', SOURCE_PORT = 1 FOR CHANNEL 'channel_19' ;;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h', SOURCE_PORT = 1 FOR CHANNEL 'channel_20' ;;
+#
+# 3. Check the data was replicated and 20 channel were created
+include/assert.inc ['There are 21 channels in the replica']
+#
+# 4. Cleanup
+RESET REPLICA ALL FOR CHANNEL 'channel_1' ;;
+RESET REPLICA ALL FOR CHANNEL 'channel_2' ;;
+RESET REPLICA ALL FOR CHANNEL 'channel_3' ;;
+RESET REPLICA ALL FOR CHANNEL 'channel_4' ;;
+RESET REPLICA ALL FOR CHANNEL 'channel_5' ;;
+RESET REPLICA ALL FOR CHANNEL 'channel_6' ;;
+RESET REPLICA ALL FOR CHANNEL 'channel_7' ;;
+RESET REPLICA ALL FOR CHANNEL 'channel_8' ;;
+RESET REPLICA ALL FOR CHANNEL 'channel_9' ;;
+RESET REPLICA ALL FOR CHANNEL 'channel_10' ;;
+RESET REPLICA ALL FOR CHANNEL 'channel_11' ;;
+RESET REPLICA ALL FOR CHANNEL 'channel_12' ;;
+RESET REPLICA ALL FOR CHANNEL 'channel_13' ;;
+RESET REPLICA ALL FOR CHANNEL 'channel_14' ;;
+RESET REPLICA ALL FOR CHANNEL 'channel_15' ;;
+RESET REPLICA ALL FOR CHANNEL 'channel_16' ;;
+RESET REPLICA ALL FOR CHANNEL 'channel_17' ;;
+RESET REPLICA ALL FOR CHANNEL 'channel_18' ;;
+RESET REPLICA ALL FOR CHANNEL 'channel_19' ;;
+RESET REPLICA ALL FOR CHANNEL 'channel_20' ;;
+[connection master]
+DROP TABLE test.t1;
+include/rpl_end.inc

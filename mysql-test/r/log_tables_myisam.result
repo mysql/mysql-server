@@ -1,4 +1,6 @@
 use mysql;
+SET @old_log_output = @@global.log_output;
+SET GLOBAL log_output="FILE,TABLE";
 truncate table general_log;
 select * from general_log;
 event_time	user_host	thread_id	server_id	command_type	argument
@@ -148,4 +150,6 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 set global general_log='ON';
 set global slow_query_log='ON';
+SET GLOBAL log_output=@old_log_output;
+TRUNCATE TABLE mysql.general_log;
 use test;

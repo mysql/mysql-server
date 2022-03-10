@@ -291,10 +291,13 @@ void DestRoundRobin::quarantine_manager_thread() noexcept {
       // If there are unquarantined destinations, listening router socket should
       // be open.
       quarantine_([this, &start_socket_acceptor_res](auto &q) {
-        if (q.size() < this->destinations().size() &&
-            this->start_router_socket_acceptor_callback_) {
-          start_socket_acceptor_res =
-              this->start_router_socket_acceptor_callback_();
+        if (q.size() < this->destinations().size()) {
+          std::lock_guard<std::mutex> lock(
+              socket_acceptor_handle_callbacks_mtx);
+          if (this->start_router_socket_acceptor_callback_) {
+            start_socket_acceptor_res =
+                this->start_router_socket_acceptor_callback_();
+          }
         }
       });
       // Temporize

@@ -9,50 +9,49 @@ call mtr.add_suppression('event read from binlog did not pass crc check');
 call mtr.add_suppression('Replication event checksum verification failed');
 call mtr.add_suppression('Event crc check failed! Most likely there is event corruption');
 call mtr.add_suppression("Slave SQL for channel '': Error initializing relay log position: I/O error reading event at position .*, Error_code: MY-013117");
-SET @old_master_verify_checksum = @@master_verify_checksum;
+SET @old_source_verify_checksum = @@source_verify_checksum;
 # 1. Creating test table/data and set corruption position for testing
 * insert/update/delete rows in table t1 *
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10), c VARCHAR(100));
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 # 2. Corruption in master binlog and SHOW BINLOG EVENTS
-SET GLOBAL debug="d,corrupt_read_log_event";
+# Adding debug point 'corrupt_read_log_event' to @@GLOBAL.debug
 SHOW BINLOG EVENTS;
 ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Event crc check failed! Most likely there is event corruption.
 # 3. Master read a corrupted event from binlog and send the error to slave
-SET GLOBAL debug="d,corrupt_read_log_event";
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13114]
 # 4. Master read a corrupted event from binlog and send it to slave
-SET GLOBAL master_verify_checksum=0;
-SET GLOBAL debug="d,corrupt_read_log_event";
+SET GLOBAL source_verify_checksum=0;
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13122,13115]
-SET GLOBAL debug="";
-SET GLOBAL master_verify_checksum=1;
+# Removing debug point 'corrupt_read_log_event' from @@GLOBAL.debug
+SET GLOBAL source_verify_checksum=1;
 # 5. Slave. Corruption in network
-SET GLOBAL debug="d,corrupt_queue_event";
+# Adding debug point 'corrupt_queue_event' to @@GLOBAL.debug
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13122,13115]
 # 6. Slave. Corruption in relay log
-SET GLOBAL debug="d,corrupt_read_log_event";
+# Adding debug point 'corrupt_read_log_event' to @@GLOBAL.debug
 START SLAVE SQL_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_error.inc [errno=13117]
 # 7. Seek diff for tables on master and slave
-SET GLOBAL debug= "";
+# Removing debug point 'corrupt_read_log_event' from @@GLOBAL.debug
+# Removing debug point 'corrupt_queue_event' from @@GLOBAL.debug
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1, slave:t1]
 # 8. Clean up
-SET GLOBAL master_verify_checksum = @old_master_verify_checksum;
+SET GLOBAL source_verify_checksum = @old_source_verify_checksum;
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

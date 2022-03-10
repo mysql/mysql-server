@@ -63,12 +63,12 @@ SET @slave_saved_tmp = @@global.offline_mode;
 # Should report 6 root processes
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-7
+11
 SET GLOBAL offline_mode=ON;
 # Should report 6 root processes
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-7
+11
 SET GLOBAL offline_mode = @slave_saved_tmp;
 include/rpl_end.inc
 # Restoring the original values.

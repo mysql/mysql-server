@@ -63,15 +63,13 @@ static char *add_load_option(char *ptr, const char *object,
 
 static bool verbose = false, lock_tables = false, ignore_errors = false,
             opt_delete = false, replace = false, silent = false, ignore = false,
-            opt_compress = false, opt_low_priority = false,
-            tty_password = false;
+            opt_compress = false, opt_low_priority = false;
 static bool debug_info_flag = false, debug_check_flag = false;
 static uint opt_use_threads = 0, opt_local_file = 0, my_end_arg = 0;
-static char *opt_password = nullptr, *current_user = nullptr,
-            *current_host = nullptr, *current_db = nullptr,
-            *fields_terminated = nullptr, *lines_terminated = nullptr,
-            *enclosed = nullptr, *opt_enclosed = nullptr, *escaped = nullptr,
-            *opt_columns = nullptr;
+static char *current_user = nullptr, *current_host = nullptr,
+            *current_db = nullptr, *fields_terminated = nullptr,
+            *lines_terminated = nullptr, *enclosed = nullptr,
+            *opt_enclosed = nullptr, *escaped = nullptr, *opt_columns = nullptr;
 static const char *default_charset = MYSQL_AUTODETECT_CHARSET_NAME;
 static uint opt_enable_cleartext_plugin = 0;
 static bool using_opt_enable_cleartext_plugin = false;
@@ -84,8 +82,8 @@ static uint opt_zstd_compress_level = default_zstd_compression_level;
 static char *opt_compress_algorithm = nullptr;
 
 #include "caching_sha2_passwordopt-vars.h"
+#include "multi_factor_passwordopt-vars.h"
 #include "sslopt-vars.h"
-
 #if defined(_WIN32)
 static char *shared_memory_base_name = 0;
 #endif
@@ -178,11 +176,7 @@ static struct my_option my_long_options[] = {
      "Use LOW_PRIORITY when updating the table.", &opt_low_priority,
      &opt_low_priority, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-    {"password", 'p',
-     "Password to use when connecting to server. If password is not given it's "
-     "asked from the tty.",
-     nullptr, nullptr, nullptr, GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0,
-     nullptr},
+#include "multi_factor_passwordopt-longopts.h"
 #ifdef _WIN32
     {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
      NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -268,24 +262,7 @@ extern "C" {
 static bool get_one_option(int optid, const struct my_option *opt,
                            char *argument) {
   switch (optid) {
-    case 'p':
-      if (argument == disabled_my_option) {
-        // Don't require password
-        static char empty_password[] = {'\0'};
-        assert(empty_password[0] ==
-               '\0');  // Check that it has not been overwritten
-        argument = empty_password;
-      }
-      if (argument) {
-        char *start = argument;
-        my_free(opt_password);
-        opt_password = my_strdup(PSI_NOT_INSTRUMENTED, argument, MYF(MY_FAE));
-        while (*argument) *argument++ = 'x'; /* Destroy argument */
-        if (*start) start[1] = 0;            /* Cut length of argument */
-        tty_password = false;
-      } else
-        tty_password = true;
-      break;
+    PARSE_COMMAND_LINE_PASSWORD_OPTION;
 #ifdef _WIN32
     case 'W':
       opt_protocol = MYSQL_PROTOCOL_PIPE;
@@ -343,7 +320,6 @@ static int get_options(int *argc, char ***argv) {
   }
   current_db = *((*argv)++);
   (*argc)--;
-  if (tty_password) opt_password = get_tty_password(NullS);
   return (0);
 }
 
@@ -437,7 +413,7 @@ static int lock_table(MYSQL *mysql, int tablecount, char **raw_tablename) {
   return 0;
 }
 
-static MYSQL *db_connect(char *host, char *database, char *user, char *passwd) {
+static MYSQL *db_connect(char *host, char *database, char *user, char *) {
   MYSQL *mysql;
   if (verbose) fprintf(stdout, "Connecting to %s\n", host ? host : "localhost");
   if (opt_use_threads && !lock_tables) {
@@ -487,7 +463,9 @@ static MYSQL *db_connect(char *host, char *database, char *user, char *passwd) {
                  "mysqlimport");
   set_server_public_key(mysql);
   set_get_server_public_key_option(mysql);
-  if (!(mysql_real_connect(mysql, host, user, passwd, database, opt_mysql_port,
+
+  set_password_options(mysql);
+  if (!(mysql_real_connect(mysql, host, user, nullptr, database, opt_mysql_port,
                            opt_mysql_unix_port, 0))) {
     ignore_errors = false; /* NO RETURN FROM db_error */
     db_error(mysql);
@@ -580,8 +558,8 @@ static void *worker_thread(void *arg) {
 
   if (mysql_thread_init()) goto error;
 
-  if (!(mysql =
-            db_connect(current_host, current_db, current_user, opt_password))) {
+  if (!(mysql = db_connect(current_host, current_db, current_user,
+                           opt_password[0]))) {
     goto error;
   }
 
@@ -699,7 +677,7 @@ int main(int argc, char **argv) {
     my_free(worker_threads);
   } else {
     if (!(mysql = db_connect(current_host, current_db, current_user,
-                             opt_password))) {
+                             opt_password[0]))) {
       exitcode = 1;
       goto end;
     }
@@ -724,7 +702,7 @@ int main(int argc, char **argv) {
   }
 end:
   db_disconnect(current_host, mysql);
-  my_free(opt_password);
+  free_passwords();
 #if defined(_WIN32)
   my_free(shared_memory_base_name);
 #endif

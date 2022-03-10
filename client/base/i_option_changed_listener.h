@@ -39,7 +39,7 @@ namespace Options {
  */
 class I_option_changed_listener {
  public:
-  virtual ~I_option_changed_listener() {}
+  virtual ~I_option_changed_listener() = default;
 
   /**
     Called after specified option has name changed.

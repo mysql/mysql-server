@@ -43,7 +43,7 @@ class Common_status_variables {
     using std::atomic<int64>::load;
   };
 
-  Common_status_variables() {}
+  Common_status_variables() = default;
 
   Variable m_stmt_execute_sql;
   Variable m_stmt_execute_xplugin;

@@ -24,7 +24,7 @@
 
 Gcs_tagged_lock::Gcs_tagged_lock() noexcept : m_lock_word(0) {}
 
-Gcs_tagged_lock::~Gcs_tagged_lock() {}
+Gcs_tagged_lock::~Gcs_tagged_lock() = default;
 
 std::uint64_t Gcs_tagged_lock::get_lock_word(
     std::memory_order semantics) const {

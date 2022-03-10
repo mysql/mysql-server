@@ -49,7 +49,7 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
 class ClusterMetadataTest : public ::testing::Test {
  protected:
   MySQLSessionReplayer session_replayer;
-  MockSocketOperations hostname_operations;
+  ::testing::StrictMock<MockSocketOperations> hostname_operations;
 };
 
 const std::string kQueryGetHostname =

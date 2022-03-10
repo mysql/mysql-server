@@ -29,11 +29,11 @@ a INT STORAGE DISK
 )
 STORAGE DISK
 ENGINE NDB;
-ERROR HY000: Can't create table 't1'
+ERROR HY000: Can't create table 't1' (use SHOW WARNINGS for more info).
 SHOW WARNINGS;
 Level	Code	Message
 Warning	3014	TABLESPACE option must be specified when using STORAGE DISK
-Error	1005	Can't create table 't1'
+Error	1005	Can't create table 't1' (use SHOW WARNINGS for more info).
 ALTER TABLESPACE ts1
 DROP DATAFILE 'ts1_datafile.dat';
 DROP TABLESPACE ts1;

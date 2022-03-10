@@ -164,7 +164,7 @@ static TYPELIB innochecksum_algorithms_typelib = {
 /** Error logging classes. */
 namespace ib {
 
-logger::~logger() {}
+logger::~logger() = default;
 
 info::~info() {
   std::cerr << "[INFO] innochecksum: " << m_oss.str() << std::endl;
@@ -178,10 +178,19 @@ error::~error() {
   std::cerr << "[ERROR] innochecksum: " << m_oss.str() << std::endl;
 }
 
+/*
+MSVS complains: Warning C4722: destructor never returns, potential memory leak.
+But, the whole point of using ib::fatal temporary object is to cause an abort.
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4722)
+
 fatal::~fatal() {
   std::cerr << "[FATAL] innochecksum: " << m_oss.str() << std::endl;
   ut_error;
 }
+// Restore the MSVS checks for Warning C4722, silenced for ib::fatal::~fatal().
+MY_COMPILER_DIAGNOSTIC_POP()
 }  // namespace ib
 
 /** A dummy implementation.  Actual implementation available in fil0fil.cc */
@@ -1282,9 +1291,10 @@ static void usage(void) {
   my_print_variables(innochecksum_options);
 }
 
-extern "C" bool innochecksum_get_one_option(
-    int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
-    char *argument MY_ATTRIBUTE((unused))) {
+extern "C" bool innochecksum_get_one_option(int optid,
+                                            const struct my_option *opt
+                                            [[maybe_unused]],
+                                            char *argument [[maybe_unused]]) {
   switch (optid) {
 #ifndef NDEBUG
     case '#':
@@ -1775,12 +1785,13 @@ int main(int argc, char **argv) {
 
 /** Report a failed assertion
 @param[in]	expr	the failed assertion (optional)
-@param[in]	file	source file containting the assertion
+@param[in]	file	source file containing the assertion
 @param[in]	line	line number of the assertion */
-void ut_dbg_assertion_failed(const char *expr, const char *file, ulint line) {
+[[noreturn]] void ut_dbg_assertion_failed(const char *expr, const char *file,
+                                          uint64_t line) {
   fprintf(stderr,
           "Innochecksum: Assertion failure in"
-          " file %s line " ULINTPF "\n",
+          " file %s line " UINT64PF "\n",
           file, line);
 
   if (expr) {

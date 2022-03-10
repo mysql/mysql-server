@@ -17,8 +17,15 @@
 SET sql_log_bin=0;
 CREATE USER 'manish'@'%' IDENTIFIED BY 'unique_password';
 GRANT REPLICATION SLAVE ON *.* TO 'manish'@'%';
+
+CREATE USER 'internal_usr'@'%' IDENTIFIED BY 'unique_password';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'internal_usr'@'%';
 FLUSH PRIVILEGES;
 SET sql_log_bin=1;
+
+--disable_warnings
+CHANGE MASTER TO MASTER_USER='internal_usr', MASTER_PASSWORD='unique_password' FOR CHANNEL 'group_replication_recovery';
+--enable_warnings
 
 SET @old_log_output= @@log_output;
 SET GLOBAL log_output= 'TABLE';
@@ -46,17 +53,6 @@ SELECT password FROM performance_schema.replication_connection_configuration;
 
 --connection server2
 
-SET sql_log_bin=0;
-call mtr.add_suppression(".*Invalid .* username when attempting to connect to the master server.*");
-call mtr.add_suppression("There was an error when connecting to the donor server");
-call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
-SET sql_log_bin=1;
-
---disable_query_log
---eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
---enable_query_log
-START GROUP_REPLICATION;
-
 --let $expected_value_user=`SELECT User_name FROM mysql.slave_master_info WHERE Channel_name LIKE 'group_replication_recovery'`
 --let $expected_value_password=`SELECT User_password FROM mysql.slave_master_info WHERE Channel_name LIKE 'group_replication_recovery'`
 --let $assert_text= The default values of the User_name and User_password are empty without a previous change master.
@@ -69,6 +65,8 @@ START GROUP_REPLICATION;
 RESET REPLICA ALL FOR CHANNEL 'group_replication_recovery';
 SET sql_log_bin=0;
 DROP USER manish;
+DROP USER internal_usr;
 SET sql_log_bin=1;
 SET @@global.log_output= @old_log_output;
+TRUNCATE TABLE mysql.general_log;
 --source include/group_replication_end.inc

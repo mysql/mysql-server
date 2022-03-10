@@ -29,7 +29,6 @@
 #include <NdbSleep.h>
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 // End of stuff to be moved
 
 

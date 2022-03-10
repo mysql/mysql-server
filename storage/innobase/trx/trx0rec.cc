@@ -65,8 +65,7 @@ class Spatial_reference_system;
 
 /** Writes the mtr log entry of the inserted undo log record on the undo log
  page. */
-UNIV_INLINE
-void trx_undof_page_add_undo_rec_log(
+static inline void trx_undof_page_add_undo_rec_log(
     page_t *undo_page, /*!< in: undo log page */
     ulint old_free,    /*!< in: start offset of the inserted entry */
     ulint new_free,    /*!< in: end offset of the entry */
@@ -139,9 +138,8 @@ byte *trx_undo_parse_add_undo_rec(byte *ptr,     /*!< in: buffer */
 #ifndef UNIV_HOTBACKUP
 /** Calculates the free space left for extending an undo log record.
  @return bytes left */
-UNIV_INLINE
-ulint trx_undo_left(const page_t *page, /*!< in: undo log page */
-                    const byte *ptr)    /*!< in: pointer to page */
+static inline ulint trx_undo_left(const page_t *page, /*!< in: undo log page */
+                                  const byte *ptr) /*!< in: pointer to page */
 {
   /* The '- 10' is a safety margin, in case we have some small
   calculation error below */
@@ -2102,11 +2100,11 @@ static ibool trx_undo_erase_page_end(
 
 /** Parses a redo log record of erasing of an undo page end.
  @return end of log record or NULL */
-byte *trx_undo_parse_erase_page_end(
-    byte *ptr,                            /*!< in: buffer */
-    byte *end_ptr MY_ATTRIBUTE((unused)), /*!< in: buffer end */
-    page_t *page,                         /*!< in: page or NULL */
-    mtr_t *mtr)                           /*!< in: mtr or NULL */
+byte *trx_undo_parse_erase_page_end(byte *ptr, /*!< in: buffer */
+                                    byte *end_ptr
+                                    [[maybe_unused]], /*!< in: buffer end */
+                                    page_t *page,     /*!< in: page or NULL */
+                                    mtr_t *mtr)       /*!< in: mtr or NULL */
 {
   if (page == nullptr) {
     return (ptr);
@@ -2382,11 +2380,10 @@ err_exit:
 /** Copies an undo record to heap. This function can be called if we know that
  the undo log record exists.
  @return own: copy of the record */
-static MY_ATTRIBUTE((warn_unused_result))
-    trx_undo_rec_t *trx_undo_get_undo_rec_low(
-        roll_ptr_t roll_ptr, /*!< in: roll pointer to record */
-        mem_heap_t *heap,    /*!< in: memory heap where copied */
-        bool is_temp)        /*!< in: true if temp undo rec. */
+[[nodiscard]] static trx_undo_rec_t *trx_undo_get_undo_rec_low(
+    roll_ptr_t roll_ptr, /*!< in: roll pointer to record */
+    mem_heap_t *heap,    /*!< in: memory heap where copied */
+    bool is_temp)        /*!< in: true if temp undo rec. */
 {
   trx_undo_rec_t *undo_rec;
   ulint rseg_id;
@@ -2429,9 +2426,11 @@ static MY_ATTRIBUTE((warn_unused_result))
  truncated and we cannot fetch the old version
  @retval false if the undo log record is available
  NOTE: the caller must have latches on the clustered index page. */
-static MY_ATTRIBUTE((warn_unused_result)) bool trx_undo_get_undo_rec(
-    roll_ptr_t roll_ptr, trx_id_t trx_id, mem_heap_t *heap, bool is_temp,
-    const table_name_t &name, trx_undo_rec_t **undo_rec) {
+[[nodiscard]] static bool trx_undo_get_undo_rec(roll_ptr_t roll_ptr,
+                                                trx_id_t trx_id,
+                                                mem_heap_t *heap, bool is_temp,
+                                                const table_name_t &name,
+                                                trx_undo_rec_t **undo_rec) {
   bool missing_history;
 
   rw_lock_s_lock(&purge_sys->latch);
@@ -2449,7 +2448,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool trx_undo_get_undo_rec(
 #ifdef UNIV_DEBUG
 #define ATTRIB_USED_ONLY_IN_DEBUG
 #else /* UNIV_DEBUG */
-#define ATTRIB_USED_ONLY_IN_DEBUG MY_ATTRIBUTE((unused))
+#define ATTRIB_USED_ONLY_IN_DEBUG [[maybe_unused]]
 #endif /* UNIV_DEBUG */
 
 bool trx_undo_prev_version_build(
@@ -2681,7 +2680,7 @@ void trx_undo_read_v_cols(const dict_table_t *table, const byte *ptr,
   while (ptr < end_ptr) {
     dfield_t *dfield;
     dfield_t multi_value_field;
-    const byte *field;
+    const byte *field = nullptr;
     ulint field_no;
     ulint len = 0;
     ulint orig_len = 0;

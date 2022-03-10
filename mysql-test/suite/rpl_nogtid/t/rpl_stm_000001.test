@@ -125,7 +125,7 @@ connection slave;
 --let $slave_sql_errno= convert_error(ER_ERROR_ON_MASTER)
 ###--source include/wait_for_slave_sql_error_and_skip.inc
 --source include/wait_for_slave_sql_error.inc
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+SET GLOBAL SQL_REPLICA_SKIP_COUNTER=1;
 source include/start_slave.inc;
 
 select count(*) from t1;

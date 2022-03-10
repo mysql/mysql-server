@@ -31,10 +31,6 @@ SET(LINUX 1)
 # Used by the test suite to ignore bugs on some platforms.
 SET(SYSTEM_TYPE "Linux")
 
-IF(EXISTS "/etc/SuSE-release")
-  SET(LINUX_SUSE 1)
-ENDIF()
-
 IF(EXISTS "/etc/alpine-release")
   SET(LINUX_ALPINE 1)
 ENDIF()
@@ -52,43 +48,27 @@ IF(EXISTS "/etc/fedora-release")
   ENDIF()
 ENDIF()
 
-IF(EXISTS "/etc/os-release")
-  FILE(READ "/etc/os-release" MY_OS_RELEASE)
-  IF(MY_OS_RELEASE MATCHES "Ubuntu" AND
-      MY_OS_RELEASE MATCHES "16.04")
-    SET(LINUX_UBUNTU_16_04 1)
-  ENDIF()
-  IF(MY_OS_RELEASE MATCHES "Debian")
-    SET(LINUX_DEBIAN 1)
-  ELSEIF(MY_OS_RELEASE MATCHES "Ubuntu")
-    SET(LINUX_UBUNTU 1)
-  ENDIF()
+# Use dpkg-buildflags --get CPPFLAGS | CFLAGS | CXXFLAGS | LDFLAGS
+# to get flags for this platform.
+IF(LINUX_DEBIAN OR LINUX_UBUNTU)
+  SET(LINUX_DEB_PLATFORM 1)
 ENDIF()
 
-# We require at least GCC 5.3 or Clang 3.4.
+# Use CMAKE_C_FLAGS | CMAKE_CXX_FLAGS = rpm --eval %optflags
+# to get flags for this platform.
+IF(LINUX_FEDORA OR LINUX_RHEL OR LINUX_SUSE)
+  SET(LINUX_RPM_PLATFORM 1)
+ENDIF()
+
+# We require at least GCC 7.1 Clang 5
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
   IF(MY_COMPILER_IS_GNU)
-    EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -dumpversion
-                    OUTPUT_STRIP_TRAILING_WHITESPACE
-                    OUTPUT_VARIABLE GCC_VERSION)
-    # -dumpversion may output only MAJOR.MINOR rather than MAJOR.MINOR.PATCH
-    IF(GCC_VERSION VERSION_LESS 5.3)
-      SET(WARNING_LEVEL WARNING)
-      IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.3)
-        SET(WARNING_LEVEL FATAL_ERROR)
-      ENDIF()
-      MESSAGE(${WARNING_LEVEL}
-        "GCC 5.3 or newer is required (-dumpversion says ${GCC_VERSION})")
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.1)
+      MESSAGE(FATAL_ERROR "GCC 7.1 or newer is required")
     ENDIF()
   ELSEIF(MY_COMPILER_IS_CLANG)
-    CHECK_C_SOURCE_RUNS("
-      int main()
-      {
-        return (__clang_major__ < 3) ||
-               (__clang_major__ == 3 && __clang_minor__ < 4);
-      }" HAVE_SUPPORTED_CLANG_VERSION)
-    IF(NOT HAVE_SUPPORTED_CLANG_VERSION)
-      MESSAGE(FATAL_ERROR "Clang 3.4 or newer is required!")
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5)
+      MESSAGE(FATAL_ERROR "Clang 5 or newer is required!")
     ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Unsupported compiler!")

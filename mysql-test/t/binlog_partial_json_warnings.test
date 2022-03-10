@@ -52,7 +52,7 @@ SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
 
 --echo # the binlog is disabled
---let $restart_parameters= "restart: --binlog-row-value-options=PARTIAL_JSON --binlog-row-image=MINIMAL --skip-log-bin --skip-log-slave-updates"
+--let $restart_parameters= "restart: --binlog-row-value-options=PARTIAL_JSON --binlog-row-image=MINIMAL --skip-log-bin --skip-log-replica-updates"
 --source include/restart_mysqld.inc
 
 --let $assert_select= When the binary log is disabled, the option binlog_row_value_options=PARTIAL_JSON

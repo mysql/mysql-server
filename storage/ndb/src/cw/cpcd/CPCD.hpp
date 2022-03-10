@@ -25,6 +25,8 @@
 #ifndef CPCD_HPP
 #define CPCD_HPP
 
+#include <time.h>
+
 #include <NdbCondition.h>
 #include <NdbThread.h>
 #include <BaseString.hpp>
@@ -80,7 +82,7 @@ std::string getCpcdVersion();
  */
 class CPCD {
  public:
-  STATIC_CONST(CPC_PROTOCOL_VERSION = 2);
+  static constexpr Uint32 CPC_PROTOCOL_VERSION = 2;
 
   /** @brief Describes the status of a client request */
   class RequestStatus {

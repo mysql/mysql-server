@@ -31,15 +31,12 @@ select keyring_key_fetch('Key_1',NULL);
 # Error cases -- wrong argument type
 --error ER_CANT_INITIALIZE_UDF
 select keyring_key_fetch(1);
---error ER_CANT_INITIALIZE_UDF
 select keyring_key_fetch(NULL);
 --error ER_CANT_INITIALIZE_UDF
 select keyring_key_type_fetch(1);
---error ER_CANT_INITIALIZE_UDF
 select keyring_key_type_fetch(NULL);
 --error ER_CANT_INITIALIZE_UDF
 select keyring_key_length_fetch(1);
---error ER_CANT_INITIALIZE_UDF
 select keyring_key_length_fetch(NULL);
 --error ER_CANT_INITIALIZE_UDF
 select keyring_key_generate('Key_1','AES','123');
@@ -59,7 +56,6 @@ select keyring_key_generate('Key_1',123,'123');
 select keyring_key_generate('Key_invalid_key_type',123,123);
 --error ER_CANT_INITIALIZE_UDF
 select keyring_key_remove(1);
---error ER_CANT_INITIALIZE_UDF
 select keyring_key_remove(NULL);
 # End of wrong argument type
 

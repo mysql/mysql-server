@@ -199,17 +199,14 @@ void Log_Arch_Client_Ctx::release() {
   m_state = ARCH_CLIENT_STATE_INIT;
 }
 
-/** Update checkpoint LSN and related information in redo
-log header block.
-@param[in,out]	header		redo log header buffer
-@param[in]	checkpoint_lsn	checkpoint LSN for recovery */
-void Arch_Log_Sys::update_header(byte *header, lsn_t checkpoint_lsn) {
+void Arch_Log_Sys::update_header(const Arch_Group *group, byte *header,
+                                 lsn_t checkpoint_lsn) {
   lsn_t start_lsn;
   lsn_t lsn_offset;
   ib_uint64_t file_size;
 
-  start_lsn = m_current_group->get_begin_lsn();
-  file_size = m_current_group->get_file_size();
+  start_lsn = group->get_begin_lsn();
+  file_size = group->get_file_size();
 
   start_lsn = ut_uint64_align_down(start_lsn, OS_FILE_LOG_BLOCK_SIZE);
 
@@ -342,8 +339,9 @@ int Arch_Log_Sys::start(Arch_Group *&group, lsn_t &start_lsn, byte *header,
 
   /* Create a new group. */
   if (create_new_group) {
-    m_current_group = UT_NEW(Arch_Group(start_lsn, LOG_FILE_HDR_SIZE, &m_mutex),
-                             mem_key_archive);
+    m_current_group =
+        ut::new_withkey<Arch_Group>(ut::make_psi_memory_key(mem_key_archive),
+                                    start_lsn, LOG_FILE_HDR_SIZE, &m_mutex);
 
     if (m_current_group == nullptr) {
       arch_mutex_exit();
@@ -382,8 +380,11 @@ int Arch_Log_Sys::start(Arch_Group *&group, lsn_t &start_lsn, byte *header,
 
   arch_mutex_exit();
 
-  /* Update header with checkpoint LSN. */
-  update_header(header, start_lsn);
+  /* Update header with checkpoint LSN. We need to pass the saved
+  group pointer as arch mutex is released and m_current_group should
+  no longer be accessed. The group cannot be freed as we have already
+  attached to it. */
+  update_header(group, header, start_lsn);
 
   return (0);
 }
@@ -401,6 +402,26 @@ void Arch_Group::adjust_end_lsn(lsn_t &stop_lsn, uint32_t &blk_len) {
                   blk_len = OS_FILE_LOG_BLOCK_SIZE;
                   stop_lsn += 64;);
 }
+
+void Arch_Group::adjust_copy_length(lsn_t arch_lsn, uint32_t &copy_len) {
+  lsn_t end_lsn = LSN_MAX;
+  uint32_t blk_len = 0;
+  adjust_end_lsn(end_lsn, blk_len);
+
+  if (end_lsn <= arch_lsn) {
+    copy_len = 0;
+    return;
+  }
+
+  /* Adjust if copying beyond end LSN. */
+  auto len_left = end_lsn - arch_lsn;
+  len_left = ut_uint64_align_down(len_left, OS_FILE_LOG_BLOCK_SIZE);
+
+  if (len_left < copy_len) {
+    copy_len = static_cast<uint32_t>(len_left);
+  }
+}
+
 #endif /* UNIV_DEBUG */
 
 /** Stop redo log archiving.
@@ -491,7 +512,7 @@ void Arch_Log_Sys::release(Arch_Group *group, bool is_durable) {
 
   m_group_list.remove(group);
 
-  UT_DELETE(group);
+  ut::delete_(group);
 
   arch_mutex_exit();
 }
@@ -554,7 +575,7 @@ Arch_State Arch_Log_Sys::check_set_state(bool is_abort, lsn_t *archived_lsn,
         log_writer_mutex_exit(*log_sys);
         break;
       }
-      /* fall through */
+      [[fallthrough]];
 
     case ARCH_STATE_PREPARE_IDLE: {
       /* No active clients. Mark the group inactive and move
@@ -565,7 +586,7 @@ Arch_State Arch_Log_Sys::check_set_state(bool is_abort, lsn_t *archived_lsn,
       if (!m_current_group->is_referenced()) {
         m_group_list.remove(m_current_group);
 
-        UT_DELETE(m_current_group);
+        ut::delete_(m_current_group);
       }
 
       m_current_group = nullptr;
@@ -574,7 +595,7 @@ Arch_State Arch_Log_Sys::check_set_state(bool is_abort, lsn_t *archived_lsn,
       m_state = ARCH_STATE_IDLE;
       log_writer_mutex_exit(*log_sys);
     }
-      /* fall through */
+      [[fallthrough]];
 
     case ARCH_STATE_IDLE:
     case ARCH_STATE_INIT:
@@ -797,7 +818,7 @@ data by calling it repeatedly over time.
 bool Arch_Log_Sys::archive(bool init, Arch_File_Ctx *curr_ctx, lsn_t *arch_lsn,
                            bool *wait) {
   Arch_State curr_state;
-  uint arch_len;
+  uint32_t arch_len;
 
   dberr_t err = DB_SUCCESS;
   bool is_abort = false;
@@ -820,6 +841,10 @@ bool Arch_Log_Sys::archive(bool init, Arch_File_Ctx *curr_ctx, lsn_t *arch_lsn,
   curr_state = check_set_state(is_abort, arch_lsn, &arch_len);
 
   if (curr_state == ARCH_STATE_ACTIVE) {
+    /* Adjust archiver length to no go beyond file end. */
+    DBUG_EXECUTE_IF("clone_arch_log_stop_file_end",
+                    m_current_group->adjust_copy_length(*arch_lsn, arch_len););
+
     /* Simulate archive error. */
     DBUG_EXECUTE_IF("clone_redo_no_archive", arch_len = 0;);
 

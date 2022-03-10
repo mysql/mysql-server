@@ -60,7 +60,7 @@ proxy_sha256@localhost	proxy_sha256@localhost	NULL
 SHOW GRANTS;
 Grants for proxy_sha256@localhost
 GRANT USAGE ON *.* TO `proxy_sha256`@`localhost`
-GRANT PROXY ON 'proxy_base'@'localhost' TO 'proxy_sha256'@'localhost'
+GRANT PROXY ON `proxy_base`@`localhost` TO `proxy_sha256`@`localhost`
 ** Connection default **
 ALTER USER 'proxy_sha256'@'localhost' IDENTIFIED BY 'testpw';
 ** Connecting as proxy_sha256, password with proxy mapping disabled **
@@ -70,7 +70,7 @@ proxy_sha256@localhost	proxy_sha256@localhost	NULL
 SHOW GRANTS;
 Grants for proxy_sha256@localhost
 GRANT USAGE ON *.* TO `proxy_sha256`@`localhost`
-GRANT PROXY ON 'proxy_base'@'localhost' TO 'proxy_sha256'@'localhost'
+GRANT PROXY ON `proxy_base`@`localhost` TO `proxy_sha256`@`localhost`
 ** Connection default **
 ALTER USER 'proxy_sha256'@'localhost' IDENTIFIED BY '';
 ** Connecting as proxy_none with proxy mapping disabled **
@@ -80,7 +80,7 @@ proxy_none@localhost	proxy_none@localhost	NULL
 SHOW GRANTS;
 Grants for proxy_none@localhost
 GRANT USAGE ON *.* TO `proxy_none`@`localhost`
-GRANT PROXY ON 'proxy_blah'@'localhost' TO 'proxy_none'@'localhost'
+GRANT PROXY ON `proxy_blah`@`localhost` TO `proxy_none`@`localhost`
 ** Connecting as proxy_sha256_1 with proxy mapping disabled **
 SELECT CURRENT_USER(), USER(), @@session.proxy_user;
 CURRENT_USER()	USER()	@@session.proxy_user
@@ -88,7 +88,7 @@ proxy_sha256_1@localhost	proxy_sha256_1@localhost	NULL
 SHOW GRANTS;
 Grants for proxy_sha256_1@localhost
 GRANT DELETE ON *.* TO `proxy_sha256_1`@`localhost`
-GRANT PROXY ON 'proxy_base_multi'@'localhost' TO 'proxy_sha256_1'@'localhost'
+GRANT PROXY ON `proxy_base_multi`@`localhost` TO `proxy_sha256_1`@`localhost`
 ** Connecting as proxy_sha256_2 with proxy mapping disabled **
 SELECT CURRENT_USER(), USER(), @@session.proxy_user;
 CURRENT_USER()	USER()	@@session.proxy_user
@@ -96,7 +96,7 @@ proxy_sha256_2@localhost	proxy_sha256_2@localhost	NULL
 SHOW GRANTS;
 Grants for proxy_sha256_2@localhost
 GRANT INSERT, DELETE ON *.* TO `proxy_sha256_2`@`localhost`
-GRANT PROXY ON 'proxy_base_multi'@'localhost' TO 'proxy_sha256_2'@'localhost'
+GRANT PROXY ON `proxy_base_multi`@`localhost` TO `proxy_sha256_2`@`localhost`
 ** Connecting as proxy_sha256_4 with proxy mapping disabled **
 SELECT CURRENT_USER(), USER(), @@session.proxy_user;
 CURRENT_USER()	USER()	@@session.proxy_user
@@ -104,8 +104,8 @@ proxy_sha256_4@localhost	proxy_sha256_4@localhost	NULL
 SHOW GRANTS;
 Grants for proxy_sha256_4@localhost
 GRANT INSERT ON *.* TO `proxy_sha256_4`@`localhost`
-GRANT PROXY ON 'proxy_base'@'localhost' TO 'proxy_sha256_4'@'localhost'
-GRANT PROXY ON 'proxy_base_multi'@'localhost' TO 'proxy_sha256_4'@'localhost'
+GRANT PROXY ON `proxy_base`@`localhost` TO `proxy_sha256_4`@`localhost`
+GRANT PROXY ON `proxy_base_multi`@`localhost` TO `proxy_sha256_4`@`localhost`
 ** Connection default **
 ** Disconnecting connections **
 '#----- 3.2.2.1 check OFF and sha256 ON ----------------------#'
@@ -118,7 +118,7 @@ proxy_sha256@localhost	proxy_sha256@localhost	NULL
 SHOW GRANTS;
 Grants for proxy_sha256@localhost
 GRANT USAGE ON *.* TO `proxy_sha256`@`localhost`
-GRANT PROXY ON 'proxy_base'@'localhost' TO 'proxy_sha256'@'localhost'
+GRANT PROXY ON `proxy_base`@`localhost` TO `proxy_sha256`@`localhost`
 ** Connection default **
 ALTER USER 'proxy_sha256'@'localhost' IDENTIFIED BY 'testpw';
 ** Connecting as proxy_sha256, password with proxy mapping disabled (sha256 mapping on) **
@@ -128,7 +128,7 @@ proxy_sha256@localhost	proxy_sha256@localhost	NULL
 SHOW GRANTS;
 Grants for proxy_sha256@localhost
 GRANT USAGE ON *.* TO `proxy_sha256`@`localhost`
-GRANT PROXY ON 'proxy_base'@'localhost' TO 'proxy_sha256'@'localhost'
+GRANT PROXY ON `proxy_base`@`localhost` TO `proxy_sha256`@`localhost`
 ** Connection default **
 ALTER USER 'proxy_sha256'@'localhost' IDENTIFIED BY '';
 ** Connecting as proxy_none with proxy mapping disabled (sha256 mapping on) **
@@ -138,7 +138,7 @@ proxy_none@localhost	proxy_none@localhost	NULL
 SHOW GRANTS;
 Grants for proxy_none@localhost
 GRANT USAGE ON *.* TO `proxy_none`@`localhost`
-GRANT PROXY ON 'proxy_blah'@'localhost' TO 'proxy_none'@'localhost'
+GRANT PROXY ON `proxy_blah`@`localhost` TO `proxy_none`@`localhost`
 ** Connecting as proxy_sha256_1 with proxy mapping disabled (sha256 mapping on)**
 SELECT CURRENT_USER(), USER(), @@session.proxy_user;
 CURRENT_USER()	USER()	@@session.proxy_user
@@ -146,7 +146,7 @@ proxy_sha256_1@localhost	proxy_sha256_1@localhost	NULL
 SHOW GRANTS;
 Grants for proxy_sha256_1@localhost
 GRANT DELETE ON *.* TO `proxy_sha256_1`@`localhost`
-GRANT PROXY ON 'proxy_base_multi'@'localhost' TO 'proxy_sha256_1'@'localhost'
+GRANT PROXY ON `proxy_base_multi`@`localhost` TO `proxy_sha256_1`@`localhost`
 ** Connecting as proxy_sha256_2 with proxy mapping disabled (sha256 mapping on) **
 SELECT CURRENT_USER(), USER(), @@session.proxy_user;
 CURRENT_USER()	USER()	@@session.proxy_user
@@ -154,7 +154,7 @@ proxy_sha256_2@localhost	proxy_sha256_2@localhost	NULL
 SHOW GRANTS;
 Grants for proxy_sha256_2@localhost
 GRANT INSERT, DELETE ON *.* TO `proxy_sha256_2`@`localhost`
-GRANT PROXY ON 'proxy_base_multi'@'localhost' TO 'proxy_sha256_2'@'localhost'
+GRANT PROXY ON `proxy_base_multi`@`localhost` TO `proxy_sha256_2`@`localhost`
 ** Connecting as proxy_sha256_4 with proxy mapping disabled (sha256 mapping on) **
 SELECT CURRENT_USER(), USER(), @@session.proxy_user;
 CURRENT_USER()	USER()	@@session.proxy_user
@@ -162,8 +162,8 @@ proxy_sha256_4@localhost	proxy_sha256_4@localhost	NULL
 SHOW GRANTS;
 Grants for proxy_sha256_4@localhost
 GRANT INSERT ON *.* TO `proxy_sha256_4`@`localhost`
-GRANT PROXY ON 'proxy_base'@'localhost' TO 'proxy_sha256_4'@'localhost'
-GRANT PROXY ON 'proxy_base_multi'@'localhost' TO 'proxy_sha256_4'@'localhost'
+GRANT PROXY ON `proxy_base`@`localhost` TO `proxy_sha256_4`@`localhost`
+GRANT PROXY ON `proxy_base_multi`@`localhost` TO `proxy_sha256_4`@`localhost`
 ** Connecting as chained proxy_sha256_41 with proxy mapping disabled (sha256 mapping on) **
 SELECT CURRENT_USER(), USER(), @@session.proxy_user;
 CURRENT_USER()	USER()	@@session.proxy_user
@@ -171,7 +171,7 @@ proxy_sha256_41@localhost	proxy_sha256_41@localhost	NULL
 SHOW GRANTS;
 Grants for proxy_sha256_41@localhost
 GRANT UPDATE ON *.* TO `proxy_sha256_41`@`localhost`
-GRANT PROXY ON 'proxy_sha256_4'@'localhost' TO 'proxy_sha256_41'@'localhost'
+GRANT PROXY ON `proxy_sha256_4`@`localhost` TO `proxy_sha256_41`@`localhost`
 ** Connection default **
 GRANT PROXY ON ''@localhost TO proxy_sha256_1@localhost;
 ** Connecting as Anonymus with proxy mapping disabled (sha256 mapping on) **
@@ -210,7 +210,7 @@ proxy_none@localhost	proxy_none@localhost	NULL
 SHOW GRANTS;
 Grants for proxy_none@localhost
 GRANT USAGE ON *.* TO `proxy_none`@`localhost`
-GRANT PROXY ON 'proxy_blah'@'localhost' TO 'proxy_none'@'localhost'
+GRANT PROXY ON `proxy_blah`@`localhost` TO `proxy_none`@`localhost`
 ** Connecting as proxy_sha256_1 with proxy mapping enabled **
 SELECT CURRENT_USER(), USER(), @@session.proxy_user;
 CURRENT_USER()	USER()	@@session.proxy_user
@@ -248,8 +248,8 @@ proxy_sha256_41@localhost	'proxy_sha256_41'@'localhost'
 SHOW GRANTS;
 Grants for proxy_sha256_4@localhost
 GRANT INSERT ON *.* TO `proxy_sha256_4`@`localhost`
-GRANT PROXY ON 'proxy_base'@'localhost' TO 'proxy_sha256_4'@'localhost'
-GRANT PROXY ON 'proxy_base_multi'@'localhost' TO 'proxy_sha256_4'@'localhost'
+GRANT PROXY ON `proxy_base`@`localhost` TO `proxy_sha256_4`@`localhost`
+GRANT PROXY ON `proxy_base_multi`@`localhost` TO `proxy_sha256_4`@`localhost`
 ** Connection default **
 GRANT PROXY ON ''@localhost TO proxy_sha256_1@localhost;
 ** Connecting as Anonymus with proxy mapping enabled **

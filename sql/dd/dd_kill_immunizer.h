@@ -64,6 +64,8 @@ class DD_kill_immunizer {
 
     // Set killed state of THD as NOT_KILLED.
     thd->killed = THD::NOT_KILLED;
+    // No OOM error while immunizer is active.
+    m_thd->mem_cnt->no_error_mode();
   }
 
   ~DD_kill_immunizer() {
@@ -73,9 +75,10 @@ class DD_kill_immunizer {
       Current instance is of top level kill immunizer, set kill immune mode to
       inactive(or exiting).
     */
-    if (m_saved_kill_immunizer == nullptr)
+    if (m_saved_kill_immunizer == nullptr) {
       m_is_active = false;
-    else
+      m_thd->mem_cnt->restore_mode();
+    } else
       // Set kill_immunizer of THD to parent. We must do it before calling awake
       // to transfer the kill state to parent kill_immunizer.
       m_thd->kill_immunizer = m_saved_kill_immunizer;

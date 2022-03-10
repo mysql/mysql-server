@@ -22,11 +22,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <cstring>
-
 #define DBDIH_C
 #include <ndb_global.h>
 #include <ndb_limits.h>
+#include <string.h>
 #include <ndb_version.h>
 #include <NdbOut.hpp>
 
@@ -102,7 +101,6 @@
 
 static const Uint32 WaitTableStateChangeMillis = 10;
 
-extern EventLogger * g_eventLogger;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define DEBUG_MULTI_TRP 1
@@ -241,9 +239,9 @@ void Dbdih::send_COPY_GCIREQ_data_v2(Signal *signal,
 #if 0
   for (Uint32 i = 0; i < cdata_size_in_words; i++)
   {
-    ndbout_c("cdata[%u] = %x", i, cdata[i]);
+    g_eventLogger->info("cdata[%u] = %x", i, cdata[i]);
   }
-  ndbout_c("ref = %x", ref);
+  g_eventLogger->info("ref = %x", ref);
 #endif
   sendSignal(ref,
              GSN_COPY_GCIREQ,
@@ -1650,7 +1648,7 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
     // try to get some LQH workers which initially handle no fragments
     if (ERROR_INSERTED(7215)) {
       c_fragments_per_node_ = 1;
-      ndbout_c("Using %u fragments per node", c_fragments_per_node_);
+      g_eventLogger->info("Using %u fragments per node", c_fragments_per_node_);
     }
     if ((c_fragments_per_node_ * cnoReplicas) /
          globalData.ndbMtLqhWorkers > MAX_FRAG_PER_LQH)
@@ -1930,6 +1928,7 @@ void Dbdih::execSET_LATEST_LCP_ID(Signal *signal)
 void Dbdih::execGET_LATEST_GCI_REQ(Signal *signal)
 {
   Uint32 nodeId = signal->theData[0];
+  ndbrequire(nodeId < MAX_NDB_NODES);
   Uint32 latestGci = SYSFILE->lastCompletedGCI[nodeId];
   signal->theData[0] = latestGci;
 }
@@ -2040,7 +2039,7 @@ void Dbdih::execNDB_STTOR(Signal* signal)
       jam();
       globalData.m_restart_seq = SYSFILE->m_restart_seq = 1;
       g_eventLogger->info("Starting with m_restart_seq set to 1");
-      c_set_initial_start_flag = TRUE; // In sysfile...
+      c_set_initial_start_flag = true; // In sysfile...
     }
 
     if (cstarttype == NodeState::ST_INITIAL_START) {
@@ -2452,7 +2451,7 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
     if (c_2pass_inr)
     {
 #ifdef VM_TRACE
-      ndbout_c("ok");
+      g_eventLogger->info("ok");
 #endif
     }
 
@@ -2502,7 +2501,7 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
       char buf[255];
       BaseString::snprintf(buf, sizeof(buf), 
                            "Illegal configuration change."
-                           " Initial start needs to be performed "
+                           " Initial start needs to be performed"
                            " when removing nodes with nodegroup (node %d)", i);
       progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
     }
@@ -2776,7 +2775,7 @@ void Dbdih::execSTART_MECONF(Signal* signal)
   if (getNodeActiveStatus(getOwnNodeId()) == Sysfile::NS_Configured)
   {
     jam();
-    c_set_initial_start_flag = FALSE;
+    c_set_initial_start_flag = false;
   }
 }//Dbdih::execSTART_MECONF()
 
@@ -3377,7 +3376,7 @@ bool Dbdih::check_if_lcp_idle(void)
     return false;
   case LCP_TAB_COMPLETED:
     jam();
-    // Fall through
+    [[fallthrough]];
   case LCP_TAB_SAVED:
     jam();
     /**
@@ -5726,7 +5725,7 @@ void Dbdih::setNodeRecoveryStatus(Uint32 nodeId,
       {
         case NodeRecord::ALLOCATED_NODE_ID:
           jam();
-          // Fall through
+          [[fallthrough]];
         case NodeRecord::INCLUDED_IN_HB_PROTOCOL:
           jam();
           /**
@@ -6288,49 +6287,49 @@ bool Dbdih::check_node_recovery_timers(Uint32 nodeId)
   {
   case NodeRecord::RESTART_COMPLETED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->restartCompletedTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::WAIT_SUMA_HANDOVER:
     ndbrequire(NdbTick_IsValid(nodePtr.p->waitSumaHandoverTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::WAIT_LCP_FOR_RESTART:
     ndbrequire(NdbTick_IsValid(nodePtr.p->waitLCPForRestartTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::COPY_FRAGMENTS_STARTED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->copyFragmentsStartedTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::EXECUTE_REDO_LOG_COMPLETED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->startBuildIndexTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::UNDO_DD_COMPLETED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->startExecREDOLogTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::RESTORE_FRAG_COMPLETED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->startUndoDDTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::LOCAL_RECOVERY_STARTED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->startDatabaseRecoveryTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::INCLUDE_NODE_IN_LCP_AND_GCP:
     ndbrequire(NdbTick_IsValid(nodePtr.p->includeNodeInLCPAndGCPTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::COPY_DICT_TO_STARTING_NODE:
     ndbrequire(NdbTick_IsValid(nodePtr.p->copyDictToStartingNodeTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::WAIT_LCP_TO_COPY_DICT:
     ndbrequire(NdbTick_IsValid(nodePtr.p->waitLCPToCopyDictTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::START_PERMITTED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->startPermittedTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::NDBCNTR_STARTED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->ndbcntrStartedTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::NDBCNTR_START_WAIT:
     ndbrequire(NdbTick_IsValid(nodePtr.p->ndbcntrStartWaitTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::INCLUDED_IN_HB_PROTOCOL:
     ndbrequire(NdbTick_IsValid(nodePtr.p->includedInHBProtocolTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::ALLOCATED_NODE_ID:
     ndbrequire(NdbTick_IsValid(nodePtr.p->allocatedNodeIdTime));
     ndbrequire(NdbTick_IsValid(nodePtr.p->nodeFailCompletedTime));
@@ -6338,16 +6337,16 @@ bool Dbdih::check_node_recovery_timers(Uint32 nodeId)
     break;
   case NodeRecord::NODE_ACTIVE:
     ndbrequire(NdbTick_IsValid(nodePtr.p->nodeActiveTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::NODE_IN_LCP_WAIT_STATE:
     ndbrequire(NdbTick_IsValid(nodePtr.p->nodeInLCPWaitStateTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::NODE_GETTING_SYNCHED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->nodeGettingSynchedTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::NODE_GETTING_INCLUDED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->nodeGettingIncludedTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::NODE_GETTING_PERMIT:
     ndbrequire(NdbTick_IsValid(nodePtr.p->nodeGettingPermitTime));
     ndbrequire(NdbTick_IsValid(nodePtr.p->nodeFailCompletedTime));
@@ -6355,7 +6354,7 @@ bool Dbdih::check_node_recovery_timers(Uint32 nodeId)
     break;
   case NodeRecord::NODE_FAILURE_COMPLETED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->nodeFailCompletedTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::NODE_FAILED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->nodeFailTime));
     break;
@@ -7830,10 +7829,9 @@ Dbdih::nr_start_fragment(Signal* signal,
   Uint32 restorableGCI = takeOverPtr.p->restorableGci;
 
 #if defined VM_TRACE || defined ERROR_INSERT
-  ndbout_c("tab: %d frag: %d replicaP->nextLcp: %d",
-	   takeOverPtr.p->toCurrentTabref,
-	   takeOverPtr.p->toCurrentFragid,
-	   replicaPtr.p->nextLcp);
+  g_eventLogger->info("tab: %d frag: %d replicaP->nextLcp: %d",
+                      takeOverPtr.p->toCurrentTabref,
+                      takeOverPtr.p->toCurrentFragid, replicaPtr.p->nextLcp);
 #endif
 
   /**
@@ -7857,17 +7855,18 @@ Dbdih::nr_start_fragment(Signal* signal,
   {
     Int32 j = replicaPtr.p->noCrashedReplicas - 1;
 #if defined VM_TRACE || defined ERROR_INSERT
-    ndbout_c("scanning idx: %d lcpId: %d crashed replicas: %u %s", 
-             idx, replicaPtr.p->lcpId[idx],
-             replicaPtr.p->noCrashedReplicas,
-             replicaPtr.p->lcpStatus[idx] == ZVALID ? "VALID" : "NOT VALID");
+    g_eventLogger->info(
+        "scanning idx: %d lcpId: %d crashed replicas: %u %s", idx,
+        replicaPtr.p->lcpId[idx], replicaPtr.p->noCrashedReplicas,
+        replicaPtr.p->lcpStatus[idx] == ZVALID ? "VALID" : "NOT VALID");
 #endif
     if (replicaPtr.p->lcpStatus[idx] == ZVALID) 
     {
       Uint32 startGci = replicaPtr.p->maxGciCompleted[idx] + 1;
       Uint32 stopGci = replicaPtr.p->maxGciStarted[idx];
 #if defined VM_TRACE || defined ERROR_INSERT
-      ndbout_c(" maxGciCompleted: %u maxGciStarted: %u", startGci - 1, stopGci);
+      g_eventLogger->info(" maxGciCompleted: %u maxGciStarted: %u",
+                          startGci - 1, stopGci);
 #endif
       /* The following error insert is for Bug #23602217.
        * It ensures that the most recent LCP is considered
@@ -7885,11 +7884,10 @@ Dbdih::nr_start_fragment(Signal* signal,
       for (; j>= 0; j--)
       {
 #if defined VM_TRACE || defined ERROR_INSERT
-	ndbout_c("crashed replica: %d(%d) replica(createGci: %u lastGci: %d )",
-		 j, 
-		 replicaPtr.p->noCrashedReplicas,
-                 replicaPtr.p->createGci[j],
-		 replicaPtr.p->replicaLastGci[j]);
+        g_eventLogger->info(
+            "crashed replica: %d(%d) replica(createGci: %u lastGci: %d )", j,
+            replicaPtr.p->noCrashedReplicas, replicaPtr.p->createGci[j],
+            replicaPtr.p->replicaLastGci[j]);
 #endif
 	if (replicaPtr.p->createGci[j] <= startGci &&
             replicaPtr.p->replicaLastGci[j] >= stopGci &&
@@ -7905,17 +7903,12 @@ Dbdih::nr_start_fragment(Signal* signal,
 	}
       }
     }
-    else
-    {
-#if defined VM_TRACE || defined ERROR_INSERT
-      ndbout_c(" ");
-#endif
-    }
   }
   
   idx = 2; // backward compat code
 #if defined VM_TRACE || defined ERROR_INSERT
-  ndbout_c("- scanning idx: %d lcpId: %d", idx, replicaPtr.p->lcpId[idx]);
+  g_eventLogger->info("- scanning idx: %d lcpId: %d", idx,
+                      replicaPtr.p->lcpId[idx]);
 #endif
   if (replicaPtr.p->lcpStatus[idx] == ZVALID) 
   {
@@ -7925,11 +7918,10 @@ Dbdih::nr_start_fragment(Signal* signal,
     for (;j >= 0; j--)
     {
 #if defined VM_TRACE || defined ERROR_INSERT
-      ndbout_c("crashed replica: %d(%d) replica(createGci: %u lastGci: %d )",
-               j, 
-               replicaPtr.p->noCrashedReplicas,
-               replicaPtr.p->createGci[j],
-               replicaPtr.p->replicaLastGci[j]);
+      g_eventLogger->info(
+          "crashed replica: %d(%d) replica(createGci: %u lastGci: %d )", j,
+          replicaPtr.p->noCrashedReplicas, replicaPtr.p->createGci[j],
+          replicaPtr.p->replicaLastGci[j]);
 #endif
       if (replicaPtr.p->createGci[j] <= startGci &&
           replicaPtr.p->replicaLastGci[j] >= stopGci &&
@@ -10817,11 +10809,11 @@ void Dbdih::startRemoveFailedNode(Signal* signal, NodeRecordPtr failedNodePtr)
   {
     if (ERROR_INSERTED(7194))
     {
-      ndbout_c("7194 Not starting ZREMOVE_NODE_FROM_TABLE");
+      g_eventLogger->info("7194 Not starting ZREMOVE_NODE_FROM_TABLE");
     }
     else if (ERROR_INSERTED(7221))
     {
-      ndbout_c("7221 Not starting ZREMOVE_NODE_FROM_TABLE");
+      g_eventLogger->info("7221 Not starting ZREMOVE_NODE_FROM_TABLE");
     }
   }
 
@@ -10914,7 +10906,7 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
 #endif
   if (ERROR_INSERTED(7181))
   {
-    ndbout_c("execGCP_TCFINISHED in MASTER_GCPREQ");
+    g_eventLogger->info("execGCP_TCFINISHED in MASTER_GCPREQ");
     CLEAR_ERROR_INSERT_VALUE;
     signal->theData[0] = c_error_7181_ref;
     signal->theData[1] = (Uint32)(m_micro_gcp.m_old_gci >> 32);
@@ -11041,7 +11033,7 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
 
   if (ERROR_INSERTED(7182))
   {
-    ndbout_c("execGCP_TCFINISHED in MASTER_GCPREQ");
+    g_eventLogger->info("execGCP_TCFINISHED in MASTER_GCPREQ");
     CLEAR_ERROR_INSERT_VALUE;
     signal->theData[0] = c_error_7181_ref;
     signal->theData[1] = (Uint32)(m_micro_gcp.m_old_gci >> 32);
@@ -11150,7 +11142,7 @@ void Dbdih::execMASTER_GCPCONF(Signal* signal)
     break;
   case MasterGCPConf::GCP_COMMIT_RECEIVED:
     jam();
-    // Fall through
+    [[fallthrough]];
   case MasterGCPConf::GCP_COMMITTED:
     jam();
     ok = true;
@@ -11316,7 +11308,7 @@ void Dbdih::MASTER_GCPhandling(Signal* signal, Uint32 failedNodeId)
     }
     case GcpSave::GCP_SAVE_CONF:
       jam();
-      // Fall through
+      [[fallthrough]];
     case GcpSave::GCP_SAVE_COPY_GCI:
       jam();
       ok = true;
@@ -11863,7 +11855,7 @@ Dbdih::checkEmptyLcpComplete(Signal *signal)
 
     if (ERROR_INSERTED(7194))
     {
-      ndbout_c("7194 starting ZREMOVE_NODE_FROM_TABLE");
+      g_eventLogger->info("7194 starting ZREMOVE_NODE_FROM_TABLE");
       signal->theData[0] = DihContinueB::ZREMOVE_NODE_FROM_TABLE;
       signal->theData[1] = c_lcpMasterTakeOverState.failedNodeId;
       signal->theData[2] = 0; // Tab id
@@ -11944,7 +11936,7 @@ void Dbdih::execMASTER_LCPREQ(Signal* signal)
      * to be selected as the new master by this node.
      */
     jam();
-    ndbout_c("resending GSN_MASTER_LCPREQ");
+    g_eventLogger->info("resending GSN_MASTER_LCPREQ");
     sendSignalWithDelay(reference(), GSN_MASTER_LCPREQ, signal,
 			50, signal->getLength());
     return;
@@ -12284,7 +12276,7 @@ void Dbdih::execMASTER_LCPCONF(Signal* signal)
 
   if (ERROR_INSERTED(7194))
   {
-    ndbout_c("delaying MASTER_LCPCONF due to error 7194");
+    g_eventLogger->info("delaying MASTER_LCPCONF due to error 7194");
     sendSignalWithDelay(reference(), GSN_MASTER_LCPCONF, signal, 
                         300, signal->getLength());
     return;
@@ -12826,7 +12818,7 @@ Dbdih::getFragmentsPerNode()
     c_fragments_per_node_ = 1;
   }
 #ifdef VM_TRACE
-  ndbout_c("Using %u fragments per node", c_fragments_per_node_);
+  g_eventLogger->info("Using %u fragments per node", c_fragments_per_node_);
 #endif
   return c_fragments_per_node_;
 }
@@ -13328,7 +13320,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         break;
       case DictTabInfo::DistrKeyHash:
         jam();
-        // Fall through
+        [[fallthrough]];
       case DictTabInfo::DistrKeyLin:
         jam();
         if (noOfFragments == 0)
@@ -13373,7 +13365,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       }
       case DictTabInfo::DistrKeyOrderedIndex:
         jam();
-        // Fall through
+        [[fallthrough]];
       default:
         jam();
         err = CreateFragmentationRef::InvalidFragmentationType;
@@ -13384,6 +13376,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         When we come here the the exact partition is specified
         and there is an array of node groups sent along as well.
       */
+      ndbrequire(noOfFragments <= NDB_ARRAY_SIZE(tmp_node_group_id));
       memcpy(&tmp_node_group_id[0], &signal->theData[25], 2 * noOfFragments);
       Uint16 (*next_replica_node)[MAX_NDB_NODE_GROUPS]
                                  [NDBMT_MAX_WORKER_INSTANCES] =
@@ -13665,7 +13658,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
             inc_node_or_group(node_index, NGPtr.p->nodeCount);
             ndbrequire(node_index < noOfReplicas);
             (*next_replica_node)[NGPtr.i][log_part_id] = node_index;
-            tmp_next_replica_node_set[NGPtr.i][log_part_id] = TRUE;
+            tmp_next_replica_node_set[NGPtr.i][log_part_id] = true;
             break;
           }
         }
@@ -13972,10 +13965,10 @@ bool Dbdih::verify_fragmentation(Uint16* fragments,
   Uint16 fragments_per_ldm[MAX_NDB_NODES][NDBMT_MAX_WORKER_INSTANCES];
   Uint16 primary_replica_per_ldm[MAX_NDB_NODES][NDBMT_MAX_WORKER_INSTANCES];
 
-  bzero(fragments_per_node, sizeof(fragments_per_node));
-  bzero(fragments_per_ldm, sizeof(fragments_per_ldm));
-  bzero(primary_replica_per_node, sizeof(primary_replica_per_node));
-  bzero(primary_replica_per_ldm, sizeof(primary_replica_per_ldm));
+  memset(fragments_per_node, 0, sizeof(fragments_per_node));
+  memset(fragments_per_ldm, 0, sizeof(fragments_per_ldm));
+  memset(primary_replica_per_node, 0, sizeof(primary_replica_per_node));
+  memset(primary_replica_per_ldm, 0, sizeof(primary_replica_per_ldm));
 
   /**
    * For fully replicated tables one partition can have several copy fragments.
@@ -14301,7 +14294,7 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   case DictTabInfo::AllNodesLargeTable:
   case DictTabInfo::SingleFragment:
     jam();
-    // Fall through
+    [[fallthrough]];
   case DictTabInfo::DistrKeyLin:
     jam();
     tabPtr.p->method = TabRecord::LINEAR_HASH;
@@ -15073,7 +15066,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
   switch(requestType){
   case AlterTabReq::AlterTablePrepare:
     jam();
-    // fall through
+    [[fallthrough]];
   case AlterTabReq::AlterTableRevert:
     jam();
     if (AlterTableReq::getAddFragFlag(req->changeMask) &&
@@ -15194,6 +15187,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
      *
      * Fall through to make this happen.
      */
+    [[fallthrough]];
   case AlterTabReq::AlterTableWaitScan:{
     jam();
     const NDB_TICKS now = NdbTick_getCurrentTicks();
@@ -15204,7 +15198,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     signal->theData[4] = connectPtr.i;
     signal->theData[5] = Uint32(now.getUint64() >> 32);
     signal->theData[6] = Uint32(now.getUint64());
-    signal->theData[7] = 3; // Seconds to wait
+    signal->theData[7] = 10; // Seconds to wait
     sendSignal(reference(), GSN_CONTINUEB, signal, 8, JBB);
     return;
   }
@@ -15219,12 +15213,17 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     SectionHandle handle(this, signal);
     handle.getSection(ptr, 0);
     union {
-      Uint16 buf[2+2*MAX_NDB_PARTITIONS];
-      Uint32 _align[1];
+      Uint16 buf[MAX_FRAGMENT_DATA_ENTRIES];
+      Uint32 _align[MAX_FRAGMENT_DATA_WORDS];
     };
+    ndbrequire(ptr.sz <= MAX_FRAGMENT_DATA_WORDS);
     copy(_align, ptr);
     releaseSections(handle);
-    start_add_fragments_in_new_table(tabPtr, connectPtr, buf, signal);
+    start_add_fragments_in_new_table(tabPtr,
+                                     connectPtr,
+                                     buf,
+                                     ptr.sz * 2,
+                                     signal);
     return;
   }
 
@@ -15232,10 +15231,14 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
 }
 
 Uint32
-Dbdih::add_fragments_to_table(Ptr<TabRecord> tabPtr, const Uint16 buf[])
+Dbdih::add_fragments_to_table(Ptr<TabRecord> tabPtr,
+                              const Uint16 buf[],
+                              const Uint32 bufLen)
 {
   Uint32 replicas = buf[0];
   Uint32 cnt = buf[1];
+
+  ndbrequire(bufLen >= (2 + ((1+replicas) * cnt)));
 
   Uint32 i = 0;
   Uint32 err = 0;
@@ -15332,24 +15335,18 @@ Dbdih::wait_old_scan(Signal* signal)
   const NDB_TICKS now  = NdbTick_getCurrentTicks();
   const Uint32 elapsed = (Uint32)NdbTick_Elapsed(start,now).seconds();
 
-  if (elapsed > wait)
+  if (elapsed >= wait)
   {
-    infoEvent("Waiting(%u) for scans(%u) to complete on table %u",
+    infoEvent("Waiting %us for %u scans to complete on table %u",
               elapsed,
               tabPtr.p->m_scan_count[1],
               tabPtr.i);
 
-    if (wait == 3)
-    {
-      signal->theData[7] = 3 + 7;
-    }
-    else
-    {
-      signal->theData[7] = 2 * wait;
-    }
+
+    signal->theData[7] = wait + 10;
   }
 
-  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 7);
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 8);
 }
 
 Uint32
@@ -16572,7 +16569,6 @@ Dbdih::start_scan_on_table(TabRecordPtr tabPtr,
   }
 
   tabPtr.p->m_scan_count[0]++;
-  ndbrequire(tabPtr.p->m_map_ptr_i != DihScanTabConf::InvalidCookie);
   {
     DihScanTabConf* conf = (DihScanTabConf*)signal->getDataPtrSend();
     conf->tableId = tabPtr.i;
@@ -16591,7 +16587,7 @@ Dbdih::start_scan_on_table(TabRecordPtr tabPtr,
     conf->fragmentCount = tabPtr.p->partitionCount;
 
     conf->noOfBackups = tabPtr.p->noOfBackups;
-    conf->scanCookie = tabPtr.p->m_map_ptr_i;
+    conf->scanCookie = tabPtr.p->m_scan_reorg_flag;
     conf->reorgFlag = tabPtr.p->m_scan_reorg_flag;
     NdbMutex_Unlock(&tabPtr.p->theMutex);
     return;
@@ -16610,7 +16606,7 @@ error:
 
 void
 Dbdih::complete_scan_on_table(TabRecordPtr tabPtr,
-                              Uint32 map_ptr_i,
+                              Uint32 scanCookie,
                               EmulatedJamBuffer *jambuf)
 {
   /**
@@ -16623,16 +16619,18 @@ Dbdih::complete_scan_on_table(TabRecordPtr tabPtr,
 
   Uint32 line;
   NdbMutex_Lock(&tabPtr.p->theMutex);
-  if (map_ptr_i == tabPtr.p->m_map_ptr_i)
+  if (scanCookie == tabPtr.p->m_scan_reorg_flag)
   {
+    /* Scan started + completed in same reorg state */
     line = __LINE__;
-    ndbassert(tabPtr.p->m_scan_count[0]);
+    ndbrequire(tabPtr.p->m_scan_count[0]);
     tabPtr.p->m_scan_count[0]--;
   }
   else
   {
+    /* Scan started + completed in diff reorg states */
     line = __LINE__;
-    ndbassert(tabPtr.p->m_scan_count[1]);
+    ndbrequire(tabPtr.p->m_scan_count[1]);
     tabPtr.p->m_scan_count[1]--;
   }
   NdbMutex_Unlock(&tabPtr.p->theMutex);
@@ -16742,6 +16740,7 @@ void
 Dbdih::start_add_fragments_in_new_table(TabRecordPtr tabPtr,
                                         ConnectRecordPtr connectPtr,
                                         const Uint16 buf[],
+                                        const Uint32 bufLen,
                                         Signal *signal)
 {
   /**
@@ -16756,7 +16755,7 @@ Dbdih::start_add_fragments_in_new_table(TabRecordPtr tabPtr,
   DIH_TAB_WRITE_LOCK(tabPtr.p);
 
   Uint32 save = tabPtr.p->totalfragments;
-  if ((err = add_fragments_to_table(tabPtr, buf)))
+  if ((err = add_fragments_to_table(tabPtr, buf, bufLen)))
   {
     jam();
     DIH_TAB_WRITE_UNLOCK(tabPtr.p);
@@ -16893,7 +16892,7 @@ Dbdih::make_new_table_read_and_writeable(TabRecordPtr tabPtr,
     DIH_TAB_WRITE_UNLOCK(tabPtr.p);
 
     /* These variables are only protected by mutex. */
-    ndbassert(tabPtr.p->m_scan_count[1] == 0);
+    ndbrequire(tabPtr.p->m_scan_count[1] == 0);
     tabPtr.p->m_scan_count[1] = tabPtr.p->m_scan_count[0];
     tabPtr.p->m_scan_count[0] = 0;
     tabPtr.p->m_scan_reorg_flag = 1;
@@ -16940,7 +16939,7 @@ Dbdih::make_old_table_non_writeable(TabRecordPtr tabPtr,
      * REORG_NOT_MOVED flag set we also start waiting for those
      * scans to complete here.
      */
-    ndbassert(tabPtr.p->m_scan_count[1] == 0);
+    ndbrequire(tabPtr.p->m_scan_count[1] == 0);
     tabPtr.p->m_scan_count[1] = tabPtr.p->m_scan_count[0];
     tabPtr.p->m_scan_count[0] = 0;
     wait_flag = true;
@@ -17085,8 +17084,8 @@ Dbdih::getFragstore(const TabRecord * tab,      //In parameter
   Fragmentstore* TfragStore = fragmentstore;
   Uint32 chunkNo = fragNo >> LOG_NO_OF_FRAGS_PER_CHUNK;
   Uint32 chunkIndex = fragNo & (NO_OF_FRAGS_PER_CHUNK - 1);
-  fragPtr.i = tab->startFid[chunkNo] + chunkIndex;
   if (likely(chunkNo < NDB_ARRAY_SIZE(tab->startFid))) {
+    fragPtr.i = tab->startFid[chunkNo] + chunkIndex;
     ptrCheckGuard(fragPtr, TfragstoreFileSize, TfragStore);
     fragptr = fragPtr;
     return;
@@ -17104,9 +17103,9 @@ Dbdih::getFragstoreCanFail(const TabRecord * tab,      //In parameter
   Fragmentstore* TfragStore = fragmentstore;
   Uint32 chunkNo = fragNo >> LOG_NO_OF_FRAGS_PER_CHUNK;
   Uint32 chunkIndex = fragNo & (NO_OF_FRAGS_PER_CHUNK - 1);
-  fragPtr.i = tab->startFid[chunkNo] + chunkIndex;
   if (likely(chunkNo < NDB_ARRAY_SIZE(tab->startFid)))
   {
+    fragPtr.i = tab->startFid[chunkNo] + chunkIndex;
     if (fragPtr.i < TfragstoreFileSize)
     {
       ptrAss(fragPtr, TfragStore);
@@ -17578,7 +17577,7 @@ Dbdih::startGcpLab(Signal* signal)
   }
   else if (ERROR_INSERTED(7227))
   {
-    ndbout_c("Not sending GCP_PREPARE to %u", c_error_insert_extra);
+    g_eventLogger->info("Not sending GCP_PREPARE to %u", c_error_insert_extra);
     c_GCP_PREPARE_Counter.clearWaitingFor();
     NodeRecordPtr nodePtr;
     nodePtr.i = cfirstAliveNode;
@@ -17712,7 +17711,8 @@ void Dbdih::execGCP_NODEFINISH(Signal* signal)
     }
     else if (ERROR_INSERTED(7226))
     {
-      ndbout_c("Not sending SUB_GCP_COMPLETE_REP to %u", c_error_insert_extra);
+      g_eventLogger->info("Not sending SUB_GCP_COMPLETE_REP to %u",
+                          c_error_insert_extra);
       c_SUB_GCP_COMPLETE_REP_Counter.clearWaitingFor();
       NodeRecordPtr nodePtr;
       nodePtr.i = cfirstAliveNode;
@@ -18091,7 +18091,7 @@ void Dbdih::execGCP_COMMIT(Signal* signal)
 #ifdef ERROR_INSERT
   if (ERROR_INSERTED(7213))
   {
-    ndbout_c("err 7213 killing %d", c_error_insert_extra);
+    g_eventLogger->info("err 7213 killing %d", c_error_insert_extra);
     Uint32 save = signal->theData[0];
     signal->theData[0] = 5048;
     sendSignal(numberToRef(DBLQH, c_error_insert_extra),
@@ -18195,7 +18195,7 @@ void Dbdih::execGCP_TCFINISHED(Signal* signal)
   if (ERROR_INSERTED(7181) || ERROR_INSERTED(7182))
   {
     c_error_7181_ref = retRef; // Save ref
-    ndbout_c("killing %d", refToNode(cmasterdihref));
+    g_eventLogger->info("killing %d", refToNode(cmasterdihref));
     signal->theData[0] = 9999;
     sendSignal(numberToRef(CMVMI, refToNode(cmasterdihref)),
 	       GSN_NDB_TAMPER, signal, 1, JBB);
@@ -18205,7 +18205,7 @@ void Dbdih::execGCP_TCFINISHED(Signal* signal)
 #ifdef ERROR_INSERT
   if (ERROR_INSERTED(7214))
   {
-    ndbout_c("err 7214 killing %d", c_error_insert_extra);
+    g_eventLogger->info("err 7214 killing %d", c_error_insert_extra);
     Uint32 save = signal->theData[0];
     signal->theData[0] = 9999;
     sendSignal(numberToRef(CMVMI, c_error_insert_extra),
@@ -20361,9 +20361,9 @@ Dbdih::dump_replica_info()
     for(Uint32 fid = 0; fid<tabPtr.p->totalfragments; fid++)
     {
       getFragstore(tabPtr.p, fid, fragPtr);
-      ndbout_c("tab: %d frag: %d gci: %d\n", 
-	       tabPtr.i, fid, SYSFILE->newestRestorableGCI);
-      
+      g_eventLogger->info("tab: %d frag: %d gci: %d", tabPtr.i, fid,
+                          SYSFILE->newestRestorableGCI);
+
       dump_replica_info(fragPtr.p);
     }
   }
@@ -20372,62 +20372,56 @@ Dbdih::dump_replica_info()
 void
 Dbdih::dump_replica_info(const Fragmentstore* fragPtrP)
 {
-  ndbout_c("  -- storedReplicas: ");
+  g_eventLogger->info("  -- storedReplicas: ");
   Uint32 i;
   ReplicaRecordPtr replicaPtr;
   replicaPtr.i = fragPtrP->storedReplicas;
   for(; replicaPtr.i != RNIL; replicaPtr.i = replicaPtr.p->nextPool)
   {
     c_replicaRecordPool.getPtr(replicaPtr);
-    ndbout_c("  node: %d initialGci: %d nextLcp: %d noCrashedReplicas: %d",
-             replicaPtr.p->procNode,
-             replicaPtr.p->initialGci,
-             replicaPtr.p->nextLcp,
-             replicaPtr.p->noCrashedReplicas);
+    g_eventLogger->info(
+        "  node: %d initialGci: %d nextLcp: %d noCrashedReplicas: %d",
+        replicaPtr.p->procNode, replicaPtr.p->initialGci, replicaPtr.p->nextLcp,
+        replicaPtr.p->noCrashedReplicas);
     for(i = 0; i<MAX_LCP_STORED; i++)
     {
-      ndbout_c("    i: %d %s : lcpId: %d maxGci Completed: %d Started: %d",
-               i, 
-               (replicaPtr.p->lcpStatus[i] == ZVALID ?"VALID":"INVALID"),
-               replicaPtr.p->lcpId[i],
-               replicaPtr.p->maxGciCompleted[i],
-               replicaPtr.p->maxGciStarted[i]);
+      g_eventLogger->info(
+          "    i: %d %s : lcpId: %d maxGci Completed: %d Started: %d", i,
+          (replicaPtr.p->lcpStatus[i] == ZVALID ? "VALID" : "INVALID"),
+          replicaPtr.p->lcpId[i], replicaPtr.p->maxGciCompleted[i],
+          replicaPtr.p->maxGciStarted[i]);
     }
     
     for (i = 0; i < 8; i++)
     {
-      ndbout_c("    crashed replica: %d replicaLastGci: %d createGci: %d",
-               i, 
-               replicaPtr.p->replicaLastGci[i],
-               replicaPtr.p->createGci[i]);
+      g_eventLogger->info(
+          "    crashed replica: %d replicaLastGci: %d createGci: %d", i,
+          replicaPtr.p->replicaLastGci[i], replicaPtr.p->createGci[i]);
     }
   }
-  ndbout_c("  -- oldStoredReplicas");
+  g_eventLogger->info("  -- oldStoredReplicas");
   replicaPtr.i = fragPtrP->oldStoredReplicas;
   for(; replicaPtr.i != RNIL; replicaPtr.i = replicaPtr.p->nextPool)
   {
     c_replicaRecordPool.getPtr(replicaPtr);
-    ndbout_c("  node: %d initialGci: %d nextLcp: %d noCrashedReplicas: %d",
-             replicaPtr.p->procNode,
-             replicaPtr.p->initialGci,
-             replicaPtr.p->nextLcp,
-             replicaPtr.p->noCrashedReplicas);
+    g_eventLogger->info(
+        "  node: %d initialGci: %d nextLcp: %d noCrashedReplicas: %d",
+        replicaPtr.p->procNode, replicaPtr.p->initialGci, replicaPtr.p->nextLcp,
+        replicaPtr.p->noCrashedReplicas);
     for(i = 0; i<MAX_LCP_STORED; i++)
     {
-      ndbout_c("    i: %d %s : lcpId: %d maxGci Completed: %d Started: %d",
-               i, 
-               (replicaPtr.p->lcpStatus[i] == ZVALID ?"VALID":"INVALID"),
-               replicaPtr.p->lcpId[i],
-               replicaPtr.p->maxGciCompleted[i],
-               replicaPtr.p->maxGciStarted[i]);
+      g_eventLogger->info(
+          "    i: %d %s : lcpId: %d maxGci Completed: %d Started: %d", i,
+          (replicaPtr.p->lcpStatus[i] == ZVALID ? "VALID" : "INVALID"),
+          replicaPtr.p->lcpId[i], replicaPtr.p->maxGciCompleted[i],
+          replicaPtr.p->maxGciStarted[i]);
     }
     
     for (i = 0; i < 8; i++)
     {
-      ndbout_c("    crashed replica: %d replicaLastGci: %d createGci: %d",
-               i, 
-               replicaPtr.p->replicaLastGci[i],
-               replicaPtr.p->createGci[i]);
+      g_eventLogger->info(
+          "    crashed replica: %d replicaLastGci: %d createGci: %d", i,
+          replicaPtr.p->replicaLastGci[i], replicaPtr.p->createGci[i]);
     }
   }
 }
@@ -20507,7 +20501,7 @@ void Dbdih::startFragment(Signal* signal, Uint32 tableId, Uint32 fragId)
     BaseString::snprintf(buf, sizeof(buf), "table: %d fragment: %d gci: %d",
 			 tableId, fragId, SYSFILE->newestRestorableGCI);
 
-    ndbout_c("%s", buf);
+    g_eventLogger->info("%s", buf);
     dump_replica_info();
     
     progError(__LINE__, NDBD_EXIT_NO_RESTORABLE_REPLICA, buf);
@@ -20811,7 +20805,7 @@ void Dbdih::copyTableLab(Signal* signal, Uint32 tableId)
 {
   TabRecordPtr tabPtr;
   tabPtr.i = tableId;
-  ptrAss(tabPtr, tabRecord);
+  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
 
   ndbrequire(tabPtr.p->tabCopyStatus == TabRecord::CS_IDLE);
   tabPtr.p->tabCopyStatus = TabRecord::CS_SR_PHASE2_READ_TABLE;
@@ -21869,8 +21863,9 @@ void Dbdih::startNextChkpt(Signal* signal)
                * Therefore, exit the search here.
                */
 #ifdef DIH_DEBUG_REPLICA_SEARCH
-              ndbout_c("Search : All nodes busy.  Examined %u Started %u Queued %u",
-                       examined, started, queued);
+              g_eventLogger->info(
+                  "Search : All nodes busy.  Examined %u Started %u Queued %u",
+                  examined, started, queued);
               totalExamined+= examined;
               totalScheduled += (started + queued);
 #endif
@@ -21909,8 +21904,9 @@ void Dbdih::startNextChkpt(Signal* signal)
         c_lcpState.currentFragment = curr;
       }
 #ifdef DIH_DEBUG_REPLICA_SEARCH
-      ndbout_c("Search : 256 handled.  Examined %u Started %u Queued %u",
-               examined, started, queued);
+      g_eventLogger->info(
+          "Search : 256 handled.  Examined %u Started %u Queued %u", examined,
+          started, queued);
       totalExamined+= examined;
       totalScheduled += (started + queued);
 #endif
@@ -21919,8 +21915,9 @@ void Dbdih::startNextChkpt(Signal* signal)
   }//while
 
 #ifdef DIH_DEBUG_REPLICA_SEARCH
-  ndbout_c("Search : At least one node not busy.  Examined %u Started %u Queued %u",
-           examined, started, queued);
+  g_eventLogger->info(
+      "Search : At least one node not busy.  Examined %u Started %u Queued %u",
+      examined, started, queued);
   totalExamined+= examined;
   totalScheduled += (started + queued);
 #endif
@@ -22106,7 +22103,8 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   if (ERROR_INSERTED(7178) && (nodeId == ERROR_INSERT_EXTRA))
   {
     jam();
-    ndbout_c("throwing away LCP_FRAG_REP from  (and killing) %d", nodeId);
+    g_eventLogger->info("throwing away LCP_FRAG_REP from  (and killing) %d",
+                        nodeId);
     SET_ERROR_INSERT_VALUE2(7179, nodeId);
     signal->theData[0] = 9999;
     sendSignal(numberToRef(CMVMI, nodeId),
@@ -22117,7 +22115,7 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   if (ERROR_INSERTED(7179) && (nodeId == ERROR_INSERT_EXTRA))
   {
     jam();
-    ndbout_c("throwing away LCP_FRAG_REP from %d", nodeId);
+    g_eventLogger->info("throwing away LCP_FRAG_REP from %d", nodeId);
     return;
   }    
 
@@ -22216,7 +22214,7 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
       if (c_lcpTabDefWritesControl.requestMustQueue())
       {
         jam();
-        //ndbout_c("DIH : Queueing tab def flush op on table %u", tabPtr.i);
+        // g_eventLogger->info("DIH : Queueing tab def flush op on table %u", tabPtr.i);
         /* Mark as queued - will be started when an already running op completes */
         tabPtr.p->tabUpdateState = TabRecord::US_LOCAL_CHECKPOINT_QUEUED;
       }
@@ -22409,7 +22407,7 @@ Dbdih::checkLcpAllTablesDoneInLqh(Uint32 line)
 
   if (ERROR_INSERTED(7194))
   {
-    ndbout_c("CLEARING 7194");
+    g_eventLogger->info("CLEARING 7194");
     CLEAR_ERROR_INSERT_VALUE;
   }
 
@@ -22418,14 +22416,12 @@ Dbdih::checkLcpAllTablesDoneInLqh(Uint32 line)
   {
     totalScheduled = 1;
   }
-  ndbout_c("LCP complete.  Examined %u replicas, scheduled %u.  Ratio : %u.%u",
-           totalExamined,
-           totalScheduled,
-           totalExamined/totalScheduled,
-           (10 * (totalExamined - 
-                  ((totalExamined/totalScheduled) *
-                   totalScheduled)))/
-           totalScheduled);
+  g_eventLogger->info(
+      "LCP complete.  Examined %u replicas, scheduled %u.  Ratio : %u.%u",
+      totalExamined, totalScheduled, totalExamined / totalScheduled,
+      (10 *
+       (totalExamined - ((totalExamined / totalScheduled) * totalScheduled))) /
+          totalScheduled);
 #endif
   
   return true;
@@ -22492,7 +22488,7 @@ Dbdih::handle_invalid_lcp_no(const LcpFragRep* rep,
     if (replicaPtr.p->lcpStatus[i] == ZVALID &&
 	replicaPtr.p->lcpId[i] >= lcpId)
     {
-      ndbout_c("i: %d lcpId: %d", i, replicaPtr.p->lcpId[i]);
+      g_eventLogger->info("i: %d lcpId: %d", i, replicaPtr.p->lcpId[i]);
       ndbabort();
     }
   }
@@ -22767,7 +22763,7 @@ Dbdih::sendLCP_COMPLETE_REP(Signal* signal){
       c_lcpState.m_participatingLQH.get(getOwnNodeId()))
   {
     jam();
-    c_set_initial_start_flag = FALSE;
+    c_set_initial_start_flag = false;
   }
 }
 
@@ -23365,7 +23361,7 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
         if (tabPtr.p->tabUpdateState == TabRecord::US_LOCAL_CHECKPOINT_QUEUED)
         {
           jam();
-          //ndbout_c("DIH : Starting queued table def flush op on table %u", tabPtr.i);
+          // g_eventLogger->info("DIH : Starting queued table def flush op on table %u", tabPtr.i);
           tabPtr.p->tabUpdateState = TabRecord::US_LOCAL_CHECKPOINT;
           signal->theData[0] = DihContinueB::ZPACK_TABLE_INTO_PAGES;
           signal->theData[1] = tabPtr.i;
@@ -23620,52 +23616,65 @@ void Dbdih::checkGcpStopLab(Signal* signal)
 void
 Dbdih::dumpGcpStop()
 {
-  ndbout_c("c_nodeStartMaster.blockGcp: %u %u",
-           c_nodeStartMaster.blockGcp,
-           c_nodeStartMaster.startNode);
-  ndbout_c("m_gcp_save.m_elapsed: %u(ms) m_gcp_save.m_max_lag: %u(ms)",
-           m_gcp_monitor.m_gcp_save.m_elapsed_ms, 
-           m_gcp_monitor.m_gcp_save.m_max_lag_ms);
-  ndbout_c("m_micro_gcp.m_elapsed: %u(ms) m_micro_gcp.m_max_lag: %u(ms)",
-           m_gcp_monitor.m_micro_gcp.m_elapsed_ms, 
-           m_gcp_monitor.m_micro_gcp.m_max_lag_ms);
-  
-  
-  ndbout_c("m_gcp_save.m_state: %u", m_gcp_save.m_state);
-  ndbout_c("m_gcp_save.m_master.m_state: %u", m_gcp_save.m_master.m_state);
-  ndbout_c("m_micro_gcp.m_state: %u", m_micro_gcp.m_state);
-  ndbout_c("m_micro_gcp.m_master.m_state: %u", m_micro_gcp.m_master.m_state);
-  
-  ndbout_c("c_COPY_GCIREQ_Counter = %s", c_COPY_GCIREQ_Counter.getText());
-  ndbout_c("c_COPY_TABREQ_Counter = %s", c_COPY_TABREQ_Counter.getText());
-  ndbout_c("c_UPDATE_FRAG_STATEREQ_Counter = %s",
-            c_UPDATE_FRAG_STATEREQ_Counter.getText());
-  ndbout_c("c_DIH_SWITCH_REPLICA_REQ_Counter = %s", 
-	   c_DIH_SWITCH_REPLICA_REQ_Counter.getText());
-  ndbout_c("c_GCP_COMMIT_Counter = %s", c_GCP_COMMIT_Counter.getText());
-  ndbout_c("c_GCP_PREPARE_Counter = %s", c_GCP_PREPARE_Counter.getText());
-  ndbout_c("c_GCP_SAVEREQ_Counter = %s", c_GCP_SAVEREQ_Counter.getText());
-  ndbout_c("c_SUB_GCP_COMPLETE_REP_Counter = %s",
-           c_SUB_GCP_COMPLETE_REP_Counter.getText());
-  ndbout_c("c_INCL_NODEREQ_Counter = %s", c_INCL_NODEREQ_Counter.getText());
-  ndbout_c("c_MASTER_GCPREQ_Counter = %s", c_MASTER_GCPREQ_Counter.getText());
-  ndbout_c("c_MASTER_LCPREQ_Counter = %s", c_MASTER_LCPREQ_Counter.getText());
-  ndbout_c("c_START_INFOREQ_Counter = %s", c_START_INFOREQ_Counter.getText());
-  ndbout_c("c_START_RECREQ_Counter = %s", c_START_RECREQ_Counter.getText());
-  ndbout_c("c_STOP_ME_REQ_Counter = %s", c_STOP_ME_REQ_Counter.getText());
-  ndbout_c("c_TC_CLOPSIZEREQ_Counter = %s", c_TC_CLOPSIZEREQ_Counter.getText());
-  ndbout_c("c_TCGETOPSIZEREQ_Counter = %s", c_TCGETOPSIZEREQ_Counter.getText());
+  g_eventLogger->info("c_nodeStartMaster.blockGcp: %u %u",
+                      c_nodeStartMaster.blockGcp, c_nodeStartMaster.startNode);
+  g_eventLogger->info(
+      "m_gcp_save.m_elapsed: %u(ms) m_gcp_save.m_max_lag: %u(ms)",
+      m_gcp_monitor.m_gcp_save.m_elapsed_ms,
+      m_gcp_monitor.m_gcp_save.m_max_lag_ms);
+  g_eventLogger->info(
+      "m_micro_gcp.m_elapsed: %u(ms) m_micro_gcp.m_max_lag: %u(ms)",
+      m_gcp_monitor.m_micro_gcp.m_elapsed_ms,
+      m_gcp_monitor.m_micro_gcp.m_max_lag_ms);
 
-  ndbout_c("m_copyReason: %d m_waiting: %u %u",
-           c_copyGCIMaster.m_copyReason,
-           c_copyGCIMaster.m_waiting[0],
-           c_copyGCIMaster.m_waiting[1]);
-  
-  ndbout_c("c_copyGCISlave: sender{Data, Ref} %d %x reason: %d nextWord: %d",
-	   c_copyGCISlave.m_senderData,
-	   c_copyGCISlave.m_senderRef,
-	   c_copyGCISlave.m_copyReason,
-	   c_copyGCISlave.m_expectedNextWord);
+  g_eventLogger->info("m_gcp_save.m_state: %u", m_gcp_save.m_state);
+  g_eventLogger->info("m_gcp_save.m_master.m_state: %u",
+                      m_gcp_save.m_master.m_state);
+  g_eventLogger->info("m_micro_gcp.m_state: %u", m_micro_gcp.m_state);
+  g_eventLogger->info("m_micro_gcp.m_master.m_state: %u",
+                      m_micro_gcp.m_master.m_state);
+
+  g_eventLogger->info("c_COPY_GCIREQ_Counter = %s",
+                      c_COPY_GCIREQ_Counter.getText());
+  g_eventLogger->info("c_COPY_TABREQ_Counter = %s",
+                      c_COPY_TABREQ_Counter.getText());
+  g_eventLogger->info("c_UPDATE_FRAG_STATEREQ_Counter = %s",
+                      c_UPDATE_FRAG_STATEREQ_Counter.getText());
+  g_eventLogger->info("c_DIH_SWITCH_REPLICA_REQ_Counter = %s",
+                      c_DIH_SWITCH_REPLICA_REQ_Counter.getText());
+  g_eventLogger->info("c_GCP_COMMIT_Counter = %s",
+                      c_GCP_COMMIT_Counter.getText());
+  g_eventLogger->info("c_GCP_PREPARE_Counter = %s",
+                      c_GCP_PREPARE_Counter.getText());
+  g_eventLogger->info("c_GCP_SAVEREQ_Counter = %s",
+                      c_GCP_SAVEREQ_Counter.getText());
+  g_eventLogger->info("c_SUB_GCP_COMPLETE_REP_Counter = %s",
+                      c_SUB_GCP_COMPLETE_REP_Counter.getText());
+  g_eventLogger->info("c_INCL_NODEREQ_Counter = %s",
+                      c_INCL_NODEREQ_Counter.getText());
+  g_eventLogger->info("c_MASTER_GCPREQ_Counter = %s",
+                      c_MASTER_GCPREQ_Counter.getText());
+  g_eventLogger->info("c_MASTER_LCPREQ_Counter = %s",
+                      c_MASTER_LCPREQ_Counter.getText());
+  g_eventLogger->info("c_START_INFOREQ_Counter = %s",
+                      c_START_INFOREQ_Counter.getText());
+  g_eventLogger->info("c_START_RECREQ_Counter = %s",
+                      c_START_RECREQ_Counter.getText());
+  g_eventLogger->info("c_STOP_ME_REQ_Counter = %s",
+                      c_STOP_ME_REQ_Counter.getText());
+  g_eventLogger->info("c_TC_CLOPSIZEREQ_Counter = %s",
+                      c_TC_CLOPSIZEREQ_Counter.getText());
+  g_eventLogger->info("c_TCGETOPSIZEREQ_Counter = %s",
+                      c_TCGETOPSIZEREQ_Counter.getText());
+
+  g_eventLogger->info(
+      "m_copyReason: %d m_waiting: %u %u", c_copyGCIMaster.m_copyReason,
+      c_copyGCIMaster.m_waiting[0], c_copyGCIMaster.m_waiting[1]);
+
+  g_eventLogger->info(
+      "c_copyGCISlave: sender{Data, Ref} %d %x reason: %d nextWord: %d",
+      c_copyGCISlave.m_senderData, c_copyGCISlave.m_senderRef,
+      c_copyGCISlave.m_copyReason, c_copyGCISlave.m_expectedNextWord);
 }
 
 /**
@@ -23764,10 +23773,12 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
                    NodeIsolationTimeoutMillis,
                    c_GCP_SAVEREQ_Counter.getNodeBitmask());
 
-      warningEvent("Detected GCP stop(%d)...sending kill to %s", 
-                m_gcp_save.m_master.m_state, c_GCP_SAVEREQ_Counter.getText());
-      ndbout_c("Detected GCP stop(%d)...sending kill to %s", 
-               m_gcp_save.m_master.m_state, c_GCP_SAVEREQ_Counter.getText());
+      warningEvent("Detected GCP stop(%d)...sending kill to %s",
+                   m_gcp_save.m_master.m_state,
+                   c_GCP_SAVEREQ_Counter.getText());
+      g_eventLogger->info("Detected GCP stop(%d)...sending kill to %s",
+                          m_gcp_save.m_master.m_state,
+                          c_GCP_SAVEREQ_Counter.getText());
       ndbrequire(!c_GCP_SAVEREQ_Counter.done());
       return;
     }
@@ -23779,9 +23790,10 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
       jam();
       warningEvent("Detected GCP stop(%d)...sending kill to %s", 
                 m_gcp_save.m_master.m_state, c_COPY_GCIREQ_Counter.getText());
-      ndbout_c("Detected GCP stop(%d)...sending kill to %s", 
-               m_gcp_save.m_master.m_state, c_COPY_GCIREQ_Counter.getText());
-      
+      g_eventLogger->info("Detected GCP stop(%d)...sending kill to %s",
+                          m_gcp_save.m_master.m_state,
+                          c_COPY_GCIREQ_Counter.getText());
+
       {
         NodeReceiverGroup rg(DBDIH, c_COPY_GCIREQ_Counter);
         signal->theData[0] = 7022;
@@ -23846,9 +23858,9 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
       jam();
       warningEvent("Detected GCP stop(%d)...sending kill to %s", 
                 m_micro_gcp.m_state, c_GCP_PREPARE_Counter.getText());
-      ndbout_c("Detected GCP stop(%d)...sending kill to %s", 
-               m_micro_gcp.m_state, c_GCP_PREPARE_Counter.getText());
-      
+      g_eventLogger->info("Detected GCP stop(%d)...sending kill to %s",
+                          m_micro_gcp.m_state, c_GCP_PREPARE_Counter.getText());
+
       {
         NodeReceiverGroup rg(DBDIH, c_GCP_PREPARE_Counter);
         signal->theData[0] = 7022;
@@ -23879,9 +23891,9 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
       jam();
       warningEvent("Detected GCP stop(%d)...sending kill to %s", 
                 m_micro_gcp.m_state, c_GCP_COMMIT_Counter.getText());
-      ndbout_c("Detected GCP stop(%d)...sending kill to %s", 
-               m_micro_gcp.m_state, c_GCP_COMMIT_Counter.getText());
-      
+      g_eventLogger->info("Detected GCP stop(%d)...sending kill to %s",
+                          m_micro_gcp.m_state, c_GCP_COMMIT_Counter.getText());
+
       {
         NodeReceiverGroup rg(DBDIH, c_GCP_COMMIT_Counter);
         signal->theData[0] = 7022;
@@ -23918,8 +23930,9 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
       jam();
       infoEvent("Detected GCP stop(%d)...sending kill to %s",
                 m_micro_gcp.m_state, c_SUB_GCP_COMPLETE_REP_Counter.getText());
-      ndbout_c("Detected GCP stop(%d)...sending kill to %s",
-               m_micro_gcp.m_state, c_SUB_GCP_COMPLETE_REP_Counter.getText());
+      g_eventLogger->info("Detected GCP stop(%d)...sending kill to %s",
+                          m_micro_gcp.m_state,
+                          c_SUB_GCP_COMPLETE_REP_Counter.getText());
 
       {
         NodeReceiverGroup rg(DBDIH, c_SUB_GCP_COMPLETE_REP_Counter);
@@ -23957,10 +23970,10 @@ dolocal:
   file1Ptr.i = crestartInfoFile[1];
   ptrCheckGuard(file1Ptr, cfileFileSize, fileRecord);
 
-  ndbout_c("file[0] status: %d type: %d reqStatus: %d file1: %d %d %d",
-	   file0Ptr.p->fileStatus, file0Ptr.p->fileType, file0Ptr.p->reqStatus,
-	   file1Ptr.p->fileStatus, file1Ptr.p->fileType, file1Ptr.p->reqStatus
-	   );
+  g_eventLogger->info(
+      "file[0] status: %d type: %d reqStatus: %d file1: %d %d %d",
+      file0Ptr.p->fileStatus, file0Ptr.p->fileType, file0Ptr.p->reqStatus,
+      file1Ptr.p->fileStatus, file1Ptr.p->fileType, file1Ptr.p->reqStatus);
 
   signal->theData[0] = 404;
   signal->theData[1] = file0Ptr.p->fileRef;
@@ -24188,6 +24201,8 @@ Dbdih::emptyverificbuffer(Signal* signal, Uint32 q, bool aContinueB)
     jam();
     return;
   }
+
+  ndbrequire(q < NDB_ARRAY_SIZE(c_diverify_queue));
 
   if (!isEmpty(c_diverify_queue[q]))
   {
@@ -24675,8 +24690,9 @@ void Dbdih::setGCPStopTimeouts(Signal *signal,
         We drop these lower limits in certain tests, to verify that the 
         calculated value for max_failure_time is sufficient.
        */
-      ndbout << "Dbdih::setGCPStopTimeouts() setting minimal GCP timout values"
-             << " for test purposes."  << endl;
+      g_eventLogger->info(
+          "Dbdih::setGCPStopTimeouts() setting minimal"
+          " GCP timout values for test purposes.");
       micro_GCP_timeout = 0;
       gcp_timeout = 0;
     }
@@ -24866,8 +24882,8 @@ void Dbdih::initCommonData()
   c_lcpState.clcpDelay = c_lcpState.clcpDelay > 31 ? 31 : c_lcpState.clcpDelay;
   
   init_next_replica_node(&c_next_replica_node, cnoReplicas);
-  bzero(&m_gcp_save, sizeof(m_gcp_save));
-  bzero(&m_micro_gcp, sizeof(m_micro_gcp));
+  memset(&m_gcp_save, 0, sizeof(m_gcp_save));
+  memset(&m_micro_gcp, 0, sizeof(m_micro_gcp));
   NdbTick_Invalidate(&m_gcp_save.m_master.m_start_time);
   NdbTick_Invalidate(&m_micro_gcp.m_master.m_start_time);
   {
@@ -24954,8 +24970,8 @@ void Dbdih::initRestartInfo(Signal* signal)
     {
       startGci = my_strtoull(v, NULL, 0);
 
-      ndbout_c("DbDih : Using value of %u from NDB_START_GCI",
-               startGci);
+      g_eventLogger->info("DbDih : Using value of %u from NDB_START_GCI",
+                          startGci);
     }
   }
 #endif
@@ -25164,7 +25180,7 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
       connectPtr.p->connectState = ConnectRecord::FREE;
       connectPtr.p->table = RNIL;
       connectPtr.p->nextPool = connectPtr.i + 1;
-      bzero(connectPtr.p->nodes, sizeof(connectPtr.p->nodes));
+      memset(connectPtr.p->nodes, 0, sizeof(connectPtr.p->nodes));
     }//for
     connectPtr.i = cconnectFileSize - 1;
     ptrAss(connectPtr, connectRecord);
@@ -25727,6 +25743,7 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
   }
   case CheckNodeGroups::GetNodeGroupMembers: {
     ok = true;
+    ndbrequire(sd->nodeId < MAX_NDB_NODES);
     Uint32 ng = SYSFILE->getNodeGroup(sd->nodeId);
     DEB_MULTI_TRP(("My node group is %u", ng));
     if (ng == NO_NODE_GROUP_ID)
@@ -26225,21 +26242,25 @@ void Dbdih::readRestorableGci(Signal* signal, FileRecordPtr filePtr)
 
 void Dbdih::readTabfile(Signal* signal, TabRecord* tab, FileRecordPtr filePtr) 
 {
-  signal->theData[0] = filePtr.p->fileRef;
-  signal->theData[1] = reference();
-  signal->theData[2] = filePtr.i;
-  signal->theData[3] = ZLIST_OF_PAIRS;
-  signal->theData[4] = ZVAR_NO_WORD;
-  signal->theData[5] = tab->noPages;
-  Uint32 section[2 * NDB_ARRAY_SIZE(tab->pageRef)];
+  FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtrSend();
+  req->filePointer = filePtr.p->fileRef;
+  req->userReference = reference();
+  req->userPointer = filePtr.i;
+  req->operationFlag = 0;
+  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatListOfMemPages);
+  req->varIndex = ZVAR_NO_WORD;
+  req->numberOfPages = tab->noPages;
+  Uint32 section[1 + NDB_ARRAY_SIZE(tab->pageRef)];
+  // .listOfMemPages.fileOffset
+  section[0] = 0;
   for (Uint32 i = 0; i < tab->noPages; i++)
   {
-    section[(2 * i) + 0] = tab->pageRef[i];
-    section[(2 * i) + 1] = i;
+    // .listOfMemPages.varIndex[i]
+    section[1 + i] = tab->pageRef[i];
   }
   LinearSectionPtr ptr[3];
   ptr[0].p = section;
-  ptr[0].sz = 2 * tab->noPages;
+  ptr[0].sz = 1 + tab->noPages;
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 6, JBA, ptr, 1);
 }//Dbdih::readTabfile()
 
@@ -27218,23 +27239,28 @@ void Dbdih::writeRestorableGci(Signal* signal, FileRecordPtr filePtr)
 
 void Dbdih::writeTabfile(Signal* signal, TabRecord* tab, FileRecordPtr filePtr) 
 {
-  signal->theData[0] = filePtr.p->fileRef;
-  signal->theData[1] = reference();
-  signal->theData[2] = filePtr.i;
-  signal->theData[3] = ZLIST_OF_PAIRS_SYNCH;
-  signal->theData[4] = ZVAR_NO_WORD;
-  signal->theData[5] = tab->noPages;
+  FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtrSend();
+  req->filePointer = filePtr.p->fileRef;
+  req->userReference = reference();
+  req->userPointer = filePtr.i;
+  req->operationFlag = 0;
+  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatListOfMemPages);
+  req->setSyncFlag(req->operationFlag, 1);
+  req->varIndex = ZVAR_NO_WORD;
+  req->numberOfPages = tab->noPages;
 
   NDB_STATIC_ASSERT(NDB_ARRAY_SIZE(tab->pageRef) <= NDB_FS_RW_PAGES);
-  Uint32 section[2 * NDB_ARRAY_SIZE(tab->pageRef)];
+  Uint32 section[1 + NDB_ARRAY_SIZE(tab->pageRef)];
+  // .listOfMemPages.fileOffset
+  section[0] = 0;
   for (Uint32 i = 0; i < tab->noPages; i++)
   {
-    section[(2 * i) + 0] = tab->pageRef[i];
-    section[(2 * i) + 1] = i;
+    // .listOfMemPages.varIndex[i]
+    section[1 + i] = tab->pageRef[i];
   }
   LinearSectionPtr ptr[3];
   ptr[0].p = section;
-  ptr[0].sz = 2 * tab->noPages;
+  ptr[0].sz = 1 + tab->noPages;
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 6, JBA, ptr, 1);
 }//Dbdih::writeTabfile()
 
@@ -27871,23 +27897,25 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   if (arg == DumpStateOrd::DihDumpPageRecInfo)
   {
     jam();
-    ndbout_c("MAX_CONCURRENT_LCP_TAB_DEF_FLUSHES %u", MAX_CONCURRENT_LCP_TAB_DEF_FLUSHES);
-    ndbout_c("MAX_CONCURRENT_DIH_TAB_DEF_OPS %u", MAX_CONCURRENT_DIH_TAB_DEF_OPS);
-    ndbout_c("MAX_CRASHED_REPLICAS %u", MAX_CRASHED_REPLICAS);
-    ndbout_c("MAX_LCP_STORED %u", MAX_LCP_STORED);
-    ndbout_c("MAX_REPLICAS %u", MAX_REPLICAS);
-    ndbout_c("MAX_NDB_PARTITIONS %u", MAX_NDB_PARTITIONS);
-    ndbout_c("PACK_REPLICAS_WORDS %u", PACK_REPLICAS_WORDS);
-    ndbout_c("PACK_FRAGMENT_WORDS %u", PACK_FRAGMENT_WORDS);
-    ndbout_c("PACK_TABLE_WORDS %u", PACK_TABLE_WORDS);
-    ndbout_c("PACK_TABLE_PAGE_WORDS %u", PACK_TABLE_PAGE_WORDS);
-    ndbout_c("PACK_TABLE_PAGES %u", PACK_TABLE_PAGES);
-    ndbout_c("ZPAGEREC %u", ZPAGEREC);
-    ndbout_c("Total bytes : %lu",
-             (unsigned long) ZPAGEREC * sizeof(PageRecord));
-    ndbout_c("LCP Tab def write ops inUse %u queued %u",
-             c_lcpTabDefWritesControl.inUse,
-             c_lcpTabDefWritesControl.queuedRequests);
+    g_eventLogger->info("MAX_CONCURRENT_LCP_TAB_DEF_FLUSHES %u",
+                        MAX_CONCURRENT_LCP_TAB_DEF_FLUSHES);
+    g_eventLogger->info("MAX_CONCURRENT_DIH_TAB_DEF_OPS %u",
+                        MAX_CONCURRENT_DIH_TAB_DEF_OPS);
+    g_eventLogger->info("MAX_CRASHED_REPLICAS %u", MAX_CRASHED_REPLICAS);
+    g_eventLogger->info("MAX_LCP_STORED %u", MAX_LCP_STORED);
+    g_eventLogger->info("MAX_REPLICAS %u", MAX_REPLICAS);
+    g_eventLogger->info("MAX_NDB_PARTITIONS %u", MAX_NDB_PARTITIONS);
+    g_eventLogger->info("PACK_REPLICAS_WORDS %u", PACK_REPLICAS_WORDS);
+    g_eventLogger->info("PACK_FRAGMENT_WORDS %u", PACK_FRAGMENT_WORDS);
+    g_eventLogger->info("PACK_TABLE_WORDS %u", PACK_TABLE_WORDS);
+    g_eventLogger->info("PACK_TABLE_PAGE_WORDS %u", PACK_TABLE_PAGE_WORDS);
+    g_eventLogger->info("PACK_TABLE_PAGES %u", PACK_TABLE_PAGES);
+    g_eventLogger->info("ZPAGEREC %u", ZPAGEREC);
+    g_eventLogger->info("Total bytes : %lu",
+                        (unsigned long)ZPAGEREC * sizeof(PageRecord));
+    g_eventLogger->info("LCP Tab def write ops inUse %u queued %u",
+                        c_lcpTabDefWritesControl.inUse,
+                        c_lcpTabDefWritesControl.queuedRequests);
 
     if (getNodeState().startLevel < NodeState::SL_STARTING)
       return ;
@@ -27902,7 +27930,8 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
       freeCount++;
       tmp.i = tmp.p->nextfreepage;
     };
-    ndbout_c("Pages in use %u/%u", cpageFileSize - freeCount, cpageFileSize);
+    g_eventLogger->info("Pages in use %u/%u", cpageFileSize - freeCount,
+                        cpageFileSize);
     return;
   }
 
@@ -28784,7 +28813,7 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
   Uint32 errorCode = 0;
   if(ERROR_INSERTED(7247))
   {
-    ndbout_c("Delaying WAIT_GCP_REQ");
+    g_eventLogger->info("Delaying WAIT_GCP_REQ");
     sendSignalWithDelay(reference(), GSN_WAIT_GCP_REQ, signal, 1000,
                         signal->getLength());
     return;
@@ -29669,6 +29698,14 @@ Dbdih::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
         jam();
         err = CreateNodegroupRef::NodeAlreadyInNodegroup;
         goto error;
+      }
+
+      for (Uint32 j = 0; j < i; j++) {
+        if (req->nodes[i] == req->nodes[j]) {
+          jam();
+          err = CreateNodegroupRef::SameNodeRepeated;
+          goto error;
+        }
       }
     }
 

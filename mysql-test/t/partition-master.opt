@@ -1,2 +1,1 @@
---thread-stack=524288
 --innodb-directories=$MYSQL_TMP_DIR

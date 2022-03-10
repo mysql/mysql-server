@@ -27,11 +27,12 @@ STOP SLAVE FOR CHANNEL 'ch_a';
 
 # --relay-log-recovery is a source of the following mi initialization failure
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --relay-log-recovery --skip-slave-start
+--let $rpl_server_parameters= --skip-replica-start
 --source include/rpl_restart_server.inc
 
 --source include/rpl_connection_slave.inc
 RESET SLAVE ALL;
+
 --let $rpl_skip_sync= 1
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

@@ -287,8 +287,8 @@ bool BlockReporter::is_corrupted() const {
   ulint checksum_field2;
 
   /* This function should be used for unencrypted pages. During recovery it is
-   * possible that this function is called for encrypted pages, when decryption
-   * failed. So report it as corrupted. */
+  possible that this function is called for encrypted pages, when decryption
+  failed. So report it as corrupted. */
   if (is_encrypted()) {
     return true;
   }
@@ -491,7 +491,6 @@ bool BlockReporter::is_corrupted() const {
   }
 
   ut_error;
-  return (false);
 }
 
 /** Calculate the compressed page checksum.

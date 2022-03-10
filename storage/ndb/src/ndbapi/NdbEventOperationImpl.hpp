@@ -25,6 +25,7 @@
 #ifndef NdbEventOperationImpl_H
 #define NdbEventOperationImpl_H
 
+#include <cstring>
 #include <NdbEventOperation.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include <NdbRecAttr.hpp>
@@ -171,7 +172,7 @@ public:
   {
 #ifndef NDEBUG
     // Shredd the memory if debugging
-    memset(m_data, 0x11, m_size);
+    std::memset(m_data, 0x11, m_size);
     m_used = 0;
     m_expiry_epoch = MonotonicEpoch::min;
 #endif
@@ -284,7 +285,7 @@ public:
     m_gci_op_count(0),
     m_gci_op_alloc(0)
   {
-    bzero(&m_data_hash, sizeof(m_data_hash));
+    std::memset(&m_data_hash, 0, sizeof(m_data_hash));
   }
 
   void clear()
@@ -295,7 +296,7 @@ public:
     m_gcp_complete_rep_sub_data_streams.clear();
     m_gci = 0;
     m_head = m_tail = NULL;
-    bzero(&m_data_hash, sizeof(m_data_hash));
+    std::memset(&m_data_hash, 0, sizeof(m_data_hash));
 
     m_gci_op_list = NULL;
     m_gci_op_count = 0;
@@ -616,6 +617,9 @@ public:
 
 private:
   void receive_data(NdbRecAttr *r, const Uint32 *data, Uint32 sz);
+  void print_blob_part_bufs(const NdbBlob *blob,
+                            const EventBufData *data, bool hasDist, Uint32 part,
+                            Uint32 count) const;
 };
 
 
@@ -770,8 +774,8 @@ public:
   Uint16 m_max_gci_index;
   Vector<Uint64> m_known_gci;
   Vector<Gci_container_pod> m_active_gci;
-  STATIC_CONST( ACTIVE_GCI_DIRECTORY_SIZE = 4 );
-  STATIC_CONST( ACTIVE_GCI_MASK = ACTIVE_GCI_DIRECTORY_SIZE - 1 );
+  static constexpr Uint32 ACTIVE_GCI_DIRECTORY_SIZE = 4;
+  static constexpr Uint32 ACTIVE_GCI_MASK = ACTIVE_GCI_DIRECTORY_SIZE - 1;
 
   NdbEventOperation *createEventOperation(const char* eventName,
 					  NdbError &);
@@ -867,7 +871,7 @@ public:
 
   void *alloc(Uint32 sz);
   Uint32 get_free_data_sz() const;
-  Uint32 get_used_data_sz() const;
+  Uint64 get_used_data_sz() const;
 
   //Must report status if buffer manager state is changed
   void reportStatus(ReportReason reason = NO_REPORT);
@@ -919,10 +923,10 @@ public:
   EpochDataList m_event_queue;
   const EventBufData *m_current_data;
 
-  unsigned m_total_alloc; // total allocated memory
+  Uint64 m_total_alloc; // total allocated memory
 
   // ceiling for total allocated memory, 0 means unlimited
-  unsigned m_max_alloc;
+  Uint64 m_max_alloc;
 
   // Crash when OS memory allocation for event buffer fails
   void crashMemAllocError(const char *error_text);

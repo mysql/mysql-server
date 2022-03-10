@@ -31,7 +31,7 @@ class Mock_Logger : public Logger_interface {
     ON_CALL(*this, finalize()).WillByDefault(Return(GCS_OK));
   }
 
-  ~Mock_Logger() {}
+  ~Mock_Logger() = default;
   MOCK_METHOD0(initialize, enum_gcs_error());
   MOCK_METHOD0(finalize, enum_gcs_error());
   MOCK_METHOD2(log_event, void(const gcs_log_level_t, const std::string &));

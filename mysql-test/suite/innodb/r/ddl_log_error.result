@@ -18,6 +18,7 @@ ALTER TABLESPACE my_ts ENCRYPTION='Y';
 ERROR HY000: Failed to alter: TABLESPACE my_ts
 SET SESSION DEBUG="-d,ddl_log_return_error_from_insert";
 # Cleanup
+DROP TABLESPACE my_ts;
 DROP TABLE t1;
 # Restarting server without keyring to restore server state
 # restart: 

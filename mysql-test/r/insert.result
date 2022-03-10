@@ -58,11 +58,16 @@ create table t1 (email varchar(50));
 insert into t1 values ('sasha@mysql.com'),('monty@mysql.com'),('foo@hotmail.com'),('foo@aol.com'),('bar@aol.com');
 create table t2(id int not null auto_increment primary key, t2 varchar(50), unique(t2));
 insert into t2 (t2) select distinct substring(email, locate('@', email)+1) from t1;
-select * from t2;
-id	t2
-1	mysql.com
-2	hotmail.com
-3	aol.com
+select id from t2;
+id
+1
+2
+3
+select t2 from t2;
+t2
+aol.com
+hotmail.com
+mysql.com
 drop table t1,t2;
 create database mysqltest;
 use mysqltest;
@@ -983,13 +988,10 @@ ERROR 42000: Column 'a' specified twice
 SHOW ERRORS;
 Level	Code	Message
 Error	1110	Column 'a' specified twice
-Error	1110	Column 'b' specified twice
 INSERT INTO t1(a, a, a, a) VALUES (1, 1, 1, 1);
 ERROR 42000: Column 'a' specified twice
 SHOW ERRORS;
 Level	Code	Message
-Error	1110	Column 'a' specified twice
-Error	1110	Column 'a' specified twice
 Error	1110	Column 'a' specified twice
 DROP TABLE t1;
 CREATE TABLE t1(a INT,
@@ -1073,3 +1075,42 @@ ERROR 23000: Duplicate entry '8' for key 't1.PRIMARY'
 DEALLOCATE PREPARE stmt;
 DROP VIEW v1;
 DROP TABLE t1, t2;
+#
+# Bug #32169656: MYSQL GIVING QUERY RESULT FOR WRONG COLUMN
+#
+CREATE TABLE t1 (
+Ñ INTEGER,
+N INTEGER,
+a INTEGER,
+b INTEGER,
+c INTEGER,
+d INTEGER,
+e INTEGER,
+f INTEGER,
+g INTEGER,
+h INTEGER,
+i INTEGER,
+j INTEGER,
+k INTEGER,
+l INTEGER,
+m INTEGER,
+na INTEGER,
+o INTEGER,
+p INTEGER,
+q INTEGER,
+r INTEGER,
+s INTEGER,
+t INTEGER,
+u INTEGER,
+v INTEGER,
+w INTEGER,
+x INTEGER,
+y INTEGER,
+z INTEGER,
+aa INTEGER,
+ab INTEGER,
+ac INTEGER,
+ad INTEGER
+);
+INSERT INTO t1 (Ñ, N) VALUES (1, 2);
+DROP TABLE t1;

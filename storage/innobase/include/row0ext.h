@@ -81,8 +81,8 @@ row_ext_t *row_ext_create_func(const dict_index_t *index, ulint n_ext,
                         determined by DICT_MAX_FIELD_LEN_BY_FORMAT()
 @return column prefix, or NULL if the column is not stored externally,
 or pointer to field_ref_zero if the BLOB pointer is unset */
-UNIV_INLINE
-const byte *row_ext_lookup_ith(const row_ext_t *ext, ulint i, ulint *len);
+static inline const byte *row_ext_lookup_ith(const row_ext_t *ext, ulint i,
+                                             ulint *len);
 
 /** Looks up a column prefix of an externally stored column.
 @param[in]	ext	column prefix cache
@@ -93,8 +93,8 @@ const byte *row_ext_lookup_ith(const row_ext_t *ext, ulint i, ulint *len);
                         determined by DICT_MAX_FIELD_LEN_BY_FORMAT()
 @return column prefix, or NULL if the column is not stored externally,
 or pointer to field_ref_zero if the BLOB pointer is unset */
-UNIV_INLINE
-const byte *row_ext_lookup(const row_ext_t *ext, ulint col, ulint *len);
+static inline const byte *row_ext_lookup(const row_ext_t *ext, ulint col,
+                                         ulint *len);
 
 /** Prefixes of externally stored columns */
 struct row_ext_t {

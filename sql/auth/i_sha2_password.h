@@ -86,7 +86,7 @@ class SHA2_password_cache {
  public:
   typedef std::unordered_map<std::string, sha2_cache_entry> password_cache;
 
-  SHA2_password_cache() {}
+  SHA2_password_cache() = default;
   ~SHA2_password_cache();
   bool add(const std::string authorization_id,
            const sha2_cache_entry &entry_to_be_cached);

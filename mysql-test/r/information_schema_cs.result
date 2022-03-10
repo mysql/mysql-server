@@ -127,6 +127,8 @@ procs_priv
 proxies_priv
 replication_asynchronous_connection_failover
 replication_asynchronous_connection_failover_managed
+replication_group_configuration_version
+replication_group_member_actions
 role_edges
 server_cost
 servers
@@ -888,7 +890,7 @@ AND table_name not like 'ndb%' AND table_name COLLATE utf8_general_ci not like '
 GROUP BY TABLE_SCHEMA;
 TABLE_SCHEMA	count(*)
 information_schema	48
-mysql	33
+mysql	35
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
 begin
@@ -2702,6 +2704,8 @@ hijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcde
 fghijabcdefghijabcde';
 SET big_tables=1;
 SET character_set_connection=ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # The below statement asserts or shows comment text in ucs2 instead of
 # using system charset, when run without the fix.
 SHOW TABLE STATUS;

@@ -5,59 +5,76 @@
 # the variable inodb_open_files.
 
 SELECT @@innodb_thread_concurrency, @@innodb_open_files;
---let $count=100
+# MTR limits number of connections to 128 only.
+--let $tables_count=50
+--let $count_mtr=110
+--let $count_exec=500
 --let $num_table=0
 
-# All the tablespaces except the temporary tablespaces,
-# undo tablespaces and system tablespaces are added to a
-# LRU list of size innodb_open_files. When this list if full
-# and a new file needs to be added to it, the oldest file
-# is removed and closed to make room for a new file.
+# All the tablespaces except the undo tablespaces and system tablespaces are
+# added to a LRU list of size innodb_open_files. When this list if full
+# and a new file needs to be added to it, the oldest file is removed and closed
+# to make room for a new file.
+# The temporary tables used to be not added in the LRU list which could cause
+# server to hang with big number of connections.
 
---echo # Create $count tables
-while($num_table < $count){
+--echo # Create more tables than open file limit (which is 40) to fill up the
+--echo # LRU list.
+while($num_table < $tables_count){
   --eval CREATE TABLE g$num_table(id INT PRIMARY KEY) ENGINE=INNODB
   --inc $num_table
 }
 
---echo # Open $count connections and create a temporary table
---echo # for each connection
+--echo # Open $count_mtr connections and create a temporary table
+--echo # for each connection.
 --let $conn_count=0
-while($conn_count < $count){
+while($conn_count < $count_mtr){
   --connect (con$conn_count, localhost, root,,)
   CREATE TEMPORARY TABLE t1(id INT PRIMARY KEY) ENGINE=INNODB;
   INSERT INTO t1 VALUES (1);
   --inc $conn_count
 }
 
---echo # Insert rows in tables using multiple connections
+--echo # Insert rows in tables using multiple connections.
 --let $conn_count=0
-while($conn_count<$count){
+while($conn_count < $count_mtr){
   --connection con$conn_count
   --send_eval INSERT INTO g0 VALUE ($conn_count)
   --inc $conn_count
 }
 
---echo # Wait for the connections to finish inserting rows
+--echo # Wait for the connections to finish inserting rows.
 --let $conn_count=0
-while($conn_count<$count){
+while($conn_count < $count_mtr){
   --connection con$conn_count
   --reap
   --inc $conn_count
 }
 
---echo # Cleanup
---echo # Disconnect the connections
+--echo # Cleanup.
+--echo # Disconnect the connections.
 --connection default
 --let $conn_count=0
-while($conn_count<$count){
+while($conn_count<$count_mtr){
   --disconnect con$conn_count
   --inc $conn_count
 }
 
+CREATE TABLE connections_done(id INT PRIMARY KEY);
+
+--let $conn_count=0
+while($conn_count < $count_exec){
+  --exec_in_background $MYSQL -e "USE test; CREATE TEMPORARY TABLE t1(id INT PRIMARY KEY) ENGINE=INNODB; INSERT INTO t1 VALUES (1); SELECT SLEEP(5); INSERT INTO connections_done VALUES ($conn_count);"
+  --inc $conn_count
+}
+
+--let $wait_condition=SELECT COUNT(*)=$count_exec from connections_done
+--source include/wait_condition_or_abort.inc
+
 --echo # Drop all the tables
+DROP TABLE connections_done;
 --let $num_table=0
-while($num_table<$count){
+while($num_table < $tables_count){
   --eval DROP TABLE g$num_table
   --inc $num_table
 }

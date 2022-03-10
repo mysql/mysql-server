@@ -168,8 +168,8 @@ int table_mems_by_user_by_event_name::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_mems_by_user_by_event_name::index_init(
-    uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_mems_by_user_by_event_name::index_init(uint idx [[maybe_unused]],
+                                                 bool) {
   PFS_index_mems_by_user_by_event_name *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_mems_by_user_by_event_name);

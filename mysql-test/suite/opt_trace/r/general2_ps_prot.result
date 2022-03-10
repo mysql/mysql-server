@@ -344,6 +344,7 @@ TRACE
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": -1,
                         "rows": 2,
                         "cost": 0.464386,
                         "chosen": false,
@@ -4146,12 +4147,13 @@ link_alias_148._field_156	{
                       {
                         "index": "PRIMARY",
                         "ranges": [
-                          "1 <= seq_0_id <= 1"
+                          "seq_0_id = 1"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": -1,
                         "rows": 1,
                         "cost": 0.36,
                         "chosen": true
@@ -4168,7 +4170,7 @@ link_alias_148._field_156	{
                       "index": "PRIMARY",
                       "rows": 1,
                       "ranges": [
-                        "1 <= seq_0_id <= 1"
+                        "seq_0_id = 1"
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 1,
@@ -4221,12 +4223,13 @@ link_alias_148._field_156	{
                       {
                         "index": "PRIMARY",
                         "ranges": [
-                          "1 <= seq_0_id <= 1"
+                          "seq_0_id = 1"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": -1,
                         "rows": 1,
                         "cost": 0.36,
                         "chosen": true
@@ -4243,7 +4246,7 @@ link_alias_148._field_156	{
                       "index": "PRIMARY",
                       "rows": 1,
                       "ranges": [
-                        "1 <= seq_0_id <= 1"
+                        "seq_0_id = 1"
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 1,
@@ -4296,12 +4299,13 @@ link_alias_148._field_156	{
                       {
                         "index": "PRIMARY",
                         "ranges": [
-                          "1 <= seq_0_id <= 1"
+                          "seq_0_id = 1"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": -1,
                         "rows": 1,
                         "cost": 0.36,
                         "chosen": true
@@ -4318,7 +4322,7 @@ link_alias_148._field_156	{
                       "index": "PRIMARY",
                       "rows": 1,
                       "ranges": [
-                        "1 <= seq_0_id <= 1"
+                        "seq_0_id = 1"
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 1,

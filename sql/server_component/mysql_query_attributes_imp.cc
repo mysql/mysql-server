@@ -214,7 +214,7 @@ static String *query_parameter_val_str(const PS_PARAM *param,
       break;
     case MYSQL_TYPE_LONGLONG:
       if (param->length == 8) {
-        int32 value = sint8korr(param->value);
+        longlong value = sint8korr(param->value);
         str = new String[1];
         str->set_int(value, param->unsigned_type != 0, cs);
       }
@@ -274,7 +274,7 @@ static String *query_parameter_val_str(const PS_PARAM *param,
         str->length(
             my_TIME_to_str(tm, str->ptr(), uint8{DATETIME_MAX_DECIMALS}));
       } else {
-        delete str;
+        delete[] str;
         str = nullptr;
       }
       break;
@@ -300,7 +300,7 @@ static String *query_parameter_val_str(const PS_PARAM *param,
         str->length(
             my_TIME_to_str(tm, str->ptr(), uint8{DATETIME_MAX_DECIMALS}));
       } else {
-        delete str;
+        delete[] str;
         str = nullptr;
       }
       break;
@@ -341,7 +341,7 @@ static String *query_parameter_val_str(const PS_PARAM *param,
         str->length(
             my_TIME_to_str(tm, str->ptr(), uint8{DATETIME_MAX_DECIMALS}));
       } else {
-        delete str;
+        delete[] str;
         str = nullptr;
       }
       break;
@@ -354,7 +354,7 @@ static String *query_parameter_val_str(const PS_PARAM *param,
       uint dummy_errors;
       if (str->copy(reinterpret_cast<const char *>(param->value), param->length,
                     &my_charset_bin, &my_charset_bin, &dummy_errors)) {
-        delete str;
+        delete[] str;
         str = nullptr;
       }
       break;
@@ -367,7 +367,7 @@ static String *query_parameter_val_str(const PS_PARAM *param,
       uint dummy_errors;
       if (str->copy(reinterpret_cast<const char *>(param->value), param->length,
                     cs, cs, &dummy_errors)) {
-        delete str;
+        delete[] str;
         str = nullptr;
       }
       break;

@@ -147,8 +147,8 @@ static int add_collation(CHARSET_INFO *cs) {
   return MY_XML_OK;
 }
 
-static void default_reporter(enum loglevel level MY_ATTRIBUTE((unused)),
-                             uint ecode MY_ATTRIBUTE((unused)), ...) {}
+static void default_reporter(enum loglevel level [[maybe_unused]],
+                             uint ecode [[maybe_unused]], ...) {}
 
 static void my_charset_loader_init(MY_CHARSET_LOADER *loader) {
   loader->errcode = 0;
@@ -265,7 +265,7 @@ static void dispcset(FILE *f, CHARSET_INFO *cs) {
   fprintf(f, "}\n");
 }
 
-int main(int argc, char **argv MY_ATTRIBUTE((unused))) {
+int main(int argc, char **argv [[maybe_unused]]) {
   CHARSET_INFO ncs;
   CHARSET_INFO *cs;
   char filename[256];

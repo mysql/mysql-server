@@ -1,0 +1,24 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+set @save_general_log = @@global.general_log;
+set @save_log_output = @@global.log_output;
+set @save_replica_net_timeout = @@global.replica_net_timeout;
+set @@global.general_log = ON;
+set @@global.log_output = 'table,file';
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE to SOURCE_HOST = '127.0.0.1',SOURCE_PORT = MASTER_PORT,
+SOURCE_USER = 'root', SOURCE_HEARTBEAT_PERIOD = 0;
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+set @@global.replica_net_timeout = @@global.net_read_timeout * 2;
+include/start_slave.inc
+include/assert.inc [time between last reconnection and the reconnection before that should be >= replica_net_timeout]
+set @@global.general_log = @save_general_log;
+set @@global.log_output = @save_log_output;
+TRUNCATE TABLE mysql.general_log;
+set @@global.replica_net_timeout = @save_replica_net_timeout;
+include/rpl_end.inc

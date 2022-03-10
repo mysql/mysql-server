@@ -25,7 +25,6 @@
 #include <netdb.h>
 #include <errno.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/uio.h>
@@ -33,6 +32,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <netinet/in.h>
+#include <EventLogger.hpp>
 
 typedef socklen_t ndb_socket_len_t;
 
@@ -77,8 +77,7 @@ int ndb_socket_close(ndb_socket_t s)
   {
     if ((sb.st_mode & S_IFMT) != S_IFSOCK)
     {
-      fprintf(stderr, "fd=%d: not socket: mode=%o",
-              s.fd, sb.st_mode);
+      g_eventLogger->info("fd=%d: not socket: mode=%o", s.fd, sb.st_mode);
       abort();
     }
   }

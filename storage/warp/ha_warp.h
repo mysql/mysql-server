@@ -601,7 +601,8 @@ class ha_warp : public handler {
 
   ibis::partList* partitions = NULL;
   ibis::partList::iterator part_it;
-
+  FILE* written_row_fp = NULL;
+  
   void update_row_count();
   int reset_table();
   int encode_quote(uchar *buf);
@@ -711,7 +712,7 @@ class ha_warp : public handler {
   ha_warp(handlerton *hton, TABLE_SHARE *table_arg);
   handlerton* warp_hton;
   ~ha_warp() {
-    free_root(&blobroot, MYF(0));
+    blobroot.ClearForReuse();
   }
  
   const char *table_type() const { return "WARP"; }
@@ -816,7 +817,7 @@ class ha_warp : public handler {
 
   // Functions to support engine condition pushdown (ECP)
   int engine_push(AQP::Table_access *table_aqp);
-  const Item* cond_push(const Item *cond,	bool other_tbls_ok );
+  const Item* warp_cond_push(const Item *cond,	bool other_tbls_ok );
 	
   int rename_table(const char * from, const char * to, const dd::Table* , dd::Table* );
 

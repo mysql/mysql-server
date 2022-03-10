@@ -25,6 +25,7 @@
 #include <ndb_global.h>
 #include <NdbOut.hpp>
 #include <OutputStream.hpp>
+#include <NdbSleep.h>
 #include <NdbTest.hpp>
 #include <NdbTick.h>
 #include "m_ctype.h"
@@ -1520,7 +1521,7 @@ verifyBlobTable(const Bval& v, Uint32 pk1, Uint32 frag, bool exists)
         CHK(--opTimeoutRetries);
         
         opState= Retrying;
-        sleep(1);
+        NdbSleep_SecSleep(1);
         break;
       }
       CHK(opState == Normal);
@@ -1738,7 +1739,7 @@ insertPk(int style, int api)
         k = k - n;
         n = 0;
         opState= Retrying;
-        sleep(1);
+        NdbSleep_SecSleep(1);
         break;
       }
 
@@ -1860,7 +1861,7 @@ readPk(int style, int api)
              << opTimeoutRetries -1);
         CHK(--opTimeoutRetries);
         opState= Retrying;
-        sleep(1);
+        NdbSleep_SecSleep(1);
       }
       else
       {
@@ -2047,7 +2048,7 @@ readLockPk(int style, int api)
              << opTimeoutRetries -1);
         CHK(--opTimeoutRetries);
         opState= Retrying;
-        sleep(1);
+        NdbSleep_SecSleep(1);
       }
 
       g_ndb->closeTransaction(g_con);
@@ -2158,7 +2159,7 @@ updatePk(int style, int api)
         CHK(--opTimeoutRetries);
         
         opState= Retrying;
-        sleep(1);
+        NdbSleep_SecSleep(1);
       }
       if (error_code)
         opState= Retrying;
@@ -2245,7 +2246,7 @@ writePk(int style, int api)
         CHK(--opTimeoutRetries);
 
         opState= Retrying;
-        sleep(1);
+        NdbSleep_SecSleep(1);
       }
       g_ndb->closeTransaction(g_con);
     } while (opState == Retrying);
@@ -2317,7 +2318,7 @@ deletePk(int api)
           opState= Retrying;
           k= k - (n-1);
           n= 0;
-          sleep(1);
+          NdbSleep_SecSleep(1);
           break; // Out of for
         }
           
@@ -2339,7 +2340,7 @@ deletePk(int api)
                << conError() <<")  Retries left : "
                << opTimeoutRetries -1);
           CHK(--opTimeoutRetries);
-          sleep(1);
+          NdbSleep_SecSleep(1);
           opState= Retrying;
           k= k- (n-1);
         } 
@@ -2479,7 +2480,7 @@ readIdx(int style, int api)
         CHK(--opTimeoutRetries);
         
         opState= Retrying;
-        sleep(1);
+        NdbSleep_SecSleep(1);
       }
       g_ndb->closeTransaction(g_con);
     } while (opState == Retrying);
@@ -2545,7 +2546,7 @@ updateIdx(int style, int api)
              << opTimeoutRetries-1);
         CHK(--opTimeoutRetries);
         opState= Retrying;
-        sleep(1);
+        NdbSleep_SecSleep(1);
       }
       g_ndb->closeTransaction(g_con);
     } while (opState == Retrying);
@@ -2618,7 +2619,7 @@ writeIdx(int style, int api)
              << opTimeoutRetries-1);
         CHK(--opTimeoutRetries);
         opState= Retrying;
-        sleep(1);
+        NdbSleep_SecSleep(1);
       }
       g_ndb->closeTransaction(g_con);
     } while (opState == Retrying);
@@ -2673,7 +2674,7 @@ deleteIdx(int api)
           opState= Retrying;
           k= k- (n-1);
           n= 0;
-          sleep(1);
+          NdbSleep_SecSleep(1);
           break;
         }
 
@@ -2697,7 +2698,7 @@ deleteIdx(int api)
         CHK(--opTimeoutRetries);
         opState= Retrying;
         k= k-(n-1);
-        sleep(1);
+        NdbSleep_SecSleep(1);
       }
       n = 0;
     }
@@ -2829,7 +2830,7 @@ readScan(int style, int api, bool idx)
           CHK(--opTimeoutRetries);
 
           opState= Retrying;
-          sleep(1);
+          NdbSleep_SecSleep(1);
           break;
         }
       }
@@ -2857,7 +2858,7 @@ readScan(int style, int api, bool idx)
                << opTimeoutRetries - 1);
           CHK(--opTimeoutRetries);
           opState= Retrying;
-          sleep(1);
+          NdbSleep_SecSleep(1);
           continue;
         }
       }
@@ -2958,7 +2959,7 @@ updateScan(int style, int api, bool idx)
           CHK(--opTimeoutRetries);
 
           opState= Retrying;
-          sleep(1);
+          NdbSleep_SecSleep(1);
           break;
         }
       }
@@ -3006,7 +3007,7 @@ updateScan(int style, int api, bool idx)
              << opTimeoutRetries-1);
         CHK(opTimeoutRetries--);
         opState= Retrying;
-        sleep(1);
+        NdbSleep_SecSleep(1);
         break;
       }
 
@@ -3119,7 +3120,7 @@ lockUnlockScan(int style, int api, bool idx)
           CHK(--opTimeoutRetries);
 
           opState= Retrying;
-          sleep(1);
+          NdbSleep_SecSleep(1);
           break;
         }
       }
@@ -3217,7 +3218,7 @@ lockUnlockScan(int style, int api, bool idx)
              << opTimeoutRetries-1);
         CHK(opTimeoutRetries--);
         opState= Retrying;
-        sleep(1);
+        NdbSleep_SecSleep(1);
         break;
       }
 
@@ -3330,7 +3331,7 @@ deleteScan(int api, bool idx)
           CHK(--opTimeoutRetries);
           
           opState= Retrying;
-          sleep(1);
+          NdbSleep_SecSleep(1);
           break;
         }
       }
@@ -3382,7 +3383,7 @@ deleteScan(int api, bool idx)
             CHK(--opTimeoutRetries);
             
             opState= Retrying;
-            sleep(1);
+            NdbSleep_SecSleep(1);
             break;
           }
         }
@@ -3552,7 +3553,7 @@ setupOperation(NdbOperation*& op, OpTypes optype, Tup& tup)
   case PkInsert:
   case PkUpdate:
   case UkUpdate:
-    /* Fall through */
+    [[fallthrough]];
   case PkWrite:
   case UkWrite:
     CHK(setBlobValue(tup) == 0);
@@ -3841,7 +3842,7 @@ bugtest_45768()
       CHK(g_con->getNdbError().code == 1218); // Send buffers overloaded
      
       DBG("Send Buffers overloaded, retrying");
-      sleep(1);
+      NdbSleep_SecSleep(1);
       g_con->close();
     } while (retries--);
 
@@ -3910,7 +3911,7 @@ static int bugtest_48040()
   rc = bugtest_45768();
 
   /* Give time for infinite loop to build */
-  sleep(10);
+  NdbSleep_SecSleep(10);
   restarter.insertErrorInAllNodes(0);
 
   return rc;
@@ -4269,7 +4270,7 @@ int testOpBatching(OpTypes opType, int ao, int minRts, int maxRts)
       CHK(--opTimeoutRetries);
       r-= rowsPerBatch;
       k-= rowsPerBatch;
-      sleep(1);
+      NdbSleep_SecSleep(1);
     }
     g_ndb->closeTransaction(g_con);
   } while (k < g_opt.m_rows);
@@ -4411,7 +4412,7 @@ int testOpBatchBreaks(OpTypes opType, int numDupOps, int minRts, int maxRts)
            << " Operations lost : " << numDupOps
            << " retries left " << opTimeoutRetries - 1);
       CHK(--opTimeoutRetries);
-      sleep(1);
+      NdbSleep_SecSleep(1);
     }
     g_ndb->closeTransaction(g_con);
   } while (timeout);
@@ -4567,7 +4568,7 @@ testOpBatchLimits(OpTypes opType, unsigned numOps, int sz, int minRts, int maxRt
            << " retries left " << opTimeoutRetries - 1);
       CHK(--opTimeoutRetries);
       k = 0;
-      sleep(1);
+      NdbSleep_SecSleep(1);
     }
     g_ndb->closeTransaction(g_con);
   } while (k < numOps);
@@ -4715,6 +4716,7 @@ testmain()
     DBG("random seed = " << g_opt.m_seed);
     ndb_srand(g_opt.m_seed);
   }
+
   for (g_loop = 0; g_opt.m_loop == 0 || g_loop < g_opt.m_loop; g_loop++) {
     for (int storage= 0; storage < 2; storage++) {
       if (!testcase(storageSymbol[storage]))
@@ -5944,7 +5946,7 @@ bugtest_27772916()
     switch(v)
     {
     case 0:
-      /* Fall through */
+      [[fallthrough]];
     case 1:
     {
       /* Define a scan, reading blobs */
@@ -5958,7 +5960,7 @@ bugtest_27772916()
       break;
     }
     case 2:
-      /* Fall through */
+      [[fallthrough]];
     case 3:
     {
       /* Define an update operation */

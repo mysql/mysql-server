@@ -370,7 +370,7 @@ BasicSplicer::State ClassicProtocolSplicer::client_greeting() {
       return state();
     }
 
-    log_debug("decoding server greeting failed: %s",
+    log_debug("decoding client greeting failed: %s",
               header_decode_res.error().message().c_str());
 
     return State::FINISH;
@@ -406,7 +406,7 @@ BasicSplicer::State ClassicProtocolSplicer::client_greeting() {
       return state();
     }
 
-    log_debug("decoding server greeting failed: %s",
+    log_debug("decoding client greeting failed: %s",
               payload_decode_res.error().message().c_str());
 
     return State::FINISH;
@@ -647,7 +647,7 @@ BasicSplicer::State ClassicProtocolSplicer::tls_client_greeting() {
       return state();
     }
 
-    log_debug("decoding server greeting failed: %s",
+    log_debug("decoding client greeting after TLS failed: %s",
               decode_res.error().message().c_str());
 
     return State::FINISH;

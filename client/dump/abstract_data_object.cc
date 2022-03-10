@@ -36,4 +36,4 @@ std::string Abstract_data_object::get_schema() const { return m_schema; }
 
 uint64 Abstract_data_object::get_id() const { return m_id; }
 
-Abstract_data_object::~Abstract_data_object() {}
+Abstract_data_object::~Abstract_data_object() = default;

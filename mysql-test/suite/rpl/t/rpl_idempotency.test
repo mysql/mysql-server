@@ -17,8 +17,8 @@ INSERT INTO t1 VALUES (-1),(-2),(-3);
 INSERT INTO t2 VALUES (-1),(-2),(-3);
 --source include/sync_slave_sql_with_master.inc
 
-SET @old_slave_exec_mode= @@global.slave_exec_mode;
-SET @@global.slave_exec_mode= IDEMPOTENT;
+SET @old_replica_exec_mode= @@global.replica_exec_mode;
+SET @@global.replica_exec_mode= IDEMPOTENT;
 
 # A delete for a row that does not exist, the statement is
 # deliberately written to be idempotent for statement-based
@@ -80,6 +80,6 @@ connection master;
 DROP TABLE t1, t2;
 --source include/sync_slave_sql_with_master.inc
 
-SET @@global.slave_exec_mode= @old_slave_exec_mode;
+SET @@global.replica_exec_mode= @old_replica_exec_mode;
 
 --source include/rpl_end.inc

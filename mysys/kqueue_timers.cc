@@ -52,7 +52,7 @@ static my_thread_handle timer_notify_thread;
   @param  arg   Unused.
 */
 
-static void *timer_notify_thread_func(void *arg MY_ATTRIBUTE((unused))) {
+static void *timer_notify_thread_func(void *arg [[maybe_unused]]) {
   my_timer_t *timer;
   struct kevent kev;
 

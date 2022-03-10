@@ -119,6 +119,18 @@ public:
    * Get config by beeing friend to ndb_cluster_connection_impl - ugly
    */
   NdbApiConfig const& getConfig() const;
+
+  /**
+   * get a subrange of records - useful for splitting work amongst
+   * threads and avoiding contention.
+   */
+  static
+  void getRecordSubRange(int records,
+                         int rangeCount,
+                         int rangeId,
+                         int& startRecord,
+                         int& stopRecord);
+
 private:
   friend class NDBT_Step;
   friend class NDBT_TestSuite;
@@ -159,12 +171,17 @@ public:
   const char* getName() { return name; }
   int getStepNo() { return step_no; }
   void setStepNo(int n) { step_no = n; }
+  /* Parallel steps : Step x/y (x counting from 0) */
+  int getStepTypeNo() { return step_type_no; }
+  int getStepTypeCount() { return step_type_count; }
 protected:
   NDBT_Context* m_ctx;
   const char* name;
   NDBT_TESTFUNC* func;
   NDBT_TestCase* testcase;
   int step_no;
+  int step_type_no;
+  int step_type_count;
 
 private:
   int setUp(Ndb_cluster_connection&);
@@ -180,7 +197,9 @@ class NDBT_ParallelStep : public NDBT_Step {
 public:
   NDBT_ParallelStep(NDBT_TestCase* ptest,
 		    const char* pname,
-		    NDBT_TESTFUNC* pfunc);
+		    NDBT_TESTFUNC* pfunc,
+                    int num = 0,
+                    int count = 1);
   ~NDBT_ParallelStep() override {}
 };
 
@@ -409,6 +428,8 @@ public:
 
   bool getForceShort() const;
 
+  void setEnsureIndexStatTables(bool val);
+
   int createTables(Ndb_cluster_connection&) const;
   int dropTables(Ndb_cluster_connection&) const;
 
@@ -454,6 +475,7 @@ private:
   NDBT_DriverType m_driverType;
   bool m_noddl;
   bool m_forceShort;
+  bool m_ensureIndexStatTables;
 };
 
 
@@ -494,7 +516,7 @@ C##suitname():NDBT_TestSuite(#suitname){ \
 // Add a number of equal steps to the testcase
 #define STEPS(stepfunc, num) \
   { int i; for (i = 0; i < num; i++){ \
-    pts = new NDBT_ParallelStep(pt, #stepfunc, stepfunc); \
+    pts = new NDBT_ParallelStep(pt, #stepfunc, stepfunc, i, num); \
     pt->addStep(pts);\
   } }
 

@@ -62,13 +62,13 @@
 #include "mysqld_error.h"  // ER_*
 #include "sql/field.h"
 #include "sql/handler.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/mdl.h"
-#include "sql/mysqld.h"   // opt_allow_suspicious_udfs
-#include "sql/records.h"  // unique_ptr_destroy_only<RowIterator>
-#include "sql/row_iterator.h"
+#include "sql/mysqld.h"     // opt_allow_suspicious_udfs
 #include "sql/sql_base.h"   // close_mysql_tables
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
+#include "sql/sql_executor.h"            // unique_ptr_destroy_only<RowIterator>
 #include "sql/sql_parse.h"               // check_string_char_length
 #include "sql/sql_plugin.h"              // check_valid_path
 #include "sql/sql_system_table_check.h"  // System_table_intact
@@ -228,7 +228,7 @@ void udf_read_functions_table() {
   THD *new_thd = new (std::nothrow) THD;
   if (new_thd == nullptr) {
     LogErr(ERROR_LEVEL, ER_UDF_CANT_ALLOC_FOR_STRUCTURES);
-    free_root(&mem, MYF(0));
+    mem.Clear();
     delete new_thd;
     return;
   }
@@ -248,9 +248,9 @@ void udf_read_functions_table() {
   }
 
   table = tables.table;
-  iterator = init_table_iterator(new_thd, table, nullptr,
-                                 /*ignore_not_found_rows=*/false,
-                                 /*count_examined_rows=*/false);
+  iterator =
+      init_table_iterator(new_thd, table, /*ignore_not_found_rows=*/false,
+                          /*count_examined_rows=*/false);
   if (iterator == nullptr) goto end;
   while (!(error = iterator->Read())) {
     DBUG_PRINT("info", ("init udf record"));
@@ -332,7 +332,8 @@ void udf_read_functions_table() {
   table->invalidate_dict();  // Force close to free memory
 
 end:
-  close_trans_system_tables(new_thd);
+  if (new_thd->is_attachable_ro_transaction_active())
+    close_trans_system_tables(new_thd);
   delete new_thd;
 }
 
@@ -374,7 +375,7 @@ void udf_deinit_globals() {
     delete udf_hash;
     udf_hash = nullptr;
   }
-  free_root(&mem, MYF(0));
+  mem.Clear();
   initialized = false;
 
   mysql_rwlock_destroy(&THR_LOCK_udf);

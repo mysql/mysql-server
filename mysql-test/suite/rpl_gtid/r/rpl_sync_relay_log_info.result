@@ -5,6 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 CALL mtr.add_suppression('Duplicate entry');
 [connection slave]
+CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 SET @saved_sync_relay_log_info= @@GLOBAL.sync_relay_log_info;
 #
 # sync_relay_log_info= 0, transactional (InnoDB) storage engine

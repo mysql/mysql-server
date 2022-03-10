@@ -27,10 +27,6 @@
 
 #include <ndb_global.h>
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 /* Error codes for Locking to CPUs and CPU sets */
 #define BIND_CPU_NOT_SUPPORTED_ERROR 31999
 #define CPU_SET_MIX_EXCLUSIVE_ERROR 31998
@@ -49,15 +45,12 @@ typedef enum NDB_THREAD_PRIO_ENUM {
   NDB_THREAD_PRIO_LOWEST
 } NDB_THREAD_PRIO;
 
-#ifdef __cplusplus
 
 /* NDB thread pointer. */
 struct NdbThread;
 extern thread_local NdbThread* NDB_THREAD_TLS_NDB_THREAD;
 
-#endif
-
-typedef void* (NDB_THREAD_FUNC)(void*);
+extern "C" typedef void* (NDB_THREAD_FUNC)(void*);
 typedef void* NDB_THREAD_ARG;
 typedef size_t NDB_THREAD_STACKSIZE;
 
@@ -273,9 +266,5 @@ void NdbThread_ClearSigMask();
  */
 bool
 NdbThread_IsCPUAvailable(Uint32 cpu_id);
-
-#ifdef	__cplusplus
-}
-#endif
 
 #endif

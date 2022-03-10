@@ -598,6 +598,16 @@ SELECT f1 FROM t1 AS table1
 eval explain $query;
 eval $query;
 
+INSERT INTO t1 VALUES (-1, 0, -1, -1);
+INSERT INTO t1 VALUES (1, 0, 1, 1);
+ANALYZE TABLE t1;
+
+eval explain $query;
+
+# First subquery returns more than one row.
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+
 DROP TABLE t1;
 
 --echo #
@@ -632,6 +642,19 @@ eval explain $query;
 eval $query;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#32998733: SERVER ABORT FROM JOIN::CREATE_INTERMEDIATE_TABLE
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+CREATE TABLE t2 (b INTEGER);
+# As the predicate in the subquery has only correlated operands, we should
+# not be transforming this subquery into a derived table.
+EXPLAIN SELECT 1 FROM t1 WHERE ( SELECT DISTINCT b FROM t2 WHERE t1.a = t1.a );
+SELECT 1 FROM t1 WHERE ( SELECT DISTINCT b FROM t2 WHERE t1.a = t1.a );
+
+DROP TABLE t1,t2;
 
 SET optimizer_switch = 'subquery_to_derived=default';
 # Local Variables:

@@ -10,11 +10,11 @@ Mysqlx.Ok {
 }
 ok
 # Verify that TCP is disabled
-in main, line 0:ERROR: Connection refused connecting to localhost:PORT (code 2002)
-not ok
+Application terminated with expected ERROR: Connection refused connecting to localhost:PORT (code 2002)
+ok
 # Try login using mysqlx protocol when server started with skip-networking options and mysqlx loaded with non super user
-in main, line 0:ERROR: Connection refused connecting to localhost:PORT (code 2002)
-not ok
+Application terminated with expected ERROR: Connection refused connecting to localhost:PORT (code 2002)
+ok
 call mtr.add_suppression("Plugin mysqlx reported: .Preparation of I/O interfaces failed, X Protocol won't be accessible");
 call mtr.add_suppression("Plugin mysqlx reported: .X Plugin failed to setup .+ .., with:");
 call mtr.add_suppression("Plugin mysqlx reported: .+ path is empt");

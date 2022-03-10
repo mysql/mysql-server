@@ -14,3 +14,8 @@ ALTER TABLE performance_schema.persisted_variables
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index
   ON performance_schema.persisted_variables(VARIABLE_NAME);
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.persisted_variables;
+
+DROP TABLE test.create_select;

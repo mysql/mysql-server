@@ -140,9 +140,9 @@ create table t1 (a varchar(1024), b varchar(1024) generated always as (is_used_l
 -- error ER_GENERATED_COLUMN_NAMED_FUNCTION_IS_NOT_ALLOWED
 create table t1 (a int generated always as (last_insert_id()) virtual);
 
---echo # MASTER_POS_WAIT()
+--echo # SOURCE_POS_WAIT()
 -- error ER_GENERATED_COLUMN_NAMED_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a varchar(32), b int generated always as (master_pos_wait(a,0,2)) virtual);
+create table t1 (a varchar(32), b int generated always as (source_pos_wait(a,0,2)) virtual);
 
 --echo # NAME_CONST()
 -- error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED

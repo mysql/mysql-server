@@ -224,8 +224,11 @@ int ha_warp::rename_table(const char * from, const char * to, const dd::Table* ,
   DBUG_RETURN(0);
 }
 
-bool ha_warp::is_deleted(uint64_t rownum) {
-  return warp_state->delete_bitmap->is_set(rownum);
+bool ha_warp::is_deleted(uint64_t rowid) {
+  
+  auto retval= warp_state->delete_bitmap->is_set(rowid);
+  
+  return retval;
 }
 
 /*
@@ -702,12 +705,10 @@ int ha_warp::reset_table() {
 
 void ha_warp::update_row_count() {
   DBUG_ENTER("ha_warp::row_count");
-  if(base_table == NULL) {
-    base_table = new ibis::mensa(share->data_dir_name);
-  }
-
-  stats.records = base_table->nRows();
-
+  
+  auto tmp = new ibis::mensa(share->data_dir_name);
+  stats.records = tmp->nRows();
+  delete tmp;
   //delete base_table;
   //base_table = NULL;
   DBUG_VOID_RETURN;
@@ -818,10 +819,13 @@ std::string ha_warp::get_writer_partition() {
 
 /* write the rows and destroy the writer*/
 void ha_warp::write_buffered_rows_to_disk() {
+  
+  
   mysql_mutex_lock(&share->mutex);
   std::string part_dir = get_writer_partition();
   auto part_dir_copy = strdup(part_dir.c_str());
   auto part_name = basename(part_dir_copy);
+  
   writer->write(part_dir.c_str(), part_name);
   writer->clearData();
   free(part_dir_copy);
@@ -843,11 +847,14 @@ int ha_warp::write_row(uchar *buf) {
   ha_statistic_increment(&System_status_var::ha_write_count);
   
   mysql_mutex_lock(&share->mutex);
-  if(share->next_rowid == 0 || share->rowids_generated >= WARP_ROWID_BATCH_SIZE) {
-    share->next_rowid = warp_state->get_next_rowid_batch();
-    share->rowids_generated = 0;
+  if(share->rowids_generated == 0 || share->rowids_generated >= WARP_ROWID_BATCH_SIZE) {
+    share->next_rowid = warp_state->get_next_rowid_batch() - WARP_ROWID_BATCH_SIZE;
+    share->rowids_generated = 1;
   } 
-  current_rowid = share->next_rowid--;
+  
+  current_rowid = share->next_rowid;
+  
+  share->next_rowid++;
   share->rowids_generated++;
   mysql_mutex_unlock(&share->mutex);
     
@@ -892,7 +899,9 @@ int ha_warp::write_row(uchar *buf) {
     current_trx->write_insert_log_rowid(current_rowid);
   } else
   */
-  if(writer->mRows() >= my_write_cache_size) {
+ auto thd = current_thd;
+auto sql_command = (enum_sql_command)thd_sql_command(thd);
+if(writer->mRows() >= my_write_cache_size && sql_command == SQLCOM_INSERT) {
     // write the rows to disk and destroy the writer (a new one will be created)
     write_buffered_rows_to_disk();
   }
@@ -913,14 +922,6 @@ int ha_warp::update_row(const uchar *, uchar *new_data) {
   auto current_trx = warp_get_trx(warp_hton, table->in_use);
   assert(current_trx != NULL);
   
-  /*delete cursor;
-  delete filtered_table;
-  delete base_table;
-  cursor = NULL;
-  filtered_table = NULL;
-  base_table = NULL;*/
-
-
   int lock_taken = warp_state->create_lock(current_rowid, current_trx, LOCK_EX);
   /* if deadlock or lock timeout return the error*/
   if(lock_taken != LOCK_EX) {
@@ -948,8 +949,6 @@ int ha_warp::update_row(const uchar *, uchar *new_data) {
   
   ha_statistic_increment(&System_status_var::ha_update_count);
   is_update=false;
-
-  
   DBUG_RETURN(retval);
 }
 
@@ -977,6 +976,7 @@ int ha_warp::delete_row(const uchar *) {
   
   ha_statistic_increment(&System_status_var::ha_delete_count);
   stats.records--;
+  
   DBUG_RETURN(0);
 }
 
@@ -1149,6 +1149,20 @@ int ha_warp::extra(enum ha_extra_function) {
   /* if not bulk insert, and there are buffered inserts, write them out
      to disk.  This will destroy the writer.
   */
+  if(cursor) delete base_table;
+  if(filtered_table) delete filtered_table;
+  if(base_table) delete base_table;
+  if(partitions != NULL) {
+    for(auto part_it = partitions->begin(); part_it != partitions->end(); ++part_it) {
+      delete *part_it;
+      *part_it = NULL;
+    }
+    delete partitions;
+    partitions = NULL;
+  }
+  base_table = NULL;
+  filtered_table = NULL;
+  cursor = NULL;
   if(writer != NULL) {
     write_buffered_rows_to_disk();
   }
@@ -1390,8 +1404,7 @@ void ha_warp::create_writer(TABLE *table_arg) {
       // correspondingly numbered column");
       writer->addColumn(nname.c_str(), ibis::UBYTE,
                         "NULL marker for the correspondingly numbered column",
-                        //"<binning none/><encoding equality/>");
-                        "none");
+                        "none");//"<binning none/><encoding equality/>");
     }
   }
   /* This is the psuedo-rowid which is used for deletes and updates */
@@ -1487,6 +1500,11 @@ bool ha_warp::check_if_incompatible_data(HA_CREATE_INFO *, uint) {
 */
 int ha_warp::rnd_init(bool) {
   DBUG_ENTER("ha_warp::rnd_init");
+  enum_sql_command sql_command = (enum_sql_command)thd_sql_command(current_thd);
+  
+  if(sql_command == SQLCOM_ALTER_TABLE) {
+    DBUG_RETURN(-1);
+  }
   fetch_count = 0;
   auto pushdown_info = get_pushdown_info(table->in_use, table->alias);
   char* partition_filter = THDVAR(table->in_use, partition_filter);
@@ -1545,6 +1563,9 @@ int ha_warp::rnd_init(bool) {
       if(filtered_table != NULL) {
         cursor = filtered_table->createCursor();
         pushdown_info->cursor=cursor; 
+      } else {
+        delete base_table;
+        base_table = NULL;
       }
     }
  
@@ -1915,6 +1936,8 @@ fetch_again:
       filtered_table = base_table->select(column_set.c_str(), push_where_clause.c_str());
       
       if(!filtered_table) {
+        delete base_table;
+        base_table = NULL;
         ++part_it;
         goto fetch_again;
       }
@@ -1940,6 +1963,8 @@ fetch_again:
       filtered_table = base_table->select(column_set.c_str(), push_where_clause.c_str());
       
       if(filtered_table==NULL) {
+        delete base_table;
+        base_table=NULL;
         DBUG_RETURN(HA_ERR_END_OF_FILE);
       }
       
@@ -2052,8 +2077,7 @@ fetch_again:
   if(!is_row_visible_to_read(current_rowid)) {
     goto fetch_again;
   }
-  
-  
+    
   // Lock rows during a read if requested
   auto current_trx = warp_get_trx(warp_hton, table->in_use);
   int lock_taken = 0;
@@ -2515,7 +2539,7 @@ int ha_warp::engine_push(AQP::Table_access *table_aqp) {
     str.reserve(1024*1024);
     cond2->print(current_thd, &str, QT_ORDINARY);
     // the pushdown information should already have been created in ::info
-    remainder = cond_push(cond, true);
+    remainder = warp_cond_push(cond, true);
     
     //if(remainder == nullptr) {
     //  pushed_cond = cond;
@@ -2536,7 +2560,7 @@ int ha_warp::engine_push(AQP::Table_access *table_aqp) {
 
    This code is called from ha_warp::engine_push in 8.0.20+
 */
-const Item *ha_warp::cond_push(const Item *cond, bool other_tbls_ok) {
+const Item *ha_warp::warp_cond_push(const Item *cond, bool other_tbls_ok) {
   
   static int depth=0;
   static int unpushed_condition_count = 0;
@@ -2590,7 +2614,7 @@ const Item *ha_warp::cond_push(const Item *cond, bool other_tbls_ok) {
       */
       ++depth;
       
-      if(cond_push(item, other_tbls_ok) != NULL) {
+      if(warp_cond_push(item, other_tbls_ok) != NULL) {
         unpushed_condition_count++;
         //items->push_back(item);
       }
@@ -2787,7 +2811,7 @@ int ha_warp::append_column_filter(const Item *cond,
 
       // find the field in the fact table
       for(fact_field = fact_table->fields; *fact_field; fact_field++) {
-        if((*fact_field)->field_name == fact_field_mysql_name) {
+        if(strcmp((*fact_field)->field_name, fact_field_mysql_name) == 0) {
           break;
         }
       }
@@ -2796,7 +2820,7 @@ int ha_warp::append_column_filter(const Item *cond,
 
       // find the field in the dimension table
       for(dim_field = dim_table->fields; *dim_field; dim_field++) {
-        if((*dim_field)->field_name == dim_field_mysql_name) {    
+        if(strcmp((*dim_field)->field_name, dim_field_mysql_name) == 0) {    
           break;
         }
       } 
@@ -3426,7 +3450,7 @@ void warp_trx::commit() {
           break;
 
         case delete_marker:
-          fread(&rowid, sizeof(uint64_t), 1, log);
+          sz = fread(&rowid, sizeof(uint64_t), 1, log);
           if(sz != 1) {
             sql_print_error("transaction log read failed");
             assert(false);
@@ -3645,7 +3669,9 @@ int warp_rollback(handlerton* hton, THD *thd, bool rollback_trx) {
 }
 
 bool ha_warp::is_row_visible_to_read(uint64_t rowid) {
-
+  if(is_deleted(rowid)) {
+     return false;
+  }
   uint64_t history_trx_id = warp_state->get_history_lock(rowid);
   
   auto current_trx = warp_get_trx(warp_hton, table->in_use);
@@ -3653,19 +3679,17 @@ bool ha_warp::is_row_visible_to_read(uint64_t rowid) {
   
   if(history_trx_id == 0 
     || history_trx_id < current_trx->trx_id 
-    || (history_trx_id > current_trx->trx_id && (current_trx->isolation_level != ISO_REPEATABLE_READ && current_trx->isolation_level != ISO_SERIALIZABLE))) {
+    || ((history_trx_id > current_trx->trx_id && (current_trx->isolation_level != ISO_REPEATABLE_READ && current_trx->isolation_level != ISO_SERIALIZABLE)))) {
     // no history lock or may have been commited into delete map
     // in a visible trx so have to check to see if the row is deleted
-    if(is_deleted(current_rowid)) {
-      return false;
-    }
+    return true;
   } else {
     /* another transaction has deleted or updated this row */
     if(history_trx_id != current_trx->trx_id) {
-      return true;
+      return false;
     }
-    return false;
   }
+  
   return true;
 }
 
@@ -3928,7 +3952,7 @@ bool warp_global_data::check_state() {
     sql_print_error("commits.warp is found but warp_state is missing! Database can not be initialized.");
     return false;
   } 
-  
+/*  
   auto parts = new ibis::partList;
   int has_warp_tables = ibis::util::gatherParts(*parts, std::string(".").c_str());
   if(!state_exists && !commit_file_exists && has_warp_tables > 0) {
@@ -3936,6 +3960,7 @@ bool warp_global_data::check_state() {
     return false;
   }
   delete parts;
+  */
   return true;
 }
 

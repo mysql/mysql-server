@@ -132,3 +132,48 @@ DO 1 regexp (multilinestring(point(1,1)));
 --error ER_REGEXP_INTERNAL_ERROR
 SELECT '1' RLIKE RPAD('1', 10000, '(');
 --enable_result_log
+
+--echo # Bug#33089668: Calling regexp_instr() with NULL causes all
+--echo #               further calls of it to return NULL
+
+SELECT REGEXP_INSTR(e, 'pattern')
+FROM (VALUES ROW('Find pattern'), ROW(NULL), ROW('Find pattern')) AS v(e);
+
+SELECT REGEXP_LIKE(e, 'pattern')
+FROM (VALUES ROW('Find pattern'), ROW(NULL), ROW('Find pattern')) AS v(e);
+
+SELECT REGEXP_REPLACE(e, 'pattern', 'xyz')
+FROM (VALUES ROW('Find pattern'), ROW(NULL), ROW('Find pattern')) AS v(e);
+
+SELECT REGEXP_SUBSTR(e, 'pattern')
+FROM (VALUES ROW('Find pattern'), ROW(NULL), ROW('Find pattern')) AS v(e);
+
+CREATE FUNCTION r_instr(input_text VARCHAR(255)) RETURNS INT DETERMINISTIC
+    RETURN REGEXP_INSTR(input_text, 'pattern');
+SELECT r_instr('Find pattern');
+SELECT r_instr(NULL);
+SELECT r_instr('Find pattern');
+DROP FUNCTION r_instr;
+
+CREATE FUNCTION r_like(input_text VARCHAR(255)) RETURNS BOOLEAN DETERMINISTIC
+    RETURN REGEXP_LIKE(input_text, 'pattern');
+SELECT r_like('Find pattern');
+SELECT r_like(NULL);
+SELECT r_like('Find pattern');
+DROP FUNCTION r_like;
+
+CREATE FUNCTION r_replace(input_text VARCHAR(255))
+RETURNS VARCHAR(255) DETERMINISTIC
+    RETURN REGEXP_REPLACE(input_text, 'pattern', 'xyz');
+SELECT r_replace('Find pattern');
+SELECT r_replace(NULL);
+SELECT r_replace('Find pattern');
+DROP FUNCTION r_replace;
+
+CREATE FUNCTION r_substr(input_text VARCHAR(255))
+RETURNS VARCHAR(255) DETERMINISTIC
+    RETURN REGEXP_SUBSTR(input_text, 'pattern');
+SELECT r_substr('Find pattern');
+SELECT r_substr(NULL);
+SELECT r_substr('Find pattern');
+DROP FUNCTION r_substr;

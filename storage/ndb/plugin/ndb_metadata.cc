@@ -552,6 +552,14 @@ bool Ndb_metadata::create_foreign_keys(Ndb *ndb, dd::Table *table_def) const {
 
     Ndb_table_guard ndb_table_guard(ndb, parent_db, parent_name);
     const NdbDictionary::Table *parent_table = ndb_table_guard.get_table();
+    if (!parent_table) {
+      // Failed to open the table from NDB
+      ndb_log_error("Got error '%d: %s' from NDB",
+                    ndb_table_guard.getNdbError().code,
+                    ndb_table_guard.getNdbError().message);
+      ndb_log_error("Failed to open table '%s.%s'", parent_db, parent_name);
+      return false;
+    }
     for (unsigned int j = 0; j < ndb_fk.getChildColumnCount(); j++) {
       // Create FK element(s) for child columns
       dd::Foreign_key_element *fk_element = dd_fk->add_element();
@@ -937,15 +945,8 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1,
     const dd::Column *column2 = t2->get_column(column1->name());
     if (column2 == nullptr) continue;
 
-    /*
-      Diff in 'column_name' detected, 'D' != 'd'
-
-      ALTER TABLE t8 CHANGE D d INT UNSIGNED causes the above. Only an issue
-      with the same character with different case. For example,
-      ALTER TABLE t8 CHANGE D c INT UNSIGNED works perfectly well.
-      Bug#31958327 has been filed
-    */
-    // ctx.compare("column_name", column1->name(), column2->name());
+    // column name
+    ctx.compare("column_name", column1->name(), column2->name());
 
     const char *column_name = column1->name().c_str();
 

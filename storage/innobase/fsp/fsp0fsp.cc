@@ -57,10 +57,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0log.h"
 #include "srv0srv.h"
 #endif /* !UNIV_HOTBACKUP */
+#include "clone0api.h"
 #include "dict0mem.h"
 #include "fsp0sysspace.h"
 #include "srv0start.h"
 #include "trx0purge.h"
+
+double fseg_reserve_pct = FSEG_RESERVE_PCT_DFLT;
 
 #ifndef UNIV_HOTBACKUP
 
@@ -159,7 +162,7 @@ reserved, in this case we will never return NULL */
 @retval block	rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr),
 returned block is not allocated nor initialized otherwise */
-static buf_block_t *fseg_alloc_free_page_low(
+[[nodiscard]] static buf_block_t *fseg_alloc_free_page_low(
     fil_space_t *space, const page_size_t &page_size, fseg_inode_t *seg_inode,
     page_no_t hint, byte direction, rw_lock_type_t rw_latch, mtr_t *mtr,
     mtr_t *init_mtr
@@ -167,7 +170,7 @@ static buf_block_t *fseg_alloc_free_page_low(
     ,
     ibool has_done_reservation
 #endif /* UNIV_DEBUG */
-    ) MY_ATTRIBUTE((warn_unused_result));
+);
 #endif /* !UNIV_HOTBACKUP */
 
 /** Get the segment identifier to which the extent belongs to.
@@ -255,7 +258,7 @@ uint32_t fsp_flags_to_dict_tf(uint32_t fsp_flags, bool compact) {
 @param[in]      space_id        tablespace ID
 @return true if tablespace is dd tablespace. */
 bool fsp_is_dd_tablespace(space_id_t space_id) {
-  return (space_id == dict_sys_t::s_space_id);
+  return (space_id == dict_sys_t::s_dict_space_id);
 }
 
 /** Check whether a space id is an undo tablespace ID
@@ -328,12 +331,12 @@ bool fsp_skip_sanity_check(space_id_t space_id) {
 
 /** Gets a descriptor bit of a page.
  @return true if free */
-UNIV_INLINE
-ibool xdes_mtr_get_bit(const xdes_t *descr, /*!< in: descriptor */
-                       ulint bit, /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
-                       page_no_t offset, /*!< in: page offset within extent:
-                                         0 ... FSP_EXTENT_SIZE - 1 */
-                       mtr_t *mtr)       /*!< in: mini-transaction */
+static inline ibool xdes_mtr_get_bit(
+    const xdes_t *descr, /*!< in: descriptor */
+    ulint bit,           /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
+    page_no_t offset,    /*!< in: page offset within extent:
+                         0 ... FSP_EXTENT_SIZE - 1 */
+    mtr_t *mtr)          /*!< in: mini-transaction */
 {
   ut_ad(mtr->is_active());
   ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_SX_FIX));
@@ -342,13 +345,13 @@ ibool xdes_mtr_get_bit(const xdes_t *descr, /*!< in: descriptor */
 }
 
 /** Sets a descriptor bit of a page. */
-UNIV_INLINE
-void xdes_set_bit(xdes_t *descr,    /*!< in: descriptor */
-                  ulint bit,        /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
-                  page_no_t offset, /*!< in: page offset within extent:
-                                    0 ... FSP_EXTENT_SIZE - 1 */
-                  ibool val,        /*!< in: bit value */
-                  mtr_t *mtr)       /*!< in/out: mini-transaction */
+static inline void xdes_set_bit(
+    xdes_t *descr,    /*!< in: descriptor */
+    ulint bit,        /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
+    page_no_t offset, /*!< in: page offset within extent:
+                      0 ... FSP_EXTENT_SIZE - 1 */
+    ibool val,        /*!< in: bit value */
+    mtr_t *mtr)       /*!< in/out: mini-transaction */
 {
   ulint index;
   ulint byte_index;
@@ -375,13 +378,13 @@ void xdes_set_bit(xdes_t *descr,    /*!< in: descriptor */
  and scans upward; at the end of the extent the search is wrapped to
  the start of the extent.
  @return bit index of the bit, ULINT_UNDEFINED if not found */
-UNIV_INLINE
-page_no_t xdes_find_bit(xdes_t *descr, /*!< in: descriptor */
-                        ulint bit, /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
-                        ibool val, /*!< in: desired bit value */
-                        page_no_t hint, /*!< in: hint of which bit position
-                                        would be desirable */
-                        mtr_t *mtr)     /*!< in/out: mini-transaction */
+static inline page_no_t xdes_find_bit(
+    xdes_t *descr,  /*!< in: descriptor */
+    ulint bit,      /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
+    ibool val,      /*!< in: desired bit value */
+    page_no_t hint, /*!< in: hint of which bit position
+                    would be desirable */
+    mtr_t *mtr)     /*!< in/out: mini-transaction */
 {
   page_no_t i;
 
@@ -406,9 +409,9 @@ page_no_t xdes_find_bit(xdes_t *descr, /*!< in: descriptor */
 
 /** Returns the number of used pages in a descriptor.
  @return number of pages used */
-UNIV_INLINE
-page_no_t xdes_get_n_used(const xdes_t *descr, /*!< in: descriptor */
-                          mtr_t *mtr)          /*!< in/out: mini-transaction */
+static inline page_no_t xdes_get_n_used(
+    const xdes_t *descr, /*!< in: descriptor */
+    mtr_t *mtr)          /*!< in/out: mini-transaction */
 {
   page_no_t count = 0;
 
@@ -443,9 +446,8 @@ bool xdes_state_is_valid(ulint state) {
 
 /** Returns true if extent contains no used pages.
  @return true if totally free */
-UNIV_INLINE
-ibool xdes_is_free(const xdes_t *descr, /*!< in: descriptor */
-                   mtr_t *mtr)          /*!< in/out: mini-transaction */
+static inline ibool xdes_is_free(const xdes_t *descr, /*!< in: descriptor */
+                                 mtr_t *mtr) /*!< in/out: mini-transaction */
 {
   if (0 == xdes_get_n_used(descr, mtr)) {
     ut_ad(xdes_get_state(descr, mtr) != XDES_FSEG_FRAG);
@@ -458,9 +460,8 @@ ibool xdes_is_free(const xdes_t *descr, /*!< in: descriptor */
 
 /** Returns true if extent contains no free pages.
  @return true if full */
-UNIV_INLINE
-ibool xdes_is_full(const xdes_t *descr, /*!< in: descriptor */
-                   mtr_t *mtr)          /*!< in/out: mini-transaction */
+static inline ibool xdes_is_full(const xdes_t *descr, /*!< in: descriptor */
+                                 mtr_t *mtr) /*!< in/out: mini-transaction */
 {
   if (FSP_EXTENT_SIZE == xdes_get_n_used(descr, mtr)) {
     return (TRUE);
@@ -470,10 +471,9 @@ ibool xdes_is_full(const xdes_t *descr, /*!< in: descriptor */
 }
 
 /** Sets the state of an xdes. */
-UNIV_INLINE
-void xdes_set_state(xdes_t *descr,      /*!< in/out: descriptor */
-                    xdes_state_t state, /*!< in: state to set */
-                    mtr_t *mtr)         /*!< in/out: mini-transaction */
+static inline void xdes_set_state(xdes_t *descr,      /*!< in/out: descriptor */
+                                  xdes_state_t state, /*!< in: state to set */
+                                  mtr_t *mtr) /*!< in/out: mini-transaction */
 {
   ut_ad(descr && mtr);
   ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_SX_FIX));
@@ -520,9 +520,8 @@ inline void xdes_set_segment_id(xdes_t *descr, const ib_id_t seg_id,
 }
 
 /** Inits an extent descriptor to the free and clean state. */
-UNIV_INLINE
-void xdes_init(xdes_t *descr, /*!< in: descriptor */
-               mtr_t *mtr)    /*!< in/out: mini-transaction */
+static inline void xdes_init(xdes_t *descr, /*!< in: descriptor */
+                             mtr_t *mtr)    /*!< in/out: mini-transaction */
 {
   ulint i;
 
@@ -549,11 +548,9 @@ void xdes_init(xdes_t *descr, /*!< in: descriptor */
 the same as the tablespace header
 @return pointer to the extent descriptor, NULL if the page does not
 exist in the space or if the offset exceeds free limit */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) xdes_t
-    *xdes_get_descriptor_with_space_hdr(fsp_header_t *sp_header,
-                                        space_id_t space, page_no_t offset,
-                                        mtr_t *mtr, bool init_space = false,
-                                        buf_block_t **desc_block = nullptr) {
+[[nodiscard]] static inline xdes_t *xdes_get_descriptor_with_space_hdr(
+    fsp_header_t *sp_header, space_id_t space, page_no_t offset, mtr_t *mtr,
+    bool init_space = false, buf_block_t **desc_block = nullptr) {
   ulint limit;
   ulint size;
   page_no_t descr_page_no;
@@ -627,9 +624,10 @@ try to add new extents to the space free list
 @param[in,out]	mtr		Mini-transaction
 @return pointer to the extent descriptor, NULL if the page does not
 exist in the space or if the offset exceeds the free limit */
-static MY_ATTRIBUTE((warn_unused_result)) xdes_t *xdes_get_descriptor(
-    space_id_t space_id, page_no_t offset, const page_size_t &page_size,
-    mtr_t *mtr) {
+[[nodiscard]] static xdes_t *xdes_get_descriptor(space_id_t space_id,
+                                                 page_no_t offset,
+                                                 const page_size_t &page_size,
+                                                 mtr_t *mtr) {
   buf_block_t *block;
   fsp_header_t *sp_header;
 
@@ -650,9 +648,9 @@ is x-locked.
                                 descriptor
 @param[in,out]	mtr		Mini-transaction
 @return pointer to the extent descriptor */
-UNIV_INLINE
-xdes_t *xdes_lst_get_descriptor(space_id_t space, const page_size_t &page_size,
-                                fil_addr_t lst_node, mtr_t *mtr) {
+static inline xdes_t *xdes_lst_get_descriptor(space_id_t space,
+                                              const page_size_t &page_size,
+                                              fil_addr_t lst_node, mtr_t *mtr) {
   xdes_t *descr;
 
   ut_ad(mtr);
@@ -666,8 +664,8 @@ xdes_t *xdes_lst_get_descriptor(space_id_t space, const page_size_t &page_size,
 
 /** Returns page offset of the first page in extent described by a descriptor.
  @return offset of the first page in extent */
-UNIV_INLINE
-page_no_t xdes_get_offset(const xdes_t *descr) /*!< in: extent descriptor */
+static inline page_no_t xdes_get_offset(
+    const xdes_t *descr) /*!< in: extent descriptor */
 {
   ut_ad(descr);
 
@@ -769,10 +767,10 @@ static void fsp_init_file_page(buf_block_t *block, mtr_t *mtr) {
 
 /** Parses a redo log record of a file page init.
  @return end of log record or NULL */
-byte *fsp_parse_init_file_page(
-    byte *ptr,                            /*!< in: buffer */
-    byte *end_ptr MY_ATTRIBUTE((unused)), /*!< in: buffer end */
-    buf_block_t *block)                   /*!< in: block or NULL */
+byte *fsp_parse_init_file_page(byte *ptr, /*!< in: buffer */
+                               byte *end_ptr
+                               [[maybe_unused]],   /*!< in: buffer end */
+                               buf_block_t *block) /*!< in: block or NULL */
 {
   if (block) {
     fsp_init_file_page_low(block);
@@ -879,28 +877,27 @@ page of a tablespace.
 @param[in]	page_size	tablespace page size
 @return operation type
 */
-encryption_op_type fsp_header_encryption_op_type_in_progress(
+Encryption::Progress fsp_header_encryption_op_type_in_progress(
     const page_t *page, page_size_t page_size) {
-  ulint offset;
-  encryption_op_type op;
-  offset = fsp_header_get_encryption_progress_offset(page_size);
+  auto offset = fsp_header_get_encryption_progress_offset(page_size);
   ut_ad(offset != 0 && offset < UNIV_PAGE_SIZE);
 
+  auto op = Encryption::Progress::NONE;
   /* Read operation type (1 byte) */
   byte operation = mach_read_from_1(page + offset);
   switch (operation) {
     case Encryption::ENCRYPT_IN_PROGRESS:
-      op = ENCRYPTION;
+      op = Encryption::Progress::ENCRYPTION;
       break;
     case Encryption::DECRYPT_IN_PROGRESS:
-      op = DECRYPTION;
+      op = Encryption::Progress::DECRYPTION;
       break;
     default:
-      op = NONE;
+      op = Encryption::Progress::NONE;
       break;
   }
 
-  return (op);
+  return op;
 }
 
 /** Write the encryption info into the space header.
@@ -994,7 +991,7 @@ bool fsp_header_rotate_encryption(fil_space_t *space, byte *encrypt_info,
 @param[out]     version server version from tablespace header
 @return false if success. */
 bool fsp_header_dict_get_server_version(uint *version) {
-  fil_space_t *space = fil_space_acquire(dict_sys_t::s_space_id);
+  fil_space_t *space = fil_space_acquire(dict_sys_t::s_dict_space_id);
 
   if (space == nullptr) {
     return (true);
@@ -1007,7 +1004,7 @@ bool fsp_header_dict_get_server_version(uint *version) {
   const page_size_t page_size(space->flags);
 
   mtr_start(&mtr);
-  block = buf_page_get(page_id_t(dict_sys_t::s_space_id, 0), page_size,
+  block = buf_page_get(page_id_t(dict_sys_t::s_dict_space_id, 0), page_size,
                        RW_SX_LATCH, &mtr);
   page = buf_block_get_frame(block);
   *version = fsp_header_get_server_version(page);
@@ -1086,9 +1083,20 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
       return (false);
     }
 
+    bool master_key_encrypt = true;
+
+    /* Generate redo log encryption info that cannot be extracted with master
+    key during recovery. This is to validate that clone ignores encryption
+    information in redo log and works fine. Clone needs to ignore it as the
+    encryption information in redo log is encrypted using donor master key which
+    is not available in recipient. This is otherwise difficult to test in mtr
+    test environment where recipient uses same keyring as donor. */
+    DBUG_EXECUTE_IF("log_redo_with_invalid_master_key",
+                    master_key_encrypt = false;);
+
     if (!Encryption::fill_encryption_info(space->encryption_key,
                                           space->encryption_iv, encryption_info,
-                                          is_boot, true)) {
+                                          is_boot, master_key_encrypt)) {
       space->encryption_type = Encryption::NONE;
       memset(space->encryption_key, 0, Encryption::KEY_LEN);
       memset(space->encryption_iv, 0, Encryption::KEY_LEN);
@@ -1097,8 +1105,18 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
 
     mlog_write_string(page + offset, encryption_info, Encryption::INFO_SIZE,
                       mtr);
+
+    /* Correct the master key stored in page. We only intend to generate
+    incorrect redo log. */
+    DBUG_EXECUTE_IF("log_redo_with_invalid_master_key", {
+      ut_ad(!master_key_encrypt);
+      Encryption::fill_encryption_info(space->encryption_key,
+                                       space->encryption_iv, encryption_info,
+                                       is_boot, true);
+      memcpy(page + offset, encryption_info, Encryption::INFO_SIZE);
+    });
   }
-  space->encryption_op_in_progress = NONE;
+  space->encryption_op_in_progress = Encryption::Progress::NONE;
 
   if (space_id == TRX_SYS_SPACE) {
     if (btr_create(DICT_CLUSTERED | DICT_IBUF, 0, univ_page_size,
@@ -1144,11 +1162,10 @@ page_size_t fsp_header_get_page_size(const page_t *page) {
 
 /** Reads the encryption key from the first page of a tablespace.
 @param[in]	fsp_flags	tablespace flags
-@param[in,out]	key		tablespace key
-@param[in,out]	iv		tablespace iv
-@param[in]	page	first page of a tablespace
+@param[in,out]	e_key		tablespace key, iv
+@param[in]	page		first page of a tablespace
 @return true if success */
-bool fsp_header_get_encryption_key(uint32_t fsp_flags, byte *key, byte *iv,
+bool fsp_header_get_encryption_key(uint32_t fsp_flags, Encryption_key &e_key,
                                    page_t *page) {
   ulint offset;
   const page_size_t page_size(fsp_flags);
@@ -1158,7 +1175,8 @@ bool fsp_header_get_encryption_key(uint32_t fsp_flags, byte *key, byte *iv,
     return (false);
   }
 
-  return (Encryption::decode_encryption_info(key, iv, page + offset, true));
+  return (Encryption::decode_encryption_info(page_get_space_id(page), e_key,
+                                             page + offset, true));
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -1225,8 +1243,7 @@ data file.
 @param[in,out]	header	Tablespace header
 @param[in,out]	mtr	Mini-transaction
 @return true if success */
-static UNIV_COLD
-MY_ATTRIBUTE((warn_unused_result)) bool fsp_try_extend_data_file_with_pages(
+[[nodiscard]] static UNIV_COLD bool fsp_try_extend_data_file_with_pages(
     fil_space_t *space, page_no_t page_no, fsp_header_t *header, mtr_t *mtr) {
   DBUG_TRACE;
 
@@ -1702,7 +1719,7 @@ initialized (may be the same as mtr)
 @retval block	rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr),
 returned block is not allocated nor initialized otherwise */
-static MY_ATTRIBUTE((warn_unused_result)) buf_block_t *fsp_alloc_free_page(
+[[nodiscard]] static buf_block_t *fsp_alloc_free_page(
     space_id_t space, const page_size_t &page_size, page_no_t hint,
     rw_lock_type_t rw_latch, mtr_t *mtr, mtr_t *init_mtr) {
   fsp_header_t *header;
@@ -1936,10 +1953,8 @@ static void fsp_free_extent(const page_id_t &page_id,
 @param[in]	page_size	Page size
 @param[in,out]	mtr		Mini-transaction
 @return segment inode */
-UNIV_INLINE
-fseg_inode_t *fsp_seg_inode_page_get_nth_inode(page_t *page, page_no_t i,
-                                               const page_size_t &page_size,
-                                               mtr_t *mtr) {
+static inline fseg_inode_t *fsp_seg_inode_page_get_nth_inode(
+    page_t *page, page_no_t i, const page_size_t &page_size, mtr_t *mtr) {
   ut_ad(i < FSP_SEG_INODES_PER_PAGE(page_size));
   ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_SX_FIX));
 
@@ -2139,7 +2154,8 @@ static void fsp_free_seg_inode(space_id_t space, const page_size_t &page_size,
 @param[in,out]	mtr		Mini-transaction
 @param[out]	block		Inode block, or NULL to ignore
 @return segment inode, page x-latched; NULL if the inode is free */
-static fseg_inode_t *fseg_inode_try_get(fseg_header_t *header, space_id_t space,
+static fseg_inode_t *fseg_inode_try_get(const fseg_header_t *header,
+                                        space_id_t space,
                                         const page_size_t &page_size,
                                         mtr_t *mtr, buf_block_t **block) {
   fil_addr_t inode_addr;
@@ -2160,16 +2176,9 @@ static fseg_inode_t *fseg_inode_try_get(fseg_header_t *header, space_id_t space,
   return (inode);
 }
 
-/** Returns the file segment inode, page x-latched.
-@param[in]	header		Segment header
-@param[in]	space		Space id
-@param[in]	page_size	Page size
-@param[in,out]	mtr		Mini-transaction
-@param[out]	block		Inode block
-@return segment inode, page x-latched */
-static fseg_inode_t *fseg_inode_get(fseg_header_t *header, space_id_t space,
-                                    const page_size_t &page_size, mtr_t *mtr,
-                                    buf_block_t **block = nullptr) {
+fseg_inode_t *fseg_inode_get(const fseg_header_t *header, space_id_t space,
+                             const page_size_t &page_size, mtr_t *mtr,
+                             buf_block_t **block) {
   fseg_inode_t *inode =
       fseg_inode_try_get(header, space, page_size, mtr, block);
   ut_a(inode);
@@ -2178,26 +2187,28 @@ static fseg_inode_t *fseg_inode_get(fseg_header_t *header, space_id_t space,
 
 /** Gets the page number from the nth fragment page slot.
  @return page number, FIL_NULL if not in use */
-UNIV_INLINE
-page_no_t fseg_get_nth_frag_page_no(
+static inline page_no_t fseg_get_nth_frag_page_no(
     fseg_inode_t *inode, /*!< in: segment inode */
     ulint n,             /*!< in: slot index */
-    mtr_t *mtr MY_ATTRIBUTE((unused)))
+    mtr_t *mtr [[maybe_unused]])
 /*!< in/out: mini-transaction */
 {
+#ifdef UNIV_DEBUG
+  const std::size_t n_slots = FSEG_FRAG_ARR_N_SLOTS;
   ut_ad(inode && mtr);
-  ut_ad(n < FSEG_FRAG_ARR_N_SLOTS);
+  ut_ad(n < n_slots);
   ut_ad(mtr_memo_contains_page(mtr, inode, MTR_MEMO_PAGE_SX_FIX));
   ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
+#endif /* UNIV_DEBUG */
   return (mach_read_from_4(inode + FSEG_FRAG_ARR + n * FSEG_FRAG_SLOT_SIZE));
 }
 
 /** Sets the page number in the nth fragment page slot. */
-UNIV_INLINE
-void fseg_set_nth_frag_page_no(fseg_inode_t *inode, /*!< in: segment inode */
-                               ulint n,             /*!< in: slot index */
-                               page_no_t page_no, /*!< in: page number to set */
-                               mtr_t *mtr) /*!< in/out: mini-transaction */
+static inline void fseg_set_nth_frag_page_no(
+    fseg_inode_t *inode, /*!< in: segment inode */
+    ulint n,             /*!< in: slot index */
+    page_no_t page_no,   /*!< in: page number to set */
+    mtr_t *mtr)          /*!< in/out: mini-transaction */
 {
   ut_ad(inode && mtr);
   ut_ad(n < FSEG_FRAG_ARR_N_SLOTS);
@@ -2573,9 +2584,8 @@ XDES_FRAG_N_USED.
 @param[in]	page_size	The page size
 @param[in,out]	mtr		Mini-transaction
 @return	true if the extent is leasable, false otherwise. */
-UNIV_INLINE
-bool xdes_is_leasable(const xdes_t *descr, const page_size_t &page_size,
-                      mtr_t *mtr) {
+static inline bool xdes_is_leasable(const xdes_t *descr,
+                                    const page_size_t &page_size, mtr_t *mtr) {
   ut_ad(descr && mtr);
   ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_SX_FIX));
 
@@ -2646,7 +2656,8 @@ static xdes_t *fsp_alloc_xdes_free_frag(space_id_t space, fseg_inode_t *inode,
   fsp_header_t *header = fsp_get_space_header(space, page_size, mtr);
 
   /* If available, take an extent from the free_frag list. */
-  if (!(descr = fsp_get_last_free_frag_extent(header, page_size, mtr))) {
+  descr = fsp_get_last_free_frag_extent(header, page_size, mtr);
+  if (!descr) {
     return (nullptr);
   }
 
@@ -2776,10 +2787,10 @@ static buf_block_t *fseg_alloc_free_page_low(fil_space_t *space,
   ib_id_t seg_id;
   ulint used;
   ulint reserved;
-  xdes_t *descr;      /*!< extent of the hinted page */
-  page_no_t ret_page; /*!< the allocated page offset, FIL_NULL
+  xdes_t *descr;                 /*!< extent of the hinted page */
+  page_no_t ret_page = FIL_NULL; /*!< the allocated page offset, FIL_NULL
                       if could not be allocated */
-  xdes_t *ret_descr;  /*!< the extent of the allocated page */
+  xdes_t *ret_descr = nullptr;   /*!< the extent of the allocated page */
   ulint n;
   const space_id_t space_id = space->id;
 
@@ -2825,9 +2836,10 @@ static buf_block_t *fseg_alloc_free_page_low(fil_space_t *space,
     we would have got (descr == NULL) above and reset the hint. */
     goto got_hinted_page;
     /*-----------------------------------------------------------*/
-  } else if (xdes_get_state(descr, mtr) == XDES_FREE &&
-             reserved - used < reserved / FSEG_FILLFACTOR &&
-             used >= FSEG_FRAG_LIMIT) {
+  }
+  if (xdes_get_state(descr, mtr) == XDES_FREE &&
+      reserved - used < reserved * (fseg_reserve_pct / 100) &&
+      used >= FSEG_FRAG_LIMIT) {
     /* 2. We allocate the free extent from space and can take
     =========================================================
     the hinted page
@@ -2844,98 +2856,102 @@ static buf_block_t *fseg_alloc_free_page_low(fil_space_t *space,
                         mtr);
     goto take_hinted_page;
     /*-----------------------------------------------------------*/
-  } else if ((direction != FSP_NO_DIR) &&
-             ((reserved - used) < reserved / FSEG_FILLFACTOR) &&
-             (used >= FSEG_FRAG_LIMIT) &&
-             (!!(ret_descr = fseg_alloc_free_extent(seg_inode, space_id,
-                                                    page_size, mtr)))) {
-    /* 3. We take any free extent (which was already assigned above
-    ===============================================================
-    in the if-condition to ret_descr) and take the lowest or
-    ========================================================
-    highest page in it, depending on the direction
-    ==============================================*/
-    ret_page = xdes_get_offset(ret_descr);
-
-    if (direction == FSP_DOWN) {
-      ret_page += FSP_EXTENT_SIZE - 1;
-    } else if (xdes_get_state(ret_descr, mtr) == XDES_FSEG_FRAG) {
-      ret_page += xdes_find_bit(ret_descr, XDES_FREE_BIT, TRUE, 0, mtr);
-    }
-
-    ut_ad(!has_done_reservation || ret_page != FIL_NULL);
-    /*-----------------------------------------------------------*/
-  } else if (xdes_in_segment(descr, seg_id, mtr) &&
-             (!xdes_is_full(descr, mtr))) {
-    /* 4. We can take the page from the same extent as the
-    ======================================================
-    hinted page (and the extent already belongs to the
-    ==================================================
-    segment)
-    ========*/
-    ret_descr = descr;
-    ret_page = xdes_get_offset(ret_descr) +
-               xdes_find_bit(ret_descr, XDES_FREE_BIT, TRUE,
-                             hint % FSP_EXTENT_SIZE, mtr);
-    ut_ad(!has_done_reservation || ret_page != FIL_NULL);
-    /*-----------------------------------------------------------*/
-  } else if (used < reserved) {
-    /* 5. We take any unused page from the segment
-    ==============================================*/
-    fil_addr_t first;
-
-    if (flst_get_len(seg_inode + FSEG_NOT_FULL) > 0) {
-      first = flst_get_first(seg_inode + FSEG_NOT_FULL, mtr);
-    } else if (flst_get_len(seg_inode + FSEG_FREE) > 0) {
-      first = flst_get_first(seg_inode + FSEG_FREE, mtr);
-    } else {
-      ut_ad(!has_done_reservation);
-      return (nullptr);
-    }
-
-    ret_descr = xdes_lst_get_descriptor(space_id, page_size, first, mtr);
-    ret_page = xdes_get_offset(ret_descr) +
-               xdes_find_bit(ret_descr, XDES_FREE_BIT, TRUE, 0, mtr);
-    ut_ad(!has_done_reservation || ret_page != FIL_NULL);
-    /*-----------------------------------------------------------*/
-  } else if (used < FSEG_FRAG_LIMIT) {
-    /* 6. We allocate an individual page from the space
-    ===================================================*/
-    buf_block_t *block =
-        fsp_alloc_free_page(space_id, page_size, hint, rw_latch, mtr, init_mtr);
-
-    ut_ad(!has_done_reservation || block != nullptr);
-
-    if (block != nullptr) {
-      /* Put the page in the fragment page array of the
-      segment */
-      n = fseg_find_free_frag_page_slot(seg_inode, mtr);
-      ut_a(n != ULINT_UNDEFINED);
-
-      fseg_set_nth_frag_page_no(seg_inode, n, block->page.id.page_no(), mtr);
-    }
-
-    /* fsp_alloc_free_page() invoked fsp_init_file_page()
-    already. */
-    return (block);
-    /*-----------------------------------------------------------*/
-  } else {
-    /* 7. We allocate a new extent and take its first page
-    ======================================================*/
+  }
+  if (direction != FSP_NO_DIR &&
+      reserved - used < reserved * (fseg_reserve_pct / 100) &&
+      used >= FSEG_FRAG_LIMIT) {
     ret_descr = fseg_alloc_free_extent(seg_inode, space_id, page_size, mtr);
-
-    if (ret_descr == nullptr) {
-      ret_page = FIL_NULL;
-      ut_ad(!has_done_reservation);
-    } else {
-      const xdes_state_t state = xdes_get_state(ret_descr, mtr);
+    if (ret_descr) {
+      /* 3. We take any free extent (which was already assigned above
+      ===============================================================
+      in the if-condition to ret_descr) and take the lowest or
+      ========================================================
+      highest page in it, depending on the direction
+      ==============================================*/
       ret_page = xdes_get_offset(ret_descr);
 
-      if (state == XDES_FSEG_FRAG) {
+      if (direction == FSP_DOWN) {
+        ret_page += FSP_EXTENT_SIZE - 1;
+      } else if (xdes_get_state(ret_descr, mtr) == XDES_FSEG_FRAG) {
         ret_page += xdes_find_bit(ret_descr, XDES_FREE_BIT, TRUE, 0, mtr);
       }
 
       ut_ad(!has_done_reservation || ret_page != FIL_NULL);
+      /*-----------------------------------------------------------*/
+    }
+  }
+  if (ret_page == FIL_NULL) {
+    if (xdes_in_segment(descr, seg_id, mtr) && (!xdes_is_full(descr, mtr))) {
+      /* 4. We can take the page from the same extent as the
+      ======================================================
+      hinted page (and the extent already belongs to the
+      ==================================================
+      segment)
+      ========*/
+      ret_descr = descr;
+      ret_page = xdes_get_offset(ret_descr) +
+                 xdes_find_bit(ret_descr, XDES_FREE_BIT, TRUE,
+                               hint % FSP_EXTENT_SIZE, mtr);
+      ut_ad(!has_done_reservation || ret_page != FIL_NULL);
+      /*-----------------------------------------------------------*/
+    } else if (used < reserved) {
+      /* 5. We take any unused page from the segment
+      ==============================================*/
+      fil_addr_t first;
+
+      if (flst_get_len(seg_inode + FSEG_NOT_FULL) > 0) {
+        first = flst_get_first(seg_inode + FSEG_NOT_FULL, mtr);
+      } else if (flst_get_len(seg_inode + FSEG_FREE) > 0) {
+        first = flst_get_first(seg_inode + FSEG_FREE, mtr);
+      } else {
+        ut_ad(!has_done_reservation);
+        return (nullptr);
+      }
+
+      ret_descr = xdes_lst_get_descriptor(space_id, page_size, first, mtr);
+      ret_page = xdes_get_offset(ret_descr) +
+                 xdes_find_bit(ret_descr, XDES_FREE_BIT, TRUE, 0, mtr);
+      ut_ad(!has_done_reservation || ret_page != FIL_NULL);
+      /*-----------------------------------------------------------*/
+    } else if (used < FSEG_FRAG_LIMIT) {
+      /* 6. We allocate an individual page from the space
+      ===================================================*/
+      buf_block_t *block = fsp_alloc_free_page(space_id, page_size, hint,
+                                               rw_latch, mtr, init_mtr);
+
+      ut_ad(!has_done_reservation || block != nullptr);
+
+      if (block != nullptr) {
+        /* Put the page in the fragment page array of the
+        segment */
+        n = fseg_find_free_frag_page_slot(seg_inode, mtr);
+        ut_a(n != ULINT_UNDEFINED);
+
+        fseg_set_nth_frag_page_no(seg_inode, n, block->page.id.page_no(), mtr);
+      }
+
+      /* fsp_alloc_free_page() invoked fsp_init_file_page()
+      already. */
+      return (block);
+      /*-----------------------------------------------------------*/
+    } else {
+      /* 7. We allocate a new extent and take its first page
+      ======================================================*/
+      ret_descr = fseg_alloc_free_extent(seg_inode, space_id, page_size, mtr);
+
+      if (ret_descr == nullptr) {
+        ret_page = FIL_NULL;
+        ut_ad(!has_done_reservation);
+      } else {
+        const xdes_state_t state = xdes_get_state(ret_descr, mtr);
+        ret_page = xdes_get_offset(ret_descr);
+
+        if (state == XDES_FSEG_FRAG) {
+          ret_page += xdes_find_bit(ret_descr, XDES_FREE_BIT, TRUE, 0, mtr);
+        }
+
+        ut_ad(!has_done_reservation || ret_page != FIL_NULL);
+      }
     }
   }
 
@@ -3419,7 +3435,7 @@ static void fseg_free_page_low(fseg_inode_t *seg_inode,
                                 " corrupt. You may need to dump your tables and"
                                 " recreate the whole database!";
   crash:
-    ib::fatal(ER_IB_MSG_422) << FORCE_RECOVERY_MSG;
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_422) << FORCE_RECOVERY_MSG;
   }
 
   xdes_state_t state = xdes_get_state(descr, mtr);
@@ -3434,7 +3450,8 @@ static void fseg_free_page_low(fseg_inode_t *seg_inode,
       /* The page is in the fragment pages of the segment */
 
       for (i = 0;; i++) {
-        if (fseg_get_nth_frag_page_no(seg_inode, i, mtr) == page_id.page_no()) {
+        const page_no_t page_no = fseg_get_nth_frag_page_no(seg_inode, i, mtr);
+        if (page_no == page_id.page_no()) {
           fseg_set_nth_frag_page_no(seg_inode, i, FIL_NULL, mtr);
           break;
         }
@@ -4121,7 +4138,7 @@ static void mark_all_page_dirty_in_tablespace(THD *thd, space_id_t space_id,
                                               page_no_t total_pages,
                                               page_no_t from_page) {
 #ifdef HAVE_PSI_STAGE_INTERFACE
-  ut_stage_alter_ts progress_monitor;
+  Alter_stage_ts progress_monitor;
 #endif
   page_size_t pageSize(space_flags);
   page_no_t current_page = from_page;
@@ -4238,8 +4255,11 @@ static uint32_t get_encryption_progress(fil_space_t *space, byte &operation) {
   return progress;
 }
 
-static dberr_t init_before_encrypt_processing(fil_space_t *space,
-                                              space_id_t space_id) {
+/** Initialize space encrypt operation and persist in page-0.
+@param[in,out]	space	innodb tablespace
+@return innodb error code */
+static dberr_t encrypt_begin_persist(fil_space_t *space) {
+  DBUG_TRACE;
   dberr_t err = DB_SUCCESS;
 
   /* Fill key, iv and prepare encryption_info to be written in page 0 */
@@ -4255,6 +4275,38 @@ static dberr_t init_before_encrypt_processing(fil_space_t *space,
   if (!Encryption::fill_encryption_info(key, iv, encryption_info, false,
                                         true)) {
     ut_ad(false);
+    return DB_ERROR;
+  }
+
+  {
+    /* Write Encryption information and notify clone. Do this before persisting
+    encryption information because clone needs to know that the table is being
+    encrypted before the key is persisted in page-0. This is because clone needs
+    to copy and re-encrypt the key with recipients master key.
+
+    There is an existinge issue here that other pages could get encrypted and
+    flushed after this point before page-0 is flushed. It could eventually
+    cause issue during recovery in case of a crash. It needs to be fixed
+    separately (may be) by encrypting pages only if space flag is set. Note that
+    we haven't yet set the space flag to FSP_FLAGS_MASK_ENCRYPTION yet.
+
+    Also, we should introduce some concurrency control (atomics) to prevent race
+    while accessing space encryption related information during IO. */
+    Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT_GENERAL,
+                          space->id, false);
+    ut_ad(!notifier.failed());
+
+    /* Set encryption for tablespace */
+    rw_lock_x_lock(&space->latch);
+    err = fil_set_encryption(space->id, Encryption::AES, key, iv);
+    rw_lock_x_unlock(&space->latch);
+
+    if (err != DB_SUCCESS) {
+      /* purecov: begin deadcode */
+      ut_ad(false);
+      return err;
+      /* purecov: end */
+    }
   }
 
   /* Write Encryption information and space flags now on page 0
@@ -4262,26 +4314,19 @@ static dberr_t init_before_encrypt_processing(fil_space_t *space,
   the changes on disk and then modify in memory flags. */
   mtr_t mtr;
   mtr_start(&mtr);
-  if (!fsp_header_write_encryption(space_id,
+
+  if (!fsp_header_write_encryption(space->id,
                                    space->flags | FSP_FLAGS_MASK_ENCRYPTION,
                                    encryption_info, true, false, &mtr)) {
     ut_ad(false);
+    err = DB_ERROR;
   }
 
   /* Write operation type and progress (0 now) on page 0 */
   fsp_header_write_encryption_progress(
-      space_id, space->flags, 0, Encryption::ENCRYPT_IN_PROGRESS, true, &mtr);
+      space->id, space->flags, 0, Encryption::ENCRYPT_IN_PROGRESS, true, &mtr);
+
   mtr_commit(&mtr);
-
-  /* Set encryption for tablespace */
-  rw_lock_x_lock(&space->latch);
-  err = fil_set_encryption(space_id, Encryption::AES, key, iv);
-  rw_lock_x_unlock(&space->latch);
-
-  if (err != DB_SUCCESS) {
-    ut_ad(false);
-    return err;
-  }
 
   /* Make sure encryption information is persisted on disk. Following scenario:
   [1] Encryption key is written on page 0 but Page 0 is not flushed.
@@ -4289,72 +4334,371 @@ static dberr_t init_before_encrypt_processing(fil_space_t *space,
   [3] checkpoint hasn't reached [1] yet and has REDO for P before [1].
   [4] Server crashed. During recovery REDO scan batch REDO [1] is not reached.
   [5] Although REDO for P is to be discarded, but to confirm that page LSN is
-      to be checked, thus  P is read from disk. ERROR. */
-  buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_FLUSH_WRITE, nullptr,
+      to be checked, thus  P is read from disk. ERROR. We should replace this
+  expensive call to flush all by an interface that would flush only page-0. */
+  buf_LRU_flush_or_remove_pages(space->id, BUF_REMOVE_FLUSH_WRITE, nullptr,
                                 false);
+  return DB_SUCCESS;
+}
+
+/** Initialize space encrypt memory flags.
+@param[in,out]	space	innodb tablespace */
+static void encrypt_begin_memory(fil_space_t *space) {
+  DBUG_TRACE;
+  /* Don't allow operation to change while clone is evaluating the state of the
+  space during state transition. */
+  Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT_GENERAL_FLAGS,
+                        space->id, false);
+  ut_ad(!notifier.failed());
 
   /* Set encryption operation in progress flag */
-  space->encryption_op_in_progress = ENCRYPTION;
+  space->encryption_op_in_progress = Encryption::Progress::ENCRYPTION;
 
   /* Update In-mem Encryption flag for tablespace */
   fsp_flags_set_encryption(space->flags);
+}
+
+/** Force all pages of a space to be loaded and flushed back to disk
+@param[in,out]	thd		server session THD
+@param[in,out]	space		innodb tablespace
+@param[in]	from_page	page number to resume from */
+static void process_all_pages(THD *thd, fil_space_t *space,
+                              page_no_t from_page) {
+  DBUG_TRACE;
+  /* Mark all pages in tablespace dirty */
+  mark_all_page_dirty_in_tablespace(thd, space->id, space->flags, space->size,
+                                    from_page);
+
+  /* As DMLs are allowed in parallel, pass false for 'strict' */
+  buf_LRU_flush_or_remove_pages(space->id, BUF_REMOVE_FLUSH_WRITE, nullptr,
+                                false);
+}
+
+/** Finish space encrypt operation.
+@param[in,out]	space	innodb tablespace */
+static void encrypt_end(fil_space_t *space) {
+  DBUG_TRACE;
+  /* Crash before resetting progress on page 0 */
+  DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_before_resetting_progress",
+                  log_buffer_flush_to_disk();
+                  DBUG_SUICIDE(););
+
+  /* Erase Operation type and encryption progress from page 0 */
+  mtr_t mtr;
+  mtr_start(&mtr);
+
+  fsp_header_write_encryption_progress(space->id, space->flags, 0, 0, true,
+                                       &mtr);
+  mtr_commit(&mtr);
+
+  /* Don't allow operation to change while clone is evaluating the state of the
+  space during state transition. */
+  Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT_GENERAL_FLAGS,
+                        space->id, false);
+  ut_ad(!notifier.failed());
+
+  /* Reset encryption in progress flag */
+  space->encryption_op_in_progress = Encryption::Progress::NONE;
+}
+
+/** Find out the place to resume the operation.
+@param[in,out]	space		innodb tablespace
+@param[out]	from_page	page number to resume from
+@return state to resume from */
+static Encryption::Resume_point encrypt_resume_point(fil_space_t *space,
+                                                     page_no_t &from_page) {
+  DBUG_TRACE;
+  bool encryption_flag = FSP_FLAGS_GET_ENCRYPTION(space->flags);
+  from_page = 1;
+
+  if (!encryption_flag) {
+    /* Encryption is not yet started. */
+    return Encryption::Resume_point::INIT;
+  }
+
+  /* Read page 0 and get encryption progress */
+  byte operation;
+  from_page = get_encryption_progress(space, operation) + 1;
+
+  if (operation != Encryption::ENCRYPT_IN_PROGRESS) {
+    ut_ad(operation != Encryption::DECRYPT_IN_PROGRESS);
+    ut_ad(space->encryption_op_in_progress == Encryption::Progress::NONE);
+    /* Encryption is already done. */
+    return Encryption::Resume_point::DONE;
+  }
+
+  ut_ad(space->encryption_op_in_progress == Encryption::Progress::ENCRYPTION);
+
+  if (from_page == space->size) {
+    return Encryption::Resume_point::END;
+  }
+
+  return Encryption::Resume_point::PROCESS;
+}
+
+/** Encrypt all pages of a tablespace.
+@param[in,out]	thd		server session THD
+@param[in]	space_id	Tablespace id
+@param[in]	resume		true if resumed after server restart
+@return innodb error code */
+static dberr_t encrypt_tablespace(THD *thd, space_id_t space_id, bool resume) {
+  DBUG_TRACE;
+
+  dberr_t err = DB_SUCCESS;
+  fil_space_t *space = fil_space_get(space_id);
+
+  Encryption::Resume_point resume_point = Encryption::Resume_point::INIT;
+  page_no_t from_page = 1;
+
+  if (resume) {
+    resume_point = encrypt_resume_point(space, from_page);
+  }
+
+  switch (resume_point) {
+    case Encryption::Resume_point::INIT:
+      /* Set and persist encryption key information. We also persist
+      the initialized progress information together in same mtr (atomic).*/
+      err = encrypt_begin_persist(space);
+
+      ut_ad(err == DB_SUCCESS);
+
+      if (err != DB_SUCCESS) {
+        break; /* purecov: deadcode */
+      }
+      /* Set encryption flag and initialize progress information. */
+      encrypt_begin_memory(space);
+      [[fallthrough]];
+
+    case Encryption::Resume_point::PROCESS:
+      /* Load and flush all pages so that they are all encrypted on disk. */
+      process_all_pages(thd, space, from_page);
+      [[fallthrough]];
+
+    case Encryption::Resume_point::END:
+      /* Reset progress information. */
+      encrypt_end(space);
+      [[fallthrough]];
+
+    case Encryption::Resume_point::DONE:
+      break;
+  }
 
   return err;
 }
 
-static dberr_t init_before_decrypt_processing(fil_space_t *space,
-                                              space_id_t space_id) {
+/** Initialize space decrypt operation and persist in page-0.
+@param[in,out]	space	innodb tablespace
+@return innodb error code */
+static dberr_t decrypt_begin_persist(fil_space_t *space) {
+  DBUG_TRACE;
+  /* Write Decryption progress and notify clone. Do this before persisting the
+  progress information. Clone needs to identify the state before page-0 is
+  updated. */
+  {
+    Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT_GENERAL,
+                          space->id, false);
+    ut_ad(!notifier.failed());
+    space->encryption_op_in_progress = Encryption::Progress::DECRYPTION;
+  }
+
   dberr_t err = DB_SUCCESS;
 
   mtr_t mtr;
   mtr_start(&mtr);
   /* Write operation type and progress (0 now) on page 0 */
-  if (!fsp_header_write_encryption_progress(space_id, space->flags, 0,
+  if (!fsp_header_write_encryption_progress(space->id, space->flags, 0,
                                             Encryption::DECRYPT_IN_PROGRESS,
                                             true, &mtr)) {
     ut_ad(false);
-    mtr_commit(&mtr);
-    return DB_ERROR;
+    err = DB_ERROR;
   }
 
   mtr_commit(&mtr);
+  return err;
+}
+
+/** Initialize space decrypt memory flags.
+@param[in,out]	space	innodb tablespace */
+static void decrypt_begin_memory(fil_space_t *space) {
+  DBUG_TRACE;
+  /* Notify clone before starting decryption. */
+  Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT_GENERAL_FLAGS,
+                        space->id, false);
+  ut_ad(!notifier.failed());
 
   /* Set encryption operation in progress flag */
-  space->encryption_op_in_progress = DECRYPTION;
+  space->encryption_op_in_progress = Encryption::Progress::DECRYPTION;
 
-  /* Update In-mem Encryption flag for tablespace */
+  /* Update In-memory Encryption flag for tablespace. We cannot erase Encryption
+  info in page-0 till all pages are decrypted. */
   fsp_flags_unset_encryption(space->flags);
+}
 
-  /* Don't erase Encryption info from page 0 yet */
+/** Finish space decrypt operation.
+@param[in,out]	space	innodb tablespace
+@return innodb error code */
+static dberr_t decrypt_end(fil_space_t *space) {
+  DBUG_TRACE;
+  ut_ad(!FSP_FLAGS_GET_ENCRYPTION(space->flags));
+
+  DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_before_updating_flags",
+                  log_buffer_flush_to_disk();
+                  DBUG_SUICIDE(););
+
+  dberr_t err = DB_SUCCESS;
+  {
+    Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT_GENERAL_FLAGS,
+                          space->id, false);
+    ut_ad(!notifier.failed());
+
+    /* Reset encryption in progress flag */
+    space->encryption_op_in_progress = Encryption::Progress::NONE;
+
+    rw_lock_x_lock(&space->latch);
+    /* Reset In-memory encryption for tablespace */
+    err = fil_reset_encryption(space->id);
+    rw_lock_x_unlock(&space->latch);
+    ut_ad(err == DB_SUCCESS);
+  }
+
+  if (err != DB_SUCCESS) {
+    return err; /* purecov: inspected */
+  }
+
+  byte encryption_info[Encryption::INFO_SIZE];
+  memset(encryption_info, 0, Encryption::INFO_SIZE);
+
+  /* Erase encryption information in page-0 and update space flag. Also reset
+  the progress information in same mtr. */
+  mtr_t mtr;
+
+  mtr_start(&mtr);
+
+  if (!fsp_header_write_encryption(space->id, space->flags, encryption_info,
+                                   true, false, &mtr)) {
+    err = DB_ERROR; /* purecov: inspected */
+  }
+
+  /* Crash before resetting progress on page 0 */
+  DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_before_resetting_progress",
+                  log_buffer_flush_to_disk();
+                  DBUG_SUICIDE(););
+
+  fsp_header_write_encryption_progress(space->id, space->flags, 0, 0, true,
+                                       &mtr);
+  mtr_commit(&mtr);
+
+  ut_ad(err == DB_SUCCESS);
+  return err;
+}
+
+/** Find out the place to resume the operation.
+@param[in,out]	space		innodb tablespace
+@param[out]	from_page	page number to resume from
+@return state to resume from */
+static Encryption::Resume_point decrypt_resume_point(fil_space_t *space,
+                                                     page_no_t &from_page) {
+  DBUG_TRACE;
+  bool encryption_flag = FSP_FLAGS_GET_ENCRYPTION(space->flags);
+  from_page = 1;
+
+  if (!encryption_flag) {
+    /* Decryption must have finished already. The encryption flag is reset and
+    persisted at very end. */
+    ut_ad(space->encryption_op_in_progress == Encryption::Progress::NONE);
+
+    return Encryption::Resume_point::DONE;
+  }
+
+  /* Read page 0 and get encryption progress */
+  byte operation;
+  from_page = get_encryption_progress(space, operation) + 1;
+
+  if (operation != Encryption::DECRYPT_IN_PROGRESS) {
+    ut_ad(operation != Encryption::ENCRYPT_IN_PROGRESS);
+    ut_ad(space->encryption_op_in_progress == Encryption::Progress::NONE);
+    /* Decryption is not started. */
+    return Encryption::Resume_point::INIT;
+  }
+
+  ut_ad(space->encryption_op_in_progress == Encryption::Progress::DECRYPTION);
+
+  if (from_page == space->size) {
+    return Encryption::Resume_point::END;
+  }
+
+  return Encryption::Resume_point::PROCESS;
+}
+
+/** Decrypt all pages of a tablespace.
+@param[in,out]	thd		server session THD
+@param[in]	space_id	Tablespace id
+@param[in]	resume		true if resumed after server restart
+@return innodb error code */
+static dberr_t decrypt_tablespace(THD *thd, space_id_t space_id, bool resume) {
+  DBUG_TRACE;
+
+  dberr_t err = DB_SUCCESS;
+  fil_space_t *space = fil_space_get(space_id);
+
+  Encryption::Resume_point resume_point = Encryption::Resume_point::INIT;
+  page_no_t from_page = 1;
+
+  if (resume) {
+    resume_point = decrypt_resume_point(space, from_page);
+  }
+
+  /* While resuming we need to initialize the flags as they
+  are not yet persisted. */
+  if (resume_point == Encryption::Resume_point::END) {
+    /* Set encryption flag and progress information. */
+    decrypt_begin_memory(space);
+  }
+
+  switch (resume_point) {
+    case Encryption::Resume_point::INIT:
+      /* Set and persist encryption progress information. */
+      err = decrypt_begin_persist(space);
+
+      ut_ad(err == DB_SUCCESS);
+
+      if (err != DB_SUCCESS) {
+        break; /* purecov: deadcode */
+      }
+      [[fallthrough]];
+
+    case Encryption::Resume_point::PROCESS:
+      /* Set encryption flag and progress information. */
+      decrypt_begin_memory(space);
+
+      /* Load and flush all pages so that they are all encrypted on disk. */
+      process_all_pages(thd, space, from_page);
+      [[fallthrough]];
+
+    case Encryption::Resume_point::END:
+      /* Reset and persist encryption key and progress information. */
+      err = decrypt_end(space);
+      ut_ad(err == DB_SUCCESS);
+      [[fallthrough]];
+
+    case Encryption::Resume_point::DONE:
+      break;
+  }
 
   return err;
 }
 
-static inline dberr_t init_before_processing(fil_space_t *space,
-                                             space_id_t space_id,
-                                             bool to_encrypt) {
-  /* After following call, following would have been done
-  - For encryption, In-mem encryption information set for tablesapace.
-  - For encryption, encryption Info and space updated flags write to page 0.
-  - In-mem space flags update.
-  - Page 0 update to indicate operation type. */
-
-  return (to_encrypt ? init_before_encrypt_processing(space, space_id)
-                     : init_before_decrypt_processing(space, space_id));
-}
-
 dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
                                      bool to_encrypt, void *dd_space_in) {
-  dberr_t err = DB_SUCCESS;
-  fil_space_t *space = fil_space_get(space_id);
-  dd::Tablespace *dd_space = reinterpret_cast<dd::Tablespace *>(dd_space_in);
-
   DBUG_TRACE;
 
   /* Make an entry in DDL LOG for this tablespace. If an entry for tablespace
   exists then remove that entry and insert a new one. */
-  encryption_op_type op_type_ddl_log = (to_encrypt) ? ENCRYPTION : DECRYPTION;
+  auto op_type_ddl_log = (to_encrypt) ? Encryption::Progress::ENCRYPTION
+                                      : Encryption::Progress::DECRYPTION;
+
   DDL_Record *old_ddl_rec = log_ddl->find_alter_encrypt_record(space_id);
+
   if (DB_SUCCESS != log_ddl->write_alter_encrypt_space_log(
                         space_id, op_type_ddl_log, old_ddl_rec)) {
     ib::error(ER_IB_MSG_1283) << "Couldn't write DDL LOG for " << space_id;
@@ -4364,157 +4708,24 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
   DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_after_ddl_entry",
                   DBUG_SUICIDE(););
 
-  page_no_t from_page = 1;
-  bool initialize = true;
+  bool resume = (old_ddl_rec != nullptr);
 
-  if (old_ddl_rec != nullptr) {
-    /* Read page 0 and get encryption progress */
-    byte operation;
-    from_page = get_encryption_progress(space, operation) + 1;
+  dberr_t err = DB_SUCCESS;
 
-    /* A corner case when crash happened after last page was processed but
-    page 0 wasn't updated with this information. */
-    if (from_page == space->size) {
-      goto all_done;
-    }
+  if (to_encrypt) {
+    err = encrypt_tablespace(thd, space_id, resume);
 
-    if (from_page == 1) {
-      if ((to_encrypt && FSP_FLAGS_GET_ENCRYPTION(space->flags)) ||
-          (!to_encrypt && !FSP_FLAGS_GET_ENCRYPTION(space->flags))) {
-        /* Crash just before the commit when all the pages have been processed
-        and progress/operation flag was reset. Just update space flags in DD
-        and return. */
-        space->encryption_op_in_progress = NONE;
-
-        /* Update space flags in DD Tablespace object */
-        ut_ad(dd_space != nullptr);
-        dd_space->se_private_data().set(dd_space_key_strings[DD_SPACE_FLAGS],
-                                        static_cast<uint32>(space->flags));
-
-        if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-          /* Reset In-mem encryption for tablespace */
-          err = fil_reset_encryption(space_id);
-          ut_ad(err == DB_SUCCESS);
-        }
-
-        return err;
-      } else {
-        /* Crash even before the first page could have been processed. In this
-        case, start processing again. */
-        initialize = true;
-      }
-    } else {
-      initialize = false;
-    }
-  }
-
-#ifdef UNIV_DEBUG
-  if (initialize) {
-    if (to_encrypt) {
-      /* Assert that tablespace is not encrypted */
-      ut_ad(!FSP_FLAGS_GET_ENCRYPTION(space->flags));
-    } else {
-      /* Assert that tablespace is encrypted */
-      ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
-    }
-    ut_ad(space->encryption_op_in_progress == NONE);
   } else {
-    if (to_encrypt) {
-      /* Updated tablespace flags were written on page 0 before crash. It must
-      say encrypted tablespace. */
-      ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
-
-      /* In mem operation should have already been set */
-      ut_ad(space->encryption_op_in_progress == ENCRYPTION);
-    } else {
-      /* Updated tablespace flags were not written on page 0 before crash. It
-      must still say encrypted tablespace. */
-      ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
-
-      /* In mem operation should have already been set */
-      ut_ad(space->encryption_op_in_progress == DECRYPTION);
-    }
+    err = decrypt_tablespace(thd, space_id, resume);
   }
-#endif
-
-  if (initialize) {
-    /* Initialize for encrypt/decrypt */
-    err = init_before_processing(space, space_id, to_encrypt);
-    if (err != DB_SUCCESS) {
-      ut_ad(false);
-      return err;
-    }
-  } else {
-    if (!to_encrypt) {
-      /* Update In mem encryption flag for tablespace */
-      fsp_flags_unset_encryption(space->flags);
-      /* Don't erase Encryption information from page 0 yet */
-    }
-  }
-
-  /* Mark all pages in tablespace dirty */
-  mark_all_page_dirty_in_tablespace(thd, space_id, space->flags, space->size,
-                                    from_page);
-
-  /* As DMLs are allowed in parallel, pass false for 'strict' */
-  buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_FLUSH_WRITE, nullptr,
-                                false);
-
-all_done:
-  /* For unencryption, if server crashed, before tablespace flags were flushed
-  on disk. Set them now. */
-  if (old_ddl_rec && !to_encrypt) {
-    fsp_flags_unset_encryption(space->flags);
-  }
-
-  mtr_t mtr;
-
-  /* If it was an Unencryption operation */
-  if (!to_encrypt) {
-    /* Crash before updating tablespace flags on page 0 */
-    DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_before_updating_flags",
-                    log_buffer_flush_to_disk();
-                    DBUG_SUICIDE(););
-
-    ut_ad(!FSP_FLAGS_GET_ENCRYPTION(space->flags));
-
-    byte encryption_info[Encryption::INFO_SIZE];
-    memset(encryption_info, 0, Encryption::INFO_SIZE);
-    /* Now on page 0
-            - erase Encryption information
-            - write updated Tablespace flag */
-    mtr_start(&mtr);
-    if (!fsp_header_write_encryption(space_id, space->flags, encryption_info,
-                                     true, false, &mtr)) {
-      ut_ad(0);
-    }
-    mtr_commit(&mtr);
-
-    rw_lock_x_lock(&space->latch);
-    /* Reset In-mem encryption for tablespace */
-    err = fil_reset_encryption(space_id);
-    rw_lock_x_unlock(&space->latch);
-    ut_ad(err == DB_SUCCESS);
-  }
-
-  /* Reset encryption in progress flag */
-  space->encryption_op_in_progress = NONE;
 
   /* Update space flags in DD Tablespace object */
+  dd::Tablespace *dd_space = reinterpret_cast<dd::Tablespace *>(dd_space_in);
   ut_ad(dd_space != nullptr);
+  fil_space_t *space = fil_space_get(space_id);
+
   dd_space->se_private_data().set(dd_space_key_strings[DD_SPACE_FLAGS],
                                   static_cast<uint32>(space->flags));
-
-  /* Crash before resetting progress on page 0 */
-  DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_before_resetting_progress",
-                  log_buffer_flush_to_disk();
-                  DBUG_SUICIDE(););
-
-  /* Erase Operation type and encryption progress from page 0 */
-  mtr_start(&mtr);
-  fsp_header_write_encryption_progress(space_id, space->flags, 0, 0, true,
-                                       &mtr);
-  mtr_commit(&mtr);
 
   /* Crash before flushing page 0 on disk */
   DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_before_flushing_page_0",
@@ -4523,7 +4734,9 @@ all_done:
 
   /* Flush page 0 here because MEB backup needs to read the key from page 0
   before redo log is applied. This is not needed for innodb recovery and
-  ideally we would like to get rid of all such special purpose code. */
+  ideally we would like to get rid of all such special purpose code. We should
+  replace this expensive call to flush all by an interface that would flush only
+  page-0.*/
   buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_FLUSH_WRITE, nullptr,
                                 false);
 
@@ -4531,7 +4744,6 @@ all_done:
   DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_after_flushing_page_0",
                   log_buffer_flush_to_disk();
                   DBUG_SUICIDE(););
-
   return err;
 }
 
@@ -4552,7 +4764,7 @@ static void validate_tablespace_encryption(fil_space_t *space) {
     ut_ad(space->encryption_klen == 0);
     ut_ad(space->encryption_type == Encryption::NONE);
   }
-  ut_ad(space->encryption_op_in_progress == NONE);
+  ut_ad(space->encryption_op_in_progress == Encryption::Progress::NONE);
 }
 #endif
 
@@ -4573,8 +4785,8 @@ static bool load_encryption_from_header(fil_space_t *space) {
   ut_ad(space->id == page_get_space_id(buf_block_get_frame(block)));
   page_t *header_page = buf_block_get_frame(block);
 
-  bool ret = fsp_header_get_encryption_key(space->flags, encryption_key,
-                                           encryption_iv, header_page);
+  Encryption_key e_key{encryption_key, encryption_iv};
+  bool ret = fsp_header_get_encryption_key(space->flags, e_key, header_page);
   mtr_commit(&mtr);
 
   if (!ret) {
@@ -4586,7 +4798,7 @@ static bool load_encryption_from_header(fil_space_t *space) {
       return true;
     }
   } else {
-    dberr_t err MY_ATTRIBUTE((unused)) = fil_set_encryption(
+    dberr_t err [[maybe_unused]] = fil_set_encryption(
         space->id, Encryption::AES, encryption_key, encryption_iv);
     ut_ad(err == DB_SUCCESS);
     if (err != DB_SUCCESS) {
@@ -4601,12 +4813,13 @@ static const std::string enc("ENCRYPTION");
 static const std::string dec("DECRYPTION");
 static const std::string none("NONE");
 
-static inline const std::string &get_encryption_op_str(encryption_op_type op) {
+static inline const std::string &get_encryption_op_str(
+    Encryption::Progress op) {
   switch (op) {
-    case ENCRYPTION:
+    case Encryption::Progress::ENCRYPTION:
       return enc;
       break;
-    case DECRYPTION:
+    case Encryption::Progress::DECRYPTION:
       return dec;
       break;
     default:
@@ -4637,7 +4850,7 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
 
     /* If encryption was going on, make sure encryption information is
     read/loaded from disk. */
-    if (it->get_encryption_type() == ENCRYPTION &&
+    if (it->get_encryption_type() == Encryption::Progress::ENCRYPTION &&
         space->encryption_type == Encryption::NONE) {
       if (load_encryption_from_header(space)) {
         ib::error() << "Encryption information can't be read for tablesapce "
@@ -4671,7 +4884,7 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
 
   std::list<MDL_ticket *>::iterator mdl_it = shared_mdl_list.begin();
   for (auto it : ts_encrypt_ddl_records) {
-    ut_ad(it->get_encryption_type() != NONE);
+    ut_ad(it->get_encryption_type() != Encryption::Progress::NONE);
     ut_ad(mdl_it != shared_mdl_list.end());
 
     space_id_t space_id = it->get_space_id();
@@ -4692,7 +4905,8 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
 
     /* Call server API to resume operation */
     bool res = dd::alter_tablespace_encryption(
-        thd, space->name, (it->get_encryption_type() == ENCRYPTION));
+        thd, space->name,
+        (it->get_encryption_type() == Encryption::Progress::ENCRYPTION));
     if (res) {
       ib::error(ER_IB_MSG_1280)
           << get_encryption_op_str(it->get_encryption_type())
@@ -4722,7 +4936,7 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
 
   for (auto &record : ts_encrypt_ddl_records) {
     ut_ad(!record->get_deletable());
-    UT_DELETE(record);
+    ut::delete_(record);
   }
   ts_encrypt_ddl_records.clear();
 
@@ -4736,16 +4950,11 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
 
 /* Initiate roll-forward of alter encrypt in background thread */
 void fsp_init_resume_alter_encrypt_tablespace() {
-#ifdef UNIV_PFS_THREAD
-  THD *thd =
-      create_thd(false, true, true, srv_ts_alter_encrypt_thread_key.m_value);
-#else
-  THD *thd = create_thd(false, true, true, 0);
-#endif
+  THD *thd = create_internal_thd();
 
   resume_alter_encrypt_tablespace(thd);
 
-  destroy_thd(thd);
+  destroy_internal_thd(thd);
 }
 
 void File_segment_inode::write_not_full_n_used(uint32_t n_used) {

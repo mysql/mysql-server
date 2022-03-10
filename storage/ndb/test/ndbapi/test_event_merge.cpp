@@ -30,6 +30,7 @@
 
 #include <ndb_rand.h>
 #include <NdbHost.h>
+#include <NdbSleep.h>
 
 // version >= 5.1 required
 
@@ -1267,7 +1268,7 @@ waitgci(uint ngci)
       break;
     }
     i = 1;
-    sleep(1);
+    NdbSleep_SecSleep(1);
   }
   return 0;
 }

@@ -463,6 +463,8 @@ aaa.
 select concat(a,'.') from t1 where binary a='aaa';
 concat(a,'.')
 aaa.
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 update t1 set a='bbb' where a='aaa';
 select concat(a,'.') from t1;
 concat(a,'.')

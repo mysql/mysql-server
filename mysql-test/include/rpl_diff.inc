@@ -113,7 +113,7 @@ while ($_rpl_diff_servers)
 
   # Execute statement
   --let $_rpl_diff_file= $MYSQLTEST_VARDIR/tmp/_rpl_diff_server-$_rpl_diff_server_i.tmp
-  --exec $MYSQL --defaults-group-suffix=.$_rpl_diff_server_i $_rpl_diff_database < $_rpl_diff_statement_file > $_rpl_diff_file
+  --exec $EXE_MYSQL --defaults-group-suffix=.$_rpl_diff_server_i $MYSQL_OPTIONS $_rpl_diff_database < $_rpl_diff_statement_file > $_rpl_diff_file
 
   # Compare
   if (!$_rpl_diff_first)

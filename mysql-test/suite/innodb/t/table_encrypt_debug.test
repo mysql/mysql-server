@@ -214,7 +214,20 @@ DROP TABLE tde_db.test_tbl;
 # Cleanup
 DROP DATABASE tde_db;
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
+
+# Clean up
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQLD_DATADIR/t1.cfg_back
+--remove_file $MYSQLD_DATADIR/t1.cfp_back
+--remove_file $MYSQLD_DATADIR/t1.ibd_back
+
+# Tests above might leave this in bad state
 --remove_file $MYSQL_TMP_DIR/mysecret_keyring
+--source include/start_mysqld.inc
+
+# Verify normal operation
+CREATE TABLE test.t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+DROP TABLE test.t1;
 
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\].* Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");

@@ -34,6 +34,7 @@
 #include "mysqlrouter/classic_protocol_codec_base.h"
 #include "mysqlrouter/classic_protocol_codec_error.h"
 #include "mysqlrouter/classic_protocol_codec_wire.h"
+#include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/classic_protocol_wire.h"
 #include "mysqlrouter/partial_buffer_sequence.h"
@@ -293,7 +294,7 @@ class Codec<message::server::AuthMethodData>
     : public impl::EncodeBase<Codec<message::server::AuthMethodData>> {
   template <class Accumulator>
   auto accumulate_fields(Accumulator &&accu) const {
-    return accu.step(wire::FixedInt<1>(v_.packet_type()))
+    return accu.step(wire::FixedInt<1>(cmd_byte()))
         .step(wire::String(v_.auth_method_data()))
         .result();
   }
@@ -307,19 +308,25 @@ class Codec<message::server::AuthMethodData>
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
+  static constexpr uint8_t cmd_byte() noexcept { return 0x01; }
+
   template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
       const ConstBufferSequence &buffers, capabilities::value_type caps) {
     impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
 
-    auto packet_type_res = accu.template step<wire::FixedInt<1>>();
+    auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    if (cmd_byte_res->value() != cmd_byte()) {
+      return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
+    }
     auto auth_method_data_res = accu.template step<wire::String>();
 
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
-    return std::make_pair(
-        accu.result().value(),
-        value_type(packet_type_res->value(), auth_method_data_res->value()));
+    return std::make_pair(accu.result().value(),
+                          value_type(auth_method_data_res->value()));
   }
 
  private:
@@ -412,7 +419,8 @@ class Codec<message::server::Ok>
     stdx::expected<wire::String, std::error_code> message_res;
     stdx::expected<wire::VarString, std::error_code> session_changes_res;
     if (caps[capabilities::pos::session_track]) {
-      auto var_message_res = accu.template step<wire::VarString>();
+      // if there is more data.
+      const auto var_message_res = accu.template try_step<wire::VarString>();
       if (var_message_res) {
         // set the message from the var-string
         message_res = var_message_res.value();
@@ -477,9 +485,14 @@ class Codec<message::server::Eof>
       }
 
       if (caps()[capabilities::pos::session_track]) {
-        accu.step(wire::VarString(v_.message()));
-        if (v_.status_flags()[status::pos::session_state_changed]) {
-          accu.step(wire::VarString(v_.session_changes()));
+        if (!v_.message().empty() ||
+            v_.status_flags()[status::pos::session_state_changed]) {
+          // only write message and session-changes if both of them aren't
+          // empty.
+          accu.step(wire::VarString(v_.message()));
+          if (v_.status_flags()[status::pos::session_state_changed]) {
+            accu.step(wire::VarString(v_.session_changes()));
+          }
         }
       } else {
         accu.step(wire::String(v_.message()));
@@ -551,7 +564,9 @@ class Codec<message::server::Eof>
       stdx::expected<wire::String, std::error_code> message_res;
       stdx::expected<wire::VarString, std::error_code> session_state_info_res;
       if (caps[capabilities::pos::session_track]) {
-        const auto var_message_res = accu.template step<wire::VarString>();
+        // when session-track is supported, the 'message' part is a VarString.
+        // But only if there is actually session-data and the message has data.
+        const auto var_message_res = accu.template try_step<wire::VarString>();
         if (var_message_res) {
           // set the message from the var-string
           message_res = var_message_res.value();
@@ -668,6 +683,46 @@ class Codec<message::server::Error>
         accu.result().value(),
         value_type(error_code_res->value(), message_res->value(),
                    sql_state_res->value()));
+  }
+
+ private:
+  const value_type v_;
+};
+
+/**
+ * codec for ColumnCount message.
+ */
+template <>
+class Codec<message::server::ColumnCount>
+    : public impl::EncodeBase<Codec<message::server::ColumnCount>> {
+  template <class Accumulator>
+  auto accumulate_fields(Accumulator &&accu) const {
+    return accu.step(wire::VarInt(v_.count())).result();
+  }
+
+ public:
+  using value_type = message::server::ColumnCount;
+  using __base = impl::EncodeBase<Codec<value_type>>;
+
+  friend __base;
+
+  Codec(value_type v, capabilities::value_type caps)
+      : __base(caps), v_{std::move(v)} {}
+
+  static constexpr size_t max_size() noexcept {
+    return std::numeric_limits<size_t>::max();
+  }
+
+  template <class ConstBufferSequence>
+  static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
+      const ConstBufferSequence &buffers, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+
+    auto count_res = accu.template step<wire::VarInt>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    return std::make_pair(accu.result().value(),
+                          value_type(count_res->value()));
   }
 
  private:
@@ -837,6 +892,142 @@ class Codec<message::server::ColumnMeta>
                      type_res->value(), flags_res->value(),
                      decimals_res->value()));
     }
+  }
+
+ private:
+  const value_type v_;
+};
+
+/**
+ * codec for server's SendFileRequest response.
+ *
+ * sent as response after client::Query
+ *
+ * layout:
+ *
+ *     0xfb<filename>
+ */
+template <>
+class Codec<message::server::SendFileRequest>
+    : public impl::EncodeBase<Codec<message::server::SendFileRequest>> {
+  template <class Accumulator>
+  auto accumulate_fields(Accumulator &&accu) const {
+    return accu.step(wire::FixedInt<1>(cmd_byte()))
+        .step(wire::String(v_.filename()))
+        .result();
+  }
+
+ public:
+  using value_type = message::server::SendFileRequest;
+  using __base = impl::EncodeBase<Codec<value_type>>;
+
+  friend __base;
+
+  Codec(value_type v, capabilities::value_type caps)
+      : __base(caps), v_{std::move(v)} {}
+
+  static constexpr uint8_t cmd_byte() noexcept { return 0xfb; }
+
+  template <class ConstBufferSequence>
+  static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
+      const ConstBufferSequence &buffers, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+
+    auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    if (cmd_byte_res->value() != cmd_byte()) {
+      return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
+    }
+
+    auto filename_res = accu.template step<wire::String>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    return std::make_pair(accu.result().value(),
+                          value_type(filename_res->value()));
+  }
+
+ private:
+  const value_type v_;
+};
+
+/**
+ * codec for server::StmtPrepareOk message.
+ *
+ * format:
+ *
+ * - FixedInt<1> == 0x00 [ok]
+ * - FixedInt<4> stmt-id
+ * - FixedInt<2> column-count
+ * - FixedInt<2> param-count
+ * - FixedInt<1> == 0x00 [filler]
+ * - FixedInt<2> warning-count
+ *
+ * If caps contains optional_resultset_metadata:
+ *
+ * - FixedInt<1> with_metadata
+ *
+ * sent as response after a client::StmtPrepare
+ */
+template <>
+class Codec<message::server::StmtPrepareOk>
+    : public impl::EncodeBase<Codec<message::server::StmtPrepareOk>> {
+  template <class Accumulator>
+  auto accumulate_fields(Accumulator &&accu) const {
+    accu.step(wire::FixedInt<1>(cmd_byte()))
+        .step(wire::FixedInt<4>(v_.statement_id()))
+        .step(wire::FixedInt<2>(v_.column_count()))
+        .step(wire::FixedInt<2>(v_.param_count()))
+        .step(wire::FixedInt<1>(0))
+        .step(wire::FixedInt<2>(v_.warning_count()));
+
+    if (caps()[capabilities::pos::optional_resultset_metadata]) {
+      accu.step(wire::FixedInt<1>(v_.with_metadata()));
+    }
+
+    return accu.result();
+  }
+
+ public:
+  using value_type = message::server::StmtPrepareOk;
+  using __base = impl::EncodeBase<Codec<value_type>>;
+
+  friend __base;
+
+  Codec(value_type v, capabilities::value_type caps)
+      : __base(caps), v_{std::move(v)} {}
+
+  constexpr static uint8_t cmd_byte() noexcept { return 0x00; }
+
+  template <class ConstBufferSequence>
+  static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
+      const ConstBufferSequence &buffers, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+
+    auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
+    auto stmt_id_res = accu.template step<wire::FixedInt<4>>();
+    auto column_count_res = accu.template step<wire::FixedInt<2>>();
+    auto param_count_res = accu.template step<wire::FixedInt<2>>();
+    auto filler_res = accu.template step<wire::FixedInt<1>>();
+    auto warning_count_res = accu.template step<wire::FixedInt<2>>();
+
+    // by default, metadata isn't optional
+    int8_t with_metadata{1};
+    if (caps[capabilities::pos::optional_resultset_metadata]) {
+      auto with_metadata_res = accu.template step<wire::FixedInt<1>>();
+
+      if (with_metadata_res) {
+        with_metadata = with_metadata_res->value();
+      }
+    }
+
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    return std::make_pair(
+        accu.result().value(),
+        value_type(stmt_id_res->value(), column_count_res->value(),
+                   param_count_res->value(), warning_count_res->value(),
+                   with_metadata));
   }
 
  private:
@@ -1104,6 +1295,43 @@ class Codec<message::server::StmtRow>
 };
 
 /**
+ * codec for server::Statistics message.
+ */
+template <>
+class Codec<message::server::Statistics>
+    : public impl::EncodeBase<Codec<message::server::Statistics>> {
+  template <class Accumulator>
+  auto accumulate_fields(Accumulator &&accu) const {
+    return accu.step(wire::String(v_.stats())).result();
+  }
+
+ public:
+  using value_type = message::server::Statistics;
+  using __base = impl::EncodeBase<Codec<value_type>>;
+
+  friend __base;
+
+  Codec(value_type v, capabilities::value_type caps)
+      : __base(caps), v_{std::move(v)} {}
+
+  template <class ConstBufferSequence>
+  static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
+      const ConstBufferSequence &buffers, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+
+    auto stats_res = accu.template step<wire::String>();
+
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    return std::make_pair(accu.result().value(),
+                          value_type(stats_res->value()));
+  }
+
+ private:
+  const value_type v_;
+};
+
+/**
  * CRTP base for client-side commands that are encoded as a single byte.
  */
 template <class Base, class ValueType>
@@ -1139,6 +1367,41 @@ class CodecSimpleCommand
   }
 };
 
+enum class CommandByte {
+  Quit = 0x01,
+  InitSchema,
+  Query,
+  ListFields,
+  CreateDb,
+  DropDb,
+  Refresh,
+  Shutdown,
+  Statistics,
+  ProcessInfo,
+  Connect,
+  ProcessKill,
+  Debug,
+  Ping,
+  Time,
+  DelayedInsert,
+  ChangeUser,
+  BinlogDump,
+  TableDump,
+  ConnectOut,
+  RegisterSlave,
+  StmtPrepare,
+  StmtExecute,
+  StmtSendLongData,
+  StmtClose,
+  StmtReset,
+  SetOption,
+  StmtFetch,
+  Deamon,
+  BinlogDumpGtid,
+  ResetConnection,
+  Clone
+};
+
 /**
  * codec for client's Quit command.
  */
@@ -1152,7 +1415,9 @@ class Codec<message::client::Quit>
 
   constexpr Codec(value_type, capabilities::value_type caps) : __base(caps) {}
 
-  constexpr static uint8_t cmd_byte() noexcept { return 0x01; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::Quit);
+  }
 };
 
 /**
@@ -1168,7 +1433,9 @@ class Codec<message::client::ResetConnection>
 
   constexpr Codec(value_type, capabilities::value_type caps) : __base(caps) {}
 
-  constexpr static uint8_t cmd_byte() noexcept { return 0x1f; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::ResetConnection);
+  }
 };
 
 /**
@@ -1184,7 +1451,9 @@ class Codec<message::client::Ping>
 
   constexpr Codec(value_type, capabilities::value_type caps) : __base(caps) {}
 
-  constexpr static uint8_t cmd_byte() noexcept { return 0x0e; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::Ping);
+  }
 };
 
 /**
@@ -1200,7 +1469,9 @@ class Codec<message::client::Statistics>
 
   constexpr Codec(value_type, capabilities::value_type caps) : __base(caps) {}
 
-  constexpr static uint8_t cmd_byte() noexcept { return 0x09; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::Statistics);
+  }
 };
 
 /**
@@ -1225,7 +1496,9 @@ class Codec<message::client::InitSchema>
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  constexpr static uint8_t cmd_byte() noexcept { return 0x02; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::InitSchema);
+  }
 
   template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
@@ -1272,7 +1545,9 @@ class Codec<message::client::Query>
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  static constexpr uint8_t cmd_byte() noexcept { return 0x03; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::Query);
+  }
 
   template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
@@ -1298,6 +1573,202 @@ class Codec<message::client::Query>
 };
 
 /**
+ * codec for client::SendFile message.
+ *
+ * sent by client as response to server::SendFileRequest
+ *
+ * format:
+ *
+ * - String payload
+ */
+template <>
+class Codec<message::client::SendFile>
+    : public impl::EncodeBase<Codec<message::client::SendFile>> {
+  template <class Accumulator>
+  constexpr auto accumulate_fields(Accumulator &&accu) const {
+    return accu.step(wire::String(v_.payload())).result();
+  }
+
+ public:
+  using value_type = message::client::SendFile;
+  using __base = impl::EncodeBase<Codec<value_type>>;
+
+  friend __base;
+
+  Codec(value_type v, capabilities::value_type caps)
+      : __base(caps), v_{std::move(v)} {}
+
+  template <class ConstBufferSequence>
+  static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
+      const ConstBufferSequence &buffers, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+
+    auto payload_res = accu.template step<wire::String>();
+    if (!accu.result()) return accu.result().get_unexpected();
+
+    return std::make_pair(accu.result().value(),
+                          value_type(payload_res->value()));
+  }
+
+ private:
+  const value_type v_;
+};
+
+/**
+ * codec for client's ListFields command.
+ */
+template <>
+class Codec<message::client::ListFields>
+    : public impl::EncodeBase<Codec<message::client::ListFields>> {
+  template <class Accumulator>
+  auto accumulate_fields(Accumulator &&accu) const {
+    return accu.step(wire::FixedInt<1>(cmd_byte()))
+        .step(wire::NulTermString(v_.table_name()))
+        .step(wire::String(v_.wildcard()))
+        .result();
+  }
+
+ public:
+  using value_type = message::client::ListFields;
+  using __base = impl::EncodeBase<Codec<value_type>>;
+
+  friend __base;
+
+  Codec(value_type v, capabilities::value_type caps)
+      : __base(caps), v_{std::move(v)} {}
+
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::ListFields);
+  }
+
+  template <class ConstBufferSequence>
+  static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
+      const ConstBufferSequence &buffers, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+
+    auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    if (cmd_byte_res->value() != cmd_byte()) {
+      return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
+    }
+
+    auto table_name_res = accu.template step<wire::NulTermString>();
+    auto wildcard_res = accu.template step<wire::String>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    return std::make_pair(
+        accu.result().value(),
+        value_type(table_name_res->value(), wildcard_res->value()));
+  }
+
+ private:
+  const value_type v_;
+};
+
+/**
+ * codec for client's Reload command.
+ */
+template <>
+class Codec<message::client::Reload>
+    : public impl::EncodeBase<Codec<message::client::Reload>> {
+  template <class Accumulator>
+  auto accumulate_fields(Accumulator &&accu) const {
+    return accu.step(wire::FixedInt<1>(cmd_byte()))
+        .step(wire::FixedInt<1>(v_.cmds().to_ulong()))
+        .result();
+  }
+
+ public:
+  using value_type = message::client::Reload;
+  using __base = impl::EncodeBase<Codec<value_type>>;
+
+  friend __base;
+
+  Codec(value_type v, capabilities::value_type caps)
+      : __base(caps), v_{std::move(v)} {}
+
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::Refresh);
+  }
+
+  template <class ConstBufferSequence>
+  static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
+      const ConstBufferSequence &buffers, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+
+    auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    if (cmd_byte_res->value() != cmd_byte()) {
+      return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
+    }
+
+    auto cmds_res = accu.template step<wire::FixedInt<1>>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    return std::make_pair(accu.result().value(), value_type(cmds_res->value()));
+  }
+
+ private:
+  const value_type v_;
+};
+
+/**
+ * codec for client's Kill command.
+ *
+ * format:
+ *
+ * - FixedInt<1> == 0x0c, ProcessKill
+ * - FixedInt<4> id
+ */
+template <>
+class Codec<message::client::Kill>
+    : public impl::EncodeBase<Codec<message::client::Kill>> {
+  template <class Accumulator>
+  auto accumulate_fields(Accumulator &&accu) const {
+    return accu.step(wire::FixedInt<1>(cmd_byte()))
+        .step(wire::FixedInt<4>(v_.connection_id()))
+        .result();
+  }
+
+ public:
+  using value_type = message::client::Kill;
+  using __base = impl::EncodeBase<Codec<value_type>>;
+
+  friend __base;
+
+  constexpr Codec(value_type v, capabilities::value_type caps)
+      : __base(caps), v_{std::move(v)} {}
+
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::ProcessKill);
+  }
+
+  template <class ConstBufferSequence>
+  static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
+      const ConstBufferSequence &buffers, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+
+    auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    if (cmd_byte_res->value() != cmd_byte()) {
+      return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
+    }
+
+    auto connection_id_res = accu.template step<wire::FixedInt<4>>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    return std::make_pair(accu.result().value(),
+                          value_type(connection_id_res->value()));
+  }
+
+ private:
+  value_type v_;
+};
+
+/**
  * codec for client's Prepared Statement command.
  */
 template <>
@@ -1319,7 +1790,9 @@ class Codec<message::client::StmtPrepare>
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  static constexpr uint8_t cmd_byte() noexcept { return 0x16; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::StmtPrepare);
+  }
 
   template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
@@ -1445,7 +1918,9 @@ class Codec<message::client::StmtExecute>
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  static constexpr uint8_t cmd_byte() noexcept { return 0x17; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::StmtExecute);
+  }
 
   /**
    * decode a sequence of buffers into a message::client::ExecuteStmt.
@@ -1655,7 +2130,9 @@ class Codec<message::client::StmtParamAppendData>
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  static constexpr uint8_t cmd_byte() noexcept { return 0x18; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::StmtSendLongData);
+  }
 
   template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
@@ -1705,7 +2182,9 @@ class Codec<message::client::StmtClose>
   constexpr Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  static constexpr uint8_t cmd_byte() noexcept { return 0x19; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::StmtClose);
+  }
 
   template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
@@ -1752,7 +2231,9 @@ class Codec<message::client::StmtReset>
   constexpr Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  static constexpr uint8_t cmd_byte() noexcept { return 0x1a; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::StmtReset);
+  }
 
   template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
@@ -1778,7 +2259,7 @@ class Codec<message::client::StmtReset>
 };
 
 /**
- * codec for client's Fetch Cursor command.
+ * codec for client's SetOption Cursor command.
  */
 template <>
 class Codec<message::client::StmtSetOption>
@@ -1799,7 +2280,9 @@ class Codec<message::client::StmtSetOption>
   constexpr Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  static constexpr uint8_t cmd_byte() noexcept { return 0x1b; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::SetOption);
+  }
 
   template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
@@ -1847,7 +2330,9 @@ class Codec<message::client::StmtFetch>
   constexpr Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  static constexpr uint8_t cmd_byte() noexcept { return 0x1c; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::StmtFetch);
+  }
 
   template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
@@ -1947,12 +2432,23 @@ class Codec<message::client::Greeting>
           accu.step(wire::NulTermString(v_.schema()));
         }
 
-        if (shared_caps[classic_protocol::capabilities::pos::plugin_auth]) {
-          accu.step(wire::NulTermString(v_.auth_method_name()));
-        }
-
-        if (shared_caps
+        if (!shared_caps
                 [classic_protocol::capabilities::pos::connect_attributes]) {
+          // special handling for off-spec client/server implimentations.
+          //
+          // 1. older clients may set ::plugin_auth, but
+          //    ::connection_attributes which means nothing follows the
+          //    "auth-method-name" field
+          // 2. auth-method-name is empty, it MAY be skipped.
+          if (shared_caps[classic_protocol::capabilities::pos::plugin_auth] &&
+              !v_.auth_method_name().empty()) {
+            accu.step(wire::NulTermString(v_.auth_method_name()));
+          }
+        } else {
+          if (shared_caps[classic_protocol::capabilities::pos::plugin_auth]) {
+            accu.step(wire::NulTermString(v_.auth_method_name()));
+          }
+
           accu.step(wire::VarString(v_.attributes()));
         }
       }
@@ -2071,7 +2567,13 @@ class Codec<message::client::Greeting>
       stdx::expected<wire::NulTermString, std::error_code> auth_method_res;
       if (shared_capabilities
               [classic_protocol::capabilities::pos::plugin_auth]) {
-        auth_method_res = accu.template step<wire::NulTermString>();
+        if (net::buffer_size(buffers) == accu.result().value()) {
+          // even with plugin_auth set, the server is fine, if no
+          // auth_method_name is sent.
+          auth_method_res = wire::NulTermString{};
+        } else {
+          auth_method_res = accu.template step<wire::NulTermString>();
+        }
       }
       if (!auth_method_res)
         return stdx::make_unexpected(auth_method_res.error());
@@ -2099,7 +2601,8 @@ class Codec<message::client::Greeting>
       stdx::expected<wire::String, std::error_code> auth_method_data_res;
       stdx::expected<wire::String, std::error_code> schema_res;
 
-      if (caps[classic_protocol::capabilities::pos::connect_with_schema]) {
+      if (shared_capabilities
+              [classic_protocol::capabilities::pos::connect_with_schema]) {
         auto res = accu.template step<wire::NulTermString>();
         if (!res) return stdx::make_unexpected(res.error());
 
@@ -2137,6 +2640,49 @@ class Codec<message::client::Greeting>
                      username_res->value(), auth_method_data_res->value(),
                      schema_res->value(), {}, {}));
     }
+  }
+
+ private:
+  const value_type v_;
+};
+
+/**
+ * codec for client::AuthMethodData message.
+ *
+ * format:
+ *
+ * - String auth_method_data
+ *
+ * sent after server::AuthMethodData or server::AuthMethodContinue
+ */
+template <>
+class Codec<message::client::AuthMethodData>
+    : public impl::EncodeBase<Codec<message::client::AuthMethodData>> {
+  template <class Accumulator>
+  auto accumulate_fields(Accumulator &&accu) const {
+    return accu.step(wire::String(v_.auth_method_data())).result();
+  }
+
+ public:
+  using value_type = message::client::AuthMethodData;
+  using __base = impl::EncodeBase<Codec<value_type>>;
+
+  friend __base;
+
+  Codec(value_type v, capabilities::value_type caps)
+      : __base(caps), v_{std::move(v)} {}
+
+  template <class ConstBufferSequence>
+  static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
+      const ConstBufferSequence &buffers, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+
+    auto auth_method_data_res = accu.template step<wire::String>();
+
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    return std::make_pair(accu.result().value(),
+                          value_type(auth_method_data_res->value()));
   }
 
  private:
@@ -2197,7 +2743,9 @@ class Codec<message::client::ChangeUser>
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  static constexpr uint8_t cmd_byte() noexcept { return 0x11; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::ChangeUser);
+  }
 
   template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(

@@ -1,5 +1,3 @@
---source include/not_have_tlsv13.inc
-
 --let $INCREMENT=1
 --let $USE_SOCKET=
 --let $ERROR_IF_CHANNEL_UNSECURE=ER_SECURE_TRANSPORT_REQUIRED

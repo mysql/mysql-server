@@ -802,16 +802,35 @@ explain SELECT f1 FROM t1 AS table1
 WHERE f2 <> (SELECT f1 FROM t1 WHERE table1.f3 = (SELECT f4 FROM t1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	table1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	9	test.table1.f3	2	50.00	Using where
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.table1.f3	2	50.00	Using where
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
 3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.table1.f3' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`table1`.`f1` AS `f1` from `test`.`t1` `table1` join (/* select#2 */ select `derived_2_3`.`f4` AS `f4`,any_value(`test`.`t1`.`f1`),`derived_2_3`.`f4` AS `f4`,count(0) AS `Name_exp_4` from `test`.`t1` left join (/* select#3 */ select `test`.`t1`.`f4` AS `f4` from `test`.`t1`) `derived_2_3` on(true) where true group by `derived_2_3`.`f4`) `derived_1_2` where ((`test`.`table1`.`f2` <> `derived_1_2`.`f4`) and (`test`.`table1`.`f3` = `derived_1_2`.`any_value(t1.f1)`) and reject_if((`derived_1_2`.`f4` > 1)))
+Note	1003	/* select#1 */ select `test`.`table1`.`f1` AS `f1` from `test`.`t1` `table1` join (/* select#2 */ select any_value(`test`.`t1`.`f1`),`derived_2_3`.`f4` AS `f4`,count(0) AS `Name_exp_4` from `test`.`t1` left join (/* select#3 */ select `test`.`t1`.`f4` AS `f4` from `test`.`t1`) `derived_2_3` on(true) where true group by `derived_2_3`.`f4`) `derived_1_2` where ((`derived_1_2`.`f4` = `test`.`table1`.`f3`) and (`test`.`table1`.`f2` <> `derived_1_2`.`any_value(t1.f1)`) and reject_if((`derived_1_2`.`Name_exp_4` > 1)))
 SELECT f1 FROM t1 AS table1
 WHERE f2 <> (SELECT f1 FROM t1 WHERE table1.f3 = (SELECT f4 FROM t1));
 f1
+INSERT INTO t1 VALUES (-1, 0, -1, -1);
+INSERT INTO t1 VALUES (1, 0, 1, 1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+explain SELECT f1 FROM t1 AS table1
+WHERE f2 <> (SELECT f1 FROM t1 WHERE table1.f3 = (SELECT f4 FROM t1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	table1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.table1.f3	2	25.00	Using where
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
+2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.table1.f3' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`table1`.`f1` AS `f1` from `test`.`t1` `table1` join (/* select#2 */ select any_value(`test`.`t1`.`f1`),`derived_2_3`.`f4` AS `f4`,count(0) AS `Name_exp_4` from `test`.`t1` left join (/* select#3 */ select `test`.`t1`.`f4` AS `f4` from `test`.`t1`) `derived_2_3` on(true) where true group by `derived_2_3`.`f4`) `derived_1_2` where ((`derived_1_2`.`f4` = `test`.`table1`.`f3`) and (`test`.`table1`.`f2` <> `derived_1_2`.`any_value(t1.f1)`) and reject_if((`derived_1_2`.`Name_exp_4` > 1)))
+SELECT f1 FROM t1 AS table1
+WHERE f2 <> (SELECT f1 FROM t1 WHERE table1.f3 = (SELECT f4 FROM t1));
+ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t1;
 #
 # Bug#32348682: WL#13520: WRONG RESULT WHEN PREDICATE IN A CORRELATED
@@ -848,4 +867,20 @@ SELECT (SELECT MIN(f2) FROM t1 AS t2
 WHERE t2.f2 = ISNULL(dt.f1)) AS field1 FROM t1 AS dt GROUP BY field1;
 field1
 DROP TABLE t1;
+#
+# Bug#32998733: SERVER ABORT FROM JOIN::CREATE_INTERMEDIATE_TABLE
+#
+CREATE TABLE t1 (a INTEGER);
+CREATE TABLE t2 (b INTEGER);
+EXPLAIN SELECT 1 FROM t1 WHERE ( SELECT DISTINCT b FROM t2 WHERE t1.a = t1.a );
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (0 <> (/* select#2 */ select distinct `test`.`t2`.`b` from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t1`.`a`)))
+SELECT 1 FROM t1 WHERE ( SELECT DISTINCT b FROM t2 WHERE t1.a = t1.a );
+1
+DROP TABLE t1,t2;
 SET optimizer_switch = 'subquery_to_derived=default';

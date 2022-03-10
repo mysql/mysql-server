@@ -865,7 +865,7 @@ extern "C" bool is_const_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
     strcpy(message, "IS_CONST accepts only one argument");
     return true;
   }
-  initid->ptr = (char *)((args->args[0] != nullptr) ? 1UL : 0);
+  initid->ptr = (char *)((args->args[0] != nullptr) ? 1ULL : 0);
   return false;
 }
 

@@ -20,7 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-IF(NOT GMOCK_FOUND OR NOT WITH_UNIT_TESTS)
+IF(NOT WITH_UNIT_TESTS)
   RETURN()
 ENDIF()
 
@@ -81,18 +81,6 @@ ADD_LIBRARY(gunit_small STATIC
 SET_TARGET_PROPERTIES(gunit_small
   PROPERTIES COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
 )
-IF(MY_COMPILER_IS_SUNPRO)
-  TARGET_COMPILE_OPTIONS(gunit_small PRIVATE $<$<CONFIG:RelWithDebInfo>:-xO4>)
-ENDIF()
-
-# Several "small" unit tests got 'missing symbol client_errors'
-# When building with Sun Studio
-ADD_LIBRARY(libmysql_errmsg STATIC
-  ${CMAKE_SOURCE_DIR}/libmysql/errmsg.cc
-)
-SET_TARGET_PROPERTIES(libmysql_errmsg
-  PROPERTIES COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
-)
 
 ADD_LIBRARY(gunit_large STATIC
   benchmark.cc
@@ -102,11 +90,8 @@ ADD_LIBRARY(gunit_large STATIC
 )
 ADD_DEPENDENCIES(gunit_small GenError)
 ADD_DEPENDENCIES(gunit_large GenError)
-TARGET_LINK_LIBRARIES(gunit_small
-  mysys strings ${GTEST_LIBRARIES} libmysql_errmsg)
-TARGET_LINK_LIBRARIES(gunit_large
-  mysys strings ${GTEST_LIBRARIES})
-MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
+TARGET_LINK_LIBRARIES(gunit_small mysys strings ${GTEST_LIBRARIES})
+TARGET_LINK_LIBRARIES(gunit_large mysys strings ${GTEST_LIBRARIES})
 
 IF(WIN32)
   ## Create an object library of nt_servc.cc, so we don't have to
@@ -122,14 +107,17 @@ ADD_DEFINITIONS(-DDATA_DIR="${CMAKE_CURRENT_BINARY_DIR}")
 # Add tests (link them with gunit/gmock libraries)
 SET(TESTS
   alignment
-  bounds_checked_array
   bitmap
-  charset_bug28956360
+  bounds_checked_array
   byteorder
   calloc
+  charset_bug28956360
+  charset_bug32788301
+  collation_loader
   cost_estimate
   dbug
   decimal
+  dns_srv_data
   dphyp
   dynarray
   filesort_buffer
@@ -144,11 +132,16 @@ SET(TESTS
   m_string
   mdl
   mem_root_deque
+  mutex_lock
+  my_alloc
   my_bitmap
   my_error
   my_fileutils
+  my_gcvt
   my_murmur3
+  my_rcu_lock
   my_thread
+  my_timer
   mysys_base64
   mysys_lf
   mysys_my_b_vprintf
@@ -159,41 +152,37 @@ SET(TESTS
   mysys_my_malloc
   mysys_my_pwrite
   mysys_my_rdtsc
+  mysys_my_read
   mysys_my_symlink
   mysys_my_time
   mysys_my_write
-  mysys_my_read
   mysys_pathfuncs
-  nullable
   opt_recperkey
+  overflow_bitset
   partitioned_rwlock
   pattern_matcher
   prealloced_array
   priority_queue
+  pump_object_filter
   record_buffer
-  stream_cipher
   sql_class_header
   sql_list
   sql_plist
   sql_string
   stl_alloc
+  stream_cipher
   strings_skip_trailing
   strings_strnxfrm
   strings_utf8
   strings_valid_check
+  strtod
   strtoll
-  thread_utils
-  my_timer
   template_utils
+  thread_utils
   timespec
-  my_alloc
-  pump_object_filter
+  unhex
   val_int_compare
   varlen_sort
-  collation_loader
-  my_rcu_lock
-  unhex
-  dns_srv_data
   )
 
 SET(ALL_SMALL_TESTS)
@@ -216,21 +205,28 @@ SET(SERVER_TESTS
   dd_string_type
   dd_table
   debug_sync
+  decoy_user
   explain_filename
   field
   get_diagnostics
   gis_algos
   gis_area
+  gis_buffer
+  gis_difference
   gis_distance
   gis_frechet_distance
   gis_geometries
   gis_hausdorff_distance
+  gis_intersection
   gis_is_simple
   gis_isvalid
   gis_line_interpolate_point
   gis_relops
   gis_rtree_support
+  gis_setops
   gis_srs
+  gis_symdifference
+  gis_union
   gis_wkb_parser
   gis_wkb_writer
   handler
@@ -239,13 +235,14 @@ SET(SERVER_TESTS
   hypergraph_optimizer
   initialize_password
   insert_delayed
+  interesting_orders
   into_syntax
   item
   item_filter
   item_func_case
   item_func_now_local
-  item_json_func
   item_func_regexp
+  item_json_func
   item_like
   item_timefunc
   join_syntax
@@ -255,8 +252,8 @@ SET(SERVER_TESTS
   json_path
   locking_clause_syntax
   locking_service
-  log_timestamp
   log_throttle
+  log_timestamp
   make_sortkey
   mdl_sync
   my_decimal
@@ -273,11 +270,12 @@ SET(SERVER_TESTS
   security_context
   segfault
   select_lex_visitor
+  sha2_password
   sql_table
   subquery_syntax
   table_cache
-  table_list
   table_factor_syntax
+  table_list
   tc_log_mmap
   temptable_allocator
   temptable_storage
@@ -286,8 +284,6 @@ SET(SERVER_TESTS
   unique
   value_map
   wild_case_compare
-  sha2_password
-  decoy_user
 )
 
 IF(WIN32)
@@ -317,6 +313,7 @@ SET(SQL_GUNIT_LIB_SOURCE
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
   ${CMAKE_SOURCE_DIR}/sql/thr_malloc.cc
   ${CMAKE_SOURCE_DIR}/sql/join_optimizer/hypergraph.cc
+  ${CMAKE_SOURCE_DIR}/sql/join_optimizer/overflow_bitset.cc
   ${CMAKE_SOURCE_DIR}/sql/locks/shared_spin_lock.cc
   )
 
@@ -327,10 +324,11 @@ SET_TARGET_PROPERTIES(sqlgunitlib
 )
 
 MYSQL_ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS}
+  ADD_TEST merge_small_tests
+  COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS}
   ENABLE_EXPORTS
-  ADD_TEST merge_small_tests)
-TARGET_LINK_LIBRARIES(merge_small_tests-t
-  sqlgunitlib gunit_small)
+  LINK_LIBRARIES sqlgunitlib gunit_small
+  )
 
 IF(WIN32)
   LIST(APPEND ALL_LARGE_TESTS ../../sql/nt_servc.cc)
@@ -338,20 +336,19 @@ ENDIF()
 LIST(APPEND ALL_LARGE_TESTS ../../storage/example/ha_example.cc)
 
 MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS}
+  ADD_TEST merge_large_tests
   ENABLE_EXPORTS
-  ADD_TEST merge_large_tests)
-
-TARGET_LINK_LIBRARIES(merge_large_tests-t
-  gunit_large
-  server_unittest_library
+  LINK_LIBRARIES gunit_large server_unittest_library
   )
 
 FOREACH(test ${TESTS})
   MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc
-    ENABLE_EXPORTS SKIP_INSTALL EXCLUDE_FROM_ALL)
-  ADD_COMPILE_DEFINITIONS(${test}-t.cc
-    COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS})
-  TARGET_LINK_LIBRARIES(${test}-t sqlgunitlib gunit_small)
+    COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS}
+    ENABLE_EXPORTS
+    EXCLUDE_FROM_ALL
+    LINK_LIBRARIES sqlgunitlib gunit_small
+    SKIP_INSTALL
+    )
 ENDFOREACH()
 
 # See comments about __builtin_memcmp in the source file.
@@ -362,6 +359,11 @@ IF(HAVE_NO_BUILTIN_MEMCMP)
     )
 ENDIF()
 
+ADD_COMPILE_FLAGS(
+  hash_join-t.cc
+  COMPILE_FLAGS -I${CMAKE_SOURCE_DIR}/extra/lz4 -I${BUNDLED_LZ4_PATH}
+  )
+
 FOREACH(test ${SERVER_TESTS})
   SET(SRC_FILES ${test}-t.cc)
   IF(WIN32)
@@ -371,11 +373,10 @@ FOREACH(test ${SERVER_TESTS})
     LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
   ENDIF()
   MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES}
-    ENABLE_EXPORTS SKIP_INSTALL EXCLUDE_FROM_ALL)
-
-  TARGET_LINK_LIBRARIES(${test}-t
-    gunit_large
-    server_unittest_library
+    ENABLE_EXPORTS
+    EXCLUDE_FROM_ALL
+    LINK_LIBRARIES gunit_large server_unittest_library
+    SKIP_INSTALL
     )
 ENDFOREACH()
 
@@ -412,3 +413,4 @@ ADD_SUBDIRECTORY(binlogevents)
 ADD_SUBDIRECTORY(memory)
 ADD_SUBDIRECTORY(containers)
 ADD_SUBDIRECTORY(locks)
+ADD_SUBDIRECTORY(changestreams)

@@ -35,13 +35,24 @@
           "description": "metadata-cache section definition",
           "type": "object",
           "additionalProperties": false,
-          "required": ["group-replication-id", "cluster-metadata-servers"],
+          "required": ["cluster-metadata-servers"],
           "properties": {
             "group-replication-id": {
               "description":
                   "In case of the Group Replication ID the metadata cache module was bootstrapped against, in case of Async Replicaset cluster ID the metadata cache module was bootstrapped against",
               "type": "string"
             },
+            "clusterset-id": {
+              "description":
+                  "Id of the ClusterSet the metadata cache module was bootstrapped against",
+              "type": "string"
+            },
+            "oneOf":
+                [
+                  {"required": ["group-replication-id"]},
+                  {"required": ["clusterset-id"]}
+                ],
+
             "cluster-metadata-servers": {
               "description":
                   "List of the metadata servers that metadata cache module uses for fetching metadata",
@@ -57,7 +68,7 @@
             },
             "view-id": {
               "description":
-                  "Last seen view_id of the AsyncReplicaset cluster metadata",
+                  "Last seen view_id of the Replicaset Cluster or ClusterSet metadata",
               "type": "number"
             }
           }

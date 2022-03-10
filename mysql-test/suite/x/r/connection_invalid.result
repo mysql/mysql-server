@@ -17,5 +17,5 @@ ERROR 2007 (HY000): Protocol mismatch; server version = 11, client version = 10
 
 #
 # 2. Verify failure at cross connecting x-client to classic-server
-in main, line 0:ERROR: MySQL server has gone away (code 2006)
-not ok
+Application terminated with expected error: MySQL server has gone away (code 2006)
+ok

@@ -35,7 +35,6 @@
 
 #define JAM_FILE_ID 437
 
-extern EventLogger *g_eventLogger;
 
 LocalProxy::LocalProxy(BlockNumber blockNumber, Block_context& ctx) :
   SimulatedBlock(blockNumber, ctx)
@@ -1355,8 +1354,9 @@ switchRef(Uint32 block, Uint32 instance, Uint32 node)
 {
   const Uint32 ref = numberToRef(block, instance,  node);
 #ifdef DBINFO_SCAN_TRACE
-  ndbout_c("Dbinfo::LocalProxy: switching to %s(%d) in node %d, ref: 0x%.8x",
-           getBlockName(block, "<unknown>"), instance, node, ref);
+  g_eventLogger->info(
+      "Dbinfo::LocalProxy: switching to %s(%d) in node %d, ref: 0x%.8x",
+      getBlockName(block, "<unknown>"), instance, node, ref);
 #endif
   return ref;
 }

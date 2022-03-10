@@ -30,6 +30,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  *******************************************************/
 
 #include "clone0desc.h"
+#include "dict0dict.h"
 #include "mach0data.h"
 
 /** Maximum supported descriptor version. The version represents the current
@@ -624,6 +625,12 @@ static const uint CLONE_DESC_FILE_FLAG_ZLIB = 1;
 static const uint CLONE_DESC_FILE_FLAG_LZ4 = 2;
 /** Clone File Flag: Encryption type AES */
 static const uint CLONE_DESC_FILE_FLAG_AES = 3;
+/** Clone File Flag: File is renamed. */
+static const uint CLONE_DESC_FILE_FLAG_RENAMED = 4;
+/** Clone File Flag: File is deleted. */
+static const uint CLONE_DESC_FILE_FLAG_DELETED = 5;
+/** Clone File Flag: File metadata has encryption key. */
+static const uint CLONE_DESC_FILE_HAS_KEY = 6;
 
 /** File Metadata: Tablespace ID in 4 bytes */
 static const uint CLONE_FILE_SPACE_ID_OFFSET = CLONE_FILE_FLAGS_OFFSET + 2;
@@ -651,6 +658,11 @@ void Clone_Desc_File_MetaData::init_header(uint version) {
 
   m_header.m_length = CLONE_FILE_BASE_LEN;
   m_header.m_length += static_cast<uint>(m_file_meta.m_file_name_len);
+
+  if (m_file_meta.m_transfer_encryption_key) {
+    m_header.m_length += sizeof(m_file_meta.m_encryption_key);
+    m_header.m_length += sizeof(m_file_meta.m_encryption_iv);
+  }
 
   m_header.m_type = CLONE_DESC_FILE_METADATA;
 }
@@ -690,6 +702,19 @@ void Clone_Desc_File_MetaData::serialize(byte *&desc_file, uint &len,
   if (m_file_meta.m_encrypt_type == Encryption::AES) {
     DESC_SET_FLAG(file_flags, CLONE_DESC_FILE_FLAG_AES);
   }
+  /* Set file renamed attribute */
+  if (m_file_meta.m_renamed) {
+    DESC_SET_FLAG(file_flags, CLONE_DESC_FILE_FLAG_RENAMED);
+  }
+  /* Set file deleted attribute */
+  if (m_file_meta.m_deleted) {
+    DESC_SET_FLAG(file_flags, CLONE_DESC_FILE_FLAG_DELETED);
+  }
+
+  if (m_file_meta.m_transfer_encryption_key) {
+    DESC_SET_FLAG(file_flags, CLONE_DESC_FILE_HAS_KEY);
+  }
+
   mach_write_to_2(desc_file + CLONE_FILE_FLAGS_OFFSET, file_flags);
 
   mach_write_to_4(desc_file + CLONE_FILE_SPACE_ID_OFFSET,
@@ -709,6 +734,20 @@ void Clone_Desc_File_MetaData::serialize(byte *&desc_file, uint &len,
     memcpy(static_cast<void *>(desc_file + CLONE_FILE_FNAME_OFFSET),
            static_cast<const void *>(m_file_meta.m_file_name),
            m_file_meta.m_file_name_len);
+  }
+
+  auto dest_key =
+      desc_file + CLONE_FILE_FNAME_OFFSET + m_file_meta.m_file_name_len;
+
+  /* Append Encryption key information if requested. */
+  if (m_file_meta.m_transfer_encryption_key) {
+    memcpy(dest_key, m_file_meta.m_encryption_key,
+           sizeof(m_file_meta.m_encryption_key));
+
+    dest_key += sizeof(m_file_meta.m_encryption_key);
+
+    memcpy(dest_key, m_file_meta.m_encryption_iv,
+           sizeof(m_file_meta.m_encryption_iv));
   }
 }
 
@@ -754,6 +793,14 @@ bool Clone_Desc_File_MetaData::deserialize(const byte *desc_file,
     m_file_meta.m_encrypt_type = Encryption::AES;
   }
 
+  /* Get file renamed attribute */
+  m_file_meta.m_renamed =
+      DESC_CHECK_FLAG(file_flags, CLONE_DESC_FILE_FLAG_RENAMED);
+
+  /* Get file renamed attribute */
+  m_file_meta.m_deleted =
+      DESC_CHECK_FLAG(file_flags, CLONE_DESC_FILE_FLAG_DELETED);
+
   m_file_meta.m_space_id =
       mach_read_from_4(desc_file + CLONE_FILE_SPACE_ID_OFFSET);
   m_file_meta.m_file_index =
@@ -767,13 +814,14 @@ bool Clone_Desc_File_MetaData::deserialize(const byte *desc_file,
   m_file_meta.m_file_name_len =
       mach_read_from_4(desc_file + CLONE_FILE_FNAMEL_OFFSET);
 
-  ut_ad(m_header.m_length ==
-        CLONE_FILE_FNAME_OFFSET + m_file_meta.m_file_name_len);
+  m_file_meta.m_file_name_alloc_len = 0;
 
   /* Check if we have enough length. */
   if (desc_len < m_file_meta.m_file_name_len) {
     return (false);
   }
+
+  desc_len -= m_file_meta.m_file_name_len;
 
   if (m_file_meta.m_file_name_len == 0) {
     m_file_meta.m_file_name = nullptr;
@@ -787,6 +835,39 @@ bool Clone_Desc_File_MetaData::deserialize(const byte *desc_file,
       return (false);
     }
   }
+
+  /* Check if encryption key is transferred. */
+  m_file_meta.m_transfer_encryption_key =
+      DESC_CHECK_FLAG(file_flags, CLONE_DESC_FILE_HAS_KEY);
+
+  /* Extract Encryption key information if transferred. */
+  if (m_file_meta.m_transfer_encryption_key) {
+    auto src_key =
+        desc_file + CLONE_FILE_FNAME_OFFSET + m_file_meta.m_file_name_len;
+
+    /* Check if we have enough length. */
+    if (desc_len < (sizeof(m_file_meta.m_encryption_key) +
+                    sizeof(m_file_meta.m_encryption_iv))) {
+      return false; /* purecov: inspected */
+    }
+
+    memcpy(m_file_meta.m_encryption_key, src_key,
+           sizeof(m_file_meta.m_encryption_key));
+
+    src_key += sizeof(m_file_meta.m_encryption_key);
+
+    memcpy(m_file_meta.m_encryption_iv, src_key,
+           sizeof(m_file_meta.m_encryption_iv));
+
+    ut_ad(m_header.m_length == CLONE_FILE_FNAME_OFFSET +
+                                   sizeof(m_file_meta.m_encryption_key) +
+                                   sizeof(m_file_meta.m_encryption_iv) +
+                                   m_file_meta.m_file_name_len);
+  } else {
+    ut_ad(m_header.m_length ==
+          CLONE_FILE_FNAME_OFFSET + m_file_meta.m_file_name_len);
+  }
+
   return (true);
 }
 
@@ -984,4 +1065,32 @@ bool Clone_Desc_Data::deserialize(const byte *desc_data, uint desc_len) {
   m_file_size = mach_read_from_8(desc_data + CLONE_DATA_FILE_SIZE_OFFSET);
 
   return (true);
+}
+
+void Clone_File_Meta::init() {
+  m_file_index = 0;
+  m_file_name = nullptr;
+  m_file_name_len = 0;
+  m_file_name_alloc_len = 0;
+
+  m_file_size = 0;
+  m_alloc_size = 0;
+
+  m_space_id = dict_sys_t::s_invalid_space_id;
+  m_fsp_flags = UINT32_UNDEFINED;
+
+  m_compress_type = Compression::NONE;
+  m_encrypt_type = Encryption::NONE;
+  m_punch_hole = false;
+  m_fsblk_size = 0;
+
+  memset(m_encryption_key, 0, sizeof(m_encryption_key));
+  memset(m_encryption_iv, 0, sizeof(m_encryption_iv));
+
+  m_transfer_encryption_key = false;
+
+  m_begin_chunk = 0;
+  m_end_chunk = 0;
+
+  reset_ddl();
 }

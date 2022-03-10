@@ -370,13 +370,12 @@ createDropEvent(NDBT_Context* ctx, NDBT_Step* step, bool wait = true)
       {
         continue;
       }
+
       if ((res = createEvent(pNdb, *tab) != NDBT_OK))
       {
         goto done;
       }
-      
-      
-      
+
       if ((res = dropEvent(pNdb, *tab)) != NDBT_OK)
       {
         goto done;
@@ -669,8 +668,8 @@ int runUpgrade_NR1(NDBT_Context* ctx, NDBT_Step* step){
       if (restarter.waitNodesStarted(&nodeId, 1))
         return NDBT_FAILED;
       
-      if (createDropEvent(ctx, step))
-        return NDBT_FAILED;
+      // Return value is ignored until WL#4101 is implemented.
+      createDropEvent(ctx, step);
     }
   }
   
@@ -770,6 +769,9 @@ runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
       int processId = nodes[i].processId;
       int nodeGroup= nodes[i].nodeGroup;
 
+      if (nodeGroup != 0) {
+        ndberr << "Expected nodeGroup 0, but got " << nodeGroup << endl;
+      }
       if (seen_groups.get(nodeGroup))
       {
         // One node in this node group already down
@@ -807,9 +809,10 @@ runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
 
     CHK_NDB_READY(GETNDB(step));
 
-    if (event && createDropEvent(ctx, step))
+    if (event)
     {
-      return NDBT_FAILED;
+      // Return value is ignored until WL#4101 is implemented.
+      createDropEvent(ctx, step);
     }
 
     ndbout << "Half started" << endl;
@@ -864,9 +867,10 @@ runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
 
     CHK_NDB_READY(GETNDB(step));
 
-    if (event && createDropEvent(ctx, step))
+    if (event)
     {
-      return NDBT_FAILED;
+      // Return value is ignored until WL#4101 is implemented.
+      createDropEvent(ctx, step);
     }
   }
 
@@ -1196,10 +1200,8 @@ runBasic(NDBT_Context* ctx, NDBT_Step* step)
         trans.clearTable(pNdb, records/2);
         break;
       case 3:
-        if (createDropEvent(ctx, step, false))
-        {
-          return NDBT_FAILED;
-        }
+        // Return value is ignored until WL#4101 is implemented.
+        createDropEvent(ctx, step, false);
         break;
       }
     }
@@ -2347,7 +2349,7 @@ POSTUPGRADE("ShowVersions")
 };
 TESTCASE("Upgrade_NR1",
 	 "Test that one node at a time can be upgraded"){
-  TC_PROPERTY("InitialMGMDRestart", Uint32(1));
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForUpgrade);
@@ -2357,7 +2359,7 @@ TESTCASE("Upgrade_NR1",
 }
 POSTUPGRADE("Upgrade_NR1")
 {
-  TC_PROPERTY("InitialMGMDRestart", Uint32(1));
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeChecks);
 }
@@ -2508,7 +2510,7 @@ TESTCASE("Upgrade_Api_Before_NR1",
 }
 POSTUPGRADE("Upgrade_Api_Before_NR1")
 {
-  TC_PROPERTY("InitialMGMDRestart", Uint32(1));
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeDecideDDL);
   INITIALIZER(runGetTableList);
@@ -2718,7 +2720,7 @@ TESTCASE("Downgrade_NR2_WithMGMDInitialStart",
 }
 POSTUPGRADE("Downgrade_NR2_WithMGMDInitialStart")
 {
-  TC_PROPERTY("InitialMGMDRestart", Uint32(1));
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeChecks);
 }
@@ -2750,7 +2752,7 @@ TESTCASE("Downgrade_NR3_WithMGMDInitialStart",
 }
 POSTUPGRADE("Downgrade_NR3_WithMGMDInitialStart")
 {
-  TC_PROPERTY("InitialMGMDRestart", Uint32(1));
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeChecks);
 }
@@ -2792,7 +2794,7 @@ TESTCASE("Downgrade_FS_WithMGMDInitialStart",
 }
 POSTUPGRADE("Downgrade_FS_WithMGMDInitialStart")
 {
-  TC_PROPERTY("InitialMGMDRestart", Uint32(1));
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeChecks);
 }

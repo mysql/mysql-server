@@ -61,7 +61,7 @@ class PFS_index_setup_consumers : public PFS_engine_index {
  public:
   PFS_index_setup_consumers() : PFS_engine_index(&m_key), m_key("NAME") {}
 
-  ~PFS_index_setup_consumers() override {}
+  ~PFS_index_setup_consumers() override = default;
 
   virtual bool match(row_setup_consumers *row);
 
@@ -94,7 +94,7 @@ class table_setup_consumers : public PFS_engine_table {
   table_setup_consumers();
 
  public:
-  ~table_setup_consumers() override {}
+  ~table_setup_consumers() override = default;
 
  private:
   /** Table share lock. */

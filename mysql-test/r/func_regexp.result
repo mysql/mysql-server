@@ -125,6 +125,8 @@ ERROR HY000: Character set 'latin1_swedish_ci' cannot be used in conjunction wit
 SELECT NULL REGEXP BINARY NULL;
 NULL REGEXP BINARY NULL
 NULL
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT 'A' REGEXP BINARY NULL;
 ERROR HY000: Character set 'latin1_swedish_ci' cannot be used in conjunction with 'binary' in call to regexp_like.
 SELECT "ABC" REGEXP BINARY NULL;
@@ -170,3 +172,79 @@ ERROR HY000: Incorrect arguments to multilinestring
 # Bug#58026: massive recursion and crash in regular expression handling
 #
 SELECT '1' RLIKE RPAD('1', 10000, '(');
+# Bug#33089668: Calling regexp_instr() with NULL causes all
+#               further calls of it to return NULL
+SELECT REGEXP_INSTR(e, 'pattern')
+FROM (VALUES ROW('Find pattern'), ROW(NULL), ROW('Find pattern')) AS v(e);
+REGEXP_INSTR(e, 'pattern')
+6
+NULL
+6
+SELECT REGEXP_LIKE(e, 'pattern')
+FROM (VALUES ROW('Find pattern'), ROW(NULL), ROW('Find pattern')) AS v(e);
+REGEXP_LIKE(e, 'pattern')
+1
+NULL
+1
+SELECT REGEXP_REPLACE(e, 'pattern', 'xyz')
+FROM (VALUES ROW('Find pattern'), ROW(NULL), ROW('Find pattern')) AS v(e);
+REGEXP_REPLACE(e, 'pattern', 'xyz')
+Find xyz
+NULL
+Find xyz
+SELECT REGEXP_SUBSTR(e, 'pattern')
+FROM (VALUES ROW('Find pattern'), ROW(NULL), ROW('Find pattern')) AS v(e);
+REGEXP_SUBSTR(e, 'pattern')
+pattern
+NULL
+pattern
+CREATE FUNCTION r_instr(input_text VARCHAR(255)) RETURNS INT DETERMINISTIC
+RETURN REGEXP_INSTR(input_text, 'pattern');
+SELECT r_instr('Find pattern');
+r_instr('Find pattern')
+6
+SELECT r_instr(NULL);
+r_instr(NULL)
+NULL
+SELECT r_instr('Find pattern');
+r_instr('Find pattern')
+6
+DROP FUNCTION r_instr;
+CREATE FUNCTION r_like(input_text VARCHAR(255)) RETURNS BOOLEAN DETERMINISTIC
+RETURN REGEXP_LIKE(input_text, 'pattern');
+SELECT r_like('Find pattern');
+r_like('Find pattern')
+1
+SELECT r_like(NULL);
+r_like(NULL)
+NULL
+SELECT r_like('Find pattern');
+r_like('Find pattern')
+1
+DROP FUNCTION r_like;
+CREATE FUNCTION r_replace(input_text VARCHAR(255))
+RETURNS VARCHAR(255) DETERMINISTIC
+RETURN REGEXP_REPLACE(input_text, 'pattern', 'xyz');
+SELECT r_replace('Find pattern');
+r_replace('Find pattern')
+Find xyz
+SELECT r_replace(NULL);
+r_replace(NULL)
+NULL
+SELECT r_replace('Find pattern');
+r_replace('Find pattern')
+Find xyz
+DROP FUNCTION r_replace;
+CREATE FUNCTION r_substr(input_text VARCHAR(255))
+RETURNS VARCHAR(255) DETERMINISTIC
+RETURN REGEXP_SUBSTR(input_text, 'pattern');
+SELECT r_substr('Find pattern');
+r_substr('Find pattern')
+pattern
+SELECT r_substr(NULL);
+r_substr(NULL)
+NULL
+SELECT r_substr('Find pattern');
+r_substr('Find pattern')
+pattern
+DROP FUNCTION r_substr;

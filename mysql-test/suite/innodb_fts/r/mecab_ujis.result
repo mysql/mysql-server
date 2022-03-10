@@ -5,9 +5,9 @@ call mtr.add_suppression("Plugin 'mecab' init function returned error");
 SHOW STATUS LIKE 'mecab_charset';
 Variable_name	Value
 mecab_charset	ujis
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE page (
 page_id int(8) unsigned NOT NULL AUTO_INCREMENT,
 page_title varchar(255) CHARACTER SET ujis NOT NULL DEFAULT '',
@@ -29,14 +29,14 @@ INSERT INTO page VALUES
 (10,'ツル'),
 (11,'鉄道');
 SET GLOBAL innodb_ft_aux_table="test/page";
-SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE
+ORDER BY WORD, DOC_ID, POSITION;
 WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
 100	7	8	2	7	4
 100	7	8	2	8	0
 sd	3	3	1	3	0
 sibley	10	10	1	10	8
 _(	10	10	1	10	6
-ﾚﾓﾅ	2	2	1	2	0
 キム	6	6	1	6	0
 システム	5	5	1	5	16
 ツル	10	11	2	10	0
@@ -49,6 +49,7 @@ _(	10	10	1	10	6
 鉄道	7	12	2	7	0
 鉄道	7	12	2	12	0
 電車	7	7	1	7	7
+ﾚﾓﾅ	2	2	1	2	0
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
 WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
 SHOW CREATE TABLE page;
@@ -128,16 +129,15 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO page VALUES (1,'日本');
 CREATE FULLTEXT INDEX ft_idx ON page(page_title) WITH PARSER mecab;
-Warnings:
-Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
-SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+ERROR HY000: Fulltext index charset 'big5' doesn't match mecab charset 'ujis'.
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE
+ORDER BY WORD, DOC_ID, POSITION;
 WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
 WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
 INSERT INTO page VALUES (2,'日本');
-ERROR HY000: Fulltext index charset 'big5' doesn't match mecab charset 'ujis'.
 SELECT * FROM page WHERE MATCH(page_title) AGAINST('日本');
-ERROR HY000: Fulltext index charset 'big5' doesn't match mecab charset 'ujis'.
+ERROR HY000: Can't find FULLTEXT index matching the column list
 DROP TABLE page;
 CREATE TABLE page (
 page_id int(8) unsigned NOT NULL AUTO_INCREMENT,
@@ -152,13 +152,14 @@ INSERT INTO page VALUES
 (2,'鉄道ⅹ'),
 (3,'鉄道ⅴ100電車');
 SET GLOBAL innodb_ft_aux_table="test/page";
-SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE
+ORDER BY WORD, DOC_ID, POSITION;
 WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
 100	4	4	1	4	7
-ﾚﾓﾅ	2	2	1	2	3
 鉄道	3	4	2	3	0
 鉄道	3	4	2	4	0
 電車	4	4	1	4	10
+ﾚﾓﾅ	2	2	1	2	3
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
 WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
 SHOW CREATE TABLE page;

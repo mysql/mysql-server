@@ -20,8 +20,12 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <gtest/gtest.h>
+#include <gtest/gtest-param-test.h>
+#include <array>
 #include <cstddef>
+#include <utility>  // pair
+
+#include <gtest/gtest.h>
 
 #include "plugin/x/src/expr_generator.h"
 #include "unittest/gunit/xplugin/xpl/message_helpers.h"
@@ -1146,6 +1150,98 @@ TEST(xpl_expr_generator, any_array) {
       generate_expression(Any(Any::Array{"name", 42}), EMPTY_SCHEMA, DM_TABLE)
           .c_str());
 }
+
+struct CompareParam {
+  std::string test_name;
+
+  std::string crud_op;
+  std::string sql_op;
+};
+
+class Compare_against_id_test
+    : public ::testing::Test,
+      public ::testing::WithParamInterface<CompareParam> {};
+
+/**
+ * check compare against _id leads to JSON_UNQUOTE().
+ */
+TEST_P(Compare_against_id_test, compare_docpath_scalar) {
+  const auto param = GetParam();
+
+  SCOPED_TRACE("// string");
+  EXPECT_STREQ(
+      ("(JSON_UNQUOTE(JSON_EXTRACT(`schema`.`table`.`field`,'$._id'))" +
+       param.sql_op + "'someid')")
+          .c_str(),
+      generate_expression(
+          Operator(param.crud_op,
+                   Column_identifier(Document_path{"_id"}, "field", "table",
+                                     "schema"),
+                   Scalar::String("someid")),
+          EMPTY_SCHEMA, DM_TABLE)
+          .c_str());
+
+  EXPECT_STREQ(("('someid'" + param.sql_op +
+                "JSON_UNQUOTE(JSON_EXTRACT(`schema`.`table`.`field`,'$._id')))")
+                   .c_str(),
+               generate_expression(
+                   Operator(param.crud_op, Scalar::String("someid"),
+                            Column_identifier(Document_path{"_id"}, "field",
+                                              "table", "schema")),
+                   EMPTY_SCHEMA, DM_TABLE)
+                   .c_str());
+}
+
+TEST_P(Compare_against_id_test, compare_docpath_placeholder) {
+  const auto param = GetParam();
+
+  SCOPED_TRACE("// placeholder");
+  {
+    Expression_generator::Prep_stmt_placeholder_list ids;
+    EXPECT_STREQ(
+        ("(JSON_UNQUOTE(JSON_EXTRACT(`schema`.`table`.`field`,'$._id'))" +
+         param.sql_op + "?)")
+            .c_str(),
+        generate_expression(
+            Operator(param.crud_op,
+                     Column_identifier(Document_path{"_id"}, "field", "table",
+                                       "schema"),
+                     Placeholder(0)),
+            EMPTY_SCHEMA, DM_TABLE, &ids)
+            .c_str());
+    EXPECT_EQ(1, ids.size());
+  }
+
+  {
+    Expression_generator::Prep_stmt_placeholder_list ids;
+    EXPECT_STREQ(
+        ("(?" + param.sql_op +
+         "JSON_UNQUOTE(JSON_EXTRACT(`schema`.`table`.`field`,'$._id')))")
+            .c_str(),
+        generate_expression(
+            Operator(param.crud_op, Placeholder(0),
+                     Column_identifier(Document_path{"_id"}, "field", "table",
+                                       "schema")),
+            EMPTY_SCHEMA, DM_TABLE, &ids)
+            .c_str());
+    EXPECT_EQ(1, ids.size());
+  }
+}
+
+static const std::array<CompareParam, 6> compare_ops{{
+    {"eq", "==", " = "},
+    {"ne", "!=", " != "},
+    {"gt", ">", " > "},
+    {"ge", ">=", " >= "},
+    {"lt", "<", " < "},
+    {"le", "<=", " <= "},
+}};
+
+INSTANTIATE_TEST_SUITE_P(xpl_expr_generator_compare, Compare_against_id_test,
+                         ::testing::ValuesIn(compare_ops),
+                         [](auto const &pinfo) {
+                           return pinfo.param.test_name;
+                         });
 
 }  // namespace test
 }  // namespace xpl

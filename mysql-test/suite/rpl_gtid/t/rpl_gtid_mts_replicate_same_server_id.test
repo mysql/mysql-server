@@ -21,6 +21,8 @@
 #   slave and has the slave's server_id.
 
 --source include/not_group_replication_plugin.inc
+--source include/only_mts_replica_parallel_workers.inc
+--source include/not_rpl_gtid_only.inc
 --let $use_gtids= 0
 --source include/master-slave.inc
 

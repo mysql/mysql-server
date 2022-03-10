@@ -115,7 +115,7 @@ class PFS_index_host_cache : public PFS_engine_index {
  public:
   PFS_index_host_cache(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
 
-  ~PFS_index_host_cache() override {}
+  ~PFS_index_host_cache() override = default;
 
   virtual bool match(const row_host_cache *row) = 0;
 };
@@ -124,7 +124,7 @@ class PFS_index_host_cache_by_ip : public PFS_index_host_cache {
  public:
   PFS_index_host_cache_by_ip() : PFS_index_host_cache(&m_key), m_key("IP") {}
 
-  ~PFS_index_host_cache_by_ip() override {}
+  ~PFS_index_host_cache_by_ip() override = default;
 
   bool match(const row_host_cache *row) override;
 
@@ -137,7 +137,7 @@ class PFS_index_host_cache_by_host : public PFS_index_host_cache {
   PFS_index_host_cache_by_host()
       : PFS_index_host_cache(&m_key), m_key("HOST") {}
 
-  ~PFS_index_host_cache_by_host() override {}
+  ~PFS_index_host_cache_by_host() override = default;
 
   bool match(const row_host_cache *row) override;
 
@@ -168,7 +168,7 @@ class table_host_cache : public PFS_engine_table {
   table_host_cache();
 
  public:
-  ~table_host_cache() override {}
+  ~table_host_cache() override = default;
 
  private:
   void materialize(THD *thd);

@@ -92,7 +92,7 @@ static my_h_service h_my_svc =
   @retval false  success
   @retval true   failure
 */
-static bool test_plugin_registry(MYSQL_PLUGIN p MY_ATTRIBUTE((unused))) {
+static bool test_plugin_registry(MYSQL_PLUGIN p [[maybe_unused]]) {
   bool result = false;
   SERVICE_TYPE(registry) *r = mysql_plugin_registry_acquire();
   my_h_service h_reg = nullptr;
@@ -222,13 +222,13 @@ done:
   switch (state) {
     case MY_SVC_ACQUIRED:
       r->release(h_ret_svc);
-      /* fall through */
+      [[fallthrough]];
     case MY_SVC_REGISTERED:
       reg->unregister("test_services_plugin_registry_service.mysql_server");
-      /* fall through */
+      [[fallthrough]];
     case REG_ACQUIRED:
       r->release(h_reg);
-      /* fall through */
+      [[fallthrough]];
     case IDLE:
     default:
       mysql_plugin_registry_release(r);

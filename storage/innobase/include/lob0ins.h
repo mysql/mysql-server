@@ -104,7 +104,7 @@ class Inserter : private BaseInserter {
   Inserter(InsertContext *ctx) : BaseInserter(ctx) {}
 
   /** Destructor. */
-  ~Inserter() {}
+  ~Inserter() = default;
 
   /** Write all the BLOBs of the clustered index record.
   @return DB_SUCCESS on success, error code on failure. */

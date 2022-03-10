@@ -75,3 +75,15 @@ optimize table t1 extended;
 drop table t1;
 
 --echo End of 5.0 tests
+
+--echo #
+--echo # Bug#33079073 - sql_cmd_call::execute_inner(thd*): assertion
+--echo #                `thd->is_error() || thd->killed' failed.
+--echo # Assertion to check if error state is set in the diagnostics area
+--echo # on ANALYZE TABLE to UPDATE HISTOGRAM non-success in SP is failed.
+--echo #
+CREATE PROCEDURE p() ANALYZE TABLE v UPDATE HISTOGRAM ON w;
+--echo # Without fix, assert condition fails for following statement in the debug
+--echo # build. Statement executes successfully in the non-debug build.
+CALL p();
+DROP PROCEDURE p;

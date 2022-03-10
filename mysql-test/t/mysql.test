@@ -211,19 +211,19 @@ drop table t17583;
 
 --echo Test connect with dbname + _invalid_ hostname
 # Mask the errno of the error message
---replace_regex /\([0-9]*\)/(errno)/
+--replace_regex /\([-0-9]*\)/(errno)/
 --error 1
 --exec $MYSQL test -e "\r test invalid_hostname" 2>&1
---replace_regex /\([0-9]*\)/(errno)/
+--replace_regex /\([-0-9]*\)/(errno)/
 --error 1
 --exec $MYSQL test -e "connect test invalid_hostname" 2>&1
 
 --echo The commands reported in the bug report
---replace_regex /\([0-9]*\)/(errno)/
+--replace_regex /\([-0-9]*\)/(errno)/
 --error 1
 --exec $MYSQL test -e "\r\r\n\r\n cyril\ has\ found\ a\ bug\ :)XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" 2>&1
 
-#--replace_regex /\([0-9]*\)/(errno)/
+#--replace_regex /\([-0-9]*\)/(errno)/
 #--error 1
 #--exec echo '\r\r\n\r\n cyril\ has\ found\ a\ bug\ :)XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' | $MYSQL 2>&1
 
@@ -232,7 +232,7 @@ drop table t17583;
 --exec $MYSQL test -e "\r test_really_long_dbnamexxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx localhost" 2>&1
 
 --echo Too long hostname
---replace_regex /\([0-9]*\)/(errno)/
+--replace_regex /\([-0-9]*\)/(errno)/
 --error 1
 --exec $MYSQL test -e "\r  test cyrils_superlonghostnameXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" 2>&1
 
@@ -348,7 +348,7 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug31060.sql;
 #
 # Bug#37268 'binary' character set makes CLI-internal commands case sensitive
 #
---replace_regex /\([0-9]*\)/(errno)/
+--replace_regex /\([-0-9]*\)/(errno)/
 --error 1
 --exec $MYSQL --default-character-set=binary test -e "CONNECT test invalid_hostname" 2>&1
 --exec $MYSQL --default-character-set=binary test -e "DELIMITER //" 2>&1

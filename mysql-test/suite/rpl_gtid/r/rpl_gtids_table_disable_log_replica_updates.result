@@ -1,0 +1,142 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Adding debug point 'dont_compress_gtid_table' to @@GLOBAL.debug
+CREATE TABLE IF NOT EXISTS t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+#
+# Verify that transactions' gtids can be reported
+# from global.gtid_executed correctly.
+#
+include/assert.inc [committed gtids MASTER_UUID:1-4]
+#
+# Store gtids MASTER_UUID:1-4 in gtid_executed table on binlog rotation
+#
+FLUSH LOGS;
+SELECT * FROM mysql.gtid_executed;
+source_uuid	interval_start	interval_end
+MASTER_UUID	1	4
+include/sync_slave_sql_with_master.inc
+#
+# connection slave
+#
+include/assert.inc [committed gtids MASTER_UUID:1-4]
+#
+# Verify that slave thread stores gtid into gtid_executed table within
+# each transaction if binlog is on and log_slave_updated is disabled.
+#
+SELECT * FROM mysql.gtid_executed;
+source_uuid	interval_start	interval_end
+MASTER_UUID	1	1
+MASTER_UUID	2	2
+MASTER_UUID	3	3
+MASTER_UUID	4	4
+SET @@GLOBAL.DEBUG= '-d, dont_compress_gtid_table';
+INSERT INTO t1 VALUES(2);
+INSERT INTO t2 VALUES(2);
+#
+# Verify that store gtids SLAVE_UUID:1-2 into gtid_executed table,
+# which is also compressed on binlog rotation.
+#
+SET @old_compression_period= @@GLOBAL.GTID_EXECUTED_COMPRESSION_PERIOD;
+SET @@GLOBAL.GTID_EXECUTED_COMPRESSION_PERIOD= 1;
+FLUSH LOGS;
+SET @@GLOBAL.GTID_EXECUTED_COMPRESSION_PERIOD= @old_compression_period;
+SELECT * FROM mysql.gtid_executed where source_uuid="MASTER_UUID";
+source_uuid	interval_start	interval_end
+MASTER_UUID	1	4
+SELECT * FROM mysql.gtid_executed where source_uuid="SLAVE_UUID";
+source_uuid	interval_start	interval_end
+SLAVE_UUID	1	2
+#
+# Verify that we can get the correct set of gtid_purged when purging
+# logs if binlog is enabled and log_replica_updates is disabled.
+#
+PURGE BINARY LOGS TO 'slave-bin.000002';
+include/assert.inc [purged gtids SLAVE_UUID:1-2,MASTER_UUID:1-4]
+#
+# Verify that we can get the correct set from 'gtid_executed' table
+# when executing a big transaction that exceeds the max size of the
+# binlog if binlog is enabled and log_replica_updates is disabled.
+#
+SET @SIZE_DEFAULT=@@MAX_BINLOG_SIZE;
+SET GLOBAL MAX_BINLOG_SIZE=4096;
+SET @@GLOBAL.DEBUG= '+d, dont_compress_gtid_table';
+SET @@session.binlog_transaction_compression=FALSE;
+BEGIN;
+INSERT INTO t1 VALUES (1);;
+INSERT INTO t1 VALUES (2);;
+INSERT INTO t1 VALUES (3);;
+INSERT INTO t1 VALUES (4);;
+INSERT INTO t1 VALUES (5);;
+INSERT INTO t1 VALUES (6);;
+INSERT INTO t1 VALUES (7);;
+INSERT INTO t1 VALUES (8);;
+INSERT INTO t1 VALUES (9);;
+INSERT INTO t1 VALUES (10);;
+INSERT INTO t1 VALUES (11);;
+INSERT INTO t1 VALUES (12);;
+INSERT INTO t1 VALUES (13);;
+INSERT INTO t1 VALUES (14);;
+INSERT INTO t1 VALUES (15);;
+INSERT INTO t1 VALUES (16);;
+INSERT INTO t1 VALUES (17);;
+INSERT INTO t1 VALUES (18);;
+INSERT INTO t1 VALUES (19);;
+INSERT INTO t1 VALUES (20);;
+INSERT INTO t1 VALUES (21);;
+INSERT INTO t1 VALUES (22);;
+INSERT INTO t1 VALUES (23);;
+INSERT INTO t1 VALUES (24);;
+INSERT INTO t1 VALUES (25);;
+INSERT INTO t1 VALUES (26);;
+INSERT INTO t1 VALUES (27);;
+INSERT INTO t1 VALUES (28);;
+INSERT INTO t1 VALUES (29);;
+INSERT INTO t1 VALUES (30);;
+INSERT INTO t1 VALUES (31);;
+INSERT INTO t1 VALUES (32);;
+INSERT INTO t1 VALUES (33);;
+INSERT INTO t1 VALUES (34);;
+INSERT INTO t1 VALUES (35);;
+INSERT INTO t1 VALUES (36);;
+INSERT INTO t1 VALUES (37);;
+INSERT INTO t1 VALUES (38);;
+INSERT INTO t1 VALUES (39);;
+INSERT INTO t1 VALUES (40);;
+INSERT INTO t1 VALUES (41);;
+INSERT INTO t1 VALUES (42);;
+INSERT INTO t1 VALUES (43);;
+INSERT INTO t1 VALUES (44);;
+INSERT INTO t1 VALUES (45);;
+INSERT INTO t1 VALUES (46);;
+INSERT INTO t1 VALUES (47);;
+INSERT INTO t1 VALUES (48);;
+INSERT INTO t1 VALUES (49);;
+INSERT INTO t1 VALUES (50);;
+INSERT INTO t1 VALUES (51);;
+INSERT INTO t1 VALUES (52);;
+INSERT INTO t1 VALUES (53);;
+INSERT INTO t1 VALUES (54);;
+INSERT INTO t1 VALUES (55);;
+INSERT INTO t1 VALUES (56);;
+INSERT INTO t1 VALUES (57);;
+INSERT INTO t1 VALUES (58);;
+INSERT INTO t1 VALUES (59);;
+COMMIT;
+# Removing debug point 'dont_compress_gtid_table' from @@GLOBAL.debug
+SET GLOBAL MAX_BINLOG_SIZE=@SIZE_DEFAULT;
+SELECT * FROM mysql.gtid_executed where source_uuid="MASTER_UUID";
+source_uuid	interval_start	interval_end
+MASTER_UUID	1	4
+SELECT * FROM mysql.gtid_executed where source_uuid="SLAVE_UUID";
+source_uuid	interval_start	interval_end
+SLAVE_UUID	1	2
+SLAVE_UUID	3	3
+SET @@session.binlog_transaction_compression= SAVED;
+DROP TABLE t1,t2;
+include/rpl_end.inc

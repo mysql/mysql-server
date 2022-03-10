@@ -25,6 +25,7 @@
 #ifdef TEST_LHLEVEL
 
 #include <cstdint>
+#include <cstring>
 #include <ndb_global.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -65,7 +66,7 @@ int main(int argc, char *argv[])
   unsigned int nelem = argc > 1 ? atoi(argv[1]) : 1000000;
   plan(4);
   elem (*arr)[BUCKSIZE] = new elem[nelem][BUCKSIZE];
-  bzero(arr, nelem * sizeof(elem[BUCKSIZE]));
+  std::memset(arr, 0, nelem * sizeof(elem[BUCKSIZE]));
   LHLevel lh;
   lh.clear();
   expand(lh, arr);
@@ -142,7 +143,7 @@ bool delete_elem(LHLevel& lh, elem(*arr)[BUCKSIZE], Uint32 w)
     c_deletes += arr[addr][i].head;
     for (j = i + 1; j < BUCKSIZE; j++, i++)
       arr[addr][i] = arr[addr][j];
-    bzero(&arr[addr][i], sizeof(arr[addr][i]));
+    std::memset(&arr[addr][i], 0, sizeof(arr[addr][i]));
     return true;
   }
   else if (i < BUCKSIZE)
@@ -185,7 +186,7 @@ bool shrink(LHLevel& lh, elem(*arr)[BUCKSIZE])
     {
       assert(i<BUCKSIZE);
       arr[to][i] = arr[from][j];
-      bzero(&arr[from][j], sizeof(arr[from][j]));
+      std::memset(&arr[from][j], 0, sizeof(arr[from][j]));
       i++;
     }
     c_shrinks++;
@@ -226,9 +227,9 @@ void expand(LHLevel& lh, elem(*arr)[BUCKSIZE])
     }
   }
   for (; j < BUCKSIZE; j++)
-    bzero(&arr[to][j], sizeof(arr[to][j]));
+    std::memset(&arr[to][j], 0, sizeof(arr[to][j]));
   for (; k < BUCKSIZE; k++)
-    bzero(&arr[from][k], sizeof(arr[from][k]));
+    std::memset(&arr[from][k], 0, sizeof(arr[from][k]));
   lh.expand();
   c_expands++;
 }

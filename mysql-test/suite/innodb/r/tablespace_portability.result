@@ -196,3 +196,14 @@ DROP TABLESPACE ibport_s03;
 DROP TABLESPACE ibport_s04;
 DROP TABLESPACE ibport_s05;
 # restart:
+#
+# Bug#32721533 CAN'T ALTER TABLE AFTER MOVING THE DATA FILE USING INNODB_DIRECTORIES OPTION
+#
+CREATE TABLE t1(a INT);
+include/save_error_log_position.inc
+# restart:
+include/assert_error_log.inc [server: 1, pattern: .*\[Warning\].*Tablespace .*, name 'test/t1', file '.*test.*t1.ibd' is missing]
+# restart: --innodb_directories=INNODB_DIR
+ALTER TABLE t1 FORCE;
+DROP TABLE t1;
+# restart: 

@@ -1,0 +1,110 @@
+CREATE TABLE t1 ( a INTEGER, b INTEGER, c INTEGER );
+INSERT INTO t1 (a,b,c) VALUES (1,2,3);
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT SUM(c) OVER (PARTITION BY a ORDER BY b) FROM t1;
+EXPLAIN
+-> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a ORDER BY t1.b ) 
+    -> Sort: t1.a, t1.b
+        -> Table scan on t1
+
+EXPLAIN FORMAT=tree SELECT SUM(c) OVER (PARTITION BY a ORDER BY b), SUM(c) OVER (ORDER BY a,b) FROM t1;
+EXPLAIN
+-> Window aggregate with buffering: sum(t1.c) OVER (ORDER BY t1.a,t1.b ) 
+    -> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a ORDER BY t1.b ) 
+        -> Sort: t1.a, t1.b
+            -> Table scan on t1
+
+EXPLAIN FORMAT=tree SELECT SUM(b) OVER (PARTITION BY a), SUM(c) OVER (ORDER BY a,b) FROM t1;
+EXPLAIN
+-> Window aggregate with buffering: sum(t1.c) OVER (ORDER BY t1.a,t1.b ) 
+    -> Window aggregate with buffering: sum(t1.b) OVER (PARTITION BY t1.a ) 
+        -> Sort: t1.a, t1.b
+            -> Table scan on t1
+
+EXPLAIN FORMAT=tree SELECT SUM(c) OVER (PARTITION BY a ORDER BY b), SUM(c) OVER (ORDER BY b,a) FROM t1;
+EXPLAIN
+-> Window aggregate with buffering: sum(t1.c) OVER (ORDER BY t1.b,t1.a ) 
+    -> Sort: t1.b, t1.a
+        -> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a ORDER BY t1.b ) 
+            -> Sort: t1.a, t1.b
+                -> Table scan on t1
+
+CREATE INDEX idx ON t1 (a, b);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT SUM(c) OVER (PARTITION BY a) FROM t1;
+EXPLAIN
+-> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a ) 
+    -> Index scan on t1 using idx
+
+EXPLAIN FORMAT=tree SELECT SUM(c) OVER (PARTITION BY a ORDER BY b) FROM t1;
+EXPLAIN
+-> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a ORDER BY t1.b ) 
+    -> Index scan on t1 using idx
+
+ALTER TABLE t1 DROP INDEX idx;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT a, SUM(c) OVER (PARTITION BY a) FROM t1 ORDER BY a;
+EXPLAIN
+-> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a ) 
+    -> Sort: t1.a
+        -> Table scan on t1
+
+EXPLAIN FORMAT=tree SELECT a, SUM(c) OVER (ORDER BY b), AVG(c) OVER (ORDER BY a), SUM(c) OVER (PARTITION BY a) AS x FROM t1 ORDER BY b, x;
+EXPLAIN
+-> Window aggregate with buffering: sum(t1.c) OVER (ORDER BY t1.b ) 
+    -> Sort: t1.b, x
+        -> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a ) 
+            -> Window aggregate with buffering: avg(t1.c) OVER (ORDER BY t1.a ) 
+                -> Sort: t1.a
+                    -> Table scan on t1
+
+EXPLAIN FORMAT=tree SELECT DISTINCT a, SUM(c) OVER (ORDER BY b) FROM t1;
+EXPLAIN
+-> Sort with duplicate removal: t1.a, `SUM(c) OVER (ORDER BY b)`
+    -> Window aggregate with buffering: sum(t1.c) OVER (ORDER BY t1.b ) 
+        -> Sort: t1.b
+            -> Table scan on t1
+
+EXPLAIN FORMAT=tree SELECT DISTINCT a, b, SUM(b) OVER (PARTITION BY a) FROM t1 ORDER BY a;
+EXPLAIN
+-> Remove duplicates from input grouped on t1.a, t1.b  (cost=3.65..5.05 rows=8)
+    -> Window aggregate with buffering: sum(t1.b) OVER (PARTITION BY t1.a )   (cost=3.55..4.25 rows=8)
+        -> Sort: t1.a, t1.b  (cost=3.45..3.45 rows=8)
+            -> Table scan on t1  (cost=0.03..0.25 rows=8)
+
+EXPLAIN FORMAT=tree SELECT DISTINCT a, SUM(c) OVER (ORDER BY b) FROM t1 ORDER BY a;
+EXPLAIN
+-> Sort with duplicate removal: t1.a, `SUM(c) OVER (ORDER BY b)`
+    -> Window aggregate with buffering: sum(t1.c) OVER (ORDER BY t1.b ) 
+        -> Sort: t1.b
+            -> Table scan on t1
+
+EXPLAIN FORMAT=tree SELECT SUM(a) OVER (ORDER BY b) FROM t1 WHERE b=3;
+EXPLAIN
+-> Window aggregate with buffering: sum(t1.a) OVER (ORDER BY t1.b ) 
+    -> Filter: (t1.b = 3)
+        -> Table scan on t1
+
+CREATE INDEX idx ON t1 (a);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT t1.a, SUM(t1.a) OVER (ORDER BY t1.a), SUM(t2.b) OVER (ORDER BY t2.b) FROM t1 JOIN t1 AS t2 ON t1.a = t2.b;
+EXPLAIN
+-> Window aggregate with buffering: sum(t1.b) OVER (ORDER BY t1.b ) 
+    -> Window aggregate with buffering: sum(t1.a) OVER (ORDER BY t1.a ) 
+        -> Nested loop inner join
+            -> Index scan on t1 using idx
+            -> Filter: (t1.a = t2.b)
+                -> Table scan on t2
+
+DROP TABLE t1;

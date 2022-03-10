@@ -45,6 +45,8 @@
 #include "template_utils.h"
 
 PFS_ALIGNED size_t events_statements_history_long_size = 0;
+/** Consumer flag for CPU_TIME columns. */
+PFS_ALIGNED bool flag_events_statements_cpu = false;
 /** Consumer flag for table EVENTS_STATEMENTS_CURRENT. */
 PFS_ALIGNED bool flag_events_statements_current = false;
 /** Consumer flag for table EVENTS_STATEMENTS_HISTORY. */

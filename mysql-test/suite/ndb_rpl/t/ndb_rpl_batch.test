@@ -3,14 +3,14 @@
 --source suite/ndb_rpl/ndb_master-slave.inc
 
 #
-# Simple test to check that slave_allow_batching has at least a /2 effect
+# Simple test to check that replica_allow_batching has at least a /2 effect
 # on round trips.
 # Further testing could be added in the areas of
 #  - Correlation of batch size to data written
 #  - Slave batching and Blobs
 #  - Slave batching and hidden/autoinc keys
 #  - Batching within a multi-image event with 
-#    slave_allow_batching=OFF
+#    replica_allow_batching=OFF
 #
 
 --connection master
@@ -19,7 +19,7 @@ use test;
 
 --echo Create a couple of tables to defeat Binlog Injector's
 --echo creation of multi-image events which can be batch-applied
---echo on the slave regardless of slave_allow_batching
+--echo on the slave regardless of replica_allow_batching
 
 create table t1 (pk int primary key, a varchar(8000))
   engine=ndb character set latin1;
@@ -35,10 +35,10 @@ insert into t1 values (1, repeat("I", 80)), (2, repeat("R", 80));
 
 --sync_slave_with_master
 
---echo First pass with slave_allow_batching OFF
+--echo First pass with replica_allow_batching OFF
 --connection slave
-set global slave_allow_batching=OFF;
-show variables like 'slave_allow_batching';
+set global replica_allow_batching=OFF;
+show variables like 'replica_allow_batching';
 #show status like 'ndb_api%slave';
 --source ndb_slave_exec_info_init.inc
 
@@ -47,7 +47,7 @@ show variables like 'slave_allow_batching';
 --echo Check out batching
 --echo Transaction includes deletes + inserts, and
 --echo two different tables, shouldn't be entirely batchable
---echo without slave_allow_batching
+--echo without replica_allow_batching
 
 begin;
   delete from t1;
@@ -83,9 +83,9 @@ insert into t1 values (1, repeat("I", 80)), (2, repeat("R", 80));
 
 --sync_slave_with_master
 --connection slave
---echo Second pass with slave_allow_batching ON
-set global slave_allow_batching=ON;
-show variables like 'slave_allow_batching';
+--echo Second pass with replica_allow_batching ON
+set global replica_allow_batching=ON;
+show variables like 'replica_allow_batching';
 #show status like 'ndb_api%slave';
 --source ndb_slave_exec_info_init.inc
 
@@ -94,7 +94,7 @@ show variables like 'slave_allow_batching';
 --echo Check out batching
 --echo Transaction includes deletes + inserts, and
 --echo two different tables, shouldn't be batchable
---echo without slave_allow_batching
+--echo without replica_allow_batching
 
 begin;
   delete from t1;
@@ -124,11 +124,11 @@ SELECT @batching_on_pk_ops:=@init_pk_op_count_slave - @start_pk_op_count AS 'Pk_
 --enable_result_log 
 --enable_query_log
 
---echo Check that test compared like-for-like, and that slave_allow_batching
+--echo Check that test compared like-for-like, and that replica_allow_batching
 --echo came out ahead by a factor of at least 2.
 SELECT @batching_on_pk_ops = @batching_off_pk_ops AS 'Fair contest';
 SELECT @batching_off_pk_ops >=4 as 'Batching can improve matters';
-SELECT @batching_on_execs * 2 < @batching_off_execs AS 'slave_allow_batching works';
+SELECT @batching_on_execs * 2 < @batching_off_execs AS 'replica_allow_batching works';
 
 --echo Cleanup
 --connection master

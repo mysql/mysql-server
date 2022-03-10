@@ -166,7 +166,10 @@ class Blob {
   Blob(const byte *ptr, const size_t len)
       : m_ptr(const_cast<byte *>(ptr)), m_len(len) {}
 
-  Blob(const char *str) : m_ptr((byte *)str) { m_len = strlen(str); }
+  Blob(const char *str)
+      : m_ptr(const_cast<byte *>(reinterpret_cast<const byte *>(str))) {
+    m_len = strlen(str);
+  }
 
   byte *ptr() const { return m_ptr; }
 

@@ -284,7 +284,7 @@ Trigger *Trigger::create_from_parser(THD *thd, TABLE *subject_table,
 
   // Create a new Trigger instance.
 
-  timeval created_timestamp_not_set = {0, 0};
+  my_timeval created_timestamp_not_set = {0, 0};
   Trigger *t = new (&subject_table->mem_root) Trigger(
       trigger_name, &subject_table->mem_root, subject_table->s->db,
       subject_table->s->table_name, definition, definition_utf8,
@@ -343,7 +343,7 @@ Trigger *Trigger::create_from_dd(
     const LEX_CSTRING &connection_cl_name, const LEX_CSTRING &db_cl_name,
     enum_trigger_event_type trg_event_type,
     enum_trigger_action_time_type trg_time_type, uint action_order,
-    timeval created_timestamp) {
+    my_timeval created_timestamp) {
   return new (mem_root)
       Trigger(trigger_name, mem_root, db_name, subject_table_name, definition,
               definition_utf8, sql_mode, definer_user, definer_host,
@@ -363,7 +363,7 @@ Trigger::Trigger(
     const LEX_CSTRING &connection_cl_name, const LEX_CSTRING &db_cl_name,
     enum_trigger_event_type event_type,
     enum_trigger_action_time_type action_time, uint action_order,
-    timeval created_timestamp)
+    my_timeval created_timestamp)
     : m_mem_root(mem_root),
       m_db_name(db_name),
       m_subject_table_name(subject_table_name),
@@ -377,12 +377,11 @@ Trigger::Trigger(
       m_db_cl_name(db_cl_name),
       m_event(event_type),
       m_action_time(action_time),
+      m_created_timestamp(created_timestamp),
       m_action_order(action_order),
       m_trigger_name(trigger_name),
       m_sp(nullptr),
       m_has_parse_error(false) {
-  m_created_timestamp = created_timestamp;
-
   m_parse_error_message[0] = 0;
 
   construct_definer_value(mem_root, &m_definer, definer_user, definer_host);

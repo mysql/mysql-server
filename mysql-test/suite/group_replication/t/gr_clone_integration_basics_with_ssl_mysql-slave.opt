@@ -1,0 +1,2 @@
+$CLONE_PLUGIN_OPT
+--loose-group_replication_communication_stack=MySQL

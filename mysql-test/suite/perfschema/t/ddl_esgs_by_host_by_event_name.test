@@ -17,3 +17,8 @@ CREATE UNIQUE INDEX test_index
 -- error ER_DBACCESS_DENIED_ERROR
 DROP INDEX `HOST`
   ON performance_schema.events_stages_summary_by_host_by_event_name;
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.events_stages_summary_by_host_by_event_name;
+
+DROP TABLE test.create_select;

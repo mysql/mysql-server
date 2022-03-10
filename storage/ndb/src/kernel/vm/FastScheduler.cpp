@@ -135,6 +135,7 @@ FastScheduler::doJob(Uint32 loopStartCount)
       if (reg_bnr > 0) {
         Uint32 tJobCounter = globalData.JobCounter;
         Uint64 tJobLap = globalData.JobLap;
+        require(reg_bnr >= MIN_BLOCK_NO && reg_bnr <= MAX_BLOCK_NO);
         SimulatedBlock* b = globalData.getBlock(reg_bnr);
         theJobPriority[tJobCounter] = (Uint8)tHighPrio;
         globalData.JobCounter = (tJobCounter + 1) & 4095;

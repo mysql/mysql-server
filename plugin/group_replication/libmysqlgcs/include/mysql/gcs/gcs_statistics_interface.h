@@ -76,7 +76,7 @@ class Gcs_statistics_interface {
 
   virtual long get_last_message_timestamp() = 0;
 
-  virtual ~Gcs_statistics_interface() {}
+  virtual ~Gcs_statistics_interface() = default;
 };
 
 #endif  // GCS_STATISTICS_INTERFACE_INCLUDED

@@ -92,7 +92,7 @@ DELETE FROM d3.t1 where a=3;
 # Restart the salve server
 --let $rpl_server_number= 2
 --let $rpl_start_with_gtids= 1
---let $rpl_server_parameters= --skip_slave_start=FALSE --sync_master_info=1 --relay-log-recovery=1
+--let $rpl_server_parameters= --skip_replica_start=FALSE --sync_source_info=1 --relay-log-recovery=1
 --source include/rpl_restart_server.inc
 
 --source include/rpl_connection_master.inc

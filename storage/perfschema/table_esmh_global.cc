@@ -129,7 +129,7 @@ int table_esmh_global::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_esmh_global::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_esmh_global::index_init(uint idx [[maybe_unused]], bool) {
   PFS_index_esmh_global *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_esmh_global);

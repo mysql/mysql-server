@@ -72,6 +72,8 @@ SET GLOBAL log_slow_extra=DEFAULT;
 SET GLOBAL log_slow_extra=@old_lse;
 SET GLOBAL log_output=@old_lo;
 SET GLOBAL slow_query_log=@old_sql;
+TRUNCATE TABLE mysql.general_log;
+TRUNCATE TABLE mysql.slow_log;
 
 --echo
 

@@ -1,0 +1,8 @@
+#
+# BUG#32297610 AUTOSIZE SUBSCRIBERS
+# - each MySQL Server use at least 2 entries for detecting schema changes
+#   -> use "2 * MaxNoOfTables + 2 * 'number of api nodes'" by default
+SELECT pool_name, total FROM ndbinfo.ndb$pools WHERE pool_name = 'Subscriber';
+pool_name	total
+Subscriber	672
+Subscriber	672

@@ -13,16 +13,16 @@
 #
 #   0. This test needs two servers started in multi primary mode
 #   1. Create table to use on test
-#   2. Lock table on server2 to monitor
+#   2. Pause transactions on server2 to monitor
 #      group_replication_enforce_update_everywhere_checks
-#   3. Push data to server1. It won't be committed on server2 due to the lock
-#      on table
+#   3. Push data to server1. It won't be committed on server2 due to the
+#      paused transactions
 #   4. Execute action switch to single primary mode, with server2 as primary
 #      member
 #   5. Confirm stages on server2
-#   6. Since server2 has table t1 locked the values aren't committed, so
+#   6. Since server2 has paused transactions, the values aren't committed, so
 #      group_replication_enforce_update_everywhere_checks is enabled
-#   7. Unlock table on server2
+#   7. Resume transactions on server2
 #   8. On primary member the super_read_only shall be disable
 #   9. Confirm server2 is the group primary member.
 #   10. server2 after update all queued transactions will disable
@@ -32,6 +32,7 @@
 #
 ###############################################################################
 
+--source include/have_debug_sync.inc
 --source include/have_group_replication_plugin.inc
 --source include/group_replication.inc
 
@@ -46,23 +47,22 @@ CREATE TABLE test.t1 (a INT PRIMARY KEY);
 --source include/rpl_connection.inc
 
 --echo
---echo # 2. Lock table on server2 to monitor
+--echo # 2. Pause transactions on server2 to monitor
 --echo #    group_replication_enforce_update_everywhere_checks
 
-LOCK TABLE t1 WRITE;
+--let $debug_point= group_replication_wait_on_observer_trans
+--source include/add_debug_point.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --echo
 --echo # 3. Push data to server1.
---echo #    It won't be committed on server2 due to the lock on the table
+--echo #    It won't be committed on server2 due to paused transactions
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
 --eval INSERT INTO t1 VALUES (1)
---eval INSERT INTO t1 VALUES (2)
---eval INSERT INTO t1 VALUES (3)
 
 --echo
 --echo # 4. Execute action switch to single primary mode,
@@ -80,6 +80,8 @@ LOCK TABLE t1 WRITE;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Primary Election: stabilizing transactions%"
 --source include/wait_condition.inc
 
@@ -94,7 +96,7 @@ LOCK TABLE t1 WRITE;
 --source include/assert.inc
 
 --echo
---echo # 6. Since server2 has table t1 locked, the values aren't committed, so
+--echo # 6. Since server2 has paused transactions, the values aren't committed, so
 --echo #    group_replication_enforce_update_everywhere_checks is enabled
 
 --let $assert_text= group_replication_enforce_update_everywhere_checks is ON
@@ -102,9 +104,11 @@ LOCK TABLE t1 WRITE;
 --source include/assert.inc
 
 --echo
---echo # 7. Unlock table on server2
+--echo # 7. Resume transactions on server2
 
-UNLOCK TABLES;
+--let $debug_point= group_replication_wait_on_observer_trans
+--source include/remove_debug_point.inc
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
 
 --echo
 --echo # 8. On primary member the super_read_only shall be disable
@@ -145,6 +149,8 @@ UNLOCK TABLES;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
+SET DEBUG_SYNC= 'RESET';
 
 DROP TABLE t1;
 

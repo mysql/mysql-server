@@ -495,3 +495,50 @@ drop table db1.t1, db2.t1;
 # cleanup
 drop database db1;
 drop database db2;
+# Bug#26974491 FIXES DATA RESTORE WITH DISABLE INDEXES
+create database db3;
+use db3;
+create table t4 (
+id int primary key auto_increment
+) engine=ndb;
+create table t5 (
+id int primary key auto_increment,
+val int,
+constraint fkt3t2 foreign key (val) references t4 (id)
+)engine=ndb;
+insert into t4 values (1), (2), (3), (4), (5);
+insert into t5 values (1,1), (2,2), (3,3), (4,4), (5,5);
+# take backup and drop the tables
+drop table db3.t5, db3.t4;
+# Create more tables before restore in order to verify that ndb_restore restores foreign keys
+# appropriately even though the table ids of parent and child tables which make up the name
+# of the foreign key in the format, <parent_table_id>/<child_table_id>/fk_name are different
+# in backup files than the table ids restored.
+create table db3.t6 (
+id int primary key auto_increment
+) engine=ndb;
+create table db3.t7 (
+id int primary key auto_increment
+) engine=ndb;
+create table db3.t8 (
+id int primary key auto_increment
+) engine=ndb;
+create table db3.t9 (
+id int primary key auto_increment
+) engine=ndb;
+# Use case #1: Meta restore done with --disable-indexes (recommended)
+# Drop the tables to retore them again with a different use case
+drop table db3.t5, db3.t4;
+# Use case #2: Separate --disable-indexes step after metadata restore
+# Drop the tables to retore them again with a different use case
+drop table db3.t5, db3.t4;
+# Use case #3: Data restore with --disable-indexes
+# Drop the tables to retore them again with a different use case
+drop table db3.t5, db3.t4;
+# Use case #4: Data restore with --disable-indexes and Data restore with --rebuild-indexes
+# Drop the tables to retore them again with a different use case
+drop table db3.t5, db3.t4;
+# Use case #5: Both metadata and data restore with both --disable-indexes and --rebuild-indexes
+# cleanup
+drop table db3.t6, db3.t7, db3.t8, db3.t9;
+drop database db3;

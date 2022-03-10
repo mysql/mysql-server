@@ -42,8 +42,8 @@ class CntrStartReq {
   friend bool printCNTR_START_REQ(FILE*, const Uint32 *, Uint32, Uint16);
   
 public:
-  STATIC_CONST( OldSignalLength = 3 );
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 OldSignalLength = 3;
+  static constexpr Uint32 SignalLength = 4;
 private:
   
   Uint32 nodeId;
@@ -60,7 +60,7 @@ class CntrStartRef {
   
   friend bool printCNTR_START_REF(FILE*, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
   enum ErrorCode {
     OK = 0,
@@ -83,8 +83,8 @@ class CntrStartConf {
   friend bool printCNTR_START_CONF(FILE*, const Uint32 *, Uint32, Uint16);
 
 public:
-  STATIC_CONST( SignalLength = 4);
-  STATIC_CONST( SignalLength_v1 = 4 + 2 * 2 );
+  static constexpr Uint32 SignalLength = 4;
+  static constexpr Uint32 SignalLength_v1 = 4 + 2 * 2;
   
 private:
   
@@ -113,7 +113,7 @@ struct CntrWaitRep
     Grant = 2
   };
 
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 
   enum WaitPos
   {

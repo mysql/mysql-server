@@ -33,8 +33,8 @@
 class CopyTabReq {
   friend class Dbdih;
 public:
-  STATIC_CONST( SignalLengthExtra = 23 );
-  STATIC_CONST( SignalLength = 21 );
+  static constexpr Uint32 SignalLengthExtra = 23;
+  static constexpr Uint32 SignalLength = 21;
 
   enum TabLcpStatus
   {
@@ -56,7 +56,7 @@ private:
 class CopyTabConf {
   friend class Dbdih;
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
 private:
   Uint32 nodeId;

@@ -1,0 +1,111 @@
+SET @start_global_value = @@global.replica_transaction_retries;
+'#--------------------FN_DYNVARS_149_01-------------------------#'
+SET @@global.replica_transaction_retries = 50;
+SET @@global.replica_transaction_retries = DEFAULT;
+SELECT @@global.replica_transaction_retries;
+@@global.replica_transaction_retries
+10
+'#--------------------FN_DYNVARS_149_02-------------------------#'
+SET @@global.replica_transaction_retries = DEFAULT;
+SELECT @@global.replica_transaction_retries = 10;
+@@global.replica_transaction_retries = 10
+1
+'#--------------------FN_DYNVARS_149_03-------------------------#'
+SET @@global.replica_transaction_retries = 0;
+SELECT @@global.replica_transaction_retries;
+@@global.replica_transaction_retries
+0
+SET @@global.replica_transaction_retries = 1;
+SELECT @@global.replica_transaction_retries;
+@@global.replica_transaction_retries
+1
+SET @@global.replica_transaction_retries = 15;
+SELECT @@global.replica_transaction_retries;
+@@global.replica_transaction_retries
+15
+SET @@global.replica_transaction_retries = 1024;
+SELECT @@global.replica_transaction_retries;
+@@global.replica_transaction_retries
+1024
+SET @@global.replica_transaction_retries = 2147483648;
+SELECT @@global.replica_transaction_retries;
+@@global.replica_transaction_retries
+2147483648
+SET @@global.replica_transaction_retries = 2147483648*2-1;
+SELECT @@global.replica_transaction_retries;
+@@global.replica_transaction_retries
+4294967295
+SET @@global.replica_transaction_retries = 4294967295;
+SELECT @@global.replica_transaction_retries;
+@@global.replica_transaction_retries
+4294967295
+SET @@global.replica_transaction_retries = 18446744073709551615;
+SELECT @@global.replica_transaction_retries;
+@@global.replica_transaction_retries
+18446744073709551615
+'#--------------------FN_DYNVARS_149_04-------------------------#'
+SET @@replica_transaction_retries = 2;
+ERROR HY000: Variable 'replica_transaction_retries' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@session.replica_transaction_retries = 3;
+ERROR HY000: Variable 'replica_transaction_retries' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@local.replica_transaction_retries = 4;
+ERROR HY000: Variable 'replica_transaction_retries' is a GLOBAL variable and should be set with SET GLOBAL
+'#------------------FN_DYNVARS_149_05-----------------------#'
+SET @@global.replica_transaction_retries = -1;
+Warnings:
+Warning	1292	Truncated incorrect replica_transaction_retries value: '-1'
+SELECT @@global.replica_transaction_retries;
+@@global.replica_transaction_retries
+0
+SET @@global.replica_transaction_retries = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'replica_transaction_retries'
+SET @@global.replica_transaction_retries = '100';
+ERROR 42000: Incorrect argument type to variable 'replica_transaction_retries'
+SET @@global.replica_transaction_retries = 7483649.56;
+ERROR 42000: Incorrect argument type to variable 'replica_transaction_retries'
+SET @@global.replica_transaction_retries = ON;
+ERROR 42000: Incorrect argument type to variable 'replica_transaction_retries'
+SET @@global.replica_transaction_retries = OFF;
+ERROR 42000: Incorrect argument type to variable 'replica_transaction_retries'
+SET @@global.replica_transaction_retries = 18446744073709551616;
+ERROR 42000: Incorrect argument type to variable 'replica_transaction_retries'
+SELECT @@global.replica_transaction_retries;
+@@global.replica_transaction_retries
+0
+'#------------------FN_DYNVARS_149_06-----------------------#'
+SET @@global.replica_transaction_retries = 3000;
+SELECT @@global.replica_transaction_retries = VARIABLE_VALUE 
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='replica_transaction_retries';
+@@global.replica_transaction_retries = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_149_07-----------------------#'
+SELECT count(VARIABLE_VALUE) 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='replica_transaction_retries';
+count(VARIABLE_VALUE)
+1
+'#------------------FN_DYNVARS_149_08-----------------------#'
+SET @@global.replica_transaction_retries = TRUE;
+SELECT @@global.replica_transaction_retries;
+@@global.replica_transaction_retries
+1
+SET @@global.replica_transaction_retries = FALSE;
+SELECT @@global.replica_transaction_retries;
+@@global.replica_transaction_retries
+0
+'#---------------------FN_DYNVARS_149_09----------------------#'
+SET @@global.replica_transaction_retries = 60*60;
+SELECT @@replica_transaction_retries = @@global.replica_transaction_retries;
+@@replica_transaction_retries = @@global.replica_transaction_retries
+1
+'#---------------------FN_DYNVARS_149_10----------------------#'
+SET replica_transaction_retries = 2048;
+ERROR HY000: Variable 'replica_transaction_retries' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT replica_transaction_retries;
+ERROR 42S22: Unknown column 'replica_transaction_retries' in 'field list'
+SELECT @@replica_transaction_retries;
+@@replica_transaction_retries
+3600
+SET global replica_transaction_retries = 99;
+SET @@global.replica_transaction_retries = @start_global_value;

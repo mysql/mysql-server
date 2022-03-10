@@ -43,6 +43,7 @@ namespace test {
 
 using ::testing::_;
 using ::testing::An;
+using ::testing::DoAll;
 using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::ReturnRef;

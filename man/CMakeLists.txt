@@ -61,7 +61,6 @@ IF(NOT WITH_SYSTEMD)
 ENDIF()
 
 SET(MAN1_NDB
-  ndb-common-options.1
   ndb_blob_tool.1
   ndb_config.1
   ndb_cpcd.1

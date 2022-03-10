@@ -25,6 +25,8 @@
 
 #include <ndb_global.h>
 
+#include <time.h>
+
 #include "mt-asm.h"
 #include "WatchDog.hpp"
 #include "GlobalData.hpp"
@@ -36,7 +38,6 @@
 
 #include <NdbTick.h>
 
-extern EventLogger * g_eventLogger;
 
 extern "C" 
 void* 

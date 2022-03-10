@@ -1,0 +1,81 @@
+# ==== Purpose ====
+#
+# The purpose of this script is to verify that replica is able to receive
+# both old and new heartbeat_event
+#
+# ==== Requirements ====
+#
+# R1. Replica should work without erroring out for both old and new
+#     heartbeat event.
+#
+# ==== Implementation ====
+#
+# 1. Add a debug point which will force the source to send old
+#    heartbeat_event.
+# 2. Change the heartbeat period on replica to be able to generate heartbeat
+#    event quicker.
+# 3. Setup replication and sleep on source after executing 1 transaction,
+#    this will generate the heartbeat event on source side.
+# 4. Verify that the source error log has heartbeat event related message.
+# 5. Remove the debug point and verify that heartbeat events are still being
+#    generated on source side by asserting the heartbeat message in source
+#    error log.
+# 6. Verify if replication is working fine.
+# 7. Clean up
+#
+# ==== References ====
+#
+# Bug #29913991:HEARTBEAT EVENT CAN ONLY ADDRESS 32 BIT FILE OFFSET
+
+--source include/have_binlog_format_row.inc
+
+--source include/have_debug.inc
+
+# 1. Add the debug point on source to force the source to generate
+#    old heartbeat event.
+--let $debug_point= use_old_heartbeat_version
+--source include/add_debug_point.inc
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+# 2. Change the heartbeat period on replica
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD = 2;
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+CREATE TABLE t(s int);
+
+--source include/sync_slave_sql_with_master.inc
+
+# 3. Sleep Sleep long enough to receive heartbeat events, even on slow platforms
+--source include/rpl_connection_master.inc
+--sleep 2
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_connection_master.inc
+
+# 4 Verify that the source generated heartbeat related message in the error log
+--let $assert_text = Found heartbeat related message in the error log
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = master sends heartbeat message
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+# 5. Remove the debug point from source
+--let $debug_point= use_old_heartbeat_version
+--source include/remove_debug_point.inc
+INSERT INTO t VALUES(10);
+--sleep 2
+--let $assert_text = Found heartbeat related message in the error log
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = master sends heartbeat message
+--let $assert_count = 2
+--source include/assert_grep.inc
+
+# 6. Verify that replica is working fine
+--source include/sync_slave_sql_with_master.inc
+
+# 7. Clean up
+--source include/rpl_connection_master.inc
+DROP TABLE t;
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc

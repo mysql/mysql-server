@@ -139,7 +139,7 @@ class WkbParserTest : public ::testing::Test {
     delete m_tweaked_geo_srs;
   }
 
-  WkbParserTest() {}
+  WkbParserTest() = default;
 
  private:
   GTEST_DISALLOW_COPY_AND_ASSIGN_(WkbParserTest);

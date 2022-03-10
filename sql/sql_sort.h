@@ -55,21 +55,13 @@ constexpr size_t VARLEN_PREFIX = 4;
  */
 struct Merge_chunk {
  public:
-  Merge_chunk()
-      : m_current_key(nullptr),
-        m_file_position(0),
-        m_buffer_start(nullptr),
-        m_buffer_end(nullptr),
-        m_rowcount(0),
-        m_mem_count(0),
-        m_max_keys(0) {}
-
   my_off_t file_position() const { return m_file_position; }
   void set_file_position(my_off_t val) { m_file_position = val; }
   void advance_file_position(my_off_t val) { m_file_position += val; }
 
   uchar *buffer_start() { return m_buffer_start; }
   const uchar *buffer_end() const { return m_buffer_end; }
+  const uchar *valid_buffer_end() const { return m_valid_buffer_end; }
 
   void set_buffer(uchar *start, uchar *end) {
     m_buffer_start = start;
@@ -79,6 +71,10 @@ struct Merge_chunk {
   void set_buffer_end(uchar *end) {
     assert(m_buffer_end == nullptr || end <= m_buffer_end);
     m_buffer_end = end;
+  }
+  void set_valid_buffer_end(uchar *end) {
+    assert(end <= m_buffer_end);
+    m_valid_buffer_end = end;
   }
 
   void init_current_key() { m_current_key = m_buffer_start; }
@@ -118,14 +114,29 @@ struct Merge_chunk {
   }
 
  private:
-  uchar *m_current_key;      ///< The current key for this chunk.
-  my_off_t m_file_position;  ///< Current position in the file to be sorted.
-  uchar *m_buffer_start;     ///< Start of main-memory buffer for this chunk.
-  uchar *m_buffer_end;       ///< End of main-memory buffer for this chunk.
-  ha_rows m_rowcount;        ///< Number of unread rows in this chunk.
-  ha_rows m_mem_count;       ///< Number of rows in the main-memory buffer.
-  ha_rows m_max_keys;        ///< If we have fixed-size rows:
-                             ///    max number of rows in buffer.
+  /// The current key for this chunk.
+  uchar *m_current_key = nullptr;
+
+  /// Current position in the file to be sorted.
+  my_off_t m_file_position = 0;
+
+  /// Start of main-memory buffer for this chunk.
+  uchar *m_buffer_start = nullptr;
+
+  /// End of main-memory buffer for this chunk.
+  uchar *m_buffer_end = nullptr;
+
+  /// End of actual, valid data for this chunk.
+  uchar *m_valid_buffer_end;
+
+  /// Number of unread rows in this chunk.
+  ha_rows m_rowcount = 0;
+
+  /// Number of rows in the main-memory buffer.
+  ha_rows m_mem_count = 0;
+
+  /// If we have fixed-size rows: max number of rows in buffer.
+  ha_rows m_max_keys = 0;
 };
 
 typedef Bounds_checked_array<Merge_chunk> Merge_chunk_array;

@@ -563,21 +563,21 @@ struct z_first_page_t {
     return (fil_addr_t(page_no, offset));
   }
 
-  /** All the index pages are singled linked with each other, and the first
+  /** All the index pages are singly linked with each other, and the first
   page contains the link to one index page.
   @param[in]  page_no  the page number of an index page. */
   void set_index_page_no(page_no_t page_no) {
     mlog_write_ulint(frame() + OFFSET_INDEX_PAGE_NO, page_no, MLOG_4BYTES);
   }
 
-  /** All the index pages are singled linked with each other, and the first
+  /** All the index pages are singly linked with each other, and the first
   page contains the link to one index page. Get that index page number.
   @return the index page number. */
   page_no_t get_index_page_no() const {
     return (mach_read_from_4(frame() + OFFSET_INDEX_PAGE_NO));
   }
 
-  /** All the frag node pages are singled linked with each other, and the
+  /** All the frag node pages are singly linked with each other, and the
   first page contains the link to one frag node page.
   @param[in]  page_no  the page number of an frag node page. */
   void set_frag_node_page_no(page_no_t page_no) {
@@ -592,7 +592,7 @@ struct z_first_page_t {
   /** Free all the index pages. */
   void free_all_index_pages();
 
-  /** All the frag node pages are singled linked with each other, and the
+  /** All the frag node pages are singly linked with each other, and the
   first page contains the link to one frag node page. Get that frag node
   page number.
   @return the index page number. */

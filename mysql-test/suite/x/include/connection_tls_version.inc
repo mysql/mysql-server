@@ -34,27 +34,27 @@ EOF
 
 --exec $MYSQLXTEST                                     $XTESTPARAMS 2>&1
 --exec $MYSQLXTEST --tls-version=TLSv1,TLSv1.1,TLSv1.2 $XTESTPARAMS 2>&1
---exec $MYSQLXTEST --tls-version=TLSv1,TLSv1.1         $XTESTPARAMS 2>&1
+--exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv1,TLSv1.1         $XTESTPARAMS 2>&1
 --exec $MYSQLXTEST --tls-version=TLSv1,TLSv1.2         $XTESTPARAMS 2>&1
 --exec $MYSQLXTEST --tls-version=TLSv1.1,TLSv1.2       $XTESTPARAMS 2>&1
---exec $MYSQLXTEST --tls-version=TLSv1                 $XTESTPARAMS 2>&1
---exec $MYSQLXTEST --tls-version=TLSv1.1               $XTESTPARAMS 2>&1
+--exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv1                 $XTESTPARAMS 2>&1
+--exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv1.1               $XTESTPARAMS 2>&1
 
 --exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv3 $XTESTPARAMS 2>&1
 
 
---let $restart_parameters = restart: --tls-version=TLSv1
+--let $restart_parameters = restart: --tls-version=TLSv1.2
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 --exec $MYSQLXTEST                                     $XTESTPARAMS 2>&1
 --exec $MYSQLXTEST --tls-version=TLSv1,TLSv1.1,TLSv1.2 $XTESTPARAMS 2>&1
---exec $MYSQLXTEST --tls-version=TLSv1,TLSv1.1         $XTESTPARAMS 2>&1
+--exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv1,TLSv1.1         $XTESTPARAMS 2>&1
 --exec $MYSQLXTEST --tls-version=TLSv1,TLSv1.2         $XTESTPARAMS 2>&1
 
 --replace_regex $ERROR1
 --exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv1.1,TLSv1.2 $XTESTPARAMS 2>&1
 
---exec $MYSQLXTEST --tls-version=TLSv1                               $XTESTPARAMS 2>&1
+--exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv1                               $XTESTPARAMS 2>&1
 
 --replace_regex $ERROR1
 --exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv1.1 $XTESTPARAMS 2>&1
@@ -62,12 +62,12 @@ EOF
 --exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv3   $XTESTPARAMS 2>&1
 
 
---let $restart_parameters = restart: --tls-version=TLSv1.1
+--let $restart_parameters = restart: --tls-version=TLSv1.2
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 --exec $MYSQLXTEST                                     $XTESTPARAMS 2>&1
 --exec $MYSQLXTEST --tls-version=TLSv1,TLSv1.1,TLSv1.2 $XTESTPARAMS 2>&1
---exec $MYSQLXTEST --tls-version=TLSv1,TLSv1.1         $XTESTPARAMS 2>&1
+--exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv1,TLSv1.1         $XTESTPARAMS 2>&1
 
 --replace_regex $ERROR5
 --exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv1,TLSv1.2 $XTESTPARAMS 2>&1
@@ -76,7 +76,7 @@ EOF
 --replace_regex $ERROR5
 --exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv1 $XTESTPARAMS 2>&1
 
---exec $MYSQLXTEST --tls-version=TLSv1.1                   $XTESTPARAMS 2>&1
+--exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv1.1                   $XTESTPARAMS 2>&1
 
 --exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv3 $XTESTPARAMS 2>&1
 

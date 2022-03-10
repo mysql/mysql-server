@@ -24,7 +24,7 @@
 #   $rpl_start_with_gtids
 #     If set to 1, the server will start with GTIDs on, i.e.:
 #       --gtid-mode=on --enforce-gtid-consistency
-#       --log-bin --log-slave-updates
+#       --log-bin --log-replica-updates
 #       --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB
 #     If set to 0, the server will start without GTIDs, i.e.:
 #       --gtid-mode=off
@@ -65,7 +65,7 @@
 if ($rpl_start_with_gtids == 1)
 {
   --let $_rpl_start_server_info= $_rpl_start_server_info gtids=on
-  --let _RPL_START_SERVER_PARAMETERS= $_RPL_START_SERVER_PARAMETERS --log-bin --log-slave-updates --enforce-gtid-consistency --gtid-mode=on --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB
+  --let _RPL_START_SERVER_PARAMETERS= $_RPL_START_SERVER_PARAMETERS --log-bin --log-replica-updates --enforce-gtid-consistency --gtid-mode=on --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB
 }
 if ($rpl_start_with_gtids == 0)
 {

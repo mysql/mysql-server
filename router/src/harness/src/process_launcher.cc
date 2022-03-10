@@ -47,7 +47,7 @@
 #include <unistd.h>
 #endif
 
-#include "iostream"
+#include "common.h"
 
 using namespace std::chrono_literals;
 using namespace std::string_literals;
@@ -214,12 +214,6 @@ void ProcessLauncher::start() {
 
   std::string arguments = win32::cmdline_from_args(executable_path, args);
 
-  si.cb = sizeof(STARTUPINFO);
-  if (redirect_stderr) si.hStdError = child_out_wr;
-  si.hStdOutput = child_out_wr;
-  si.hStdInput = child_in_rd;
-  si.dwFlags |= STARTF_USESTDHANDLES;
-
   // as CreateProcess may/will modify the arguments (split filename and args
   // with a \0) keep a copy of it for error-reporting.
   std::string create_process_arguments = arguments;
@@ -227,17 +221,73 @@ void ProcessLauncher::start() {
     SetEnvironmentVariable(env_var.first.c_str(), env_var.second.c_str());
   }
 
+  // The code below makes sure the process we are launching only inherits the
+  // in/out pipes FDs
+  SIZE_T size = 0;
+  // figure out the size needed for a 1-elem list
+  if (InitializeProcThreadAttributeList(NULL, 1, 0, &size) == FALSE &&
+      GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+    throw std::system_error(last_error_code(),
+                            "Failed to InitializeProcThreadAttributeList() "
+                            "when launching a process " +
+                                arguments);
+  }
+
+  // allocate the memory for the list
+  auto attribute_list = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(
+      HeapAlloc(GetProcessHeap(), 0, size));
+  if (attribute_list == nullptr) {
+    throw std::system_error(
+        last_error_code(),
+        "Failed to HeapAlloc() when launchin a process " + arguments);
+  }
+  mysql_harness::ScopeGuard clean_attribute_list_guard(
+      [&]() { DeleteProcThreadAttributeList(attribute_list); });
+
+  if (InitializeProcThreadAttributeList(attribute_list, 1, 0, &size) == FALSE) {
+    throw std::system_error(last_error_code(),
+                            "Failed to InitializeProcThreadAttributeList() 2 "
+                            "when launching a process " +
+                                arguments);
+  }
+
+  // fill up the list
+  HANDLE handles_to_inherit[] = {child_out_wr, child_in_rd};
+  if (UpdateProcThreadAttribute(attribute_list, 0,
+                                PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                handles_to_inherit, sizeof(handles_to_inherit),
+                                NULL, NULL) == FALSE) {
+    throw std::system_error(
+        last_error_code(),
+        "Failed to UpdateProcThreadAttribute() when launching a process " +
+            arguments);
+  }
+
+  // prepare the process' startup parameters structure
+  si.cb = sizeof(STARTUPINFO);
+  if (redirect_stderr) si.hStdError = child_out_wr;
+  si.hStdOutput = child_out_wr;
+  si.hStdInput = child_in_rd;
+  si.dwFlags |= STARTF_USESTDHANDLES;
+  STARTUPINFOEX si_ex;
+  ZeroMemory(&si_ex, sizeof(si_ex));
+  si_ex.StartupInfo = si;
+  si_ex.StartupInfo.cb = sizeof(si_ex);
+  si_ex.lpAttributeList = attribute_list;
+
+  // launch the process
   BOOL bSuccess =
       CreateProcess(NULL,                               // lpApplicationName
                     &create_process_arguments.front(),  // lpCommandLine
                     NULL,                               // lpProcessAttributes
                     NULL,                               // lpThreadAttributes
                     TRUE,                               // bInheritHandles
-                    CREATE_NEW_PROCESS_GROUP,           // dwCreationFlags
-                    NULL,                               // lpEnvironment
-                    NULL,                               // lpCurrentDirectory
-                    &si,                                // lpStartupInfo
-                    &pi);                               // lpProcessInformation
+                    CREATE_NEW_PROCESS_GROUP |
+                        EXTENDED_STARTUPINFO_PRESENT,  // dwCreationFlags
+                    NULL,                              // lpEnvironment
+                    NULL,                              // lpCurrentDirectory
+                    &si_ex.StartupInfo,                // lpStartupInfo
+                    &pi);                              // lpProcessInformation
 
   if (!bSuccess) {
     throw std::system_error(last_error_code(),
@@ -266,11 +316,7 @@ int ProcessLauncher::wait(std::chrono::milliseconds timeout) {
           get_ret = GetExitCodeProcess(pi.hProcess, &dwExit);
           break;
         case WAIT_TIMEOUT:
-          throw std::system_error(std::make_error_code(std::errc::timed_out),
-                                  std::string("Timed out waiting " +
-                                              std::to_string(timeout.count()) +
-                                              " ms for the process '" +
-                                              executable_path + "' to exit"));
+          throw std::system_error(std::make_error_code(std::errc::timed_out));
         case WAIT_FAILED:
           throw std::system_error(last_error_code());
         default:
@@ -405,10 +451,6 @@ void ProcessLauncher::end_of_write() {
   CloseHandle(child_in_wr);
   child_in_wr_closed = true;
 }
-
-uint64_t ProcessLauncher::get_fd_write() const { return (uint64_t)child_in_wr; }
-
-uint64_t ProcessLauncher::get_fd_read() const { return (uint64_t)child_out_rd; }
 
 #else
 
@@ -585,6 +627,9 @@ int ProcessLauncher::close() {
     }
   }
 
+  std::lock_guard<std::mutex> fd_in_lock(fd_in_mtx_);
+  std::lock_guard<std::mutex> fd_out_lock(fd_out_mtx_);
+
   if (fd_out[0] != -1) ::close(fd_out[0]);
   if (fd_in[1] != -1) ::close(fd_in[1]);
 
@@ -596,12 +641,17 @@ int ProcessLauncher::close() {
 }
 
 void ProcessLauncher::end_of_write() {
+  std::lock_guard<std::mutex> fd_in_lock(fd_in_mtx_);
+
   if (fd_in[1] != -1) ::close(fd_in[1]);
   fd_in[1] = -1;
 }
 
 int ProcessLauncher::read(char *buf, size_t count,
                           std::chrono::milliseconds timeout) {
+  std::lock_guard<std::mutex> fd_out_lock(fd_out_mtx_);
+  if (fd_out[0] == -1) return 0;
+
   int n;
   fd_set set;
   struct timeval timeout_tv;
@@ -625,6 +675,10 @@ int ProcessLauncher::read(char *buf, size_t count,
 
 int ProcessLauncher::write(const char *buf, size_t count) {
   int n;
+
+  std::lock_guard<std::mutex> fd_in_lock(fd_in_mtx_);
+  if (fd_in[1] == -1) return 0;
+
   if ((n = (int)::write(fd_in[1], buf, count)) >= 0) return n;
 
   auto ec = last_error_code();
@@ -653,16 +707,10 @@ int ProcessLauncher::wait(const std::chrono::milliseconds timeout) {
         std::this_thread::sleep_for(std::chrono::milliseconds(sleep_for));
         wait_time -= sleep_for;
       } else {
-        throw std::system_error(std::make_error_code(std::errc::timed_out),
-                                std::string("Timed out waiting ") +
-                                    std::to_string(timeout.count()) +
-                                    " ms for the process " +
-                                    std::to_string(childpid) + " to exit");
+        throw std::system_error(std::make_error_code(std::errc::timed_out));
       }
     } else if (ret == -1) {
-      throw std::system_error(
-          last_error_code(),
-          std::string("waiting for process '" + executable_path + "' failed"));
+      throw std::system_error(last_error_code());
     } else {
       if (WIFEXITED(status)) {
         return WEXITSTATUS(status);
@@ -685,10 +733,6 @@ int ProcessLauncher::wait(const std::chrono::milliseconds timeout) {
     }
   } while (true);
 }
-
-uint64_t ProcessLauncher::get_fd_write() const { return (uint64_t)fd_in[1]; }
-
-uint64_t ProcessLauncher::get_fd_read() const { return (uint64_t)fd_out[0]; }
 
 #endif
 

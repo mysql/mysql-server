@@ -42,7 +42,7 @@ class TransactionPayloadCompressionTest : public ::testing::Test {
   std::vector<std::size_t> m_payloads;
 
  protected:
-  TransactionPayloadCompressionTest() {}
+  TransactionPayloadCompressionTest() = default;
 
   void SetUp() override {
     for (auto size : buffer_sizes) m_payloads.push_back(size);

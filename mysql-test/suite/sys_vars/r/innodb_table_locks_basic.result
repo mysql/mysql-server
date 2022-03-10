@@ -55,6 +55,7 @@ SELECT @@global.innodb_table_locks;
 1
 '#--------------------FN_DYNVARS_046_04-------------------------#'
 SET @@session.innodb_table_locks = -6;
+ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of '-6'
 SET @@session.innodb_table_locks = 1.6;
 ERROR 42000: Incorrect argument type to variable 'innodb_table_locks'
 SET @@session.innodb_table_locks = "T";
@@ -73,6 +74,7 @@ SELECT @@session.innodb_table_locks;
 SET @@session.innodb_table_locks = ÓFF;
 ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of 'ÓFF'
 SET @@global.innodb_table_locks = -1;
+ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of '-1'
 SET @@global.innodb_table_locks = 2;
 ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of '2'
 SET @@global.innodb_table_locks = "T";

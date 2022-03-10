@@ -29,6 +29,27 @@
   @file mysys/my_thread.cc
 */
 
+#include "my_config.h"
+
+#ifdef HAVE_PTHREAD_SETNAME_NP_LINUX
+#include <cstring>
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <pthread.h>
+#endif /* HAVE_PTHREAD_SETNAME_NP_LINUX */
+
+#ifdef HAVE_PTHREAD_SETNAME_NP_MACOS
+#include <pthread.h>
+#endif /* HAVE_PTHREAD_SETNAME_NP_MACOS */
+
+#ifdef _WIN32
+#include <windows.h>
+
+#include <processthreadsapi.h>
+
+#include <stringapiset.h>
+#endif /* _WIN32 */
 #include "my_thread.h"
 #include "mysql/components/services/my_thread_bits.h"
 
@@ -100,6 +121,8 @@ int my_thread_join(my_thread_handle *thread, void **value_ptr) {
 #ifndef _WIN32
   return pthread_join(thread->thread, value_ptr);
 #else
+  (void)value_ptr;  // maybe unused
+
   DWORD ret;
   int result = 0;
   ret = WaitForSingleObject(thread->handle, INFINITE);
@@ -135,6 +158,107 @@ void my_thread_exit(void *value_ptr) {
 #ifndef _WIN32
   pthread_exit(value_ptr);
 #else
+  (void)value_ptr;  // maybe_unused
   _endthreadex(0);
+#endif
+}
+
+/**
+  Maximum name length used for my_thread_self_setname(),
+  including the terminating NUL character.
+  Linux pthread_setname_np(3) is restricted to 15+1 chars,
+  so we use the same limit on all platforms.
+*/
+#define SETNAME_MAX_LENGTH 16
+
+#ifdef _WIN32
+template <class TMethod>
+class Win32_library_procedure {
+ public:
+  Win32_library_procedure(std::string module, std::string func_name)
+      : m_module(LoadLibrary(module.c_str())), m_func(nullptr) {
+    if (m_module != nullptr) {
+      m_func = reinterpret_cast<TMethod *>(
+          GetProcAddress(m_module, func_name.c_str()));
+    }
+  }
+  ~Win32_library_procedure() {
+    if (m_module != nullptr) {
+      FreeLibrary(m_module);
+    }
+  }
+  bool is_valid() { return m_func != nullptr; }
+  template <typename... TArgs>
+  auto operator()(TArgs... args) {
+    return m_func(std::forward<TArgs>(args)...);
+  }
+
+ private:
+  HMODULE m_module;
+  TMethod *m_func;
+};
+
+static Win32_library_procedure<decltype(SetThreadDescription)>
+    set_thread_name_proc("kernel32.dll", "SetThreadDescription");
+#endif
+
+void my_thread_self_setname(const char *name [[maybe_unused]]) {
+#ifdef HAVE_PTHREAD_SETNAME_NP_LINUX
+  /*
+    GNU extension, see pthread_setname_np(3)
+  */
+  char truncated_name[SETNAME_MAX_LENGTH];
+  strncpy(truncated_name, name, sizeof(truncated_name) - 1);
+  truncated_name[sizeof(truncated_name) - 1] = '\0';
+  pthread_setname_np(pthread_self(), truncated_name);
+#elif defined(HAVE_PTHREAD_SETNAME_NP_MACOS)
+  pthread_setname_np(name);
+#elif _WIN32
+  /* Check if we can use the new Windows 10 API. */
+  if (set_thread_name_proc.is_valid()) {
+    wchar_t w_name[SETNAME_MAX_LENGTH];
+    int size;
+
+    size =
+        MultiByteToWideChar(CP_UTF8, 0, name, -1, w_name, SETNAME_MAX_LENGTH);
+    if (size > 0 && size <= SETNAME_MAX_LENGTH) {
+      /* Make sure w_name is NUL terminated when truncated. */
+      w_name[SETNAME_MAX_LENGTH - 1] = 0;
+      set_thread_name_proc(GetCurrentThread(), w_name);
+    }
+  }
+
+  /* According to Microsoft documentation there is a "secret handshake" between
+  debuggee & debugger using the special values used below. We use it always in
+  case there is a debugger attached, even if the new Win10 API for thread names
+  is available. */
+  constexpr DWORD MS_VC_EXCEPTION = 0x406D1388;
+#pragma pack(push, 8)
+  struct THREADNAME_INFO {
+    DWORD dwType;
+    LPCSTR szName;
+    DWORD dwThreadID;
+    DWORD dwFlags;
+  };
+#pragma pack(pop)
+
+  THREADNAME_INFO info;
+  info.dwType = 0x1000;
+  info.szName = name;
+  info.dwThreadID = GetCurrentThreadId();
+  info.dwFlags = 0;
+
+#pragma warning(push)
+#pragma warning(disable : 6320 6322)
+  __try {
+    RaiseException(MS_VC_EXCEPTION, 0, sizeof(info) / sizeof(ULONG_PTR),
+                   (ULONG_PTR *)&info);
+  } __except (EXCEPTION_EXECUTE_HANDLER) {
+  }
+#pragma warning(pop)
+
+#else
+  /* Do nothing for this platform. */
+  return;
 #endif
 }

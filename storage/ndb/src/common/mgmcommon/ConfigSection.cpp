@@ -27,7 +27,6 @@
 #include <kernel_types.h>
 #include <Properties.hpp>
 #include <ndb_limits.h>
-#include <NdbOut.hpp>
 #include <ConfigSection.hpp>
 #include <ConfigObject.hpp>
 #include <stdlib.h>
@@ -37,16 +36,24 @@
 #include <algorithm>
 #include <bitset>
 
+#include <EventLogger.hpp>
+
 //#define DEBUG_MALLOC 1
 #ifdef DEBUG_MALLOC
-#define DEB_MALLOC(arglist) do { ndbout_c arglist ; } while (0)
+#define DEB_MALLOC(arglist)      \
+  do {                           \
+    g_eventLogger->info arglist; \
+  } while (0)
 #else
 #define DEB_MALLOC(arglist) do { } while (0)
 #endif
 
 //#define DEBUG_UNPACK_V1 1
 #ifdef DEBUG_UNPACK_V1
-#define DEB_UNPACK_V1(arglist) do { ndbout_c arglist ; } while (0)
+#define DEB_UNPACK_V1(arglist)   \
+  do {                           \
+    g_eventLogger->info arglist; \
+  } while (0)
 #else
 #define DEB_UNPACK_V1(arglist) do { } while (0)
 #endif

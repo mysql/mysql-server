@@ -71,7 +71,7 @@ let $table=replication_connection_status;
 # Create topology master->slave_2->slave_1 and check that slave_1
 # receives heartbeat while slave_2 gets data.
 
-# slave_2 was started w/o --log-slave-updates because slave_2 should
+# slave_2 was started w/o --log-replica-updates because slave_2 should
 # not send data from master to slave_1
 
 --source include/rpl_stop_slaves.inc

@@ -41,6 +41,8 @@ SET GLOBAL group_replication_communication_debug_options = @@GLOBAL.group_replic
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_communication_max_message_size = @@GLOBAL.group_replication_communication_max_message_size;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET GLOBAL group_replication_communication_stack = @@GLOBAL.group_replication_communication_stack;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_components_stop_timeout = @@GLOBAL.group_replication_components_stop_timeout;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_compression_threshold = @@GLOBAL.group_replication_compression_threshold;
@@ -90,6 +92,8 @@ ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIA
 SET GLOBAL group_replication_member_weight = @@GLOBAL.group_replication_member_weight;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_message_cache_size = @@GLOBAL.group_replication_message_cache_size;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET GLOBAL group_replication_paxos_single_leader = @@GLOBAL.group_replication_paxos_single_leader;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_poll_spin_loops = @@GLOBAL.group_replication_poll_spin_loops;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
@@ -141,6 +145,8 @@ SET GLOBAL group_replication_transaction_size_limit = @@GLOBAL.group_replication
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_unreachable_majority_timeout = @@GLOBAL.group_replication_unreachable_majority_timeout;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET GLOBAL group_replication_view_change_uuid = @@GLOBAL.group_replication_view_change_uuid;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 
 # Like most system variables, setting the session value for
 # group_replication_consistency requires no special privileges.
@@ -163,6 +169,7 @@ SET GLOBAL group_replication_bootstrap_group = @@GLOBAL.group_replication_bootst
 SET GLOBAL group_replication_clone_threshold = @@GLOBAL.group_replication_clone_threshold;
 SET GLOBAL group_replication_communication_debug_options = @@GLOBAL.group_replication_communication_debug_options;
 SET GLOBAL group_replication_communication_max_message_size = @@GLOBAL.group_replication_communication_max_message_size;
+SET GLOBAL group_replication_communication_stack = @@GLOBAL.group_replication_communication_stack;
 SET GLOBAL group_replication_components_stop_timeout = @@GLOBAL.group_replication_components_stop_timeout;
 SET GLOBAL group_replication_compression_threshold = @@GLOBAL.group_replication_compression_threshold;
 SET GLOBAL group_replication_consistency = @@GLOBAL.group_replication_consistency;
@@ -191,6 +198,7 @@ SET GLOBAL group_replication_local_address = @@GLOBAL.group_replication_local_ad
 SET GLOBAL group_replication_member_expel_timeout = @@GLOBAL.group_replication_member_expel_timeout;
 SET GLOBAL group_replication_member_weight = @@GLOBAL.group_replication_member_weight;
 SET GLOBAL group_replication_message_cache_size = @@GLOBAL.group_replication_message_cache_size;
+SET GLOBAL group_replication_paxos_single_leader = @@GLOBAL.group_replication_paxos_single_leader;
 SET GLOBAL group_replication_poll_spin_loops = @@GLOBAL.group_replication_poll_spin_loops;
 SET GLOBAL group_replication_recovery_complete_at = @@GLOBAL.group_replication_recovery_complete_at;
 SET GLOBAL group_replication_recovery_compression_algorithms = @@GLOBAL.group_replication_recovery_compression_algorithms;
@@ -216,6 +224,7 @@ SET GLOBAL group_replication_start_on_boot = @@GLOBAL.group_replication_start_on
 SET GLOBAL group_replication_tls_source = @@GLOBAL.group_replication_tls_source;
 SET GLOBAL group_replication_transaction_size_limit = @@GLOBAL.group_replication_transaction_size_limit;
 SET GLOBAL group_replication_unreachable_majority_timeout = @@GLOBAL.group_replication_unreachable_majority_timeout;
+SET GLOBAL group_replication_view_change_uuid = @@GLOBAL.group_replication_view_change_uuid;
 
 ############################################################
 # 4. Grant GROUP_REPLICATION_ADMIN and verify setting

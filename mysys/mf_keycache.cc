@@ -38,11 +38,11 @@
   When a new block is required it is first tried to pop one from the stack.
   If the stack is empty, it is tried to get a never-used block from the pool.
   If this is empty too, then a block is taken from the LRU ring, flushing it
-  to disk, if neccessary. This is handled in find_key_block().
+  to disk, if necessary. This is handled in find_key_block().
   With the new free list, the blocks can have three temperatures:
   hot, warm and cold (which is free). This is remembered in the block header
   by the enum BLOCK_TEMPERATURE temperature variable. Remembering the
-  temperature is neccessary to correctly count the number of warm blocks,
+  temperature is necessary to correctly count the number of warm blocks,
   which is required to decide when blocks are allowed to become hot. Whenever
   a block is inserted to another (sub-)chain, we take the old and new
   temperature into account to decide if we got one more or less warm block.
@@ -2110,7 +2110,7 @@ static void read_block(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
 uchar *key_cache_read(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
                       File file, my_off_t filepos, int level, uchar *buff,
                       uint length, uint block_length,
-                      int return_buffer MY_ATTRIBUTE((unused))) {
+                      int return_buffer [[maybe_unused]]) {
   bool locked_and_incremented = false;
   int error = 0;
   uchar *start = buff;
@@ -2521,7 +2521,7 @@ int key_cache_insert(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
 
 int key_cache_write(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
                     File file, my_off_t filepos, int level, uchar *buff,
-                    uint length, uint block_length MY_ATTRIBUTE((unused)),
+                    uint length, uint block_length [[maybe_unused]],
                     int dont_write) {
   bool locked_and_incremented = false;
   int error = 0;
@@ -3598,7 +3598,7 @@ static int flush_all_key_blocks(KEY_CACHE *keycache,
     0 on success (always because it can't fail)
 */
 
-int reset_key_cache_counters(const char *name MY_ATTRIBUTE((unused)),
+int reset_key_cache_counters(const char *name [[maybe_unused]],
                              KEY_CACHE *key_cache) {
   DBUG_TRACE;
   if (!key_cache->key_cache_inited) {

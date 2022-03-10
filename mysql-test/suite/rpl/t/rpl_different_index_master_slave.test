@@ -9,7 +9,7 @@
 # ========= Reference ==========
 # Bug#26450129:DEAD BRANCH IN SEARCH_KEY_IN_TABLE()
 
-# The status variable Slave_rows_last_search_algorithm_used is defined
+# The status variable Replica_rows_last_search_algorithm_used is defined
 # only in Debug mode, running this test in non-debug mode will cause
 # assert failure.
 --source include/have_debug.inc
@@ -55,7 +55,7 @@ DELETE FROM t1 WHERE b != 0 ORDER BY b DESC;
 --source include/sync_slave_sql_with_master.inc
 
 
---let $assert_cond = "[SHOW STATUS LIKE \"Slave_rows_last_search_algorithm_used\", Value, 1]" = "INDEX_SCAN"
+--let $assert_cond = "[SHOW STATUS LIKE \"Replica_rows_last_search_algorithm_used\", Value, 1]" = "INDEX_SCAN"
 --let $assert_text= The search algorithm used while deleting rows is INDEX_SCAN, in the code before this bug it was TABLE_SCAN
 --source include/assert.inc
 

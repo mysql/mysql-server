@@ -33,6 +33,7 @@
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <system_error>
 
 #include "mysql/harness/logging/logging.h"
@@ -42,6 +43,7 @@
 #include "tcp_address.h"
 
 using namespace std::chrono_literals;
+using namespace std::string_view_literals;
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -56,39 +58,61 @@ static const std::set<std::string> supported_params{
 
 namespace {
 
+const constexpr std::array<
+    std::pair<std::string_view, DestMetadataCacheGroup::ServerRole>, 3>
+    known_roles{{
+        {"PRIMARY", DestMetadataCacheGroup::ServerRole::Primary},
+        {"SECONDARY", DestMetadataCacheGroup::ServerRole::Secondary},
+        {"PRIMARY_AND_SECONDARY",
+         DestMetadataCacheGroup::ServerRole::PrimaryAndSecondary},
+    }};
+
 DestMetadataCacheGroup::ServerRole get_server_role_from_uri(
     const mysqlrouter::URIQuery &uri) {
-  if (uri.find("role") == uri.end())
+  const auto it = uri.find("role");
+  if (it == uri.end()) {
     throw std::runtime_error(
         "Missing 'role' in routing destination specification");
+  }
 
-  const std::string name = uri.at("role");
-  std::string name_uc = name;
+  const std::string name = it->second;
+  std::string name_uc;
+  name_uc.resize(name.size());
   std::transform(name.begin(), name.end(), name_uc.begin(), ::toupper);
 
-  if (name_uc == "PRIMARY")
-    return DestMetadataCacheGroup::ServerRole::Primary;
-  else if (name_uc == "SECONDARY")
-    return DestMetadataCacheGroup::ServerRole::Secondary;
-  else if (name_uc == "PRIMARY_AND_SECONDARY")
-    return DestMetadataCacheGroup::ServerRole::PrimaryAndSecondary;
+  auto role_it =
+      std::find_if(known_roles.begin(), known_roles.end(),
+                   [name = name_uc](const auto &p) { return p.first == name; });
 
-  throw std::runtime_error("Invalid server role in metadata cache routing '" +
-                           name + "'");
+  if (role_it == known_roles.end()) {
+    std::string valid_names;
+    for (auto role : known_roles) {
+      if (!valid_names.empty()) {
+        valid_names += ", ";
+      }
+
+      valid_names += role.first;
+    }
+
+    throw std::runtime_error(
+        "The role in '?role=" + name +
+        "' does not contain one of the valid role names: " + valid_names);
+  }
+
+  return role_it->second;
 }
 
 std::string get_server_role_name(
     const DestMetadataCacheGroup::ServerRole role) {
-  switch (role) {
-    case DestMetadataCacheGroup::ServerRole::Primary:
-      return "PRIMARY";
-    case DestMetadataCacheGroup::ServerRole::Secondary:
-      return "SECONDARY";
-    case DestMetadataCacheGroup::ServerRole::PrimaryAndSecondary:
-      return "PRIMARY_AND_SECONDARY";
+  auto role_it =
+      std::find_if(known_roles.begin(), known_roles.end(),
+                   [role](const auto &p) { return p.second == role; });
+
+  if (role_it == known_roles.end()) {
+    return "unknown";
   }
 
-  return "unknown";
+  return std::string{role_it->first};
 }
 
 routing::RoutingStrategy get_default_routing_strategy(
@@ -184,14 +208,12 @@ bool get_disconnect_on_metadata_unavailable(const mysqlrouter::URIQuery &uri) {
 // 'std::map<std::string, std::string>'
 DestMetadataCacheGroup::DestMetadataCacheGroup(
     net::io_context &io_ctx, const std::string &metadata_cache,
-    const std::string &replicaset,
     const routing::RoutingStrategy routing_strategy,
     const mysqlrouter::URIQuery &query, const Protocol::Type protocol,
     const routing::AccessMode access_mode,
     metadata_cache::MetadataCacheAPIBase *cache_api)
     : RouteDestination(io_ctx, protocol),
       cache_name_(metadata_cache),
-      ha_replicaset_(replicaset),
       uri_query_(query),
       routing_strategy_(routing_strategy),
       access_mode_(access_mode),
@@ -374,18 +396,18 @@ void DestMetadataCacheGroup::init() {
 }
 
 void DestMetadataCacheGroup::subscribe_for_metadata_cache_changes() {
-  cache_api_->add_state_listener(ha_replicaset_, this);
+  cache_api_->add_state_listener(this);
   subscribed_for_metadata_cache_changes_ = true;
 }
 
 void DestMetadataCacheGroup::subscribe_for_acceptor_handler() {
-  cache_api_->add_acceptor_handler_listener(ha_replicaset_, this);
+  cache_api_->add_acceptor_handler_listener(this);
 }
 
 DestMetadataCacheGroup::~DestMetadataCacheGroup() {
   if (subscribed_for_metadata_cache_changes_) {
-    cache_api_->remove_state_listener(ha_replicaset_, this);
-    cache_api_->remove_acceptor_handler_listener(ha_replicaset_, this);
+    cache_api_->remove_state_listener(this);
+    cache_api_->remove_acceptor_handler_listener(this);
   }
 }
 
@@ -480,8 +502,7 @@ stdx::expected<Destinations, void> DestMetadataCacheGroup::refresh_destinations(
         return stdx::make_unexpected();
       }
 
-      if (cache_api_->wait_primary_failover(ha_replicaset_,
-                                            primary_member->server_uuid(),
+      if (cache_api_->wait_primary_failover(primary_member->server_uuid(),
                                             kPrimaryFailoverTimeout)) {
         return primary_destinations();
       }
@@ -574,8 +595,7 @@ Destinations DestMetadataCacheGroup::balance(
   }
 
   if (dests.empty()) {
-    log_warning("No available servers found for '%s' %s routing",
-                ha_replicaset_.c_str(),
+    log_warning("No available servers found for %s routing",
                 server_role_ == ServerRole::Primary ? "PRIMARY" : "SECONDARY");
 
     // return an empty list
@@ -600,7 +620,7 @@ Destinations DestMetadataCacheGroup::destinations() {
   AvailableDestinations available;
   bool primary_failover;
   const auto &all_replicaset_nodes =
-      cache_api_->lookup_replicaset(ha_replicaset_).instance_vector;
+      cache_api_->get_cluster_nodes().instance_vector;
 
   std::tie(available, primary_failover) = get_available(all_replicaset_nodes);
 
@@ -611,7 +631,7 @@ Destinations DestMetadataCacheGroup::primary_destinations() {
   if (!cache_api_->is_initialized()) return {};
 
   const auto &all_replicaset_nodes =
-      cache_api_->lookup_replicaset(ha_replicaset_).instance_vector;
+      cache_api_->get_cluster_nodes().instance_vector;
 
   auto available = get_available_primaries(all_replicaset_nodes);
 
@@ -624,9 +644,7 @@ DestMetadataCacheGroup::AddrVector DestMetadataCacheGroup::get_destinations()
   if (!cache_api_->is_initialized()) return {};
 
   auto available =
-      get_available(
-          cache_api_->lookup_replicaset(ha_replicaset_).instance_vector)
-          .first;
+      get_available(cache_api_->get_cluster_nodes().instance_vector).first;
 
   AddrVector addresses;
   for (const auto &dest : available) {
@@ -677,7 +695,8 @@ void DestMetadataCacheGroup::on_instances_change(
 
 void DestMetadataCacheGroup::notify_instances_changed(
     const metadata_cache::LookupResult &instances,
-    const bool md_servers_reachable, const unsigned /*view_id*/) noexcept {
+    const metadata_cache::metadata_servers_list_t & /*metadata_servers*/,
+    const bool md_servers_reachable, const uint64_t /*view_id*/) noexcept {
   on_instances_change(instances, md_servers_reachable);
 }
 

@@ -1,0 +1,52 @@
+# Test clone with concurrent enable/disable of REDO and UNDO encryption
+--source include/have_debug_sync.inc
+
+--source include/have_innodb_max_16k.inc
+--source ../include/encrypt_begin.inc
+--source include/count_sessions.inc
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--connect (con1,localhost,root,,)
+--echo # In connection CON1
+
+CREATE TABLESPACE tbs;
+
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB)
+TABLESPACE = tbs;
+
+--connection default
+--echo # In connection DEFAULT
+
+--echo # 1. Enable REDO encryption during PAGE COPY
+--let $ddl_error = 1
+--let $ddl_alter_abort= SET GLOBAL innodb_redo_log_encrypt = ON
+--source ../include/ddl_clone_abort.inc
+
+--echo # 2. Enable UNDO encryption during PAGE COPY
+--let $ddl_error = 1
+--let $ddl_alter_abort= SET GLOBAL innodb_undo_log_encrypt = ON
+--source ../include/ddl_clone_abort.inc
+
+--echo # 3. Enable general tablespace encryption during PAGE COPY
+--let $ddl_error =
+--let $ddl_alter_abort=ALTER TABLESPACE tbs ENCRYPTION = 'Y'
+--source ../include/ddl_clone_abort.inc
+
+--echo # 4.Disable general tablespace encryption during PAGE COPY
+--let $ddl_error =
+--let $ddl_alter_abort=ALTER TABLESPACE tbs ENCRYPTION = 'N'
+--source ../include/ddl_clone_abort.inc
+
+--disconnect con1
+
+--echo # Cleanup
+DROP TABLE t1;
+DROP TABLESPACE tbs;
+
+--echo # Uninstall clone
+UNINSTALL PLUGIN clone;
+
+--source include/wait_until_count_sessions.inc
+--source ../include/encrypt_end.inc

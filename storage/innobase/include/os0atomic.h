@@ -41,8 +41,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "univ.i"
 
-typedef int lock_word_t;
-
 /** barrier definitions for memory ordering */
 #ifdef HAVE_IB_GCC_ATOMIC_THREAD_FENCE
 #define HAVE_MEMORY_BARRIER

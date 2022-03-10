@@ -41,7 +41,7 @@ class CopyActiveReq {
    */
   friend class Dblqh;
 public:
-  STATIC_CONST( SignalLength = 6 );
+  static constexpr Uint32 SignalLength = 6;
 
   enum Flags
   {
@@ -70,7 +70,7 @@ class CopyActiveConf {
    */
   friend class Dbdih;
 public:
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
 private:
   Uint32 userPtr;
@@ -90,7 +90,7 @@ class CopyActiveRef {
    */
   friend class Dbdih;
 public:
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
 private:
   Uint32 userPtr;

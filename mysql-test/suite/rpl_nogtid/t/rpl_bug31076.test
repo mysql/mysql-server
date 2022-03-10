@@ -2,8 +2,8 @@
 source include/have_binlog_format_mixed_or_row.inc;
 source include/master-slave.inc;
 
-SET @saved_slave_type_conversions = @@slave_type_conversions;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
+SET @saved_replica_type_conversions = @@replica_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
 
 CREATE DATABASE track;
 USE track;
@@ -142,7 +142,7 @@ VALUES ('3m3l4rhs6do0sf5p1i9lr94g928a272v', '', '', INET_ATON('71.118.124.98'), 
 SELECT * FROM visits;
 SELECT * FROM visits_events;
 
-SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS = @saved_replica_type_conversions;
 
 # Cleanup
 DROP DATABASE track;

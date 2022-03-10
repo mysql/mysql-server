@@ -1,0 +1,62 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+############################################################
+# 1. Start by testing FILE to TABLE conversions
+#    Setup the replica to use FILE repositories and start it
+[connection slave]
+call mtr.add_suppression("Recovery from master pos [0-9]+ and file [a-zA-Z-]*\.*[0-9]* for channel ''*");
+call mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1*");
+call mtr.add_suppression("It is not possible to change the type of the relay log repository because there are workers repositories with possible");
+SET @@GLOBAL.relay_log_info_repository= "FILE";
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
+include/start_slave.inc
+
+############################################################
+# 2. Restart the replica server with relay log recovery
+#    Skip the start of replication
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start=1 --relay-log-recovery=1 --relay-log-info-repository=FILE]
+
+############################################################
+# 3. Convert the repositories to TABLE.
+#    Check replication works as expected
+[connection slave]
+SET @@GLOBAL.relay_log_info_repository= "TABLE";
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
+include/start_slave.inc
+[connection master]
+CREATE TABLE t1 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES(1);
+include/sync_slave_sql_with_master.inc
+
+############################################################
+# 4. Now switch to TABLE to FILE conversions
+#    Restart the replica server with relay log recovery and skip_slave_start
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start=1 --relay-log-recovery=1]
+
+############################################################
+# 5. Convert the repositories to FILE.
+#    Check replication works as expected
+[connection slave]
+SET @@GLOBAL.relay_log_info_repository= "FILE";
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
+include/start_slave.inc
+[connection master]
+INSERT INTO t1 VALUES(2);
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+
+############################################################
+# 6. Cleanup
+include/stop_slave.inc
+SET @@GLOBAL.relay_log_info_repository='SAVE_RLI_REPO_TYPE';
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
+include/start_slave.inc
+include/rpl_end.inc

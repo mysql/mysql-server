@@ -32,6 +32,8 @@
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 
+#include <memory>
+
 #include <sys/types.h>
 
 #include <openssl/evp.h>
@@ -46,15 +48,7 @@
 #include "crypt_genhash_impl.h"
 #include "m_string.h"
 
-#ifdef HAVE_ALLOCA_H
-#include <alloca.h>
-#endif
-
 #include <errno.h>
-
-#ifdef _WIN32
-#include <malloc.h>
-#endif
 
 #define DIGEST_CTX EVP_MD_CTX
 #define DIGEST_LEN SHA256_DIGEST_LENGTH
@@ -327,7 +321,8 @@ char *my_crypt_genhash(char *ctbuffer, size_t ctbufflen, const char *plaintext,
   DIGESTFinal(DP, ctxDP);
 
   /* 16. */
-  Pp = P = (char *)alloca(plaintext_len);
+  std::unique_ptr<char[]> PPbuf(new char[plaintext_len]);
+  Pp = P = PPbuf.get();
   for (i = plaintext_len; i >= MIXCHARS; i -= MIXCHARS) {
     Pp = (char *)(memcpy(Pp, DP, MIXCHARS)) + MIXCHARS;
   }
@@ -339,7 +334,8 @@ char *my_crypt_genhash(char *ctbuffer, size_t ctbufflen, const char *plaintext,
   DIGESTFinal(DS, ctxDS);
 
   /* 20. */
-  Sp = S = (char *)alloca(salt_len);
+  std::unique_ptr<char[]> SSbuf(new char[salt_len]);
+  Sp = S = SSbuf.get();
   for (i = salt_len; i >= MIXCHARS; i -= MIXCHARS) {
     Sp = (char *)(memcpy(Sp, DS, MIXCHARS)) + MIXCHARS;
   }
@@ -418,7 +414,7 @@ char *my_crypt_genhash(char *ctbuffer, size_t ctbufflen, const char *plaintext,
 }
 
 /**
-  Generate a random string using ASCII characters but avoid seperator character.
+  Generate a random string using ASCII characters but avoid separator character.
   Stdlib rand and srand are used to produce pseudo random numbers between
   with about 7 bit worth of entropty between 1-127.
 */

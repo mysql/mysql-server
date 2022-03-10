@@ -22,57 +22,95 @@
 
 #include "plugin/group_replication/include/plugin_messages/transaction_with_guarantee_message.h"
 #include "my_dbug.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_message.h"
+
+const uint64_t
+    Transaction_with_guarantee_message::s_consistency_level_pit_size =
+        Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE + 1;
 
 Transaction_with_guarantee_message::Transaction_with_guarantee_message(
+    uint64_t payload_capacity,
     enum_group_replication_consistency_level consistency_level)
     : Transaction_message_interface(CT_TRANSACTION_WITH_GUARANTEE_MESSAGE),
       m_consistency_level(consistency_level) {
+  DBUG_TRACE;
   assert(m_consistency_level >= GROUP_REPLICATION_CONSISTENCY_AFTER);
+
+  /*
+    Consider the message headers size on the Gcs_message_data capacity.
+  */
+  const uint64_t headers_size =
+      Plugin_gcs_message::WIRE_FIXED_HEADER_SIZE +
+      Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE;
+  const uint64_t message_capacity =
+      headers_size + payload_capacity + s_consistency_level_pit_size;
+  m_gcs_message_data = new Gcs_message_data(0, message_capacity);
+
+  std::vector<unsigned char> buffer;
+  encode_header(&buffer);
+  encode_payload_item_type_and_length(&buffer, PIT_TRANSACTION_DATA,
+                                      payload_capacity);
+  assert(buffer.size() == headers_size);
+  m_gcs_message_data->append_to_payload(&buffer.front(), headers_size);
 }
 
-Transaction_with_guarantee_message::~Transaction_with_guarantee_message() {}
+Transaction_with_guarantee_message::~Transaction_with_guarantee_message() {
+  DBUG_TRACE;
+  delete m_gcs_message_data;
+}
 
 bool Transaction_with_guarantee_message::write(const unsigned char *buffer,
                                                my_off_t length) {
-  m_data.insert(m_data.end(), buffer, buffer + length);
-  return false;
+  DBUG_TRACE;
+  if (nullptr == m_gcs_message_data) {
+    return true;
+  }
+
+  return m_gcs_message_data->append_to_payload(buffer, length);
 }
 
-my_off_t Transaction_with_guarantee_message::length() { return m_data.size(); }
+uint64_t Transaction_with_guarantee_message::length() {
+  DBUG_TRACE;
+  if (nullptr == m_gcs_message_data) {
+    return 0;
+  }
+
+  return m_gcs_message_data->get_encode_size();
+}
+
+Gcs_message_data *
+Transaction_with_guarantee_message::get_message_data_and_reset() {
+  DBUG_TRACE;
+  if (nullptr == m_gcs_message_data) {
+    return nullptr;
+  }
+
+  /*
+    Add the PIT_TRANSACTION_CONSISTENCY_LEVEL to the Gcs_message_data.
+  */
+  std::vector<unsigned char> buffer;
+  char consistency_level_aux = static_cast<char>(m_consistency_level);
+  encode_payload_item_char(&buffer, PIT_TRANSACTION_CONSISTENCY_LEVEL,
+                           consistency_level_aux);
+  m_gcs_message_data->append_to_payload(&buffer.front(),
+                                        s_consistency_level_pit_size);
+
+  Gcs_message_data *result = m_gcs_message_data;
+  m_gcs_message_data = nullptr;
+  return result;
+}
 
 void Transaction_with_guarantee_message::encode_payload(
-    std::vector<unsigned char> *buffer) const {
+    std::vector<unsigned char> *) const {
   DBUG_TRACE;
-
-  encode_payload_item_type_and_length(buffer, PIT_TRANSACTION_DATA,
-                                      m_data.size());
-  buffer->insert(buffer->end(), m_data.begin(), m_data.end());
-
-  char consistency_level_aux = static_cast<char>(m_consistency_level);
-  encode_payload_item_char(buffer, PIT_TRANSACTION_CONSISTENCY_LEVEL,
-                           consistency_level_aux);
+  assert(0);
 }
 
-/* purecov: begin inspected */
-void Transaction_with_guarantee_message::decode_payload(
-    const unsigned char *buffer, const unsigned char *) {
+void Transaction_with_guarantee_message::decode_payload(const unsigned char *,
+                                                        const unsigned char *) {
   DBUG_TRACE;
-  const unsigned char *slider = buffer;
-  uint16 payload_item_type = 0;
-  unsigned long long payload_item_length = 0;
-
-  decode_payload_item_type_and_length(&slider, &payload_item_type,
-                                      &payload_item_length);
-  m_data.clear();
-  m_data.insert(m_data.end(), slider, slider + payload_item_length);
-
-  unsigned char consistency_level_aux = 0;
-  decode_payload_item_char(&slider, &payload_item_type, &consistency_level_aux);
-  m_consistency_level = static_cast<enum_group_replication_consistency_level>(
-      consistency_level_aux);
-  assert(m_consistency_level >= GROUP_REPLICATION_CONSISTENCY_AFTER);
+  assert(0);
 }
-/* purecov: end */
 
 enum_group_replication_consistency_level
 Transaction_with_guarantee_message::decode_and_get_consistency_level(

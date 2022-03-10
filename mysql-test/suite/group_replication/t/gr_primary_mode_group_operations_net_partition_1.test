@@ -39,6 +39,7 @@ CREATE TABLE test.t1 (a INT PRIMARY KEY);
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
 
@@ -72,7 +73,10 @@ INSERT INTO t1 VALUES (1);
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
---let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Primary Election: stabilizing transactions%"
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Single-primary Switch: executing Primary election%"
+--source include/wait_condition.inc
+
+--let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE (user='system user' OR user='rpl_applier_priv_user') AND state='Waiting for table metadata lock'
 --source include/wait_condition.inc
 
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`

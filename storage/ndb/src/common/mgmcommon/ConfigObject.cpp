@@ -27,23 +27,23 @@
 #include <kernel_types.h>
 #include <Properties.hpp>
 #include <ndb_limits.h>
-#include <NdbOut.hpp>
 #include <ConfigSection.hpp>
 #include "ConfigObject.hpp"
 #include "ndb_net.h"
 #include <stdlib.h>
 #include <algorithm>
+#include <EventLogger.hpp>
 
 //#define DEBUG_MALLOC 1
 #ifdef DEBUG_MALLOC
-#define DEB_MALLOC(arglist) do { ndbout_c arglist ; } while (0)
+#define DEB_MALLOC(arglist) do { g_eventLogger->info arglist; } while (0)
 #else
 #define DEB_MALLOC(arglist) do { } while (0)
 #endif
 
 //#define DEBUG_UNPACK_V1 1
 #ifdef DEBUG_UNPACK_V1
-#define DEB_UNPACK_V1(arglist) do { ndbout_c arglist ; } while (0)
+#define DEB_UNPACK_V1(arglist) do { g_eventLogger->info arglist; } while (0)
 #else
 #define DEB_UNPACK_V1(arglist) do { } while (0)
 #endif
@@ -365,7 +365,7 @@ ConfigObject::get(ConfigSection *curr_section,
 bool
 ConfigObject::put(Uint32 key, Uint32 val)
 {
-  //ndbout_c("put(%u, %u)", key, val);
+  //g_eventLogger->info("put(%u, %u)", key, val);
   ConfigSection::Entry entry;
   entry.m_key = key;
   entry.m_type = ConfigSection::IntTypeId;
@@ -376,7 +376,7 @@ ConfigObject::put(Uint32 key, Uint32 val)
 bool
 ConfigObject::put64(Uint32 key, Uint64 val)
 {
-  //ndbout_c("put(%u, %llu)", key, val);
+  //g_eventLogger->info("put(%u, %llu)", key, val);
   ConfigSection::Entry entry;
   entry.m_key = key;
   entry.m_type = ConfigSection::Int64TypeId;
@@ -387,7 +387,7 @@ ConfigObject::put64(Uint32 key, Uint64 val)
 bool
 ConfigObject::put(Uint32 key, const char *str)
 {
-  //ndbout_c("put(%u, %s)", key, str);
+  //g_eventLogger->info("put(%u, %s)", key, str);
   ConfigSection::Entry entry;
   entry.m_key = key;
   entry.m_type = ConfigSection::StringTypeId;
@@ -404,7 +404,7 @@ ConfigObject::get_error_code() const
 void
 ConfigObject::print_error_code() const
 {
-  ndbout_c("ConfigObject::m_error_code = %u", m_error_code);
+  g_eventLogger->info("ConfigObject::m_error_code = %u", m_error_code);
 }
 
 bool
@@ -870,7 +870,7 @@ ConfigObject::create_default_sections()
       }
       default:
       {
-        ndbout_c("section_type: %u", section_type);
+        g_eventLogger->info("section_type: %u", section_type);
         require(false);
         break;
       }
@@ -956,7 +956,7 @@ ConfigObject::create_default_sections()
       }
       default:
       {
-        ndbout_c("section_type: %u", section_type);
+        g_eventLogger->info("section_type: %u", section_type);
         require(false);
         break;
       }

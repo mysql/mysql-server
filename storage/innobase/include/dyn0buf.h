@@ -51,7 +51,6 @@ class dyn_buf_t {
   class block_t;
 
   typedef UT_LIST_NODE_T(block_t) block_node_t;
-  typedef UT_LIST_BASE_NODE_T(block_t) block_list_t;
 
   class block_t {
    public:
@@ -60,41 +59,35 @@ class dyn_buf_t {
       init();
     }
 
-    ~block_t() {}
+    ~block_t() = default;
 
     /**
     Gets the number of used bytes in a block.
     @return	number of bytes used */
-    ulint used() const MY_ATTRIBUTE((warn_unused_result)) {
+    [[nodiscard]] ulint used() const {
       return (static_cast<ulint>(m_used & ~DYN_BLOCK_FULL_FLAG));
     }
 
     /**
     Gets pointer to the start of data.
     @return	pointer to data */
-    byte *start() MY_ATTRIBUTE((warn_unused_result)) { return (m_data); }
+    [[nodiscard]] byte *start() { return (m_data); }
 
     /**
     @return start of data - non const version */
-    byte *begin() MY_ATTRIBUTE((warn_unused_result)) { return (m_data); }
+    [[nodiscard]] byte *begin() { return (m_data); }
 
     /**
     @return end of used data - non const version */
-    byte *end() MY_ATTRIBUTE((warn_unused_result)) {
-      return (begin() + m_used);
-    }
+    [[nodiscard]] byte *end() { return (begin() + m_used); }
 
     /**
     @return start of data - const version */
-    const byte *begin() const MY_ATTRIBUTE((warn_unused_result)) {
-      return (m_data);
-    }
+    [[nodiscard]] const byte *begin() const { return (m_data); }
 
     /**
     @return end of used data - const version */
-    const byte *end() const MY_ATTRIBUTE((warn_unused_result)) {
-      return (begin() + m_used);
-    }
+    [[nodiscard]] const byte *end() const { return (begin() + m_used); }
 
    private:
     /**
@@ -155,14 +148,12 @@ class dyn_buf_t {
 
     friend class dyn_buf_t;
   };
+  typedef UT_LIST_BASE_NODE_T(block_t, m_node) block_list_t;
 
   static constexpr auto MAX_DATA_SIZE = block_t::MAX_DATA_SIZE;
 
   /** Default constructor */
-  dyn_buf_t() : m_heap(), m_size() {
-    UT_LIST_INIT(m_list, &block_t::m_node);
-    push_back(&m_first_block);
-  }
+  dyn_buf_t() : m_heap(), m_list(), m_size() { push_back(&m_first_block); }
 
   /** Destructor */
   ~dyn_buf_t() { erase(); }
@@ -174,7 +165,7 @@ class dyn_buf_t {
       m_heap = nullptr;
 
       /* Initialise the list and add the first block. */
-      UT_LIST_INIT(m_list, &block_t::m_node);
+      m_list.clear();
       push_back(&m_first_block);
     } else {
       m_first_block.init();
@@ -189,7 +180,7 @@ class dyn_buf_t {
   copying the elements, the caller must close the buffer using close().
   @param size	in bytes of the buffer; MUST be <= MAX_DATA_SIZE!
   @return	pointer to the buffer */
-  byte *open(ulint size) MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] byte *open(ulint size) {
     ut_ad(size > 0);
     ut_ad(size <= MAX_DATA_SIZE);
 
@@ -285,12 +276,11 @@ class dyn_buf_t {
   /**
   Returns the size of the total stored data.
   @return	data size in bytes */
-  ulint size() const MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] ulint size() const {
 #ifdef UNIV_DEBUG
     ulint total_size = 0;
 
-    for (const block_t *block = UT_LIST_GET_FIRST(m_list); block != nullptr;
-         block = UT_LIST_GET_NEXT(m_node, block)) {
+    for (const block_t *block : m_list) {
       total_size += block->used();
     }
 
@@ -304,8 +294,7 @@ class dyn_buf_t {
   @return	false if iteration was terminated. */
   template <typename Functor>
   bool for_each_block(Functor &functor) const {
-    for (const block_t *block = UT_LIST_GET_FIRST(m_list); block != nullptr;
-         block = UT_LIST_GET_NEXT(m_node, block)) {
+    for (const block_t *block : m_list) {
       if (!functor(block)) {
         return (false);
       }
@@ -331,16 +320,14 @@ class dyn_buf_t {
 
   /**
   @return the first block */
-  block_t *front() MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] block_t *front() {
     ut_ad(UT_LIST_GET_LEN(m_list) > 0);
     return (UT_LIST_GET_FIRST(m_list));
   }
 
   /**
   @return true if m_first_block block was not filled fully */
-  bool is_small() const MY_ATTRIBUTE((warn_unused_result)) {
-    return (m_heap == NULL);
-  }
+  [[nodiscard]] bool is_small() const { return (m_heap == NULL); }
 
  private:
   // Disable copying
@@ -377,23 +364,18 @@ class dyn_buf_t {
                   to the block
   @return the block containing the pos. */
   block_t *find(ulint &pos) {
-    block_t *block;
-
     ut_ad(UT_LIST_GET_LEN(m_list) > 0);
 
-    for (block = UT_LIST_GET_FIRST(m_list); block != nullptr;
-         block = UT_LIST_GET_NEXT(m_node, block)) {
+    for (auto block : m_list) {
       if (pos < block->used()) {
-        break;
+        return block;
       }
 
       pos -= block->used();
     }
 
-    ut_ad(block != nullptr);
-    ut_ad(block->used() >= pos);
-
-    return (block);
+    ut_ad(false);
+    return nullptr;
   }
 
   /**

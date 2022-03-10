@@ -3521,3 +3521,43 @@ t1	CREATE TABLE `t1` (
   CONSTRAINT `t1_chk_4` CHECK ((`f6` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
+#
+# Bug#33394135 - adding CHECK constraint with alter table CHANGE column
+#                name is not working
+#
+CREATE TABLE t1 (f1 INT, f2 INT);
+INSERT INTO t1 VALUES (1, 1);
+# Without fix, adding check constraint to a column with ALTER TABLE
+# CHANGE column doesn't work. With fix, check constraint is added
+# to the column with COPY algorithm. This alter operation is not
+# supported with the INPLACE and INSTANT algorithm.
+ALTER TABLE t1 CHANGE f1 f3 INT CHECK (f3 > 0), ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 CHANGE f1 f3 INT CHECK (f3 > 0), ALGORITHM = INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 CHANGE f1 f3 INT CHECK (f3 > 0), ALGORITHM = COPY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f3` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f3` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Without fix, adding check constraint to a column with ALTER TABLE
+# MODIFY column doesn't work. With fix, check constraint is added
+# to the column with COPY algorithm. This alter operation is not
+# supported with the INPLACE and INSTANT algorithm.
+ALTER TABLE t1 MODIFY f2 INT CHECK (f2 > 0), ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 MODIFY f2 INT CHECK (f2 > 0), ALGORITHM = INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 MODIFY f2 INT CHECK (f2 > 0), ALGORITHM = COPY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f3` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f3` > 0)),
+  CONSTRAINT `t1_chk_2` CHECK ((`f2` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;

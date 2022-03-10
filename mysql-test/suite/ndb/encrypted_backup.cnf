@@ -1,0 +1,10 @@
+[ndb_restore]
+decrypt
+backup-password=TOPSECRET
+
+[ndb_mgm]
+encrypt-backup
+backup-password=TOPSECRET
+
+[ndb_print_backup_file]
+backup-password=TOPSECRET

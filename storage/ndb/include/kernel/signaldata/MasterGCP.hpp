@@ -40,7 +40,7 @@ class MasterGCPConf {
   friend class Dbdih;
     
 public:
-  STATIC_CONST( SignalLength = 10 + 2 );
+  static constexpr Uint32 SignalLength = 10 + 2;
 
   enum State {
     GCP_READY            = 0,
@@ -118,7 +118,7 @@ class MasterGCPReq {
   friend class Dbdih;
     
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 private:
   Uint32 masterRef;
   Uint32 failedNodeId;
@@ -134,7 +134,7 @@ class MasterGCPRef {
   friend class Dbdih;
     
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 private:
   Uint32 senderNodeId;
   Uint32 failedNodeId;

@@ -35,8 +35,8 @@ class Expected_warnings {
  public:
   typedef std::vector<std::unique_ptr<Warning>>::iterator iterator;
 
-  Expected_warnings() {}
-  ~Expected_warnings() {}
+  Expected_warnings() = default;
+  ~Expected_warnings() = default;
 
   iterator begin() { return m_warnings.begin(); }
   iterator end() { return m_warnings.end(); }

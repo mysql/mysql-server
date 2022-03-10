@@ -41,11 +41,11 @@
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/plugin_config.h"
 
 #include "mysqlrouter/http_auth_backend_component.h"
 #include "mysqlrouter/http_auth_backend_export.h"
 #include "mysqlrouter/metadata_cache.h"
-#include "mysqlrouter/plugin_config.h"
 
 #include "http_auth_backend.h"
 #include "http_auth_backend_metadata_cache.h"
@@ -53,14 +53,15 @@
 IMPORT_LOG_FUNCTIONS()
 
 static constexpr const char kSectionName[]{"http_auth_backend"};
+static std::vector<std::string> registered_backends;
 
 namespace {
-class HtpasswdPluginConfig : public mysqlrouter::BasePluginConfig {
+class HtpasswdPluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string filename;
 
   explicit HtpasswdPluginConfig(const mysql_harness::ConfigSection *section)
-      : mysqlrouter::BasePluginConfig(section),
+      : mysql_harness::BasePluginConfig(section),
         filename(get_option_string(section, "filename")) {}
 
   std::string get_default(const std::string &option) const override {
@@ -99,13 +100,13 @@ class HttpAuthBackendFactory {
   }
 };
 
-class PluginConfig : public mysqlrouter::BasePluginConfig {
+class PluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string backend;
   std::string filename;
 
   explicit PluginConfig(const mysql_harness::ConfigSection *section)
-      : mysqlrouter::BasePluginConfig(section),
+      : mysql_harness::BasePluginConfig(section),
         backend(get_option_string(section, "backend")) {}
 
   std::string get_default(const std::string & /* option */) const override {
@@ -129,7 +130,8 @@ static void init(mysql_harness::PluginFuncEnv *env) {
   }
 
   try {
-    auth_backends = std::make_shared<HttpAuthBackendComponent::value_type>();
+    auto &auth_backend_component = HttpAuthBackendComponent::get_instance();
+
     for (const mysql_harness::ConfigSection *section :
          info->config->sections()) {
       if (section->name != kSectionName) {
@@ -144,11 +146,13 @@ static void init(mysql_harness::PluginFuncEnv *env) {
       }
 
       PluginConfig config(section);
+      const std::string backend_name = section->key;
+      auth_backend_component.add_backend(
+          backend_name,
+          HttpAuthBackendFactory::create(config.backend, section));
 
-      auth_backends->insert({section->key, HttpAuthBackendFactory::create(
-                                               config.backend, section)});
+      registered_backends.push_back(backend_name);
     }
-    HttpAuthBackendComponent::get_instance().init(auth_backends);
   } catch (const std::invalid_argument &exc) {
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
   } catch (const std::exception &exc) {
@@ -189,6 +193,16 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   }
 }
 
+static void deinit(mysql_harness::PluginFuncEnv *) {
+  auto &auth_backend_component = HttpAuthBackendComponent::get_instance();
+
+  for (const auto &backend : registered_backends) {
+    auth_backend_component.remove_backend(backend);
+  }
+
+  registered_backends.clear();
+}
+
 static const std::array<const char *, 2> required = {{
     "logger",
     "router_protobuf",
@@ -206,7 +220,7 @@ mysql_harness::Plugin HTTP_AUTH_BACKEND_EXPORT
         // conflicts
         0, nullptr,
         init,     // init
-        nullptr,  // deinit
+        deinit,   // deinit
         start,    // start
         nullptr,  // stop
         false,    // declares_readiness

@@ -55,7 +55,7 @@ class Partition : virtual public Entity_object {
   typedef tables::Table_partitions DD_table;
 
  public:
-  ~Partition() override {}
+  ~Partition() override = default;
 
   /////////////////////////////////////////////////////////////////////////
   // Table.

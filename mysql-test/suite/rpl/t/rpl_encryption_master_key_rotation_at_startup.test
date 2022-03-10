@@ -35,6 +35,7 @@
 
 --let $master_debug=`SELECT @@GLOBAL.debug`
 --let $MASTER_DATADIR= `select @@datadir`
+--let $PLUGIN_DIR =`select @@plugin_dir`
 --let $master_error_log= $MYSQL_TMP_DIR/master.err
 --let $keyring_master= $MYSQL_TMP_DIR/keyring_master
 
@@ -202,15 +203,35 @@ while ($key < 9)
   INSERT INTO t1 (c2) VALUES ("MySQL");
 }
 
-# Cleanup
+--echo ==== Cleanup ====
+
+--echo * Disable encryption, cleanup database, and consume all encrypted logs.
 --source include/rpl_connection_slave.inc
 --source include/start_slave.inc
+SET GLOBAL binlog_encryption = OFF;
+
 --source include/rpl_connection_master.inc
 SET GLOBAL binlog_encryption = OFF;
 DROP TABLE t1;
-# Slave shall read from all encrypted binary log files
 --source include/sync_slave_sql_with_master.inc
+
+--echo * Remove all encrypted logs.
+--source include/rpl_reset.inc
+
+--echo * Uninstall the plugin and delete the keyring.
 --source include/rpl_connection_master.inc
 UNINSTALL PLUGIN keyring_file;
 --remove_file $keyring_master
+
+--echo * Restart the servers with the same command lines as before the test.
+--let $rpl_server_number = 1
+--let $rpl_server_parameters =
+--let $rpl_omit_print_server_parameters = 1
+--source include/rpl_restart_server.inc
+--let $rpl_server_number= 2
+--source include/rpl_restart_server.inc
+
+--echo * Clean up replication test framework
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
 --source include/rpl_end.inc

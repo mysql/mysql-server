@@ -80,6 +80,11 @@ if ($clone_auto_tune) {
 --let clone_throttle = 1
 }
 
+if ($clone_ddl) {
+  --let num_rows = 200
+  --let clone_throttle = 1
+}
+
 # Insert rows
 --eval call execute_dml(0, 0, $num_rows, $num_rows, 10, 0)
 
@@ -108,8 +113,15 @@ connect (con3,localhost,root,,);
 
 --echo # In connection con4 - Running Update Random uncommited [51 - 75 Key Range]
 connect (con4,localhost,root,,);
-begin;
---send call execute_dml(1, 51, 25, 100, 200, 1)
+
+if ($clone_ddl) {
+  --send call execute_ddl(10)
+}
+
+if (!$clone_ddl) {
+  begin;
+  --send call execute_dml(1, 51, 25, 100, 200, 1)
+}
 
 --echo # In connection default - Cloning database
 --connection clone_conn_1

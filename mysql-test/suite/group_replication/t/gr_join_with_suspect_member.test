@@ -26,6 +26,8 @@
 --source include/not_valgrind.inc
 # Test involves sending SIGSTOP and SIGCONT signals using kill Linux command.
 --source include/linux.inc
+# Only run in XCom due to connection issues with MySQL stack
+--source include/have_group_replication_xcom_communication_stack.inc
 --source include/big_test.inc
 --source include/force_restart.inc
 --source include/have_group_replication_plugin.inc
@@ -142,6 +144,9 @@ let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_
 --echo # Try to start GR on server4.
 --let $rpl_connection_name= server4
 --source include/rpl_connection.inc
+
+--let $group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
+
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 --replace_result $server1_local_address SERVER1_LOCAL_ADDRESS
@@ -181,6 +186,8 @@ SET GLOBAL group_replication_member_expel_timeout = 0;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
 --source include/wait_condition.inc
 
 --echo

@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 stop slave;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=4;
+SET GLOBAL SQL_REPLICA_SKIP_COUNTER=4;
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

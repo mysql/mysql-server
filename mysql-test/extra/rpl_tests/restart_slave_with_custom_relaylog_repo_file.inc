@@ -4,7 +4,7 @@
 #
 # ==== Usage ====
 #
-# --sub_testcase= <sub testcase name>
+# --let $sub_testcase= <sub testcase name>
 #
 # Parameters:
 #  $slave_server_num

@@ -25,7 +25,7 @@ proxy_sha256@localhost	proxy_sha256@localhost	NULL
 SHOW GRANTS;
 Grants for proxy_sha256@localhost
 GRANT CREATE ON *.* TO `proxy_sha256`@`localhost`
-GRANT PROXY ON 'proxy_base'@'localhost' TO 'proxy_sha256'@'localhost'
+GRANT PROXY ON `proxy_base`@`localhost` TO `proxy_sha256`@`localhost`
 ** Connection default **
 ** Disconnecting connections **
 SET Global check_proxy_users=ON;
@@ -57,3 +57,4 @@ SET @@global.check_proxy_users = @default_check_proxy_users;
 SET GLOBAL general_log_file=  @old_general_log_file;
 SET GLOBAL general_log=       @old_general_log;
 SET GLOBAL log_output=        @old_log_output;
+TRUNCATE TABLE mysql.general_log;

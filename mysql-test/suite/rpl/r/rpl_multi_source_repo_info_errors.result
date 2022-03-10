@@ -15,7 +15,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE
 #
 # RESTART SLAVE SERVER
 #
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery --skip-slave-start --slave-parallel-workers=4 --relay-log-purge=0]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery --skip-replica-start --replica-parallel-workers=4 --relay-log-purge=0]
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=MASTER_MYPORT FOR CHANNEL 'ch1';
 include/start_slave.inc
 include/stop_slave.inc
@@ -31,7 +31,7 @@ include/stop_slave.inc
 RESET SLAVE ALL;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-SET @@global.slave_parallel_workers=SAVE_PARALLEL_WORKERS;
+SET @@global.replica_parallel_workers=SAVE_PARALLEL_WORKERS;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=MASTER_MYPORT;
 include/start_slave.inc
 include/rpl_restart_server.inc [server_number=2]
@@ -47,11 +47,11 @@ Note	3084	Replication thread(s) for channel '' are already stopped.
 RESET SLAVE ALL;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-SET @@global.slave_parallel_workers=5;
+SET @@global.replica_parallel_workers=5;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=MASTER_MYPORT FOR CHANNEL 'ch_trunk';
 include/start_slave.inc
 === RESTART SLAVE SERVER ===
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery --skip-slave-start --slave-parallel-workers=5]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery --skip-replica-start --replica-parallel-workers=5]
 [connection slave]
 START SLAVE;
 Warnings:
@@ -60,7 +60,7 @@ include/stop_slave.inc
 RESET SLAVE ALL;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-SET @@global.slave_parallel_workers=SAVE_PARALLEL_WORKERS;
+SET @@global.replica_parallel_workers=SAVE_PARALLEL_WORKERS;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=MASTER_MYPORT;
 include/start_slave.inc
 include/rpl_restart_server.inc [server_number=2]

@@ -118,6 +118,8 @@ struct PFS_events_waits : public PFS_events {
 #define STATE_FLAG_EVENT (1 << 2)
 /** DIGEST bit in the state flags bitfield. */
 #define STATE_FLAG_DIGEST (1 << 3)
+/** CPU bit in the state flags bitfield. */
+#define STATE_FLAG_CPU (1 << 4)
 
 void insert_events_waits_history(PFS_thread *thread, PFS_events_waits *wait);
 

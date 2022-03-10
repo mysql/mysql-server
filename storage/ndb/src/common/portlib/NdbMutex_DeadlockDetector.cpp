@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <cstring>
 #include <NdbMutex.h>
 #include <NdbThread.h>
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
@@ -66,7 +67,7 @@ void
 ndb_mutex_created(NdbMutex* p)
 {
   p->m_mutex_state = (ndb_mutex_state*)malloc(sizeof(ndb_mutex_state));
-  bzero(p->m_mutex_state, sizeof(ndb_mutex_state));
+  std::memset(p->m_mutex_state, 0, sizeof(ndb_mutex_state));
 
   /**
    * Assign mutex no
@@ -234,7 +235,7 @@ extern "C"
 void
 ndb_mutex_thread_init(struct ndb_mutex_thr_state* p)
 {
-  memset(p, 0, sizeof(* p));
+  std::memset(p, 0, sizeof(* p));
   NDB_THREAD_TLS_SELF = p;
 }
 
@@ -271,7 +272,7 @@ set_bit(nmdd_mask * mask, unsigned no)
       new_len = byte_no + 1;
     }
     unsigned char * new_arr = (unsigned char*)malloc(new_len);
-    bzero(new_arr, new_len);
+    std::memset(new_arr, 0, new_len);
     if (mask->m_len != 0)
     {
       memcpy(new_arr, mask->m_mask, mask->m_len);

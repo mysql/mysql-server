@@ -1,5 +1,10 @@
 SET @old_general_log= @@global.general_log;
 SET @old_slow_query_log= @@global.slow_query_log;
+SET @old_log_output = @@global.log_output;
+SET @old_general_log_file = @@global.general_log_file;
+SET GLOBAL log_output="FILE,TABLE";
+SET GLOBAL general_log_file = 'LOG_DIR/master.log';
+SET GLOBAL general_log= 'ON';
 ok
 
 # cat MYSQL_TMP_DIR/test_wl4435.out.log
@@ -122,6 +127,10 @@ mysql_stmt_next_result(): 0; field_count: 0
 
 SET @@global.general_log= @old_general_log;
 SET @@global.slow_query_log= @old_slow_query_log;
+SET @@global.log_output= @old_log_output;
+SET @@global.general_log_file = @old_general_log_file;
+TRUNCATE TABLE mysql.general_log;
+TRUNCATE TABLE mysql.slow_log;
 #
 # Bug#24963580 INFORMATION_SCHEMA:MDL_REQUEST::
 # INIT_WITH_SOURCE(MDL_KEY::ENUM_MDL_NAMESPACE

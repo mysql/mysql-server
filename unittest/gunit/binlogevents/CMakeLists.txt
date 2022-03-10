@@ -27,18 +27,21 @@ IF(HAS_WARN_FLAG)
   STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
 ENDIF()
 
-INCLUDE_DIRECTORIES(SYSTEM
-  ${GMOCK_INCLUDE_DIRS}
-)
+INCLUDE_DIRECTORIES(SYSTEM ${GMOCK_INCLUDE_DIRS})
 
 # Add tests
 SET(TESTS
   transaction_payload_codec
   transaction_compression
-  transaction_payload_iterator)
+  transaction_payload_iterator
+  gtids
+  gno_intervals
+  heartbeat_codec)
 
 FOREACH(test ${TESTS})
-  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc ADD_TEST ${test})
-  TARGET_LINK_LIBRARIES(${test}-t mysys gunit_small binlogstandalone_static)
+  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc
+    ADD_TEST ${test}
+    LINK_LIBRARIES binlogstandalone_static gunit_small
+    COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}")
 ENDFOREACH()
 

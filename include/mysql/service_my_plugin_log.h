@@ -33,11 +33,6 @@
 #include <stdarg.h>
 #endif
 
-#if defined __SUNPRO_C || defined __SUNPRO_CC || \
-    (defined _MSC_VER && !defined __clang__)
-#define MY_ATTRIBUTE(A)
-#endif
-
 /* keep in sync with the loglevel enum in my_sys.h */
 enum plugin_log_level {
   MY_ERROR_LEVEL,

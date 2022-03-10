@@ -1,9 +1,0 @@
-call mtr.add_suppression("The table 't1' is full");
-create table t1(x int primary key) engine=ndbcluster;
-Node 2 is being restarted
-
-set ndb_use_transactions=0;
-Database node 2 is being started.
-
-delete from t1;
-drop table t1;

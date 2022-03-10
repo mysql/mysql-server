@@ -59,15 +59,15 @@ public:
   /**
    * Length of signal
    */
-  STATIC_CONST( StaticLength = 11 );
-  STATIC_CONST( MaxTotalAttrInfo = 0xFFFF );
+  static constexpr Uint32 StaticLength = 11;
+  static constexpr Uint32 MaxTotalAttrInfo = 0xFFFF;
 
   /**
    * Long section nums
    */
-  STATIC_CONST( ReceiverIdSectionNum = 0 );
-  STATIC_CONST( AttrInfoSectionNum = 1 );    /* Long SCANTABREQ only */
-  STATIC_CONST( KeyInfoSectionNum = 2 );     /* Long SCANTABREQ only */
+  static constexpr Uint32 ReceiverIdSectionNum = 0;
+  static constexpr Uint32 AttrInfoSectionNum = 1;    /* Long SCANTABREQ only */
+  static constexpr Uint32 KeyInfoSectionNum = 2;     /* Long SCANTABREQ only */
 
 private:
 
@@ -468,8 +468,8 @@ public:
   /**
    * Length of signal
    */
-  STATIC_CONST( SignalLength = 4 );
-  STATIC_CONST( EndOfData = (1 << 31) );
+  static constexpr Uint32 SignalLength = 4;
+  static constexpr Uint32 EndOfData = (1 << 31);
   
 private:
 
@@ -544,7 +544,7 @@ public:
   /**
    * Length of signal
    */
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
 private:
 
@@ -602,12 +602,12 @@ public:
   /**
    * Length of signal
    */
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
   
   /**
    * Section carrying receiverIds if num receivers > 21
    */
-  STATIC_CONST( ReceiverIdsSectionNum = 0);
+  static constexpr Uint32 ReceiverIdsSectionNum = 0;
 
 private:
 

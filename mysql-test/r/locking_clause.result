@@ -362,3 +362,21 @@ SELECT 1 UNION SELECT 1 FOR UPDATE INTO @var;
 SELECT 1 UNION SELECT 1 INTO @var FOR UPDATE;
 Warnings:
 Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+#
+# Bug #32705614 ERROR LOG REPORTS
+#     `GOT ERROR 203 WHEN READING TABLE` FREQUENTLY
+#
+CREATE TABLE tt (id INT PRIMARY KEY, age INT);
+INSERT INTO tt VALUES (1,1),(2,2);
+BEGIN;
+SELECT * FROM tt WHERE id = 2 FOR UPDATE;
+id	age
+2	2
+SELECT * FROM tt WHERE id = 2 FOR UPDATE NOWAIT;
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
+SELECT * FROM tt WHERE id = 2 FOR UPDATE NOWAIT;
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
+SELECT * FROM tt WHERE id = 2 FOR UPDATE NOWAIT;
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
+# connection default
+DROP TABLE tt;

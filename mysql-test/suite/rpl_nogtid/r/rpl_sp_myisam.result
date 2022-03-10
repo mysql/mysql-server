@@ -639,6 +639,8 @@ Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client
 test	mysqltestbug36570_f1	FUNCTION	root@localhost	t	t	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 flush logs;
 include/mysqlbinlog.inc
+# The proper term is pseudo_replica_mode, but we use this compatibility alias
+# to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;

@@ -86,7 +86,7 @@ INSERT INTO t1 VALUES (3);
 --echo # and gtid_mode on. If the server scans more than one binary log in
 --echo # every iteration, it will cause read error on the 2nd and 3rd files.
 --echo #
---let $restart_parameters=restart:--gtid-mode=on --enforce-gtid-consistency --log-slave-updates --binlog-gtid-simple-recovery=ON
+--let $restart_parameters=restart:--gtid-mode=on --enforce-gtid-consistency --log-replica-updates --binlog-gtid-simple-recovery=ON
 --source include/restart_mysqld.inc
 
 --echo #
@@ -114,7 +114,7 @@ DROP TABLE t1;
 --echo # log in every iteration, it will cause read error on the 2nd and
 --echo # 4th files.
 --echo #
---let $restart_parameters=restart:--gtid-mode=on --enforce-gtid-consistency --log-slave-updates --binlog-gtid-simple-recovery=ON
+--let $restart_parameters=restart:--gtid-mode=on --enforce-gtid-consistency --log-replica-updates --binlog-gtid-simple-recovery=ON
 --source include/restart_mysqld.inc
 
 --echo #

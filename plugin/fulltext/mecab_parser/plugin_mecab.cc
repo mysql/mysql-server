@@ -68,8 +68,8 @@ static bool mecab_parser_check_and_set_charset(const char *charset) {
   static const char *mecab_charset_values[mecab_charset_count][2] = {
       {"euc-jp", "ujis"},
       {"sjis", "sjis"},
-      {"utf-8", "utf8"},
-      {"utf8", "utf8"}};
+      {"utf-8", "utf8mb4"},
+      {"utf8", "utf8mb4"}};
 
   for (int i = 0; i < mecab_charset_count; i++) {
     if (native_strcasecmp(charset, mecab_charset_values[i][0]) == 0) {
@@ -249,27 +249,27 @@ static int mecab_parser_parse(MYSQL_FTPARSER_PARAM *param) {
   MYSQL_FTPARSER_BOOLEAN_INFO bool_info = {FT_TOKEN_WORD, 0, 0, 0, 0, 0,
                                            ' ',           0};
   int ret = 0;
-  const char *csname = NULL;
 
-  /* Mecab supports utf8mb4(utf8), eucjpms(ujis) and cp932(sjis). */
-  if (strcmp(param->cs->csname, MY_UTF8MB4) == 0) {
-    csname = "utf8";
-  } else if (strcmp(param->cs->csname, "eucjpms") == 0) {
-    csname = "ujis";
-  } else if (strcmp(param->cs->csname, "cp932") == 0) {
-    csname = "sjis";
-  } else {
-    csname = param->cs->csname;
+  /* Mecab supports utf8mb4/utf8mb3, eucjpms(ujis) and cp932(sjis). */
+  std::string param_csname = replace_utf8_utf8mb3(param->cs->csname);
+  if (param_csname == "eucjpms") {
+    param_csname = "ujis";
+  } else if (param_csname == "cp932") {
+    param_csname = "sjis";
   }
 
   /* Check charset */
-  if (strcmp(mecab_charset, csname) != 0) {
+  bool matching_charset =
+      (mecab_charset == param_csname) ||
+      (std::string(mecab_charset) == "utf8mb4" && param_csname == "utf8mb3");
+
+  if (!matching_charset) {
     char error_msg[128];
 
     snprintf(error_msg, 127,
              "Fulltext index charset '%s'"
              " doesn't match mecab charset '%s'.",
-             param->cs->csname, mecab_charset);
+             param_csname.c_str(), mecab_charset);
     my_message(ER_ERROR_ON_WRITE, error_msg, MYF(0));
 
     return (1);

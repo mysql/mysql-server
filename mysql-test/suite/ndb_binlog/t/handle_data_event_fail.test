@@ -1,0 +1,73 @@
+--source include/have_ndb.inc
+# Test requires debug compiled mysqld
+--source include/have_debug.inc
+
+--echo #
+--echo # Bug#32469090 FAILURE TO FIND BLOBPARTS NOT HANDLED
+--echo # - Use DBUG to insert error while processing INSERT, UPDATE
+--echo #   and DELETE events on a table with blobs. The binlog thread will
+--echo #   restart and write a LOST_EVENTS to the binlog.
+--echo #
+
+# Supress error log messages triggered by test
+--disable_query_log
+call mtr.add_suppression("incident event has been written");
+call mtr.add_suppression("test.check_not_readonly");
+--enable_query_log
+
+CREATE TABLE t1 (
+  a int primary key,
+  b blob,
+  c text
+) ENGINE = NDB;
+
+let $loop = 0;
+while($loop < 3)
+{
+  # Clear the binlog to make it easy to check for LOST_EVENTS
+  RESET MASTER;
+
+  set @save_debug = @@global.debug;
+  set @@global.debug = '+d,ndb_event_fail_read_blob_parts';
+
+  --echo # Create and drop dummy table to activate DBUG in binlog thread
+  CREATE TABLE dummy (a int primary key) ENGINE = NDB;
+  DROP TABLE dummy;
+
+  if ($loop == 0)
+  {
+    --echo # Perform INSERT with blob large enough to trigger reading
+    --echo # blob parts and thus event will fail to be processed
+    eval INSERT INTO t1 VALUES (37, REPEAT("MySQL", 256),
+                                    REPEAT("Cluster", 1024));
+  }
+
+  if ($loop == 1)
+  {
+    --echo # Perform UPDATE with blob large enough to trigger reading
+    --echo # blob parts and thus event will fail to be processed
+    eval UPDATE t1 SET b = REPEAT("NDB", 256*$loop),
+                       c = REPEAT("MySQL", 1024*$loop) WHERE a = 37;
+  }
+
+  if ($loop == 2)
+  {
+    --echo # Perform DELETE. The blob in NDB is large but only primary keys
+    --echo # are needed so blob parts are not read. It is possible to configure
+    --echo # "full image" to be logged, but that is not enabled in this test.
+    DELETE FROM t1 WHERE a = 37;
+  }
+
+  --echo # mysqld1: Wait until ready again...
+  --source include/ndb_not_readonly.inc
+
+  set @@global.debug = @save_debug;
+
+  --echo # Check that LOST_EVENTS event was written to the binlog for
+  --echo # INSERT and UPDATE. The DELETE should have a normal log entry.
+  --source include/show_binlog_events.inc
+
+  inc $loop;
+}
+
+DROP TABLE t1;

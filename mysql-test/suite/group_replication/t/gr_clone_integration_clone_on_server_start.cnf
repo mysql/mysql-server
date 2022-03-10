@@ -3,7 +3,7 @@
 [mysqld.1]
 
 [mysqld.2]
-skip-slave-start=   FALSE
+skip-replica-start=   FALSE
 
 [mysqld.3]
 

@@ -50,7 +50,7 @@ class StartInfoReq {
   Uint32 systemFailureNo;
 
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 };
 
 class StartInfoConf {
@@ -68,7 +68,7 @@ class StartInfoConf {
   Uint32 startingNodeId;
 
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 };
 
 class StartInfoRef {
@@ -89,7 +89,7 @@ class StartInfoRef {
   Uint32 errorCode;
 
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 };
 
 

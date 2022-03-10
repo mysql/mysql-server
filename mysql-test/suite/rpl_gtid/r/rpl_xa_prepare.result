@@ -11,6 +11,8 @@ CALL mtr.add_suppression("@@SESSION.GTID_NEXT cannot be set to ANONYMOUS when @@
 CALL mtr.add_suppression("When @@SESSION.GTID_NEXT is set to a GTID, you must explicitly set it to a different value after a COMMIT or ROLLBACK");
 CALL mtr.add_suppression("Cannot execute the current event group");
 CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
+CALL mtr.add_suppression("Error writing relay log configuration.*");
+CALL mtr.add_suppression("Error reading relay log event for channel.*");
 include/stop_slave.inc
 [connection master]
 XA START 'trx1';

@@ -39,7 +39,6 @@
 
 #define JAM_FILE_ID 485
 
-extern EventLogger * g_eventLogger;
 
 static int opt_daemon, opt_no_daemon, opt_foreground,
   opt_initialstart, opt_verbose;
@@ -50,8 +49,6 @@ static int opt_initial;
 static int opt_no_start;
 static unsigned opt_allocated_nodeid;
 static int opt_angel_pid;
-static int opt_retries;
-static int opt_delay;
 static unsigned long opt_logbuffer_size;
 
 extern NdbNodeBitmask g_nowait_nodes;
@@ -110,13 +107,11 @@ static struct my_option my_long_options[] =
     (uchar**) &opt_angel_pid, (uchar **) &opt_angel_pid, 0,
     GET_UINT, REQUIRED_ARG, 0, 0, UINT_MAX, 0, 0, 0 },
   { "connect-retries", 'r',
-    "Number of times mgmd is contacted at start. -1: eternal retries",
-    (uchar**) &opt_retries, (uchar**) &opt_retries, 0,
+    "Number of times mgmd is contacted at start. -1: eternal retries"
+    " NOTE: -r will be removed with the next release!"
+    " Use --connect-retries instead",
+    (uchar**) &opt_connect_retries, (uchar**) &opt_connect_retries, 0,
     GET_INT, REQUIRED_ARG, 12, -1, 65535, 0, 0, 0 },
-  { "connect-delay", NDB_OPT_NOSHORT,
-    "Number of seconds between each connection attempt",
-    (uchar**) &opt_delay, (uchar**) &opt_delay, 0,
-    GET_INT, REQUIRED_ARG, 5, 0, 3600, 0, 0, 0 },
   { "logbuffer-size", NDB_OPT_NOSHORT,
     "Size of the log buffer for data node ndb_x_out.log",
     (uchar**) &opt_logbuffer_size, (uchar**) &opt_logbuffer_size, 0,
@@ -136,6 +131,15 @@ static void short_usage_sub(void)
 {
   ndb_short_usage_sub(NULL);
   ndb_service_print_options("ndbd");
+}
+
+static bool get_one_option(int optid, const struct my_option *opt,
+                                     char *argument) {
+  if (optid == 'r')
+    g_eventLogger->warning(
+        "NOTE: -r option will be removed in the next release!"
+        " Use --connect-retries instead.");
+  return ndb_std_get_one_option(optid, opt, argument);
 }
 
 /**
@@ -181,7 +185,7 @@ real_main(int argc, char** argv)
   }
 
   int ho_error;
-  if ((ho_error=opts.handle_options()))
+  if ((ho_error=opts.handle_options(get_one_option)))
     exit(ho_error);
 
   if (opt_no_daemon || opt_foreground) {
@@ -226,7 +230,7 @@ real_main(int argc, char** argv)
     ndbd_run(opt_foreground, opt_report_fd,
              opt_ndb_connectstring, opt_ndb_nodeid, opt_bind_address,
              opt_no_start, opt_initial, opt_initialstart,
-             opt_allocated_nodeid, opt_retries, opt_delay,
+             opt_allocated_nodeid, opt_connect_retries, opt_connect_retry_delay,
              opt_logbuffer_size);
   }
 
@@ -245,8 +249,8 @@ real_main(int argc, char** argv)
             opt_initial,
             opt_no_start,
             opt_daemon,
-            opt_retries,
-            opt_delay);
+            opt_connect_retries,
+            opt_connect_retry_delay);
 
   return 1; // Never reached
 }

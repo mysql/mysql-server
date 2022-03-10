@@ -47,28 +47,11 @@
 #include "xcom/task_debug.h"
 #include "xcom/task_os.h"
 #include "xcom/x_platform.h"
+#include "xcom/xcom_memory.h"
 #include "xdr_gen/xcom_vp.h"
 
 #define STRING_PORT_SIZE 6
 #define NR_GETADDRINFO_ATTEMPTS 10
-
-/**
- * Wrapper function which retries and checks errors from socket
- */
-result xcom_checked_socket(int domain, int type, int protocol) {
-  result ret = {0, 0};
-  int retry = 1000;
-  do {
-    SET_OS_ERR(0);
-    ret.val = (int)socket(domain, type, protocol);
-    ret.funerr = to_errno(GET_OS_ERR);
-  } while (--retry && ret.val == -1 && (from_errno(ret.funerr) == SOCK_EAGAIN));
-  if (ret.val == -1) {
-    task_dump_err(ret.funerr);
-    /* abort(); */
-  }
-  return ret;
-}
 
 /**
  * Wrapper function which retries and checks errors from getaddrinfo
@@ -143,6 +126,7 @@ struct infonode {
   infonode *right;
 };
 
+#ifdef XCOM_STANDALONE
 static infonode *addrinfomap;
 
 static infonode *insert_server(infonode **top, char const *server,
@@ -151,7 +135,7 @@ static infonode *insert_server(infonode **top, char const *server,
     return 0;
   else {
     if (*top == 0) { /* Insert here */
-      infonode *n = (infonode *)calloc((size_t)1, sizeof(infonode));
+      infonode *n = (infonode *)xcom_calloc((size_t)1, sizeof(infonode));
       n->server = strdup(server);
       n->addr = addr;
       *top = n;
@@ -208,14 +192,17 @@ void free_getaddrinfo_cache(infonode *top) {
     if (left) free_getaddrinfo_cache(left);
   }
 }
+#endif
 
 void deinit_network_cache() {
+#ifdef XCOM_STANDALONE
   if (addrinfomap) {
     /* purecov: begin deadcode */
     free_getaddrinfo_cache(addrinfomap);
     addrinfomap = NULL;
     /* purecov: end */
   }
+#endif
 }
 
 #ifdef _WIN32

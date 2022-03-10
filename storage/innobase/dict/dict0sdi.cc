@@ -44,14 +44,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0trx.h"
 
 /** Check if SDI Index exists in a tablespace
-@param[in]	tablespace	tablespace object
-@param[in,out]	space_id	space_id from tablespace object
+@param[in]      dd_space  DD tablespace object
+@param[in,out]  space_id  space_id from tablespace object
 @return DB_SUCCESS if SDI exists, else return DB_ERROR,
 DB_TABLESPACE_NOT_FOUND */
-static dberr_t dict_sdi_exists(const dd::Tablespace &tablespace,
+static dberr_t dict_sdi_exists(const dd::Tablespace &dd_space,
                                uint32 *space_id) {
-  if (tablespace.se_private_data().get(dd_space_key_strings[DD_SPACE_ID],
-                                       space_id)) {
+  if (dd_space.se_private_data().get(dd_space_key_strings[DD_SPACE_ID],
+                                     space_id)) {
     /* error, attribute not found */
     ut_ad(0);
     return (DB_ERROR);
@@ -273,7 +273,7 @@ bool dict_sdi_get(const dd::Tablespace &tablespace, const sdi_key_t *sdi_key,
 	uint32_t	uncompressed_sdi_len;
 	uint32_t	compressed_sdi_len = static_cast<uint32_t>(*sdi_len);
 	byte*		compressed_sdi = static_cast<byte*>(
-		ut_malloc_nokey(compressed_sdi_len));
+		ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, compressed_sdi_len));
 
 	dberr_t	err = ib_sdi_get(
 		space_id, &ib_sdi_key,
@@ -295,7 +295,7 @@ bool dict_sdi_get(const dd::Tablespace &tablespace, const sdi_key_t *sdi_key,
 		decompressor.decompress();
         }
 
-	ut_free(compressed_sdi);
+	ut::free(compressed_sdi);
 
 	return(err != DB_SUCCESS);
 #endif /* TODO: Enable in WL#9761 */

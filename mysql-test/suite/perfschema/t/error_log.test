@@ -170,6 +170,30 @@ SELECT COUNT(*)>0
  WHERE logged>=@startup
    AND prio NOT IN("System", "Warning", "Error");
 
+
+--echo
+--echo ########################################################################
+--echo # Restart with a broken trad log ...
+--echo
+--let LOG_FILE_TRAD_SRC=$MYSQLTEST_VARDIR/std_data/wl13681.trad
+--let LOG_FILE_TRAD_DST=$MYSQLTEST_VARDIR/tmp/wl13681.err
+--copy_file $LOG_FILE_TRAD_SRC $LOG_FILE_TRAD_DST
+--let restart_parameters="restart: --log-error=$LOG_FILE_TRAD_DST --log-error-verbosity=3"
+
+--replace_result $LOG_FILE_TRAD_DST LOG_FILE_TRAD
+--source include/restart_mysqld.inc
+
+SET @@session.time_zone=@@global.log_timestamps;
+
+SELECT logged INTO @startup
+  FROM performance_schema.error_log
+ WHERE error_code="MY-010116" ORDER BY logged DESC LIMIT 1;
+
+SELECT LEFT(logged,19), error_code, subsystem, data
+  FROM performance_schema.error_log
+ WHERE logged<@startup AND error_code="MY-999999";
+
+
 --echo
 --echo ########################################################################
 --echo # Restart with JSON logging ...

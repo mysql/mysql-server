@@ -25,6 +25,7 @@
 #ifndef MYSQLROUTER_CONFIG_BUILDER_INCLUDED
 #define MYSQLROUTER_CONFIG_BUILDER_INCLUDED
 
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
@@ -45,14 +46,20 @@ class ConfigBuilder {
   /**
    * build a config file section from key-value pairs.
    */
-  static std::string build_section(const std::string &section,
-                                   std::vector<kv_type> pairs) {
-    std::vector<std::string> lines{"[" + section + "]"};
+  static std::string build_section(
+      const std::string &section, const std::initializer_list<kv_type> &pairs) {
+    return build_section_(section, pairs);
+  }
 
-    for (const auto &pair : pairs) {
-      lines.push_back(build_pair(pair));
-    }
-    return mysql_harness::join(lines, "\n");
+  static std::string build_section(const std::string &section,
+                                   const std::vector<kv_type> &pairs) {
+    return build_section_(section, pairs);
+  }
+
+  static std::string build_section(
+      const std::string &section,
+      const std::map<std::string, std::string> &pairs) {
+    return build_section_(section, pairs);
   }
 
   /**
@@ -60,6 +67,18 @@ class ConfigBuilder {
    */
   static std::string build_pair(const kv_type &pair) {
     return pair.first + "=" + pair.second;
+  }
+
+ private:
+  template <class SectionType>
+  static std::string build_section_(const std::string &section,
+                                    const SectionType &pairs) {
+    std::vector<std::string> lines{"[" + section + "]"};
+
+    for (const auto &pair : pairs) {
+      lines.push_back(build_pair(pair));
+    }
+    return mysql_harness::join(lines, "\n") + "\n\n";
   }
 };
 

@@ -52,18 +52,18 @@ page frame.
 a frame.
   -- The above is true because we look at these fields when the
      corresponding buddy block is free which implies that:
-     * The block we are looking at must have an address aligned at
+     - The block we are looking at must have an address aligned at
        the same size that its free buddy has. For example, if we have
        a free block of 8K then its buddy's address must be aligned at
        8K as well.
-     * It is possible that the block we are looking at may have been
+     - It is possible that the block we are looking at may have been
        further divided into smaller sized blocks but its starting
        address must still remain the start of a page frame i.e.: it
        cannot be middle of a block. For example, if we have a free
        block of size 8K then its buddy may be divided into blocks
        of, say, 1K, 1K, 2K, 4K but the buddy's address will still be
        the starting address of first 1K compressed page.
-     * What is important to note is that for any given block, the
+     - What is important to note is that for any given block, the
        buddy's address cannot be in the middle of a larger block i.e.:
        in above example, our 8K block cannot have a buddy whose address
        is aligned on 8K but it is part of a larger 16K block.
@@ -91,9 +91,9 @@ enum buf_buddy_state_t {
 
 #ifdef UNIV_DEBUG_VALGRIND
 /** Invalidate memory area that we won't access while page is free */
-UNIV_INLINE
-void buf_buddy_mem_invalid(buf_buddy_free_t *buf, /*!< in: block to check */
-                           ulint i) /*!< in: index of zip_free[] */
+static inline void buf_buddy_mem_invalid(
+    buf_buddy_free_t *buf, /*!< in: block to check */
+    ulint i)               /*!< in: index of zip_free[] */
 {
   const size_t size = BUF_BUDDY_LOW << i;
   ut_ad(i <= BUF_BUDDY_SIZES);
@@ -107,7 +107,7 @@ void buf_buddy_mem_invalid(buf_buddy_free_t *buf, /*!< in: block to check */
 
 /** Check if a buddy is stamped free.
  @return whether the buddy is free */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) bool buf_buddy_stamp_is_free(
+[[nodiscard]] static inline bool buf_buddy_stamp_is_free(
     const buf_buddy_free_t *buf) /*!< in: block to check */
 {
   return (mach_read_from_4(buf->stamp.bytes + BUF_BUDDY_STAMP_OFFSET) ==
@@ -115,9 +115,9 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) bool buf_buddy_stamp_is_free(
 }
 
 /** Stamps a buddy free. */
-UNIV_INLINE
-void buf_buddy_stamp_free(buf_buddy_free_t *buf, /*!< in/out: block to stamp */
-                          ulint i)               /*!< in: block size */
+static inline void buf_buddy_stamp_free(
+    buf_buddy_free_t *buf, /*!< in/out: block to stamp */
+    ulint i)               /*!< in: block size */
 {
   ut_d(memset(&buf->stamp, static_cast<int>(i), BUF_BUDDY_LOW << i));
   buf_buddy_mem_invalid(buf, i);
@@ -140,9 +140,8 @@ void buf_buddy_stamp_free(buf_buddy_free_t *buf, /*!< in/out: block to stamp */
 
 /** Get the offset of the buddy of a compressed page frame.
  @return the buddy relative of page */
-UNIV_INLINE
-void *buf_buddy_get(byte *page, /*!< in: compressed page */
-                    ulint size) /*!< in: page size in bytes */
+static inline void *buf_buddy_get(byte *page, /*!< in: compressed page */
+                                  ulint size) /*!< in: page size in bytes */
 {
   ut_ad(ut_is_2pow(size));
   ut_ad(size >= BUF_BUDDY_LOW);
@@ -186,22 +185,19 @@ zip_free[].
 @param[in]	buf		block to check
 @param[in]	i		index of buf_pool->zip_free[]
 @return true if free */
-UNIV_INLINE
-bool buf_buddy_check_free(buf_pool_t *buf_pool, const buf_buddy_free_t *buf,
-                          ulint i) {
+static inline bool buf_buddy_check_free(buf_pool_t *buf_pool,
+                                        const buf_buddy_free_t *buf, ulint i) {
   const ulint size = BUF_BUDDY_LOW << i;
 
   ut_ad(mutex_own(&buf_pool->zip_free_mutex));
   ut_ad(!ut_align_offset(buf, size));
   ut_ad(i >= buf_buddy_get_slot(UNIV_ZIP_SIZE_MIN));
 
-  buf_buddy_free_t *itr;
-
-  for (itr = UT_LIST_GET_FIRST(buf_pool->zip_free[i]); itr && itr != buf;
-       itr = UT_LIST_GET_NEXT(list, itr)) {
+  for (auto itr : buf_pool->zip_free[i]) {
+    if (itr == buf) return true;
   }
 
-  return (itr == buf);
+  return false;
 }
 #endif /* UNIV_DEBUG */
 
@@ -209,10 +205,10 @@ bool buf_buddy_check_free(buf_pool_t *buf_pool, const buf_buddy_free_t *buf,
  @retval BUF_BUDDY_STATE_FREE if fully free
  @retval BUF_BUDDY_STATE_USED if currently in use
  @retval BUF_BUDDY_STATE_PARTIALLY_USED if partially in use. */
-static MY_ATTRIBUTE((warn_unused_result)) buf_buddy_state_t
-    buf_buddy_is_free(buf_buddy_free_t *buf, /*!< in: block to check */
-                      ulint i)               /*!< in: index of
-                                             buf_pool->zip_free[] */
+[[nodiscard]] static buf_buddy_state_t buf_buddy_is_free(
+    buf_buddy_free_t *buf, /*!< in: block to check */
+    ulint i)               /*!< in: index of
+                           buf_pool->zip_free[] */
 {
 #ifdef UNIV_DEBUG
   const ulint size = BUF_BUDDY_LOW << i;
@@ -251,11 +247,10 @@ static MY_ATTRIBUTE((warn_unused_result)) buf_buddy_state_t
 @param[in]	buf_pool	buffer pool instance
 @param[in,out]	buf		block to be freed
 @param[in]	i		index of buf_pool->zip_free[] */
-UNIV_INLINE
-void buf_buddy_add_to_free(buf_pool_t *buf_pool, buf_buddy_free_t *buf,
-                           ulint i) {
+static inline void buf_buddy_add_to_free(buf_pool_t *buf_pool,
+                                         buf_buddy_free_t *buf, ulint i) {
   ut_ad(mutex_own(&buf_pool->zip_free_mutex));
-  ut_ad(buf_pool->zip_free[i].start != buf);
+  ut_ad(buf_pool->zip_free[i].first_element != buf);
 
   buf_buddy_stamp_free(buf, i);
   UT_LIST_ADD_FIRST(buf_pool->zip_free[i], buf);
@@ -266,9 +261,8 @@ void buf_buddy_add_to_free(buf_pool_t *buf_pool, buf_buddy_free_t *buf,
 @param[in]	buf_pool	buffer pool instance
 @param[in,out]	buf		block to be freed
 @param[in]	i		index of buf_pool->zip_free[] */
-UNIV_INLINE
-void buf_buddy_remove_from_free(buf_pool_t *buf_pool, buf_buddy_free_t *buf,
-                                ulint i) {
+static inline void buf_buddy_remove_from_free(buf_pool_t *buf_pool,
+                                              buf_buddy_free_t *buf, ulint i) {
   ut_ad(mutex_own(&buf_pool->zip_free_mutex));
   ut_ad(buf_buddy_check_free(buf_pool, buf, i));
 
@@ -580,7 +574,7 @@ static bool buf_buddy_relocate(buf_pool_t *buf_pool, void *src, void *dst,
 
   if (buf_page_can_relocate(bpage)) {
     /* Relocate the compressed page. */
-    const auto usec = ut_time_monotonic_us();
+    const auto start_time = std::chrono::steady_clock::now();
 
     ut_a(bpage->zip.data == src);
 
@@ -595,7 +589,8 @@ static bool buf_buddy_relocate(buf_pool_t *buf_pool, void *src, void *dst,
 
     buf_buddy_stat_t *buddy_stat = &buf_pool->buddy_stat[i];
     buddy_stat->relocated++;
-    buddy_stat->relocated_usec += ut_time_monotonic_us() - usec;
+    buddy_stat->relocated_duration +=
+        std::chrono::steady_clock::now() - start_time;
     return (true);
   }
 

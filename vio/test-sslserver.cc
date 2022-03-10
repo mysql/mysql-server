@@ -74,7 +74,7 @@ static void *client_thread(void *arg) {
   return 0;
 }
 
-int main(int argc MY_ATTRIBUTE((unused)), char **argv) {
+int main(int argc [[maybe_unused]], char **argv) {
   char server_key[] = "../SSL/server-key.pem",
        server_cert[] = "../SSL/server-cert.pem";
   char ca_file[] = "../SSL/cacert.pem", *ca_path = 0, *cipher = 0;

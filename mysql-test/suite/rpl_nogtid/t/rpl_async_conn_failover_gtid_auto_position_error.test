@@ -21,6 +21,7 @@
 # 6. Clean up
 #
 --source include/have_gtid_mode_off.inc
+--let $rpl_skip_start_slave= 1
 --source include/master-slave.inc
 
 --echo #
@@ -55,7 +56,6 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1;
 --echo #
 --echo # 3. Enable gtid_mode.
 --echo #
---source include/stop_slave.inc
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 SET GLOBAL GTID_MODE = OFF_PERMISSIVE;

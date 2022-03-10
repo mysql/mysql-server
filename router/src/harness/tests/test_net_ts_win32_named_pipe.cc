@@ -29,7 +29,6 @@
 #include "mysql/harness/net_ts/impl/socket.h"  // net::impl::socket::init
 
 #include "mysql/harness/stdx/expected_ostream.h"
-#include "mysql/harness/stdx/string_view.h"
 
 #if defined(_WIN32)
 

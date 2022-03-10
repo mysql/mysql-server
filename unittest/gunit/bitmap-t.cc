@@ -35,7 +35,7 @@ const int BITMAP_SIZE = 128;
 
 class BitmapTest : public ::testing::Test {
  protected:
-  BitmapTest() {}
+  BitmapTest() = default;
 
   void SetUp() override { bitmap.init(); }
 

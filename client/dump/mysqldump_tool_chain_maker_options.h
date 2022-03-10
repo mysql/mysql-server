@@ -25,6 +25,8 @@
 #ifndef MYSQLDUMP_TOOL_CHAIN_MAKER_OPTIONS_INCLUDED
 #define MYSQLDUMP_TOOL_CHAIN_MAKER_OPTIONS_INCLUDED
 
+#include <optional>
+
 #include "client/dump/abstract_data_object.h"
 #include "client/dump/mysql_object_reader_options.h"
 #include "client/dump/object_filter.h"
@@ -65,8 +67,8 @@ class Mysqldump_tool_chain_maker_options
   bool m_dump_all_databases;
   bool m_dump_selected_databases;
   uint32 m_default_parallelism;
-  Mysql::Nullable<std::string> m_result_file;
-  Mysql::Nullable<std::string> m_compress_output_algorithm;
+  std::optional<std::string> m_result_file;
+  std::optional<std::string> m_compress_output_algorithm;
   bool m_skip_rows_data;
 
  private:
@@ -78,7 +80,7 @@ class Mysqldump_tool_chain_maker_options
    */
   std::map<int, int> m_object_queue_threads;
   std::map<std::string, int> m_database_to_object_queue_id;
-  Mysql::Nullable<std::string> m_parallel_schemas_string;
+  std::optional<std::string> m_parallel_schemas_string;
   int m_last_parallel_schemas_queue_id;
   /* count of parallel-schemas queues with default parallelism */
   int m_def_thread_count;

@@ -201,6 +201,7 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl) {
     return nullptr; /* purecov: inspected */
   assert(t->s == first->s && t != first && t->file != first->file);
   t->s->increment_ref_count();
+  t->s->tmp_handler_count++;
 
   // In case this clone is used to fill the materialized table:
   bitmap_set_all(t->write_set);
@@ -237,6 +238,10 @@ bool Common_table_expr::substitute_recursive_reference(THD *thd,
   tl->set_derived_query_expression(nullptr);
   tl->set_privileges(SELECT_ACL);
   return false;
+}
+
+void Common_table_expr::remove_table(TABLE_LIST *tr) {
+  (void)tmp_tables.erase_value(tr);
 }
 
 /**
@@ -513,14 +518,16 @@ static void swap_column_names_of_unit_and_tmp_table(
   (i+10) need to be different so as to be able to replace them with
   some other expressions later.
 
-  @param[in] thd  Current thread
-  @param[in] item Item for which clone is requested
+  @param[in] thd      Current thread
+  @param[in] item     Item for which clone is requested
+  @param[in] context  Context used for resolving the cloned item.
 
   @returns
   Cloned object for the item.
 */
 
-Item *TABLE_LIST::get_clone_for_derived_expr(THD *thd, Item *item) {
+Item *TABLE_LIST::get_clone_for_derived_expr(THD *thd, Item *item,
+                                             Name_resolution_context *context) {
   assert(derived->is_prepared());
 
   // Set up for parsing item
@@ -559,8 +566,25 @@ Item *TABLE_LIST::get_clone_for_derived_expr(THD *thd, Item *item) {
   bool parsing_system_view_saved = thd->parsing_system_view;
   thd->parsing_system_view = is_system_view;
 
+  // Set the correct query block to parse the item. In some cases, like
+  // fulltext functions, parser needs to add them to ftfunc_list of the
+  // query block.
+  thd->lex->unit = context->query_block->master_query_expression();
+  thd->lex->set_current_query_block(context->query_block);
+  // If this query block is part of a stored procedure, we might have to
+  // parse a stored procedure variable (if present). Set the context
+  // correctly.
+  thd->lex->set_sp_current_parsing_ctx(old_lex->get_sp_current_parsing_ctx());
+  thd->lex->sphead = old_lex->sphead;
+  // Take care not to write a cloned stored procedure variable to query logs.
+  thd->lex->reparse_derived_table_condition = true;
+
   bool result = parse_sql(thd, &parser_state, nullptr);
 
+  thd->lex->reparse_derived_table_condition = false;
+  // lex_end() would try to destroy sphead if set. So we reset it.
+  thd->lex->set_sp_current_parsing_ctx(nullptr);
+  thd->lex->sphead = nullptr;
   // End of parsing.
   lex_end(thd->lex);
   thd->lex = old_lex;
@@ -569,15 +593,12 @@ Item *TABLE_LIST::get_clone_for_derived_expr(THD *thd, Item *item) {
   // Prepare for resolving the item.
   Item *cloned_item = parser_state.result;
 
-  // Resolve the expression with derived table's context
-  Item_ident::Change_context ctx(
-      &derived_query_expression()->first_query_block()->context);
+  Item_ident::Change_context ctx(context);
   cloned_item->walk(&Item::change_context_processor, enum_walk::POSTFIX,
                     reinterpret_cast<uchar *>(&ctx));
 
   Query_block *saved_current_query_block = thd->lex->current_query_block();
-  thd->lex->set_current_query_block(
-      derived_query_expression()->first_query_block());
+  thd->lex->set_current_query_block(context->query_block);
   nesting_map save_allow_sum_func = thd->lex->allow_sum_func;
   thd->lex->allow_sum_func |= static_cast<nesting_map>(1)
                               << thd->lex->current_query_block()->nest_level;
@@ -807,28 +828,34 @@ bool TABLE_LIST::setup_table_function(THD *thd) {
 /**
   Returns true if a condition can be pushed down to derived
   table based on some constraints.
-  Hint and/or optimizer switch derived_condition_pushdown must be on.
 
   A condition cannot be pushed down to derived table if any of
   the following holds true:
-  1. If the derived table has UNION - Implementation restriction
-  2. If it has LIMIT - If the derived table has LIMIT,
+  1. Hint and/or optimizer switch DERIVED_CONDITION_PUSHDOWN is off.
+  2. If the derived table has UNION - Implementation restriction.
+  3. If it has LIMIT - If the derived table has LIMIT,
   then the pushed condition would affect the number of rows that
   would be fetched.
-  3. It cannot be an inner table of an outer join - that would lead to more
+  4. It cannot be an inner table of an outer join - that would lead to more
   NULL-complemented rows.
-  4. This cannot be a CTE having derived tables being referenced
+  5. This cannot be a CTE having derived tables being referenced
   multiple times - there is only one temporary table for both references, if
   materialized ("shared materialization").
+  6. If the derived query block has any user variable assignments -
+  would affect the result of evaluating assignments to user variables
+  in SELECT list of the derived table.
 */
 
 bool TABLE_LIST::can_push_condition_to_derived(THD *thd) {
   Query_expression const *unit = derived_query_expression();
   return hint_table_state(thd, this, DERIVED_CONDITION_PUSHDOWN_HINT_ENUM,
-                          OPTIMIZER_SWITCH_DERIVED_CONDITION_PUSHDOWN) &&
-         !unit->is_union() && !unit->first_query_block()->has_limit() &&
-         !is_inner_table_of_outer_join() &&
-         !(common_table_expr() && common_table_expr()->references.size() >= 2);
+                          OPTIMIZER_SWITCH_DERIVED_CONDITION_PUSHDOWN) &&  // 1
+         !unit->is_union() &&                                              // 2
+         !unit->first_query_block()->has_limit() &&                        // 3
+         !is_inner_table_of_outer_join() &&                                // 4
+         !(common_table_expr() &&
+           common_table_expr()->references.size() >= 2) &&  // 5
+         (thd->lex->set_var_list.elements == 0);            // 6
 }
 
 /**
@@ -885,11 +912,16 @@ bool Condition_pushdown::make_cond_for_derived() {
   trace_cond.add("condition_not_pushed_to_derived", m_remainder_cond);
 
   // If this condition has a semi-join condition, remove expressions from
-  // semi-join expression lists.
-  if (m_having_cond) check_and_remove_sj_exprs(m_having_cond);
-  if (m_where_cond) check_and_remove_sj_exprs(m_where_cond);
-  // Replace columns in the condition with derived table expressions.
-  if (replace_columns_in_cond()) return true;
+  // semi-join expression lists. Replace columns in the condition with
+  // derived table expressions.
+  if (m_having_cond != nullptr) {
+    check_and_remove_sj_exprs(m_having_cond);
+    if (replace_columns_in_cond(&m_having_cond, true)) return true;
+  }
+  if (m_where_cond != nullptr) {
+    check_and_remove_sj_exprs(m_where_cond);
+    if (replace_columns_in_cond(&m_where_cond, false)) return true;
+  }
 
   Query_block *derived_query_block =
       m_derived_table->derived_query_expression()->first_query_block();
@@ -994,6 +1026,14 @@ Item *Condition_pushdown::extract_cond_for_table(Item *cond) {
     if (cond->walk(&Item::check_column_in_group_by, enum_walk::POSTFIX,
                    pointer_cast<uchar *>(m_derived_table)))
       return nullptr;
+  }
+
+  // Pushing in2exists conditions down into other query blocks
+  // could cause them to get lost, as Item_subselect would not know
+  // where to remove them from. They're a very rare case to have pushable,
+  // so simply refuse pushing them.
+  if (cond->created_by_in2exists()) {
+    return nullptr;
   }
 
   // Mark the condition as it passed the checks
@@ -1128,23 +1168,32 @@ Item *Condition_pushdown::make_remainder_cond(Item *cond) {
  expressions.
 */
 
-bool Condition_pushdown::replace_columns_in_cond() {
-  if (m_having_cond) {
-    Item *new_cond =
-        m_having_cond->transform(&Item::replace_with_derived_expr_ref,
+bool Condition_pushdown::replace_columns_in_cond(Item **cond, bool is_having) {
+  // For a view reference, the underlying expression could be shared if the
+  // expression is referenced elsewhere in the query. So we clone the expression
+  // before replacing it with derived table expression.
+  bool view_ref = false;
+  WalkItem((*cond), enum_walk::PREFIX, [&view_ref](Item *inner_item) {
+    if (inner_item->type() == Item::REF_ITEM &&
+        down_cast<Item_ref *>(inner_item)->ref_type() == Item_ref::VIEW_REF) {
+      view_ref = true;
+      return true;
+    }
+    return false;
+  });
+  if (view_ref) {
+    (*cond) = (*cond)->transform(&Item::replace_view_refs_with_clone,
                                  pointer_cast<uchar *>(m_derived_table));
-    if (new_cond == nullptr) return true;
-    new_cond->update_used_tables();  // as it's using different tables now
-    m_having_cond = new_cond;
+    if (*cond == nullptr) return true;
   }
-  if (m_where_cond) {
-    Item *new_cond =
-        m_where_cond->transform(&Item::replace_with_derived_expr,
-                                pointer_cast<uchar *>(m_derived_table));
-    if (new_cond == nullptr) return true;
-    new_cond->update_used_tables();
-    m_where_cond = new_cond;
-  }
+  Item *new_cond =
+      is_having ? (*cond)->transform(&Item::replace_with_derived_expr_ref,
+                                     pointer_cast<uchar *>(m_derived_table))
+                : (*cond)->transform(&Item::replace_with_derived_expr,
+                                     pointer_cast<uchar *>(m_derived_table));
+  if (new_cond == nullptr) return true;
+  new_cond->update_used_tables();
+  (*cond) = new_cond;
   return false;
 }
 
@@ -1282,6 +1331,14 @@ bool Condition_pushdown::attach_cond_to_derived(Item *derived_cond,
   having ? derived_query_block->set_having_cond(derived_cond)
          : derived_query_block->set_where_cond(derived_cond);
   thd->lex->set_current_query_block(saved_query_block);
+  // Need to call setup_ftfuncs() if we have pushed down a condition having
+  // full text function.
+  if (derived_query_block->has_ft_funcs() &&
+      contains_function_of_type(cond_to_attach, Item_func::FT_FUNC)) {
+    if (setup_ftfuncs(thd, derived_query_block)) {
+      return true;
+    }
+  }
   return false;
 }
 
@@ -1316,7 +1373,9 @@ bool TABLE_LIST::optimize_derived(THD *thd) {
     }
   }
 
-  if (unit->optimize(thd, table, /*create_iterators=*/false) || thd->is_error())
+  if (unit->optimize(thd, table, /*create_iterators=*/false,
+                     /*finalize_access_paths=*/true) ||
+      thd->is_error())
     return true;
 
   // If the table is const, materialize it now. The hypergraph optimizer

@@ -16,7 +16,7 @@
 #   b. send 'set binlog_encryption=OFF'.
 # 4. wait for 'set binlog_encryption=OFF' executing thread to reach the debug point.
 # 5. on slave connection server_2_2:
-#   a. set debug sync point after_locking_channel_map_in_start_slave.
+#   a. set debug sync point after_locking_channel_map_in_start_replica.
 #   b. send 'start slave'.
 # 6. wait for start slave executing thread to reach the debug point, set in 5.(a).
 # 7. signal debug points, one on each threads, set in 3.(a), and 5.(a).
@@ -56,11 +56,11 @@ SET DEBUG_SYNC='after_locking_global_sys_var_set_binlog_enc SIGNAL sysvar_before
 SET DEBUG_SYNC='now WAIT_FOR sysvar_before_unlock';
 
 # 5. on slave connection server_2_2:
-#   a. set debug sync point after_locking_channel_map_in_start_slave.
+#   a. set debug sync point after_locking_channel_map_in_start_replica.
 #   b. send 'start slave'.
 --let $rpl_connection_name= server_2_2
 --source include/rpl_connection.inc
-SET DEBUG_SYNC='after_locking_channel_map_in_start_slave SIGNAL after_channelmap_lock WAIT_FOR cont_start_slave';
+SET DEBUG_SYNC='after_locking_channel_map_in_start_replica SIGNAL after_channelmap_lock WAIT_FOR cont_start_slave';
 --send START SLAVE
 
 # 6. wait for start slave executing thread to reach the debug point, set in 5.(a).

@@ -795,6 +795,20 @@ INSERT INTO global_grants SELECT user, host, 'SHOW_ROUTINE', IF(grant_priv = 'Y'
 FROM mysql.user WHERE select_priv = 'Y' AND @hadShowRoutinePriv = 0 AND user NOT IN ('mysql.infoschema','mysql.session','mysql.sys');
 COMMIT;
 
+-- Add the privilege AUTHENTICATION_POLICY_ADMIN for every user who has the SYSTEM_VARIABLES_ADMIN privilege
+-- provided that there isn't a user who already has the privilege AUTHENTICATION_POLICY_ADMIN.
+SET @hadAuthenticationPolicyAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'AUTHENTICATION_POLICY_ADMIN');
+INSERT INTO global_grants SELECT mu.user, mu.host, 'AUTHENTICATION_POLICY_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user mu, global_grants gg WHERE mu.user = gg.user AND gg.priv = 'SYSTEM_VARIABLES_ADMIN' AND @hadAuthenticationPolicyAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege PASSWORDLESS_USER_ADMIN for every user who has the privilege CREATE USER
+-- provided that there isn't a user who already has the privilege PASSWORDLESS_USER_ADMIN.
+SET @hadPasswordlessUserAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'PASSWORDLESS_USER_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'PASSWORDLESS_USER_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE Create_user_priv = 'Y' AND @hadPasswordlessUserAdminPriv = 0;
+COMMIT;
+
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above
 # changes was correct
@@ -806,6 +820,7 @@ ALTER TABLE slave_worker_info STATS_PERSISTENT=0;
 ALTER TABLE slave_relay_log_info STATS_PERSISTENT=0;
 ALTER TABLE replication_asynchronous_connection_failover STATS_PERSISTENT=0;
 ALTER TABLE replication_asynchronous_connection_failover_managed STATS_PERSISTENT=0;
+ALTER TABLE replication_group_member_actions STATS_PERSISTENT=0;
 ALTER TABLE gtid_executed STATS_PERSISTENT=0;
 
 #
@@ -850,6 +865,8 @@ ALTER TABLE slave_master_info ADD Master_compression_algorithm CHAR(64) CHARACTE
 ALTER TABLE slave_master_info ADD Tls_ciphersuites TEXT CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL COMMENT 'Ciphersuites used for TLS 1.3 communication with the master server.';
 
 ALTER TABLE slave_master_info ADD Source_connection_auto_failover BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Indicates whether the channel connection failover is enabled.';
+
+ALTER TABLE slave_master_info ADD Gtid_only BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Indicates if this channel only uses GTIDs and does not persist positions.';
 
 -- This would add the Managed_name column to
 -- replication_asynchronous_connection_failover table on upgrade from older
@@ -1321,6 +1338,7 @@ ALTER TABLE mysql.slave_master_info TABLESPACE = mysql;
 ALTER TABLE mysql.slave_worker_info TABLESPACE = mysql;
 ALTER TABLE mysql.replication_asynchronous_connection_failover TABLESPACE = mysql;
 ALTER TABLE mysql.replication_asynchronous_connection_failover_managed TABLESPACE = mysql;
+ALTER TABLE mysql.replication_group_member_actions TABLESPACE = mysql;
 ALTER TABLE mysql.gtid_executed TABLESPACE = mysql;
 ALTER TABLE mysql.server_cost TABLESPACE = mysql;
 ALTER TABLE mysql.engine_cost TABLESPACE = mysql;
@@ -1392,6 +1410,7 @@ ALTER TABLE slave_master_info ROW_FORMAT=DYNAMIC;
 ALTER TABLE slave_worker_info ROW_FORMAT=DYNAMIC;
 ALTER TABLE replication_asynchronous_connection_failover ROW_FORMAT=DYNAMIC;
 ALTER TABLE replication_asynchronous_connection_failover_managed ROW_FORMAT=DYNAMIC;
+ALTER TABLE replication_group_member_actions ROW_FORMAT=DYNAMIC;
 ALTER TABLE slave_relay_log_info ROW_FORMAT=DYNAMIC;
 ALTER TABLE tables_priv ROW_FORMAT=DYNAMIC;
 ALTER TABLE time_zone ROW_FORMAT=DYNAMIC;
@@ -1448,7 +1467,7 @@ ALTER TABLE gtid_executed
   CONVERT TO CHARACTER SET utf8mb4;
 
 ALTER TABLE slave_master_info
-  MODIFY Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  MODIFY Channel_name VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the replica is connected to a source. Used in Multisource Replication',
   MODIFY Bind TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Displays which interface is employed when connecting to the MySQL server',
   MODIFY Ignored_server_ids TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The number of server IDs to be ignored, followed by the actual server IDs',
   MODIFY Uuid TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The master server uuid.',
@@ -1461,13 +1480,17 @@ ALTER TABLE slave_master_info
   MODIFY Ssl_crl TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)',
   MODIFY Ssl_crlpath TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',
   MODIFY User_name TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The user name used to connect to the master.',
-  MODIFY User_password TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The password used to connect to the master.';
+  MODIFY User_password TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The password used to connect to the master.',
+  MODIFY Host VARCHAR(255) CHARACTER SET ASCII COMMENT 'The host name of the source.',
+  MODIFY Master_compression_algorithm VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'Compression algorithm supported for data transfer between source and replica.';
 
 ALTER TABLE slave_relay_log_info
-  MODIFY Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication';
+  MODIFY Channel_name VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the replica is connected to a source. Used in Multisource Replication',
+  MODIFY Privilege_checks_username VARCHAR(32) COLLATE utf8_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.',
+  MODIFY Privilege_checks_hostname VARCHAR(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.';
 
 ALTER TABLE slave_worker_info
-  MODIFY Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  MODIFY Channel_name VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the replica is connected to a source. Used in Multisource Replication',
   MODIFY Relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   MODIFY Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   MODIFY Checkpoint_relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
@@ -1490,3 +1513,9 @@ ALTER TABLE user
 
 ALTER TABLE time_zone
   MODIFY Use_leap_seconds enum('Y','N') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
+
+-- grant AUDIT_ABORT_EXEMPT to all current holders of SYSTEM_USER
+SET @hadAuditAbortExempt = (SELECT COUNT(*) FROM global_grants WHERE priv = 'AUDIT_ABORT_EXEMPT');
+INSERT INTO mysql.global_grants
+  SELECT user, host, 'AUDIT_ABORT_EXEMPT', IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N')
+   FROM mysql.global_grants WHERE priv = 'SYSTEM_USER' AND @hadAuditAbortExempt = 0;

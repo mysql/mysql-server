@@ -35,7 +35,6 @@
 #include <util/SparseBitmask.hpp>
 #include "../common/util/parse_mask.hpp"
 
-extern EventLogger *g_eventLogger;
 
 const int MAX_LINE_LENGTH = 1024;  // Max length of line of text in config file
 static void trim(char *);
@@ -357,7 +356,7 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
     if(desc && desc[0]){
       ctx.reportWarning("[%s] %s is deprecated, will use %s instead",
 			ctx.fname, fname, desc);
-    } else if (desc == 0){
+    } else {
       ctx.reportWarning("[%s] %s is deprecated", ctx.fname, fname);
     }
   }
@@ -756,6 +755,11 @@ InitConfigFileParser::store_in_properties(Vector<struct my_option>& options,
       const char* value = NULL;
       char buf[32];
       switch(options[i].var_type){
+      case GET_BOOL:
+        BaseString::snprintf(buf, sizeof(buf), "%s",
+                             *(bool*)options[i].value ? "true" : "false");
+        value = buf;
+	break;
       case GET_INT:
       case GET_UINT:
         BaseString::snprintf(buf, sizeof(buf), "%u",
@@ -900,8 +904,8 @@ InitConfigFileParser::parse_mycnf(const char* cluster_config_suffix)
       const ConfigInfo::ParamInfo& param = ConfigInfo::m_ParamInfo[i];
       switch(param._type){
       case ConfigInfo::CI_BOOL:
-	opt.value = (uchar **)malloc(sizeof(int));
-	opt.var_type = GET_INT;
+	opt.value = (uchar **)malloc(sizeof(bool));
+	opt.var_type = GET_BOOL;
 	break;
       case ConfigInfo::CI_INT: 
 	opt.value = (uchar**)malloc(sizeof(uint));

@@ -23,6 +23,7 @@
 */
 
 #include <assert.h>
+#include <cstring>
 #include <ndb_types.h>
 #include "mt.hpp"
 
@@ -92,7 +93,7 @@ mt_get_blocklist(class SimulatedBlock * block, Uint32 arr[], Uint32 len)
 void
 mt_get_thr_stat(class SimulatedBlock *, ndb_thr_stat* dst)
 {
-  bzero(dst, sizeof(* dst));
+  std::memset(dst, 0, sizeof(* dst));
   dst->name = "main";
 }
 

@@ -66,8 +66,8 @@ private:
   /**
    * No of free words to carry data
    */
-  STATIC_CONST( SignalLength = 3);
-  STATIC_CONST( DATA_SIZE = 22 );
+  static constexpr Uint32 SignalLength = 3;
+  static constexpr Uint32 DATA_SIZE = 22;
   
   Uint32 data[DATA_SIZE];
 };

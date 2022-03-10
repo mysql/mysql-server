@@ -53,16 +53,19 @@ extern trx_purge_t *purge_sys;
 /** Calculates the file address of an undo log header when we have the file
  address of its history list node.
  @return file address of the log */
-UNIV_INLINE
-fil_addr_t trx_purge_get_log_from_hist(
+static inline fil_addr_t trx_purge_get_log_from_hist(
     fil_addr_t node_addr); /*!< in: file address of the history
                            list node of the log */
+
+/** Initialize in-memory purge structures */
+void trx_purge_sys_mem_create();
 
 /** Creates the global purge system control structure and inits the history
 mutex.
 @param[in]      n_purge_threads   number of purge threads
 @param[in,out]  purge_queue       UNDO log min binary heap */
-void trx_purge_sys_create(ulint n_purge_threads, purge_pq_t *purge_queue);
+void trx_purge_sys_initialize(uint32_t n_purge_threads,
+                              purge_pq_t *purge_queue);
 
 /** Frees the global purge system control structure. */
 void trx_purge_sys_close(void);
@@ -341,29 +344,29 @@ struct Tablespace {
     vector. This constructor is only used in the global
     undo::Tablespaces object where rollback segments are
     tracked. */
-    m_rsegs = UT_NEW_NOKEY(Rsegs());
+    m_rsegs = ut::new_withkey<Rsegs>(UT_NEW_THIS_FILE_PSI_KEY);
   }
 
   /** Destructor */
   ~Tablespace() {
     if (m_space_name != nullptr) {
-      ut_free(m_space_name);
+      ut::free(m_space_name);
       m_space_name = nullptr;
     }
 
     if (m_file_name != nullptr) {
-      ut_free(m_file_name);
+      ut::free(m_file_name);
       m_file_name = nullptr;
     }
 
     if (m_log_file_name != nullptr) {
-      ut_free(m_log_file_name);
+      ut::free(m_log_file_name);
       m_log_file_name = nullptr;
     }
 
     /* Clear the cached rollback segments.  */
     if (m_rsegs != nullptr) {
-      UT_DELETE(m_rsegs);
+      ut::delete_(m_rsegs);
       m_rsegs = nullptr;
     }
   }
@@ -640,7 +643,7 @@ struct Tablespace {
 rollback segments. */
 class Tablespaces {
   using Tablespaces_Vector =
-      std::vector<Tablespace *, ut_allocator<Tablespace *>>;
+      std::vector<Tablespace *, ut::allocator<Tablespace *>>;
 
  public:
   Tablespaces() { init(); }
@@ -657,7 +660,7 @@ class Tablespaces {
   This does not deallocate any memory. */
   void clear() {
     for (auto undo_space : m_spaces) {
-      UT_DELETE(undo_space);
+      ut::delete_(undo_space);
     }
     m_spaces.clear();
   }
@@ -1056,6 +1059,9 @@ struct trx_purge_t {
 
   /** Set of all THDs allocated by the purge system. */
   ut::unordered_set<THD *> thds;
+
+  /** Set of all rseg queue. */
+  std::vector<trx_rseg_t *> rsegs_queue;
 };
 
 /** Choose the rollback segment with the smallest trx_no. */
@@ -1082,7 +1088,7 @@ struct TrxUndoRsegsIterator {
   TrxUndoRsegs m_trx_undo_rsegs;
 
   /** Track the current element in m_trx_undo_rseg */
-  Rseg_Iterator m_iter;
+  typename Rsegs_array<2>::iterator m_iter;
 
   /** Sentinel value */
   static const TrxUndoRsegs NullElement;

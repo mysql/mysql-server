@@ -38,18 +38,21 @@ typedef struct srv_buf srv_buf;
 struct server {
   int garbage;
   int refcnt;
-  char *srv;                 /* Server name */
-  xcom_port port;            /* Port */
-  connection_descriptor con; /* Descriptor for open connection */
-  double active;             /* Last activity */
-  double detected;           /* Last incoming */
-  channel outgoing;          /* Outbound messages */
-  task_env *sender;          /* The sender task */
-  task_env *reply_handler;   /* The reply task */
+  char *srv;                  /* Server name */
+  xcom_port port;             /* Port */
+  connection_descriptor *con; /* Descriptor for open connection */
+  double active;              /* Last activity */
+  double detected;            /* Last incoming */
+  channel outgoing;           /* Outbound messages */
+  task_env *sender;           /* The sender task */
+  task_env *reply_handler;    /* The reply task */
   srv_buf out_buf;
   int invalid;
   int number_of_pings_received; /* Number of pings received from this server */
   double last_ping_received;    /* Last received ping timestamp */
+#if defined(_WIN32)
+  bool reconnect; /*States if the server should be reconnected*/
+#endif
 };
 
 typedef struct server server;

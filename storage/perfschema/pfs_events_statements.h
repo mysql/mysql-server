@@ -110,6 +110,12 @@ struct PFS_events_statements : public PFS_events {
   /** Optimizer metric, number of 'no good index used'. */
   ulonglong m_no_good_index_used;
 
+  /**
+    CPU time.
+    Expressed in STORAGE units (nanoseconds).
+  */
+  ulonglong m_cpu_time;
+
   /** True if @c SQL_TEXT was truncated. */
   bool m_sqltext_truncated;
   /** Statement character set number. */
@@ -137,6 +143,7 @@ void insert_events_statements_history_long(PFS_events_statements *statement);
 
 extern ulong nested_statement_lost;
 
+extern bool flag_events_statements_cpu;
 extern bool flag_events_statements_current;
 extern bool flag_events_statements_history;
 extern bool flag_events_statements_history_long;

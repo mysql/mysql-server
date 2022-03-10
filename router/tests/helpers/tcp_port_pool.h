@@ -69,7 +69,7 @@ class UniqueId {
  **/
 class TcpPortPool {
  public:
-  TcpPortPool() {}
+  TcpPortPool() = default;
 
   TcpPortPool(const TcpPortPool &) = delete;
   TcpPortPool &operator=(const TcpPortPool &) = delete;

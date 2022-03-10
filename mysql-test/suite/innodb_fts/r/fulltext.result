@@ -31,31 +31,31 @@ a	b
 Only MyISAM tables	support collections
 select * from t1 where MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION);
 a	b
-Only MyISAM tables	support collections
 Full-text indexes	are called collections
-MySQL has now support	for full-text search
 Full-text search in MySQL	implements vector space model
+MySQL has now support	for full-text search
+Only MyISAM tables	support collections
 select * from t1 where MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION);
 a	b
 Full-text indexes	are called collections
-Only MyISAM tables	support collections
-MySQL has now support	for full-text search
 Full-text search in MySQL	implements vector space model
+MySQL has now support	for full-text search
+Only MyISAM tables	support collections
 select * from t1 where MATCH(a,b) AGAINST ("indexes collections" WITH QUERY EXPANSION);
 a	b
-Only MyISAM tables	support collections
 Full-text indexes	are called collections
-MySQL has now support	for full-text search
 Full-text search in MySQL	implements vector space model
+MySQL has now support	for full-text search
+Only MyISAM tables	support collections
 select * from t1 where MATCH(a,b) AGAINST ("indexes" IN NATURAL LANGUAGE MODE);
 a	b
 Full-text indexes	are called collections
 select * from t1 where MATCH(a,b) AGAINST ("indexes" IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
 a	b
 Full-text indexes	are called collections
-Only MyISAM tables	support collections
-MySQL has now support	for full-text search
 Full-text search in MySQL	implements vector space model
+MySQL has now support	for full-text search
+Only MyISAM tables	support collections
 select * from t1 where MATCH(a,b) AGAINST ("indexes" IN BOOLEAN MODE WITH QUERY EXPANSION);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WITH QUERY EXPANSION)' at line 1
 explain select * from t1 where MATCH(a,b) AGAINST ("collections");
@@ -118,13 +118,13 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('support -collections' in boolean mode))
 select * from t1 where MATCH(a,b) AGAINST("support  collections" IN BOOLEAN MODE);
 a	b
-Only MyISAM tables	support collections
-MySQL has now support	for full-text search
 Full-text indexes	are called collections
+MySQL has now support	for full-text search
+Only MyISAM tables	support collections
 select * from t1 where MATCH(a,b) AGAINST("support +collections" IN BOOLEAN MODE);
 a	b
-Only MyISAM tables	support collections
 Full-text indexes	are called collections
+Only MyISAM tables	support collections
 select * from t1 where MATCH(a,b) AGAINST("sear*" IN BOOLEAN MODE);
 a	b
 MySQL has now support	for full-text search
@@ -464,14 +464,14 @@ ANALYZE TABLE t1;
 PREPARE stmt from "SELECT a, FORMAT(MATCH(a) AGAINST('test1 test'),6) FROM t1 WHERE MATCH(a) AGAINST('test1 test')";
 EXECUTE stmt;
 a	FORMAT(MATCH(a) AGAINST('test1 test'),6)
+test	0.031008
+test	0.031008
 test1	0.227645
-test	0.031008
-test	0.031008
 EXECUTE stmt;
 a	FORMAT(MATCH(a) AGAINST('test1 test'),6)
+test	0.031008
+test	0.031008
 test1	0.227645
-test	0.031008
-test	0.031008
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(255), FULLTEXT(a)) ENGINE = InnoDB;
@@ -692,3 +692,17 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 End of 5.1 tests
+#
+# Bug#33041720: REDUNDANT CALL TO INIT_FTFUNCS() IN MULTI-TABLE DELETE
+#
+CREATE TABLE t1 (id INTEGER);
+CREATE TABLE t2 (id INTEGER, x VARCHAR(10), FULLTEXT(x));
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+INSERT INTO t2 VALUES (1, 'abc'), (2, 'xyz'), (3, 'abc def'), (4, NULL);
+DELETE t1 FROM t1, t2 WHERE t1.id = t2.id AND MATCH (t2.x) AGAINST ('abc');
+SELECT * FROM t1;
+id
+2
+4
+5
+DROP TABLE t1, t2;

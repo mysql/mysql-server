@@ -244,8 +244,7 @@ bool plugin_table_service_initialized = false;
  * @param fields    Array of fields in the table
  */
 static int write_row(PFS_engine_table *pfs_table, TABLE *table,
-                     unsigned char *buf MY_ATTRIBUTE((unused)),
-                     Field **fields) {
+                     unsigned char *buf [[maybe_unused]], Field **fields) {
   int result = 0;
   Field *f;
   table_plugin_table *temp = (table_plugin_table *)pfs_table;

@@ -438,6 +438,7 @@ DROP USER u1, u2, u3;
 SET GLOBAL general_log_file=  @old_general_log_file;
 SET GLOBAL general_log=       @old_general_log;
 SET GLOBAL log_output=        @old_log_output;
+TRUNCATE TABLE mysql.general_log;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

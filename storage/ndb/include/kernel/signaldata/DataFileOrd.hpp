@@ -34,7 +34,7 @@ struct DataFileOrd {
     MapFileNo = 3,
     FreeDataFile = 4
   };
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
   Uint32 ret; // expected return
   Uint32 cmd;
   Uint32 file_no;

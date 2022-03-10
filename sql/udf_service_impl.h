@@ -66,8 +66,8 @@ class Udf_service_impl {
   std::vector<std::string> m_udfs_registered;
 
  public:
-  Udf_service_impl() {}
-  virtual ~Udf_service_impl() {}
+  Udf_service_impl() = default;
+  virtual ~Udf_service_impl() = default;
 
   /**
     Initialize variables, acquires the mysql_service_mysql_udf_metadata from the

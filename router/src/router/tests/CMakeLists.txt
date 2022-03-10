@@ -19,7 +19,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-INCLUDE_DIRECTORIES(../include ../src ../../../tests/helpers)
 
 SET(TESTS
   test_certificate_generator.cc
@@ -36,17 +35,15 @@ SET(TESTS
   test_mysqlrouter_app.cc
   test_mysqlrouter_utils.cc
   )
-# This compiler fails to handle some of the mock functions involved.
-IF(MY_COMPILER_IS_SUNPRO)
-  LIST(REMOVE_ITEM TESTS test_mysqlrouter_app.cc)
-ENDIF()
 
 FOREACH(TEST_FILE ${TESTS})
   ADD_TEST_FILE(${TEST_FILE}
     MODULE "router"
     #ENVIRONMENT "MYSQL_ROUTER_HOME=${MySQLRouter_BINARY_STAGE_DIR}/etc/"
     LIB_DEPENDS test-helpers
-    INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/shared/include
+    INCLUDE_DIRS
+      ../include/
+      ../src/
     SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS})
 ENDFOREACH()
 
@@ -55,8 +52,8 @@ ADD_TEST_FILE(test_keyring_frontend.cc
   #ENVIRONMENT "MYSQL_ROUTER_HOME=${MySQLRouter_BINARY_STAGE_DIR}/etc/"
   LIB_DEPENDS test-helpers
   INCLUDE_DIRS
-    ${MySQLRouter_SOURCE_DIR}/src/harness/shared/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+    ../include/
+    ../src/
   SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS}
   EXTRA_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../src/keyring_frontend.cc
   )
@@ -67,9 +64,24 @@ FOREACH(test_file
     )
   ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
     MODULE issues
-  LIB_DEPENDS test-helpers
-  SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS})
+    LIB_DEPENDS test-helpers
+    INCLUDE_DIRS
+      ../include/
+      ../src/
+    SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS}
+  )
 ENDFOREACH()
+
+ADD_HARNESS_TEST_FILE(test_default_paths.cc
+  MODULE "router"
+  SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS}
+  INCLUDE_DIRS
+    ../include/
+    ../src/
+  EXTRA_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/default_paths.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/utils.cc
+  )
 
 IF(MY_COMPILER_IS_CLANG)
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated")

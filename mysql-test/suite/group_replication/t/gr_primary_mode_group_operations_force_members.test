@@ -25,7 +25,6 @@
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 --source include/rpl_sync.inc
 
-
 --echo
 --echo ############################################################
 --echo # 2. Collect server uuids and increase member2 weight.
@@ -47,7 +46,6 @@ SET GLOBAL group_replication_member_weight= 60;
 --let $rpl_connection_name= server4
 --source include/rpl_connection.inc
 --let $member4_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
-
 
 --echo
 --echo ############################################################
@@ -130,11 +128,6 @@ LOCK TABLE t1 WRITE;
 --replace_result $local_address_server1 MEMBER1 $local_address_server2 MEMBER2
 --eval SET GLOBAL group_replication_force_members= "$local_address_server1,$local_address_server2"
 
---let $rpl_connection_name= server1
---source include/rpl_connection.inc
---replace_result $member3_uuid MEMBER3_UUID
---reap
-
 --let $group_replication_number_of_members= 2
 --source include/gr_wait_for_number_of_members.inc
 
@@ -149,6 +142,13 @@ LOCK TABLE t1 WRITE;
 --source include/rpl_connection.inc
 UNLOCK TABLES;
 
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--replace_result $member3_uuid MEMBER3_UUID
+--reap
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
 INSERT INTO t1 VALUES (2);
 --source include/rpl_sync.inc
 

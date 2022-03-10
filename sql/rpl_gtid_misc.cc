@@ -68,7 +68,7 @@ enum_gtid_consistency_mode get_gtid_consistency_mode() {
 
 enum_return_status Gtid::parse(Sid_map *sid_map, const char *text) {
   DBUG_TRACE;
-  rpl_sid sid;
+  rpl_sid sid{};
   const char *s = text;
 
   SKIP_WHITESPACE();
@@ -100,8 +100,9 @@ enum_return_status Gtid::parse(Sid_map *sid_map, const char *text) {
                               "at char %d in '%s'",
                               s, (int)(s - text), text));
       } else
-        DBUG_PRINT("info", ("GNO was zero or invalid (%lld) at char %d in '%s'",
-                            gno_var, (int)(s - text), text));
+        DBUG_PRINT("info",
+                   ("GNO was zero or invalid (%" PRId64 ") at char %d in '%s'",
+                    gno_var, (int)(s - text), text));
     } else
       DBUG_PRINT("info",
                  ("missing colon at char %d in '%s'", (int)(s - text), text));
@@ -145,9 +146,9 @@ int Gtid::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const {
       Since there is no ASSERT in non-debug mode, we use abort
       instead.
     */
-    abort();
+    my_abort();
 #endif
-    ret = sprintf(buf, "%d:%lld", sidno, gno);
+    ret = sprintf(buf, "%d:%" PRId64, sidno, gno);
   }
   return ret;
 }
@@ -275,7 +276,7 @@ void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
                                            uint *gtid_length_arg,
                                            ulonglong *original_commit_ts_arg,
                                            ulonglong *immediate_commit_ts_arg,
-                                           ulonglong *start_time_arg) {
+                                           ulonglong *start_time_arg) const {
   assert(sid_map);
   assert(gtid_arg);
   assert(gtid_length_arg);
@@ -314,7 +315,7 @@ void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
                                            ulonglong *original_commit_ts_arg,
                                            ulonglong *immediate_commit_ts_arg,
                                            ulonglong *start_time_arg,
-                                           ulonglong *end_time_arg) {
+                                           ulonglong *end_time_arg) const {
   assert(end_time_arg);
 
   *end_time_arg = is_info_set ? end_time / 10 : 0;
@@ -327,7 +328,7 @@ void Trx_monitoring_info::copy_to_ps_table(
     ulonglong *original_commit_ts_arg, ulonglong *immediate_commit_ts_arg,
     ulonglong *start_time_arg, uint *last_transient_errno_arg,
     char *last_transient_errmsg_arg, uint *last_transient_errmsg_length_arg,
-    ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg) {
+    ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg) const {
   assert(last_transient_errno_arg);
   assert(last_transient_errmsg_arg);
   assert(last_transient_errmsg_length_arg);
@@ -357,7 +358,7 @@ void Trx_monitoring_info::copy_to_ps_table(
     ulonglong *start_time_arg, ulonglong *end_time_arg,
     uint *last_transient_errno_arg, char *last_transient_errmsg_arg,
     uint *last_transient_errmsg_length_arg,
-    ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg) {
+    ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg) const {
   assert(end_time_arg);
 
   *end_time_arg = is_info_set ? end_time / 10 : 0;

@@ -42,7 +42,7 @@ var common_responses = common_stmts.prepare_statement_responses(
 
 var common_responses_regex = common_stmts.prepare_statement_responses_regex(
     [
-      "router_update_version_v2",
+      "router_update_attributes_v2",
       "router_update_last_check_in_v2",
     ],
     options);

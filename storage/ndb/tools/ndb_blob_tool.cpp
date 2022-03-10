@@ -1133,7 +1133,7 @@ main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options);
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
+  opts.set_usage_funcs(short_usage_sub, usage);
   int ret = opts.handle_options();
   if (ret != 0 || checkopts(argc, argv) != 0)
     return NDBT_ProgramExit(NDBT_WRONGARGS);

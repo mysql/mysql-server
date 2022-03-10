@@ -64,9 +64,9 @@ class Udf_charset_service {
   static bool init();
 
  public:
-  Udf_charset_service() {}
+  Udf_charset_service() = default;
 
-  ~Udf_charset_service() {}
+  ~Udf_charset_service() = default;
 
   /**
     Get service name.

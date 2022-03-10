@@ -280,7 +280,7 @@ static const uchar sort_order_ujis[] = {
 #define isujis_ss3(c) (((c)&0xff) == 0x8f)
 
 extern "C" {
-static uint ismbchar_ujis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static uint ismbchar_ujis(const CHARSET_INFO *cs [[maybe_unused]],
                           const char *p, const char *e) {
   return ((static_cast<uchar>(*p) < 0x80)
               ? 0
@@ -294,8 +294,7 @@ static uint ismbchar_ujis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                 : 0);
 }
 
-static uint mbcharlen_ujis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                           uint c) {
+static uint mbcharlen_ujis(const CHARSET_INFO *cs [[maybe_unused]], uint c) {
   return (isujis(c) ? 2 : isujis_ss2(c) ? 2 : isujis_ss3(c) ? 3 : 1);
 }
 
@@ -307,9 +306,9 @@ static uint mbcharlen_ujis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   [xA1-xFE][xA1-xFE]		# JIS X 0208:1997 (two bytes/char)
 */
 
-static size_t my_well_formed_len_ujis(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *beg,
-    const char *end, size_t pos, int *error) {
+static size_t my_well_formed_len_ujis(const CHARSET_INFO *cs [[maybe_unused]],
+                                      const char *beg, const char *end,
+                                      size_t pos, int *error) {
   const uchar *b = pointer_cast<const uchar *>(beg);
 
   for (*error = 0; pos && b < pointer_cast<const uchar *>(end); pos--, b++) {
@@ -351,7 +350,7 @@ static size_t my_well_formed_len_ujis(
   return (size_t)(b - pointer_cast<const uchar *>(beg));
 }
 
-static size_t my_numcells_eucjp(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static size_t my_numcells_eucjp(const CHARSET_INFO *cs [[maybe_unused]],
                                 const char *str, const char *str_end) {
   size_t clen;
   const uchar *b = (const uchar *)str;
@@ -33189,7 +33188,7 @@ static const uint16 unicode_to_jisx0212_eucjp[65536] = {
   @retval   MY_CS_ILSEQ    If a wrong byte sequence was found
 */
 extern "C" {
-static int my_mb_wc_euc_jp(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_mb_wc_euc_jp(const CHARSET_INFO *cs [[maybe_unused]],
                            my_wc_t *pwc, const uchar *s, const uchar *e) {
   int hi;
 
@@ -33243,8 +33242,8 @@ static int my_mb_wc_euc_jp(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   @retval   2              If a 2-byte character was put
   @retval   MY_CS_ILUNI    If the Unicode character does not exist in UJIS
 */
-static int my_wc_mb_euc_jp(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                           my_wc_t wc, uchar *s, uchar *e) {
+static int my_wc_mb_euc_jp(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
+                           uchar *s, uchar *e) {
   int jp;
 
   if ((int)wc < 0x80) /* ASCII [00-7F] */
@@ -35727,7 +35726,7 @@ static const MY_UNICASE_CHARACTER *get_case_info_for_ch(const CHARSET_INFO *cs,
   Generic function to handle UPPER and LOWER translation
 */
 static size_t my_casefold_ujis(const CHARSET_INFO *cs, char *src, size_t srclen,
-                               char *dst, size_t dstlen MY_ATTRIBUTE((unused)),
+                               char *dst, size_t dstlen [[maybe_unused]],
                                const uchar *map, size_t is_upper) {
   char *srcend = src + srclen, *dst0 = dst;
 

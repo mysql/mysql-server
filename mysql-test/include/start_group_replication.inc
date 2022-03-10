@@ -9,6 +9,7 @@
 #
 # --let $group_replication_group_name= UUID
 # [--let $group_replication_start_member_state= STATE]
+# [--let $skip_wait_for_disabled_read_only= 0]
 # [--let $$wait_timeout= NUMBER]
 # [--let $rpl_debug= 1]
 # --source include/start_group_replication.inc
@@ -20,6 +21,9 @@
 #   $group_replication_start_member_state
 #     The state that the member must have after start, ONLINE
 #     if not specified
+#
+#   $skip_wait_for_disabled_read_only
+#     Skip the wait for super_read_only and read_only variables are disabled
 #
 #   $wait_timeout
 #     See include/wait_condition.inc
@@ -91,13 +95,17 @@ if (!$success)
 #   - when we are starting the primary in the single primary mode
 #   - when we are starting a server on multiple primary
 
---let $_group_member_lowest_version= `SELECT member_version FROM performance_schema.replication_group_members ORDER BY member_version ASC LIMIT 1`
-
-if (`SELECT COUNT(*)=1 FROM performance_schema.replication_group_members group_members WHERE group_members.member_id= "$_member_id" AND group_members.member_state="ONLINE" AND group_members.member_role = "PRIMARY" AND group_members.member_version = "$_group_member_lowest_version"`)
+if (!$skip_wait_for_disabled_read_only)
 {
-     --let $wait_condition= SELECT @@GLOBAL.read_only = '0'
-     --source include/wait_condition_or_abort.inc
+  --let $_group_member_lowest_version= `SELECT member_version FROM performance_schema.replication_group_members ORDER BY member_version ASC LIMIT 1`
+
+  if (`SELECT COUNT(*)=1 FROM performance_schema.replication_group_members group_members WHERE group_members.member_id= "$_member_id" AND group_members.member_state="ONLINE" AND group_members.member_role = "PRIMARY" AND group_members.member_version = "$_group_member_lowest_version"`)
+  {
+       --let $wait_condition= SELECT @@GLOBAL.read_only = '0'
+       --source include/wait_condition_or_abort.inc
+  }
 }
+--let $skip_wait_for_disabled_read_only=
 
 --let $group_replication_start_member_state=
 

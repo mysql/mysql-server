@@ -1,4 +1,5 @@
-
+SET @old_log_output = @@global.log_output;
+SET GLOBAL log_output="FILE,TABLE";
 --disable_warnings
 drop database if exists events_test;
 --enable_warnings
@@ -87,3 +88,6 @@ let $wait_condition=
   select count(*) = 0 from information_schema.processlist
   where db='events_test' and command = 'Connect' and user=current_user();
 --source include/wait_condition.inc
+SET GLOBAL log_output = @old_log_output;
+truncate table mysql.general_log;
+truncate table mysql.slow_log;

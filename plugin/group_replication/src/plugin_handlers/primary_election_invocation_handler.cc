@@ -22,7 +22,9 @@
 
 #include "plugin/group_replication/include/plugin_handlers/primary_election_invocation_handler.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/member_actions_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/primary_election_utils.h"
+#include "plugin/group_replication/include/services/get_system_variable/get_system_variable.h"
 
 Primary_election_handler::Primary_election_handler(
     ulong components_stop_timeout)
@@ -212,16 +214,9 @@ void Primary_election_handler::print_gtid_info_in_log() {
   Replication_thread_api applier_channel("group_replication_applier");
   std::string applier_retrieved_gtids;
   std::string server_executed_gtids;
-  Sql_service_command_interface *sql_command_interface =
-      new Sql_service_command_interface();
-  if (sql_command_interface->establish_session_connection(
-          PSESSION_DEDICATED_THREAD, GROUPREPL_USER, get_plugin_pointer())) {
-    /* purecov: begin inspected */
-    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_CONN_INTERNAL_PLUGIN_FAIL);
-    goto err;
-    /* purecov: end */
-  }
-  if (sql_command_interface->get_server_gtid_executed(server_executed_gtids)) {
+  Get_system_variable *get_system_variable = new Get_system_variable();
+
+  if (get_system_variable->get_server_gtid_executed(server_executed_gtids)) {
     /* purecov: begin inspected */
     LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_GTID_EXECUTED_EXTRACT_ERROR);
     goto err;
@@ -240,7 +235,7 @@ void Primary_election_handler::print_gtid_info_in_log() {
                "applier channel received_transaction_set",
                applier_retrieved_gtids.c_str());
 err:
-  delete sql_command_interface;
+  delete get_system_variable;
 }
 
 int Primary_election_handler::internal_primary_election(
@@ -298,11 +293,8 @@ int Primary_election_handler::legacy_primary_election(
   applier_module->add_single_primary_action_packet(single_primary_action);
 
   if (is_primary_local) {
-    if (disable_server_read_mode(PSESSION_DEDICATED_THREAD)) {
-      LogPluginErr(
-          WARNING_LEVEL,
-          ER_GRP_RPL_DISABLE_READ_ONLY_FAILED); /* purecov: inspected */
-    }
+    member_actions_handler->trigger_actions(
+        Member_actions::AFTER_PRIMARY_ELECTION);
   } else {
     if (enable_server_read_mode(PSESSION_DEDICATED_THREAD)) {
       LogPluginErr(WARNING_LEVEL,

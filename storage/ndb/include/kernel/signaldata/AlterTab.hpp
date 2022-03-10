@@ -32,7 +32,7 @@
 
 
 struct AlterTabReq {
-  STATIC_CONST( SignalLength = 12 );
+  static constexpr Uint32 SignalLength = 12;
 
   enum RequestType {
     AlterTablePrepare = 0, // Prepare alter table
@@ -73,7 +73,7 @@ struct AlterTabReq {
 };
 
 struct AlterTabConf {
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -83,7 +83,7 @@ struct AlterTabConf {
 };
 
 struct AlterTabRef {
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 SignalLength = 7;
 
   Uint32 senderRef;
   Uint32 senderData;

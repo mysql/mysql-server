@@ -229,8 +229,8 @@ int table_threads::make_row(PFS_thread *pfs) {
   m_row.m_parent_thread_internal_id = pfs->m_parent_thread_internal_id;
   m_row.m_processlist_id = pfs->m_processlist_id;
   m_row.m_thread_os_id = pfs->m_thread_os_id;
-  m_row.m_name = safe_class->m_name;
-  m_row.m_name_length = safe_class->m_name_length;
+  m_row.m_name = safe_class->m_name.str();
+  m_row.m_name_length = safe_class->m_name.length();
 
   /* Protect this reader against session attribute changes */
   pfs->m_session_lock.begin_optimistic_lock(&session_lock);
@@ -316,9 +316,9 @@ int table_threads::make_row(PFS_thread *pfs) {
   stage_class = find_stage_class(pfs->m_stage);
   if (stage_class != nullptr) {
     m_row.m_processlist_state_ptr =
-        stage_class->m_name + stage_class->m_prefix_length;
+        stage_class->m_name.str() + stage_class->m_prefix_length;
     m_row.m_processlist_state_length =
-        stage_class->m_name_length - stage_class->m_prefix_length;
+        stage_class->m_name.length() - stage_class->m_prefix_length;
     if (m_row.m_processlist_state_length > 64) {
       /*
         Column PROCESSLIST_STATE is VARCHAR(64)
@@ -404,10 +404,10 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         case 7: /* PROCESSLIST_COMMAND */
-          if (m_row.m_processlist_id != 0)
-            set_field_varchar_utf8(f, command_name[m_row.m_command].str,
-                                   (uint)command_name[m_row.m_command].length);
-          else {
+          if (m_row.m_processlist_id != 0) {
+            const std::string &cn = Command_names::str_session(m_row.m_command);
+            set_field_varchar_utf8(f, cn.c_str(), cn.length());
+          } else {
             f->set_null();
           }
           break;

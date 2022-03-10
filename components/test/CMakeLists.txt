@@ -149,3 +149,8 @@ MYSQL_ADD_COMPONENT(test_component_deinit
   TEST_ONLY
   LINK_LIBRARIES mysys
   )
+MYSQL_ADD_COMPONENT(test_mysql_system_variable_set
+  test_mysql_system_variable_set.cc
+  MODULE_ONLY
+  TEST_ONLY
+  )

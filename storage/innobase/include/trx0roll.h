@@ -105,16 +105,15 @@ dberr_t trx_rollback_to_savepoint(
  were set after this savepoint are deleted.
  @return if no savepoint of the name found then DB_NO_SAVEPOINT,
  otherwise DB_SUCCESS */
-dberr_t trx_rollback_to_savepoint_for_mysql(
-    trx_t *trx,                      /*!< in: transaction handle */
-    const char *savepoint_name,      /*!< in: savepoint name */
-    int64_t *mysql_binlog_cache_pos) /*!< out: the MySQL binlog cache
+[[nodiscard]] dberr_t trx_rollback_to_savepoint_for_mysql(
+    trx_t *trx,                       /*!< in: transaction handle */
+    const char *savepoint_name,       /*!< in: savepoint name */
+    int64_t *mysql_binlog_cache_pos); /*!< out: the MySQL binlog cache
                                      position corresponding to this
                                      savepoint; MySQL needs this
                                      information to remove the
                                      binlog entries of the queries
                                      executed after the savepoint */
-    MY_ATTRIBUTE((warn_unused_result));
 /** Creates a named savepoint. If the transaction is not yet started, starts it.
  If there is already a savepoint of the same name, this call erases that old
  savepoint and replaces it with a new. Savepoints are deleted in a transaction
@@ -131,10 +130,9 @@ dberr_t trx_savepoint_for_mysql(
  were set after this savepoint are deleted.
  @return if no savepoint of the name found then DB_NO_SAVEPOINT,
  otherwise DB_SUCCESS */
-dberr_t trx_release_savepoint_for_mysql(
-    trx_t *trx,                 /*!< in: transaction handle */
-    const char *savepoint_name) /*!< in: savepoint name */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t trx_release_savepoint_for_mysql(
+    trx_t *trx,                  /*!< in: transaction handle */
+    const char *savepoint_name); /*!< in: savepoint name */
 
 /** Frees savepoint structs starting from savep.
 @param[in] trx Transaction handle
@@ -177,6 +175,8 @@ struct trx_named_savept_t {
   trx_savepoints; /*!< the list of savepoints of a
                   transaction */
 };
+
+UT_LIST_NODE_GETTER_DEFINITION(trx_named_savept_t, trx_savepoints)
 
 #include "trx0roll.ic"
 

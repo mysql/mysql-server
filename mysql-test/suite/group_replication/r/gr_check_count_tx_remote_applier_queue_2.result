@@ -1,0 +1,66 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap group on server1.
+[connection server1]
+SET SESSION sql_log_bin=0;
+CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY);
+SET SESSION sql_log_bin=1;
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 2. Join server2 to the group, it will block on recovery,
+#    during the catchup of transactions queued into
+#    group_replication_applier channel.
+[connection server_2]
+SET SESSION sql_log_bin=0;
+CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY);
+SET SESSION sql_log_bin=1;
+LOCK TABLE test.t1 READ;
+[connection server2]
+SET @@GLOBAL.DEBUG= '+d,recovery_thread_wait_before_wait_for_applier_module_recovery';
+include/start_group_replication.inc
+SET DEBUG_SYNC = "now WAIT_FOR signal.recovery_thread_wait_before_wait_for_applier_module_recovery";
+include/assert.inc [Verify MEMBER_STATE is RECOVERING]
+
+############################################################
+# 3. Commit 2 transactions on server1 while server2 is in recovery.
+[connection server1]
+INSERT INTO test.t1 VALUES (1);
+INSERT INTO test.t1 VALUES (2);
+
+############################################################
+# 4. Verify the values of performance_schema.replication_group_member_stats
+#    while server2 is in RECOVERING state.
+#    More precisely, server2 did applied all data from
+#    group_replication_recovery channel, but it is still applying the data
+#    queued on group_replication_applier (which is blocked by the locked table t1).
+[connection server2]
+include/assert.inc [Verify MEMBER_STATE is RECOVERING]
+[connection server1]
+
+############################################################
+# 5. Unblock recovery on server2.
+[connection server2]
+SET @@GLOBAL.DEBUG= '-d,recovery_thread_wait_before_wait_for_applier_module_recovery';
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_thread_resume_before_wait_for_applier_module_recovery";
+[connection server_2]
+UNLOCK TABLES;
+include/gr_wait_for_member_state.inc
+
+############################################################
+# 6. Verify the values of performance_schema.replication_group_member_stats
+#    once server2 is ONLINE.
+[connection server2]
+[connection server1]
+
+############################################################
+# 7. Clean up.
+[connection server2]
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE test.t1;
+include/group_replication_end.inc

@@ -148,11 +148,14 @@ class DDL_Record {
   bool get_deletable() const { return (m_deletable); }
 
   /** Get encryption operation type */
-  encryption_op_type get_encryption_type() const {
-    ut_ad(get_type() == Log_Type::ALTER_ENCRYPT_TABLESPACE_LOG ||
-          get_type() == Log_Type::ALTER_UNENCRYPT_TABLESPACE_LOG);
-    return get_type() == Log_Type::ALTER_ENCRYPT_TABLESPACE_LOG ? ENCRYPTION
-                                                                : DECRYPTION;
+  Encryption::Progress get_encryption_type() const {
+    auto type = get_type();
+
+    if (type == Log_Type::ALTER_ENCRYPT_TABLESPACE_LOG) {
+      return Encryption::Progress::ENCRYPTION;
+    }
+    ut_ad(type == Log_Type::ALTER_UNENCRYPT_TABLESPACE_LOG);
+    return Encryption::Progress::DECRYPTION;
   }
 
   /** Get the old file path/name present in the DDL log record.
@@ -407,7 +410,7 @@ class Log_DDL {
   Log_DDL();
 
   /** Deconstructor */
-  ~Log_DDL() {}
+  ~Log_DDL() = default;
 
   /** Write DDL log for freeing B-tree
   @param[in,out]	trx		transaction
@@ -448,7 +451,7 @@ class Log_DDL {
   @param[out]	existing_rec	alter_encrypt ddl record, nullptr if none
   @return DB_SUCCESS or error */
   dberr_t write_alter_encrypt_space_log(space_id_t space_id,
-                                        encryption_op_type type,
+                                        Encryption::Progress type,
                                         DDL_Record *existing_rec);
 
   /** Write a DROP log to indicate the entry in innodb_table_metadata
@@ -556,7 +559,7 @@ class Log_DDL {
   @return DB_SUCCESS or error */
   dberr_t insert_alter_encrypt_space_log(uint64_t id, ulint thread_id,
                                          space_id_t space_id,
-                                         encryption_op_type type,
+                                         Encryption::Progress type,
                                          DDL_Record *existing_rec);
 
   /** Replay an ALTER ENCRYPT TABLESPACE log record
@@ -650,7 +653,7 @@ class Log_DDL {
 extern Log_DDL *log_ddl;
 
 /** Close the DDL log system */
-inline void ddl_log_close() { UT_DELETE(log_ddl); }
+inline void ddl_log_close() { ut::delete_(log_ddl); }
 
 #ifdef UNIV_DEBUG
 struct SYS_VAR;

@@ -279,7 +279,7 @@ inline uint32_t Column::read_user_data_length(
       return *p | (*(p + 1) << 8) | (*(p + 2) << 16) | (*(p + 3) << 24);
   }
 
-  abort();
+  my_abort();
   return 0;
 }
 

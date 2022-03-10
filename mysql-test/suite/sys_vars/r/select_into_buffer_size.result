@@ -179,6 +179,26 @@ SELECT session.select_into_buffer_size;
 ERROR 42S02: Unknown table 'session' in field list
 SELECT select_into_buffer_size = @@session.select_into_buffer_size;
 ERROR 42S22: Unknown column 'select_into_buffer_size' in 'field list'
+'#---------------------FN_DYNVARS_001_12----------------------#'
+CREATE USER foo, bar;
+GRANT SESSION_VARIABLES_ADMIN ON *.*  TO bar;
+SELECT @@session.select_into_buffer_size;
+@@session.select_into_buffer_size
+16384
+SET @@session.select_into_buffer_size = 15000;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SELECT @@session.select_into_buffer_size;
+@@session.select_into_buffer_size
+16384
+SET @@session.select_into_buffer_size = 15000;
+Warnings:
+Warning	1292	Truncated incorrect select_into_buffer_size value: '15000'
+SELECT @@session.select_into_buffer_size;
+@@session.select_into_buffer_size
+12288
+SET @@global.select_into_buffer_size = 15000;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+DROP USER foo, bar;
 SET @@global.select_into_buffer_size = @start_global_value;
 SELECT @@global.select_into_buffer_size;
 @@global.select_into_buffer_size

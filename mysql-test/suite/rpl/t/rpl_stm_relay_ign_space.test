@@ -35,7 +35,7 @@ INSERT INTO t1 VALUES ('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 # wait for the SQL thread to sleep
 --let $show_statement= SHOW PROCESSLIST
 --let $field= State
---let $condition= = 'Slave has read all relay log; waiting for more updates'
+--let $condition= = 'Replica has read all relay log; waiting for more updates'
 --source include/wait_show_condition.inc
 
 # now the io thread has set rli->ignore_space_limit

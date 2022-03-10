@@ -64,7 +64,7 @@ class Continent_POS {
   unsigned int m_index;
 
  public:
-  ~Continent_POS() {}
+  ~Continent_POS() = default;
   Continent_POS() { m_index = 0; }
 
   bool has_more() {
@@ -86,7 +86,7 @@ class Continent_POS {
 
 class Continent_index {
  public:
-  virtual ~Continent_index() {}
+  virtual ~Continent_index() = default;
 
   virtual bool match(Continent_record *record) = 0;
 };

@@ -145,6 +145,7 @@ Following diagram shows the state transfer.
   state ARCH_STATE_ABORT
 
   [*] -down-> ARCH_STATE_INIT
+
   ARCH_STATE_INIT -down-> ARCH_STATE_ACTIVE : Start archiving
   ARCH_STATE_ACTIVE -right-> ARCH_STATE_PREPARE_IDLE : Stop archiving
   ARCH_STATE_PREPARE_IDLE -right-> ARCH_STATE_IDLE : All data archived
@@ -267,7 +268,31 @@ bool arch_wake_threads();
 class Arch_Group;
 class Arch_Log_Sys;
 class Arch_Dblwr_Ctx;
-struct Arch_Recv_Group_Info;
+class Arch_Recv_Group_Info;
+
+/** Guard to release resources safely */
+class Arch_scope_guard {
+ public:
+  /** Attach a function to the guard which releases some resource. */
+  Arch_scope_guard(std::function<void()> function) { m_cleanup = function; }
+
+  /** Release the resources automatically at the time of destruction. */
+  ~Arch_scope_guard() {
+    if (m_cleanup) {
+      m_cleanup();
+    }
+  }
+
+  /** Manually release the resource. */
+  void cleanup() {
+    m_cleanup();
+    m_cleanup = nullptr;
+  }
+
+ private:
+  /** Function to release the resource. */
+  std::function<void()> m_cleanup{};
+};
 
 /** Position in page ID archiving system */
 struct Arch_Page_Pos {
@@ -396,14 +421,16 @@ class Arch_Block {
   @param[in]	reset_lsn	reset LSN to update in the blk header */
   void update_block_header(lsn_t stop_lsn, lsn_t reset_lsn);
 
-  void read(Arch_Group *group, uint64_t offset);
+  /** @return data length of the block. */
+  uint get_data_len() const { return m_data_len; }
 
   /** Set the data length of the block.
   @param[in]	data_len	data length */
   void set_data_len(uint data_len) { m_data_len = data_len; }
 
-  /** @return data length of the block. */
-  uint get_data_len() const { return (m_data_len); }
+  /** Set the reset length of the block.
+  @param[in]	reset_lsn	reset lsn */
+  void set_reset_lsn(lsn_t reset_lsn) { m_reset_lsn = reset_lsn; }
 
   /** @return block number of the block. */
   uint64_t get_number() const { return (m_number); }
@@ -431,12 +458,12 @@ class Arch_Block {
 
   /** Get file index of the file the block belongs to.
   @return file index */
-  static uint get_file_index(uint64_t block_num);
+  static uint get_file_index(uint64_t block_num, Arch_Blk_Type type);
 
   /** Get block type from the block header.
   @param[in]     block   block from where to get the type
   @return block type */
-  static uint get_type(byte *block);
+  static Arch_Blk_Type get_type(byte *block);
 
   /** Get block data length from the block header.
   @param[in]     block   block from where to get the data length
@@ -507,6 +534,8 @@ class Arch_Block {
 Represents a set of fixed size files within a group */
 class Arch_File_Ctx {
  public:
+  class Recovery;
+
   /** Constructor: Initialize members */
   Arch_File_Ctx() { m_file.m_file = OS_FILE_CLOSED; }
 
@@ -515,7 +544,7 @@ class Arch_File_Ctx {
     close();
 
     if (m_name_buf != nullptr) {
-      ut_free(m_name_buf);
+      ut::free(m_name_buf);
     }
   }
 
@@ -649,10 +678,6 @@ class Arch_File_Ctx {
   void update_stop_point(uint file_index, lsn_t stop_lsn);
 
 #ifdef UNIV_DEBUG
-  /** Print recovery related data.
-  @param[in]	file_start_index	file index from where to begin */
-  void recovery_reset_print(uint file_start_index);
-
   /** Check if the information maintained in the memory is the same
   as the information maintained in the files.
   @return true if both sets of information are the same
@@ -709,17 +734,6 @@ class Arch_File_Ctx {
   @retval LSN_MAX if there was no purging done. */
   lsn_t purge(lsn_t begin_lsn, lsn_t end_lsn, lsn_t purge_lsn);
 
-  /** Fetch the last reset file and last stop point info during recovery
-  @param[out]	reset_file	last reset file to be updated
-  @param[out]	stop_lsn	last stop lsn to be updated */
-  void recovery_fetch_info(Arch_Reset_File &reset_file, lsn_t &stop_lsn) {
-    if (m_reset.size() != 0) {
-      reset_file = m_reset.back();
-    }
-
-    stop_lsn = get_last_stop_point();
-  }
-
   /** Fetch the status of the page tracking system.
   @param[out]	status	vector of a pair of (ID, bool) where ID is the
   start/stop point and bool is true if the ID is a start point else false */
@@ -730,31 +744,6 @@ class Arch_File_Ctx {
       }
     }
   }
-
-  /** @return the stop_point which was stored last */
-  lsn_t get_last_stop_point() const {
-    if (m_stop_points.size() == 0) {
-      return (LSN_MAX);
-    }
-
-    return (m_stop_points.back());
-  }
-
-  /** Fetch the reset points pertaining to a file.
-  @param[in]   file_index      file index of the file from which reset points
-  needs to be fetched
-  @param[in,out]	reset_pos	Update the reset_pos while fetching the
-  reset points
-  @return error code. */
-  dberr_t fetch_reset_points(uint file_index, Arch_Page_Pos &reset_pos);
-
-  /** Fetch the stop lsn pertaining to a file.
-  @param[in]	last_file	true if the file for which the stop point is
-  being fetched for is the last file
-  @param[in,out]	write_pos	Update the write_pos while fetching the
-  stop points
-  @return error code. */
-  dberr_t fetch_stop_points(bool last_file, Arch_Page_Pos &write_pos);
 
  private:
 #ifdef UNIV_DEBUG
@@ -1050,14 +1039,15 @@ class Arch_Group {
 #ifdef UNIV_DEBUG
   /** Adjust end LSN to end of file. This is used in debug
   mode to test the case when LSN is at file boundary.
-  @param[in,out]        stop_lsn        stop lsn for client
-  @param[out]   blk_len         last block length */
+  @param[in,out]  stop_lsn  stop lsn for client
+  @param[out]     blk_len   last block length */
   void adjust_end_lsn(lsn_t &stop_lsn, uint32_t &blk_len);
 
   /** Adjust redo copy length to end of file. This is used
   in debug mode to archive only till end of file.
-  @param[in,out]        length  data to copy in bytes */
-  void adjust_copy_length(uint32_t &length);
+  @param[in]      arch_lsn  LSN up to which data is already archived
+  @param[in,out]  copy_len  length of data to copy in bytes */
+  void adjust_copy_length(lsn_t arch_lsn, uint32_t &copy_len);
 
   /** Check if the information maintained in the memory is the same
   as the information maintained in the files.
@@ -1085,10 +1075,6 @@ class Arch_Group {
   @return true if there is at least 1 client that requires durable archiving*/
   bool is_durable() const { return (m_dur_ref_count > 0); }
 
-  /** Attach system client to the archiver during recovery if any group was
-  active at the time of crash. */
-  void attach_during_recovery() { ++m_dur_ref_count; }
-
   /** Purge archived files until the specified purge LSN.
   @param[in]	purge_lsn	LSN until which archived files needs to be
   purged
@@ -1114,53 +1100,16 @@ class Arch_Group {
   @param[in]	pos		stop position
   @param[in]	stop_lsn	stop point */
   void update_stop_point(Arch_Page_Pos pos, lsn_t stop_lsn) {
-    m_file_ctx.update_stop_point(Arch_Block::get_file_index(pos.m_block_num),
-                                 stop_lsn);
+    m_file_ctx.update_stop_point(
+        Arch_Block::get_file_index(pos.m_block_num, ARCH_DATA_BLOCK), stop_lsn);
   }
 
   /** Recover the information belonging to this group from the archived files.
   @param[in,out]	group_info	structure containing information of a
   group obtained during recovery by scanning files
-  @param[in,out]	new_empty_file	true if there is/was an empty archived
-  file
-  @param[in]		dblwr_ctx	file context related to doublewrite
-  buffer
-  @param[out]		write_pos	latest write position at the time of
-  crash /shutdown that needs to be filled
-  @param[out]		reset_pos   latest reset position at the time crash
-  /shutdown that needs to be filled
+  @param[in]      dblwr_ctx   file context related to doublewrite buffer
   @return error code */
-  dberr_t recover(Arch_Recv_Group_Info *group_info, bool &new_empty_file,
-                  Arch_Dblwr_Ctx *dblwr_ctx, Arch_Page_Pos &write_pos,
-                  Arch_Page_Pos &reset_pos);
-
-  /** Reads the latest data block and reset block.
-  This would be required in case of active group to start page archiving after
-  recovery, and in case of inactive group to fetch stop lsn. So we perform this
-  operation regardless of whether it's an active or inactive group.
-  @param[in]	buf	buffer to read the blocks into
-  @param[in]	offset	offset from where to read
-  @param[in]	type	block type
-  @return error code */
-  dberr_t recovery_read_latest_blocks(byte *buf, uint64_t offset,
-                                      Arch_Blk_Type type);
-
-  /** Fetch the last reset file and last stop point info during recovery
-  @param[out]   reset_file  last reset file to be updated
-  @param[out]   stop_lsn    last stop lsn to be updated */
-  void recovery_fetch_info(Arch_Reset_File &reset_file, lsn_t &stop_lsn) {
-    m_file_ctx.recovery_fetch_info(reset_file, stop_lsn);
-  }
-
-#ifdef UNIV_DEBUG
-  /** Print recovery related data.
-  @param[in]	file_start_index	file index from where to begin */
-  void recovery_reset_print(uint file_start_index) {
-    DBUG_PRINT("page_archiver", ("Group : %" PRIu64 "", m_begin_lsn));
-    m_file_ctx.recovery_reset_print(file_start_index);
-    DBUG_PRINT("page_archiver", ("End lsn: %" PRIu64 "", m_end_lsn));
-  }
-#endif
+  dberr_t recover(Arch_Recv_Group_Info &group_info, Arch_Dblwr_Ctx *dblwr_ctx);
 
   /** Parse block for block info (header/data).
   @param[in]	cur_pos		position to read
@@ -1208,6 +1157,13 @@ class Arch_Group {
     }
   }
 
+  /** Open the file which was open at the time of a crash, during crash
+  recovery, and set the file offset to the last written offset.
+  @param[in]  write_pos   latest write position at the time of crash/shutdown
+  @param[in]  create_new  create new file if file not present
+  @return error code. */
+  dberr_t open_file(Arch_Page_Pos write_pos, bool create_new);
+
   /** Disable copy construction */
   Arch_Group(Arch_Group const &) = delete;
 
@@ -1215,6 +1171,8 @@ class Arch_Group {
   Arch_Group &operator=(Arch_Group const &) = delete;
 
  private:
+  class Recovery;
+
   /** Get page IDs from archived file
   @param[in]	read_pos	position to read from
   @param[in]	read_len	length of data to read
@@ -1230,46 +1188,6 @@ class Arch_Group {
   void get_dir_name(char *name_buf, uint buf_len) {
     m_file_ctx.build_dir_name(m_begin_lsn, name_buf, buf_len);
   }
-
-  /** Check and replace blocks in archived files belonging to a group
-  from the doublewrite buffer if required.
-  @param[in]	dblwr_ctx	Doublewrite context which has the doublewrite
-  buffer blocks
-  @return error code */
-  dberr_t recovery_replace_pages_from_dblwr(Arch_Dblwr_Ctx *dblwr_ctx);
-
-  /** Delete the last file if there are no blocks flushed to it.
-  @param[out]	num_files	number of files present in the group
-  @param[in]	start_index	file index from where the files are present
-  If this is not 0 then the files with file index less that this might have
-  been purged.
-  @param[in]	durable		true if the group is durable
-  @param[out]	empty_file	true if there is/was an empty archived file
-  @return error code. */
-  dberr_t recovery_cleanup_if_required(uint &num_files, uint start_index,
-                                       bool durable, bool &empty_file);
-
-  /** Start parsing the archive file for archive group information.
-  @param[out]		write_pos	latest write position at the time of
-  crash /shutdown that needs to be filled
-  @param[out]		reset_pos   latest reset position at the time crash
-  /shutdown that needs to be filled
-  @param[in]	start_index	file index from where the files are present
-  If this is not 0 then the files with file index less that this might have
-  been purged.
-  @return error code */
-  dberr_t recovery_parse(Arch_Page_Pos &write_pos, Arch_Page_Pos &reset_pos,
-                         size_t start_index);
-
-  /** Open the file which was open at the time of a crash, during crash
-  recovery, and set the file offset to the last written offset.
-  @param[in]	write_pos	block position from where page IDs will be
-  tracked
-  @param[in]	empty_file	true if an empty archived file was present at
-  the time of crash. We delete this file as part of crash recovery process so
-  this needs to be handled here.
-  @return error code. */
-  dberr_t open_file_during_recovery(Arch_Page_Pos write_pos, bool empty_file);
 
  private:
   /** If the group is active */
@@ -1331,7 +1249,7 @@ class Arch_Group {
 };
 
 /** A list of archive groups */
-using Arch_Grp_List = std::list<Arch_Group *, ut_allocator<Arch_Group *>>;
+using Arch_Grp_List = std::list<Arch_Group *, ut::allocator<Arch_Group *>>;
 
 /** An iterator for archive group */
 using Arch_Grp_List_Iter = Arch_Grp_List::iterator;
@@ -1448,9 +1366,11 @@ class Arch_Log_Sys {
 
   /** Update checkpoint LSN and related information in redo
   log header block.
-  @param[in,out]	header		redo log header buffer
+  @param[in]		group	archiving group
+  @param[in,out]	header	redo log header buffer
   @param[in]	checkpoint_lsn	checkpoint LSN for recovery */
-  void update_header(byte *header, lsn_t checkpoint_lsn);
+  void update_header(const Arch_Group *group, byte *header,
+                     lsn_t checkpoint_lsn);
 
   /** Check and set log archive system state and output the
   amount of redo log available for archiving.
@@ -1496,12 +1416,12 @@ class Arch_Log_Sys {
 };
 
 /** Vector of page archive in memory blocks */
-using Arch_Block_Vec = std::vector<Arch_Block *, ut_allocator<Arch_Block *>>;
+using Arch_Block_Vec = std::vector<Arch_Block *, ut::allocator<Arch_Block *>>;
 
 /** Page archiver in memory data */
 struct ArchPageData {
   /** Constructor */
-  ArchPageData() {}
+  ArchPageData() = default;
 
   /** Allocate buffer and initialize blocks
   @return true, if successful */
@@ -1576,10 +1496,9 @@ class Arch_Page_Sys {
            bool is_durable);
 
   /** Start dirty page ID archiving during recovery.
-  @param[in]	group	Group which needs to be attached to the archiver
-  @param[in]	new_empty_file  true if there was a empty file created
+  @param[in,out]  info  information related to a group required for recovery
   @return error code */
-  int start_during_recovery(Arch_Group *group, bool new_empty_file);
+  int recovery_load_and_start(const Arch_Recv_Group_Info &info);
 
   /** Release the current group from client.
   @param[in]	group		group the client is attached to
@@ -1760,9 +1679,9 @@ class Arch_Page_Sys {
   /** Disable assignment */
   Arch_Page_Sys &operator=(Arch_Page_Sys const &) = delete;
 
-  class Recv;
-
  private:
+  class Recovery;
+
   /** Wait for archive system to come out of #ARCH_STATE_PREPARE_IDLE.
   If the system is preparing to idle, #start needs to wait
   for it to come to idle state.

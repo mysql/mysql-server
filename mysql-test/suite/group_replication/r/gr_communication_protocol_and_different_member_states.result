@@ -28,7 +28,7 @@ ERROR HY000: Can't initialize function 'group_replication_set_communication_prot
 [connection server1]
 SELECT group_replication_get_communication_protocol();
 group_replication_get_communication_protocol()
-8.0.16
+GR_COMMUNICATION_PROTOCOL_VERSION
 ###############################################################################
 #  5. Check that it is *not* possible to query the communication_protocol value via a RECOVERING member.
 [connection server2]
@@ -50,7 +50,7 @@ ERROR HY000: Can't initialize function 'group_replication_set_communication_prot
 #  7. Check that it is possible to query the communication_protocol value via an ONLINE member when a minority of members are UNREACHABLE.
 SELECT group_replication_get_communication_protocol();
 group_replication_get_communication_protocol()
-8.0.16
+GR_COMMUNICATION_PROTOCOL_VERSION
 ###############################################################################
 #  8. Check that it is *not* possible to query the communication_protocol value via an ONLINE member when a majority of members are UNREACHABLE.
 [connection server3]

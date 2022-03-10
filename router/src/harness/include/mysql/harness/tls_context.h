@@ -63,6 +63,11 @@ enum class TlsVerify { NONE, PEER };
 class HARNESS_TLS_EXPORT TlsLibraryContext {
  public:
   TlsLibraryContext();
+  TlsLibraryContext(const TlsLibraryContext &) = delete;
+  TlsLibraryContext(TlsLibraryContext &&) = delete;
+  TlsLibraryContext &operator=(const TlsLibraryContext &) = delete;
+  TlsLibraryContext &operator=(TlsLibraryContext &&) = delete;
+  ~TlsLibraryContext();
 };
 
 /**
@@ -182,7 +187,7 @@ class HARNESS_TLS_EXPORT TlsContext {
    * @see RFC 5480
    * @see has_curves()
    *
-   * @param curves colon seperated names of curves
+   * @param curves colon-separated names of curves
    * @throws TlsError
    * @throws std::invalid_argument if API isn't supported
    * @see has_set_curves_list()

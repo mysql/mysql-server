@@ -61,6 +61,9 @@ usr/share/man/man8/mysqld.8
 # private shared libraries
 usr/lib/mysql/private/libprotobuf-lite.so.3.11.4
 usr/lib/mysql/private/libprotobuf.so.3.11.4
+# private data files
+usr/lib/mysql/private/icudt69l/unames.icu
+usr/lib/mysql/private/icudt69l/brkitr/*
 # plugins
 usr/lib/mysql/plugin/component_log_filter_dragnet.so
 usr/lib/mysql/plugin/component_log_sink_json.so
@@ -85,6 +88,8 @@ usr/lib/mysql/plugin/auth_socket.so
 usr/lib/mysql/plugin/validate_password.so
 usr/lib/mysql/plugin/semisync_master.so
 usr/lib/mysql/plugin/semisync_slave.so
+usr/lib/mysql/plugin/semisync_source.so
+usr/lib/mysql/plugin/semisync_replica.so
 usr/lib/mysql/plugin/libpluginmecab.so
 usr/lib/mysql/plugin/version_token.so
 usr/lib/mysql/plugin/group_replication.so

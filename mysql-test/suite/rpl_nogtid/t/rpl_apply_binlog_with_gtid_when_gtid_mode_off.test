@@ -12,10 +12,6 @@
 #     and wait for SQL thread error.
 ###############################################################################
 
-# We did not run the test with MTS, since the slave sql error
-# 'ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF' is
-# overwritten by 'ER_MTS_INCONSISTENT_DATA' in MTS.
---source include/not_mts_slave_parallel_workers.inc
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
 

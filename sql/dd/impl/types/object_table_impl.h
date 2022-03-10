@@ -122,7 +122,7 @@ class Object_table_impl : virtual public Object_table {
 
   void set_hidden(bool hidden) override { m_hidden = hidden; }
 
-  ~Object_table_impl() override {}
+  ~Object_table_impl() override = default;
 };
 
 ///////////////////////////////////////////////////////////////////////////

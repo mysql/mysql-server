@@ -3,6 +3,7 @@ NAME	ENABLED
 events_stages_current	NO
 events_stages_history	YES
 events_stages_history_long	NO
+events_statements_cpu	YES
 events_statements_current	YES
 events_statements_history	NO
 events_statements_history_long	YES

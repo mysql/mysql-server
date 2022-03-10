@@ -1,0 +1,433 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap group on server1.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
+USE test;
+CREATE PROCEDURE procedure1()
+BEGIN
+end$$
+CREATE FUNCTION function1() RETURNS INT RETURN (SELECT COUNT(*) FROM t1);
+CREATE EVENT event1
+ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 SECOND
+ON COMPLETION PRESERVE
+DISABLE
+DO
+BEGIN
+END$$
+CREATE TRIGGER trigger1 BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+INSERT INTO t2 VALUES (NEW.c1);
+END|
+
+############################################################
+# 2. Validate that a given SHOW statement goes through the
+#    `trans_begin` hook on Group Replication on server1.
+
+# Instrument GR to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Adding debug point 'group_replication_wait_on_observer_trans' to @@GLOBAL.debug
+
+# Execute the statement on server1.
+[connection server1]
+SHOW DATABASES;
+
+# Validate that the statement went on
+# `trans_begin` hook on server1.
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
+# Release the statement from
+# `trans_begin` hook on server1.
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
+
+# Reap the statement on server1.
+[connection server1]
+
+# Remove GR instrumentaion to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Removing debug point 'group_replication_wait_on_observer_trans' from @@GLOBAL.debug
+
+# Instrument GR to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Adding debug point 'group_replication_wait_on_observer_trans' to @@GLOBAL.debug
+
+# Execute the statement on server1.
+[connection server1]
+SHOW TABLES;
+
+# Validate that the statement went on
+# `trans_begin` hook on server1.
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
+# Release the statement from
+# `trans_begin` hook on server1.
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
+
+# Reap the statement on server1.
+[connection server1]
+
+# Remove GR instrumentaion to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Removing debug point 'group_replication_wait_on_observer_trans' from @@GLOBAL.debug
+
+# Instrument GR to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Adding debug point 'group_replication_wait_on_observer_trans' to @@GLOBAL.debug
+
+# Execute the statement on server1.
+[connection server1]
+SHOW INDEX FROM t1;
+
+# Validate that the statement went on
+# `trans_begin` hook on server1.
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
+# Release the statement from
+# `trans_begin` hook on server1.
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
+
+# Reap the statement on server1.
+[connection server1]
+
+# Remove GR instrumentaion to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Removing debug point 'group_replication_wait_on_observer_trans' from @@GLOBAL.debug
+
+# Instrument GR to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Adding debug point 'group_replication_wait_on_observer_trans' to @@GLOBAL.debug
+
+# Execute the statement on server1.
+[connection server1]
+SHOW KEYS FROM t1;
+
+# Validate that the statement went on
+# `trans_begin` hook on server1.
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
+# Release the statement from
+# `trans_begin` hook on server1.
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
+
+# Reap the statement on server1.
+[connection server1]
+
+# Remove GR instrumentaion to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Removing debug point 'group_replication_wait_on_observer_trans' from @@GLOBAL.debug
+
+# Instrument GR to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Adding debug point 'group_replication_wait_on_observer_trans' to @@GLOBAL.debug
+
+# Execute the statement on server1.
+[connection server1]
+SHOW GRANTS FOR CURRENT_USER();
+
+# Validate that the statement went on
+# `trans_begin` hook on server1.
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
+# Release the statement from
+# `trans_begin` hook on server1.
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
+
+# Reap the statement on server1.
+[connection server1]
+
+# Remove GR instrumentaion to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Removing debug point 'group_replication_wait_on_observer_trans' from @@GLOBAL.debug
+
+# Instrument GR to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Adding debug point 'group_replication_wait_on_observer_trans' to @@GLOBAL.debug
+
+# Execute the statement on server1.
+[connection server1]
+SHOW CREATE DATABASE test;
+
+# Validate that the statement went on
+# `trans_begin` hook on server1.
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
+# Release the statement from
+# `trans_begin` hook on server1.
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
+
+# Reap the statement on server1.
+[connection server1]
+
+# Remove GR instrumentaion to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Removing debug point 'group_replication_wait_on_observer_trans' from @@GLOBAL.debug
+
+# Instrument GR to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Adding debug point 'group_replication_wait_on_observer_trans' to @@GLOBAL.debug
+
+# Execute the statement on server1.
+[connection server1]
+SHOW TABLE STATUS FROM test;
+
+# Validate that the statement went on
+# `trans_begin` hook on server1.
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
+# Release the statement from
+# `trans_begin` hook on server1.
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
+
+# Reap the statement on server1.
+[connection server1]
+
+# Remove GR instrumentaion to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Removing debug point 'group_replication_wait_on_observer_trans' from @@GLOBAL.debug
+
+# Instrument GR to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Adding debug point 'group_replication_wait_on_observer_trans' to @@GLOBAL.debug
+
+# Execute the statement on server1.
+[connection server1]
+SHOW TRIGGERS FROM test;
+
+# Validate that the statement went on
+# `trans_begin` hook on server1.
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
+# Release the statement from
+# `trans_begin` hook on server1.
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
+
+# Reap the statement on server1.
+[connection server1]
+
+# Remove GR instrumentaion to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Removing debug point 'group_replication_wait_on_observer_trans' from @@GLOBAL.debug
+
+# Instrument GR to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Adding debug point 'group_replication_wait_on_observer_trans' to @@GLOBAL.debug
+
+# Execute the statement on server1.
+[connection server1]
+SHOW CREATE PROCEDURE test.procedure1;
+
+# Validate that the statement went on
+# `trans_begin` hook on server1.
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
+# Release the statement from
+# `trans_begin` hook on server1.
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
+
+# Reap the statement on server1.
+[connection server1]
+
+# Remove GR instrumentaion to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Removing debug point 'group_replication_wait_on_observer_trans' from @@GLOBAL.debug
+
+# Instrument GR to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Adding debug point 'group_replication_wait_on_observer_trans' to @@GLOBAL.debug
+
+# Execute the statement on server1.
+[connection server1]
+SHOW CREATE FUNCTION test.function1;
+
+# Validate that the statement went on
+# `trans_begin` hook on server1.
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
+# Release the statement from
+# `trans_begin` hook on server1.
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
+
+# Reap the statement on server1.
+[connection server1]
+
+# Remove GR instrumentaion to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Removing debug point 'group_replication_wait_on_observer_trans' from @@GLOBAL.debug
+
+# Instrument GR to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Adding debug point 'group_replication_wait_on_observer_trans' to @@GLOBAL.debug
+
+# Execute the statement on server1.
+[connection server1]
+SHOW PROCEDURE CODE test.procedure1;
+
+# Validate that the statement went on
+# `trans_begin` hook on server1.
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
+# Release the statement from
+# `trans_begin` hook on server1.
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
+
+# Reap the statement on server1.
+[connection server1]
+
+# Remove GR instrumentaion to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Removing debug point 'group_replication_wait_on_observer_trans' from @@GLOBAL.debug
+
+# Instrument GR to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Adding debug point 'group_replication_wait_on_observer_trans' to @@GLOBAL.debug
+
+# Execute the statement on server1.
+[connection server1]
+SHOW FUNCTION CODE test.function1;
+
+# Validate that the statement went on
+# `trans_begin` hook on server1.
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
+# Release the statement from
+# `trans_begin` hook on server1.
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
+
+# Reap the statement on server1.
+[connection server1]
+
+# Remove GR instrumentaion to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Removing debug point 'group_replication_wait_on_observer_trans' from @@GLOBAL.debug
+
+# Instrument GR to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Adding debug point 'group_replication_wait_on_observer_trans' to @@GLOBAL.debug
+
+# Execute the statement on server1.
+[connection server1]
+SHOW CREATE EVENT test.event1;
+
+# Validate that the statement went on
+# `trans_begin` hook on server1.
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
+# Release the statement from
+# `trans_begin` hook on server1.
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
+
+# Reap the statement on server1.
+[connection server1]
+
+# Remove GR instrumentaion to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Removing debug point 'group_replication_wait_on_observer_trans' from @@GLOBAL.debug
+
+# Instrument GR to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Adding debug point 'group_replication_wait_on_observer_trans' to @@GLOBAL.debug
+
+# Execute the statement on server1.
+[connection server1]
+SHOW CREATE TRIGGER test.trigger1;
+
+# Validate that the statement went on
+# `trans_begin` hook on server1.
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
+# Release the statement from
+# `trans_begin` hook on server1.
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
+
+# Reap the statement on server1.
+[connection server1]
+
+# Remove GR instrumentaion to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Removing debug point 'group_replication_wait_on_observer_trans' from @@GLOBAL.debug
+
+# Instrument GR to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Adding debug point 'group_replication_wait_on_observer_trans' to @@GLOBAL.debug
+
+# Execute the statement on server1.
+[connection server1]
+SHOW CREATE USER CURRENT_USER();
+
+# Validate that the statement went on
+# `trans_begin` hook on server1.
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
+# Release the statement from
+# `trans_begin` hook on server1.
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
+
+# Reap the statement on server1.
+[connection server1]
+
+# Remove GR instrumentaion to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Removing debug point 'group_replication_wait_on_observer_trans' from @@GLOBAL.debug
+
+############################################################
+# 3. Clean up.
+[connection server1]
+DROP PROCEDURE procedure1;
+DROP FUNCTION function1;
+DROP EVENT event1;
+DROP TRIGGER trigger1;
+DROP TABLE t2;
+DROP TABLE t1;
+include/group_replication_end.inc

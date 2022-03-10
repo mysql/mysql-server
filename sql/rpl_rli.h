@@ -23,15 +23,6 @@
 #ifndef RPL_RLI_H
 #define RPL_RLI_H
 
-#if defined(__SUNPRO_CC)
-/*
-  Solaris Studio 12.5 has a bug where, if you use dynamic_cast
-  and then later #include this file (which Boost does), you will
-  get a compile error. Work around it by just including it right now.
-*/
-#include <cxxabi.h>
-#endif
-
 #include <sys/types.h>
 #include <time.h>
 #include <atomic>
@@ -62,8 +53,8 @@
 #include "sql/query_options.h"
 #include "sql/rpl_gtid.h"         // Gtid_set
 #include "sql/rpl_info.h"         // Rpl_info
-#include "sql/rpl_mts_submode.h"  // enum_mts_parallel_type
-#include "sql/rpl_slave_until_options.h"
+#include "sql/rpl_mta_submode.h"  // enum_mts_parallel_type
+#include "sql/rpl_replica_until_options.h"
 #include "sql/rpl_tblmap.h"  // table_mapping
 #include "sql/rpl_trx_boundary_parser.h"
 #include "sql/rpl_utility.h"  // Deferred_log_events
@@ -81,7 +72,7 @@ class String;
 struct LEX_MASTER_INFO;
 struct db_worker_hash_entry;
 
-extern uint sql_slave_skip_counter;
+extern uint sql_replica_skip_counter;
 
 typedef Prealloced_array<Slave_worker *, 4> Slave_worker_array;
 
@@ -307,7 +298,7 @@ class Relay_log_info : public Rpl_info {
   }
 /* Instrumentation key for performance schema for mts_temp_table_LOCK */
 #ifdef HAVE_PSI_INTERFACE
-  PSI_mutex_key m_key_mts_temp_table_LOCK;
+  PSI_mutex_key m_key_mta_temp_table_LOCK;
 #endif
   /*
      Lock to protect race condition while transferring temporary table from
@@ -337,7 +328,7 @@ class Relay_log_info : public Rpl_info {
 
   /*
     Identifies when the recovery process is going on.
-    See sql/rpl_slave.h:init_recovery for further details.
+    See sql/rpl_replica.h:init_recovery for further details.
   */
   bool is_relay_log_recovery;
 
@@ -460,13 +451,6 @@ class Relay_log_info : public Rpl_info {
     SLAVE must be executed and the problem fixed manually.
    */
   bool error_on_rli_init_info;
-
-  /**
-    Variable is set to true as long as
-    original_commit_timestamp > immediate_commit_timestamp so that the
-    corresponding warning is only logged once.
-  */
-  bool gtid_timestamps_warning_logged;
 
   /**
     Retrieves the username part of the `PRIVILEGE_CHECKS_USER` option of `CHANGE
@@ -659,6 +643,21 @@ class Relay_log_info : public Rpl_info {
   */
   Replication_transaction_boundary_parser transaction_parser;
 
+  /**
+    Marks the applier position information as being invalid or not.
+
+    @param invalid value to set the position/file info as invalid or not
+  */
+  void set_applier_source_position_info_invalid(bool invalid);
+
+  /**
+    Returns if the applier positions are marked as being invalid or not.
+
+    @return true if applier position information is not reliable,
+            false otherwise.
+  */
+  bool is_applier_source_position_info_invalid() const;
+
   /*
     Let's call a group (of events) :
       - a transaction
@@ -787,6 +786,15 @@ class Relay_log_info : public Rpl_info {
   */
   enum_require_table_primary_key m_require_table_primary_key_check;
 
+  /**
+    Are positions invalid. If true it means the applier related position
+    information (group_master_log_name and group_master_log_pos) might
+    be outdated.
+
+    Check also is_group_master_log_pos_invalid
+  */
+  bool m_is_applier_source_position_info_invalid;
+
  public:
   bool is_relay_log_truncated() { return m_relay_log_truncated; }
 
@@ -842,12 +850,14 @@ class Relay_log_info : public Rpl_info {
   void fill_coord_err_buf(loglevel level, int err_code,
                           const char *buff_coord) const;
 
-  /*
+  /**
     Flag that the group_master_log_pos is invalid. This may occur
     (for example) after CHANGE MASTER TO RELAY_LOG_POS.  This will
     be unset after the first event has been executed and the
     group_master_log_pos is valid again.
-   */
+
+    Check also m_is_applier_position_info_invalid
+  */
   bool is_group_master_log_pos_invalid;
 
   /*
@@ -908,7 +918,7 @@ class Relay_log_info : public Rpl_info {
   char cached_charset[6];
 
   /*
-    trans_retries varies between 0 to slave_transaction_retries and counts how
+    trans_retries varies between 0 to replica_transaction_retries and counts how
     many times the slave has retried the present transaction; gets reset to 0
     when the transaction finally succeeds. retried_trans is a cumulative
     counter: how many times the slave has retried a transaction (any) since
@@ -1099,7 +1109,7 @@ class Relay_log_info : public Rpl_info {
     W  - Worker;
     WQ - Worker Queue containing event assignments
   */
-  // number's is determined by global slave_parallel_workers
+  // number's is determined by global replica_parallel_workers
   Slave_worker_array workers;
 
   // To map a database to a worker
@@ -1176,18 +1186,20 @@ class Relay_log_info : public Rpl_info {
      Coordinator in order to avoid reaching WQ limits.
   */
   volatile long mts_wq_excess_cnt;
-  long mts_worker_underrun_level;    // % of WQ size at which W is considered
-                                     // hungry
-  ulong mts_coordinator_basic_nap;   // C sleeps to avoid WQs overrun
-  ulong opt_slave_parallel_workers;  // cache for ::opt_slave_parallel_workers
-  ulong slave_parallel_workers;  // the one slave session time number of workers
+  long mts_worker_underrun_level;   // % of WQ size at which W is considered
+                                    // hungry
+  ulong mts_coordinator_basic_nap;  // C sleeps to avoid WQs overrun
+  ulong
+      opt_replica_parallel_workers;  // cache for ::opt_replica_parallel_workers
+  ulong
+      replica_parallel_workers;  // the one slave session time number of workers
   ulong
       exit_counter;  // Number of workers contributed to max updated group index
   ulonglong max_updated_index;
   ulong recovery_parallel_workers;  // number of workers while recovering
   uint rli_checkpoint_seqno;        // counter of groups executed after the most
                                     // recent CP
-  uint checkpoint_group;            // cache for ::opt_mts_checkpoint_group
+  uint checkpoint_group;            // cache for ::opt_mta_checkpoint_group
   MY_BITMAP recovery_groups;        // bitmap used during recovery
   bool recovery_groups_inited;
   ulong mts_recovery_group_cnt;  // number of groups to execute at recovery
@@ -1325,7 +1337,7 @@ class Relay_log_info : public Rpl_info {
      returns true if events are to be executed in parallel
   */
   inline bool is_parallel_exec() const {
-    bool ret = (slave_parallel_workers > 0) && !is_mts_recovery();
+    bool ret = (replica_parallel_workers > 0) && !is_mts_recovery();
 
     assert(!ret || !workers.empty());
 
@@ -1346,7 +1358,7 @@ class Relay_log_info : public Rpl_info {
      @retval true   It is time to compute MTS checkpoint.
      @retval false  It is not MTS or it is not time for computing checkpoint.
   */
-  bool is_time_for_mts_checkpoint();
+  bool is_time_for_mta_checkpoint();
   /**
      While a group is executed by a Worker the relay log can change.
      Coordinator notifies Workers about this event. Worker is supposed
@@ -1508,7 +1520,15 @@ class Relay_log_info : public Rpl_info {
   */
   int rli_init_info(bool skip_received_gtid_set_recovery = false);
   void end_info();
-  int flush_info(bool force = false);
+
+  /** No flush options given to relay log flush */
+  static constexpr int RLI_FLUSH_NO_OPTION{0};
+  /** Ignore server sync options and flush */
+  static constexpr int RLI_FLUSH_IGNORE_SYNC_OPT{1 << 0};
+  /** Flush disresgarding the value of GTID_ONLY */
+  static constexpr int RLI_FLUSH_IGNORE_GTID_ONLY{1 << 1};
+
+  int flush_info(const int flush_flags);
   /**
    Clears from `this` Relay_log_info object all attribute values that are
    not to be kept.
@@ -1539,16 +1559,28 @@ class Relay_log_info : public Rpl_info {
     future_event_relay_log_pos = log_pos;
   }
 
-  inline const char *get_group_master_log_name() {
+  inline const char *get_group_master_log_name() const {
     return group_master_log_name;
   }
-  inline ulonglong get_group_master_log_pos() { return group_master_log_pos; }
+  inline const char *get_group_master_log_name_info() const {
+    if (m_is_applier_source_position_info_invalid) return "INVALID";
+    return get_group_master_log_name();
+  }
+  inline ulonglong get_group_master_log_pos() const {
+    return group_master_log_pos;
+  }
+  inline ulonglong get_group_master_log_pos_info() const {
+    if (m_is_applier_source_position_info_invalid) return 0;
+    return get_group_master_log_pos();
+  }
   inline void set_group_master_log_name(const char *log_file_name) {
     strmake(group_master_log_name, log_file_name,
             sizeof(group_master_log_name) - 1);
   }
   inline void set_group_master_log_pos(ulonglong log_pos) {
     group_master_log_pos = log_pos;
+    // Whenever the position is set, it means it is no longer invalid
+    m_is_applier_source_position_info_invalid = false;
   }
 
   inline const char *get_group_relay_log_name() { return group_relay_log_name; }
@@ -1595,8 +1627,10 @@ class Relay_log_info : public Rpl_info {
   inline void set_event_relay_log_pos(ulonglong log_pos) {
     event_relay_log_pos = log_pos;
   }
-  inline const char *get_rpl_log_name() {
-    return (group_master_log_name[0] ? group_master_log_name : "FIRST");
+  inline const char *get_rpl_log_name() const {
+    return m_is_applier_source_position_info_invalid
+               ? "INVALID"
+               : (group_master_log_name[0] ? group_master_log_name : "FIRST");
   }
 
   static size_t get_number_info_rli_fields();

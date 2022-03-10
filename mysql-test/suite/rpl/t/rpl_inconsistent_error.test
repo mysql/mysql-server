@@ -2,7 +2,7 @@
 # === Purpose ===
 # This test script verifies that in a replication environment,
 # when we have different errors on master and slave side, and if
-# we have ER_INCONSISTENT_ERROR specified in the slave_skip_errors
+# we have ER_INCONSISTENT_ERROR specified in the replica_skip_errors
 # list the replication should not stop with error ER_INCONSISTENT_ERROR.
 #
 # === Implementation ===
@@ -17,7 +17,7 @@
 #   And should have thrown 'ER_INCONSISTENT_ERROR' error as the expected
 #   error(ER_DUP_ENTRY) is different from the actual error(No error).
 #
-#4. Now as we have passed ER_INCONSISTENT_ERROR to --slave-skip-errors in the
+#4. Now as we have passed ER_INCONSISTENT_ERROR to --replica-skip-errors in the
 #   .opt file the slave will not throw any error and the replication should
 #   continue.
 #
@@ -25,10 +25,9 @@
 #   and slave.
 # === Related bugs and worklogs ===
 #
-# Bug#24753281: REQUEST FOR SLAVE_SKIP_ERRORS = ER_INCONSISTENT_ERROR
+# Bug#24753281: REQUEST FOR REPLICA_SKIP_ERRORS = ER_INCONSISTENT_ERROR
 
 --source include/have_binlog_format_statement.inc
---source include/not_mts_slave_parallel_workers.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 --source include/master-slave.inc

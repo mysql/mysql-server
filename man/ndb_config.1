@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBndb_config\fR
+.\"     Title: ndb_config
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/07/2021
+.\"      Date: 11/26/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_CONFIG" "1" "11/26/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -59,10 +59,9 @@ CONNECTIONS) using one of the options
 \fB\-\-system\fR, or
 \fB\-\-connections\fR\&.
 .PP
-The following table includes options that are specific to
-\fBndb_config\fR\&. Additional descriptions follow the table\&. For options common to most NDB Cluster programs (including
-\fBndb_config\fR), see
-Options Common to NDB Cluster Programs(1)\&.
+All options that can be used with
+\fBndb_config\fR
+are shown in the following table\&. Additional descriptions follow the table\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
@@ -97,7 +96,33 @@ lB l l
 lB l l
 lB l l
 lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
 lB l l.
+T{
+.PP
+\fB \fR\fB--character-sets-dir=path\fR\fB \fR
+T}:T{
+Directory containing character sets
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
 T{
 .PP
 \fB \fR\fB--cluster-config-suffix=name\fR\fB \fR
@@ -142,10 +167,75 @@ T{
 .PP
 \fB \fR\fB--connections\fR\fB \fR
 T}:T{
-Print connections information ([tcp], [tcp default], [sci], [sci
-              default], [shm], or [shm default] sections of cluster
-              configuration file) only. Cannot be used with --system or
-              --nodes
+Print information only about connections specified in [tcp], [tcp
+              default], [sci], [sci default], [shm], or [shm default]
+              sections of cluster configuration file. Cannot be used
+              with --system or --nodes
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--connect-retries=#\fR\fB \fR
+T}:T{
+Number of times to retry connection before giving up
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--connect-retry-delay=#\fR\fB \fR
+T}:T{
+Number of seconds to wait between attempts to contact management server
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--connect-string=connection_string\fR,
+.PP
+\fB \fR\fB-c connection_string\fR\fB \fR
+T}:T{
+Same as --ndb-connectstring
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--core-file\fR\fB \fR
+T}:T{
+Write core file on error; used in debugging
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--defaults-extra-file=path\fR\fB \fR
+T}:T{
+Read given file after global files are read
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--defaults-file=path\fR\fB \fR
+T}:T{
+Read default options from given file only
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--defaults-group-suffix=string\fR\fB \fR
+T}:T{
+Also read groups with concat(group, suffix)
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -172,9 +262,29 @@ T}:T{
 T}
 T{
 .PP
+\fB--help\fR,
+.PP
+\fB \fR\fB-?\fR\fB \fR
+T}:T{
+Display help text and exit
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
 \fB \fR\fB--host=name\fR\fB \fR
 T}:T{
 Specify host
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--login-path=path\fR\fB \fR
+T}:T{
+Read given path from login file
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -190,7 +300,60 @@ T}:T{
 T}
 T{
 .PP
-\fB \fR\fB--nodeid\fR\fB \fR
+\fB--ndb-connectstring=connection_string\fR,
+.PP
+\fB \fR\fB-c connection_string\fR\fB \fR
+T}:T{
+Set connect string for connecting to ndb_mgmd. Syntax:
+              "[nodeid=id;][host=]hostname[:port]". Overrides entries in
+              NDB_CONNECTSTRING and my.cnf
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--ndb-mgmd-host=connection_string\fR,
+.PP
+\fB \fR\fB-c connection_string\fR\fB \fR
+T}:T{
+Same as --ndb-connectstring
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--ndb-nodeid=#\fR\fB \fR
+T}:T{
+Set node ID for this node, overriding any ID set by --ndb-connectstring
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--ndb-optimized-node-selection\fR\fB \fR
+T}:T{
+Enable optimizations for selection of nodes for transactions. Enabled by
+              default; use --skip-ndb-optimized-node-selection to
+              disable
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--no-defaults\fR\fB \fR
+T}:T{
+Do not read default options from any option file other than login file
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--nodeid=#\fR\fB \fR
 T}:T{
 Get configuration of node with this ID
 T}:T{
@@ -210,18 +373,9 @@ T}:T{
 T}
 T{
 .PP
-\fB \fR\fB-c\fR\fB \fR
-T}:T{
-Short form for --ndb-connectstring
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
 \fB--query=string\fR,
 .PP
-\fB \fR\fB-q\fR\fB \fR
+\fB \fR\fB-q string\fR\fB \fR
 T}:T{
 One or more query options (attributes)
 T}:T{
@@ -241,9 +395,18 @@ T}:T{
 T}
 T{
 .PP
+\fB \fR\fB--print-defaults\fR\fB \fR
+T}:T{
+Print program argument list and exit
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
 \fB--rows=string\fR,
 .PP
-\fB \fR\fB-r\fR\fB \fR
+\fB \fR\fB-r string\fR\fB \fR
 T}:T{
 Row separator
 T}:T{
@@ -265,6 +428,28 @@ T{
 \fB \fR\fB--type=name\fR\fB \fR
 T}:T{
 Specify node type
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--usage\fR,
+.PP
+\fB \fR\fB-?\fR\fB \fR
+T}:T{
+Display help text and exit; same as --help
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--version\fR,
+.PP
+\fB \fR\fB-V\fR\fB \fR
+T}:T{
+Display version information and exit
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -404,7 +589,7 @@ By default, this output is in text format\&. Part of this output is shown here:
 .RS 4
 .\}
 .nf
-shell> \fBndb_config \-\-configinfo\fR
+$> \fBndb_config \-\-configinfo\fR
 ****** SYSTEM ******
 Name (String)
 Name of system (NDB Cluster)
@@ -529,23 +714,11 @@ fails with an error\&. (To obtain configuration data from the management node in
 \fB\-\-connections\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --connections
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -559,8 +732,8 @@ information only\(emthat is, information about parameters found in the
 [shm], or
 [shm default]
 sections of the cluster configuration file (see
-Section\ \&23.3.3.10, \(lqNDB Cluster TCP/IP Connections\(rq, and
-Section\ \&23.3.3.12, \(lqNDB Cluster Shared-Memory Connections\(rq, for more information)\&.
+Section\ \&23.4.3.10, \(lqNDB Cluster TCP/IP Connections\(rq, and
+Section\ \&23.4.3.12, \(lqNDB Cluster Shared-Memory Connections\(rq, for more information)\&.
 .sp
 This option is mutually exclusive with
 \fB\-\-nodes\fR
@@ -579,23 +752,11 @@ and
 \fB\-\-diff\-default\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --diff-default
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -734,23 +895,11 @@ in the same fashion\&.
 \fB\-\-mycnf\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --mycnf
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -777,10 +926,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
-.PP
---ndb-connectstring=connectstring
-.PP
---connect-string=connectstring
+--ndb-connectstring=connection_string
 T}
 T{
 Type
@@ -790,13 +936,35 @@ T}
 T{
 Default Value
 T}:T{
-localhost:1186
+[none]
 T}
 .TE
 .sp 1
 Specifies the connection string to use in connecting to the management server\&. The format for the connection string is the same as described in
-Section\ \&23.3.3.3, \(lqNDB Cluster Connection Strings\(rq, and defaults to
+Section\ \&23.4.3.3, \(lqNDB Cluster Connection Strings\(rq, and defaults to
 localhost:1186\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-no\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-defaults
+T}
+.TE
+.sp 1
+Do not read default options from any option file other than login file\&.
 .RE
 .sp
 .RS 4
@@ -821,12 +989,12 @@ T}
 T{
 Type
 T}:T{
-Numeric
+Integer
 T}
 T{
 Default Value
 T}:T{
-0
+[none]
 T}
 .TE
 .sp 1
@@ -844,23 +1012,11 @@ Specify the node ID of the node for which configuration information is to be obt
 \fB\-\-nodes\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --nodes
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -871,7 +1027,7 @@ to print information relating only to parameters defined in an
 or
 [ndbd default]
 section of the cluster configuration file (see
-Section\ \&23.3.3.6, \(lqDefining NDB Cluster Data Nodes\(rq)\&.
+Section\ \&23.4.3.6, \(lqDefining NDB Cluster Data Nodes\(rq)\&.
 .sp
 This option is mutually exclusive with
 \fB\-\-connections\fR
@@ -1043,23 +1199,11 @@ for the linefeed character), then it must be quoted\&.
 \fB\-\-system\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --system
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -1144,10 +1288,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
-.PP
 --help
-.PP
---usage
 T}
 .TE
 .sp 1
@@ -1193,23 +1334,11 @@ to print a version information string, and then exit\&.
 \fB\-\-xml\fR
 .TS
 allbox tab(:);
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --configinfo --xml
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-false
 T}
 .TE
 .sp 1
@@ -1222,8 +1351,8 @@ to provide output as XML by adding this option\&. A portion of such output is sh
 .RS 4
 .\}
 .nf
-shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.7\&.33\-ndb\-7\&.5\&.22"
+$> \fBndb_config \-\-configinfo \-\-xml\fR
+<configvariables protocolversion="1" ndbversionstring="5\&.7\&.36\-ndb\-7\&.5\&.25"
                     ndbversion="460032" ndbversionmajor="7" ndbversionminor="5"
                     ndbversionbuild="0">
   <section name="SYSTEM">
@@ -1402,6 +1531,451 @@ or
 my\&.cnf
 file is required for these two options\&.
 .RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-print\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--print-defaults
+T}
+.TE
+.sp 1
+Print program argument list and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-file\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-file=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read default options from given file only\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-extra\-file\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-extra-file=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read given file after global files are read\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-group\-suffix\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-group-suffix=string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Also read groups with concat(group, suffix)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-login\-path\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--login-path=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read given path from login file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-help\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--help
+T}
+.TE
+.sp 1
+Display help text and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-connect\-string\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--connect-string=connection_string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Same as
+\fB\-\-ndb\-connectstring\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-mgmd\-host\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-mgmd-host=connection_string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Same as
+\fB\-\-ndb\-connectstring\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-nodeid\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-nodeid=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Set node ID for this node, overriding any ID set by
+\fB\-\-ndb\-connectstring\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-core\-file\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--core-file
+T}
+.TE
+.sp 1
+Write core file on error; used in debugging\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-character\-sets\-dir\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--character-sets-dir=path
+T}
+.TE
+.sp 1
+Directory containing character sets\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-connect\-retries\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--connect-retries=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+12
+T}
+T{
+Minimum Value
+T}:T{
+0
+T}
+T{
+Maximum Value
+T}:T{
+12
+T}
+.TE
+.sp 1
+Number of times to retry connection before giving up\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-connect\-retry\-delay\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--connect-retry-delay=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+5
+T}
+T{
+Minimum Value
+T}:T{
+0
+T}
+T{
+Maximum Value
+T}:T{
+5
+T}
+.TE
+.sp 1
+Number of seconds to wait between attempts to contact management server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-optimized\-node\-selection\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-optimized-node-selection
+T}
+.TE
+.sp 1
+Enable optimizations for selection of nodes for transactions\&. Enabled by default; use
+\fB\-\-skip\-ndb\-optimized\-node\-selection\fR
+to disable\&.
+.RE
 .PP
 Combining other
 \fBndb_config\fR
@@ -1443,7 +2017,7 @@ To obtain the node ID and type of each node in the cluster:
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_config \-\-query=nodeid,type \-\-fields=\*(Aq:\*(Aq \-\-rows=\*(Aq\en\*(Aq\fR
+$> \fB\&./ndb_config \-\-query=nodeid,type \-\-fields=\*(Aq:\*(Aq \-\-rows=\*(Aq\en\*(Aq\fR
 1:ndbd
 2:ndbd
 3:ndbd
@@ -1479,7 +2053,7 @@ To produce a connection string that can be used by data, SQL, and API nodes to c
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_config \-\-config\-file=usr/local/mysql/cluster\-data/config\&.ini \e
+$> \fB\&./ndb_config \-\-config\-file=usr/local/mysql/cluster\-data/config\&.ini \e
 \-\-query=hostname,portnumber \-\-fields=: \-\-rows=, \-\-type=ndb_mgmd\fR
 198\&.51\&.100\&.179:1186
 .fi
@@ -1510,7 +2084,7 @@ parameters:
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_config \-\-type=ndbd \-\-query=nodeid,host,datamemory,datadir \-f \*(Aq : \*(Aq \-r \*(Aq\en\*(Aq\fR
+$> \fB\&./ndb_config \-\-type=ndbd \-\-query=nodeid,host,datamemory,datadir \-f \*(Aq : \*(Aq \-r \*(Aq\en\*(Aq\fR
 1 : 198\&.51\&.100\&.193 : 83886080 : /usr/local/mysql/cluster\-data
 2 : 198\&.51\&.100\&.112 : 83886080 : /usr/local/mysql/cluster\-data
 3 : 198\&.51\&.100\&.176 : 83886080 : /usr/local/mysql/cluster\-data
@@ -1545,7 +2119,7 @@ option:
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_config \-\-host=198\&.51\&.100\&.176 \-f : \-r \*(Aq\en\*(Aq \-q id,type\fR
+$> \fB\&./ndb_config \-\-host=198\&.51\&.100\&.176 \-f : \-r \*(Aq\en\*(Aq \-q id,type\fR
 3:ndbd
 5:ndb_mgmd
 .fi

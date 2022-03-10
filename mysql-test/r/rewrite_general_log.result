@@ -204,6 +204,7 @@ DROP TABLE test_log;
 SET GLOBAL general_log_file =  '.../mysqld.1/mysqld.log';
 SET GLOBAL log_output=        'FILE';
 SET GLOBAL general_log=       1;
+TRUNCATE TABLE mysql.general_log;
 
 End of 5.7 tests!
 

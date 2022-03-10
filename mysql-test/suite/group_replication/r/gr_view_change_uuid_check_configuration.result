@@ -1,0 +1,52 @@
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Unable to start Group Replication on boot");
+call mtr.add_suppression("Invalid input value for group_replication_view_change_uuid ''. Please, provide a valid UUID.");
+call mtr.add_suppression("group_replication_group_name '.*', which is the same as group_replication_view_change_uuid. Please change group_replication_view_change_uuid to AUTOMATIC");
+call mtr.add_suppression("group_replication_view_change_uuid is incompatible with group. group_replication_view_change_uuid.*matches server_uuid.*.");
+SET SESSION sql_log_bin=1;
+####################################################################
+# 1. We can't start a Group Replication if
+#    group_replication_view_change_uuid is configured with a invalid
+#    uuid
+SET PERSIST_ONLY group_replication_view_change_uuid = "";
+# restart:--group-replication-start-on-boot=1 --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1
+include/assert_grep.inc [group_replication_view_change_uuid '' not a valid uuid]
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+SET GLOBAL group_replication_view_change_uuid = "";
+ERROR 42000: The group_replication_view_change_uuid is not a valid UUID
+include/assert_grep.inc [group_replication_view_change_uuid '' not a valid uuid]
+####################################################################
+# 2. We can't start a Group Replication if
+#    group_replication_view_change_uuid is configured with same uuid
+#    as group_replication_group_name
+SET PERSIST_ONLY group_replication_view_change_uuid = "GROUP_NAME";
+# restart:--group-replication-start-on-boot=1 --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_view_change_uuid=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1
+include/assert_grep.inc [group_replication_group_name shall be different from group_replication_view_change_uuid]
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+SET GLOBAL group_replication_view_change_uuid = "GROUP_NAME";
+ERROR HY000: Variable 'group_replication_view_change_uuid' cannot be set to the value of 'GROUP_NAME'. If you want to use the UUID of 'group_replication_group_name' for the UUID of View_change_log_events, please set 'group_replication_view_change_uuid' to AUTOMATIC.
+include/assert_grep.inc [group_replication_group_name shall be different from group_replication_view_change_uuid]
+####################################################################
+# 3. We can't start a Group Replication if
+#    group_replication_view_change_uuid is configured with same uuid
+#    as server 1
+SET PERSIST_ONLY group_replication_view_change_uuid = "MEMBER_1_UUID";
+# restart:--group-replication-start-on-boot=1 --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1
+include/assert_grep.inc [group_replication_view_change_uuid shall be diferent from server uuid]
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+include/assert_grep.inc [group_replication_view_change_uuid shall be diferent from server uuid]
+####################################################################
+# 4. We can't set group_replication_group_name to same uuid
+#    configured on group_replication_view_change_uuid
+SET GLOBAL group_replication_view_change_uuid = "9f46e042-98a0-439d-a8fb-7130670ca49b";
+SET GLOBAL group_replication_group_name = "9f46e042-98a0-439d-a8fb-7130670ca49b";
+ERROR HY000: Variable 'group_replication_group_name' cannot be set to the value of '9f46e042-98a0-439d-a8fb-7130670ca49b'. The value is the same as group_replication_view_change_uuid. Please change group_replication_view_change_uuid to AUTOMATIC
+####################################################################
+# 5. Cleanup
+RESET PERSIST;
+SET GLOBAL group_replication_view_change_uuid = VIEW_CHANGE_UUID;
+Warnings:
+Warning	3615	Variable group_replication_ip_allowlist does not exist in persisted config file

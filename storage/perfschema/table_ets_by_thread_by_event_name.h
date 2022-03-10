@@ -54,7 +54,7 @@ class PFS_index_ets_by_thread_by_event_name : public PFS_engine_index {
         m_key_1("THREAD_ID"),
         m_key_2("EVENT_NAME") {}
 
-  ~PFS_index_ets_by_thread_by_event_name() override {}
+  ~PFS_index_ets_by_thread_by_event_name() override = default;
 
   bool match(PFS_thread *pfs);
   bool match(PFS_transaction_class *klass);
@@ -130,7 +130,7 @@ class table_ets_by_thread_by_event_name : public PFS_engine_table {
   table_ets_by_thread_by_event_name();
 
  public:
-  ~table_ets_by_thread_by_event_name() override {}
+  ~table_ets_by_thread_by_event_name() override = default;
 
  protected:
   int make_row(PFS_thread *thread, PFS_transaction_class *klass);

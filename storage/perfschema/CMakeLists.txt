@@ -36,6 +36,8 @@ cursor_by_thread.h
 cursor_by_thread_connect_attr.h
 cursor_by_user.h
 ha_perfschema.h
+terminology_use_previous.h
+terminology_use_previous_enum.h
 pfs.h
 pfs_account.h
 pfs_buffer_container.h
@@ -199,6 +201,7 @@ cursor_by_thread.cc
 cursor_by_thread_connect_attr.cc
 cursor_by_user.cc
 ha_perfschema.cc
+terminology_use_previous.cc
 pfs.cc
 pfs_account.cc
 pfs_autosize.cc
@@ -362,7 +365,6 @@ MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES}
   STORAGE_ENGINE MANDATORY STATIC_ONLY)
 
 IF(WITH_UNIT_TESTS)
-  ENABLE_TESTING()
   ADD_SUBDIRECTORY(unittest)
 ENDIF()
 

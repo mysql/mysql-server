@@ -59,11 +59,11 @@ Error	1031	Table storage engine for 't1' doesn't have this option
 delete from mysql.ndb_replication;
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X)");
 create table t1 (a int key, X int) engine ndb;
-ERROR HY000: Can't create table 't1'
+ERROR HY000: Can't create table 't1' (use SHOW WARNINGS for more info).
 show warnings;
 Level	Code	Message
 Warning	1626	Error in parsing conflict function. Message: Column 'X' has wrong datatype
-Error	1005	Can't create table 't1'
+Error	1005	Can't create table 't1' (use SHOW WARNINGS for more info).
 delete from mysql.ndb_replication;
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX()");
 create table t1 (a int key, X int) engine ndb;

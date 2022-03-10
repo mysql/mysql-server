@@ -44,7 +44,7 @@ class UndoLogLevelRep {
   friend class DblqhProxy;
 
 public:
-  STATIC_CONST( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
 
 private:
 

@@ -42,6 +42,7 @@
 --source include/not_group_replication_plugin.inc
 # Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
 --source include/have_slave_repository_type_table.inc
+--source include/not_rpl_gtid_only.inc
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc
@@ -63,7 +64,7 @@ START SLAVE IO_THREAD;
 --source include/rpl_stop_server.inc
 
 --let $rpl_server_number= 2
---let $rpl_server_parameters=--skip_slave_start=FALSE --relay-log-recovery=1
+--let $rpl_server_parameters=--skip_replica_start=FALSE --relay-log-recovery=1
 --source include/rpl_start_server.inc
 
 --let $assert_text= One error should match 'Error during --relay-log-recovery'

@@ -24,6 +24,8 @@
 
 #include "ConsoleLogHandler.hpp"
 
+#include <time.h>
+
 ConsoleLogHandler::ConsoleLogHandler(NdbOut& out)
  : LogHandler(), _out(out)
 {

@@ -25,26 +25,32 @@
 #include "mysql/harness/filesystem.h"
 
 #include <direct.h>
-#include <cassert>
-#include <cerrno>
-#include <random>
-#include <sstream>
-#include <stdexcept>
-#include <string>
-
 #include <shlwapi.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <windows.h>
 
-using std::ostringstream;
-using std::string;
+#include <array>
+#include <cassert>
+#include <cerrno>
+#include <fstream>
+#include <memory>  // unique_ptr
+#include <random>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <system_error>
+
+#include "mysql/harness/access_rights.h"
+#include "mysql/harness/stdx/expected.h"
 
 namespace {
 const std::string extsep(".");
 }  // namespace
 
 namespace mysql_harness {
+
+const perm_mode kStrictDirectoryPerm = 0;
 
 ////////////////////////////////////////////////////////////////
 // class Path members and free functions
@@ -92,13 +98,38 @@ Path::FileType Path::type(bool refresh) const {
   return type_;
 }
 
+bool Path::is_absolute() const {
+  validate_non_empty_path();  // throws std::invalid_argument
+  if (path_[0] == '\\' || path_[0] == '/' || path_[1] == ':') return true;
+  return false;
+}
+
+bool Path::is_readable() const {
+  validate_non_empty_path();
+  if (!exists()) return false;
+
+  if (!is_directory())
+    return std::ifstream(real_path().str()).good();
+  else {
+    WIN32_FIND_DATA find_data;
+    HANDLE h = FindFirstFile(TEXT(real_path().str().c_str()), &find_data);
+    if (h == INVALID_HANDLE_VALUE) {
+      return GetLastError() != ERROR_ACCESS_DENIED;
+    } else {
+      FindClose(h);
+      return true;
+    }
+  }
+}
+
 ////////////////////////////////////////////////////////////////
 // Directory::Iterator::State
 
 class Directory::DirectoryIterator::State {
  public:
   State();
-  State(const Path &path, const string &pattern);  // throws std::system_error
+  State(const Path &path,
+        const std::string &pattern);  // throws std::system_error
   ~State();
 
   void fill_result(bool first_entry_set = false);  // throws std::system_error
@@ -119,7 +150,7 @@ class Directory::DirectoryIterator::State {
   WIN32_FIND_DATA data_;
   HANDLE handle_;
   bool more_;
-  const string pattern_;
+  const std::string pattern_;
 
  private:
   static const char *dot;
@@ -134,13 +165,13 @@ Directory::DirectoryIterator::State::State()
 
 // throws std::system_error
 Directory::DirectoryIterator::State::State(const Path &path,
-                                           const string &pattern)
+                                           const std::string &pattern)
     : handle_(INVALID_HANDLE_VALUE), more_(true), pattern_(pattern) {
   const Path r_path = path.real_path();
-  const string pat = r_path.join(pattern.size() > 0 ? pattern : "*").str();
+  const std::string pat = r_path.join(pattern.size() > 0 ? pattern : "*").str();
 
   if (pat.size() > MAX_PATH) {
-    ostringstream msg;
+    std::ostringstream msg;
     msg << "Failed to open path '" << path << "'";
     throw std::system_error(std::make_error_code(std::errc::filename_too_long),
                             msg.str());
@@ -348,50 +379,109 @@ std::string get_tmp_dir(const std::string &name) {
   std::string result = Path(buf).join(dir_name).str();
   int err = _mkdir(result.c_str());
   if (err != 0) {
-    throw std::runtime_error("Error creating temporary directory " + result);
+    std::error_code ec{errno, std::generic_category()};
+
+    throw std::system_error(ec, "_mkdir(" + result + ") failed");
   }
   return result;
-}
-
-std::unique_ptr<SECURITY_DESCRIPTOR, decltype(&free)> get_security_descriptor(
-    const std::string &file_name) {
-  static constexpr SECURITY_INFORMATION kReqInfo = DACL_SECURITY_INFORMATION;
-
-  // Get the size of the descriptor.
-  DWORD sec_desc_size;
-
-  if (GetFileSecurityA(file_name.c_str(), kReqInfo, nullptr, 0,
-                       &sec_desc_size) == FALSE) {
-    // calling code checks for errno
-    // also multiple calls to GetLastError() erase error value
-    errno = GetLastError();
-
-    // We expect to receive `ERROR_INSUFFICIENT_BUFFER`.
-    if (errno != ERROR_INSUFFICIENT_BUFFER) {
-      throw std::system_error(errno, std::system_category(),
-                              "GetFileSecurity() failed (" + file_name +
-                                  "): " + std::to_string(errno));
-    }
-  }
-
-  std::unique_ptr<SECURITY_DESCRIPTOR, decltype(&free)> sec_desc(
-      static_cast<SECURITY_DESCRIPTOR *>(std::malloc(sec_desc_size)), &free);
-
-  if (GetFileSecurityA(file_name.c_str(), kReqInfo, sec_desc.get(),
-                       sec_desc_size, &sec_desc_size) == FALSE) {
-    errno = GetLastError();
-    throw std::system_error(errno, std::system_category(),
-                            "GetFileSecurity() failed (" + file_name +
-                                "): " + std::to_string(GetLastError()));
-  }
-
-  return sec_desc;
 }
 
 int mkdir_wrapper(const std::string &dir, perm_mode /* mode */) {
   auto res = _mkdir(dir.c_str());
   if (res != 0) return errno;
   return 0;
+}
+
+/**
+ * Makes a file fully accessible by the current process user and (read only or
+ * read/write depending on the second argument) for LocalService account (which
+ * is the account under which the MySQL router runs as service). And not
+ * accessible for everyone else.
+ */
+static stdx::expected<void, std::error_code> make_file_private_win32(
+    const std::string &filename, const bool read_only_for_local_service) {
+  using namespace win32::access_rights;
+  auto build_res =
+      AclBuilder{}
+          .grant(AclBuilder::CurrentUser{}, ACCESS_SYSTEM_SECURITY |
+                                                READ_CONTROL | WRITE_DAC |
+                                                GENERIC_ALL)
+          .grant(
+              AclBuilder::WellKnownSid{WinLocalServiceSid},
+              GENERIC_READ | (read_only_for_local_service ? 0 : GENERIC_WRITE))
+          .build();
+  if (!build_res) return build_res.get_unexpected();
+
+  auto sd_alloced = std::move(build_res.value());
+
+  auto set_res = access_rights_set(filename, sd_alloced);
+  if (!set_res) return set_res.get_unexpected();
+
+  return {};
+}
+
+/**
+ * Sets file permissions for Everyone group.
+ *
+ * @param[in] file_name File name.
+ * @param[in] mask Access rights mask for Everyone group.
+ *
+ * @throw std::exception Failed to change file permissions.
+ */
+static stdx::expected<void, std::error_code> set_everyone_group_access_rights(
+    const std::string &file_name, DWORD mask) {
+  auto sec_desc_res = access_rights_get(file_name);
+  if (!sec_desc_res) return sec_desc_res.get_unexpected();
+
+  // add (Everyone, mask) to the existing permissions
+  using namespace win32::access_rights;
+  const auto build_res = AclBuilder{std::move(sec_desc_res.value())}
+                             .set(AclBuilder::WellKnownSid{WinWorldSid}, mask)
+                             .build();
+  if (!build_res) return build_res.get_unexpected();
+
+  // apply them back again.
+  const auto set_res = access_rights_set(file_name, build_res.value());
+  if (!set_res) return set_res.get_unexpected();
+
+  return {};
+}
+
+void make_file_public(const std::string &file_name) {
+  auto res = set_everyone_group_access_rights(
+      file_name, FILE_GENERIC_EXECUTE | FILE_GENERIC_WRITE | FILE_GENERIC_READ);
+  if (!res) {
+    throw std::system_error(res.error(),
+                            "make_file_public(" + file_name + ") failed");
+  }
+}
+
+void make_file_private(const std::string &file_name,
+                       const bool read_only_for_local_service) {
+  const auto res =
+      make_file_private_win32(file_name, read_only_for_local_service);
+  if (!res) {
+    throw std::system_error(
+        res.error(), "Could not set permissions for file '" + file_name + "'");
+  }
+}
+
+void make_file_readable_for_everyone(const std::string &file_name) {
+  const auto res =
+      set_everyone_group_access_rights(file_name, FILE_GENERIC_READ);
+  if (!res) {
+    throw std::system_error(
+        res.error(), "Could not set permissions for file '" + file_name + "'");
+  }
+}
+
+void make_file_readonly(const std::string &file_name) {
+  const auto res = set_everyone_group_access_rights(
+      file_name, FILE_GENERIC_EXECUTE | FILE_GENERIC_READ);
+  if (!res) {
+    throw std::system_error(
+        res.error(), "Could not set permissions for file '" + file_name + "'");
+  }
 }
 
 }  // namespace mysql_harness

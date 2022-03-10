@@ -91,7 +91,7 @@ FOREACH(line ${xcom_vp_def})
 	ENDIF()
   ELSE()
 	# Output saved lines when we see "return TRUE"
-	STRING(REGEX MATCH "return TRUE" xxx "${line}")
+	STRING(REGEX MATCH "return \\(*TRUE" xxx "${line}")
 	IF(xxx)
 	  IF(code)
 		FILE(APPEND ${x_gen_c} "/* BEGIN protocol conversion code */${code}\n/* END protocol conversion code */\n")

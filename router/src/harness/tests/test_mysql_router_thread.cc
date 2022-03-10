@@ -25,8 +25,7 @@
 #include <mutex>
 #include <thread>
 
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 #include "mysql_router_thread.h"
 

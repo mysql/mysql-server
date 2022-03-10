@@ -46,7 +46,7 @@ class PFS_index_esms_by_program : public PFS_engine_index {
         m_key_2("OBJECT_SCHEMA"),
         m_key_3("OBJECT_NAME") {}
 
-  ~PFS_index_esms_by_program() override {}
+  ~PFS_index_esms_by_program() override = default;
 
   virtual bool match(PFS_program *pfs);
 
@@ -107,7 +107,7 @@ class table_esms_by_program : public PFS_engine_table {
   table_esms_by_program();
 
  public:
-  ~table_esms_by_program() override {}
+  ~table_esms_by_program() override = default;
 
  protected:
   int make_row(PFS_program *);

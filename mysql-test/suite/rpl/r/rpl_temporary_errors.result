@@ -12,7 +12,7 @@ include/sync_slave_sql_with_master.inc
 SELECT count_transactions_retries FROM performance_schema.replication_applier_status;
 count_transactions_retries
 0
-set @@global.slave_exec_mode= 'IDEMPOTENT';
+set @@global.replica_exec_mode= 'IDEMPOTENT';
 UPDATE t1 SET a = 5, b = 47 WHERE a = 1;
 SELECT * FROM t1 order by a;
 a	b
@@ -30,7 +30,7 @@ a	b
 5	5
 **** On Slave ****
 include/sync_slave_sql_with_master.inc
-set @@global.slave_exec_mode= default;
+set @@global.replica_exec_mode= default;
 SELECT count_transactions_retries FROM performance_schema.replication_applier_status;
 count_transactions_retries
 0
@@ -45,9 +45,9 @@ call mtr.add_suppression("Slave SQL.*Could not execute Update_rows event on tabl
 call mtr.add_suppression("Slave SQL for channel '': worker thread retried transaction");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped");
 set @save_innodb_lock_wait_timeout=@@global.innodb_lock_wait_timeout;
-set @save_slave_transaction_retries=@@global.slave_transaction_retries;
+set @save_replica_transaction_retries=@@global.replica_transaction_retries;
 set @@global.innodb_lock_wait_timeout=1;
-set @@global.slave_transaction_retries=2;
+set @@global.replica_transaction_retries=2;
 include/restart_slave.inc
 BEGIN;
 INSERT INTO t1 SET a = 6, b = 7;
@@ -58,7 +58,7 @@ XA END 'xa1';
 XA PREPARE 'xa1';
 include/wait_for_slave_sql_error.inc [errno=1213,1205]
 set @@global.innodb_lock_wait_timeout=1;
-set @@global.slave_transaction_retries=100;
+set @@global.replica_transaction_retries=100;
 SELECT count_transactions_retries FROM performance_schema.replication_applier_status INTO @last_retries;
 include/start_slave_sql.inc
 ROLLBACK;
@@ -66,7 +66,7 @@ XA COMMIT 'xa1';
 include/sync_slave_sql_with_master.inc
 include/assert.inc [XA transaction record must be in the table]
 set @@global.innodb_lock_wait_timeout=@save_innodb_lock_wait_timeout;
-set @@global.slave_transaction_retries= @save_slave_transaction_retries;
+set @@global.replica_transaction_retries= @save_replica_transaction_retries;
 **** On Master ****
 DROP TABLE t1;
 include/rpl_end.inc

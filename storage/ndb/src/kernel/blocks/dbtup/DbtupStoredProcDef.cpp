@@ -174,6 +174,7 @@ void Dbtup::scanProcedure(Signal* signal,
   handle->clear();
   storedPtr.p->storedCode = (isCopy)? ZCOPY_PROCEDURE : ZSCAN_PROCEDURE;
   storedPtr.p->storedProcIVal= handle->m_ptr[0].i;
+  storedPtr.p->storedParamNo = 0;
 
   set_trans_state(regOperPtr, TRANS_IDLE);
   

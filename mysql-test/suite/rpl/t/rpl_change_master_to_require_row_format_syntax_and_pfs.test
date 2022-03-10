@@ -45,6 +45,7 @@
 
 --source include/have_binlog_format_row.inc
 --source include/not_have_privilege_checks_user.inc
+--source include/not_rpl_gtid_only.inc
 
 # Procedure that checks if the PFS data regarding `REQUIRE_ROW_FORMAT` is
 # updated in a given server.

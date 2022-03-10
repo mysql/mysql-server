@@ -26,6 +26,7 @@
 #define DBTUP_ROUTINES_CPP
 #include "Dbtup.hpp"
 
+#include <cstring>
 #include "m_ctype.h"
 
 #include <RefConvert.hpp>
@@ -321,7 +322,7 @@ static void dump_buf_hex(unsigned char *p, Uint32 bytes)
     }
     sprintf(q+3*i, " %02X", p[i]);
   }
-  ndbout_c("%8p: %s", p, buf);
+  g_eventLogger->info("%8p: %s", p, buf);
 }
 #endif
 
@@ -534,10 +535,10 @@ zero32(Uint8* dstPtr, const Uint32 len)
     switch(odd){     /* odd is: {1..3} */
     case 1:
       dst[1] = 0;
-      // Fall through
+      [[fallthrough]];
     case 2:
       dst[2] = 0;
-      // Fall through
+      [[fallthrough]];
     default:         /* Known to be odd==3 */
       dst[3] = 0;
     }
@@ -3016,7 +3017,7 @@ Dbtup::read_packed(const Uint32* inBuf, Uint32 inPos,
   Uint32* dst = (Uint32*)(outBuffer + ((outPos - 4) >> 2));
   Uint32* dstmask = dst + 1;
   AttributeHeader::init(dst, AttributeHeader::READ_PACKED, 4*masksz);
-  bzero(dstmask, 4*masksz);
+  std::memset(dstmask, 0, 4*masksz);
     
   AttributeHeader ahOut;
   Uint8* outBuf = (Uint8*)outBuffer;

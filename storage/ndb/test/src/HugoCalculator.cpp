@@ -263,8 +263,8 @@ HugoCalculator::calcValue(int record,
     * outlen = len + 2;
     int2store(buf, len);
     dst += 2;
-    // Fall through
 write_char:
+    [[fallthrough]];
   case NdbDictionary::Column::Char:
   {
     char* ptr= (char*)&val;

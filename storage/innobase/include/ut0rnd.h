@@ -42,23 +42,20 @@ in folding records */
 
 /** The following function generates a series of 'random' ulint integers.
  @return the next 'random' number */
-UNIV_INLINE
-ulint ut_rnd_gen_next_ulint(
+static inline ulint ut_rnd_gen_next_ulint(
     ulint rnd); /*!< in: the previous random number value */
 /** The following function generates 'random' ulint integers which
  enumerate the value space (let there be N of them) of ulint integers
  in a pseudo-random fashion. Note that the same integer is repeated
  always after N calls to the generator.
  @return the 'random' number */
-UNIV_INLINE
-ulint ut_rnd_gen_ulint(void);
+static inline ulint ut_rnd_gen_ulint(void);
 
 /** Generates a random integer from a given interval.
 @param[in]	low	low limit; can generate also this value
 @param[in]	high	high limit; can generate also this value
 @return the 'random' number */
-UNIV_INLINE
-ulint ut_rnd_interval(ulint low, ulint high);
+static inline ulint ut_rnd_interval(ulint low, ulint high);
 
 /** The following function generates a hash value for a ulint integer to a
 hash table of size table_size, which should be a prime or some random number
@@ -66,20 +63,17 @@ to work reliably.
 @param[in]	key		value to be hashed
 @param[in]	table_size	hash table size
 @return hash value */
-UNIV_INLINE
-ulint ut_hash_ulint(ulint key, ulint table_size);
+static inline ulint ut_hash_ulint(ulint key, ulint table_size);
 
 /** Folds a 64-bit integer.
 @param[in]	d	64-bit integer
 @return folded value */
-UNIV_INLINE
-ulint ut_fold_ull(ib_uint64_t d);
+static inline ulint ut_fold_ull(ib_uint64_t d);
 
 /** Folds a character string ending in the null character.
  @return folded value */
-UNIV_INLINE
-ulint ut_fold_string(const char *str) /*!< in: null-terminated string */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline ulint ut_fold_string(
+    const char *str); /*!< in: null-terminated string */
 
 /** Looks for a prime number slightly greater than the given argument.
 The prime is chosen so that it is not near any power of 2.
@@ -91,15 +85,13 @@ ulint ut_find_prime(ulint n);
 @param[in]	n1	first ulint
 @param[in]	n2	second ulint
 @return folded value */
-UNIV_INLINE
-ulint ut_fold_ulint_pair(ulint n1, ulint n2);
+static inline ulint ut_fold_ulint_pair(ulint n1, ulint n2);
 
 /** Folds a binary string.
 @param[in]	str		string of bytes
 @param[in]	len		length
 @return folded value */
-UNIV_INLINE
-ulint ut_fold_binary(const byte *str, ulint len);
+static inline ulint ut_fold_binary(const byte *str, ulint len);
 
 #include "ut0rnd.ic"
 

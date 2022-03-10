@@ -3,7 +3,7 @@
 --echo #
 
 #
-# The variable Slave_rows_last_search_algorithm_used forms the basis for this
+# The variable Replica_rows_last_search_algorithm_used forms the basis for this
 # test, and it is only available in debug builds.
 #
 --source include/have_debug.inc
@@ -45,7 +45,7 @@ UPDATE t1 SET c = 100 WHERE a = 1;
 --echo # Should not have used the a index to syncronize the row.
 
 SELECT 1 AS not_using_index FROM performance_schema.global_status
-WHERE variable_name = 'Slave_rows_last_search_algorithm_used'
+WHERE variable_name = 'Replica_rows_last_search_algorithm_used'
 AND variable_value <> 'INDEX_SCAN';
 
 --echo # Make sure it indeed synchronized. This _will_ use the index.

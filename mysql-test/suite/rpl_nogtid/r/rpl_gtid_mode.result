@@ -353,6 +353,7 @@ include/rpl_set_gtid_mode.inc [OFF on servers 2]
 DROP TABLE t5;
 RESET MASTER;
 [connection slave]
+DROP TABLE t5;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -364,7 +365,7 @@ include/sync_slave_sql_with_master.inc
 #
 [connection master]
 SET @debug_saved= @@GLOBAL.DEBUG;
-SET GLOBAL DEBUG= "d,skip_sender_anon_autoposition_error";
+SET GLOBAL DEBUG= "+d,skip_sender_anon_autoposition_error";
 include/rpl_set_gtid_mode.inc [ON on servers 1,2]
 [connection master]
 CREATE TABLE t6(a int);
@@ -411,7 +412,7 @@ call mtr.add_suppression("Could not open * for logging");
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 SET @debug_saved= @@GLOBAL.DEBUG;
-SET GLOBAL DEBUG= "d,fault_injection_new_file_rotate_event";
+SET GLOBAL DEBUG= "+d,fault_injection_new_file_rotate_event";
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SET @@GLOBAL.GTID_MODE= OFF_PERMISSIVE;
 ERROR HY000: Error writing file 'slave-bin' (errno: 2 - No such file or directory)
@@ -444,7 +445,7 @@ Note	3084	Replication thread(s) for channel '' are already stopped.
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-SET @@GLOBAL.DEBUG= 'd,simulate_master_has_unknown_gtid_mode';
+SET @@GLOBAL.DEBUG= '+d,simulate_source_has_unknown_gtid_mode';
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

@@ -42,7 +42,7 @@ class MasterLCPConf {
     
   friend bool printMASTER_LCP_CONF(FILE *, const Uint32 *, Uint32, Uint16);  
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   enum State {
     LCP_STATUS_IDLE        = 0,
@@ -72,7 +72,7 @@ class MasterLCPReq {
 
   friend bool printMASTER_LCP_REQ(FILE *, const Uint32 *, Uint32, Uint16);   
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 private:
   Uint32 masterRef;
   Uint32 failedNodeId;
@@ -86,7 +86,7 @@ class MasterLCPRef {
 
   friend bool printMASTER_LCP_REF(FILE *, const Uint32 *, Uint32, Uint16);   
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 private:  
   /**
    * Data replied

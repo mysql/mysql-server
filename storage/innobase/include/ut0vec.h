@@ -80,22 +80,19 @@ ib_vector_t *ib_vector_create(
 /********************************************************************
 Destroy the vector. Make sure the vector owns the allocator, e.g.,
 the heap in the the heap allocator. */
-UNIV_INLINE
-void ib_vector_free(ib_vector_t *vec); /* in/out: vector */
+static inline void ib_vector_free(ib_vector_t *vec); /* in/out: vector */
 
 /********************************************************************
 Push a new element to the vector, increasing its size if necessary,
 if elem is not NULL then elem is copied to the vector.*/
-UNIV_INLINE
-void *ib_vector_push(
+static inline void *ib_vector_push(
     /* out: pointer the "new" element */
     ib_vector_t *vec,  /* in/out: vector */
     const void *elem); /* in: data element */
 
 /********************************************************************
 Pop the last element from the vector.*/
-UNIV_INLINE
-void *ib_vector_pop(
+static inline void *ib_vector_pop(
     /* out: pointer to the "new" element */
     ib_vector_t *vec); /* in/out: vector */
 
@@ -103,13 +100,11 @@ void *ib_vector_pop(
 @param[in]	vec	vector
 @param[in]	elem	value to remove
 @return pointer to the "removed" element */
-UNIV_INLINE
-void *ib_vector_remove(ib_vector_t *vec, const void *elem);
+static inline void *ib_vector_remove(ib_vector_t *vec, const void *elem);
 
 /********************************************************************
 Get the number of elements in the vector. */
-UNIV_INLINE
-ulint ib_vector_size(
+static inline ulint ib_vector_size(
     /* out: number of elements in vector */
     const ib_vector_t *vec); /* in: vector */
 
@@ -122,70 +117,61 @@ void ib_vector_resize(
 /********************************************************************
 Test whether a vector is empty or not.
 @return true if empty */
-UNIV_INLINE
-ibool ib_vector_is_empty(const ib_vector_t *vec); /*!< in: vector */
+static inline ibool ib_vector_is_empty(
+    const ib_vector_t *vec); /*!< in: vector */
 
 /** Get the n'th element.
 @param[in]	vec	vector
 @param[in]	n	element index to get
 @return n'th element */
-UNIV_INLINE
-void *ib_vector_get(ib_vector_t *vec, ulint n);
+static inline void *ib_vector_get(ib_vector_t *vec, ulint n);
 
 /********************************************************************
 Const version of the get n'th element.
 @return n'th element */
-UNIV_INLINE
-const void *ib_vector_get_const(const ib_vector_t *vec, /* in: vector */
-                                ulint n); /* in: element index to get */
+static inline const void *ib_vector_get_const(
+    const ib_vector_t *vec, /* in: vector */
+    ulint n);               /* in: element index to get */
 /** Get last element. The vector must not be empty.
  @return last element */
-UNIV_INLINE
-void *ib_vector_get_last(ib_vector_t *vec); /*!< in: vector */
+static inline void *ib_vector_get_last(ib_vector_t *vec); /*!< in: vector */
 
 /** Set the n'th element.
 @param[in]	vec	vector
 @param[in]	n	element index to set
 @param[in]	elem	data element */
-UNIV_INLINE
-void ib_vector_set(ib_vector_t *vec, ulint n, void *elem);
+static inline void ib_vector_set(ib_vector_t *vec, ulint n, void *elem);
 
 /********************************************************************
 Reset the vector size to 0 elements. */
-UNIV_INLINE
-void ib_vector_reset(ib_vector_t *vec); /* in/out: vector */
+static inline void ib_vector_reset(ib_vector_t *vec); /* in/out: vector */
 
 /********************************************************************
 Get the last element of the vector. */
-UNIV_INLINE
-void *ib_vector_last(
+static inline void *ib_vector_last(
     /* out: pointer to last element */
     ib_vector_t *vec); /* in/out: vector */
 
 /********************************************************************
 Get the last element of the vector. */
-UNIV_INLINE
-const void *ib_vector_last_const(
+static inline const void *ib_vector_last_const(
     /* out: pointer to last element */
     const ib_vector_t *vec); /* in: vector */
 
 /********************************************************************
 Sort the vector elements. */
-UNIV_INLINE
-void ib_vector_sort(
+static inline void ib_vector_sort(
     ib_vector_t *vec,      /* in/out: vector */
     ib_compare_t compare); /* in: the comparator to use for sort */
 
 /********************************************************************
 The default ib_vector_t heap free. Does nothing. */
-UNIV_INLINE
-void ib_heap_free(ib_alloc_t *allocator, /* in: allocator */
-                  void *ptr);            /* in: size in bytes */
+static inline void ib_heap_free(ib_alloc_t *allocator, /* in: allocator */
+                                void *ptr);            /* in: size in bytes */
 
 /********************************************************************
 The default ib_vector_t heap malloc. Uses mem_heap_alloc(). */
-UNIV_INLINE
-void *ib_heap_malloc(
+static inline void *ib_heap_malloc(
     /* out: pointer to allocated memory */
     ib_alloc_t *allocator, /* in: allocator */
     ulint size);           /* in: size in bytes */
@@ -194,8 +180,7 @@ void *ib_heap_malloc(
 The default ib_vector_t heap resize. Since we can't resize the heap
 we have to copy the elements from the old ptr to the new ptr.
 Uses mem_heap_alloc(). */
-UNIV_INLINE
-void *ib_heap_resize(
+static inline void *ib_heap_resize(
     /* out: pointer to reallocated
     memory */
     ib_alloc_t *allocator, /* in: allocator */
@@ -205,15 +190,13 @@ void *ib_heap_resize(
 
 /********************************************************************
 Create a heap allocator that uses the passed in heap. */
-UNIV_INLINE
-ib_alloc_t *ib_heap_allocator_create(
+static inline ib_alloc_t *ib_heap_allocator_create(
     /* out: heap allocator instance */
     mem_heap_t *heap); /* in: heap to use */
 
 /********************************************************************
 Free a heap allocator. */
-UNIV_INLINE
-void ib_heap_allocator_free(
+static inline void ib_heap_allocator_free(
     ib_alloc_t *ib_ut_alloc); /* in: alloc instace to free */
 
 /* Allocator used by ib_vector_t. */

@@ -34,40 +34,32 @@ using namespace classic_protocol;
 // check constexpr handling
 
 // Frame is fixed size
-static_assert(Codec<frame::Header>({0, 0}, {}).size() == 4, "");
+static_assert(Codec<frame::Header>({0, 0}, {}).size() == 4);
 
 // Frame<Ping> is fixed size
 static_assert(Codec<frame::Frame<message::client::Quit>>({0, {}}, {}).size() ==
-                  4 + 1,
-              "");
+              4 + 1);
 
 static_assert(Codec<frame::Frame<message::client::ResetConnection>>({0, {}}, {})
-                      .size() == 4 + 1,
-              "");
+                  .size() == 4 + 1);
 
 static_assert(Codec<frame::Frame<message::client::Statistics>>({0, {}}, {})
-                      .size() == 4 + 1,
-              "");
+                  .size() == 4 + 1);
 
 static_assert(Codec<frame::Frame<message::client::Ping>>({0, {}}, {}).size() ==
-                  4 + 1,
-              "");
+              4 + 1);
 
 static_assert(Codec<frame::Frame<message::client::StmtClose>>({0, {1}}, {})
-                      .size() == 4 + 1 + 4,
-              "");
+                  .size() == 4 + 1 + 4);
 
 static_assert(Codec<frame::Frame<message::client::StmtReset>>({0, {1}}, {})
-                      .size() == 4 + 1 + 4,
-              "");
+                  .size() == 4 + 1 + 4);
 
 static_assert(Codec<frame::Frame<message::client::StmtFetch>>({0, {1, 2}}, {})
-                      .size() == 4 + 1 + 4 + 4,
-              "");
+                  .size() == 4 + 1 + 4 + 4);
 
 static_assert(Codec<frame::Frame<message::client::StmtSetOption>>({0, {1}}, {})
-                      .size() == 4 + 1 + 2,
-              "");
+                  .size() == 4 + 1 + 2);
 
 // Frame::Quit
 

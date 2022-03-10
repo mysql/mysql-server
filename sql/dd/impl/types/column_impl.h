@@ -28,8 +28,8 @@
 #include <sys/types.h>
 #include <memory>  // std::unique_ptr
 #include <new>
+#include <optional>
 
-#include "nullable.h"
 #include "sql/dd/impl/properties_impl.h"           // Properties_impl
 #include "sql/dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
 #include "sql/dd/impl/types/weak_object_impl.h"
@@ -41,8 +41,6 @@
 #include "sql/dd/types/column_type_element.h"  // IWYU pragma: keep
 #include "sql/gis/srid.h"                      // gis::srid_t
 #include "sql/strfunc.h"
-
-using Mysql::Nullable;
 
 namespace dd {
 
@@ -419,9 +417,11 @@ class Column_impl : public Entity_object_impl, public Column {
   /////////////////////////////////////////////////////////////////////////
   // Spatial reference system ID
   /////////////////////////////////////////////////////////////////////////
-  void set_srs_id(Nullable<gis::srid_t> srs_id) override { m_srs_id = srs_id; }
+  void set_srs_id(std::optional<gis::srid_t> srs_id) override {
+    m_srs_id = srs_id;
+  }
 
-  Nullable<gis::srid_t> srs_id() const override { return m_srs_id; }
+  std::optional<gis::srid_t> srs_id() const override { return m_srs_id; }
 
   /////////////////////////////////////////////////////////////////////////
   // Elements.
@@ -548,7 +548,7 @@ class Column_impl : public Entity_object_impl, public Column {
 
   enum_column_key m_column_key;
 
-  Nullable<gis::srid_t> m_srs_id;
+  std::optional<gis::srid_t> m_srs_id;
 };
 
 ///////////////////////////////////////////////////////////////////////////

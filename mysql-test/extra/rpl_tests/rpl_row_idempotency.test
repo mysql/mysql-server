@@ -3,8 +3,8 @@
 # bug#31552 Replication breaks when deleting rows from out-of-sync table
 #           without PK
 
-# The default for slave-exec-mode option and server
-# variable slave_exec_mode  is 'STRICT'.
+# The default for replica-exec-mode option and server
+# variable replica_exec_mode  is 'STRICT'.
 # When 'STRICT' mode is set, the slave SQL thread will stop whenever
 # the row to change is not found. In 'IDEMPOTENT' mode, the SQL thread
 # will continue running and apply the row - replace if it's Write_rows event -
@@ -18,8 +18,8 @@
 #
 connection slave;
 
-set @old_slave_exec_mode= @@global.slave_exec_mode;
-set @@global.slave_exec_mode= IDEMPOTENT;
+set @old_replica_exec_mode= @@global.replica_exec_mode;
+set @@global.replica_exec_mode= IDEMPOTENT;
 
 connection master;
 
@@ -71,14 +71,14 @@ select * from ti2 order by b /* must be (1,1),(2,2) - not inserted */;
 
 connection slave;
 
-set global slave_exec_mode='IDEMPOTENT';
-set global slave_exec_mode='STRICT';
+set global replica_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='STRICT';
 
 # checking mutual exclusion for the options
 --error ER_WRONG_VALUE_FOR_VAR
-set global slave_exec_mode='IDEMPOTENT,STRICT';
+set global replica_exec_mode='IDEMPOTENT,STRICT';
 
-select @@global.slave_exec_mode /* must be STRICT */;
+select @@global.replica_exec_mode /* must be STRICT */;
 
 #
 # Checking stops.
@@ -133,12 +133,12 @@ select * from ti1 order by b /* must be (1),(2),(3) - not deleted */;
 set foreign_key_checks= 0;
 delete from ti2 where b=1;
 set foreign_key_checks= 1;
-set global slave_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 connection master;
 --source include/sync_slave_sql_with_master.inc
 #connection slave;
-set global slave_exec_mode='STRICT';
+set global replica_exec_mode='STRICT';
 
 connection master;
 
@@ -168,12 +168,12 @@ select * from ti2 order by b /* must be (2,2) */;
 set foreign_key_checks= 0;
 insert into ti1 set b=3;
 set foreign_key_checks= 1;
-set global slave_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 connection master;
 --source include/sync_slave_sql_with_master.inc
 #connection slave;
-set global slave_exec_mode='STRICT';
+set global replica_exec_mode='STRICT';
 
 connection master;
 
@@ -207,12 +207,12 @@ enable_query_log;
 set foreign_key_checks= 0;
 delete from ti1 where b=1;
 set foreign_key_checks= 1;
-set global slave_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 connection master;
 --source include/sync_slave_sql_with_master.inc
 #connection slave;
-set global slave_exec_mode='STRICT';
+set global replica_exec_mode='STRICT';
 
 # key not found
 
@@ -240,12 +240,12 @@ disable_query_log;
 eval SELECT "$last_error" AS Last_SQL_Error;
 enable_query_log;
 
-set global slave_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 connection master;
 --source include/sync_slave_sql_with_master.inc
 #connection slave;
-set global slave_exec_mode='STRICT';
+set global replica_exec_mode='STRICT';
 
 connection master;
 DELETE FROM t2 WHERE a = -2; 
@@ -258,12 +258,12 @@ disable_query_log;
 eval SELECT "$last_error" AS Last_SQL_Error;
 enable_query_log;
 
-set global slave_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 connection master;
 --source include/sync_slave_sql_with_master.inc
 #connection slave;
-set global slave_exec_mode='STRICT';
+set global replica_exec_mode='STRICT';
 
 UPDATE t1 SET a = 1 WHERE a = -1;
 UPDATE t2 SET a = 1 WHERE a = -1;
@@ -280,12 +280,12 @@ disable_query_log;
 eval SELECT "$last_error" AS Last_SQL_Error;
 enable_query_log;
 
-set global slave_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 connection master;
 --source include/sync_slave_sql_with_master.inc
 #connection slave;
-set global slave_exec_mode='STRICT';
+set global replica_exec_mode='STRICT';
 
 
 connection master;
@@ -300,12 +300,12 @@ disable_query_log;
 eval SELECT "$last_error" AS Last_SQL_Error;
 enable_query_log;
 
-set global slave_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 connection master;
 --source include/sync_slave_sql_with_master.inc
 #connection slave;
-SET @@global.slave_exec_mode= @old_slave_exec_mode;
+SET @@global.replica_exec_mode= @old_replica_exec_mode;
 
 # cleanup for bug#31609 tests
 
@@ -313,5 +313,5 @@ connection master;
 
 drop table t1,t2,ti2,ti1;
 --source include/sync_slave_sql_with_master.inc
-set @@global.slave_exec_mode= @old_slave_exec_mode;
+set @@global.replica_exec_mode= @old_replica_exec_mode;
 

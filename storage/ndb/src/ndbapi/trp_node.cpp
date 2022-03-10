@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <cstring>
 #include "trp_node.hpp"
 #include <NdbOut.hpp>
 
@@ -29,7 +30,7 @@ trp_node::trp_node()
 {
   compatible = nfCompleteRep = true;
   m_connected = defined = m_alive = m_api_reg_conf = m_node_fail_rep = false;
-  bzero(&m_state, sizeof(m_state));
+  std::memset(&m_state, 0, sizeof(m_state));
   m_state.init();
   m_state.startLevel = NodeState::SL_NOTHING;
   minDbVersion = 0;

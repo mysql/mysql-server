@@ -77,9 +77,28 @@ SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("coverage")	{
             "rows_estimation": [
               {
                 "table": "`t1`",
-                "table_scan": {
-                  "rows": 3,
-                  "cost": 0.507324
+                "range_analysis": {
+                  "table_scan": {
+                    "rows": 3,
+                    "cost": 2.90732
+                  },
+                  "potential_range_indexes": [
+                    {
+                      "index": "a",
+                      "usable": false,
+                      "cause": "fulltext"
+                    }
+                  ],
+                  "setup_range_conditions": [
+                  ],
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_group_by_or_distinct"
+                  },
+                  "skip_scan_range": {
+                    "chosen": false,
+                    "cause": "disjuntive_predicate_present"
+                  }
                 }
               }
             ]

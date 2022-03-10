@@ -57,7 +57,7 @@ PasswdValue my_getpw_(GETPW_CLOS &&getpwfunc) {
       case ERANGE:
         bufsz *= 2;
         buf.resize(bufsz);
-        // fallthrough
+        [[fallthrough]];
       case EINTR:
         continue;
       default:

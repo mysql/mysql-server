@@ -26,7 +26,6 @@
 #define ROUTING_PROTOCOL_SPLICER_INCLUDED
 
 #include <chrono>
-#include <functional>  // bind
 #include <memory>
 #include <string>
 #include <system_error>
@@ -412,7 +411,7 @@ class Splicer : public std::enable_shared_from_this<
                 BasicSplicer::state_to_string(splicer_->state()));
 #endif
 
-      const auto before_state = splicer_->state();
+      auto before_state = splicer_->state();
 
       switch (before_state) {
         case State::SERVER_GREETING:
@@ -439,6 +438,11 @@ class Splicer : public std::enable_shared_from_this<
               conn_->client_endpoint());
 
           splicer_->state(State::SPLICE);
+          // adjust the "before_state" to get the circuit-breaker working
+          // correctly below.
+          //
+          // not adjusting state would lead to an infinite loop.
+          before_state = splicer_->state();
 
           splicer_->state(splicer_->splice<true>());
           splicer_->state(splicer_->splice<false>());
@@ -529,15 +533,17 @@ class Splicer : public std::enable_shared_from_this<
       client_read_timer_.expires_after(
           conn_->context().get_client_connect_timeout());
 
-      client_read_timer_.async_wait(std::bind(
-          &Splicer<ClientProtocol, ServerProtocol>::handle_client_read_timeout,
-          this->shared_from_this(), std::placeholders::_1));
+      client_read_timer_.async_wait(
+          [self = this->shared_from_this()](std::error_code ec) {
+            self->handle_client_read_timeout(ec);
+          });
     }
 
     conn_->client_socket().async_wait(
         net::socket_base::wait_read,
-        std::bind(&Splicer<ClientProtocol, ServerProtocol>::client_recv_ready,
-                  this->shared_from_this(), std::placeholders::_1));
+        [self = this->shared_from_this()](std::error_code ec) {
+          self->client_recv_ready(ec);
+        });
   }
 
   void async_wait_server_recv() {
@@ -554,15 +560,17 @@ class Splicer : public std::enable_shared_from_this<
       server_read_timer_.expires_after(
           conn_->context().get_destination_connect_timeout());
 
-      server_read_timer_.async_wait(std::bind(
-          &Splicer<ClientProtocol, ServerProtocol>::handle_server_read_timeout,
-          this->shared_from_this(), std::placeholders::_1));
+      server_read_timer_.async_wait(
+          [self = this->shared_from_this()](std::error_code ec) {
+            self->handle_server_read_timeout(ec);
+          });
     }
 
     conn_->server_socket().async_wait(
         net::socket_base::wait_read,
-        std::bind(&Splicer<ClientProtocol, ServerProtocol>::server_recv_ready,
-                  this->shared_from_this(), std::placeholders::_1));
+        [self = this->shared_from_this()](std::error_code ec) {
+          self->server_recv_ready(ec);
+        });
   }
 
   void async_wait_client_send() {
@@ -576,8 +584,9 @@ class Splicer : public std::enable_shared_from_this<
 
     conn_->client_socket().async_wait(
         net::socket_base::wait_write,
-        std::bind(&Splicer<ClientProtocol, ServerProtocol>::client_send_ready,
-                  this->shared_from_this(), std::placeholders::_1));
+        [self = this->shared_from_this()](std::error_code ec) {
+          self->client_send_ready(ec);
+        });
   }
 
   void async_wait_server_send() {
@@ -591,8 +600,9 @@ class Splicer : public std::enable_shared_from_this<
 
     conn_->server_socket().async_wait(
         net::socket_base::wait_write,
-        std::bind(&Splicer<ClientProtocol, ServerProtocol>::server_send_ready,
-                  this->shared_from_this(), std::placeholders::_1));
+        [self = this->shared_from_this()](std::error_code ec) {
+          self->server_send_ready(ec);
+        });
   }
 
   void async_run() {
@@ -601,8 +611,8 @@ class Splicer : public std::enable_shared_from_this<
     // set the initial state of the state-machine.
     splicer_->start();
 
-    // run the state-machine until it has to block.
-    run();
+    net::defer(conn_->client_socket().get_executor(),
+               [self = this->shared_from_this()]() { self->run(); });
   }
 
  private:

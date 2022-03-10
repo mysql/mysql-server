@@ -92,6 +92,13 @@ class Charset : virtual public Entity_object {
     @return pointer to dynamically allocated copy
   */
   virtual Charset *clone() const = 0;
+
+  /**
+    Allocate a new object which can serve as a placeholder for the original
+    object in the Dictionary_client's dropped registry (i.e. it has the same
+    keys as original).
+  */
+  virtual Charset *clone_dropped_object_placeholder() const = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////

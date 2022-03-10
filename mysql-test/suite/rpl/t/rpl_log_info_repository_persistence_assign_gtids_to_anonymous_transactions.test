@@ -68,12 +68,12 @@
 # WL#12819:GTIDs: Replicate from GTID disabled source to GTID enabled replica directly
 
 --source include/big_test.inc
---source include/have_debug.inc
 --source include/not_group_replication_plugin.inc
+--source include/not_rpl_gtid_only.inc
 # This test is unrelated to log format
 --source include/have_binlog_format_row.inc
 --source include/not_master_info_file.inc
---source include/not_mts_slave_parallel_workers.inc
+--source include/not_mts_replica_parallel_workers.inc
 --source include/master-slave.inc
 
 --echo
@@ -186,7 +186,7 @@ CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-
 --echo #     The starting value should be 1 in the file / OFF
 
 --let $sub_testcase = no_assign_gtids_to_anonymous_transactions
---let $rpl_server_restart_parameters = --skip_slave_start
+--let $rpl_server_restart_parameters = --skip_replica_start
 --let $slave_server_num = 2
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 
@@ -201,7 +201,7 @@ CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-
 
 # invalid type
 --let $sub_testcase = invalid_type_assign_gtids_to_anonymous_transactions
---let $rpl_server_restart_parameters = --skip_slave_start
+--let $rpl_server_restart_parameters = --skip_replica_start
 --let $slave_server_num = 2
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 
@@ -210,7 +210,7 @@ START SLAVE;
 
 #invalid value
 --let $sub_testcase = invalid_value_assign_gtids_to_anonymous_transactions
---let $rpl_server_restart_parameters = --skip_slave_start
+--let $rpl_server_restart_parameters = --skip_replica_start
 --let $slave_server_num = 2
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 
@@ -221,7 +221,7 @@ START SLAVE;
 # assign_gtids_to_anonymous_transactions_type = OFF
 
 --let $sub_testcase = invalid_default_value_for_type_off_assign_gtids_to_anonymous_transactions
---let $rpl_server_restart_parameters = --skip_slave_start
+--let $rpl_server_restart_parameters = --skip_replica_start
 --let $slave_server_num = 2
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 
@@ -232,7 +232,7 @@ START SLAVE;
 # assign_gtids_to_anonymous_transactions_type != OFF
 
 --let $sub_testcase = invalid_value_for_type_not_off_assign_gtids_to_anonymous_transactions
---let $rpl_server_restart_parameters = --skip_slave_start
+--let $rpl_server_restart_parameters = --skip_replica_start
 --let $slave_server_num = 2
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 
@@ -243,7 +243,7 @@ START SLAVE;
 # should throw error at slave start.
 
 --let $sub_testcase = no_value_assign_gtids_to_anonymous_transactions
---let $rpl_server_restart_parameters = --skip_slave_start
+--let $rpl_server_restart_parameters = --skip_replica_start
 --let $slave_server_num = 2
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 
@@ -261,7 +261,7 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Assign_gtids_to_anonymous_tra
 UPDATE mysql.slave_relay_log_info SET Number_of_lines = 12;
 
 --let $sub_testcase = no_assign_gtids_to_anonymous_transactions
---let $rpl_server_restart_parameters = --skip_slave_start --relay-log-info-repository=TABLE --upgrade=FORCE
+--let $rpl_server_restart_parameters = --skip_replica_start --relay-log-info-repository=TABLE --upgrade=FORCE
 --let $slave_server_num = 2
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 
@@ -285,6 +285,12 @@ UPDATE mysql.slave_relay_log_info SET Number_of_lines = 12;
 --echo #       3. A channel with a privileged user (default channel)
 --echo #     ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS is set to OFF for all channels
 
+# We must enable GTID_MODE so we can configure the group_replication recovery channel
+--let $rpl_gtid_mode= ON
+--let $rpl_server_numbers= 2
+--let $rpl_skip_sync= 1
+--source include/rpl_set_gtid_mode.inc
+
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "ch1" ;
 --disable_warnings
 CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
@@ -297,7 +303,7 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Assign_gtids_to_anonymous_tra
 UPDATE mysql.slave_relay_log_info SET Number_of_lines = 12;
 
 --let $rpl_server_number = 2
---let $rpl_server_parameters = --skip_slave_start --relay-log-info-repository=TABLE --upgrade=FORCE
+--let $rpl_server_parameters = --skip_replica_start --relay-log-info-repository=TABLE --upgrade=FORCE
 --let $explicit_default_counter = 15000
 --source include/rpl_restart_server.inc
 
@@ -348,7 +354,7 @@ RESET SLAVE;
 --source include/assert.inc
 
 --let $rpl_server_number = 2
---let $rpl_server_parameters = --skip_slave_start --relay-log-info-repository=TABLE
+--let $rpl_server_parameters = --skip_replica_start --relay-log-info-repository=TABLE
 --let $explicit_default_counter = 15000
 --source include/rpl_restart_server.inc
 
@@ -390,7 +396,7 @@ RESET SLAVE;
 --source include/assert.inc
 
 --let $rpl_server_number = 2
---let $rpl_server_parameters = --skip_slave_start --relay-log-info-repository=TABLE
+--let $rpl_server_parameters = --skip_replica_start --relay-log-info-repository=TABLE
 --let $explicit_default_counter = 15000
 --source include/rpl_restart_server.inc
 

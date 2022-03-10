@@ -1,7 +1,7 @@
 show create table performance_schema.performance_timers;
 Table	Create Table
 performance_timers	CREATE TABLE `performance_timers` (
-  `TIMER_NAME` enum('CYCLE','NANOSECOND','MICROSECOND','MILLISECOND') NOT NULL,
+  `TIMER_NAME` enum('CYCLE','NANOSECOND','MICROSECOND','MILLISECOND','THREAD_CPU') NOT NULL,
   `TIMER_FREQUENCY` bigint DEFAULT NULL,
   `TIMER_RESOLUTION` bigint DEFAULT NULL,
   `TIMER_OVERHEAD` bigint DEFAULT NULL

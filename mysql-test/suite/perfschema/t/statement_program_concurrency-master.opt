@@ -1,1 +1,1 @@
---innodb_lock_wait_timeout=1 --thread_stack=655360
+--innodb_lock_wait_timeout=1

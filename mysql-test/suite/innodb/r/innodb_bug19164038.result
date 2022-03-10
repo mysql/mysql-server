@@ -28,6 +28,7 @@ COUNT(*)
 SELECT @@innodb_sort_buffer_size;
 @@innodb_sort_buffer_size
 65536
-SET SESSION debug="+d,row_merge_instrument_log_check_flush";
+SET SESSION debug="+d,ddl_instrument_log_check_flush";
 ALTER TABLE t1 ADD COLUMN c3 INT;
+SET SESSION debug="-d,ddl_instrument_log_check_flush";
 DROP TABLE t1;

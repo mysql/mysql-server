@@ -41,7 +41,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #ifndef UNIV_LIBRARY
 #include "sync0types.h"
-#include "univ.i"
+
+#include <string>
+#include <vector>
 
 /** Initializes the synchronization data structures.
 @param[in]	max_threads	Maximum threads that can be created. */
@@ -97,6 +99,57 @@ void rw_lock_debug_mutex_enter();
 /** Releases the debug mutex. */
 void rw_lock_debug_mutex_exit();
 
+/** For handling sync points in child threads spawned by a foreground thread. */
+class Sync_point {
+ public:
+  /** Constructor.
+  @param[in,out] thd            Server connection/session context. */
+  explicit Sync_point(const THD *thd) noexcept : m_thd(thd) {}
+
+  Sync_point(const Sync_point &) = default;
+
+  Sync_point &operator=(const Sync_point &) = default;
+
+  /** Destructor. */
+  ~Sync_point() = default;
+
+  /** Add a target to the list of sync points, nop for duplicates.
+  @param[in] thd                Server conenction/session context.
+  @param[in] target             Target to add. */
+  static void add(const THD *thd, const std::string &target) noexcept;
+
+  /** Check if a target is enabled. Disable it if found.
+  @param[in] thd                Server conenction/session context.
+  @param[in] target             Check if target is enabled.
+  @return true if was enabled. */
+  static bool enabled(const THD *thd, const std::string &target) noexcept;
+
+  /** Check if a target is enabled. Disable it if found.
+  @param[in] target             Check if target is enabled.
+  @return true if was enabled. */
+  static bool enabled(const std::string &target) noexcept;
+
+  /** Clear the named target.
+  @param[in] thd                Server conenction/session context.
+  @param[in] target             Check if target is enabled. */
+  static void erase(const THD *thd, const std::string &target) noexcept;
+
+ private:
+  using Targets = std::vector<std::string, ut::allocator<std::string>>;
+  using Sync_points = std::vector<Sync_point, ut::allocator<Sync_point>>;
+
+  /** Mutex protecting access to Sync_point infrastructure. */
+  static std::mutex s_mutex;
+
+  /** Sync points. */
+  static Sync_points s_sync_points;
+
+  /** Server connection/session context. */
+  const THD *m_thd{};
+
+  /** List of enabled targets. */
+  Targets m_targets{};
+};
 #endif /* UNIV_DEBUG */
 
 #endif /* !UNIV_LIBRARY */

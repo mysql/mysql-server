@@ -39,6 +39,7 @@
 #include "xcom/site_def.h"
 #include "xcom/task_debug.h"
 #include "xcom/xcom_common.h"
+#include "xcom/xcom_memory.h"
 #include "xcom/xcom_profile.h"
 #include "xcom/xcom_transport.h"
 #include "xdr_gen/xcom_vp.h"
@@ -68,7 +69,7 @@ node_list clone_node_list(node_list list) {
   return retval;
 }
 
-int match_node(node_address *n1, node_address *n2, u_int with_uid) {
+int match_node(node_address const *n1, node_address const *n2, u_int with_uid) {
   char n1_ip[IP_MAX_SIZE], n2_ip[IP_MAX_SIZE];
   xcom_port n1_port, n2_port;
   int error_ipandport1, error_ipandport2;
@@ -92,7 +93,7 @@ int match_node(node_address *n1, node_address *n2, u_int with_uid) {
   return retval;
 }
 
-int match_node_list(node_address *n1, node_address *n2, u_int len2,
+int match_node_list(node_address const *n1, node_address const *n2, u_int len2,
                     u_int with_uid) {
   u_int i;
   for (i = 0; i < len2; i++) {
@@ -143,6 +144,7 @@ blob clone_blob(blob const b) {
   }
   return retval;
 }
+
 /* purecov: begin deadcode */
 blob *clone_blob_ptr(blob const *b) {
   blob *retval = (blob *)calloc((size_t)1, sizeof(blob));
@@ -150,6 +152,14 @@ blob *clone_blob_ptr(blob const *b) {
   return retval;
 }
 /* purecov: end */
+
+static void clone_node_address(node_address *target,
+                               node_address const *source) {
+  *target = *source; /* Copy everything */
+  /* Now clone what should not be shared */
+  target->address = strdup(source->address);
+  target->uuid = clone_blob(source->uuid);
+}
 
 /* Add nodes to node list, avoid duplicate entries */
 void add_node_list(u_int n, node_address *names, node_list *nodes) {
@@ -169,9 +179,7 @@ void add_node_list(u_int n, node_address *names, node_list *nodes) {
       for (i = 0; i < n; i++) {
         /* 			IFDBG(D_NONE, FN; STREXP(names[i])); */
         if (!exists(&names[i], nodes, FALSE)) {
-          np->address = strdup(names[i].address);
-          np->uuid = clone_blob(names[i].uuid);
-          np->proto = names[i].proto;
+          clone_node_address(np, &names[i]);
           np++;
           /* Update length here so next iteration will check for duplicates
              against newly added node */
@@ -226,27 +234,22 @@ void init_node_list(u_int n, node_address *names, node_list *nodes) {
   add_node_list(n, names, nodes);
 }
 
-/* purecov: begin deadcode */
-node_list null_node_list() {
-  node_list nl;
-  nl.node_list_len = 0;
-  nl.node_list_val = 0;
-  return nl;
-}
-
 node_list *empty_node_list() {
-  return (node_list *)calloc((size_t)1, sizeof(node_list));
+  return (node_list *)xcom_calloc((size_t)1, sizeof(node_list));
 }
 /* purecov: end */
 
-node_address *init_single_node_address(node_address *na, char *name) {
+node_address *init_single_node_address(node_address *na, char const *name,
+                                       uint32_t services) {
   na->address = strdup(name);
   init_proto_range(&(na->proto));
+  na->services = services;
   assert(na->uuid.data.data_len == 0 && na->uuid.data.data_val == 0);
   return na;
 }
 
-node_address *init_node_address(node_address *na, u_int n, char *names[]) {
+node_address *init_node_address(node_address *na, u_int n,
+                                char const *names[]) {
   u_int i;
   for (i = 0; i < n; i++) {
     init_single_node_address(&na[i], names[i]);
@@ -254,24 +257,27 @@ node_address *init_node_address(node_address *na, u_int n, char *names[]) {
   return na;
 }
 
-node_address *new_node_address(u_int n, char *names[]) {
-  node_address *na = (node_address *)calloc((size_t)n, sizeof(node_address));
+/* Create node addresses with default roles from array of names */
+node_address *new_node_address(u_int n, char const *names[]) {
+  node_address *na =
+      (node_address *)xcom_calloc((size_t)n, sizeof(node_address));
   return init_node_address(na, n, names);
 }
 
-node_address *new_node_address_uuid(u_int n, char *names[], blob uuids[]) {
-  u_int i = 0;
+/* Create node addresses with default roles from array of names and uuids */
+node_address *new_node_address_uuid(u_int n, char const *names[], blob uuid[]) {
+  u_int i;
 
-  node_address *na = (node_address *)calloc((size_t)n, sizeof(node_address));
+  node_address *na =
+      (node_address *)xcom_calloc((size_t)n, sizeof(node_address));
   init_node_address(na, n, names);
 
-  for (; i < n; i++) {
-    na[i].uuid.data.data_len = uuids[i].data.data_len;
+  for (i = 0; i < n; i++) {
+    na[i].uuid.data.data_len = uuid[i].data.data_len;
     na[i].uuid.data.data_val =
-        (char *)calloc(uuids[i].data.data_len, sizeof(char));
-    na[i].uuid.data.data_val =
-        strncpy(na[i].uuid.data.data_val, uuids[i].data.data_val,
-                uuids[i].data.data_len);
+        (char *)calloc(uuid[i].data.data_len, sizeof(char));
+    memcpy(na[i].uuid.data.data_val, uuid[i].data.data_val,
+           uuid[i].data.data_len);
   }
 
   return na;

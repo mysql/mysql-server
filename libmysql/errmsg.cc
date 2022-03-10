@@ -115,6 +115,9 @@ const char *client_errors[] = {
     "access.",
     "Determining the real path for '%s' failed with error (%d): %s",
     "DNS SRV lookup failed with error : %d",
+    "Client does not recognise tracker type %d marked as mandatory by server.",
+    "Invalid first argument for MYSQL_OPT_USER_PASSWORD option. Valid value "
+    "should be between 1 and 3 inclusive.",
     ""};
 
 static const char *get_client_errmsg(int nr) {

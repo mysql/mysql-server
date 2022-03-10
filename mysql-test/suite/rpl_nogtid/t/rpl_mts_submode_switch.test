@@ -5,6 +5,7 @@
 -- source include/master-slave.inc
 -- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
+-- source include/only_mts_replica_parallel_workers.inc
 call mtr.add_suppression("Statement is unsafe because it uses a system function that may return a different value on the slave");
 -- sync_slave_with_master
 -- connection master
@@ -14,11 +15,11 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 -- connection slave
 
 # Save  MTS submode
--- let $saved_submode= `SELECT @@slave_parallel_type`
+-- let $saved_submode= `SELECT @@replica_parallel_type`
 
 # must error out since the slave is running
 -- error ER_SLAVE_SQL_THREAD_MUST_STOP
-SET GLOBAL slave_parallel_type=LOGICAL_CLOCK;
+SET GLOBAL replica_parallel_type=LOGICAL_CLOCK;
 
 -- source include/stop_slave.inc
 
@@ -159,7 +160,7 @@ DROP TABLE db4.t_temp;
 -- connection slave
 
 # DEFAULT  ========> DATABASE
-SET GLOBAL slave_parallel_type='DATABASE';
+SET GLOBAL replica_parallel_type='DATABASE';
 -- source include/start_slave.inc
 -- connection master
 -- source include/sync_slave_sql_with_master.inc
@@ -179,7 +180,7 @@ DROP DATABASE db3;
 DROP DATABASE db4;
 
 # DATABASE ==========> LOGICAL_CLOCK
-SET GLOBAL slave_parallel_type='LOGICAL_CLOCK';
+SET GLOBAL replica_parallel_type='LOGICAL_CLOCK';
 -- source include/start_slave.inc
 -- connection master
 -- source include/sync_slave_sql_with_master.inc
@@ -199,7 +200,7 @@ DROP DATABASE db3;
 DROP DATABASE db4;
 
 # LOGICAL_CLOCK ==========> DATABASE
-SET GLOBAL slave_parallel_type='DATABASE';
+SET GLOBAL replica_parallel_type='DATABASE';
 -- source include/start_slave.inc
 -- connection master
 -- source include/sync_slave_sql_with_master.inc
@@ -213,7 +214,7 @@ SET GLOBAL slave_parallel_type='DATABASE';
 -- source include/diff_tables.inc
 
 -- source include/stop_slave.inc
-SET GLOBAL SLAVE_PARALLEL_TYPE=DEFAULT;
+SET GLOBAL REPLICA_PARALLEL_TYPE=DEFAULT;
 -- source include/start_slave.inc
 
 #clean up
@@ -229,7 +230,7 @@ DROP DATABASE db4;
 # temporary fix until BUG#16580366 is fixed.
 # wait till we have dropped all temp tables.  
 -- let $status_var_comparsion= =    
--- let $status_var= slave_open_temp_tables
+-- let $status_var= replica_open_temp_tables
 -- let $status_var_value= 0
 -- source include/wait_for_status_var.inc
 
@@ -237,7 +238,7 @@ DROP DATABASE db4;
 
 -- disable_query_log
 -- disable_result_log
--- eval SET GLOBAL slave_parallel_type= '$saved_submode'
+-- eval SET GLOBAL replica_parallel_type= '$saved_submode'
 -- source include/start_slave.inc
 
 -- connection master

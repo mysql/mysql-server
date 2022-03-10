@@ -11,7 +11,7 @@
 
 --echo # Initialization
 SET @debug_save= @@GLOBAL.DEBUG;
-SET GLOBAL rpl_semi_sync_master_timeout= 6000000;
+SET GLOBAL rpl_semi_sync_source_timeout= 6000000;
 
 --echo #
 --echo # Verify no deadlock at AFTER_SYNC
@@ -21,11 +21,11 @@ SET GLOBAL rpl_semi_sync_master_timeout= 6000000;
 --echo #
 --echo # Verify no deadlock at AFTER_COMMIT
 --echo #
-SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_COMMIT;
+SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_COMMIT;
 --source extra/rpl_tests/rpl_semi_sync_deadlock.test
 
 --echo # Cleanup
-SET GLOBAL rpl_semi_sync_master_timeout= 600000;
+SET GLOBAL rpl_semi_sync_source_timeout= 600000;
 
 --disable_query_log
 --disable_result_log
@@ -42,7 +42,7 @@ while ($i < $n)
 --source include/sync_slave_sql_with_master.inc
 
 --connection master
-SET GLOBAL debug= 'd,semi_sync_3-way_deadlock';
+SET GLOBAL debug= '+d,semi_sync_3-way_deadlock';
 SET DEBUG_SYNC= "before_process_commit_stage_queue WAIT_FOR signal.rotate_finished";
 
 --echo # Build 10 connections to master server
@@ -112,7 +112,7 @@ while ($i < $n)
 --enable_query_log
 SET DEBUG_SYNC= 'RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
-SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_SYNC;
+SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_SYNC;
 --source include/sync_slave_sql_with_master.inc
 
 --source include/uninstall_semisync.inc

@@ -15,7 +15,7 @@
 --source include/install_semisync.inc
 SET @max_binlog_size_save= @@GLOBAL.MAX_BINLOG_SIZE;
 SET @@GLOBAL.MAX_BINLOG_SIZE= 4096;
-SET GLOBAL rpl_semi_sync_master_timeout= 6000000;
+SET GLOBAL rpl_semi_sync_source_timeout= 6000000;
 
 --let $connections= 11
 --let $loops= 500

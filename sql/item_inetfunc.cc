@@ -100,9 +100,10 @@ longlong Item_func_inet_aton::val_int() {
     */
     switch (dot_count) {
       case 1:
-        result <<= 8; /* Fall through */
+        result <<= 8;
+        [[fallthrough]];
       case 2:
-        result <<= 8; /* Fall through */
+        result <<= 8;
     }
     if (dot_count > 3)  // Too many groups
       goto err;

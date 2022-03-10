@@ -69,12 +69,19 @@ drop table t1,t2;
 select find_in_set(binary 'a',binary 'A,B,C');
 find_in_set(binary 'a',binary 'A,B,C')
 0
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select find_in_set('a',binary 'A,B,C');
 find_in_set('a',binary 'A,B,C')
 0
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select find_in_set(binary 'a', 'A,B,C');
 find_in_set(binary 'a', 'A,B,C')
 0
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select find_in_set('1','3,1,');
 find_in_set('1','3,1,')
 2
@@ -251,6 +258,7 @@ from( make_set( ( extract( minute_second from
 )
 ;
 Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1292	Truncated incorrect date value: '1.01'
 Warning	1411	Incorrect datetime value: '1.01' for function str_to_date
 # Bug#21547779 Assertion failed: select_lex->leaf_table_count == 0

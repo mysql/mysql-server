@@ -49,8 +49,8 @@
 PSI_statement_info stmt_info_new_packet;
 #endif
 
-static void net_before_header_psi(NET *net MY_ATTRIBUTE((unused)),
-                                  void *user_data, size_t /* unused: count */) {
+static void net_before_header_psi(NET *net [[maybe_unused]], void *user_data,
+                                  size_t /* unused: count */) {
   THD *thd;
   thd = static_cast<THD *>(user_data);
   assert(thd != nullptr);
@@ -68,9 +68,8 @@ static void net_before_header_psi(NET *net MY_ATTRIBUTE((unused)),
   }
 }
 
-static void net_after_header_psi(NET *net MY_ATTRIBUTE((unused)),
-                                 void *user_data, size_t /* unused: count */,
-                                 bool rc) {
+static void net_after_header_psi(NET *net [[maybe_unused]], void *user_data,
+                                 size_t /* unused: count */, bool rc) {
   THD *thd;
   thd = static_cast<THD *>(user_data);
   assert(thd != nullptr);

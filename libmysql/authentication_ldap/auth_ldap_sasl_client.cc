@@ -600,4 +600,4 @@ static int deinitialize_plugin() {
 mysql_declare_client_plugin(AUTHENTICATION) "authentication_ldap_sasl_client",
     MYSQL_CLIENT_PLUGIN_AUTHOR_ORACLE, "LDAP SASL Client Authentication Plugin",
     {0, 1, 0}, "PROPRIETARY", nullptr, initialize_plugin, deinitialize_plugin,
-    nullptr, sasl_authenticate, nullptr mysql_end_client_plugin;
+    nullptr, nullptr, sasl_authenticate, nullptr mysql_end_client_plugin;

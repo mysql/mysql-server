@@ -30,12 +30,11 @@
 std::shared_ptr<MetaData> meta_data;
 
 std::shared_ptr<MetaData> get_instance(
-    mysqlrouter::ClusterType /*cluster_type*/, const std::string &user,
-    const std::string &password, int connect_timeout, int read_timeout,
-    int connection_attempts, const mysqlrouter::SSLOptions &ssl_options,
+    mysqlrouter::ClusterType /*cluster_type*/,
+    const metadata_cache::MetadataCacheMySQLSessionConfig &session_config,
+    const mysqlrouter::SSLOptions &ssl_options,
     const bool use_cluster_notifications, unsigned /*view_id*/ = 0) {
-  meta_data.reset(new MockNG(user, password, connect_timeout, read_timeout,
-                             connection_attempts, ssl_options,
-                             use_cluster_notifications));
+  meta_data.reset(
+      new MockNG(session_config, ssl_options, use_cluster_notifications));
   return meta_data;
 }

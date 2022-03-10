@@ -14,6 +14,7 @@
 ###############################################################################
 
 --source include/big_test.inc
+--source include/have_group_replication_xcom_communication_stack.inc
 --source include/have_mysqlx_plugin.inc
 --source include/have_group_replication_plugin_base.inc
 
@@ -67,8 +68,8 @@ EOF
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_auto_increment_increment]" = "7"
 --source include/assert.inc
 
---let $assert_text= group_replication_components_stop_timeout is 31536000
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_components_stop_timeout]" = "31536000"
+--let $assert_text= group_replication_components_stop_timeout is 300
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_components_stop_timeout]" = "300"
 --source include/assert.inc
 
 --let $assert_text= group_replication_compression_threshold is 1000000

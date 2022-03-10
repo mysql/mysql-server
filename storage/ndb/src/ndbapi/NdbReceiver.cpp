@@ -585,7 +585,7 @@ Uint32 packed_rowsize(const NdbRecord *result_record,
     sizeInWords += 3;
   }
 
-  // KeyInfo is transfered in a seperate signal,
+  // KeyInfo is transfered in a separate signal,
   // and is stored in the packed buffer together with 'info' word
   if (keySizeWords > 0)
   {
@@ -767,7 +767,7 @@ pad(const Uint8* src, Uint32 align, Uint32 bitPos)
 #ifdef VM_TRACE
     abort();
 #endif
-    //Fall through:
+    [[fallthrough]];
 
   case DictTabInfo::an8Bit:
   case DictTabInfo::a16Bit:
@@ -918,6 +918,7 @@ handle_bitfield_ndbrecord(const NdbRecord::Attr* col,
   if (isMDBitfield)
   {
     assert(len <= 64);
+    mysqldSpace = 0;
     dest= (char*) &mysqldSpace;
   }
   else
@@ -1242,14 +1243,15 @@ NdbReceiver::handle_rec_attrs(NdbRecAttr* rec_attr_list,
           back attributes in the wrong order).
           So dump some info for debugging, and abort.
         */
-        ndbout_c("NdbReceiver::handle_rec_attrs: attrId: %d currRecAttr: %p rec_attr_list: %p "
-                 "attrSize: %d %d",
-	         attrId, currRecAttr, rec_attr_list, attrSize,
-                 currRecAttr ? currRecAttr->get_size_in_bytes() : 0);
+        g_eventLogger->info(
+            "NdbReceiver::handle_rec_attrs:"
+            " attrId: %d currRecAttr: %p rec_attr_list: %p attrSize: %d %d",
+            attrId, currRecAttr, rec_attr_list, attrSize,
+            currRecAttr ? currRecAttr->get_size_in_bytes() : 0);
         currRecAttr = rec_attr_list;
         while(currRecAttr != 0){
-	  ndbout_c("%d ", currRecAttr->attrId());
-	  currRecAttr = currRecAttr->next();
+          g_eventLogger->info("%d ", currRecAttr->attrId());
+          currRecAttr = currRecAttr->next();
         }
         abort();
         return -1;

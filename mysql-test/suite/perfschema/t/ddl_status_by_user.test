@@ -17,3 +17,8 @@ CREATE UNIQUE INDEX test_index
 -- error ER_DBACCESS_DENIED_ERROR
 DROP INDEX `USER`
   ON performance_schema.status_by_user;
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.status_by_user;
+
+DROP TABLE test.create_select;

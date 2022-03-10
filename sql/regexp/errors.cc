@@ -38,6 +38,9 @@
 #include "mysqld_error.h"    // Error codes
 #include "unicode/utypes.h"  // UErrorCode
 
+#include "sql/current_thd.h"
+#include "sql/sql_error.h"
+
 namespace regexp {
 
 struct UErrorCodeHash {
@@ -47,10 +50,23 @@ struct UErrorCodeHash {
 /**
   Map from ICU error codes to MySQL dittos. We strive to keep this list in the
   same order as the enum UErrorCode in common/unicode/utypes.h.
+
+  ICU version 67 introduced a new implementation for '\X'
+  "Match a Grapheme Cluster". This means that our bundled version will
+  return ER_REGEXP_MISSING_RESOURCE while for system ICU we return
+  ER_WARN_REGEXP_USING_DEFAULT as a Note.
+
+  TODO(tdidriks) Bundle data files in
+    icudt69b/brkitr/
+    icudt69l/brkitr/
+  so that bundled and system ICU results are aligned.
 */
 std::unordered_map<UErrorCode, int, UErrorCodeHash> error_map = {
     // ICU Error code                 MySQL error code
+    {U_USING_DEFAULT_WARNING, ER_WARN_REGEXP_USING_DEFAULT},
     {U_ILLEGAL_ARGUMENT_ERROR, ER_REGEXP_ILLEGAL_ARGUMENT},
+    {U_MISSING_RESOURCE_ERROR, ER_REGEXP_MISSING_RESOURCE},
+    {U_FILE_ACCESS_ERROR, ER_REGEXP_MISSING_FILE},
 
     // Recent versions of ICU are returning "Incorrect Unicode property".
     // Map it to the same as the more generic U_ILLEGAL_ARGUMENT_ERROR.
@@ -78,9 +94,20 @@ std::unordered_map<UErrorCode, int, UErrorCodeHash> error_map = {
     {U_REGEX_NUMBER_TOO_BIG, ER_REGEX_NUMBER_TOO_BIG}};
 
 bool check_icu_status(UErrorCode status, const UParseError *parse_error) {
-  if (status == U_ZERO_ERROR || U_SUCCESS(status)) return false;
+  if (status == U_ZERO_ERROR) return false;
 
   int error_code = error_map[status];
+
+  // Add notification for select status codes.
+  // E.g. we have lots of U_STRING_NOT_TERMINATED_WARNING,
+  // don't generate any NOTE for those.
+  if (U_SUCCESS(status)) {
+    if (error_code != 0) {
+      push_warning(current_thd, Sql_condition::SL_NOTE, error_code, nullptr);
+    }
+    return false;
+  }
+
   if (error_code == 0) {
     /*
       If this fires, there is no translation from this ICU status code to a

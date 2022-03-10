@@ -1,1 +1,1 @@
---force-restart --slave-transaction-retries=0
+--force-restart --replica-transaction-retries=0

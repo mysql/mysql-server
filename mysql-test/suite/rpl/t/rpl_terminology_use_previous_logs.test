@@ -1,0 +1,115 @@
+# ==== Purpose ====
+#
+# Verify that the value for the "sql_text" column of the slow log
+# depends on @@terminology_use_previous for
+# COM_REGISTER_REPLICA commands.
+#
+# ==== Requirements ====
+#
+# R1. If @@global.terminology_use_previous = NONE,
+#     then the slow log should contain "Register Replica",
+#     if a COM_REGISTER_REPLICA is logged as slow.
+#
+# R2. If @@global.terminology_use_previous = BEFORE_8_0_26,
+#     then the slow log should contain "Register Slave",
+#     if a COM_REGISTER_REPLICA is logged as slow.
+#
+# ==== Implementation ====
+#
+# Configure the server to write any statement taking more than one
+# second to the slow log.  Then use a debug sync point to make the
+# source server pause in the middle of a COM_REGISTER_REPLICA command,
+# and sleep for two seconds.  Let the command complete. Verify that
+# the slow log contains the expected term.
+
+# Test is binlog_format-agnostic
+--source include/have_binlog_format_row.inc
+
+# Test uses SET debug and SET debug_sync to ensure source is in the
+# middle of the execution of a Thread Command
+--source include/have_debug_sync.inc
+--source include/have_debug.inc
+
+--source include/master-slave.inc
+
+--echo #### Initialize ####
+
+SET @save_log_output = @@global.log_output;
+SET @@global.log_output = 'TABLE';
+SET @save_long_query_time = @@global.long_query_time;
+SET @@global.long_query_time = 1;
+SET @save_terminology_use_previous = @@global.terminology_use_previous;
+
+--let $terminology_use_previous = 0
+while ($terminology_use_previous < 2) {
+
+  --echo #### Test terminology_use_previous = $terminology_use_previous ####
+
+  --echo * Set option
+  --connection master
+  eval SET @@global.terminology_use_previous = $terminology_use_previous;
+  eval SELECT @@global.terminology_use_previous;
+
+  --echo * Clear log tables
+  TRUNCATE mysql.slow_log;
+
+  --echo * Pause source during REGISTER REPLICA to make it go to slow log
+
+  --source include/rpl_connection_slave.inc
+  # Make dump thread pause during 'register replica', so we can force it
+  # to go to the slow log.
+  --source include/stop_slave_io.inc
+  --connection master
+  --let $debug_point = syncpoint_begin_register_replica
+  --source include/add_debug_point.inc
+  # Start connection
+  --connection slave
+  START REPLICA IO_THREAD;
+  # Wait for 'master' to reach the state
+  --connection master
+  SET @@session.debug_sync = "now WAIT_FOR reached_begin_register_replica";
+
+  --echo * Sleep 2 seconds
+  --sleep 2
+
+  --echo * Allow REGISTER REPLICA to finish
+  SET @@session.debug_sync = "now SIGNAL continue_begin_register_replica";
+  # Wait for replica to start
+  --connection slave
+  --source include/wait_for_slave_io_to_start.inc
+
+  --echo * Verify the logs contain the correct term, and not the incorrect one
+  --connection master
+  if ($terminology_use_previous == 0) {
+    --let $expect = Register Replica
+    --let $no_expect = Register Slave
+  }
+  if ($terminology_use_previous == 1) {
+    --let $expect = Register Slave
+    --let $no_expect = Register Replica
+  }
+
+  --let $assert_cond = [SELECT COUNT(*) FROM mysql.slow_log WHERE sql_text = "$expect"] = 1
+  --let $assert_text = Slow log should contain "$expect"
+  --source include/assert.inc
+
+  --let $assert_cond = [SELECT COUNT(*) FROM mysql.slow_log WHERE sql_text = "no_$expect"] = 0
+  --let $assert_text = Slow log should not contain "no_$expect"
+  --source include/assert.inc
+
+  --inc $terminology_use_previous
+}
+
+--echo #### Clean up ####
+
+--source include/rpl_connection_master.inc
+SET @@global.log_output = @save_log_output;
+TRUNCATE TABLE mysql.general_log;
+TRUNCATE TABLE mysql.slow_log;
+SET @@global.long_query_time = @save_long_query_time;
+SET @@global.terminology_use_previous = @save_terminology_use_previous;
+
+--let $debug_point = syncpoint_begin_register_replica
+--source include/remove_debug_point.inc
+
+--source include/rpl_end.inc

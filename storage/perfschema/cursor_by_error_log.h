@@ -241,7 +241,7 @@ class PFS_index_error_log : public PFS_engine_index {
  public:
   PFS_index_error_log(PFS_engine_key *key) : PFS_engine_index(key) {}
 
-  ~PFS_index_error_log() {}
+  ~PFS_index_error_log() = default;
 
   virtual bool match(log_sink_pfs_event *row) = 0;
 };
@@ -262,7 +262,7 @@ class cursor_by_error_log : public PFS_engine_table {
   cursor_by_error_log(const PFS_engine_table_share *share);
 
  public:
-  ~cursor_by_error_log() override {}
+  ~cursor_by_error_log() override = default;
 
  protected:
   virtual int make_row(log_sink_pfs_event *row) = 0;

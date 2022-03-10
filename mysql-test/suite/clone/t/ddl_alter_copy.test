@@ -1,0 +1,84 @@
+# Test clone with concurrent alter ADD and DROP
+--source include/have_debug_sync.inc
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--let $algorithm = COPY
+
+if($in_place_ddl) {
+  --let $algorithm = INPLACE
+}
+
+--source ../include/create_ddl_schema.inc
+
+## Restart server without loading all tablespaces. This would force
+## Clone to load the tablespaces with concurrent DDL
+if ($skip_space_validation) {
+  --let restart_parameters=restart: --skip-innodb-validate-tablespace-paths
+  --source include/restart_mysqld.inc
+}
+
+--let $dml_stmt_check = call execute_dml(1, 0, 100, 100, 10, 0)
+
+--echo # 1. ALTER TABLE ADD COLUMN while clone in progress
+--let $ddl_op1 = ALTER TABLE
+--let $ddl_stmt1 = ADD COLUMN col5 int, ALGORITHM=$algorithm
+
+--let $dml_stmt1 = CALL execute_dml(0, 0, 100, 100, 10, 0)
+--let $dml_stmt11 = INSERT INTO t11 SELECT col1, col2, col3, col4, col2 + 100 FROM t ON DUPLICATE KEY UPDATE col2 = t11.col2 + 1;
+
+--let $dml_stmt2 = CALL execute_dml(0, 0, 100, 100, 10, 0)
+--let $dml_stmt21 = INSERT INTO t21 SELECT col1, col2, col3, col4, col2 + 100 FROM t ON DUPLICATE KEY UPDATE col2 = t21.col2 + 1;
+
+--source ../include/ddl_common.inc
+
+--echo # 2. ALTER TABLE DROP COLUMN while clone in progress
+--let $ddl_op1 = ALTER TABLE
+--let $ddl_stmt1 = DROP COLUMN col5, ALGORITHM=$algorithm
+
+--let $dml_stmt1 = call execute_dml(1, 0, 100, 100, 10, 0)
+--let $dml_stmt11 = INSERT INTO t11 SELECT * FROM t ON DUPLICATE KEY UPDATE col2 = t11.col2 + 1;
+--let $dml_stmt2 = call execute_dml(1, 0, 100, 100, 10, 0)
+--let $dml_stmt21 = INSERT INTO t21 SELECT * FROM t ON DUPLICATE KEY UPDATE col2 = t21.col2 + 1;
+
+--source ../include/ddl_common.inc
+
+--echo # 3. ADD INDEX while clone in progress
+--let $ddl_op1 = ALTER TABLE
+--let $ddl_stmt1 = ADD INDEX col2_idx(col2), ALGORITHM=$algorithm
+
+--let $dml_stmt1 = CALL execute_dml(0, 0, 100, 100, 10, 0)
+--let $dml_stmt11 = INSERT INTO t11 SELECT * FROM t ON DUPLICATE KEY UPDATE col2 = t11.col2 + 1;
+
+--let $dml_stmt2 = CALL execute_dml(0, 0, 100, 100, 10, 0)
+--let $dml_stmt21 = INSERT INTO t21 SELECT * FROM t ON DUPLICATE KEY UPDATE col2 = t21.col2 + 1;
+
+--source ../include/ddl_common.inc
+
+# Reset space validation to restart the server back in normal mode
+# after test is over. This step is required just before the last
+# test execution of ddl_common.inc
+if ($skip_space_validation) {
+  --let $skip_space_validation =
+}
+
+--echo # 4. DROP INDEX while clone in progress
+--let $ddl_op1 = ALTER TABLE
+--let $ddl_stmt1 = DROP INDEX col2_idx, ALGORITHM=$algorithm
+
+--let $dml_stmt1 = CALL execute_dml(0, 0, 100, 100, 10, 0)
+--let $dml_stmt11 = INSERT INTO t11 SELECT * FROM t ON DUPLICATE KEY UPDATE col2 = t11.col2 + 1;
+
+--let $dml_stmt2 = CALL execute_dml(0, 0, 100, 100, 10, 0)
+--let $dml_stmt21 = INSERT INTO t21 SELECT * FROM t ON DUPLICATE KEY UPDATE col2 = t21.col2 + 1;
+
+--source ../include/ddl_common.inc
+
+--echo # Cleanup
+--let $ddl_drop_schema_tables = 1
+--let $ddl_drop_tables = 1
+--source ../include/drop_ddl_schema.inc
+
+--echo # Uninstall clone
+UNINSTALL PLUGIN clone;

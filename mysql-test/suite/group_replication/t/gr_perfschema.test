@@ -20,7 +20,6 @@
 # 8. Test end.
 ################################################################################
 
---source include/not_mts_slave_parallel_workers.inc
 --let $group_replication_group_name= 8a94f357-aab4-11df-86ab-c80aa9429444
 --source include/not_have_privilege_checks_user.inc
 --source include/have_group_replication_plugin.inc
@@ -83,8 +82,9 @@
 --let $assert_cond= COUNT(*) = 1 FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier"
 --source include/assert.inc
 
+# Even if worker number is set to 0, since GR channels use GTID_ONLY there is always at least one worker active
 --let $assert_text= 'There is no Group Replication applier channel on performance_schema.replication_applier_status_by_coordinator table'
---let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_applier_status_by_coordinator WHERE channel_name = "group_replication_applier"
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.replication_applier_status_by_coordinator WHERE channel_name = "group_replication_applier"
 --source include/assert.inc
 
 --let $assert_text= 'There is a Group Replication applier channel on performance_schema.replication_applier_status_by_worker table'
@@ -112,6 +112,10 @@ INSERT INTO t1 VALUES (1);
 --source include/wait_condition.inc
 
 --echo #group_replication_recovery channel configuration
+--let $group_replication_ca= `SELECT @@group_replication_recovery_ssl_ca`
+--let $group_replication_cert= `SELECT @@group_replication_recovery_ssl_cert`
+--let $group_replication_ssl_key= `SELECT @@group_replication_recovery_ssl_key`
+--replace_result $group_replication_ssl_key KEY $group_replication_cert CERT $group_replication_ca CA
 --query_vertical SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name LIKE "group_replication_recovery"
 
 --echo #group_replication_applier channel configuration
@@ -128,6 +132,7 @@ INSERT INTO t1 VALUES (1);
 --query_vertical SELECT * FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier"
 
 --echo
+--replace_column 2 [THREAD_ID] 7 [LAST_PROCESSED_TRANSACTION] 8 [ORIGINAL_COMMIT_TIMESTAMP] 9 [IMMEDIATE_COMMIT_TIMESTAMP] 10 [START_BUFFER_TIMESTAMP] 11 [END_BUFFER_TIMESTAMP]
 --query_vertical SELECT * FROM performance_schema.replication_applier_status_by_coordinator WHERE channel_name = "group_replication_applier"
 
 --echo
@@ -169,7 +174,7 @@ DROP TABLE t1;
 --source include/assert.inc
 
 --let $assert_text= 'There is still no Group Replication applier channel on performance_schema.replication_applier_status_by_coordinator table'
---let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_applier_status_by_coordinator WHERE channel_name = "group_replication_applier"
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.replication_applier_status_by_coordinator WHERE channel_name = "group_replication_applier"
 --source include/assert.inc
 
 --let $assert_text= 'There is still a Group Replication applier channel on performance_schema.replication_applier_status_by_worker table'
@@ -183,6 +188,10 @@ DROP TABLE t1;
 --echo #    on common replication P_S tables.
 
 --echo #group_replication_recovery channel configuration
+--let $group_replication_ca= `SELECT @@group_replication_recovery_ssl_ca`
+--let $group_replication_cert= `SELECT @@group_replication_recovery_ssl_cert`
+--let $group_replication_ssl_key= `SELECT @@group_replication_recovery_ssl_key`
+--replace_result $group_replication_ssl_key KEY $group_replication_cert CERT $group_replication_ca CA
 --query_vertical SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name LIKE "group_replication_recovery"
 
 --echo #group_replication_applier channel configuration
@@ -199,6 +208,7 @@ DROP TABLE t1;
 --query_vertical SELECT * FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier"
 
 --echo
+--replace_column 2 [THREAD_ID] 7 [LAST_PROCESSED_TRANSACTION] 8 [ORIGINAL_COMMIT_TIMESTAMP] 9 [IMMEDIATE_COMMIT_TIMESTAMP] 10 [START_BUFFER_TIMESTAMP] 11 [END_BUFFER_TIMESTAMP]
 --query_vertical SELECT * FROM performance_schema.replication_applier_status_by_coordinator WHERE channel_name = "group_replication_applier"
 
 --echo

@@ -46,7 +46,7 @@ static void rtree_PrintWKB(uchar *wkb, uint n_dims);
 
 static char blob_key[MAX_REC_LENGTH];
 
-int main(int argc MY_ATTRIBUTE((unused)), char *argv[]) {
+int main(int argc [[maybe_unused]], char *argv[]) {
   MY_INIT(argv[0]);
   exit(run_test("sp_test"));
 }

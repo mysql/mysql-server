@@ -64,7 +64,7 @@ class EventlogHandler final : public mysql_harness::logging::Handler {
   ~EventlogHandler() override;
 
   // does nothing for the eventlog handler
-  void reopen(const std::string dst MY_ATTRIBUTE((unused)) = "") override {}
+  void reopen(const std::string dst [[maybe_unused]] = "") override {}
 
  private:
   void do_log(const mysql_harness::logging::Record &record) noexcept override;

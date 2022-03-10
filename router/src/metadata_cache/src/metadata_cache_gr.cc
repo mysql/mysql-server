@@ -43,12 +43,6 @@
  * Glossary
  * ========
  *
- * replicaset = group of servers that contain the same data; in simple cases
- *              replicaset and cluster are interchangeable, but in case of
- *              sharded cluster this no longer applies, as the cluster will be
- *              composed of multiple replicasets, each handling a different
- *              shard.
- *
  * MD = metadata, several tables residing on the metadata server, which (among
  *      other things) contain cluster topology information. It reflects the
  *      desired "as it should be" version of topology.
@@ -76,17 +70,6 @@
  * Refresh Mechanism
  * =================
  *
- * @note
- * To keep docs simpler, all below describes how MDC behaves in case of handling
- * just one replicaset. It has been designed to handle more than one, however,
- * ATTOW we don't test it with more than one, so we are uncertain if it would
- * actually deliver on that promise.  This is also the reason why throughout the
- * MDC code there are data structures that are collections of replicasets and
- * for loops that iterate over them, yet in reality we always deal with just one
- * element in those containers and such loops iterate only once.
- *
- *
- *
  *
  *
  * ## Overview
@@ -104,27 +87,27 @@
  *
  * ## Refresh trigger
  * `MetadataCache::refresh_thread()` call to `MetadataCache::refresh()` can be
- * triggered in 2 ways:
+ * triggered in 3 ways:
  * - `<TTL>` seconds passed since last refresh
- * - emergency mode (replicaset is flagged to have at least one node
+ * - emergency mode (cluster is flagged to have at least one node
  * unreachable).
+ * - X protocol notification triggered by the GR change in case of GR cluster
  *
  * It's implemented by running a sleep loop between refreshes. The loop sleeps 1
  * second at a time, until `<TTL>` iterations have gone or emergency mode is
  * enabled.
  *
  *
- *
  * ### Emergency mode
  * Emergency mode is entered, when Routing Plugin discovers that it's unable to
  * connect to a node that's declared by MDC as routable (node that is labelled
- * as writable or readonly). In such situation, it will flag the replicaset as
+ * as writable or readonly). In such situation, it will flag the cluster as
  * missing a node, and MDC will react by increasing refresh rate to 1/s (if it
  * is currently lower).
  *
  * This emergency mode will stay enabled, until routing table resulting from
  * most recent MD and GR query is different from the one before it _AND_ the
- * replicaset is in RW mode.
+ * cluster is in RW mode.
  *
  * @note
  * The reason why we require the routing table to be different before we disable
@@ -134,8 +117,8 @@
  * [05].
  *
  * @note
- * The reason why we require the replicaset to be in RW mode before we disable
- * the emergency mode, is the assumption that the user wants the replicaset to
+ * The reason why we require the cluster to be in RW mode before we disable
+ * the emergency mode, is the assumption that the user wants the cluster to
  * be RW and if it is in RO, it is undergoing a failure. This assumption is
  * probably flawed [06].
  *
@@ -197,8 +180,8 @@
  * Implemented in: `ClusterMetadata::fetch_instances_from_metadata_server()`
  *
  * Using connection established in Stage 1.1, MDC runs a SQL query which
- * extracts a list of nodes (GR members) belonging to the replicaset. Note that
- * this the configured "should be" view of replicaset topology, which might not
+ * extracts a list of nodes (GR members) belonging to the cluster. Note that
+ * this the configured "should be" view of cluster topology, which might not
  * correspond to actual topology, if for example some nodes became unavailable,
  * changed their role or new nodes were added without updating MD in the
  * server.
@@ -212,7 +195,7 @@
  *
  * ### Stage 2: Query GR, combine results with MD, determine availability
  *
- * Implemented in: `ClusterMetadata::update_replicaset_status()`
+ * Implemented in: `ClusterMetadata::update_cluster_status()`
  *
  * Here MDC iterates through the list of GR members obtained from MD in Stage
  * 1.2, until it finds a "trustworthy" GR node. A "trustworthy" GR node is one
@@ -240,7 +223,7 @@
  *
  * #### Stage 2.1: Connect to GR node
  *
- * Implemented in: `ClusterMetadata::update_replicaset_status()`
+ * Implemented in: `ClusterMetadata::update_cluster_status()`
  *
  * New connection to GR node is established (on failure, Stage 2 progresses to
  * next iteration).
@@ -259,11 +242,11 @@
  *                   `find_group_replication_primary_member()`
  *
  * Two SQL queries are ran and combined to produce a status report of all nodes
- * seen by this node (which would be the entire replicaset if it was in perfect
- * health, or its subset if some nodes became unavailable or the replicaset was
+ * seen by this node (which would be the entire cluster if it was in perfect
+ * health, or its subset if some nodes became unavailable or the cluster was
  * experiencing a split-brain scenario):
  *
- *   1. determine the PRIMARY member of the replicaset (if there is more than
+ *   1. determine the PRIMARY member of the cluster (if there is more than
  *      one, such as in MM setups, the first one is returned and the rest are
  *      ignored)
  *
@@ -281,12 +264,12 @@
  *
  * #### Stage 2.3: Quorum test
  *
- * Implemented in: `ClusterMetadata::update_replicaset_status()` and
- *                   `ClusterMetadata::check_replicaset_status()`
+ * Implemented in: `ClusterMetadata::update_cluster_status()` and
+ *                   `ClusterMetadata::check_cluster_status()`
  *
  * MD and GR data collected up to now are compared, to see if GR node just
- * queried belongs to an available replicaset (or to an available replicaset
- * partition, if replicaset has partitioned). For a replicaset (partition) to
+ * queried belongs to an available cluster (or to an available cluster
+ * partition, if cluster has partitioned). For a cluster (partition) to
  * be considered available, it has to have quorum, that is, meet the following
  * condition:
  *
@@ -303,7 +286,7 @@
  * just found). This matters, because having quorum does not automatically
  * imply being available, as next paragraph explains.
  *
- * The availability test will resolve node's replicaset to be in of the 4
+ * The availability test will resolve node's cluster to be in of the 4
  * possible states:
  * - Unavailable (this node is not part of quorum)
  * - UnavailableRecovering (quorum is met, but it consists of only RECOVERING
@@ -321,14 +304,14 @@
  *
  * ATTOW, our Router has a certain limitation: it assumes that MD contains an
  * exact set or superset of nodes in GR. The user is normally expected to use
- * MySQL Shell to reconfigure the replicaset, which automatically updates both
+ * MySQL Shell to reconfigure the cluster, which automatically updates both
  * GR and MD, keeping them in sync. But if for some reason the user tinkers with
  * GR directly and adds nodes without updating MD accordingly,
  * availablity/quorum calculations will be skewed. We run checks to detect such
  * situation, and log a warning like so:
  *
- *     log_error("Member %s:%d (%s) found in replicaset, yet is not defined in
- *     metadata!"
+ *     log_error("Member %s:%d (%s) found in Group Replication, yet is not
+ * defined in metadata!"
  *
  * but beyond that we just act defensively by having our quorum calculation be
  * conservative, and error on the side of caution when such discrepancy happens
@@ -358,7 +341,7 @@
  *     GR defines nodes A, B, C, D, E
  *     A, B are alive; C, D, E are dead
  *
- * Availability calculation should deem replicaset to be unavailable, because
+ * Availability calculation should deem cluster to be unavailable, because
  * only 2 of 5 nodes are alive, even though looking purely from MD
  * point-of-view, 2 of its 3 nodes are still alive, thus could be considered a
  * quorum. In such case:
@@ -376,7 +359,7 @@
  *     GR defines nodes A, B, C, D, E
  *     A, B are dead, C, D, E are alive
  *
- * Availability calculation, if fully GR-aware, could deem replicaset as
+ * Availability calculation, if fully GR-aware, could deem cluster as
  * available, because looking from purely GR perspective, 3 of 5 nodes form
  * quorum. OTOH, looking from MD perspective, only 1 of 3 its nodes (C) is
  * alive.
@@ -433,7 +416,7 @@
  *
  * 1. Appropriate log messages are issued advising of availability change.
  *
- * 2. A check is run if replicaset is in RW mode. If it is, emergency mode is
+ * 2. A check is run if cluster is in RW mode. If it is, emergency mode is
  *    called off (see "Emergency mode" section for more information).
  *
  *
@@ -443,18 +426,18 @@
  * ##NOTES
  *
  * ### Emergency mode
- * [05] Imagine a scenario where a replicaset is perfectly healthy, but Routing
+ * [05] Imagine a scenario where a cluster is perfectly healthy, but Routing
  *      Plugin has a network hickup and fails to connect to one of its nodes. As
- *      a result, it will flag the replicaset as missing a node, triggerring
+ *      a result, it will flag the cluster as missing a node, triggerring
  *      emergency mode. Emergency mode will only be turned off after routing
  *      table changes (the assumption is that the current one is stale and we're
  *      waiting for an updated one reflecting the problem Routing Plugin
- *      observed). However, since the replicaset is healthy, as long as it stays
+ *      observed). However, since the cluster is healthy, as long as it stays
  *      that way no such update will come, leaving emergency mode enabled
  *      indefinitely. This has been reported as BUG#27065614
  *
- * [06] Requiring replicaset to be available in RW mode before disabling
- *      emergency mode has a flaw: if replicaset is placed in super-read-only
+ * [06] Requiring cluster to be available in RW mode before disabling
+ *      emergency mode has a flaw: if cluster is placed in super-read-only
  *      mode, it is possible for PRIMARY node to be read-only.
  *
  *
@@ -481,132 +464,125 @@
 
 IMPORT_LOG_FUNCTIONS()
 
-bool GRMetadataCache::refresh() {
-  bool changed{false}, fetched{false};
-  // fetch metadata
-  bool broke_loop = false;
-  for (const auto &metadata_server : metadata_servers_) {
-    if (terminated_) {
-      broke_loop = true;
-      break;
-    }
+bool GRMetadataCache::refresh(bool needs_writable_node) {
+  bool changed{false};
+  uint64_t view_id{0};
+  size_t metadata_server_id{0};
+  changed = false;
+  std::size_t instance_id;
+  // Fetch the metadata and store it in a temporary variable.
+  const auto res = meta_data_->fetch_cluster_topology(
+      terminated_, target_cluster_, router_id_, metadata_servers_,
+      needs_writable_node, cluster_type_specific_id_, clusterset_id_,
+      instance_id);
 
-    if (!meta_data_->connect_and_setup_session(metadata_server)) {
-      log_error("Failed to connect to metadata server %s",
-                metadata_server.mysql_server_uuid.c_str());
-      continue;
-    }
-    fetched = fetch_metadata_from_connected_instance(metadata_server, changed);
-    if (fetched) {
-      on_refresh_succeeded(metadata_server);
-      break;  // successfully updated metadata
-    }
-  }
+  if (!res) {
+    const bool md_servers_reachable =
+        res.error() !=
+            metadata_cache::metadata_errc::no_metadata_server_reached &&
+        res.error() !=
+            metadata_cache::metadata_errc::no_metadata_read_successful;
 
-  if (fetched) {
-    // only now we can safely update the list of metadata servers
-    // when we no longer iterate over it
-    if (changed) {
-      auto metadata_servers_tmp =
-          replicaset_lookup(/*cluster_name_ (all clusters)*/ "");
-      // never let the list that we iterate over become empty as we would
-      // not recover from that
-      if (!metadata_servers_tmp.empty()) {
-        metadata_servers_ = std::move(metadata_servers_tmp);
-      }
-    }
-    return true;
-  }
-
-  on_refresh_failed(broke_loop);
-  return false;
-}
-
-bool GRMetadataCache::fetch_metadata_from_connected_instance(
-    const metadata_cache::ManagedInstance &instance, bool &changed) {
-  try {
-    changed = false;
-    // Fetch the metadata and store it in a temporary variable.
-    auto replicaset_data_temp =
-        meta_data_->fetch_instances(cluster_name_, cluster_type_specific_id_);
-
-    // this node no longer contains metadata for our cluster, check the next
-    // node (if available)
-    if (replicaset_data_temp.empty()) {
-      log_warning(
-          "Tried node %s on host %s, port %d as a metadata server, it does "
-          "not contain metadata for cluster %s",
-          instance.mysql_server_uuid.c_str(), instance.host.c_str(),
-          instance.port, cluster_type_specific_id_.c_str());
-      return false;
-    }
-
-    {
-      // Ensure that the refresh does not result in an inconsistency during the
-      // lookup.
-      std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-      if (replicaset_data_ != replicaset_data_temp) {
-        replicaset_data_ = replicaset_data_temp;
-        changed = true;
-      }
-    }
-
-    // we want to trigger those actions not only if the metadata has really
-    // changed but also when something external (like unsuccessful client
-    // connection) triggered the refresh so that we verified if this wasn't
-    // false alarm and turn it off if it was
-    if (changed) {
-      log_info(
-          "Potential changes detected in cluster '%s' after metadata refresh",
-          cluster_name_.c_str());
-      // dump some informational/debugging information about the replicasets
-      if (replicaset_data_.empty())
-        log_error("Metadata for cluster '%s' is empty!", cluster_name_.c_str());
-      else {
-        log_info("Metadata for cluster '%s' has %zu replicasets:",
-                 cluster_name_.c_str(), replicaset_data_.size());
-        for (const auto &rs : replicaset_data_) {
-          log_info("'%s' (%zu members, %s)", rs.first.c_str(),
-                   rs.second.members.size(),
-                   rs.second.single_primary_mode ? "single-primary"
-                                                 : "multi-primary");
-          for (const auto &mi : rs.second.members) {
-            log_info("    %s:%i / %i - mode=%s %s", mi.host.c_str(), mi.port,
-                     mi.xport, to_string(mi.mode).c_str(),
-                     get_hidden_info(mi).c_str());
-
-            if (mi.mode == metadata_cache::ServerMode::ReadWrite) {
-              // If we were running with a primary or secondary node gone
-              // missing before (in so-called "emergency mode"), we trust that
-              // the update fixed the problem. This is wrong behavior that
-              // should be fixed, see notes [05] and [06] in Notes section of
-              // Metadata Cache module in Doxygen.
-              std::lock_guard<std::mutex> lock(
-                  replicasets_with_unreachable_nodes_mtx_);
-              auto rs_with_unreachable_node =
-                  replicasets_with_unreachable_nodes_.find(rs.first);
-              if (rs_with_unreachable_node !=
-                  replicasets_with_unreachable_nodes_.end()) {
-                // disable "emergency mode" for this replicaset
-                replicasets_with_unreachable_nodes_.erase(
-                    rs_with_unreachable_node);
-              }
-            }
-          }
-        }
-      }
-
-      on_instances_changed(/*md_servers_reachable=*/true);
-    } else if (trigger_acceptor_update_on_next_refresh_) {
-      // Instances information has not changed, but we failed to start listening
-      // on incoming sockets, therefore we must retry on next metadata refresh.
-      on_handle_sockets_acceptors();
-    }
-  } catch (const std::runtime_error &exc) {
-    // fetching the meatadata failed
-    log_error("Failed fetching metadata: %s", exc.what());
+    on_refresh_failed(terminated_, md_servers_reachable);
     return false;
   }
 
+  const auto cluster_topology = res.value();
+
+  {
+    // Ensure that the refresh does not result in an inconsistency during
+    // the lookup.
+    std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
+    if (cluster_data_ != cluster_topology.cluster_data) {
+      cluster_data_ = cluster_topology.cluster_data;
+      changed = true;
+    } else {
+      cluster_data_.writable_server =
+          cluster_topology.cluster_data.writable_server;
+    }
+  }
+
+  // we want to trigger those actions not only if the metadata has really
+  // changed but also when something external (like unsuccessful client
+  // connection) triggered the refresh so that we verified if this wasn't
+  // false alarm and turn it off if it was
+  view_id = cluster_data_.view_id;
+  if (changed) {
+    log_info(
+        "Potential changes detected in cluster '%s' after metadata refresh",
+        target_cluster_.c_str());
+    // dump some informational/debugging information about the cluster
+    log_cluster_details();
+    if (cluster_data_.empty())
+      log_error("Metadata for cluster '%s' is empty!", target_cluster_.c_str());
+    else {
+      log_info(
+          "Metadata for cluster '%s' has %zu member(s), %s: (view_id=%" PRIu64
+          ")",
+          target_cluster_.c_str(), cluster_data_.members.size(),
+          cluster_data_.single_primary_mode ? "single-primary"
+                                            : "multi-primary",
+          view_id);
+      for (const auto &mi : cluster_data_.members) {
+        log_info("    %s:%i / %i - mode=%s %s", mi.host.c_str(), mi.port,
+                 mi.xport, to_string(mi.mode).c_str(),
+                 get_hidden_info(mi).c_str());
+
+        if (mi.mode == metadata_cache::ServerMode::ReadWrite) {
+          // If we were running with a primary or secondary node gone
+          // missing before (in so-called "emergency mode"), we trust that
+          // the update fixed the problem. This is wrong behavior that
+          // should be fixed, see notes [05] and [06] in Notes section of
+          // Metadata Cache module in Doxygen.
+          has_unreachable_nodes = false;
+        }
+      }
+    }
+
+    on_instances_changed(/*md_servers_reachable=*/true, cluster_data_.members,
+                         cluster_topology.metadata_servers, view_id);
+    // never let the list that we iterate over become empty as we would
+    // not recover from that
+    if (!cluster_topology.metadata_servers.empty()) {
+      metadata_servers_ = std::move(cluster_topology.metadata_servers);
+    }
+  } else if (trigger_acceptor_update_on_next_refresh_) {
+    // Instances information has not changed, but we failed to start
+    // listening on incoming sockets, therefore we must retry on next
+    // metadata refresh.
+    on_handle_sockets_acceptors();
+  }
+
+  on_refresh_succeeded(metadata_servers_[metadata_server_id]);
   return true;
+}
+
+void GRMetadataCache::log_cluster_details() const {
+  const auto cluster_type = meta_data_->get_cluster_type();
+
+  if (cluster_type == mysqlrouter::ClusterType::GR_CS) {
+    const std::string cluster_role =
+        target_cluster_.is_primary() ? "primary" : "replica";
+    const std::string cluster_invalidated =
+        target_cluster_.is_invalidated()
+            ? "cluster is marked as invalid in the metadata; "
+            : "";
+
+    bool has_rw_nodes{false};
+    for (const auto &mi : cluster_data_.members) {
+      if (mi.mode == metadata_cache::ServerMode::ReadWrite) {
+        has_rw_nodes = true;
+      }
+    }
+
+    const std::string accepting_rw = has_rw_nodes
+                                         ? "accepting RW connections"
+                                         : "not accepting RW connections";
+
+    log_info(
+        "Target cluster '%s' is part of a ClusterSet; role of a cluster within "
+        "a ClusterSet is '%s'; %s%s",
+        target_cluster_.c_str(), cluster_role.c_str(),
+        cluster_invalidated.c_str(), accepting_rw.c_str());
+  }
 }

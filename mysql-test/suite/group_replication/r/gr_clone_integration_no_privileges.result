@@ -10,8 +10,12 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #    Bootstrap a group on server1.
 [connection server1]
 INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+SET SESSION sql_log_bin= 0;
 CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
 GRANT REPLICATION SLAVE ON *.* TO "recovery_user";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO "recovery_user"@'%';;
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
@@ -21,6 +25,11 @@ include/start_and_bootstrap_group_replication.inc
 # 2. Install clone plugin on server2.
 #    Restart server with a monitoring process (mysqld_safe) if needed
 [connection server2]
+SET SESSION sql_log_bin= 0;
+CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO "recovery_user"@'%';;
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
 INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
 include/spawn_monitoring_process.inc
 
@@ -42,6 +51,7 @@ RESET PERSIST IF EXISTS group_replication_group_name;
 RESET PERSIST IF EXISTS group_replication_local_address;
 RESET PERSIST IF EXISTS group_replication_group_seeds;
 RESET PERSIST IF EXISTS group_replication_start_on_boot;
+RESET PERSIST IF EXISTS group_replication_communication_stack;
 DROP TABLE t1;
 DROP USER "recovery_user";
 include/rpl_sync.inc

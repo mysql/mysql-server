@@ -488,7 +488,7 @@ id	f1
 18	[8, 4, 3, 5]
 explain select * from t1 where 5 member of (f1->"$[*]");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	i1	i1	9	const	1	100.00	Using where
+1	SIMPLE	t1	NULL	ref	i1	i1	9	const	5	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'5' member of (cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array))
 select * from t1 where f1->"$[0]" member of ('[1,3,9]');
@@ -679,7 +679,7 @@ id	f1
 8	[8, 5]
 explain select * from t1 where 5 member of (f1->"$");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	i1	i1	9	const	1	100.00	Using where
+1	SIMPLE	t1	NULL	ref	i1	i1	9	const	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'5' member of (cast(json_extract(`f1`,_utf8mb4'$') as signed array))
 select * from t1 force index(i1) where 99 member of (f1->"$[*]");
@@ -727,7 +727,7 @@ f1
 ["gfd", "qwe"]
 explain select * from t1 where "qwe" member of (f1->"$[*]");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	i1	i1	43	const	1	100.00	Using where
+1	SIMPLE	t1	NULL	ref	i1	i1	43	const	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'"qwe"' member of (cast(json_extract(`f1`,_utf8mb4'$[*]') as char(10) array))
 select * from t1 force index(i1) where "bnm" member of  (f1->"$[*]");
@@ -775,7 +775,7 @@ f1
 ["gfd", "qwe"]
 explain select * from t1 where "qwe" member of (f1->"$[*]");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	i1	i1	13	const	1	100.00	Using where
+1	SIMPLE	t1	NULL	ref	i1	i1	13	const	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'"base64:type15:cXdl"' member of (cast(json_extract(`f1`,_utf8mb4'$[*]') as binary(10) array))
 select * from t1 force index(i1) where "bnm" member of (f1->"$[*]");
@@ -840,7 +840,7 @@ id	f1
 8	[-1.330, 5, 1.3300]
 explain select * from t1 where 1.33 member of (f1->"$");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	i1	i1	6	const	1	100.00	Using where
+1	SIMPLE	t1	NULL	ref	i1	i1	6	const	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'1.3300' member of (cast(json_extract(`f1`,_utf8mb4'$') as decimal(10, 4) array))
 select * from t1 force index(i1) where 99 member of (f1->"$[*]");
@@ -908,7 +908,7 @@ id	f1
 7	["01-02-03", "22.11.17"]
 explain select * from t1 where cast('01-02-03' as date) member of (f1->"$");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	i1	i1	4	const	1	100.00	Using where
+1	SIMPLE	t1	NULL	ref	i1	i1	4	const	4	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'"2001-02-03"' member of (cast(json_extract(`f1`,_utf8mb4'$') as date array))
 select * from t1 force index(i1) where cast('01-01-12' as date) member of (f1->"$");
@@ -981,7 +981,7 @@ id	f1
 7	["01:02:03", "22:11:17"]
 explain select * from t1 where cast('01:02:03' as time) member of (f1->"$");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	i1	i1	4	const	1	100.00	Using where
+1	SIMPLE	t1	NULL	ref	i1	i1	4	const	4	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'"01:02:03.000000"' member of (cast(json_extract(`f1`,_utf8mb4'$') as time array))
 select * from t1 force index(i1) where
@@ -1056,7 +1056,7 @@ id	f1
 explain select * from t1 where cast('01-01-01 01:02:03' as datetime) member
 of (f1->"$");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	i1	i1	6	const	1	100.00	Using where
+1	SIMPLE	t1	NULL	ref	i1	i1	6	const	4	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where json'"2001-01-01 01:02:03.000000"' member of (cast(json_extract(`f1`,_utf8mb4'$') as datetime array))
 select * from t1 force index(i1) where
@@ -1955,7 +1955,7 @@ test.t2	analyze	status	OK
 EXPLAIN SELECT t1.col_int_key AS field1, t2.col_int AS field2 FROM t2 LEFT
 JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_jsonn->'$[*]'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	mv_idx	mv_idx	163	const	1	100.00	Using where
+1	SIMPLE	t1	NULL	ref	mv_idx	mv_idx	163	const	2	100.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col_int_key` AS `field1`,`test`.`t2`.`col_int` AS `field2` from `test`.`t2` join `test`.`t1` where json'"1"' member of (cast(json_extract(`col_jsonn`,_utf8mb4'$[*]') as char(40) array))
@@ -2398,7 +2398,7 @@ test.t	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE JSON_OVERLAPS('[2,3]', j);
 EXPLAIN
 -> Filter: json_overlaps(json'[2, 3]',cast(j as unsigned array))  (cost=2.07 rows=5)
-    -> Index range scan on t using j_idx  (cost=2.07 rows=5)
+    -> Index range scan on t using j_idx over (3 MEMBER OF (j)) OR (2 MEMBER OF (j))  (cost=2.07 rows=5)
 
 SELECT * FROM t WHERE JSON_OVERLAPS('[2,3]', j);
 vc	j
@@ -2408,7 +2408,7 @@ vc	j
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE JSON_CONTAINS(j, '[2,3]');
 EXPLAIN
 -> Filter: json_contains(cast(j as unsigned array),json'[2, 3]')  (cost=2.07 rows=5)
-    -> Index range scan on t using j_idx  (cost=2.07 rows=5)
+    -> Index range scan on t using j_idx over (3 MEMBER OF (j)) OR (2 MEMBER OF (j))  (cost=2.07 rows=5)
 
 SELECT * FROM t WHERE JSON_CONTAINS(j, '[2,3]');
 vc	j
@@ -2416,8 +2416,8 @@ vc	j
 [2,3,4]	[2, 3, 4]
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE 3 MEMBER OF (j);
 EXPLAIN
--> Filter: json'3' member of (cast(j as unsigned array))  (cost=0.35 rows=1)
-    -> Index lookup on t using j_idx (cast(j as unsigned array)=json'3')  (cost=0.35 rows=1)
+-> Filter: json'3' member of (cast(j as unsigned array))  (cost=0.80 rows=3)
+    -> Index lookup on t using j_idx (cast(j as unsigned array)=json'3')  (cost=0.80 rows=3)
 
 SELECT * FROM t WHERE 3 MEMBER OF (j);
 vc	j
@@ -2428,7 +2428,7 @@ vc	j
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE JSON_OVERLAPS('[2,3]', vc);
 EXPLAIN
 -> Filter: json_overlaps(json'[2, 3]',cast(vc as unsigned array))  (cost=2.07 rows=5)
-    -> Index range scan on t using vc_idx  (cost=2.07 rows=5)
+    -> Index range scan on t using vc_idx over (3 MEMBER OF (vc)) OR (2 MEMBER OF (vc))  (cost=2.07 rows=5)
 
 SELECT * FROM t WHERE JSON_OVERLAPS('[2,3]', vc);
 vc	j
@@ -2438,7 +2438,7 @@ vc	j
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE JSON_CONTAINS(vc, '[2,3]');
 EXPLAIN
 -> Filter: json_contains(cast(vc as unsigned array),json'[2, 3]')  (cost=2.07 rows=5)
-    -> Index range scan on t using vc_idx  (cost=2.07 rows=5)
+    -> Index range scan on t using vc_idx over (3 MEMBER OF (vc)) OR (2 MEMBER OF (vc))  (cost=2.07 rows=5)
 
 SELECT * FROM t WHERE JSON_CONTAINS(vc, '[2,3]');
 vc	j
@@ -2446,13 +2446,829 @@ vc	j
 [2,3,4]	[2, 3, 4]
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE 3 MEMBER OF (vc);
 EXPLAIN
--> Filter: json'3' member of (cast(vc as unsigned array))  (cost=0.35 rows=1)
-    -> Index lookup on t using vc_idx (cast(vc as unsigned array)=json'3')  (cost=0.35 rows=1)
+-> Filter: json'3' member of (cast(vc as unsigned array))  (cost=0.80 rows=3)
+    -> Index lookup on t using vc_idx (cast(vc as unsigned array)=json'3')  (cost=0.80 rows=3)
 
 SELECT * FROM t WHERE 3 MEMBER OF (vc);
 vc	j
 [1,2,3]	[1, 2, 3]
 [2,3,4]	[2, 3, 4]
 [3,4,5]	[3, 4, 5]
+DROP TABLE t;
+# Bug#33275457: Fix multi-valued index
+CREATE TABLE t1 (
+f1 VARCHAR(50) NOT NULL PRIMARY KEY,
+f2 JSON NOT NULL,
+INDEX idx2 ( (CAST(f2 AS CHAR(50) ARRAY)) )
+);
+CREATE VIEW v1 AS
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids;
+INSERT INTO t1 VALUES ('foo', '["aa", "bb"]'), ('bar', '["xx", "yy"]');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE 'xx' MEMBER OF (f2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx2	idx2	203	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where json'"xx"' member of (cast(`f2` as char(50) array))
+EXPLAIN SELECT * FROM t1 WHERE json_contains(f2, '"xx"');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	1	100.00	Using where; Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where json_contains(cast(`f2` as char(50) array),json'["xx"]')
+EXPLAIN SELECT * FROM t1 WHERE json_overlaps(f2, '["xx", "zz"]');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	2	100.00	Using where; Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where json_overlaps(cast(`f2` as char(50) array),json'["xx", "zz"]')
+EXPLAIN SELECT * FROM v1 WHERE 'xx' MEMBER OF (f2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx2	idx2	203	const	1	100.00	Using where
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where json'"xx"' member of (cast(`f2` as char(50) array))
+EXPLAIN SELECT * FROM v1 WHERE json_contains(f2, '"xx"');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	1	100.00	Using where; Using MRR
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where json_contains(cast(`f2` as char(50) array),json'["xx"]')
+EXPLAIN SELECT * FROM v1 WHERE json_overlaps(f2, '["xx", "zz"]');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	2	100.00	Using where; Using MRR
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where json_overlaps(cast(`f2` as char(50) array),json'["xx", "zz"]')
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE 'xx' MEMBER OF (f2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx2	idx2	203	const	1	100.00	Using where
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where json'"xx"' member of (cast(`f2` as char(50) array))
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE json_contains(f2, '"xx"');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	1	100.00	Using where; Using MRR
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where json_contains(cast(`f2` as char(50) array),json'["xx"]')
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE json_overlaps(f2, '["xx", "zz"]');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	2	100.00	Using where; Using MRR
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where json_overlaps(cast(`f2` as char(50) array),json'["xx", "zz"]')
+SELECT * FROM t1 WHERE 'xx' MEMBER OF (f2);
+f1	f2
+bar	["xx", "yy"]
+SELECT * FROM t1 WHERE json_contains(f2, '"xx"');
+f1	f2
+bar	["xx", "yy"]
+SELECT * FROM t1 WHERE json_overlaps(f2, '["xx", "zz"]');
+f1	f2
+bar	["xx", "yy"]
+SELECT * FROM v1 WHERE 'xx' MEMBER OF (f2);
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT * FROM v1 WHERE json_contains(f2, '"xx"');
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT * FROM v1 WHERE json_overlaps(f2, '["xx", "zz"]');
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE 'xx' MEMBER OF (f2);
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE json_contains(f2, '"xx"');
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE json_overlaps(f2, '["xx", "zz"]');
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+PREPARE stmt FROM 'EXPLAIN SELECT * FROM t1 WHERE ? MEMBER OF (f2)';
+SET @a='xx';
+EXECUTE stmt USING @a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx2	idx2	203	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where json'"xx"' member of (cast(`f2` as char(50) array))
+PREPARE stmt FROM 'EXPLAIN SELECT * FROM t1 WHERE json_contains(f2, ?)';
+SET @a='"xx"';
+EXECUTE stmt USING @a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	1	100.00	Using where; Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where json_contains(cast(`f2` as char(50) array),json'["xx"]')
+PREPARE stmt FROM 'EXPLAIN SELECT * FROM t1 WHERE json_overlaps(f2, ?)';
+SET @a='["xx", "cc"]';
+EXECUTE stmt USING @a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	2	100.00	Using where; Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where json_overlaps(cast(`f2` as char(50) array),json'["xx", "cc"]')
+PREPARE stmt FROM 'EXPLAIN SELECT * FROM v1 WHERE ? MEMBER OF (f2)';
+SET @a='xx';
+EXECUTE stmt USING @a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx2	idx2	203	const	1	100.00	Using where
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where json'"xx"' member of (cast(`f2` as char(50) array))
+PREPARE stmt FROM 'EXPLAIN SELECT * FROM v1 WHERE json_contains(f2, ?)';
+SET @a='"xx"';
+EXECUTE stmt USING @a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	1	100.00	Using where; Using MRR
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where json_contains(cast(`f2` as char(50) array),json'["xx"]')
+PREPARE stmt FROM 'EXPLAIN SELECT * FROM v1 WHERE json_overlaps(f2, ?)';
+SET @a='["xx", "cc"]';
+EXECUTE stmt USING @a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	2	100.00	Using where; Using MRR
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where json_overlaps(cast(`f2` as char(50) array),json'["xx", "cc"]')
+PREPARE stmt FROM '
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, \'$[*]\'
+                    COLUMNS(i FOR ORDINALITY, id VARCHAR(50) PATH \'$\')) AS ids
+WHERE ? MEMBER OF (f2)';
+SET @a='xx';
+EXECUTE stmt USING @a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx2	idx2	203	const	1	100.00	Using where
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where json'"xx"' member of (cast(`f2` as char(50) array))
+PREPARE stmt FROM '
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, \'$[*]\'
+                    COLUMNS(i FOR ORDINALITY, id VARCHAR(50) PATH \'$\')) AS ids
+WHERE json_contains(f2, ?)';
+SET @a='"xx"';
+EXECUTE stmt USING @a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	1	100.00	Using where; Using MRR
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where json_contains(cast(`f2` as char(50) array),json'["xx"]')
+PREPARE stmt FROM '
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, \'$[*]\'
+                    COLUMNS(i FOR ORDINALITY, id VARCHAR(50) PATH \'$\')) AS ids
+WHERE json_overlaps(f2, ?)';
+SET @a='["xx", "cc"]';
+EXECUTE stmt USING @a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	2	100.00	Using where; Using MRR
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where json_overlaps(cast(`f2` as char(50) array),json'["xx", "cc"]')
+PREPARE stmt FROM 'SELECT * FROM t1 WHERE ? MEMBER OF (f2)';
+SET @a='xx';
+EXECUTE stmt USING @a;
+f1	f2
+bar	["xx", "yy"]
+PREPARE stmt FROM 'SELECT * FROM t1 WHERE json_contains(f2, ?)';
+SET @a='"xx"';
+EXECUTE stmt USING @a;
+f1	f2
+bar	["xx", "yy"]
+PREPARE stmt FROM 'SELECT * FROM t1 WHERE json_overlaps(f2, ?)';
+SET @a='["xx", "cc"]';
+EXECUTE stmt USING @a;
+f1	f2
+bar	["xx", "yy"]
+PREPARE stmt FROM 'SELECT * FROM v1 WHERE ? MEMBER OF (f2)';
+SET @a='xx';
+EXECUTE stmt USING @a;
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+PREPARE stmt FROM 'SELECT * FROM v1 WHERE json_contains(f2, ?)';
+SET @a='"xx"';
+EXECUTE stmt USING @a;
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+PREPARE stmt FROM 'SELECT * FROM v1 WHERE json_overlaps(f2, ?)';
+SET @a='["xx", "cc"]';
+EXECUTE stmt USING @a;
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+PREPARE stmt FROM '
+SELECT *
+FROM t1, JSON_TABLE(f2, \'$[*]\'
+                    COLUMNS(i FOR ORDINALITY, id VARCHAR(50) PATH \'$\')) AS ids
+WHERE ? MEMBER OF (f2)';
+SET @a='xx';
+EXECUTE stmt USING @a;
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+PREPARE stmt FROM '
+SELECT *
+FROM t1, JSON_TABLE(f2, \'$[*]\'
+                    COLUMNS(i FOR ORDINALITY, id VARCHAR(50) PATH \'$\')) AS ids
+WHERE json_contains(f2, ?)';
+SET @a='"xx"';
+EXECUTE stmt USING @a;
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+PREPARE stmt FROM '
+SELECT *
+FROM t1, JSON_TABLE(f2, \'$[*]\'
+                    COLUMNS(i FOR ORDINALITY, id VARCHAR(50) PATH \'$\')) AS ids
+WHERE json_overlaps(f2, ?)';
+SET @a='["xx", "cc"]';
+EXECUTE stmt USING @a;
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+EXPLAIN SELECT * FROM t1 WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF (f2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx2	idx2	203	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (json'"xx"' member of (cast(`f2` as char(50) array)) and json'"yy"' member of (cast(`f2` as char(50) array)))
+EXPLAIN
+SELECT * FROM t1 WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	1	100.00	Using where; Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (json_contains(cast(`f2` as char(50) array),json'["xx"]') and json_contains(cast(`f2` as char(50) array),json'["yy"]'))
+EXPLAIN
+SELECT *
+FROM t1
+WHERE json_overlaps(f2, '["xx", "zz"]') AND json_overlaps(f2, '["yy", "zz"]');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	2	100.00	Using where; Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (json_overlaps(cast(`f2` as char(50) array),json'["xx", "zz"]') and json_overlaps(cast(`f2` as char(50) array),json'["yy", "zz"]'))
+EXPLAIN SELECT * FROM v1 WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF (f2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx2	idx2	203	const	1	100.00	Using where
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json'"xx"' member of (cast(`f2` as char(50) array)) and json'"yy"' member of (cast(`f2` as char(50) array)))
+EXPLAIN
+SELECT * FROM v1 WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	1	100.00	Using where; Using MRR
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json_contains(cast(`f2` as char(50) array),json'["xx"]') and json_contains(cast(`f2` as char(50) array),json'["yy"]'))
+EXPLAIN
+SELECT *
+FROM v1
+WHERE json_overlaps(f2, '["xx", "zz"]') AND json_overlaps(f2, '["yy", "zz"]');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	2	100.00	Using where; Using MRR
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json_overlaps(cast(`f2` as char(50) array),json'["xx", "zz"]') and json_overlaps(cast(`f2` as char(50) array),json'["yy", "zz"]'))
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF (f2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx2	idx2	203	const	1	100.00	Using where
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json'"xx"' member of (cast(`f2` as char(50) array)) and json'"yy"' member of (cast(`f2` as char(50) array)))
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	1	100.00	Using where; Using MRR
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json_contains(cast(`f2` as char(50) array),json'["xx"]') and json_contains(cast(`f2` as char(50) array),json'["yy"]'))
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE json_overlaps(f2, '["xx", "zz"]') AND json_overlaps(f2, '["yy", "zz"]');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	2	100.00	Using where; Using MRR
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json_overlaps(cast(`f2` as char(50) array),json'["xx", "zz"]') and json_overlaps(cast(`f2` as char(50) array),json'["yy", "zz"]'))
+EXPLAIN
+SELECT *
+FROM t1
+WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF(f2) AND f1 = 'bar';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY,idx2	PRIMARY	202	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select 'bar' AS `f1`,'["xx", "yy"]' AS `f2` from `test`.`t1` where true
+EXPLAIN
+SELECT *
+FROM t1
+WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"') AND f1 = 'bar';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY,idx2	PRIMARY	202	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select 'bar' AS `f1`,'["xx", "yy"]' AS `f2` from `test`.`t1` where true
+EXPLAIN
+SELECT *
+FROM t1
+WHERE json_overlaps(f2, '["xx", "zz"]') AND
+json_overlaps(f2, '["yy", "zz"]') AND
+f1 = 'bar';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY,idx2	PRIMARY	202	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select 'bar' AS `f1`,'["xx", "yy"]' AS `f2` from `test`.`t1` where true
+EXPLAIN
+SELECT *
+FROM v1
+WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF(f2) AND f1 = 'bar';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY,idx2	PRIMARY	202	const	1	100.00	NULL
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select 'bar' AS `f1`,'["xx", "yy"]' AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table('["xx", "yy"]', '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json'"xx"' member of (cast('["xx", "yy"]' as char(50) array)) and json'"yy"' member of (cast('["xx", "yy"]' as char(50) array)))
+EXPLAIN
+SELECT *
+FROM v1
+WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"') AND f1 = 'bar';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY,idx2	PRIMARY	202	const	1	100.00	NULL
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select 'bar' AS `f1`,'["xx", "yy"]' AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table('["xx", "yy"]', '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json_contains(cast('["xx", "yy"]' as char(50) array),json'["xx"]') and json_contains(cast('["xx", "yy"]' as char(50) array),json'["yy"]'))
+EXPLAIN
+SELECT *
+FROM v1
+WHERE json_overlaps(f2, '["xx", "zz"]') AND
+json_overlaps(f2, '["yy", "zz"]') AND
+f1 = 'bar';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY,idx2	PRIMARY	202	const	1	100.00	NULL
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select 'bar' AS `f1`,'["xx", "yy"]' AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table('["xx", "yy"]', '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json_overlaps(cast('["xx", "yy"]' as char(50) array),json'["xx", "zz"]') and json_overlaps(cast('["xx", "yy"]' as char(50) array),json'["yy", "zz"]'))
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF (f2) AND f1 = 'bar';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY,idx2	PRIMARY	202	const	1	100.00	NULL
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select 'bar' AS `f1`,'["xx", "yy"]' AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table('["xx", "yy"]', '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json'"xx"' member of (cast('["xx", "yy"]' as char(50) array)) and json'"yy"' member of (cast('["xx", "yy"]' as char(50) array)))
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"') AND f1 = 'bar';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY,idx2	PRIMARY	202	const	1	100.00	NULL
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select 'bar' AS `f1`,'["xx", "yy"]' AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table('["xx", "yy"]', '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json_contains(cast('["xx", "yy"]' as char(50) array),json'["xx"]') and json_contains(cast('["xx", "yy"]' as char(50) array),json'["yy"]'))
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE json_overlaps(f2, '["xx", "zz"]') AND
+json_overlaps(f2, '["yy", "zz"]') AND
+f1 = 'bar';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY,idx2	PRIMARY	202	const	1	100.00	NULL
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select 'bar' AS `f1`,'["xx", "yy"]' AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table('["xx", "yy"]', '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json_overlaps(cast('["xx", "yy"]' as char(50) array),json'["xx", "zz"]') and json_overlaps(cast('["xx", "yy"]' as char(50) array),json'["yy", "zz"]'))
+SELECT * FROM t1 WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF (f2);
+f1	f2
+bar	["xx", "yy"]
+SELECT * FROM t1 WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"');
+f1	f2
+bar	["xx", "yy"]
+SELECT *
+FROM t1
+WHERE json_overlaps(f2, '["xx", "zz"]') AND json_overlaps(f2, '["yy", "zz"]');
+f1	f2
+bar	["xx", "yy"]
+SELECT * FROM v1 WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF (f2);
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT * FROM v1 WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"');
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT *
+FROM v1
+WHERE json_overlaps(f2, '["xx", "zz"]') AND json_overlaps(f2, '["yy", "zz"]');
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF (f2);
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"');
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE json_overlaps(f2, '["xx", "zz"]') AND json_overlaps(f2, '["yy", "zz"]');
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT *
+FROM t1
+WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF (f2) AND f1 = 'bar';
+f1	f2
+bar	["xx", "yy"]
+SELECT *
+FROM t1
+WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"') AND f1 = 'bar';
+f1	f2
+bar	["xx", "yy"]
+SELECT *
+FROM t1
+WHERE json_overlaps(f2, '["xx", "zz"]') AND
+json_overlaps(f2, '["yy", "zz"]') AND
+f1 = 'bar';
+f1	f2
+bar	["xx", "yy"]
+SELECT *
+FROM v1
+WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF (f2) AND f1 = 'bar';
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT *
+FROM v1
+WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"') AND f1 = 'bar';
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT *
+FROM v1
+WHERE json_overlaps(f2, '["xx", "zz"]') AND
+json_overlaps(f2, '["yy", "zz"]') AND
+f1 = 'bar';
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE 'xx' MEMBER OF (f2) AND 'yy' MEMBER OF(f2) AND f1 = 'bar';
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE json_contains(f2, '"xx"') AND json_contains(f2, '"yy"') AND f1 = 'bar';
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE json_overlaps(f2, '["xx", "zz"]') AND
+json_overlaps(f2, '["yy", "zz"]') AND
+f1 = 'bar';
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+EXPLAIN SELECT * FROM t1 WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF (f2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	2	100.00	Using where; Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (json'"xx"' member of (cast(`f2` as char(50) array)) or json'"zz"' member of (cast(`f2` as char(50) array)))
+EXPLAIN SELECT * FROM t1 WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	2	100.00	Using where; Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (json_contains(cast(`f2` as char(50) array),json'["xx"]') or json_contains(cast(`f2` as char(50) array),json'["zz"]'))
+EXPLAIN SELECT * FROM t1 WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	3	100.00	Using where; Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (json_overlaps(cast(`f2` as char(50) array),json'["xx", "zz"]') or json_overlaps(cast(`f2` as char(50) array),json'["zz"]'))
+EXPLAIN SELECT * FROM v1 WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF (f2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	2	100.00	Using where; Using MRR
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json'"xx"' member of (cast(`f2` as char(50) array)) or json'"zz"' member of (cast(`f2` as char(50) array)))
+EXPLAIN SELECT * FROM v1 WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	2	100.00	Using where; Using MRR
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json_contains(cast(`f2` as char(50) array),json'["xx"]') or json_contains(cast(`f2` as char(50) array),json'["zz"]'))
+EXPLAIN
+SELECT *
+FROM v1
+WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	3	100.00	Using where; Using MRR
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json_overlaps(cast(`f2` as char(50) array),json'["xx", "zz"]') or json_overlaps(cast(`f2` as char(50) array),json'["zz"]'))
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF (f2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	2	100.00	Using where; Using MRR
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json'"xx"' member of (cast(`f2` as char(50) array)) or json'"zz"' member of (cast(`f2` as char(50) array)))
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	2	100.00	Using where; Using MRR
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json_contains(cast(`f2` as char(50) array),json'["xx"]') or json_contains(cast(`f2` as char(50) array),json'["zz"]'))
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx2	idx2	203	NULL	3	100.00	Using where; Using MRR
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json_overlaps(cast(`f2` as char(50) array),json'["xx", "zz"]') or json_overlaps(cast(`f2` as char(50) array),json'["zz"]'))
+INSERT INTO t1 VALUES
+('k1', '["v1"]'), ('k2', '["v2"]'), ('k3', '["v3"]'),
+('k4', '["v4"]'), ('k5', '["v5"]'), ('k6', '["v6"]'),
+('k7', '["v7"]'), ('k8', '["v8"]'), ('k9', '["v9"]');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN
+SELECT *
+FROM t1
+WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF (f2) OR f1 = 'bar';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,idx2	idx2,PRIMARY	203,202	NULL	3	100.00	Using sort_union(idx2,PRIMARY); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (json'"xx"' member of (cast(`f2` as char(50) array)) or json'"zz"' member of (cast(`f2` as char(50) array)) or (`test`.`t1`.`f1` = 'bar'))
+EXPLAIN
+SELECT *
+FROM t1
+WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"') OR f1 = 'bar';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,idx2	idx2,PRIMARY	203,202	NULL	3	100.00	Using sort_union(idx2,PRIMARY); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (json_contains(cast(`f2` as char(50) array),json'["xx"]') or json_contains(cast(`f2` as char(50) array),json'["zz"]') or (`test`.`t1`.`f1` = 'bar'))
+EXPLAIN
+SELECT *
+FROM t1
+WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]') OR
+f1 = 'bar';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,idx2	idx2,PRIMARY	203,202	NULL	4	100.00	Using sort_union(idx2,PRIMARY); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (json_overlaps(cast(`f2` as char(50) array),json'["xx", "zz"]') or json_overlaps(cast(`f2` as char(50) array),json'["zz"]') or (`test`.`t1`.`f1` = 'bar'))
+EXPLAIN
+SELECT *
+FROM v1
+WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF(f2) OR f1 = 'bar';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,idx2	idx2,PRIMARY	203,202	NULL	3	100.00	Using sort_union(idx2,PRIMARY); Using where
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json'"xx"' member of (cast(`f2` as char(50) array)) or json'"zz"' member of (cast(`f2` as char(50) array)) or (`test`.`t1`.`f1` = 'bar'))
+EXPLAIN
+SELECT *
+FROM v1
+WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"') OR f1 = 'bar';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,idx2	idx2,PRIMARY	203,202	NULL	3	100.00	Using sort_union(idx2,PRIMARY); Using where
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json_contains(cast(`f2` as char(50) array),json'["xx"]') or json_contains(cast(`f2` as char(50) array),json'["zz"]') or (`test`.`t1`.`f1` = 'bar'))
+EXPLAIN
+SELECT *
+FROM v1
+WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]') OR
+f1 = 'bar';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,idx2	idx2,PRIMARY	203,202	NULL	4	100.00	Using sort_union(idx2,PRIMARY); Using where
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json_overlaps(cast(`f2` as char(50) array),json'["xx", "zz"]') or json_overlaps(cast(`f2` as char(50) array),json'["zz"]') or (`test`.`t1`.`f1` = 'bar'))
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF (f2) OR f1 = 'bar';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,idx2	idx2,PRIMARY	203,202	NULL	3	100.00	Using sort_union(idx2,PRIMARY); Using where
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json'"xx"' member of (cast(`f2` as char(50) array)) or json'"zz"' member of (cast(`f2` as char(50) array)) or (`test`.`t1`.`f1` = 'bar'))
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"') OR f1 = 'bar';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,idx2	idx2,PRIMARY	203,202	NULL	3	100.00	Using sort_union(idx2,PRIMARY); Using where
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json_contains(cast(`f2` as char(50) array),json'["xx"]') or json_contains(cast(`f2` as char(50) array),json'["zz"]') or (`test`.`t1`.`f1` = 'bar'))
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]') OR
+f1 = 'bar';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,idx2	idx2,PRIMARY	203,202	NULL	4	100.00	Using sort_union(idx2,PRIMARY); Using where
+1	SIMPLE	ids	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`ids`.`i` AS `i`,`ids`.`id` AS `id` from `test`.`t1` join json_table(`test`.`t1`.`f2`, '$[*]' columns (`i` for ordinality, `id` varchar(50) character set utf8mb4 path '$')) `ids` where (json_overlaps(cast(`f2` as char(50) array),json'["xx", "zz"]') or json_overlaps(cast(`f2` as char(50) array),json'["zz"]') or (`test`.`t1`.`f1` = 'bar'))
+SELECT * FROM t1 WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF (f2);
+f1	f2
+bar	["xx", "yy"]
+SELECT * FROM t1 WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"');
+f1	f2
+bar	["xx", "yy"]
+SELECT *
+FROM t1
+WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]');
+f1	f2
+bar	["xx", "yy"]
+SELECT * FROM v1 WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF(f2);
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT * FROM v1 WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"');
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT *
+FROM v1
+WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]');
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF (f2);
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"');
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]');
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT * FROM t1 WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF (f2) OR f1 = 'bar';
+f1	f2
+bar	["xx", "yy"]
+SELECT *
+FROM t1
+WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"') OR f1 = 'bar';
+f1	f2
+bar	["xx", "yy"]
+SELECT *
+FROM t1
+WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]') OR
+f1 = 'bar';
+f1	f2
+bar	["xx", "yy"]
+SELECT * FROM v1 WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF (f2) OR f1 = 'bar';
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT *
+FROM v1
+WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"') OR f1 = 'bar';
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT *
+FROM v1
+WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]') OR
+f1 = 'bar';
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE 'xx' MEMBER OF (f2) OR 'zz' MEMBER OF (f2) OR f1 = 'bar';
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE json_contains(f2, '"xx"') OR json_contains(f2, '"zz"') OR f1 = 'bar';
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+PATH '$')) AS ids
+WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]') OR
+f1 = 'bar';
+f1	f2	i	id
+bar	["xx", "yy"]	1	xx
+bar	["xx", "yy"]	2	yy
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# Bug#33343948: Multi-valued index ranges are printed as binary
+#
+CREATE TABLE t(doc JSON,
+KEY ((CAST(doc->'$[*].name' AS CHAR(3) ARRAY))),
+KEY ((CAST(doc->'$[*].date' AS DATE ARRAY))));
+INSERT INTO t VALUES (
+'[{"name": "abc", "date": "2021-01-01"}, {"name": "def", "date": "2021-01-02"},
+  {"name": "ghi", "date": "2021-01-03"}, {"name": "jkl", "date": "2021-01-04"}]'
+);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT * FROM t
+WHERE JSON_OVERLAPS(doc->'$[*].name', '["abc", "xyz"]');
+EXPLAIN
+-> Filter: json_overlaps(cast(json_extract(doc,_utf8mb4'$[*].name') as char(3) array),json'["abc", "xyz"]')  (cost=1.10 rows=2)
+    -> Index range scan on t using functional_index over ('xyz' MEMBER OF (json_extract(doc,_utf8mb4'$[*].name'))) OR ('abc' MEMBER OF (json_extract(doc,_utf8mb4'$[*].name')))  (cost=1.10 rows=2)
+
+EXPLAIN FORMAT=TREE
+SELECT * FROM t
+WHERE JSON_OVERLAPS(doc->'$[*].date', '["2020-01-01", "2021-01-01"]');
+EXPLAIN
+-> Filter: json_overlaps(cast(json_extract(doc,_utf8mb4'$[*].date') as date array),json'["2020-01-01", "2021-01-01"]')  (cost=1.10 rows=2)
+    -> Index range scan on t using functional_index_2 over ('2021-01-01' MEMBER OF (json_extract(doc,_utf8mb4'$[*].date'))) OR ('2020-01-01' MEMBER OF (json_extract(doc,_utf8mb4'$[*].date')))  (cost=1.10 rows=2)
+
 DROP TABLE t;
 # restart:

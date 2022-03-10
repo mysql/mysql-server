@@ -32,18 +32,18 @@
 
 namespace keyring {
 
-const std::string keyring_file_version_1_0("Keyring file version:1.0");
-const std::string keyring_file_version_2_0("Keyring file version:2.0");
-const char dummy_digest[] = "01234567890123456789012345678901";
+constexpr const char keyring_file_version_1_0[] = "Keyring file version:1.0";
+constexpr const char keyring_file_version_2_0[] = "Keyring file version:2.0";
+constexpr const char dummy_digest[] = "01234567890123456789012345678901";
 
 class Checker : public keyring::Keyring_alloc {
  public:
   Checker(std::string file_version) : file_version(file_version) {}
-  virtual ~Checker() {}
+  virtual ~Checker() = default;
   virtual bool check_file_structure(File file, size_t file_size, Digest *digest,
                                     Converter::Arch *type = nullptr);
   static const my_off_t EOF_TAG_SIZE;
-  static const std::string eofTAG;
+  static const std::string get_eofTAG() { return "EOF"; }
 
  protected:
   virtual bool is_empty_file_correct(Digest *digest);

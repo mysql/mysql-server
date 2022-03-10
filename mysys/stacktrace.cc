@@ -44,6 +44,7 @@
 #include <time.h>
 
 #include <algorithm>
+#include <cinttypes>
 
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -79,8 +80,8 @@ static const char *heap_start;
 extern char *__bss_start;
 #endif /* __linux */
 
-static inline bool ptr_sane(const char *p MY_ATTRIBUTE((unused)),
-                            const char *heap_end MY_ATTRIBUTE((unused))) {
+static inline bool ptr_sane(const char *p [[maybe_unused]],
+                            const char *heap_end [[maybe_unused]]) {
 #ifdef __linux__
   return p && p >= heap_start && p <= heap_end;
 #else
@@ -216,21 +217,7 @@ static bool my_demangle_symbol(char *line) {
     }
   }
   if (demangled) my_safe_printf_stderr("%s %s %s\n", line, demangled, end + 1);
-#elif defined(__SUNPRO_CC)  // Solaris has different formatting .....
-  char *begin = strchr(line, '\'');
-  char *end = begin ? strchr(begin, '+') : NULL;
-  if (begin && end) {
-    *begin++ = *end++ = '\0';
-    int status = 0;
-    demangled = my_demangle(begin, &status);
-    if (!demangled || status) {
-      demangled = NULL;
-      begin[-1] = ' ';
-      end[-1] = '+';
-    }
-  }
-  if (demangled) my_safe_printf_stderr("%s %s+%s\n", line, demangled, end);
-#else                       // !__APPLE__ and !__SUNPRO_CC
+#else  // !__APPLE__
   char *begin = strchr(line, '(');
   char *end = begin ? strchr(begin, '+') : nullptr;
 
@@ -320,7 +307,7 @@ void my_write_core(int sig) {
 #pragma comment(lib, "dbghelp")
 #endif
 
-static EXCEPTION_POINTERS *exception_ptrs;
+static thread_local EXCEPTION_POINTERS *exception_ptrs;
 
 #define MODULE64_SIZE_WINXP 576
 #define STACKWALK_MAX_FRAMES 64
@@ -412,22 +399,32 @@ static void get_symbol_path(char *path, size_t size) {
 #define SYMOPT_NO_PROMPTS 0
 #endif
 
-void my_print_stacktrace(const uchar *unused1, ulong unused2) {
+void my_print_stacktrace(const uchar * /* stack_bottom */,
+                         ulong /* thread_stack */) {
   HANDLE hProcess = GetCurrentProcess();
   HANDLE hThread = GetCurrentThread();
-  static IMAGEHLP_MODULE64 module = {sizeof(module)};
+  static IMAGEHLP_MODULE64 module{};
+  module.SizeOfStruct = sizeof(module);
+
   static IMAGEHLP_SYMBOL64_PACKAGE package;
   DWORD64 addr;
   DWORD machine;
   int i;
   CONTEXT context;
-  STACKFRAME64 frame = {0};
+  STACKFRAME64 frame{};
   static char symbol_path[MAX_SYMBOL_PATH];
 
-  if (!exception_ptrs) return;
+  if (exception_ptrs) {
+    /* Copy context, as stackwalking on original will unwind the stack */
+    context = *(exception_ptrs->ContextRecord);
+  } else {
+    /*
+      We are to print stack outside the signal handler, let's just capture the
+      current context.
+    */
+    RtlCaptureContext(&context);
+  }
 
-  /* Copy context, as stackwalking on original will unwind the stack */
-  context = *(exception_ptrs->ContextRecord);
   /*Initialize symbols.*/
   SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_NO_PROMPTS | SYMOPT_DEFERRED_LOADS |
                 SYMOPT_DEBUG);
@@ -454,7 +451,9 @@ void my_print_stacktrace(const uchar *unused1, ulong unused2) {
   for (i = 0; i < STACKWALK_MAX_FRAMES; i++) {
     DWORD64 function_offset = 0;
     DWORD line_offset = 0;
-    IMAGEHLP_LINE64 line = {sizeof(line)};
+    IMAGEHLP_LINE64 line{};
+    line.SizeOfStruct = sizeof(line);
+
     BOOL have_module = false;
     BOOL have_symbol = false;
     BOOL have_source = false;
@@ -468,7 +467,7 @@ void my_print_stacktrace(const uchar *unused1, ulong unused2) {
         SymGetSymFromAddr64(hProcess, addr, &function_offset, &(package.sym));
     have_source = SymGetLineFromAddr64(hProcess, addr, &line_offset, &line);
 
-    my_safe_printf_stderr("%p    ", addr);
+    my_safe_printf_stderr("%llx    ", addr);
     if (have_module) {
       char *base_image_name = strrchr(module.ImageName, '\\');
       if (base_image_name)
@@ -489,7 +488,7 @@ void my_print_stacktrace(const uchar *unused1, ulong unused2) {
         base_file_name++;
       else
         base_file_name = line.FileName;
-      my_safe_printf_stderr("[%s:%u]", base_file_name, line.LineNumber);
+      my_safe_printf_stderr("[%s:%lu]", base_file_name, line.LineNumber);
     }
     my_safe_printf_stderr("%s", "\n");
   }
@@ -500,7 +499,7 @@ void my_print_stacktrace(const uchar *unused1, ulong unused2) {
   file name is constructed from executable name plus
   ".dmp" extension
 */
-void my_write_core(int unused) {
+void my_write_core(int /* sig */) {
   char path[MAX_PATH];
   // See comment below for clarification about size of dump_fname
   char dump_fname[MAX_PATH + 1 + 10 + 4 + 1] = "core.dmp";
@@ -516,7 +515,7 @@ void my_write_core(int unused) {
     // 1 byte for termitated \0. Such size of output buffer guarantees
     // that there is enough space to place a result of string formatting
     // performed by snprintf().
-    snprintf(dump_fname, sizeof(dump_fname), "%s.%u.dmp", module_name,
+    snprintf(dump_fname, sizeof(dump_fname), "%s.%lu.dmp", module_name,
              GetCurrentProcessId());
   }
   my_create_minidump(dump_fname, 0, 0);
@@ -555,12 +554,12 @@ void my_create_minidump(const char *name, HANDLE process, DWORD pid) {
       my_safe_printf_stderr("Minidump written to %s\n",
                             _fullpath(path, name, sizeof(path)) ? path : name);
     } else {
-      my_safe_printf_stderr("MiniDumpWriteDump() failed, last error %d\n",
+      my_safe_printf_stderr("MiniDumpWriteDump() failed, last error %lu\n",
                             GetLastError());
     }
     CloseHandle(hFile);
   } else {
-    my_safe_printf_stderr("CreateFile(%s) failed, last error %d\n", name,
+    my_safe_printf_stderr("CreateFile(%s) failed, last error %lu\n", name,
                           GetLastError());
   }
 }

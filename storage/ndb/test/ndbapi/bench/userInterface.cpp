@@ -124,8 +124,8 @@ userDbCommit(UserHandle *uh){
 }
 
 /**
- * TRUE - Normal table
- * FALSE - Table w.o. checkpoing and logging
+ * true - Normal table
+ * false - Table w.o. checkpoing and logging
  */
 extern int useTableLogging;
 

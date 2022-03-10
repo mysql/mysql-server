@@ -56,7 +56,7 @@
   @param str      The message to print. Not trailing \n needed.
   @param MyFlags  ME_BELL to beep, or 0.
 */
-void my_message_stderr(uint error MY_ATTRIBUTE((unused)), const char *str,
+void my_message_stderr(uint error [[maybe_unused]], const char *str,
                        myf MyFlags) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("message: %s", str));

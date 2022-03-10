@@ -29,7 +29,7 @@
 
 
 struct DropTrigImplReq {
-  STATIC_CONST( SignalLength = 11 );
+  static constexpr Uint32 SignalLength = 11;
   SECTION( TRIGGER_NAME_SECTION = 0 ); // optional
 
   Uint32 senderRef;
@@ -46,7 +46,7 @@ struct DropTrigImplReq {
 };
 
 struct DropTrigImplConf {
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -64,7 +64,7 @@ struct DropTrigImplRef {
     InconsistentTC = 293
   };
 
-  STATIC_CONST( SignalLength = 8 );
+  static constexpr Uint32 SignalLength = 8;
 
   Uint32 senderRef;
   Uint32 senderData;

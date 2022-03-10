@@ -1811,7 +1811,7 @@ pk1	attr1	attr2	attr3	pk1	attr1	attr2	attr3	attr4
 explain
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	p0,p1,p2,p3,p4,p5,p6,p7	index	attr1	PRIMARY	4	NULL	#	#	Using pushed condition ((`test`.`t4`.`attr1` < 5) and (`test`.`t4`.`attr2` > 9223372036854775803) and (`test`.`t4`.`attr3` <> 3))
+1	SIMPLE	t4	p0,p1,p2,p3,p4,p5,p6,p7	range	attr1	attr1	4	NULL	#	#	Using pushed condition ((`test`.`t4`.`attr1` < 5) and (`test`.`t4`.`attr2` > 9223372036854775803) and (`test`.`t4`.`attr3` <> 3)); Using MRR; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`pk1` AS `pk1`,`test`.`t4`.`attr1` AS `attr1`,`test`.`t4`.`attr2` AS `attr2`,`test`.`t4`.`attr3` AS `attr3`,`test`.`t4`.`attr4` AS `attr4` from `test`.`t4` where ((`test`.`t4`.`attr1` < 5) and (`test`.`t4`.`attr2` > 9223372036854775803) and (`test`.`t4`.`attr3` <> 3)) order by `test`.`t4`.`pk1`
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
@@ -2744,6 +2744,44 @@ Testing: 'not <column> not like 'five''
 result_rows	filtered_rows
 1	1
 #
+# WL#14476 Introduce NdbScanFilter option for NULL-compare according to SQL semantics
+#
+# Test case for checking the pre-WL behaviour. Disable NULL semantics added
+# by WL -> force old behaviour of still needing explicit NULL check.
+#
+# Test cases are the same as added for Bug#28643463 above.
+#
+Testing: '= 'five''
+result_rows	filtered_rows
+1	1
+Testing: '<> 'five''
+result_rows	filtered_rows
+4	4
+Testing: '< 'five''
+result_rows	filtered_rows
+0	0
+Testing: '> 'five''
+result_rows	filtered_rows
+4	4
+Testing: '<= 'five''
+result_rows	filtered_rows
+1	1
+Testing: '>= 'five''
+result_rows	filtered_rows
+5	5
+Testing: 'like 'five''
+result_rows	filtered_rows
+1	1
+Testing: 'not like 'five''
+result_rows	filtered_rows
+4	4
+Testing: 'not <column> like 'five''
+result_rows	filtered_rows
+4	4
+Testing: 'not <column> not like 'five''
+result_rows	filtered_rows
+1	1
+#
 # Bug#29231709 NULL VALUES (still) NOT FILTERED OUT BY PUSHED CONDITIONS
 #
 Testing: ''five' ='
@@ -3525,23 +3563,23 @@ EXPLAIN
 explain format=tree
 select * from t1 where a > 2;
 EXPLAIN
--> Index range scan on t1 using PRIMARY, with pushed condition: (t1.a > 2)  (cost=1.61 rows=3)
+-> Index range scan on t1 using PRIMARY over (2 < a), with pushed condition: (t1.a > 2)  (cost=2.61 rows=3)
 
 explain format=tree
 select * from t1 where a > 2 order by b;
 EXPLAIN
--> Sort: t1.b  (cost=1.61 rows=3)
-    -> Index range scan on t1 using PRIMARY, with pushed condition: (t1.a > 2)  (cost=1.61 rows=3)
+-> Sort: t1.b  (cost=2.61 rows=3)
+    -> Index range scan on t1 using PRIMARY over (2 < a), with pushed condition: (t1.a > 2)  (cost=2.61 rows=3)
 
 explain format=tree
 select * from t1 where a = 2 and c > 0;
 EXPLAIN
--> Index lookup on t1 using PRIMARY (a=2), with pushed condition: (t1.c > 0)  (cost=1.10 rows=3)
+-> Index lookup on t1 using PRIMARY (a=2), with pushed condition: (t1.c > 0)  (cost=2.10 rows=3)
 
 explain format=tree
 select * from t1 where a = 2 and c > 0 order by d;
 EXPLAIN
--> Sort: t1.d  (cost=1.10 rows=3)
+-> Sort: t1.d  (cost=2.10 rows=3)
     -> Index lookup on t1 using PRIMARY (a=2), with pushed condition: (t1.c > 0)
 
 explain format=tree
@@ -3585,8 +3623,8 @@ SELECT t1.col_varchar_256 AS field1
 FROM t1 WHERE t1.col_int_unique <> 8
 ORDER BY field1;
 EXPLAIN
--> Sort: t1.col_varchar_256  (cost=3.21 rows=6)
-    -> Index range scan on t1 using ix1, with pushed condition: (t1.col_int_unique <> 8)  (cost=3.21 rows=6)
+-> Sort: t1.col_varchar_256  (cost=5.21 rows=6)
+    -> Index range scan on t1 using ix1 over (NULL < col_int_unique < 8) OR (8 < col_int_unique), with pushed condition: (t1.col_int_unique <> 8)  (cost=5.21 rows=6)
 
 DROP TABLE t1;
 #
@@ -3602,18 +3640,18 @@ CALL test_all(">=");
 Test combinations using the 'variant' columns.
 Even if the base type is the same for these conditions,
 different precision, length, scale etc. should prevent pushing:
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE string1 = string3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE string1 = string4",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE vstring1 = vstring3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE bin1 = bin3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE vbin1 = vbin3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE real_decimal1 = real_decimal3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE bits1 = bits3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE options1 = options3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE flags1 = flags3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE time_field1 = time_field3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE date_time1 = date_time3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE time_stamp1 = time_stamp3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE string1 = string3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE string1 = string4",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE vstring1 = vstring3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE bin1 = bin3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE vbin1 = vbin3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE real_decimal1 = real_decimal3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE bits1 = bits3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE options1 = options3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE flags1 = flags3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE time_field1 = time_field3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE date_time1 = date_time3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE time_stamp1 = time_stamp3",false);
 Test that <col1> like <col2> is not pushed, - even if types are comparable
 CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 LIKE string1",false);
 CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 NOT LIKE string1",false);
@@ -3621,3 +3659,104 @@ CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 LIKE string2",f
 CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 NOT LIKE string2",false);
 CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 LIKE string3",false);
 CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 NOT LIKE string3",false);
+#
+# Bug#32924533 Conditions not pushed down to tables inside views and table-subqueries
+#
+create table t1 (
+a int not null,
+b int not null,
+c int not null,
+d int not null
+) engine=ndbcluster;
+insert into t1 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
+(1,2,5,1), (1,3,1,2), (1,4,2,3),
+(2,1,3,4), (2,3,4,5), (2,4,5,1),
+(3,1,1,2), (3,2,2,3), (3,4,3,4),
+(4,1,4,5), (4,2,5,1), (4,3,1,2);
+create view v1(a,b,c,d) as
+select a,b,c,d from t1;
+explain format=tree
+select * from v1
+where v1.d < 5;
+EXPLAIN
+-> Table scan on t1, with pushed condition: (t1.d < 5)
+
+explain format=tree
+select * from v1
+where v1.d < v1.c;
+EXPLAIN
+-> Table scan on t1, with pushed condition: (t1.d < t1.c)
+
+explain format=tree
+select * from t1,v1
+where v1.d < 5;
+EXPLAIN
+-> Inner hash join (no condition)
+    -> Table scan on t1
+    -> Hash
+        -> Table scan on t1, with pushed condition: (t1.d < 5)
+
+Warnings:
+Note	1003	Can't push table 't1' as child, 'type' must be a 'ref' access
+explain format=tree
+select * from
+(select a,b,c,d from t1) as v1(a,b,c,d)
+where v1.d < 5;
+EXPLAIN
+-> Table scan on t1, with pushed condition: (t1.d < 5)
+
+explain format=tree
+select * from
+(select a,b,c,d from t1) as v1(a,b,c,d)
+where v1.d < v1.c;
+EXPLAIN
+-> Table scan on t1, with pushed condition: (t1.d < t1.c)
+
+explain format=tree
+select * from t1,
+(select a,b,c,d from t1) as v1(a,b,c,d)
+where v1.d < 5;
+EXPLAIN
+-> Inner hash join (no condition)
+    -> Table scan on t1
+    -> Hash
+        -> Table scan on t1, with pushed condition: (t1.d < 5)
+
+Warnings:
+Note	1003	Can't push table 't1' as child, 'type' must be a 'ref' access
+drop view v1;
+drop table t1;
+#########################################################
+# WL#14388 Push condition referring fields from an
+SPJ ancestor table
+#########################################################
+create table t1 (
+a int,
+b int,
+c int,
+d int,
+primary key(a,b)
+) engine=ndbcluster;
+insert into t1 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
+(1,2,5,1), (1,3,1,2), (1,4,2,3),
+(2,1,3,4), (2,3,4,5), (2,4,5,1),
+(3,1,1,2), (3,2,2,3), (3,4,3,4),
+(4,1,4,5), (4,2,5,1), (4,3,1,2);
+set optimizer_switch='block_nested_loop=off';
+explain
+select *
+from t1
+straight_join t1 as t2 on t2.d = t1.d
+straight_join t1 as t3 on t3.a = t2.a
+where t3.c >= t1.c and t3.c <= t2.c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	PRIMARY	NULL	NULL	NULL	16	10.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`d` = `test`.`t1`.`d`)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t2.a	1	11.11	Child of 't2' in pushed join@1; Using pushed condition ((`test`.`t3`.`c` >= `test`.`t1`.`c`) and (`test`.`t3`.`c` <= `test`.`t2`.`c`))
+Warnings:
+Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 't3' as child of 't1', column 't2.a' is outside scope of pushable join
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t2`.`d` = `test`.`t1`.`d`) and (`test`.`t3`.`a` = `test`.`t2`.`a`) and (`test`.`t3`.`c` >= `test`.`t1`.`c`) and (`test`.`t3`.`c` <= `test`.`t2`.`c`))
+drop table t1;

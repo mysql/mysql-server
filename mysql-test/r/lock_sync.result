@@ -284,6 +284,16 @@ unlock tables;
 # statement-by-statement).
 Success: 'call p1((select i + 5 from t1 where i = 1))' allows concurrent inserts into 't1'.
 #
+# 2.2 CREATE TABLE with a subquery.
+#
+# Has to take a strong lock on the table being read as
+# this statement is written to the binary log and therefore
+# should be serialized with concurrent statements.
+Success: 'create table t0 select * from t1' doesn't allow concurrent inserts into 't1'.
+drop table t0;
+Success: 'create table t0 select j from t2 where j in (select i from t1)' doesn't allow concurrent inserts into 't1'.
+drop table t0;
+#
 # 2.3 DELETE with a subquery.
 #
 # The above is true for this statement as well.
@@ -650,7 +660,7 @@ DROP TABLE t1, t2;
 CREATE EVENT e1 ON SCHEDULE EVERY 5 HOUR DO SELECT 1;
 CREATE EVENT e2 ON SCHEDULE EVERY 5 HOUR DO SELECT 2;
 # Connection con1
-SET DEBUG_SYNC="before_lock_tables_takes_lock SIGNAL drop WAIT_FOR query";
+SET DEBUG_SYNC="before_lock_dictionary_tables_takes_lock SIGNAL drop WAIT_FOR query";
 # Sending:
 DROP EVENT e1;;
 # Connection default
@@ -769,3 +779,39 @@ SET DEBUG_SYNC="RESET";
 disconnect con1;
 disconnect con2;
 DROP TABLES t1, t2;
+#
+#Bug#18110156: RECREATE+ANALYZE OPTIMIZE TABLE T AND ONLINE
+#              ALTER TABLE T MAY DEADLOCK
+CREATE TABLE t1 (fld1 INT) ENGINE=InnoDB;
+connection con1;
+SET DEBUG_SYNC= 'before_lock_tables_takes_lock SIGNAL before_thr_lock WAIT_FOR do_thr_lock EXECUTE 3';
+SET DEBUG_SYNC= 'ha_admin_open_ltable SIGNAL opti_recreate WAIT_FOR opti_analyze';
+OPTIMIZE TABLE t1;
+connection con2;
+# Skip thr_lock acquisition during the initial phase of OPTIMIZE TABLE
+SET DEBUG_SYNC= 'now WAIT_FOR before_thr_lock';
+SET DEBUG_SYNC= 'now SIGNAL do_thr_lock';
+# Skip thr_lock acquisition during the recreate phase of OPTIMIZE TABLE
+SET DEBUG_SYNC= 'now WAIT_FOR before_thr_lock';
+SET DEBUG_SYNC= 'now SIGNAL do_thr_lock';
+SET DEBUG_SYNC= 'now WAIT_FOR opti_recreate';
+SET DEBUG_SYNC= 'alter_table_inplace_after_lock_downgrade SIGNAL lock_downgraded
+WAIT_FOR finish_alter';
+ALTER TABLE t1 ADD INDEX index1(fld1), ALGORITHM=INPLACE, LOCK=NONE;
+#Without the patch, the test case hangs.
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR lock_downgraded';
+SET DEBUG_SYNC= 'now SIGNAL opti_analyze';
+SET DEBUG_SYNC= 'now WAIT_FOR before_thr_lock';
+SET DEBUG_SYNC= 'now SIGNAL finish_alter';
+SET DEBUG_SYNC= 'now SIGNAL do_thr_lock';
+#Reap: OPTIMIZE TABLE t1
+connection con1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+#Reap: ALTER TABLE t1
+connection con2;
+#Clean up.
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';

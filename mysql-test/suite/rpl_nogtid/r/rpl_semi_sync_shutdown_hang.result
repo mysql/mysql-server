@@ -7,7 +7,7 @@ include/install_semisync.inc
 call mtr.add_suppression("Read semi-sync reply network error");
 call mtr.add_suppression("SEMISYNC: Forced shutdown. Some updates might not be replicated.");
 [connection master]
-SET GLOBAL rpl_semi_sync_master_timeout = 10000000;
+SET GLOBAL rpl_semi_sync_source_timeout = 10000000;
 [connection slave]
 include/stop_slave_io.inc
 [connection master]

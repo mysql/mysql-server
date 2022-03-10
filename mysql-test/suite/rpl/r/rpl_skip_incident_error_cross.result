@@ -14,8 +14,7 @@ SET GLOBAL max_binlog_stmt_cache_size = 4096;
 Warnings:
 Warning	1745	Option binlog_stmt_cache_size (32768) is greater than max_binlog_stmt_cache_size (4096); setting binlog_stmt_cache_size equal to max_binlog_stmt_cache_size.
 SET GLOBAL binlog_stmt_cache_size = 4096;
-SET @save_debug=@@global.debug;
-SET GLOBAL DEBUG='d,simulate_write_incident_event_into_binlog_directly';
+# Adding debug point 'simulate_write_incident_event_into_binlog_directly' to @@GLOBAL.debug
 CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE=MyIsam;
 #
 # A single statement on non-transactional table causes to log an incident
@@ -29,12 +28,12 @@ master-bin.000001	#	Incident	#	#	#1 (LOST_EVENTS)
 master-bin.000001	#	Rotate	#	#	master-bin.000002;pos=POS
 #
 # Verify that we can skip the incident event by setting
-# --slave-skip-errors=1590 on slave.
+# --replica-skip-errors=1590 on slave.
 #
 include/sync_slave_sql_with_master.inc
 [connection master]
 DROP TABLE t1;
-SET GLOBAL DEBUG= @save_debug;
+# Removing debug point 'simulate_write_incident_event_into_binlog_directly' from @@GLOBAL.debug
 SET GLOBAL max_binlog_stmt_cache_size= ORIGINAL_VALUE;
 SET GLOBAL binlog_stmt_cache_size= ORIGINAL_VALUE;
 include/rpl_end.inc

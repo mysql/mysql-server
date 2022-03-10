@@ -70,7 +70,7 @@ include/stop_group_replication.inc
 include/start_slave.inc [FOR CHANNEL 'ch3_2']
 
 # 14. Restart server2(secondary) with group replication start on boot
-# restart:--group-replication-start-on-boot=1 --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_single_primary_mode=1 --group_replication_enforce_update_everywhere_checks=0 --skip-slave-start=0
+# restart:--group-replication-start-on-boot=1 --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_single_primary_mode=1 --group_replication_enforce_update_everywhere_checks=0 --skip-replica-start=0
 include/rpl_reconnect.inc
 
 # 15. Wait for GR to be in ONLINE status
@@ -82,8 +82,8 @@ include/assert.inc [Verify channel ch3_2 IO_THREAD is OFF]
 include/assert.inc [Verify channel ch3_2 SQL_THREAD is OFF]
 
 # 17. Verify occurrence of error message
-Occurrences of 'Can't start slave IO THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member.' in the input file: 3
-Occurrences of 'Can't start slave SQL THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member.' in the input file: 3
+Occurrences of 'Can't start slave IO THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member.' in the input file: 2
+Occurrences of 'Can't start slave SQL THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member.' in the input file: 2
 
 # 18. Cleanup
 [connection server1]
@@ -98,4 +98,9 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 RESET SLAVE ALL FOR CHANNEL '';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+# restart:--group-replication-start-on-boot=OFF --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS
+include/rpl_reconnect.inc
+[connection server1]
+# restart:--group-replication-start-on-boot=OFF --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS
+include/rpl_reconnect.inc
 include/group_replication_end.inc

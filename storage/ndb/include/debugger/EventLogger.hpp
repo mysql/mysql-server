@@ -147,8 +147,10 @@ private:
   EventLogger operator = (const EventLogger&);
   bool operator == (const EventLogger&);
 
-  STATIC_CONST(MAX_TEXT_LENGTH = 384);
+  static constexpr Uint32 MAX_TEXT_LENGTH = 384;
 };
+
+extern EventLogger * g_eventLogger;
 
 extern void getRestartAction(Uint32 action, BaseString &str);
 #endif

@@ -29,6 +29,7 @@
 #include <forward_list>
 #include <list>
 #include <string>
+#include <string_view>
 
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__) || \
     defined(__sun__)
@@ -55,7 +56,6 @@
 
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/stdx/expected.h"
-#include "mysql/harness/stdx/string_view.h"
 
 namespace net {
 
@@ -331,7 +331,7 @@ class NetworkInterfaceResults {
 
 #elif defined(_WIN32)
   static stdx::expected<std::string, std::error_code> convert_wstring_to_utf8(
-      const stdx::wstring_view &ws) {
+      const std::wstring_view &ws) {
     std::string out;
 
     // first, call it with 0 to get the buffer length

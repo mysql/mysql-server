@@ -98,7 +98,7 @@ class Keyring_encryption_test final {
 
   bool test_aes();
 
-  ~Keyring_encryption_test() {}
+  ~Keyring_encryption_test() = default;
 
   bool ok() { return ok_; }
 

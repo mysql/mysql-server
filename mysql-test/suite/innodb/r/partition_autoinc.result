@@ -50,7 +50,9 @@ AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.name;
 LOWER(path)
+./mtr/asserted_test_suppressions.ibd
 ./mtr/global_suppressions.ibd
+./mtr/test_ignored_global_suppressions.ibd
 ./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
 ./test/t1#p#p0.ibd
@@ -88,7 +90,9 @@ AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.name;
 LOWER(path)
+./mtr/asserted_test_suppressions.ibd
 ./mtr/global_suppressions.ibd
+./mtr/test_ignored_global_suppressions.ibd
 ./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
 ./test/t1#p#p0.ibd
@@ -192,7 +196,9 @@ AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.name;
 LOWER(path)
+./mtr/asserted_test_suppressions.ibd
 ./mtr/global_suppressions.ibd
+./mtr/test_ignored_global_suppressions.ibd
 ./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
 ./test/t1#p#p0.ibd
@@ -225,7 +231,9 @@ AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.name;
 LOWER(path)
+./mtr/asserted_test_suppressions.ibd
 ./mtr/global_suppressions.ibd
+./mtr/test_ignored_global_suppressions.ibd
 ./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
 ./test/t1#p#p0.ibd
@@ -258,7 +266,9 @@ AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.name;
 LOWER(path)
+./mtr/asserted_test_suppressions.ibd
 ./mtr/global_suppressions.ibd
+./mtr/test_ignored_global_suppressions.ibd
 ./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
 ./test/t1#p#p0.ibd
@@ -274,7 +284,9 @@ AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.name;
 LOWER(path)
+./mtr/asserted_test_suppressions.ibd
 ./mtr/global_suppressions.ibd
+./mtr/test_ignored_global_suppressions.ibd
 ./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
 ./test/t1#p#p1.ibd
@@ -317,7 +329,9 @@ AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.name;
 LOWER(path)
+./mtr/asserted_test_suppressions.ibd
 ./mtr/global_suppressions.ibd
+./mtr/test_ignored_global_suppressions.ibd
 ./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
 ./test/t1#p#p1.ibd
@@ -368,7 +382,9 @@ AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.name;
 LOWER(path)
+./mtr/asserted_test_suppressions.ibd
 ./mtr/global_suppressions.ibd
+./mtr/test_ignored_global_suppressions.ibd
 ./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
 ./test/t1#p#p0.ibd
@@ -401,7 +417,9 @@ AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.name;
 LOWER(path)
+./mtr/asserted_test_suppressions.ibd
 ./mtr/global_suppressions.ibd
+./mtr/test_ignored_global_suppressions.ibd
 ./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
 ./test/t1#p#p0.ibd
@@ -473,7 +491,9 @@ AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.name;
 LOWER(path)
+./mtr/asserted_test_suppressions.ibd
 ./mtr/global_suppressions.ibd
+./mtr/test_ignored_global_suppressions.ibd
 ./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
 ./test/t1#p#p0.ibd
@@ -516,7 +536,9 @@ AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.name;
 LOWER(path)
+./mtr/asserted_test_suppressions.ibd
 ./mtr/global_suppressions.ibd
+./mtr/test_ignored_global_suppressions.ibd
 ./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
 ./test/t1#p#p0.ibd
@@ -591,7 +613,9 @@ AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.name;
 LOWER(path)
+./mtr/asserted_test_suppressions.ibd
 ./mtr/global_suppressions.ibd
+./mtr/test_ignored_global_suppressions.ibd
 ./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
 ./test/t1#p#p01.ibd
@@ -646,7 +670,9 @@ AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.name;
 LOWER(path)
+./mtr/asserted_test_suppressions.ibd
 ./mtr/global_suppressions.ibd
+./mtr/test_ignored_global_suppressions.ibd
 ./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
 ./test/t1#p#p01.ibd
@@ -708,7 +734,9 @@ AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.name;
 LOWER(path)
+./mtr/asserted_test_suppressions.ibd
 ./mtr/global_suppressions.ibd
+./mtr/test_ignored_global_suppressions.ibd
 ./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
 ./test/t1#p#p01.ibd
@@ -804,7 +832,9 @@ AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.name;
 LOWER(path)
+./mtr/asserted_test_suppressions.ibd
 ./mtr/global_suppressions.ibd
+./mtr/test_ignored_global_suppressions.ibd
 ./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
 ./test/t1#p#p0.ibd
@@ -851,7 +881,9 @@ AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.name;
 LOWER(path)
+./mtr/asserted_test_suppressions.ibd
 ./mtr/global_suppressions.ibd
+./mtr/test_ignored_global_suppressions.ibd
 ./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
 ./test/t1#p#p0.ibd
@@ -962,7 +994,9 @@ AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.name;
 LOWER(path)
+./mtr/asserted_test_suppressions.ibd
 ./mtr/global_suppressions.ibd
+./mtr/test_ignored_global_suppressions.ibd
 ./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
 ./test/t1#p#p0#sp#sp00.ibd
@@ -1033,7 +1067,9 @@ AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.name;
 LOWER(path)
+./mtr/asserted_test_suppressions.ibd
 ./mtr/global_suppressions.ibd
+./mtr/test_ignored_global_suppressions.ibd
 ./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
 ./test/t1#p#p0#sp#sp00.ibd
@@ -1103,7 +1139,9 @@ AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.name;
 LOWER(path)
+./mtr/asserted_test_suppressions.ibd
 ./mtr/global_suppressions.ibd
+./mtr/test_ignored_global_suppressions.ibd
 ./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
 ./test/t1#p#p0#sp#sp00.ibd
@@ -1150,7 +1188,9 @@ AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.name;
 LOWER(path)
+./mtr/asserted_test_suppressions.ibd
 ./mtr/global_suppressions.ibd
+./mtr/test_ignored_global_suppressions.ibd
 ./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
 ./test/t1#p#p1#sp#sp10.ibd

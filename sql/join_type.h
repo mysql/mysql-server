@@ -24,6 +24,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 // Used to describe what kind of join an iterator is executing.
-enum class JoinType { INNER, OUTER, ANTI, SEMI };
+enum class JoinType { INNER, OUTER, ANTI, SEMI, FULL_OUTER };
 
 #endif  // SQL_JOIN_TYPE_H

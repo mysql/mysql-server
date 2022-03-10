@@ -97,7 +97,7 @@ class Spatial_reference_system {
   Spatial_reference_system(const Spatial_reference_system &) = default;
   Spatial_reference_system(Spatial_reference_system &&) = default;
 
-  virtual ~Spatial_reference_system() {}
+  virtual ~Spatial_reference_system() = default;
 
   /**
     Get the type of spatial refrence system: projected, geometric,

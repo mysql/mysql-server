@@ -39,7 +39,7 @@
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/string_utils.h"  // split_string
-#include "mysql_session.h"
+#include "mysqlrouter/mysql_session.h"
 #include "mysqlxclient/xerror.h"
 #include "mysqlxclient/xsession.h"
 #include "plugin/x/client/mysqlxclient/xerror.h"
@@ -53,7 +53,6 @@ using namespace std::chrono_literals;
 
 class SplicerTest : public RouterComponentTest {
  protected:
-  TcpPortPool port_pool_;
   TempDirectory conf_dir_;
   const std::string mock_server_host_{"127.0.0.1"s};
   const std::string router_host_{"127.0.0.1"s};
@@ -79,7 +78,7 @@ TEST_F(SplicerTest, ssl_mode_default_passthrough) {
                mock_server_host_ + ":" + std::to_string(server_port)},
               {"routing_strategy", "round-robin"},
           })},
-      "\n");
+      "");
   SCOPED_TRACE("starting router with config:\n" + config);
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
@@ -105,7 +104,7 @@ TEST_F(SplicerTest, ssl_mode_default_preferred) {
               {"client_ssl_key", valid_ssl_key_},
               {"client_ssl_cert", valid_ssl_cert_},
           })},
-      "\n");
+      "");
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
   launch_router({"-c", conf_file});
@@ -135,7 +134,7 @@ TEST_F(SplicerTest, invalid_metadata) {
     mock_server_args.push_back(arg);
   }
 
-  launch_mysql_server_mock(mock_server_args);
+  launch_mysql_server_mock(mock_server_args, server_port);
 
   SCOPED_TRACE("// start router with TLS enabled");
   auto config = mysql_harness::join(
@@ -161,7 +160,7 @@ TEST_F(SplicerTest, invalid_metadata) {
                   {"metadata_cluster", "test"},
               }),
       },
-      "\n");
+      "");
 
   auto default_section = get_DEFAULT_defaults();
   init_keyring(default_section, conf_dir_.name());
@@ -263,7 +262,7 @@ TEST_P(SplicerFailParamTest, fails) {
   auto config = mysql_harness::join(
       std::vector<std::string>{
           mysql_harness::ConfigBuilder::build_section("routing", cmdline_opts)},
-      "\n");
+      "");
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
   auto &router =
@@ -678,7 +677,7 @@ TEST_P(SplicerConnectParamTest, check) {
       mock_server_cmdline_args.emplace_back(arg.second);
     }
   }
-  launch_mysql_server_mock(mock_server_cmdline_args);
+  launch_mysql_server_mock(mock_server_cmdline_args, server_port);
 
   const std::string destination("localhost:" + std::to_string(server_port));
 
@@ -763,7 +762,7 @@ TEST_P(SplicerConnectParamTest, check) {
   const auto config = mysql_harness::join(
       std::vector<std::string>{
           mysql_harness::ConfigBuilder::build_section("routing", cmdline_opts)},
-      "\n");
+      "");
 
   const auto conf_file = create_config_file(conf_dir_.name(), config);
 
@@ -1852,7 +1851,7 @@ TEST_F(SplicerTest, classic_protocol_default_preferred_as_client) {
               {"client_ssl_key", valid_ssl_key_},
               {"client_ssl_cert", valid_ssl_cert_},
           })},
-      "\n");
+      "");
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
   launch_router({"-c", conf_file});
@@ -1914,7 +1913,7 @@ TEST_P(SplicerParamTest, classic_protocol) {
     }
   }
 
-  launch_mysql_server_mock(mock_server_cmdline_args);
+  launch_mysql_server_mock(mock_server_cmdline_args, server_port);
 
   const std::string destination(mock_server_host_ + ":" +
                                 std::to_string(server_port));
@@ -1935,7 +1934,7 @@ TEST_P(SplicerParamTest, classic_protocol) {
               {"server_ssl_mode",
                ssl_mode_to_string(GetParam().server_ssl_mode)},
           })},
-      "\n");
+      "");
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
   launch_router({"-c", conf_file});
@@ -1969,6 +1968,7 @@ TEST_P(SplicerParamTest, classic_protocol) {
 
     try {
       const auto row = sess.query_one("show status like 'ssl_cipher'");
+      ASSERT_TRUE(row) << "<show status like 'ssl_cipher'> returned no row";
       ASSERT_EQ(row->size(), 2);
 
       if (GetParam().expect_server_encrypted) {
@@ -2050,7 +2050,7 @@ TEST_P(SplicerParamTest, xproto) {
     }
   }
 
-  launch_mysql_server_mock(mock_server_cmdline_args);
+  launch_mysql_server_mock(mock_server_cmdline_args, server_port);
 
   const std::string destination(mock_server_host_ + ":" +
                                 std::to_string(server_port_x));
@@ -2072,7 +2072,7 @@ TEST_P(SplicerParamTest, xproto) {
                ssl_mode_to_string(GetParam().server_ssl_mode)},
               {"protocol", "x"},
           })},
-      "\n");
+      "");
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
   launch_router({"-c", conf_file});
@@ -2151,7 +2151,8 @@ TEST_P(SplicerParamTest, xproto) {
       if (!result->has_resultset()) {
         FAIL() << xerr.what();
       } else {
-        const auto row = result->get_next_row();
+        const auto row = result->get_next_row(&xerr);
+        ASSERT_TRUE(row) << xerr;
         std::string field;
         ASSERT_TRUE(row->get_string(1, &field));
 

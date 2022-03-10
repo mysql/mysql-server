@@ -16,7 +16,10 @@
 # 5. Clean-up
 #######################################################################################
 
+--source include/have_group_replication_xcom_communication_stack.inc
 --source include/big_test.inc
+--source include/force_restart.inc
+
 --let $group_replication_group_name= aaaaaaaa-cccc-bbbb-cccc-aaaaaaaaaaaa
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
@@ -29,7 +32,7 @@
 
 --sleep 30
 
---let $gr_var_count= 58
+--let $gr_var_count= 61
 --echo
 --echo # Test#1: Basic check that there are $gr_var_count GR variables.
 
@@ -84,6 +87,8 @@
 --let $saved_gr_clone_threshold = `SELECT @@GLOBAL.group_replication_clone_threshold`
 --let $saved_gr_recovery_tls_version = `SELECT @@GLOBAL.group_replication_recovery_tls_version`
 --let $saved_gr_recovery_tls_ciphersuites = `SELECT @@GLOBAL.group_replication_recovery_tls_ciphersuites`
+--let $saved_gr_view_change_uuid = `SELECT @@GLOBAL.group_replication_view_change_uuid`
+--let $saved_gr_paxos_single_leader = `SELECT @@GLOBAL.group_replication_paxos_single_leader`
 --enable_query_log
 
 
@@ -175,6 +180,10 @@ SET @@SESSION.group_replication_clone_threshold= 1;
 SET @@SESSION.group_replication_recovery_tls_version= "";
 --error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_recovery_tls_ciphersuites= "";
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_view_change_uuid= "AUTOMATIC";
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_paxos_single_leader= 1;
 
 # Set values to GLOBAL GR variables to test further.
 --disable_query_log
@@ -198,7 +207,6 @@ eval SET GLOBAL group_replication_recovery_ssl_ca= '$MYSQL_TEST_DIR/std_data/cac
 eval SET GLOBAL group_replication_recovery_ssl_capath= '';
 eval SET GLOBAL group_replication_recovery_ssl_cert= '$MYSQL_TEST_DIR/std_data/client-cert.pem';
 SET GLOBAL group_replication_recovery_ssl_cipher= 'DHE-RSA-AES256-SHA';
-SET GLOBAL group_replication_recovery_ssl_crl= 'crl-client-revoked.crl';
 eval SET GLOBAL group_replication_recovery_ssl_crlpath= '';
 eval SET GLOBAL group_replication_recovery_ssl_key= '$MYSQL_TEST_DIR/std_data/client-key.pem';
 SET GLOBAl group_replication_recovery_ssl_verify_server_cert= ON;
@@ -221,6 +229,8 @@ SET GLOBAL group_replication_message_cache_size= 2000000000;
 SET GLOBAL group_replication_clone_threshold= 1;
 SET GLOBAL group_replication_recovery_tls_version= "";
 SET GLOBAL group_replication_recovery_tls_ciphersuites= "";
+SET GLOBAL group_replication_view_change_uuid= "aaaaaaaa-cccc-bbbb-dddd-eeeeeeeeeeee";
+SET GLOBAL group_replication_paxos_single_leader= 1;
 --enable_query_log
 
 
@@ -238,6 +248,10 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --echo # Test#4: Verify GLOBAL and SESSION variables
 # Start GR
 --source include/start_group_replication.inc
+
+# Setting this value after start to avoid conflixts when using MySQL stack.
+SET GLOBAL group_replication_recovery_ssl_crl= 'crl-client-revoked.crl';
+SET GLOBAL group_replication_recovery_tls_ciphersuites= "";
 
 # Assert the values of the variables set
 # group_replication_allow_local_lower_version_join
@@ -971,6 +985,27 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_recovery_tls_ciphersuites\', VARIABLE_VALUE, 1]" = ""
 --source include/assert.inc
 
+--let $assert_text= Verify SESSION value of group_replication_view_change_uuid
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_view_change_uuid\', VARIABLE_VALUE, 1]" = "aaaaaaaa-cccc-bbbb-dddd-eeeeeeeeeeee"
+--source include/assert.inc
+
+# group_replication_paxos_single_leader
+--let $assert_text= Verify GLOBAL value of group_replication_paxos_single_leader
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_paxos_single_leader\', Value, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_paxos_single_leader
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_paxos_single_leader\', VARIABLE_VALUE, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_paxos_single_leader
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_paxos_single_leader\', Value, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_paxos_single_leader
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_paxos_single_leader\', VARIABLE_VALUE, 1]" = "ON"
+--source include/assert.inc
+
 --echo
 --echo # Clean up
 --source include/stop_group_replication.inc
@@ -1020,7 +1055,11 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --eval SET @@GLOBAL.group_replication_clone_threshold= $saved_gr_clone_threshold
 --eval SET @@GLOBAL.group_replication_recovery_tls_version= "$saved_gr_recovery_tls_version"
 --eval SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= "$saved_gr_recovery_tls_ciphersuites"
+--eval SET @@GLOBAL.group_replication_view_change_uuid= "$saved_gr_view_change_uuid"
+--eval SET @@GLOBAL.group_replication_paxos_single_leader= $saved_gr_paxos_single_leader
 --enable_query_log
+
+
 
 --source include/group_replication_end.inc
 

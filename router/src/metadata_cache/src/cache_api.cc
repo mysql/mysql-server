@@ -22,6 +22,13 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <chrono>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <stdexcept>
+#include <string>
+
 #include "metadata_cache_ar.h"
 #include "metadata_cache_gr.h"
 #include "metadata_factory.h"
@@ -29,40 +36,15 @@
 
 #include "cluster_metadata.h"
 
-#include <map>
-#include <memory>
-#include <stdexcept>
-
 // routing's destination_* and the metadata-cache plugin itself
 // may work on the cache in parallel.
 static std::mutex g_metadata_cache_m;
 static std::unique_ptr<MetadataCache> g_metadata_cache(nullptr);
 
-using namespace std::chrono_literals;
-
 namespace metadata_cache {
 
-const uint16_t kDefaultMetadataPort{32275};
-const std::chrono::milliseconds kDefaultMetadataTTL{500ms};
-const std::chrono::milliseconds kDefaultAuthCacheTTL{-1s};
-const std::chrono::milliseconds kDefaultAuthCacheRefreshInterval{2000ms};
-const std::string kDefaultMetadataAddress{
-    "127.0.0.1:" + mysqlrouter::to_string(kDefaultMetadataPort)};
-const std::string kDefaultMetadataUser{""};
-const std::string kDefaultMetadataPassword{""};
-const std::string kDefaultMetadataCluster{""};
-// blank cluster name means pick the 1st (and only) cluster
-const unsigned int kDefaultConnectTimeout{30};
-const unsigned int kDefaultReadTimeout{30};
-
-const std::string kNodeTagHidden{"_hidden"};
-const std::string kNodeTagDisconnectWhenHidden{
-    "_disconnect_existing_sessions_when_hidden"};
-const bool kNodeTagHiddenDefault{false};
-const bool kNodeTagDisconnectWhenHiddenDefault{true};
-
-ReplicasetStateListenerInterface::~ReplicasetStateListenerInterface() = default;
-ReplicasetStateNotifierInterface::~ReplicasetStateNotifierInterface() = default;
+ClusterStateListenerInterface::~ClusterStateListenerInterface() = default;
+ClusterStateNotifierInterface::~ClusterStateNotifierInterface() = default;
 
 MetadataCacheAPIBase *MetadataCacheAPI::instance() {
   static MetadataCacheAPI instance_;
@@ -83,19 +65,14 @@ MetadataCacheAPIBase *MetadataCacheAPI::instance() {
  * @param router_id id of the router in the cluster metadata
  * @param cluster_type_specific_id (id of the replication group for GR,
  * cluster_id for ReplicaSet)
+ * @param clusterset_id UUID of the ClusterSet the Cluster belongs to (if
+ * bootstrapped as a ClusterSet, empty otherwise)
  * @param metadata_servers The list of cluster metadata servers
- * @param user_credentials The user name and password used to connect to the
- * metadata servers.
- * @param ttl The ttl for the contents of the cache
- * @param auth_cache_ttl TTL of the rest user authentication data
- * @param auth_cache_refresh_interval Refresh rate of the rest user
- *                                    authentication data
+ * @param ttl_config metadata TTL configuration
  * @param ssl_options SSL related options for connections
- * @param cluster_name The name of the cluster from the metadata schema
- * @param connect_timeout The time in seconds after which trying to connect
- *                        to metadata server timeouts
- * @param read_timeout The time in seconds after which read from metadata
- *                     server should timeout.
+ * @param target_cluster object identifying the Cluster this operation refers to
+ * @param session_config Metadata MySQL session configuration
+ * @param router_attributes Router attributes to be registered in the metadata
  * @param thread_stack_size memory in kilobytes allocated for thread's stack
  * @param use_cluster_notifications Flag indicating if the metadata cache should
  *                             use cluster notifications as an additional
@@ -107,32 +84,33 @@ MetadataCacheAPIBase *MetadataCacheAPI::instance() {
 void MetadataCacheAPI::cache_init(
     const mysqlrouter::ClusterType cluster_type, const unsigned router_id,
     const std::string &cluster_type_specific_id,
-    const std::vector<mysql_harness::TCPAddress> &metadata_servers,
-    const mysqlrouter::UserCredentials &user_credentials,
-    const std::chrono::milliseconds ttl,
-    const std::chrono::milliseconds auth_cache_ttl,
-    const std::chrono::milliseconds auth_cache_refresh_interval,
-    const mysqlrouter::SSLOptions &ssl_options, const std::string &cluster_name,
-    int connect_timeout, int read_timeout, size_t thread_stack_size,
-    bool use_cluster_notifications, const unsigned view_id) {
+    const std::string &clusterset_id,
+    const metadata_servers_list_t &metadata_servers,
+    const MetadataCacheTTLConfig &ttl_config,
+    const mysqlrouter::SSLOptions &ssl_options,
+    const mysqlrouter::TargetCluster &target_cluster,
+    const MetadataCacheMySQLSessionConfig &session_config,
+    const metadata_cache::RouterAttributes &router_attributes,
+    size_t thread_stack_size, bool use_cluster_notifications,
+    const uint64_t view_id) {
   std::lock_guard<std::mutex> lock(g_metadata_cache_m);
 
-  if (cluster_type == mysqlrouter::ClusterType::RS_V2) {
-    g_metadata_cache.reset(new ARMetadataCache(
-        router_id, cluster_type_specific_id, metadata_servers,
-        get_instance(cluster_type, user_credentials.username,
-                     user_credentials.password, connect_timeout, read_timeout,
-                     1, ssl_options, use_cluster_notifications, view_id),
-        ttl, auth_cache_ttl, auth_cache_refresh_interval, ssl_options,
-        cluster_name, thread_stack_size));
-  } else {
-    g_metadata_cache.reset(new GRMetadataCache(
-        router_id, cluster_type_specific_id, metadata_servers,
-        get_instance(cluster_type, user_credentials.username,
-                     user_credentials.password, connect_timeout, read_timeout,
-                     1, ssl_options, use_cluster_notifications, view_id),
-        ttl, auth_cache_ttl, auth_cache_refresh_interval, ssl_options,
-        cluster_name, thread_stack_size, use_cluster_notifications));
+  switch (cluster_type) {
+    case mysqlrouter::ClusterType::RS_V2:
+      g_metadata_cache.reset(new ARMetadataCache(
+          router_id, cluster_type_specific_id, metadata_servers,
+          get_instance(cluster_type, session_config, ssl_options,
+                       use_cluster_notifications, view_id),
+          ttl_config, ssl_options, target_cluster, router_attributes,
+          thread_stack_size));
+      break;
+    default:
+      g_metadata_cache.reset(new GRMetadataCache(
+          router_id, cluster_type_specific_id, clusterset_id, metadata_servers,
+          get_instance(cluster_type, session_config, ssl_options,
+                       use_cluster_notifications, view_id),
+          ttl_config, ssl_options, target_cluster, router_attributes,
+          thread_stack_size, use_cluster_notifications));
   }
 
   is_initialized_ = true;
@@ -152,8 +130,8 @@ std::string MetadataCacheAPI::cluster_type_specific_id() const {
   return g_metadata_cache->cluster_type_specific_id();
 }
 
-std::string MetadataCacheAPI::cluster_name() const {
-  return g_metadata_cache->cluster_name();
+mysqlrouter::TargetCluster MetadataCacheAPI::target_cluster() const {
+  return g_metadata_cache->target_cluster();
 }
 
 std::chrono::milliseconds MetadataCacheAPI::ttl() const {
@@ -184,22 +162,19 @@ void MetadataCacheAPI::cache_stop() noexcept {
 }
 
 /**
- * Lookup the servers that belong to the given replicaset.
+ * Lookup the servers that belong to the cluster.
  *
- * @param replicaset_name The name of the replicaset whose servers need
- *                      to be looked up.
  *
  * @return An object that encapsulates a list of managed MySQL servers.
  *
  */
-LookupResult MetadataCacheAPI::lookup_replicaset(
-    const std::string &replicaset_name) {
+LookupResult MetadataCacheAPI::get_cluster_nodes() {
   // We only want to keep the lock when checking if the metadata cache global is
   // initialized. The object itself protects its shared state in its
   // replicaset_lookup.
   { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
 
-  return LookupResult(g_metadata_cache->replicaset_lookup(replicaset_name));
+  return LookupResult(g_metadata_cache->get_cluster_nodes());
 }
 
 void MetadataCacheAPI::mark_instance_reachability(
@@ -210,51 +185,47 @@ void MetadataCacheAPI::mark_instance_reachability(
 }
 
 bool MetadataCacheAPI::wait_primary_failover(
-    const std::string &replicaset_name, const std::string &primary_server_uuid,
+    const std::string &primary_server_uuid,
     const std::chrono::seconds &timeout) {
   { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
 
-  return g_metadata_cache->wait_primary_failover(replicaset_name,
-                                                 primary_server_uuid, timeout);
+  return g_metadata_cache->wait_primary_failover(primary_server_uuid, timeout);
 }
 
 void MetadataCacheAPI::add_state_listener(
-    const std::string &replicaset_name,
-    ReplicasetStateListenerInterface *listener) {
+    ClusterStateListenerInterface *listener) {
   // We only want to keep the lock when checking if the metadata cache global is
   // initialized. The object itself protects its shared state in its
   // add_state_listener.
   { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
-  g_metadata_cache->add_state_listener(replicaset_name, listener);
+  g_metadata_cache->add_state_listener(listener);
 }
+
 void MetadataCacheAPI::remove_state_listener(
-    const std::string &replicaset_name,
-    ReplicasetStateListenerInterface *listener) {
+    ClusterStateListenerInterface *listener) {
   // We only want to keep the lock when checking if the metadata cache global is
   // initialized. The object itself protects its shared state in its
   // remove_state_listener.
   { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
-  g_metadata_cache->remove_state_listener(replicaset_name, listener);
+  g_metadata_cache->remove_state_listener(listener);
 }
 
 void MetadataCacheAPI::add_acceptor_handler_listener(
-    const std::string &replicaset_name,
     AcceptorUpdateHandlerInterface *listener) {
   // We only want to keep the lock when checking if the metadata cache global is
   // initialized. The object itself protects its shared state in its
   // add_acceptor_handler_listener.
   { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
-  g_metadata_cache->add_acceptor_handler_listener(replicaset_name, listener);
+  g_metadata_cache->add_acceptor_handler_listener(listener);
 }
 
 void MetadataCacheAPI::remove_acceptor_handler_listener(
-    const std::string &replicaset_name,
     AcceptorUpdateHandlerInterface *listener) {
   // We only want to keep the lock when checking if the metadata cache global is
   // initialized. The object itself protects its shared state in its
   // remove_acceptor_handler_listener.
   { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
-  g_metadata_cache->remove_acceptor_handler_listener(replicaset_name, listener);
+  g_metadata_cache->remove_acceptor_handler_listener(listener);
 }
 
 MetadataCacheAPI::RefreshStatus MetadataCacheAPI::get_refresh_status() {

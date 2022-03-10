@@ -237,9 +237,10 @@ static struct my_option my_help_command_options[] = {
      0, nullptr, 0, nullptr}};
 
 extern "C" {
-static bool my_program_get_one_option(
-    int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
-    char *argument MY_ATTRIBUTE((unused))) {
+static bool my_program_get_one_option(int optid,
+                                      const struct my_option *opt
+                                      [[maybe_unused]],
+                                      char *argument [[maybe_unused]]) {
   switch (optid) {
     case '#':
       DBUG_PUSH(argument ? argument : "d:t:o,/tmp/mysql_config_editor.trace");

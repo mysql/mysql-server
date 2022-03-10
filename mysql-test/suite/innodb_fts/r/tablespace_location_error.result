@@ -5,7 +5,9 @@ ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage 
 SET DEBUG = '-d,ib_fts_aux_table_error';
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 # list files in datadir/test
 SET DEBUG = '+d,ib_fts_index_table_error';
@@ -14,13 +16,17 @@ ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage 
 SET DEBUG = '-d,ib_fts_index_table_error';
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 # list files in datadir/test
 CREATE TABLE t1 (id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, title VARCHAR(200)) ENGINE=InnoDB ;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/t1	test/t1	33	5	Dynamic	0	Single
 # list files in datadir/test
@@ -31,7 +37,9 @@ ERROR HY000: Got error 11 - 'InnoDB error' from storage engine
 SET DEBUG = '-d,ib_fts_aux_table_error';
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/t1	test/t1	33	5	Dynamic	0	Single
 # list files in datadir/test
@@ -42,7 +50,9 @@ ERROR HY000: Got error 1000 - 'InnoDB error' from storage engine
 SET DEBUG = '-d,ib_fts_index_table_error';
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/t1	test/t1	33	5	Dynamic	0	Single
 # list files in datadir/test
@@ -64,7 +74,9 @@ c
 3
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	test/fts_aux_index_1	33	8	Dynamic	0	Single
 test/fts_aux_index_2	test/fts_aux_index_2	33	8	Dynamic	0	Single
@@ -97,7 +109,9 @@ ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage 
 SET DEBUG = '-d,ib_fts_aux_table_error';
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	test/fts_aux_index_1	33	8	Dynamic	0	Single
 test/fts_aux_index_2	test/fts_aux_index_2	33	8	Dynamic	0	Single
@@ -130,7 +144,9 @@ ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage 
 SET DEBUG = '-d,ib_fts_index_table_error';
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	test/fts_aux_index_1	33	8	Dynamic	0	Single
 test/fts_aux_index_2	test/fts_aux_index_2	33	8	Dynamic	0	Single
@@ -162,7 +178,9 @@ ALTER TABLE t1 DROP INDEX fts_idx, ADD FULLTEXT INDEX fts_idx(a,b);
 SET DEBUG = '-d,ib_fts_aux_table_error';
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	test/fts_aux_index_1	33	8	Dynamic	0	Single
 test/fts_aux_index_2	test/fts_aux_index_2	33	8	Dynamic	0	Single
@@ -195,7 +213,9 @@ ERROR HY000: Got error 1000 - 'InnoDB error' from storage engine
 SET DEBUG = '-d,ib_fts_index_table_error';
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	test/fts_aux_index_1	33	8	Dynamic	0	Single
 test/fts_aux_index_2	test/fts_aux_index_2	33	8	Dynamic	0	Single
@@ -226,12 +246,16 @@ DROP TABLE t1;
 CREATE TABLESPACE s_def ADD DATAFILE 's_def.ibd';
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/asserted_test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 s_def	General	DEFAULT	0	1	1	Any	s_def.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+mtr/asserted_test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/asserted_test_suppressions	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_ignored_global_suppressions	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 s_def	TABLESPACE	InnoDB	NORMAL	s_def	MYSQLD_DATADIR/s_def.ibd
 # Test with TABLESPACE
@@ -241,7 +265,9 @@ ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage 
 SET DEBUG = '-d,ib_fts_aux_table_error';
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 # list files in datadir/test
 SET DEBUG = '+d,ib_fts_index_table_error';
@@ -250,13 +276,17 @@ ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage 
 SET DEBUG = '-d,ib_fts_index_table_error';
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 # list files in datadir/test
 CREATE TABLE t1 (id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, title VARCHAR(200)) ENGINE=InnoDB TABLESPACE=s_def;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/t1	s_def	161	5	Dynamic	0	General
 # list files in datadir/test
@@ -266,7 +296,9 @@ ERROR HY000: Got error 11 - 'InnoDB error' from storage engine
 SET DEBUG = '-d,ib_fts_aux_table_error';
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/t1	s_def	161	5	Dynamic	0	General
 # list files in datadir/test
@@ -276,7 +308,9 @@ ERROR HY000: Got error 1000 - 'InnoDB error' from storage engine
 SET DEBUG = '-d,ib_fts_index_table_error';
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/t1	s_def	161	5	Dynamic	0	General
 # list files in datadir/test
@@ -297,7 +331,9 @@ c
 3
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	s_def	161	8	Dynamic	0	General
 test/fts_aux_index_2	s_def	161	8	Dynamic	0	General
@@ -318,7 +354,9 @@ ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage 
 SET DEBUG = '-d,ib_fts_aux_table_error';
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	s_def	161	8	Dynamic	0	General
 test/fts_aux_index_2	s_def	161	8	Dynamic	0	General
@@ -339,7 +377,9 @@ ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage 
 SET DEBUG = '-d,ib_fts_index_table_error';
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	s_def	161	8	Dynamic	0	General
 test/fts_aux_index_2	s_def	161	8	Dynamic	0	General
@@ -359,7 +399,9 @@ ALTER TABLE t1 DROP INDEX fts_idx, ADD FULLTEXT INDEX fts_idx(a,b);
 SET DEBUG = '-d,ib_fts_aux_table_error';
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	s_def	161	8	Dynamic	0	General
 test/fts_aux_index_2	s_def	161	8	Dynamic	0	General
@@ -380,7 +422,9 @@ ERROR HY000: Got error 1000 - 'InnoDB error' from storage engine
 SET DEBUG = '-d,ib_fts_index_table_error';
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	s_def	161	8	Dynamic	0	General
 test/fts_aux_index_2	s_def	161	8	Dynamic	0	General

@@ -369,7 +369,7 @@ CODE_STATE **my_thread_var_dbug() {
   EXCEPTION_BREAKPOINT and then handle_segfault will do its magic.
 */
 
-static void my_sigabrt_handler(int sig) { __debugbreak(); }
+static void my_sigabrt_handler(int sig [[maybe_unused]]) { __debugbreak(); }
 
 static void install_sigabrt_handler() {
   /*abort() should not override our exception filter*/

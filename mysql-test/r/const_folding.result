@@ -28787,11 +28787,9 @@ INSERT INTO t VALUES (18446744073709551.3);
 ANALYZE TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
-0x constant too large; gets truncated to 0xFFFFFFFFFFFFFFFF
-i.e. 18446744073709551615.
+0x constant too large; gets truncated to zero
 SELECT * FROM t WHERE d <= 0x1FFFFFFFFFFFFFFFF;
 d
-18446744073709551.300000000000000000000000000000
 Warnings:
 Warning	1292	Truncated incorrect BINARY value: 'x'01ffffffffffffffff''
 EXPLAIN SELECT * FROM t WHERE d <= 0x1FFFFFFFFFFFFFFFF;
@@ -28799,7 +28797,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Warning	1292	Truncated incorrect BINARY value: 'x'01ffffffffffffffff''
-Note	1003	/* select#1 */ select `test`.`t`.`d` AS `d` from `test`.`t` where (`test`.`t`.`d` <= 18446744073709551615.000000000000000000000000000000)
+Note	1003	/* select#1 */ select `test`.`t`.`d` AS `d` from `test`.`t` where (`test`.`t`.`d` <= 0.000000000000000000000000000000)
 0x constant within bounds, expect to warnings
 SELECT * FROM t WHERE d > 0x7FFFFFFFFFFFFFFF;
 d
@@ -29270,11 +29268,9 @@ INSERT INTO t VALUES (18446744073709551.3);
 ANALYZE TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
-0x constant too large; gets truncated to 0xFFFFFFFFFFFFFFFF
-i.e. 18446744073709551615.
+0x constant too large; gets truncated to zero
 SELECT * FROM t WHERE d <= 0x1FFFFFFFFFFFFFFFF;
 d
-18446744073709551.300000000000000000000000000000
 Warnings:
 Warning	1292	Truncated incorrect BINARY value: 'x'01ffffffffffffffff''
 EXPLAIN SELECT * FROM t WHERE d <= 0x1FFFFFFFFFFFFFFFF;
@@ -29282,7 +29278,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Warning	1292	Truncated incorrect BINARY value: 'x'01ffffffffffffffff''
-Note	1003	/* select#1 */ select `test`.`t`.`d` AS `d` from `test`.`t` where (`test`.`t`.`d` <= 18446744073709551615.000000000000000000000000000000)
+Note	1003	/* select#1 */ select `test`.`t`.`d` AS `d` from `test`.`t` where (`test`.`t`.`d` <= 0.000000000000000000000000000000)
 0x constant within bounds, expect to warnings
 SELECT * FROM t WHERE d > 0x7FFFFFFFFFFFFFFF;
 d

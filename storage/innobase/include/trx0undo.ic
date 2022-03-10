@@ -77,8 +77,8 @@ inline void trx_undo_decode_roll_ptr(
 
 /** Returns TRUE if the roll pointer is of the insert type.
  @return true if insert undo log */
-UNIV_INLINE
-ibool trx_undo_roll_ptr_is_insert(roll_ptr_t roll_ptr) /*!< in: roll pointer */
+static inline ibool trx_undo_roll_ptr_is_insert(
+    roll_ptr_t roll_ptr) /*!< in: roll pointer */
 {
   ut_ad(roll_ptr < (1ULL << 56));
   return ((ibool)(roll_ptr >> 55));
@@ -86,8 +86,7 @@ ibool trx_undo_roll_ptr_is_insert(roll_ptr_t roll_ptr) /*!< in: roll pointer */
 
 /** Returns true if the record is of the insert type.
  @return true if the record was freshly inserted (not updated). */
-UNIV_INLINE
-bool trx_undo_trx_id_is_insert(
+static inline bool trx_undo_trx_id_is_insert(
     const byte *trx_id) /*!< in: DB_TRX_ID, followed by DB_ROLL_PTR */
 {
   return (static_cast<bool>(trx_id[DATA_TRX_ID_LEN] >> 7));
@@ -97,10 +96,9 @@ bool trx_undo_trx_id_is_insert(
 /** Writes a roll ptr to an index page. In case that the size changes in
  some future version, this function should be used instead of
  mach_write_... */
-UNIV_INLINE
-void trx_write_roll_ptr(byte *ptr,           /*!< in: pointer to memory where
-                                             written */
-                        roll_ptr_t roll_ptr) /*!< in: roll ptr */
+static inline void trx_write_roll_ptr(byte *ptr, /*!< in: pointer to memory
+                                                 where written */
+                                      roll_ptr_t roll_ptr) /*!< in: roll ptr */
 {
   mach_write_to_7(ptr, roll_ptr);
 }
@@ -109,8 +107,7 @@ void trx_write_roll_ptr(byte *ptr,           /*!< in: pointer to memory where
  changes in some future version, this function should be used instead of
  mach_read_...
  @return roll ptr */
-UNIV_INLINE
-roll_ptr_t trx_read_roll_ptr(
+static inline roll_ptr_t trx_read_roll_ptr(
     const byte *ptr) /*!< in: pointer to memory from where to read */
 {
   return (mach_read_from_7(ptr));
@@ -123,9 +120,9 @@ roll_ptr_t trx_read_roll_ptr(
 @param[in]	page_size	Page size
 @param[in,out]	mtr		Mini-transaction
 @return pointer to page x-latched */
-UNIV_INLINE
-page_t *trx_undo_page_get(const page_id_t &page_id,
-                          const page_size_t &page_size, mtr_t *mtr) {
+static inline page_t *trx_undo_page_get(const page_id_t &page_id,
+                                        const page_size_t &page_size,
+                                        mtr_t *mtr) {
   buf_block_t *block = buf_page_get(page_id, page_size, RW_X_LATCH, mtr);
   buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
 
@@ -137,9 +134,9 @@ page_t *trx_undo_page_get(const page_id_t &page_id,
 @param[in]	page_size	Page size
 @param[in,out]	mtr		Mini-transaction
 @return pointer to page s-latched */
-UNIV_INLINE
-page_t *trx_undo_page_get_s_latched(const page_id_t &page_id,
-                                    const page_size_t &page_size, mtr_t *mtr) {
+static inline page_t *trx_undo_page_get_s_latched(const page_id_t &page_id,
+                                                  const page_size_t &page_size,
+                                                  mtr_t *mtr) {
   buf_block_t *block = buf_page_get(page_id, page_size, RW_S_LATCH, mtr);
   buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
 
@@ -149,8 +146,7 @@ page_t *trx_undo_page_get_s_latched(const page_id_t &page_id,
 /** Returns the start offset of the undo log records of the specified undo
  log on the page.
  @return start offset */
-UNIV_INLINE
-ulint trx_undo_page_get_start(
+static inline ulint trx_undo_page_get_start(
     page_t *undo_page, /*!< in: undo log page */
     page_no_t page_no, /*!< in: undo log header page number */
     ulint offset)      /*!< in: undo log header offset on page */
@@ -169,8 +165,7 @@ ulint trx_undo_page_get_start(
 /** Returns the end offset of the undo log records of the specified undo
  log on the page.
  @return end offset */
-UNIV_INLINE
-ulint trx_undo_page_get_end(
+static inline ulint trx_undo_page_get_end(
     page_t *undo_page, /*!< in: undo log page */
     page_no_t page_no, /*!< in: undo log header page number */
     ulint offset)      /*!< in: undo log header offset on page */
@@ -197,8 +192,7 @@ ulint trx_undo_page_get_end(
 /** Returns the previous undo record on the page in the specified log, or
  NULL if none exists.
  @return pointer to record, NULL if none */
-UNIV_INLINE
-trx_undo_rec_t *trx_undo_page_get_prev_rec(
+static inline trx_undo_rec_t *trx_undo_page_get_prev_rec(
     trx_undo_rec_t *rec, /*!< in: undo log record */
     page_no_t page_no,   /*!< in: undo log header page number */
     ulint offset)        /*!< in: undo log header offset on page */
@@ -220,8 +214,7 @@ trx_undo_rec_t *trx_undo_page_get_prev_rec(
 /** Returns the next undo log record on the page in the specified log, or
  NULL if none exists.
  @return pointer to record, NULL if none */
-UNIV_INLINE
-trx_undo_rec_t *trx_undo_page_get_next_rec(
+static inline trx_undo_rec_t *trx_undo_page_get_next_rec(
     trx_undo_rec_t *rec, /*!< in: undo log record */
     page_no_t page_no,   /*!< in: undo log header page number */
     ulint offset)        /*!< in: undo log header offset on page */
@@ -246,8 +239,7 @@ trx_undo_rec_t *trx_undo_page_get_next_rec(
 /** Returns the last undo record on the page in the specified undo log, or
  NULL if none exists.
  @return pointer to record, NULL if none */
-UNIV_INLINE
-trx_undo_rec_t *trx_undo_page_get_last_rec(
+static inline trx_undo_rec_t *trx_undo_page_get_last_rec(
     page_t *undo_page, /*!< in: undo log page */
     page_no_t page_no, /*!< in: undo log header page number */
     ulint offset)      /*!< in: undo log header offset on page */
@@ -268,8 +260,7 @@ trx_undo_rec_t *trx_undo_page_get_last_rec(
 /** Returns the first undo record on the page in the specified undo log, or
  NULL if none exists.
  @return pointer to record, NULL if none */
-UNIV_INLINE
-trx_undo_rec_t *trx_undo_page_get_first_rec(
+static inline trx_undo_rec_t *trx_undo_page_get_first_rec(
     page_t *undo_page, /*!< in: undo log page */
     page_no_t page_no, /*!< in: undo log header page number */
     ulint offset)      /*!< in: undo log header offset on page */

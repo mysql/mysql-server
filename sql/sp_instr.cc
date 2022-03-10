@@ -211,7 +211,7 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_CSTRING query_str) {
   qbuf.length(0);
   const char *cur = query_str.str;
   int prev_pos = 0;
-  bool res = 0;
+  bool res = false;
   thd->query_name_consts = 0;
 
   for (Item_splocal **splocal = sp_vars_uses.begin();
@@ -565,7 +565,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
   cleanup_before_parsing(thd);
 
   // Cleanup and re-init the lex mem_root for re-parse.
-  free_root(&m_lex_mem_root, MYF(0));
+  m_lex_mem_root.Clear();
   init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_lex_mem_root, MEM_ROOT_BLOCK_SIZE,
                  MEM_ROOT_PREALLOC);
 
@@ -682,8 +682,6 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
 bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
                                                  bool open_tables) {
   Reprepare_observer reprepare_observer;
-  int reprepare_attempt = 0;
-  const int MAX_REPREPARE_ATTEMPTS = 3;
 
   while (true) {
     DBUG_EXECUTE_IF("simulate_bug18831513", { invalidate(); });
@@ -749,13 +747,11 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
       return true;
 
     /*
-      We take only 3 attempts to reprepare the query, otherwise we might end
-      up in the endless loop.
+      Reprepare_observer ensures that the statement is retried a maximum number
+      of times, to avoid an endless loop.
     */
     assert(stmt_reprepare_observer->is_invalidated());
-    if ((reprepare_attempt++ >= MAX_REPREPARE_ATTEMPTS) ||
-        DBUG_EVALUATE_IF("simulate_max_reprepare_attempts_hit_case", true,
-                         false)) {
+    if (!stmt_reprepare_observer->can_retry()) {
       /*
         Reprepare_observer sets error status in DA but Sql_condition is not
         added. Please check Reprepare_observer::report_error(). Pushing
@@ -1711,16 +1707,16 @@ bool sp_instr_set_case_expr::exec_core(THD *thd, uint *nextp) {
 
   sp_rcontext *rctx = thd->sp_runtime_ctx;
 
-  if (rctx->set_case_expr(thd, m_case_expr_id, &m_expr_item) &&
-      !rctx->get_case_expr(m_case_expr_id)) {
-    // Failed to evaluate the value, the case expression is still not
-    // initialized. Set to NULL so we can continue.
+  if (rctx->set_case_expr(thd, m_case_expr_id, &m_expr_item)) {
+    if (!rctx->get_case_expr(m_case_expr_id)) {
+      // Failed to evaluate the value, the case expression is still not
+      // initialized. Set to NULL so we can continue.
+      Item *null_item = new Item_null();
 
-    Item *null_item = new Item_null();
-
-    if (!null_item || rctx->set_case_expr(thd, m_case_expr_id, &null_item)) {
-      // If this also failed, we have to abort.
-      my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
+      if (!null_item || rctx->set_case_expr(thd, m_case_expr_id, &null_item)) {
+        // If this also failed, we have to abort.
+        my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
+      }
     }
 
     return true;

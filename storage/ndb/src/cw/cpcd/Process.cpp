@@ -23,6 +23,9 @@
 */
 
 #include <ndb_global.h>
+
+#include <time.h>
+
 #include "NdbSleep.h"
 
 #ifdef _WIN32
@@ -554,7 +557,7 @@ void CPCD::Process::do_exec() {
   si.hStdOutput = (HANDLE)_get_osfhandle(1);
   si.hStdError = (HANDLE)_get_osfhandle(2);
 
-  if (!CreateProcessA(sh.c_str(), (LPSTR)shcmd.c_str(), NULL, NULL, TRUE,
+  if (!CreateProcessA(sh.c_str(), (LPSTR)shcmd.c_str(), NULL, NULL, true,
                       CREATE_SUSPENDED,  // Resumed after assigned to Job
                       NULL, NULL, &si, &pi)) {
     char *message;
@@ -622,7 +625,7 @@ void CPCD::Process::do_exec() {
 }
 
 #ifdef _WIN32
-void sched_yield() { Sleep(100); }
+void sched_yield() { NdbSleep_MilliSleep(100); }
 #endif
 
 int CPCD::Process::start() {
@@ -875,7 +878,7 @@ void CPCD::Process::do_shutdown(bool force_sigkill)
   HANDLE proc;
   require(proc = OpenProcess(PROCESS_QUERY_INFORMATION, 0, m_pid));
   require(IsProcessInJob(proc, m_job, &truth));
-  require(truth == TRUE);
+  require(truth);
   require(CloseHandle(proc));
   // Terminate process with exit code 37
   require(TerminateJobObject(m_job, 37));

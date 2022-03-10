@@ -51,6 +51,7 @@ void ColumnHandler::init(v8::Isolate * _isolate,
   switch(column->getType()) {
     case NDB_TYPE_TEXT: 
       isText = true;   // fall through to also set isLob
+      [[fallthrough]];
     case NDB_TYPE_BLOB:
       isLob = true;
       break;

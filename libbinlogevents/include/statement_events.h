@@ -688,7 +688,7 @@ class Query_event : public Binary_log_event {
     to the log.
   */
   Query_event(Log_event_type type_arg = QUERY_EVENT);
-  ~Query_event() override {}
+  ~Query_event() override = default;
 
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream &info) override;
@@ -983,7 +983,7 @@ class Intvar_event : public Binary_log_event {
   Intvar_event(uint8_t type_arg, uint64_t val_arg)
       : Binary_log_event(INTVAR_EVENT), type(type_arg), val(val_arg) {}
 
-  ~Intvar_event() override {}
+  ~Intvar_event() override = default;
 
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream &info) override;

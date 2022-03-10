@@ -203,6 +203,11 @@ bool Ndb_util_table::check_column_varbinary(const char *name) const {
                            "VARBINARY");
 }
 
+bool Ndb_util_table::check_column_varchar(const char *name) const {
+  return check_column_type(get_column(name), NdbDictionary::Column::Varchar,
+                           "VARCHAR");
+}
+
 bool Ndb_util_table::check_column_binary(const char *name) const {
   return check_column_type(get_column(name), NdbDictionary::Column::Binary,
                            "BINARY");
@@ -466,7 +471,7 @@ Util_table_creator::Util_table_creator(THD *thd, Thd_ndb *thd_ndb,
 
 bool Util_table_creator::create_or_upgrade_in_NDB(bool upgrade_allowed,
                                                   bool &reinstall) const {
-  ndb_log_verbose(50, "Checking '%s' table", m_name.c_str());
+  ndb_log_verbose(50, "Checking '%s' table in NDB", m_name.c_str());
 
   if (m_util_table.exists()) {
     // Table exists already. Upgrade it if required.
@@ -509,7 +514,7 @@ bool Util_table_creator::create_or_upgrade_in_NDB(bool upgrade_allowed,
     ndb_log_info("Created '%s' table in NdbDictionary", m_name.c_str());
   }
 
-  ndb_log_verbose(50, "The '%s' table is ok", m_name.c_str());
+  ndb_log_verbose(50, "The '%s' table is ok in NDB", m_name.c_str());
   return true;
 }
 
@@ -536,6 +541,12 @@ bool Util_table_creator::install_in_DD(bool reinstall) {
                     m_name.c_str());
       assert(false);
       // Continue and force removal of table definition
+      reinstall = true;
+    }
+
+    // Check if table need to be reinstalled in DD.
+    if (m_util_table.need_reinstall(existing)) {
+      ndb_log_info("Table '%s' need reinstall in DD", m_name.c_str());
       reinstall = true;
     }
 

@@ -42,7 +42,7 @@ class CopyFragReq {
    */
   friend class Dblqh;
 public:
-  STATIC_CONST( SignalLength = 11 );
+  static constexpr Uint32 SignalLength = 11;
 
 private:
 
@@ -82,7 +82,7 @@ class CopyFragConf {
    */
   friend class Dbdih;
 public:
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 SignalLength = 7;
 
 private:
   union {
@@ -107,7 +107,7 @@ class CopyFragRef {
    */
   friend class Dbdih;
 public:
-  STATIC_CONST( SignalLength = 6 );
+  static constexpr Uint32 SignalLength = 6;
 
 private:
   Uint32 userPtr;
@@ -124,12 +124,12 @@ struct UpdateFragDistKeyOrd
   Uint32 fragId;
   Uint32 fragDistributionKey;
 
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 };
 
 struct PrepareCopyFragReq
 {
-  STATIC_CONST( SignalLength = 6 );
+  static constexpr Uint32 SignalLength = 6;
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -149,13 +149,13 @@ struct PrepareCopyFragRef
   Uint32 startingNodeId;
   Uint32 errorCode;
 
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 SignalLength = 7;
 };
 
 struct PrepareCopyFragConf
 {
-  STATIC_CONST( OldSignalLength = 7 );
-  STATIC_CONST( SignalLength = 8 );
+  static constexpr Uint32 OldSignalLength = 7;
+  static constexpr Uint32 SignalLength = 8;
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -170,7 +170,7 @@ struct PrepareCopyFragConf
 class HaltCopyFragReq
 {
   friend class Dblqh;
-  STATIC_CONST( SignalLength = 4);
+  static constexpr Uint32 SignalLength = 4;
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -181,7 +181,7 @@ class HaltCopyFragReq
 class HaltCopyFragConf
 {
   friend class Dblqh;
-  STATIC_CONST( SignalLength = 4);
+  static constexpr Uint32 SignalLength = 4;
 
   enum
   {
@@ -197,7 +197,7 @@ class HaltCopyFragConf
 class HaltCopyFragRef
 {
   friend class Dblqh;
-  STATIC_CONST( SignalLength = 4);
+  static constexpr Uint32 SignalLength = 4;
 
   Uint32 senderData;
   Uint32 tableId;
@@ -208,7 +208,7 @@ class HaltCopyFragRef
 class ResumeCopyFragReq
 {
   friend class Dblqh;
-  STATIC_CONST( SignalLength = 4);
+  static constexpr Uint32 SignalLength = 4;
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -219,7 +219,7 @@ class ResumeCopyFragReq
 class ResumeCopyFragConf
 {
   friend class Dblqh;
-  STATIC_CONST( SignalLength = 3);
+  static constexpr Uint32 SignalLength = 3;
 
   Uint32 senderData;
   Uint32 tableId;
@@ -229,7 +229,7 @@ class ResumeCopyFragConf
 class ResumeCopyFragRef
 {
   friend class Dblqh;
-  STATIC_CONST( SignalLength = 4);
+  static constexpr Uint32 SignalLength = 4;
 
   Uint32 senderData;
   Uint32 tableId;

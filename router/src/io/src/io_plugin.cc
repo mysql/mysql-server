@@ -46,11 +46,11 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/plugin_config.h"
 #include "mysql/harness/utility/string.h"  // join
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/io_export.h"
 #include "mysqlrouter/io_thread.h"
-#include "mysqlrouter/plugin_config.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -67,13 +67,13 @@ static constexpr const char kSectionName[]{"io"};
 // - EPYC 7702: 64 cores/128 threads, 2x sockets
 static constexpr const size_t kMaxThreads{1024};
 
-class IoPluginConfig : public mysqlrouter::BasePluginConfig {
+class IoPluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string backend;
   uint16_t num_threads;
 
   explicit IoPluginConfig(const mysql_harness::ConfigSection *section)
-      : mysqlrouter::BasePluginConfig(section),
+      : mysql_harness::BasePluginConfig(section),
         backend(get_option_string(section, "backend")),
         num_threads(
             get_uint_option<uint32_t>(section, "threads", 0, kMaxThreads)) {}

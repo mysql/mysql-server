@@ -144,6 +144,11 @@ create table t4 (a int not null, b int not null);
 insert into t1 values (2);
 insert into t2 values (1,7),(2,7);
 insert into t4 values (4,8),(3,8),(5,9);
+ANALYZE TABLE t1, t2, t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t4	analyze	status	OK
 select (select a from t1 where t1.a = a1) as a2, (select b from t2 where t2.b=a2) as a1;
 ERROR 42S22: Reference 'a1' not supported (forward reference in item list)
 select (select a from t1 where t1.a=t2.a), a from t2;
@@ -166,6 +171,9 @@ select * from t2 where t2.a=(select a from t1);
 a	b
 2	7
 insert into t3 values (6),(7),(3);
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
 select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1);
 a	b
 1	7
@@ -302,6 +310,10 @@ select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)
 NULL	1
 2	2
 insert into t5 values (2);
+ANALYZE TABLE t2, t5;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+test.t5	analyze	status	OK
 select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
 (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)	a
 NULL	1
@@ -309,19 +321,23 @@ NULL	1
 explain select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DEPENDENT SUBQUERY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 3	DEPENDENT UNION	t5	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t2.a' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (/* select#2 */ select '2' from dual where ('2' = `test`.`t2`.`a`) union /* select#3 */ select `test`.`t5`.`a` from `test`.`t5` where (`test`.`t5`.`a` = `test`.`t2`.`a`)) AS `(select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)`,`test`.`t2`.`a` AS `a` from `test`.`t2`
+Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`a`) union /* select#3 */ select `test`.`t5`.`a` from `test`.`t5` where (`test`.`t5`.`a` = `test`.`t2`.`a`)) AS `(select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)`,`test`.`t2`.`a` AS `a` from `test`.`t2`
 select (select a from t1 where t1.a=t2.a union all select a from t5 where t5.a=t2.a), a from t2;
 ERROR 21000: Subquery returns more than 1 row
 create table t6 (patient_uq int, clinic_uq int, index i1 (clinic_uq));
 create table t7( uq int primary key, name char(25));
 insert into t7 values(1,"Oblastnaia bolnitsa"),(2,"Bolnitsa Krasnogo Kresta");
 insert into t6 values (1,1),(1,2),(2,2),(1,3);
+ANALYZE TABLE t6, t7;
+Table	Op	Msg_type	Msg_text
+test.t6	analyze	status	OK
+test.t7	analyze	status	OK
 select * from t6 where exists (select * from t7 where uq = clinic_uq);
 patient_uq	clinic_uq
 1	1
@@ -357,10 +373,16 @@ CREATE TABLE `t8` (
 `email` varchar(60) character set latin1 NOT NULL default '',
 PRIMARY KEY  (`pseudo`),
 UNIQUE KEY `email` (`email`)
-) ENGINE=MyISAM CHARSET=latin1 ROW_FORMAT=DYNAMIC;
+) ENGINE=INNODB CHARSET=latin1 ROW_FORMAT=DYNAMIC;
 INSERT INTO t8 (pseudo,email) VALUES ('joce','test');
 INSERT INTO t8 (pseudo,email) VALUES ('joce1','test1');
 INSERT INTO t8 (pseudo,email) VALUES ('2joce1','2test1');
+ANALYZE TABLE t1, t2, t3, t8;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t8	analyze	status	OK
 EXPLAIN SELECT pseudo,(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce')) FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t8	NULL	const	PRIMARY	PRIMARY	37	const	1	100.00	Using index
@@ -387,20 +409,23 @@ CREATE TABLE `t1` (
 `pseudo` varchar(35) character set latin1 NOT NULL default '',
 PRIMARY KEY  (`pseudo`,`date`,`topic`),
 KEY `topic` (`topic`)
-) ENGINE=MyISAM ROW_FORMAT=DYNAMIC;
+) ENGINE=INNODB ROW_FORMAT=DYNAMIC;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (topic,date,pseudo) VALUES
 ('43506','2002-10-02','joce'),('40143','2002-08-03','joce');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT DISTINCT date FROM t1 WHERE date='2002-08-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	43	NULL	2	50.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	PRIMARY,topic	topic	3	NULL	2	50.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`date` AS `date` from `test`.`t1` where (`test`.`t1`.`date` = DATE'2002-08-03')
 EXPLAIN SELECT (SELECT DISTINCT date FROM t1 WHERE date='2002-08-03');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	SUBQUERY	t1	NULL	index	PRIMARY	PRIMARY	43	NULL	2	50.00	Using where; Using index
+2	SUBQUERY	t1	NULL	index	PRIMARY,topic	topic	3	NULL	2	50.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select (/* select#2 */ select distinct `test`.`t1`.`date` from `test`.`t1` where (`test`.`t1`.`date` = DATE'2002-08-03')) AS `(SELECT DISTINCT date FROM t1 WHERE date='2002-08-03')`
 SELECT DISTINCT date FROM t1 WHERE date='2002-08-03';
@@ -430,7 +455,7 @@ CREATE TABLE `t1` (
 `maxnumrep` int(10) unsigned NOT NULL default '0',
 PRIMARY KEY  (`numeropost`),
 UNIQUE KEY `maxnumrep` (`maxnumrep`)
-) ENGINE=MyISAM ROW_FORMAT=FIXED;
+) ENGINE=INNODB ;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -441,7 +466,7 @@ CREATE TABLE `t2` (
 `date` date NOT NULL default '0000-00-00',
 `pseudo` varchar(35) NOT NULL default '',
 PRIMARY KEY  (`mot`,`pseudo`,`date`,`topic`)
-) ENGINE=MyISAM ROW_FORMAT=DYNAMIC;
+) ENGINE=INNODB ROW_FORMAT=DYNAMIC;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 (mot,topic,date,pseudo) VALUES ('joce','40143','2002-10-22','joce'), ('joce','43506','2002-10-22','joce');
@@ -507,7 +532,7 @@ CREATE TABLE `t1` (
 `maxnumrep` int(10) unsigned NOT NULL default '0',
 PRIMARY KEY  (`numeropost`),
 UNIQUE KEY `maxnumrep` (`maxnumrep`)
-) ENGINE=MyISAM ROW_FORMAT=FIXED;
+) ENGINE=INNODB ;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -537,7 +562,7 @@ CREATE TABLE `t1` (
 PRIMARY KEY  (`numeropost`,`numreponse`),
 UNIQUE KEY `numreponse` (`numreponse`),
 KEY `pseudo` (`pseudo`,`numeropost`)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -548,6 +573,9 @@ ERROR 42S22: Unknown column 'a' in 'having clause'
 SELECT numreponse, (SELECT numeropost FROM t1 HAVING numreponse=1) FROM (SELECT * FROM t1) as a;
 numreponse	(SELECT numeropost FROM t1 HAVING numreponse=1)
 INSERT INTO t1 (numeropost,numreponse,pseudo) VALUES (1,1,'joce'),(1,2,'joce'),(1,3,'test');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT 1 FROM t1 WHERE numeropost='1');
 ERROR 21000: Subquery returns more than 1 row
 EXPLAIN SELECT MAX(numreponse) FROM t1 WHERE numeropost='1';
@@ -625,9 +653,9 @@ a	b
 2	12
 select * from t12;
 a	b
-33	10
-22	11
 2	12
+22	11
+33	10
 delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t12 where t11.a = t12.a);
 ERROR HY000: You can't specify target table 't12' for update in FROM clause
 delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t2);
@@ -639,8 +667,8 @@ a	b
 1	11
 select * from t12;
 a	b
-33	10
 22	11
+33	10
 drop table t11, t12, t2;
 CREATE TABLE t1 (x int);
 create table t2 (a int);
@@ -710,10 +738,13 @@ x	y
 drop table t1, t2, t3;
 SELECT * FROM (SELECT 1) b WHERE 1 IN (SELECT *);
 ERROR HY000: No tables used
-CREATE TABLE t2 (id int(11) default NULL, KEY id (id)) ENGINE=MyISAM CHARSET=latin1;
+CREATE TABLE t2 (id int(11) default NULL, KEY id (id)) ENGINE=INNODB CHARSET=latin1;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1),(2);
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 SELECT * FROM t2 WHERE id IN (SELECT 1);
 id
 1
@@ -757,7 +788,7 @@ SELECT * FROM t2;
 id
 1
 2
-CREATE TABLE t1 (id int(11) default NULL, KEY id (id)) ENGINE=MyISAM CHARSET=latin1;
+CREATE TABLE t1 (id int(11) default NULL, KEY id (id)) ENGINE=INNODB CHARSET=latin1;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 values (1),(1);
@@ -834,6 +865,9 @@ select 'XYZS' > ANY (SELECT * from t1);
 drop table t1;
 create table t1 (a float);
 insert into t1 values (1.5),(2.5),(3.5);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select 1.5 IN (SELECT * from t1);
 1.5 IN (SELECT * from t1)
 1
@@ -844,6 +878,9 @@ select NULL IN (SELECT * from t1);
 NULL IN (SELECT * from t1)
 NULL
 update t1 set a=NULL where a=2.5;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select 1.5 IN (SELECT * from t1);
 1.5 IN (SELECT * from t1)
 1
@@ -886,6 +923,10 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1),(2),(3),(4);
 INSERT INTO t2 VALUES (1),(2),(3);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 SELECT t1.a, t1.a in (select t2.a from t2) FROM t1;
 a	t1.a in (select t2.a from t2)
 1	1
@@ -895,13 +936,16 @@ a	t1.a in (select t2.a from t2)
 explain SELECT t1.a, t1.a in (select t2.a from t2) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	PRIMARY	4	NULL	4	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	a	a	5	func	4	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	a	a	5	func	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in t2 on a checking NULL where ((<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`) or (`test`.`t2`.`a` is null)) having <is_not_null_test>(`test`.`t2`.`a`)))) AS `t1.a in (select t2.a from t2)` from `test`.`t1`
 CREATE TABLE t3 (a int(11) default '0');
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (1),(2),(3);
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
 SELECT t1.a, t1.a in (select t2.a from t2,t3 where t3.a=t2.a) FROM t1;
 a	t1.a in (select t2.a from t2,t3 where t3.a=t2.a)
 1	1
@@ -911,10 +955,10 @@ a	t1.a in (select t2.a from t2,t3 where t3.a=t2.a)
 explain SELECT t1.a, t1.a in (select t2.a from t2,t3 where t3.a=t2.a) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	PRIMARY	4	NULL	4	100.00	Using index
-2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	index	a	a	5	NULL	3	33.33	Using where; Using index; Using join buffer (hash join)
+2	DEPENDENT SUBQUERY	t2	NULL	ref_or_null	a	a	5	func	2	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`a` = `test`.`t3`.`a`) and ((<cache>(`test`.`t1`.`a`) = `test`.`t3`.`a`) or (`test`.`t3`.`a` is null))) having <is_not_null_test>(`test`.`t2`.`a`))) AS `t1.a in (select t2.a from t2,t3 where t3.a=t2.a)` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t2`.`a`) and ((<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`) or (`test`.`t2`.`a` is null))) having <is_not_null_test>(`test`.`t2`.`a`))) AS `t1.a in (select t2.a from t2,t3 where t3.a=t2.a)` from `test`.`t1`
 drop table t1,t2,t3;
 create table t1 (a float);
 select 10.5 IN (SELECT * from t1 LIMIT 1);
@@ -1017,7 +1061,7 @@ a	b
 1	2
 1	3
 drop table t1, t2;
-CREATE TABLE `t1` (`i` int(11) NOT NULL default '0',PRIMARY KEY  (`i`)) ENGINE=MyISAM CHARSET=latin1;
+CREATE TABLE `t1` (`i` int(11) NOT NULL default '0',PRIMARY KEY  (`i`)) ENGINE=INNODB CHARSET=latin1;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1);
@@ -1031,14 +1075,14 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 EXPLAIN SELECT (SELECT RAND() FROM t1) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	UNCACHEABLE SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select (/* select#2 */ select rand() from `test`.`t1`) AS `(SELECT RAND() FROM t1)` from `test`.`t1`
 EXPLAIN SELECT (SELECT BENCHMARK(1,1) FROM t1) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	UNCACHEABLE SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select (/* select#2 */ select benchmark(1,1) from `test`.`t1`) AS `(SELECT BENCHMARK(1,1) FROM t1)` from `test`.`t1`
 drop table t1;
@@ -1050,7 +1094,7 @@ CREATE TABLE `t1` (
 PRIMARY KEY  (`mot`,`pseudo`,`date`,`topic`),
 KEY `pseudo` (`pseudo`,`date`,`topic`),
 KEY `topic` (`topic`)
-) ENGINE=MyISAM CHARSET=latin1 ROW_FORMAT=DYNAMIC;
+) ENGINE=INNODB CHARSET=latin1 ROW_FORMAT=DYNAMIC;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `t2` (
@@ -1061,7 +1105,7 @@ CREATE TABLE `t2` (
 PRIMARY KEY  (`mot`,`pseudo`,`date`,`topic`),
 KEY `pseudo` (`pseudo`,`date`,`topic`),
 KEY `topic` (`topic`)
-) ENGINE=MyISAM CHARSET=latin1 ROW_FORMAT=DYNAMIC;
+) ENGINE=INNODB CHARSET=latin1 ROW_FORMAT=DYNAMIC;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `t3` (
@@ -1069,7 +1113,7 @@ CREATE TABLE `t3` (
 `maxnumrep` int(10) unsigned NOT NULL default '0',
 PRIMARY KEY  (`numeropost`),
 UNIQUE KEY `maxnumrep` (`maxnumrep`)
-) ENGINE=MyISAM CHARSET=latin1;
+) ENGINE=INNODB CHARSET=latin1;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -1105,7 +1149,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int NOT NULL DEFAULT '0',
   `(SELECT 1)` int NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 CREATE TABLE t1 charset utf8mb4 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
 SHOW CREATE TABLE t1;
@@ -1113,7 +1157,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int NOT NULL DEFAULT '0',
   `(SELECT a)` int NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 charset utf8mb4 SELECT * FROM (SELECT 1 as a,(SELECT a+0)) a;
 SHOW CREATE TABLE t1;
@@ -1121,7 +1165,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int NOT NULL DEFAULT '0',
   `(SELECT a+0)` int NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 charset utf8mb4 SELECT (SELECT 1 as a UNION SELECT 1+1 limit 1,1) as a;
 select * from t1;
@@ -1131,10 +1175,13 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a int);
 insert into t1 values (1), (2), (3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain select a,(select (select rand() from t1 limit 1)  from t1 limit 1)
 from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1153,7 +1200,7 @@ t2 char(3) NOT NULL default '',
 District char(20) NOT NULL default '',
 Population int(11) NOT NULL default '0',
 PRIMARY KEY  (ID)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -1177,7 +1224,7 @@ HeadOfState char(60) default NULL,
 Capital int(11) default NULL,
 Code2 char(2) NOT NULL default '',
 PRIMARY KEY  (Code)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 Warnings:
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -1197,10 +1244,13 @@ CREATE TABLE `t1` (
 `pseudo` varchar(35) character set latin1 NOT NULL default '',
 PRIMARY KEY  (`id`),
 UNIQUE KEY `pseudo` (`pseudo`)
-) ENGINE=MyISAM PACK_KEYS=1 ROW_FORMAT=DYNAMIC;
+) ENGINE=INNODB PACK_KEYS=1 ROW_FORMAT=DYNAMIC;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (pseudo) VALUES ('test');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT 0 IN (SELECT 1 FROM t1 a);
 0 IN (SELECT 1 FROM t1 a)
 0
@@ -1224,7 +1274,7 @@ drop table t1;
 CREATE TABLE `t1` (
 `i` int(11) NOT NULL default '0',
 PRIMARY KEY  (`i`)
-) ENGINE=MyISAM CHARSET=latin1;
+) ENGINE=INNODB CHARSET=latin1;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1);
@@ -1238,14 +1288,14 @@ i
 drop table t1;
 CREATE TABLE t1 (
 id int(11) default NULL
-) ENGINE=MyISAM CHARSET=latin1;
+) ENGINE=INNODB CHARSET=latin1;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1),(1),(2),(2),(1),(3);
 CREATE TABLE t2 (
 id int(11) default NULL,
 name varchar(15) default NULL
-) ENGINE=MyISAM CHARSET=latin1;
+) ENGINE=INNODB CHARSET=latin1;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (4,'vita'), (1,'vita'), (2,'vita'), (1,'vita');
@@ -1265,9 +1315,12 @@ NULL
 drop table t1;
 create table t1 (id int not null auto_increment primary key, salary int, key(salary));
 insert into t1 (salary) values (100),(1000),(10000),(10),(500),(5000),(50000);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain SELECT id FROM t1 where salary = (SELECT MAX(salary) FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ref	salary	salary	5	const	1	100.00	Using where
+1	PRIMARY	t1	NULL	ref	salary	salary	5	const	1	100.00	Using where; Using index
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` where (`test`.`t1`.`salary` = (/* select#2 */ select max(`test`.`t1`.`salary`) from `test`.`t1`))
@@ -1281,7 +1334,7 @@ PRIMARY KEY (ID,SUB_ID),
 UNIQUE KEY t1_PK (ID,SUB_ID),
 KEY t1_FK (REF_ID,REF_SUB),
 KEY t1_REFID (REF_ID)
-) ENGINE=MyISAM CHARSET=cp1251;
+) ENGINE=INNODB CHARSET=cp1251;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -1311,7 +1364,7 @@ CREATE TABLE `t1` (
 PRIMARY KEY  (`id`),
 UNIQUE KEY `email` (`email`),
 UNIQUE KEY `pseudo` (`pseudo`)
-) ENGINE=MyISAM CHARSET=latin1 PACK_KEYS=1 ROW_FORMAT=DYNAMIC;
+) ENGINE=INNODB CHARSET=latin1 PACK_KEYS=1 ROW_FORMAT=DYNAMIC;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (id,pseudo,email) VALUES (1,'test','test'),(2,'test1','test1');
@@ -1371,14 +1424,17 @@ create table t1 (s1 char(5));
 select (select 'a','b' from t1 union select 'a','b' from t1) from t1;
 ERROR 21000: Operand should contain 1 column(s)
 insert into t1 values ('tttt');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where ('a','b')=(select 'a','b' from t1 union select 'a','b' from t1);
 s1
 tttt
 explain (select * from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select 'tttt' AS `s1` from dual
+Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1` from `test`.`t1`
 (select * from t1);
 s1
 tttt
@@ -1387,6 +1443,10 @@ create table t1 (s1 char(5), index s1(s1));
 create table t2 (s1 char(5), index s1(s1));
 insert into t1 values ('a1'),('a2'),('a3');
 insert into t2 values ('a1'),('a2');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 select s1, s1 NOT IN (SELECT s1 FROM t2) from t1;
 s1	s1 NOT IN (SELECT s1 FROM t2)
 a1	0
@@ -1409,25 +1469,25 @@ a2	1
 a3	1
 explain select s1, s1 NOT IN (SELECT s1 FROM t2) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	index	NULL	s1	6	NULL	3	100.00	Using index
+1	PRIMARY	t1	NULL	index	NULL	s1	6	NULL	4	100.00	Using index
 2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	s1	s1	6	func	4	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,<in_optimizer>(`test`.`t1`.`s1`,not <exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`s1`) = `test`.`t2`.`s1`) or (`test`.`t2`.`s1` is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`s1`), true)))) AS `s1 NOT IN (SELECT s1 FROM t2)` from `test`.`t1`
 explain select s1, s1 = ANY (SELECT s1 FROM t2) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	index	NULL	s1	6	NULL	3	100.00	Using index
+1	PRIMARY	t1	NULL	index	NULL	s1	6	NULL	4	100.00	Using index
 2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	s1	s1	6	func	4	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`s1`) = `test`.`t2`.`s1`) or (`test`.`t2`.`s1` is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`s1`), true)))) AS `s1 = ANY (SELECT s1 FROM t2)` from `test`.`t1`
 explain select s1, s1 <> ALL (SELECT s1 FROM t2) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	index	NULL	s1	6	NULL	3	100.00	Using index
+1	PRIMARY	t1	NULL	index	NULL	s1	6	NULL	4	100.00	Using index
 2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	s1	s1	6	func	4	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,<in_optimizer>(`test`.`t1`.`s1`,not <exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`s1`) = `test`.`t2`.`s1`) or (`test`.`t2`.`s1` is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`s1`), true)))) AS `s1 <> ALL (SELECT s1 FROM t2)` from `test`.`t1`
 explain select s1, s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2') from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	index	NULL	s1	6	NULL	3	100.00	Using index
+1	PRIMARY	t1	NULL	index	NULL	s1	6	NULL	4	100.00	Using index
 2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	s1	s1	6	func	4	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,<in_optimizer>(`test`.`t1`.`s1`,not <exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL where ((`test`.`t2`.`s1` < 'a2') and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`s1`) = `test`.`t2`.`s1`) or (`test`.`t2`.`s1` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`s1`), true)))) AS `s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2')` from `test`.`t1`
@@ -1435,6 +1495,10 @@ drop table t1,t2;
 create table t2 (a int, b int);
 create table t3 (a int);
 insert into t3 values (6),(7),(3);
+ANALYZE TABLE t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 select * from t3 where a >= all (select b from t2);
 a
 6
@@ -1443,17 +1507,17 @@ a
 explain select * from t3 where a >= all (select b from t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>((`test`.`t3`.`a` < <max>(/* select#2 */ select NULL from `test`.`t2`)))
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>((`test`.`t3`.`a` < <max>(/* select#2 */ select `test`.`t2`.`b` from `test`.`t2`)))
 select * from t3 where a >= some (select b from t2);
 a
 explain select * from t3 where a >= some (select b from t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>((`test`.`t3`.`a` >= (/* select#2 */ select min(NULL) from `test`.`t2`)))
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>((`test`.`t3`.`a` >= (/* select#2 */ select min(`test`.`t2`.`b`) from `test`.`t2`)))
 select * from t3 where a >= all (select b from t2 group by 1);
 a
 6
@@ -1462,17 +1526,17 @@ a
 explain select * from t3 where a >= all (select b from t2 group by 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>((`test`.`t3`.`a` < <max>(/* select#2 */ select NULL from `test`.`t2`)))
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>((`test`.`t3`.`a` < <max>(/* select#2 */ select `test`.`t2`.`b` from `test`.`t2`)))
 select * from t3 where a >= some (select b from t2 group by 1);
 a
 explain select * from t3 where a >= some (select b from t2 group by 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>((`test`.`t3`.`a` >= (/* select#2 */ select min(NULL) from `test`.`t2`)))
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>((`test`.`t3`.`a` >= (/* select#2 */ select min(`test`.`t2`.`b`) from `test`.`t2`)))
 select * from t3 where NULL >= any (select b from t2);
 a
 explain select * from t3 where NULL >= any (select b from t2);
@@ -1506,6 +1570,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where false
 insert into t2 values (2,2), (2,1), (3,3), (3,1);
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 select * from t3 where a > all (select max(b) from t2 group by a);
 a
 6
@@ -1517,19 +1584,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>((`test`.`t3`.`a` <= <max>(/* select#2 */ select max(`test`.`t2`.`b`) from `test`.`t2` group by `test`.`t2`.`a`)))
 drop table t2, t3;
-CREATE TABLE `t1` ( `id` mediumint(9) NOT NULL auto_increment, `taskid` bigint(20) NOT NULL default '0', `dbid` int(11) NOT NULL default '0', `create_date` datetime NOT NULL default '0000-00-00 00:00:00', `last_update` datetime NOT NULL default '0000-00-00 00:00:00', PRIMARY KEY  (`id`)) ENGINE=MyISAM CHARSET=latin1 AUTO_INCREMENT=3 ;
+CREATE TABLE `t1` ( `id` mediumint(9) NOT NULL auto_increment, `taskid` bigint(20) NOT NULL default '0', `dbid` int(11) NOT NULL default '0', `create_date` datetime NOT NULL default '0000-00-00 00:00:00', `last_update` datetime NOT NULL default '0000-00-00 00:00:00', PRIMARY KEY  (`id`)) ENGINE=INNODB CHARSET=latin1 AUTO_INCREMENT=3 ;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `t1` (`id`, `taskid`, `dbid`, `create_date`,`last_update`) VALUES (1, 1, 15, '2003-09-29 10:31:36', '2003-09-29 10:31:36'), (2, 1, 21, now(), now());
-CREATE TABLE `t2` (`db_id` int(11) NOT NULL auto_increment,`name` varchar(200) NOT NULL default '',`primary_uid` smallint(6) NOT NULL default '0',`secondary_uid` smallint(6) NOT NULL default '0',PRIMARY KEY  (`db_id`),UNIQUE KEY `name_2` (`name`),FULLTEXT KEY `name` (`name`)) ENGINE=MyISAM CHARSET=latin1 AUTO_INCREMENT=2147483647;
+CREATE TABLE `t2` (`db_id` int(11) NOT NULL auto_increment,`name` varchar(200) NOT NULL default '',`primary_uid` smallint(6) NOT NULL default '0',`secondary_uid` smallint(6) NOT NULL default '0',PRIMARY KEY  (`db_id`),UNIQUE KEY `name_2` (`name`),FULLTEXT KEY `name` (`name`)) ENGINE=INNODB CHARSET=latin1 AUTO_INCREMENT=2147483647;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `t2` (`db_id`, `name`, `primary_uid`, `secondary_uid`) VALUES (18, 'Not Set 1', 0, 0),(19, 'Valid', 1, 2),(20, 'Valid 2', 1, 2),(21, 'Should Not Return', 1, 2),(26, 'Not Set 2', 0, 0),(-1, 'ALL DB\'S', 0, 0);
-CREATE TABLE `t3` (`taskgenid` mediumint(9) NOT NULL auto_increment,`dbid` int(11) NOT NULL default '0',`taskid` int(11) NOT NULL default '0',`mon` tinyint(4) NOT NULL default '1',`tues` tinyint(4) NOT NULL default '1',`wed` tinyint(4) NOT NULL default '1',`thur` tinyint(4) NOT NULL default '1',`fri` tinyint(4) NOT NULL default '1',`sat` tinyint(4) NOT NULL default '0',`sun` tinyint(4) NOT NULL default '0',`how_often` smallint(6) NOT NULL default '1',`userid` smallint(6) NOT NULL default '0',`active` tinyint(4) NOT NULL default '1',PRIMARY KEY  (`taskgenid`)) ENGINE=MyISAM CHARSET=latin1 AUTO_INCREMENT=2 ;
+CREATE TABLE `t3` (`taskgenid` mediumint(9) NOT NULL auto_increment,`dbid` int(11) NOT NULL default '0',`taskid` int(11) NOT NULL default '0',`mon` tinyint(4) NOT NULL default '1',`tues` tinyint(4) NOT NULL default '1',`wed` tinyint(4) NOT NULL default '1',`thur` tinyint(4) NOT NULL default '1',`fri` tinyint(4) NOT NULL default '1',`sat` tinyint(4) NOT NULL default '0',`sun` tinyint(4) NOT NULL default '0',`how_often` smallint(6) NOT NULL default '1',`userid` smallint(6) NOT NULL default '0',`active` tinyint(4) NOT NULL default '1',PRIMARY KEY  (`taskgenid`)) ENGINE=INNODB CHARSET=latin1 AUTO_INCREMENT=2 ;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -1545,7 +1612,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `t3` (`taskgenid`, `dbid`, `taskid`, `mon`, `tues`,`wed`, `thur`, `fri`, `sat`, `sun`, `how_often`, `userid`, `active`) VALUES (1,-1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 1);
-CREATE TABLE `t4` (`task_id` smallint(6) NOT NULL default '0',`description` varchar(200) NOT NULL default '') ENGINE=MyISAM CHARSET=latin1;
+CREATE TABLE `t4` (`task_id` smallint(6) NOT NULL default '0',`description` varchar(200) NOT NULL default '') ENGINE=INNODB CHARSET=latin1;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `t4` (`task_id`, `description`) VALUES (1, 'Daily Check List'),(2, 'Weekly Status');
@@ -1559,11 +1626,11 @@ dbid	name
 -1	Valid
 -1	Valid 2
 drop table t1,t2,t3,t4;
-CREATE TABLE t1 (id int(11) default NULL) ENGINE=MyISAM CHARSET=latin1;
+CREATE TABLE t1 (id int(11) default NULL) ENGINE=INNODB CHARSET=latin1;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1),(5);
-CREATE TABLE t2 (id int(11) default NULL) ENGINE=MyISAM CHARSET=latin1;
+CREATE TABLE t2 (id int(11) default NULL) ENGINE=INNODB CHARSET=latin1;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (2),(6);
@@ -1580,6 +1647,9 @@ ERROR 21000: Subquery returns more than 1 row
 drop table t1;
 create table t1 (s1 char);
 insert into t1 values ('e');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where 'f' > any (select s1 from t1);
 s1
 e
@@ -1588,16 +1658,16 @@ s1
 e
 explain select * from t1 where 'f' > any (select s1 from t1 union select s1 from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	SUBQUERY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-3	UNION	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+3	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select 'e' AS `s1` from dual where true
+Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1` from `test`.`t1` where true
 drop table t1;
-CREATE TABLE t1 (number char(11) NOT NULL default '') ENGINE=MyISAM CHARSET=latin1;
+CREATE TABLE t1 (number char(11) NOT NULL default '') ENGINE=INNODB CHARSET=latin1;
 INSERT INTO t1 VALUES ('69294728265'),('18621828126'),('89356874041'),('95895001874');
-CREATE TABLE t2 (code char(5) NOT NULL default '',UNIQUE KEY code (code)) ENGINE=MyISAM CHARSET=latin1;
+CREATE TABLE t2 (code char(5) NOT NULL default '',UNIQUE KEY code (code)) ENGINE=INNODB CHARSET=latin1;
 INSERT INTO t2 VALUES ('1'),('1226'),('1245'),('1862'),('18623'),('1874'),('1967'),('6');
 select c.number as phone,(select p.code from t2 p where c.number like concat(p.code, '%') order by length(p.code) desc limit 1) as code from t1 c;
 phone	code
@@ -1706,6 +1776,9 @@ count(*)
 drop table t1;
 create table t1 (id int not null, text varchar(20) not null default '', primary key (id));
 insert into t1 (id, text) values (1, 'text1'), (2, 'text2'), (3, 'text3'), (4, 'text4'), (5, 'text5'), (6, 'text6'), (7, 'text7'), (8, 'text8'), (9, 'text9'), (10, 'text10'), (11, 'text11'), (12, 'text12');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where id not in (select id from t1 where id < 8);
 id	text
 8	text8
@@ -1736,6 +1809,10 @@ Note	1003	/* select#1 */ select `test`.`tt`.`id` AS `id`,`test`.`tt`.`text` AS `
 insert into t1 (id, text) values (1000, 'text1000'), (1001, 'text1001');
 create table t2 (id int not null, text varchar(20) not null default '', primary key (id));
 insert into t2 (id, text) values (1, 'text1'), (2, 'text2'), (3, 'text3'), (4, 'text4'), (5, 'text5'), (6, 'text6'), (7, 'text7'), (8, 'text8'), (9, 'text9'), (10, 'text10'), (11, 'text1'), (12, 'text2'), (13, 'text3'), (14, 'text4'), (15, 'text5'), (16, 'text6'), (17, 'text7'), (18, 'text8'), (19, 'text9'), (20, 'text10'),(21, 'text1'), (22, 'text2'), (23, 'text3'), (24, 'text4'), (25, 'text5'), (26, 'text6'), (27, 'text7'), (28, 'text8'), (29, 'text9'), (30, 'text10'), (31, 'text1'), (32, 'text2'), (33, 'text3'), (34, 'text4'), (35, 'text5'), (36, 'text6'), (37, 'text7'), (38, 'text8'), (39, 'text9'), (40, 'text10'), (41, 'text1'), (42, 'text2'), (43, 'text3'), (44, 'text4'), (45, 'text5'), (46, 'text6'), (47, 'text7'), (48, 'text8'), (49, 'text9'), (50, 'text10');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 select * from t1 a left join t2 b on (a.id=b.id or b.id is null) join t1 c on (if(isnull(b.id), 1000, b.id)=c.id);
 id	text	id	text	id	text
 1	text1	1	text1	1	text1
@@ -1755,8 +1832,8 @@ id	text	id	text	id	text
 explain select * from t1 a left join t2 b on (a.id=b.id or b.id is null) join t1 c on (if(isnull(b.id), 1000, b.id)=c.id);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	NULL	ALL	NULL	NULL	NULL	NULL	14	100.00	NULL
-1	SIMPLE	b	NULL	eq_ref	PRIMARY	PRIMARY	4	test.a.id	1	100.00	Using join buffer (Batched Key Access)
-1	SIMPLE	c	NULL	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using index condition; Using join buffer (Batched Key Access)
+1	SIMPLE	b	NULL	eq_ref	PRIMARY	PRIMARY	4	test.a.id	1	100.00	NULL
+1	SIMPLE	c	NULL	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`id` AS `id`,`test`.`a`.`text` AS `text`,`test`.`b`.`id` AS `id`,`test`.`b`.`text` AS `text`,`test`.`c`.`id` AS `id`,`test`.`c`.`text` AS `text` from `test`.`t1` `a` left join `test`.`t2` `b` on(((`test`.`b`.`id` = `test`.`a`.`id`) or (`test`.`b`.`id` is null))) join `test`.`t1` `c` where (if((`test`.`b`.`id` is null),1000,`test`.`b`.`id`) = `test`.`c`.`id`)
 drop table t1,t2;
@@ -1765,9 +1842,9 @@ insert into t1 values (1);
 explain select benchmark(1000, (select a from t1 where a=sha(rand())));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	UNCACHEABLE SUBQUERY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	UNCACHEABLE SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select benchmark(1000,(/* select#2 */ select '1' from dual where ('1' = sha(rand())))) AS `benchmark(1000, (select a from t1 where a=sha(rand())))`
+Note	1003	/* select#1 */ select benchmark(1000,(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (cast(`test`.`t1`.`a` as double) = cast(sha(rand()) as double)))) AS `benchmark(1000, (select a from t1 where a=sha(rand())))`
 drop table t1;
 create table t1(id int);
 create table t2(id int);
@@ -2260,6 +2337,9 @@ a
 DROP TABLE t1;
 create table t1 (a int, b int);
 insert into t1 values (1,2),(3,4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 up where exists (select * from t1 where t1.a=up.a);
 a	b
 1	2
@@ -2339,11 +2419,11 @@ abc	b
 3	4
 deallocate prepare stmt1;
 DROP TABLE t1, t2, t3;
-CREATE TABLE `t1` ( `a` int(11) default NULL) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+CREATE TABLE `t1` ( `a` int(11) default NULL) ENGINE=INNODB DEFAULT CHARSET=latin1;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1);
-CREATE TABLE `t2` ( `b` int(11) default NULL, `a` int(11) default NULL) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+CREATE TABLE `t2` ( `b` int(11) default NULL, `a` int(11) default NULL) ENGINE=INNODB DEFAULT CHARSET=latin1;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -2464,6 +2544,9 @@ drop tables t1,t2;
 create table t1 (a int not null, b int not null, c int, primary key (a,b));
 insert into t1 values (1,1,1), (2,2,2), (3,3,3);
 set @b:= 0;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain select sum(a) from t1 where b > @b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	8	NULL	3	33.33	Using where; Using index
@@ -2535,7 +2618,7 @@ GovernmentForm char(45) NOT NULL default '',
 HeadOfState char(60) default NULL,
 Capital int(11) default NULL,
 Code2 char(2) NOT NULL default ''
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 Warnings:
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -2549,6 +2632,8 @@ INSERT INTO t1 VALUES ('ASM','American Samoa','Oceania','Polynesia',199.00,0,680
 INSERT INTO t1 VALUES ('ATF','French Southern territories','Antarctica','Antarctica',7780.00,0,0,NULL,0.00,NULL,'Terres australes françaises','Nonmetropolitan Territory of France','Jacques Chirac',NULL,'TF');
 INSERT INTO t1 VALUES ('UMI','United States Minor Outlying Islands','Oceania','Micronesia/Caribbean',16.00,0,0,NULL,0.00,NULL,'United States Minor Outlying Islands','Dependent Territory of the US','George W. Bush',NULL,'UM');
 /*!40000 ALTER TABLE t1 ENABLE KEYS */;
+Warnings:
+Note	1031	Table storage engine for 't1' doesn't have this option
 SELECT DISTINCT Continent AS c FROM t1 outr WHERE
 Code <> SOME ( SELECT Code FROM t1 WHERE Continent = outr.Continent AND
 Population < 200);
@@ -2912,16 +2997,20 @@ create table t1(a int, primary key (a));
 insert into t1 values (10);
 create table t2 (a int primary key, b varchar(32), c int, unique key b(c, b)) charset utf8mb4;
 insert into t2(a, c, b) values (1,10,'359'), (2,10,'35988'), (3,10,'35989');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 explain SELECT t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
 ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
              ORDER BY t2.c DESC, t2.b DESC LIMIT 1) WHERE t1.a = 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
 1	PRIMARY	r	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-2	DEPENDENT SUBQUERY	t2	NULL	range	b	b	136	NULL	2	100.00	Using index condition; Backward index scan
+2	DEPENDENT SUBQUERY	t2	NULL	index	b	b	136	NULL	1	100.00	Using where; Backward index scan; Using index
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '10' AS `a`,'3' AS `a`,'35989' AS `b` from <constant table> left join `test`.`t2` `r` on(('3' = (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where ((`test`.`t2`.`c` = '10') and (`test`.`t2`.`b` <= '359899')) order by `test`.`t2`.`c` desc,`test`.`t2`.`b` desc limit 1))) where true
+Note	1003	/* select#1 */ select '10' AS `a`,'3' AS `a`,'35989' AS `b` from `test`.`t1` left join `test`.`t2` `r` on(('3' = (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where ((`test`.`t2`.`c` = '10') and (`test`.`t2`.`b` <= '359899')) order by `test`.`t2`.`c` desc,`test`.`t2`.`b` desc limit 1))) where true
 SELECT t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
 ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
             ORDER BY t2.c DESC, t2.b DESC LIMIT 1) WHERE t1.a = 10;
@@ -2931,12 +3020,12 @@ explain SELECT t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
 ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
             ORDER BY t2.c, t2.b LIMIT 1) WHERE t1.a = 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
 1	PRIMARY	r	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-2	DEPENDENT SUBQUERY	t2	NULL	range	b	b	136	NULL	2	100.00	Using index condition
+2	DEPENDENT SUBQUERY	t2	NULL	index	b	b	136	NULL	1	100.00	Using where; Using index
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '10' AS `a`,'1' AS `a`,'359' AS `b` from <constant table> left join `test`.`t2` `r` on(('1' = (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where ((`test`.`t2`.`c` = '10') and (`test`.`t2`.`b` <= '359899')) order by `test`.`t2`.`c`,`test`.`t2`.`b` limit 1))) where true
+Note	1003	/* select#1 */ select '10' AS `a`,'1' AS `a`,'359' AS `b` from `test`.`t1` left join `test`.`t2` `r` on(('1' = (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where ((`test`.`t2`.`c` = '10') and (`test`.`t2`.`b` <= '359899')) order by `test`.`t2`.`c`,`test`.`t2`.`b` limit 1))) where true
 SELECT t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
 ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
             ORDER BY t2.c, t2.b LIMIT 1) WHERE t1.a = 10;
@@ -2984,10 +3073,14 @@ INSERT INTO t1 VALUES (1), (3), (5), (7);
 INSERT INTO t1 VALUES (NULL);
 CREATE TABLE t2(a int);
 INSERT INTO t2 VALUES (1),(2),(3);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT a, a IN (SELECT a FROM t1) FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	a	a	5	func	4	100.00	Using where; Using index; Full scan on NULL key
+2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	a	a	5	func	2	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a checking NULL where <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or (`test`.`t1`.`a` is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true)))) AS `a IN (SELECT a FROM t1)` from `test`.`t2`
 SELECT a, a IN (SELECT a FROM t1) FROM t2;
@@ -3005,16 +3098,19 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `sub_a` datetime DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t3 charset utf8mb4 AS (SELECT a FROM t1 WHERE a < '2000-01-01') UNION (SELECT a FROM t1 WHERE a > '2000-01-01');
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` datetime DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (1), (2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT a FROM t1 WHERE (SELECT 1 FROM DUAL WHERE 1=0) > 0;
 a
 SELECT a FROM t1 WHERE (SELECT 1 FROM DUAL WHERE 1=0) IS NULL;
@@ -3502,6 +3598,9 @@ INSERT INTO t1 VALUES
 (24,2,'2005-03-03 13:43:05'),(24,2,'2005-03-03 16:23:31'),
 (24,2,'2005-03-03 16:31:30'),(24,2,'2005-05-27 12:37:02'),
 (24,2,'2005-05-27 12:40:06');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 CREATE TABLE t2 (
 i1 int(11) NOT NULL default '0',
 i2 int(11) NOT NULL default '0',
@@ -3512,19 +3611,22 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (24,1,'2006-06-20 12:29:40');
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 EXPLAIN
 SELECT * FROM t1,t2
 WHERE t1.t = (SELECT t1.t FROM t1
 WHERE t1.t < t2.t  AND t1.i2=1 AND t2.i1=t1.i1
 ORDER BY t1.t DESC LIMIT 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	PRIMARY	t1	NULL	index	NULL	PRIMARY	13	NULL	11	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	NULL	range	PRIMARY	PRIMARY	13	NULL	5	100.00	Using where; Backward index scan; Using index
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	t1	NULL	index	NULL	PRIMARY	13	NULL	11	100.00	Using where; Using index; Using join buffer (hash join)
+2	DEPENDENT SUBQUERY	t1	NULL	ref	PRIMARY	PRIMARY	8	test.t2.i1,const	5	33.33	Using where; Using index; Using filesort
 Warnings:
 Note	1276	Field or reference 'test.t2.t' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t2.i1' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`t` AS `t`,'24' AS `i1`,'1' AS `i2`,'2006-06-20 12:29:40' AS `t` from `test`.`t1` where (`test`.`t1`.`t` = (/* select#2 */ select `test`.`t1`.`t` from `test`.`t1` where ((`test`.`t1`.`i1` = '24') and (`test`.`t1`.`i2` = 1) and (`test`.`t1`.`t` < '2006-06-20 12:29:40')) order by `test`.`t1`.`t` desc limit 1))
+Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`t` AS `t`,`test`.`t2`.`i1` AS `i1`,`test`.`t2`.`i2` AS `i2`,`test`.`t2`.`t` AS `t` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`t` = (/* select#2 */ select `test`.`t1`.`t` from `test`.`t1` where ((`test`.`t1`.`i2` = 1) and (`test`.`t1`.`t` < `test`.`t2`.`t`) and (`test`.`t2`.`i1` = `test`.`t1`.`i1`)) order by `test`.`t1`.`t` desc limit 1))
 SELECT * FROM t1,t2
 WHERE t1.t = (SELECT t1.t FROM t1
 WHERE t1.t < t2.t  AND t1.i2=1 AND t2.i1=t1.i1
@@ -3547,21 +3649,21 @@ i
 explain select ((select t11.i from t1 t11) union (select t12.i from t1 t12))
 from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
-3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
-NULL	UNION RESULT	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	SUBQUERY	t11	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+3	UNION	t12	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t11`.`i` from `test`.`t1` `t11` union /* select#3 */ select `test`.`t12`.`i` from `test`.`t1` `t12`) AS `((select t11.i from t1 t11) union (select t12.i from t1 t12))` from `test`.`t1`
 explain select * from t1 where not exists
 ((select t11.i from t1 t11) union (select t12.i from t1 t12));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	SUBQUERY	t11	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+3	UNION	t12	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` where true
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where true
 DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(250), b INT auto_increment, PRIMARY KEY (b));
 insert into t1 (a) values (FLOOR(rand() * 100));
@@ -3578,16 +3680,19 @@ insert into t1 (a) select FLOOR(rand() * 100) from t1;
 insert into t1 (a) select FLOOR(rand() * 100) from t1;
 insert into t1 (a) select FLOOR(rand() * 100) from t1;
 insert into t1 (a) select FLOOR(rand() * 100) from t1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT a,
 (SELECT REPEAT(' ',250) FROM t1 i1
 WHERE i1.b=t1.a ORDER BY RAND() LIMIT 1) AS a
 FROM t1 ORDER BY a LIMIT 5;
 a	a
-0	NULL
-0	NULL
-0	NULL
-0	NULL
-0	NULL
+#	NULL
+#	NULL
+#	NULL
+#	NULL
+#	NULL
 DROP TABLE t1;
 CREATE TABLE t1 (a INT, b INT);
 CREATE TABLE t2 (a INT);
@@ -4028,6 +4133,9 @@ ERROR 42S22: Unknown column 'XXA' in 'having clause'
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a int, b int, KEY (a));
 INSERT INTO t1 VALUES (1,1),(2,1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT 1 FROM t1 WHERE a = (SELECT COUNT(*) FROM t1 GROUP BY b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ref	a	a	5	const	1	100.00	Using where; Using index
@@ -4067,6 +4175,9 @@ id	st
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (1), (2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN
 SELECT * FROM (SELECT count(*) FROM t1 GROUP BY a) as res;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4198,6 +4309,9 @@ a2
 DROP TABLE t1, t2, t3;
 CREATE TABLE t1(a INT, b INT);
 INSERT INTO t1 VALUES (1,1), (1,2), (2,3), (2,4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN
 SELECT a AS out_a, MIN(b) FROM t1
 WHERE b > (SELECT MIN(b) FROM t1 WHERE a = out_a)
@@ -4228,6 +4342,10 @@ CREATE TABLE t1 (a INT);
 CREATE TABLE t2 (a INT);
 INSERT INTO t1 VALUES (1),(2);
 INSERT INTO t2 VALUES (1),(2);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 SELECT 2 FROM t1 WHERE EXISTS ((SELECT 1 FROM t2 WHERE t1.a=t2.a));
 2
 2
@@ -4345,7 +4463,7 @@ drop table t1, t2;
 #
 # Bug#45061: Incorrectly market field caused wrong result.
 #
-CREATE TABLE `C` (
+CREATE TABLE `c` (
 `int_nokey` int(11) NOT NULL,
 `int_key` int(11) NOT NULL,
 KEY `int_key` (`int_key`)
@@ -4353,19 +4471,22 @@ KEY `int_key` (`int_key`)
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
-INSERT INTO `C` VALUES (9,9), (0,0), (8,6), (3,6), (7,6), (0,4),
+INSERT INTO `c` VALUES (9,9), (0,0), (8,6), (3,6), (7,6), (0,4),
 (1,7), (9,4), (0,8), (9,4), (0,7), (5,5), (0,0), (8,5), (8,7),
 (5,2), (1,8), (7,0), (0,9), (9,5);
-SELECT * FROM C WHERE `int_key` IN (SELECT `int_nokey`);
+ANALYZE TABLE c;
+Table	Op	Msg_type	Msg_text
+test.c	analyze	status	OK
+SELECT * FROM c WHERE `int_key` IN (SELECT `int_nokey`);
 int_nokey	int_key
 9	9
 0	0
 5	5
 0	0
-EXPLAIN SELECT * FROM C WHERE `int_key` IN (SELECT `int_nokey`);
+EXPLAIN SELECT * FROM c WHERE `int_key` IN (SELECT `int_nokey`);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	C	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where
-DROP TABLE C;
+1	SIMPLE	c	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where
+DROP TABLE c;
 # End of test for bug#45061.
 #
 # Bug #46749: Segfault in add_key_fields() with outer subquery level 
@@ -4381,6 +4502,11 @@ CREATE TABLE st1 like t1;
 INSERT INTO st1 VALUES (1,1), (2,1);
 CREATE TABLE st2 like t1;
 INSERT INTO st2 VALUES (1,1), (2,1);
+ANALYZE TABLE t1, st1, st2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.st1	analyze	status	OK
+test.st2	analyze	status	OK
 EXPLAIN
 SELECT MAX(b), (SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
 FROM t1 
@@ -4405,13 +4531,17 @@ CREATE TABLE t1 (pk int PRIMARY KEY, int_key int);
 INSERT INTO t1 VALUES (10,1), (14,1);
 CREATE TABLE t2 (pk int PRIMARY KEY, int_key int);
 INSERT INTO t2 VALUES (3,3), (5,NULL), (7,3);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 # should have eq_ref for t1, unless subquery materialization is used
 EXPLAIN
 SELECT * FROM t2 outr
 WHERE outr.int_key NOT IN (SELECT t1.pk FROM t1, t2)  
 ORDER BY outr.pk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-x	x	outr	NULL	ALL	x	x	x	x	x	100.00	x
+x	x	outr	NULL	index	x	x	x	x	x	100.00	x
 x	x	t1	NULL	eq_ref	x	x	x	x	x	100.00	x
 x	x	t2	NULL	index	x	x	x	x	x	100.00	x
 Warnings:
@@ -4439,6 +4569,10 @@ insert into t2 values
 (3, 3),
 (4, NULL),
 (2, NULL);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 select a, oref, a in (select max(ie) 
 from t1 where oref=t2.oref group by grp) Z from t2;
 a	oref	Z
@@ -4504,6 +4638,10 @@ insert into t1 values
 (3, NULL);
 create table t2 (a int, oref int);
 insert into t2 values (1, 1), (2,2), (NULL, 3), (NULL, 4);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 select oref, a, a in (select a from t1 where oref=t2.oref) Z from t2;
 oref	a	Z
 1	1	1
@@ -4514,10 +4652,10 @@ explain
 select oref, a, a in (select a from t1 where oref=t2.oref) z from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	a	a	5	func	4	20.00	Using where; Full scan on NULL key
+2	DEPENDENT SUBQUERY	t1	NULL	ALL	a	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a checking NULL where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or (`test`.`t1`.`a` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true)))) AS `z` from `test`.`t2`
+Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or (`test`.`t1`.`a` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true))) AS `z` from `test`.`t2`
 flush status;
 select oref, a from t2 where a in (select a from t1 where oref=t2.oref);
 oref	a
@@ -4528,6 +4666,10 @@ Handler_read_rnd_next	5
 delete from t2;
 insert into t2 values (NULL, 0),(NULL, 0), (NULL, 0), (NULL, 0);
 flush status;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 select oref, a, a in (select a from t1 where oref=t2.oref) Z from t2;
 oref	a	Z
 0	NULL	0
@@ -4536,8 +4678,8 @@ oref	a	Z
 0	NULL	0
 show status like '%Handler_read%';
 Variable_name	Value
-Handler_read_first	0
-Handler_read_key	0
+Handler_read_first	5
+Handler_read_key	8
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -4566,6 +4708,11 @@ insert into t2 select * from t1;
 update t2 set b=1;
 create table t3 (a int, oref int);
 insert into t3 values (1, 1), (NULL,1), (NULL,0);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 select a, oref, 
 t3.a in (select t1.a from t1, t2 where t1.b=t2.a and t2.b=t3.oref) Z 
 from t3;
@@ -4578,9 +4725,9 @@ select a, oref,
 t3.a in (select t1.a from t1, t2 where t1.b=t2.a and t2.b=t3.oref) z 
 from t3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	DEPENDENT SUBQUERY	t1	NULL	ref_or_null	a	a	5	func	4	100.00	Using where; Full scan on NULL key
-2	DEPENDENT SUBQUERY	t2	NULL	ref	a	a	5	test.t1.b	1	10.00	Using where; Using join buffer (Batched Key Access)
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	1	NULL
+2	DEPENDENT SUBQUERY	t1	NULL	ref_or_null	a	a	5	func	2	1	Using where; Full scan on NULL key
+2	DEPENDENT SUBQUERY	t2	NULL	ref	a	a	5	test.t1.b	1	1	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1276	Field or reference 'test.t3.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`oref` AS `oref`,<in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t3`.`a`) = `test`.`t1`.`a`) or (`test`.`t1`.`a` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true))) AS `z` from `test`.`t3`
@@ -4593,6 +4740,11 @@ insert into t2 select * from t1;
 update t2 set b=1;
 create table t3 (a int, oref int);
 insert into t3 values (1, 1), (NULL,1), (NULL,0);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 select a, oref, 
 t3.a in (select t1.a from t1, t2 where t1.b=t2.a and t2.b=t3.oref) Z 
 from t3;
@@ -4607,7 +4759,7 @@ t3.a in (select t1.a from t1, t2 where t1.b=t2.a and t2.b=t3.oref) z
 from t3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	DEPENDENT SUBQUERY	t1	NULL	ref	a	a	4	func	2	100.00	Using where; Full scan on NULL key
+2	DEPENDENT SUBQUERY	t1	NULL	ref	a	a	4	func	1	100.00	Using where; Full scan on NULL key
 2	DEPENDENT SUBQUERY	t2	NULL	ref	a	a	4	test.t1.b	1	10.00	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1276	Field or reference 'test.t3.oref' of SELECT #2 was resolved in SELECT #1
@@ -4621,6 +4773,10 @@ create table t2 (oref int, a int);
 insert into t2 values 
 (1, NULL),
 (2, NULL);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 select a, oref, 
 a in (select count(*) from t1 group by grp having grp=t2.oref) Z from t2;
 a	oref	Z
@@ -4661,6 +4817,11 @@ create table t2 (a int, b int, oref int);
 insert into t2 values (NULL,1, 100), (NULL,2, 100);
 create table t1 (a int, b int, c int, key(a,b));
 insert into t1 select 2*A, 2*A, 100 from t3;
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 explain select a,b, oref, (a,b) in (select a,b from t1 where c=t2.oref) z from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
@@ -4674,6 +4835,9 @@ NULL	1	100	0
 NULL	2	100	NULL
 create table t4 (x int);
 insert into t4 select A.a + 10*B.a from t1 A, t1 B;
+ANALYZE TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	analyze	status	OK
 explain
 select a,b, oref, 
 (a,b) in (select a,b from t1,t4 where c=t2.oref) z 
@@ -4719,6 +4883,10 @@ oref	a	b	Z
 cc	3	NULL	NULL
 insert into t2 values ('new1', 10,10);
 insert into t1 values ('new1', 1234, 10, NULL);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) Z from t2 where a=10 and b=10;
 oref	a	b	Z
 new1	10	10	NULL
@@ -4752,6 +4920,10 @@ insert into t2 values
 ('aa', 1),
 ('dd', NULL),
 ('bb', NULL);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 select oref, a, a in (select ie from t1 where oref=t2.oref) Z from t2;
 oref	a	Z
 ee	NULL	NULL
@@ -4789,6 +4961,9 @@ bb	2
 ff	2
 dd	NULL
 update t1 set ie=3 where oref='ff' and ie=1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select oref, a, a in (select min(ie) from t1 where oref=t2.oref group by
 grp) Z from t2;
 oref	a	Z
@@ -4832,6 +5007,9 @@ cc	3
 aa	1
 dd	NULL
 alter table t1 add index idx(ie);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain select oref, a, a in (select ie from t1 where oref=t2.oref) z from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	NULL
@@ -4858,10 +5036,13 @@ bb	2
 dd	NULL
 alter table t1 drop index idx;
 alter table t1 add index idx(oref,ie);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain select oref, a, a in (select ie from t1 where oref=t2.oref) z from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	NULL
-2	DEPENDENT SUBQUERY	t1	NULL	ref_or_null	idx	idx	22	test.t2.oref,func	4	100.00	Using where; Using index; Full scan on NULL key
+2	DEPENDENT SUBQUERY	t1	NULL	ref_or_null	idx	idx	22	test.t2.oref,func	2	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`ie` from `test`.`t1` where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`ie`) or (`test`.`t1`.`ie` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie`), true))) AS `z` from `test`.`t2`
@@ -4882,6 +5063,10 @@ select oref, a from t2 where a not in (select ie from t1 where oref=t2.oref);
 oref	a
 bb	2
 dd	NULL
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 explain 
 select oref, a, 
 a in (select min(ie) from t1 where oref=t2.oref 
@@ -4939,6 +5124,10 @@ insert into t2 values
 ('bb', NULL, NULL),
 ('aa', 1, 1),
 ('dd', 1, NULL);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) Z from t2;
 oref	a	b	Z
 ee	NULL	1	NULL
@@ -4980,10 +5169,13 @@ bb	2	1
 ff	2	2
 dd	1	NULL
 alter table t1 add index idx(ie1,ie2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) z from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	NULL
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	idx	idx	5	func	4	10.00	Using where; Full scan on NULL key
+2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	idx	idx	5	func	5	10.00	Using where; Full scan on NULL key
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on idx checking NULL where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`ie1`) or (`test`.`t1`.`ie1` is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`ie2`) or (`test`.`t1`.`ie2` is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie1`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie2`), true))))) AS `z` from `test`.`t2`
@@ -5008,7 +5200,7 @@ explain
 select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) z from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	NULL
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	idx	idx	5	func	4	10.00	Using where; Full scan on NULL key
+2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	idx	idx	5	func	5	10.00	Using where; Full scan on NULL key
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on idx checking NULL where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`ie1`) or (`test`.`t1`.`ie1` is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`ie2`) or (`test`.`t1`.`ie2` is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie1`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie2`), true))))) AS `z` from `test`.`t2`
@@ -5030,6 +5222,10 @@ insert into t2 values
 ('cc', NULL),
 ('aa', 1),
 ('bb', NULL);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 explain select oref, a, a in (select ie from t1 where oref=t2.oref) z from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	NULL
@@ -5140,6 +5336,10 @@ CREATE TABLE t1 (a int);
 CREATE TABLE t2 (b int, PRIMARY KEY(b));
 INSERT INTO t1 VALUES (1), (NULL), (4);
 INSERT INTO t2 VALUES (3), (1),(2), (5), (4), (7), (6);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN
 SELECT a FROM t1, t2 WHERE a=b AND (b NOT IN (SELECT a FROM t1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5161,6 +5361,11 @@ CREATE TABLE t3 (id int PRIMARY KEY, name varchar(10));
 INSERT INTO t1 VALUES (2), (NULL), (3), (1);
 INSERT INTO t2 VALUES (234), (345), (457);
 INSERT INTO t3 VALUES (222,'bbb'), (333,'ccc'), (111,'aaa');
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 EXPLAIN
 SELECT * FROM t1
 WHERE t1.id NOT IN (SELECT t2.id FROM t2,t3 
@@ -5192,6 +5397,10 @@ CREATE TABLE t1 (a INT NOT NULL);
 INSERT INTO t1 VALUES (1),(-1), (65),(66);
 CREATE TABLE t2 (a INT UNSIGNED NOT NULL PRIMARY KEY);
 INSERT INTO t2 VALUES (65),(66);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 SELECT a FROM t1 WHERE a NOT IN (65,66);
 a
 1
@@ -5307,6 +5516,9 @@ ROW(1,2) = (SELECT    1,    2)	ROW(1,2) IN (SELECT    1,    2)
 1	1
 CREATE TABLE t1 (a INT, b INT, c INT);
 INSERT INTO t1 VALUES (1,1,1), (1,1,1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN
 SELECT cc FROM 
 ( SELECT 
@@ -5330,15 +5542,20 @@ INSERT INTO t1 VALUES (1,1),(2,2);
 CREATE TABLE t2 LIKE t1;
 INSERT INTO t2 VALUES (1,1),(2,2);
 CREATE TABLE t3 LIKE t1;
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 # should have 1 impossible where and 2 dependent subqueries
 EXPLAIN
 SELECT COUNT(*) FROM t1
 WHERE NOT EXISTS (SELECT 1 FROM t2 WHERE 1 = (SELECT MIN(t2.b) FROM t3))
 ORDER BY COUNT(*);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+1	PRIMARY	t1	NULL	index	NULL	a	5	NULL	2	100.00	Using index
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+3	DEPENDENT SUBQUERY	t3	NULL	index	NULL	a	5	NULL	1	100.00	Using index
 Warnings:
 Note	1276	Field or reference 'test.t2.b' of SELECT #3 was resolved in SELECT #2
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where true
@@ -5368,6 +5585,11 @@ CREATE TABLE t2 LIKE t1;
 INSERT INTO t2 SELECT * FROM t1;
 CREATE TABLE t3 LIKE t1;
 INSERT INTO t3 SELECT * FROM t1;
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 # Should not crash.
 # Should have 1 impossible where and 2 dependent subqs.
 EXPLAIN
@@ -5737,16 +5959,21 @@ KEY c (c),
 KEY b_2 (b)
 );
 INSERT INTO t3 VALUES (1,1,1), (2,32,1);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 explain
 SELECT t1.a, (SELECT 1 FROM t2 WHERE t2.b=t3.c AND t2.c=t1.a ORDER BY t2.d LIMIT 1) AS incorrect FROM t1, t3 WHERE t3.b=t1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t3	NULL	index	b,b_2	b	10	NULL	2	100.00	Using where; Using index
-1	PRIMARY	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.b	1	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	NULL	ref	b,b_2,c	b	10	test.t3.c,test.t1.a	2	100.00	Using index; Using filesort
+1	PRIMARY	t1	NULL	index	PRIMARY	b	5	NULL	2	100.00	Using index
+1	PRIMARY	t3	NULL	ref	b,b_2	b	5	test.t1.a	1	100.00	Using index
+2	DEPENDENT SUBQUERY	t2	NULL	ref	b,b_2,c	b	10	test.t3.c,test.t1.a	1	100.00	Using index; Using filesort
 Warnings:
 Note	1276	Field or reference 'test.t3.c' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`b` = `test`.`t3`.`c`) and (`test`.`t2`.`c` = `test`.`t1`.`a`)) order by `test`.`t2`.`d` limit 1) AS `incorrect` from `test`.`t1` join `test`.`t3` where (`test`.`t1`.`a` = `test`.`t3`.`b`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`b` = `test`.`t3`.`c`) and (`test`.`t2`.`c` = `test`.`t1`.`a`)) order by `test`.`t2`.`d` limit 1) AS `incorrect` from `test`.`t1` join `test`.`t3` where (`test`.`t3`.`b` = `test`.`t1`.`a`)
 SELECT t1.a, (SELECT 1 FROM t2 WHERE t2.b=t3.c AND t2.c=t1.a ORDER BY t2.d LIMIT 1) AS incorrect FROM t1, t3 WHERE t3.b=t1.a;
 a	incorrect
 1	1
@@ -6126,6 +6353,9 @@ DROP TABLE t1;
 CREATE TABLE t1(a LONGTEXT);
 INSERT INTO t1 VALUES (repeat('a',@@global.max_allowed_packet));
 INSERT INTO t1 VALUES (repeat('b',@@global.max_allowed_packet));
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT DISTINCT 1 FROM t1,
 (SELECT a AS away FROM t1 GROUP BY a WITH ROLLUP) AS d1  
 WHERE t1.a = d1.a;
@@ -6264,7 +6494,7 @@ Set up test tables.
 CREATE TABLE t1 (
 t1_id INT UNSIGNED,
 PRIMARY KEY(t1_id)
-) Engine=MyISAM;
+) Engine=INNODB;
 INSERT INTO t1 (t1_id) VALUES (1), (2), (3), (4), (5);
 CREATE TABLE t2 SELECT * FROM t1;
 CREATE TABLE t3 (
@@ -6273,7 +6503,7 @@ t1_id INT UNSIGNED,
 amount DECIMAL(16,2),
 PRIMARY KEY(t3_id),
 KEY(t1_id)
-) Engine=MyISAM;
+) Engine=INNODB;
 INSERT INTO t3 (t1_id, t3_id, amount) 
 VALUES (1, 1, 100.00), (2, 2, 200.00), (4, 4, 400.00);
 This is the 'inner query' running by itself.
@@ -6462,6 +6692,10 @@ CREATE TABLE t1 (a VARCHAR(10), FULLTEXT KEY a (a));
 INSERT INTO t1 VALUES (1),(2);
 CREATE TABLE t2 (b INT);
 INSERT INTO t2 VALUES (1),(2);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 # Should not crash
 EXPLAIN
 SELECT * FROM t2 UNION SELECT * FROM t2
@@ -6592,6 +6826,9 @@ End of 5.1 tests
 #
 CREATE TABLE t1 (a INT, b INT, INDEX (a));
 INSERT INTO t1 VALUES (3, 10), (2, 20), (7, 10), (5, 20);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 
 EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a=7) t;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6615,6 +6852,10 @@ CREATE TABLE t1 (i INTEGER);
 INSERT INTO t1 VALUES (1);
 CREATE TABLE t2 (i INTEGER, KEY k(i));
 INSERT INTO t2 VALUES (1), (2);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN  
 SELECT i FROM t1 WHERE (1) NOT IN (SELECT i FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6732,6 +6973,10 @@ INSERT INTO t2 VALUES (0,'c');
 INSERT INTO t2 VALUES (0,'o');
 INSERT INTO t2 VALUES (2,'v');
 INSERT INTO t2 VALUES (7,'c');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 
 SELECT i, v, (SELECT COUNT(DISTINCT i)
 FROM t1
@@ -6762,6 +7007,9 @@ DROP TABLE t1,t2;
 #
 CREATE TABLE t1 (a INT, b INT, INDEX (a));
 INSERT INTO t1 VALUES (3, 10), (2, 20), (7, 10), (5, 20);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 
 EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a=7) t;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6787,7 +7035,7 @@ col_varchar_key VARCHAR(1),
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 INSERT INTO cc VALUES (10,7,'v');
 INSERT INTO cc VALUES (11,1,'r');
 CREATE TABLE bb (
@@ -6795,7 +7043,7 @@ pk INT,
 col_date_key DATE,
 PRIMARY KEY (pk),
 KEY col_date_key (col_date_key)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 INSERT INTO bb VALUES (10,'2002-02-21');
 CREATE TABLE c (
 pk INT,
@@ -6804,7 +7052,7 @@ col_varchar_key VARCHAR(1),
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 INSERT INTO c VALUES (1,NULL,'w');
 INSERT INTO c VALUES (19,NULL,'f');
 CREATE TABLE b (
@@ -6814,7 +7062,7 @@ col_varchar_key VARCHAR(1),
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 INSERT INTO b VALUES (1,7,'f');
 SELECT col_int_key
 FROM b granparent1
@@ -6839,6 +7087,10 @@ CREATE TABLE t1 (c int);
 INSERT INTO t1 VALUES (NULL);
 CREATE TABLE t2 (d int , KEY (d));
 INSERT INTO t2 VALUES (NULL),(NULL);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 0 rows in subquery
 SELECT 1 AS RESULT FROM t2,t1 WHERE d = c;
 RESULT
@@ -6848,33 +7100,33 @@ RESULT
 NULL
 EXPLAIN SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ref	d	d	5	test.t1.c	2	100.00	Using index
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (/* select#2 */ select 1 from `test`.`t2` where multiple equal(NULL, `test`.`t2`.`d`)) AS `RESULT` from dual
+Note	1003	/* select#1 */ select (/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`d` = `test`.`t1`.`c`)) AS `RESULT` from `test`.`t1`
 first equivalent variant
 SELECT (SELECT 1 FROM t2 WHERE d = IFNULL(c,NULL)) AS RESULT FROM t1 GROUP BY c ;
 RESULT
 NULL
 EXPLAIN SELECT (SELECT 1 FROM t2 WHERE d = IFNULL(c,NULL)) AS RESULT FROM t1 GROUP BY c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+2	DEPENDENT SUBQUERY	t2	NULL	ref	d	d	5	func	2	100.00	Using where; Using index
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`d` = ifnull(NULL,NULL))) AS `RESULT` from dual group by NULL
+Note	1003	/* select#1 */ select (/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`d` = ifnull(`test`.`t1`.`c`,NULL))) AS `RESULT` from `test`.`t1` group by `test`.`t1`.`c`
 second equivalent variant
 SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 GROUP BY c ;
 RESULT
 NULL
 EXPLAIN SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 GROUP BY c ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+2	DEPENDENT SUBQUERY	t2	NULL	ref	d	d	5	func	2	100.00	Using index
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (/* select#2 */ select 1 from `test`.`t2` where multiple equal(NULL, `test`.`t2`.`d`)) AS `RESULT` from dual group by NULL
+Note	1003	/* select#1 */ select (/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`d` = `test`.`t1`.`c`)) AS `RESULT` from `test`.`t1` group by `test`.`t1`.`c`
 DROP TABLE t1,t2;
 
 BUG#37842: Assertion in DsMrr_impl::dsmrr_init, at handler.cc:4307
@@ -6884,7 +7136,7 @@ CREATE TABLE t1 (
 `int_key` int(11) DEFAULT NULL,
 PRIMARY KEY (`pk`),
 KEY `int_key` (`int_key`)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -6963,6 +7215,10 @@ INSERT INTO t1 VALUES ('v'),('s');
 CREATE TABLE t2 (f1_key varchar(1), KEY (f1_key)) charset utf8mb4;
 INSERT INTO t2 VALUES ('j'),('v'),('c'),('m'),('d'),
 ('d'),('y'),('t'),('d'),('s');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 SELECT table1.f1, table2.f1_key
 FROM t1 AS table1, t2 AS table2
 WHERE EXISTS 
@@ -7024,6 +7280,12 @@ KEY col_int_key (col_int_key),
 KEY col_varchar_key (col_varchar_key,col_int_key))
 charset latin1;
 INSERT INTO t3 VALUES (4,'p'),(8,'e'),(10,'a');
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	Error	Table 'test.t2' doesn't exist
+test.t2	analyze	status	Operation failed
+test.t3	analyze	status	OK
 SELECT t1f.*,t3f.*,(
 SELECT MIN(t3s.col_int_key)
 FROM t3 AS t3s JOIN
@@ -7111,6 +7373,9 @@ KEY idx_cvk_cik (col_varchar_key,col_int_key)
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO it VALUES (NULL,'x'), (NULL,'f');
+ANALYZE TABLE it;
+Table	Op	Msg_type	Msg_text
+test.it	analyze	status	OK
 
 SELECT col_int_nokey 
 FROM ot 
@@ -7129,10 +7394,10 @@ WHERE col_varchar_nokey IN
 FROM it 
 WHERE col_int_key IS NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	ot	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	it	NULL	index_subquery	idx_cvk_cik	idx_cvk_cik	9	func,const	2	100.00	Using where; Using index
+1	PRIMARY	ot	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	it	NULL	index_subquery	idx_cvk_cik	idx_cvk_cik	9	func,const	1	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `col_int_nokey` from dual where true
+Note	1003	/* select#1 */ select `test`.`ot`.`col_int_nokey` AS `col_int_nokey` from `test`.`ot` where <in_optimizer>(`test`.`ot`.`col_varchar_nokey`,<exists>(<index_lookup>(<cache>(`test`.`ot`.`col_varchar_nokey`) in it on idx_cvk_cik where (`test`.`it`.`col_int_key` is null))))
 
 SELECT col_int_nokey 
 FROM ot 
@@ -7151,11 +7416,11 @@ WHERE col_varchar_nokey IN
 FROM it 
 WHERE coalesce(col_int_nokey, 1) );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	ot	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	it	NULL	index_subquery	idx_cvk_cik	idx_cvk_cik	4	func	2	100.00	Using index
+1	PRIMARY	ot	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	it	NULL	index_subquery	idx_cvk_cik	idx_cvk_cik	4	func	1	100.00	Using where; Using index
 Warnings:
 Note	1276	Field or reference 'test.ot.col_int_nokey' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '1' AS `col_int_nokey` from dual where true
+Note	1003	/* select#1 */ select `test`.`ot`.`col_int_nokey` AS `col_int_nokey` from `test`.`ot` where <in_optimizer>(`test`.`ot`.`col_varchar_nokey`,<exists>(<index_lookup>(<cache>(`test`.`ot`.`col_varchar_nokey`) in it on idx_cvk_cik where (0 <> coalesce(`test`.`ot`.`col_int_nokey`,1)))))
 DROP TABLE it;
 CREATE TABLE it (
 col_int_key int(11),
@@ -7167,6 +7432,9 @@ KEY idx_cvk_cik (col_varchar_key, col_int_key)
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO it VALUES (NULL,'x','x'), (NULL,'f','f');
+ANALYZE TABLE it;
+Table	Op	Msg_type	Msg_text
+test.it	analyze	status	OK
 SELECT col_int_nokey
 FROM ot
 WHERE (col_varchar_nokey, 'x') IN
@@ -7184,10 +7452,10 @@ WHERE (col_varchar_nokey, 'x') IN
 FROM it
 WHERE col_int_key IS NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	ot	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	it	NULL	index_subquery	idx_cvk_cvk2_cik,idx_cvk_cik	idx_cvk_cvk2_cik	13	func,const,const	2	100.00	Using where; Using index
+1	PRIMARY	ot	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	it	NULL	index_subquery	idx_cvk_cvk2_cik,idx_cvk_cik	idx_cvk_cvk2_cik	13	func,const,const	1	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `col_int_nokey` from dual where true
+Note	1003	/* select#1 */ select `test`.`ot`.`col_int_nokey` AS `col_int_nokey` from `test`.`ot` where <in_optimizer>((`test`.`ot`.`col_varchar_nokey`,'x'),<exists>(<index_lookup>(<cache>(`test`.`ot`.`col_varchar_nokey`) in it on idx_cvk_cvk2_cik where (`test`.`it`.`col_int_key` is null))))
 
 DROP TABLE it, ot;
 #
@@ -7221,6 +7489,9 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,0,'j','j'),(2,8,'v','v'),
 (3,1,'c','c'),(4,8,'m','m'),(5,9,'d','d');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 CREATE VIEW v1 AS SELECT * FROM t1;
 EXPLAIN SELECT alias2.col_varchar_nokey
 FROM v1 AS alias1
@@ -7238,7 +7509,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	PRIMARY	t1	NULL	index	NULL	col_varchar_key	7	NULL	5	100.00	Using where; Using index; Using join buffer (hash join)
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Using where
-2	DEPENDENT SUBQUERY	sq2_alias2	NULL	ref	col_int_key	col_int_key	4	test.t1.pk	2	100.00	Using index
+2	DEPENDENT SUBQUERY	sq2_alias2	NULL	ref	col_int_key	col_int_key	4	test.t1.pk	1	100.00	Using index
 Warnings:
 Note	1276	Field or reference 'alias1.col_int_key' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'alias1.col_varchar_key' of SELECT #2 was resolved in SELECT #1
@@ -7279,14 +7550,14 @@ AND sq2_alias1.col_varchar_key > alias1.col_varchar_key
 ;
 EXPLAIN SELECT * FROM v2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-1	PRIMARY	t1	NULL	index	NULL	col_varchar_key	7	NULL	5	100.00	Using where; Using index; Using join buffer (hash join)
-3	DEPENDENT SUBQUERY	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Using where
-3	DEPENDENT SUBQUERY	sq2_alias2	NULL	ref	col_int_key	col_int_key	4	test.t1.pk	2	100.00	Using index
+1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+1	PRIMARY	t1	NULL	index	NULL	col_varchar_key	7	NULL	#	#	Using where; Using index; Using join buffer (hash join)
+3	DEPENDENT SUBQUERY	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	#	#	Using where
+3	DEPENDENT SUBQUERY	sq2_alias2	NULL	ref	col_int_key	col_int_key	4	test.t1.pk	#	#	Using index
 Warnings:
 Note	1276	Field or reference 'test.alias1.col_int_key' of SELECT #3 was resolved in SELECT #2
 Note	1276	Field or reference 'test.alias1.col_varchar_key' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `alias2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `alias2` left join (`test`.`t1`) on(true) where <in_optimizer>(`alias2`.`col_varchar_key`,<exists>(/* select#3 */ select `test`.`t1`.`col_varchar_nokey` from `test`.`t1` left join `test`.`t1` `sq2_alias2` on((`sq2_alias2`.`col_int_key` = `test`.`t1`.`pk`)) where ((`test`.`t1`.`pk` <> `test`.`t1`.`col_int_key`) and (`test`.`t1`.`col_varchar_key` > `test`.`t1`.`col_varchar_key`) and (<cache>(`alias2`.`col_varchar_key`) = `test`.`t1`.`col_varchar_nokey`))))
+Note	1003	/* select#1 */ select `test`.`alias2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `alias2` left join (`test`.`t1`) on(true) where <in_optimizer>(`test`.`alias2`.`col_varchar_key`,<exists>(/* select#3 */ select `test`.`t1`.`col_varchar_nokey` from `test`.`t1` left join `test`.`t1` `sq2_alias2` on((`test`.`sq2_alias2`.`col_int_key` = `test`.`t1`.`pk`)) where ((`test`.`t1`.`pk` <> `test`.`t1`.`col_int_key`) and (`test`.`t1`.`col_varchar_key` > `test`.`t1`.`col_varchar_key`) and (<cache>(`test`.`alias2`.`col_varchar_key`) = `test`.`t1`.`col_varchar_nokey`))))
 SELECT * FROM v2;
 col_varchar_nokey
 d
@@ -7313,11 +7584,11 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	PRIMARY	t1	NULL	index	NULL	col_varchar_key	7	NULL	5	100.00	Using where; Using index; Using join buffer (hash join)
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Using where
-2	DEPENDENT SUBQUERY	sq2_alias2	NULL	ref	col_int_key	col_int_key	4	test.t1.pk	2	100.00	Using index
+2	DEPENDENT SUBQUERY	sq2_alias2	NULL	ref	col_int_key	col_int_key	4	test.t1.pk	1	100.00	Using index
 Warnings:
 Note	1276	Field or reference 'alias1.col_int_key' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'alias1.col_varchar_key' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `alias2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `alias2` left join (`test`.`t1`) on(true) where <in_optimizer>(`alias2`.`col_varchar_key`,<exists>(/* select#2 */ select `test`.`t1`.`col_varchar_nokey` from `test`.`t1` left join `test`.`t1` `sq2_alias2` on((`sq2_alias2`.`col_int_key` = `test`.`t1`.`pk`)) where ((`test`.`t1`.`pk` <> `test`.`t1`.`col_int_key`) and (`test`.`t1`.`col_varchar_key` > `test`.`t1`.`col_varchar_key`) and (<cache>(`alias2`.`col_varchar_key`) = `test`.`t1`.`col_varchar_nokey`))))
+Note	1003	/* select#1 */ select `test`.`alias2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `alias2` left join (`test`.`t1`) on(true) where <in_optimizer>(`test`.`alias2`.`col_varchar_key`,<exists>(/* select#2 */ select `test`.`t1`.`col_varchar_nokey` from `test`.`t1` left join `test`.`t1` `sq2_alias2` on((`test`.`sq2_alias2`.`col_int_key` = `test`.`t1`.`pk`)) where ((`test`.`t1`.`pk` <> `test`.`t1`.`col_int_key`) and (`test`.`t1`.`col_varchar_key` > `test`.`t1`.`col_varchar_key`) and (<cache>(`test`.`alias2`.`col_varchar_key`) = `test`.`t1`.`col_varchar_nokey`))))
 SELECT alias2.col_varchar_nokey
 FROM t1 AS alias2
 LEFT JOIN v1 AS alias1 ON 1
@@ -7356,7 +7627,7 @@ PRIMARY KEY (pk),
 KEY col_int_key (col_int_key),
 KEY col_time_key (col_time_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 CREATE TABLE t2 (
 pk int NOT NULL AUTO_INCREMENT,
 col_int_nokey int NOT NULL,
@@ -7368,7 +7639,7 @@ PRIMARY KEY (pk),
 KEY col_int_key (col_int_key),
 KEY col_time_key (col_time_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 INSERT INTO t2 VALUES (1,4,4,'00:00:00','b','b');
 SET @var2:=4, @var3:=8;
 
@@ -7378,10 +7649,10 @@ FROM t1 AS sq4_alias1
 WHERE (sq4_alias1.col_varchar_key + NULL) IS NULL OR
 sq4_alias1.col_varchar_key = @var3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	sq4_alias1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Note	1003	/* select#1 */ select (@var3:=12) AS `@var3:=12`,NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t1` `sq4_alias1` where (((NULL + NULL) is null) or (NULL = (@`var3`)))
+Note	1003	/* select#1 */ select (@var3:=12) AS `@var3:=12`,`test`.`sq4_alias1`.`pk` AS `pk`,`test`.`sq4_alias1`.`col_int_nokey` AS `col_int_nokey`,`test`.`sq4_alias1`.`col_int_key` AS `col_int_key`,`test`.`sq4_alias1`.`col_time_key` AS `col_time_key`,`test`.`sq4_alias1`.`col_varchar_key` AS `col_varchar_key`,`test`.`sq4_alias1`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `sq4_alias1` where (((`test`.`sq4_alias1`.`col_varchar_key` + NULL) is null) or (cast(`test`.`sq4_alias1`.`col_varchar_key` as double) = cast((@`var3`) as double)))
 SELECT @var3:=12, sq4_alias1.*
 FROM t1 AS sq4_alias1
 WHERE (sq4_alias1.col_varchar_key + NULL) IS NULL OR
@@ -7397,11 +7668,11 @@ FROM t1 AS sq4_alias1
 WHERE (sq4_alias1.col_varchar_key + NULL) IS NULL OR
 sq4_alias1.col_varchar_key = @var3 ) AS alias3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	sq4_alias1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Note	1003	/* select#1 */ select NULL AS `@var3:=12`,NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from (/* select#2 */ select (@var3:=12) AS `@var3:=12`,NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t1` `sq4_alias1` where (((NULL + NULL) is null) or (NULL = (@`var3`)))) `alias3`
+Note	1003	/* select#1 */ select `alias3`.`@var3:=12` AS `@var3:=12`,`alias3`.`pk` AS `pk`,`alias3`.`col_int_nokey` AS `col_int_nokey`,`alias3`.`col_int_key` AS `col_int_key`,`alias3`.`col_time_key` AS `col_time_key`,`alias3`.`col_varchar_key` AS `col_varchar_key`,`alias3`.`col_varchar_nokey` AS `col_varchar_nokey` from (/* select#2 */ select (@var3:=12) AS `@var3:=12`,`test`.`sq4_alias1`.`pk` AS `pk`,`test`.`sq4_alias1`.`col_int_nokey` AS `col_int_nokey`,`test`.`sq4_alias1`.`col_int_key` AS `col_int_key`,`test`.`sq4_alias1`.`col_time_key` AS `col_time_key`,`test`.`sq4_alias1`.`col_varchar_key` AS `col_varchar_key`,`test`.`sq4_alias1`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `sq4_alias1` where (((`test`.`sq4_alias1`.`col_varchar_key` + NULL) is null) or (cast(`test`.`sq4_alias1`.`col_varchar_key` as double) = cast((@`var3`) as double)))) `alias3`
 SELECT * FROM ( SELECT @var3:=12, sq4_alias1.*
 FROM t1 AS sq4_alias1
 WHERE (sq4_alias1.col_varchar_key + NULL) IS NULL OR
@@ -7425,10 +7696,10 @@ FROM t2 AS c_sq1_alias1
 WHERE (c_sq1_alias1.col_int_nokey != @var2
 OR c_sq1_alias1.pk != @var3));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+1	PRIMARY	sq4_alias1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	c_sq1_alias1	NULL	ref	PRIMARY,col_varchar_key	col_varchar_key	6	func	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t1` `sq4_alias1` where <in_optimizer>((NULL,NULL),<exists>(/* select#2 */ select `test`.`c_sq1_alias1`.`col_varchar_key` AS `c_sq1_field1`,`test`.`c_sq1_alias1`.`col_varchar_nokey` AS `c_sq1_field2` from `test`.`t2` `c_sq1_alias1` where (((`test`.`c_sq1_alias1`.`col_int_nokey` <> (@`var2`)) or (`test`.`c_sq1_alias1`.`pk` <> (@`var3`))) and ((<cache>(NULL) = `test`.`c_sq1_alias1`.`col_varchar_key`) or (`test`.`c_sq1_alias1`.`col_varchar_key` is null)) and ((<cache>(NULL) = `test`.`c_sq1_alias1`.`col_varchar_nokey`) or (`test`.`c_sq1_alias1`.`col_varchar_nokey` is null))) having (<is_not_null_test>(`test`.`c_sq1_alias1`.`col_varchar_key`) and <is_not_null_test>(`test`.`c_sq1_alias1`.`col_varchar_nokey`))) is false)
+Note	1003	/* select#1 */ select `test`.`sq4_alias1`.`pk` AS `pk`,`test`.`sq4_alias1`.`col_int_nokey` AS `col_int_nokey`,`test`.`sq4_alias1`.`col_int_key` AS `col_int_key`,`test`.`sq4_alias1`.`col_time_key` AS `col_time_key`,`test`.`sq4_alias1`.`col_varchar_key` AS `col_varchar_key`,`test`.`sq4_alias1`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `sq4_alias1` where <in_optimizer>((`test`.`sq4_alias1`.`col_varchar_key`,`test`.`sq4_alias1`.`col_varchar_nokey`),<exists>(/* select#2 */ select `test`.`c_sq1_alias1`.`col_varchar_key` AS `c_sq1_field1`,`test`.`c_sq1_alias1`.`col_varchar_nokey` AS `c_sq1_field2` from `test`.`t2` `c_sq1_alias1` where (((`test`.`c_sq1_alias1`.`col_int_nokey` <> <cache>((@`var2`))) or (`test`.`c_sq1_alias1`.`pk` <> <cache>((@`var3`)))) and (<cache>(`test`.`sq4_alias1`.`col_varchar_key`) = `test`.`c_sq1_alias1`.`col_varchar_key`) and (<cache>(`test`.`sq4_alias1`.`col_varchar_nokey`) = `test`.`c_sq1_alias1`.`col_varchar_nokey`)) having (<is_not_null_test>(`test`.`c_sq1_alias1`.`col_varchar_key`) and <is_not_null_test>(`test`.`c_sq1_alias1`.`col_varchar_nokey`))) is false)
 SELECT sq4_alias1.*
 FROM t1 AS sq4_alias1
 WHERE (sq4_alias1.col_varchar_key , sq4_alias1.col_varchar_nokey)
@@ -7449,10 +7720,10 @@ FROM t2 AS c_sq1_alias1
 WHERE (c_sq1_alias1.col_int_nokey != @var2
 OR c_sq1_alias1.pk != @var3)) ) AS alias3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+1	PRIMARY	sq4_alias1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+3	DEPENDENT SUBQUERY	c_sq1_alias1	NULL	ref	PRIMARY,col_varchar_key	col_varchar_key	6	func	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t1` `sq4_alias1` where <in_optimizer>((NULL,NULL),<exists>(/* select#3 */ select `test`.`c_sq1_alias1`.`col_varchar_key` AS `c_sq1_field1`,`test`.`c_sq1_alias1`.`col_varchar_nokey` AS `c_sq1_field2` from `test`.`t2` `c_sq1_alias1` where (((`test`.`c_sq1_alias1`.`col_int_nokey` <> (@`var2`)) or (`test`.`c_sq1_alias1`.`pk` <> (@`var3`))) and ((<cache>(NULL) = `test`.`c_sq1_alias1`.`col_varchar_key`) or (`test`.`c_sq1_alias1`.`col_varchar_key` is null)) and ((<cache>(NULL) = `test`.`c_sq1_alias1`.`col_varchar_nokey`) or (`test`.`c_sq1_alias1`.`col_varchar_nokey` is null))) having (<is_not_null_test>(`test`.`c_sq1_alias1`.`col_varchar_key`) and <is_not_null_test>(`test`.`c_sq1_alias1`.`col_varchar_nokey`))) is false)
+Note	1003	/* select#1 */ select `test`.`sq4_alias1`.`pk` AS `pk`,`test`.`sq4_alias1`.`col_int_nokey` AS `col_int_nokey`,`test`.`sq4_alias1`.`col_int_key` AS `col_int_key`,`test`.`sq4_alias1`.`col_time_key` AS `col_time_key`,`test`.`sq4_alias1`.`col_varchar_key` AS `col_varchar_key`,`test`.`sq4_alias1`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `sq4_alias1` where <in_optimizer>((`test`.`sq4_alias1`.`col_varchar_key`,`test`.`sq4_alias1`.`col_varchar_nokey`),<exists>(/* select#3 */ select `test`.`c_sq1_alias1`.`col_varchar_key` AS `c_sq1_field1`,`test`.`c_sq1_alias1`.`col_varchar_nokey` AS `c_sq1_field2` from `test`.`t2` `c_sq1_alias1` where (((`test`.`c_sq1_alias1`.`col_int_nokey` <> <cache>((@`var2`))) or (`test`.`c_sq1_alias1`.`pk` <> <cache>((@`var3`)))) and (<cache>(`test`.`sq4_alias1`.`col_varchar_key`) = `test`.`c_sq1_alias1`.`col_varchar_key`) and (<cache>(`test`.`sq4_alias1`.`col_varchar_nokey`) = `test`.`c_sq1_alias1`.`col_varchar_nokey`)) having (<is_not_null_test>(`test`.`c_sq1_alias1`.`col_varchar_key`) and <is_not_null_test>(`test`.`c_sq1_alias1`.`col_varchar_nokey`))) is false)
 SELECT * FROM ( SELECT sq4_alias1.*
 FROM t1 AS sq4_alias1
 WHERE (sq4_alias1.col_varchar_key , sq4_alias1.col_varchar_nokey)
@@ -7485,8 +7756,8 @@ select * from t1 where a in (select a from t2 where b=3);
 a
 show status like "handler_read%";
 Variable_name	Value
-Handler_read_first	0
-Handler_read_key	2
+Handler_read_first	1
+Handler_read_key	3
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -7619,7 +7890,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 3	DEPENDENT SUBQUERY	it2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where
 3	DEPENDENT SUBQUERY	it1	NULL	ref	col_varchar_key	col_varchar_key	6	test.it2.col_varchar_nokey	1	100.00	Using index
-2	SUBQUERY	t0	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
+2	SUBQUERY	t0	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` where false
 DROP TABLE t0, t1, t2;
@@ -7719,6 +7990,11 @@ CREATE TABLE t4 (a int);
 INSERT INTO t1 VALUES(0,1);
 INSERT INTO t2 VALUES(NULL,1),(NULL,1);
 INSERT INTO t4 VALUES(1);
+ANALYZE TABLE t1, t2, t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t4	analyze	status	OK
 SELECT ((0,1) NOT IN (SELECT NULL,1)) IS NULL;
 ((0,1) NOT IN (SELECT NULL,1)) IS NULL
 1
@@ -7726,11 +8002,11 @@ EXPLAIN SELECT * FROM t1
 WHERE ((a,b) NOT IN (SELECT t2.a,t2.b FROM
 t4 STRAIGHT_JOIN t2 WHERE t4.a=t2.b)) IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	t4	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	t2	NULL	ref_or_null	a_b	a_b	10	func,const	4	100.00	Using where; Using index; Full scan on NULL key
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ref_or_null	a_b	a_b	10	func,test.t4.a	4	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
-Note	1003	/* select#1 */ select '0' AS `a`,'1' AS `b` from dual where true
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`b`),not <exists>(/* select#2 */ select `test`.`t2`.`a`,`test`.`t2`.`b` from `test`.`t4` straight_join `test`.`t2` where ((`test`.`t2`.`b` = `test`.`t4`.`a`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`) or (`test`.`t2`.`a` is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`b`) = `test`.`t4`.`a`) or (`test`.`t4`.`a` is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`a`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`b`), true)))) is null)
 SELECT * FROM t1
 WHERE ((a,b) NOT IN (SELECT t2.a,t2.b FROM
 t4 STRAIGHT_JOIN t2 WHERE t4.a=t2.b)) IS NULL;
@@ -7741,11 +8017,11 @@ EXPLAIN SELECT * FROM t1
 WHERE ((a,b) NOT IN (SELECT t2.a,t2.b FROM
 t4 STRAIGHT_JOIN t2 WHERE t4.a=t2.b)) IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	t4	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select '0' AS `a`,'1' AS `b` from dual where true
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`b`),not <exists>(/* select#2 */ select `test`.`t2`.`a`,`test`.`t2`.`b` from `test`.`t4` straight_join `test`.`t2` where ((`test`.`t2`.`b` = `test`.`t4`.`a`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`) or (`test`.`t2`.`a` is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`b`) = `test`.`t4`.`a`) or (`test`.`t4`.`a` is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`a`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`b`), true)))) is null)
 SELECT * FROM t1
 WHERE ((a,b) NOT IN (SELECT t2.a,t2.b FROM
 t4 STRAIGHT_JOIN t2 WHERE t4.a=t2.b)) IS NULL;
@@ -7765,13 +8041,17 @@ col_varchar_nokey VARCHAR(1),
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 INSERT INTO t1 VALUES (17,NULL,9,NULL,NULL),
 (18,2,2,'o','o'),(19,NULL,9,'w','w'),(20,6,2,'m','m'),(21,7,4,'q','q'),
 (22,2,0,NULL,NULL),(23,5,4,'d','d'),(24,7,8,'g','g'),(25,6,NULL,'x','x'),
 (26,6,NULL,'f','f'),(27,2,0,'p','p'),(28,9,NULL,'j','j'),(29,6,8,'c','c');
 ALTER TABLE t1 DISABLE KEYS;
+Warnings:
+Note	1031	Table storage engine for 't1' doesn't have this option
 ALTER TABLE t1 ENABLE KEYS;
+Warnings:
+Note	1031	Table storage engine for 't1' doesn't have this option
 CREATE TABLE t2 SELECT table1.col_varchar_key AS field1,
 table1.col_int_nokey AS field2,
 table2.col_varchar_key AS field3,
@@ -7848,13 +8128,17 @@ CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL);
 INSERT INTO t1 VALUES (0,8), (8,7);
 CREATE TABLE t2 (c INT NOT NULL);
 INSERT INTO t2 VALUES (10);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN
 SELECT 1 FROM t2 WHERE c > ANY (SELECT a FROM t1 WHERE b >= 3) IS TRUE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from dual where true
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t2` where (<nop>((`test`.`t2`.`c` > (/* select#2 */ select min(`test`.`t1`.`a`) from `test`.`t1` where (`test`.`t1`.`b` >= 3)))) is true)
 SELECT 1 FROM t2 WHERE c > ANY (SELECT a FROM t1 WHERE b >= 3) IS TRUE;
 1
 1
@@ -7894,7 +8178,7 @@ CREATE TABLE t1 (
 pk INTEGER PRIMARY KEY,
 col_int_key INTEGER NOT NULL,
 KEY (col_int_key)
-) ENGINE=MYISAM;
+) ENGINE=INNODB;
 SELECT
 ( SELECT MIN(  1 ) AS SQ1_field1
 FROM t1 AS SQ1_alias1 , t1 AS SQ1_alias2
@@ -8043,6 +8327,9 @@ DROP TABLE t1, t2;
 CREATE TABLE t1(a INTEGER);
 CREATE VIEW v1 AS SELECT * FROM t1;
 INSERT INTO t1 VALUES(0), (1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1 WHERE a <ANY (SELECT a FROM v1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
@@ -8108,6 +8395,9 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (t1_id INT PRIMARY KEY);
 INSERT INTO t1 VALUES(1),(2),(3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1 GROUP BY t1_id ORDER BY t1_id DESC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Backward index scan; Using index
@@ -8474,5 +8764,16 @@ SELECT * FROM v1;
 a
 drop view v1;
 drop table t1;
+#
+# Bug #32773801: NOT IN CLAUSE GET WRONG RESULT
+#
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1), (2), (3);
+SELECT 2 IN ( SELECT 5 UNION SELECT NULL ) FROM t1;
+2 IN ( SELECT 5 UNION SELECT NULL )
+NULL
+NULL
+NULL
+DROP TABLE t1;
 set optimizer_switch=default;
 set optimizer_switch=default;

@@ -22,15 +22,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_alloc.h"  // MEM_ROOT
-
+#include "my_alloc.h"   // MEM_ROOT
+#include "my_time_t.h"  // my_time_t
 /**
   @file
   Contains common functionality shared between mysqld and
   mysql_tz_info_to_sql.
 */
-
-using my_time_t = long;
 
 /*
   Now we don't use abbreviations in server but we will do this in future.

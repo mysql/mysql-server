@@ -327,7 +327,7 @@ private:
   NdbWorker(const NdbWorker&);
   NdbWorker& operator=(const NdbWorker&);
 
-  STATIC_CONST(voidWorkerNo = 0xffffffff);
+  static constexpr Uint32 voidWorkerNo = 0xffffffff;
 
   /** Enclosing query.*/
   NdbQueryImpl* m_query;
@@ -488,6 +488,10 @@ public:
 
   const char* getCurrentRow()
   { return m_receiver.getCurrentRow(); }
+
+  /** Get the RANGE_NO for 'CurrentRow', or -1 if not available. */
+  int getCurrentRangeNo() const
+  { return m_receiver.get_range_no(); }
 
   /**
    * Process an incomming tuple for this stream. Extract parent and own tuple 
@@ -978,8 +982,8 @@ NdbResultStream::prepare()
   m_receiver.do_setup_ndbrecord(
                           m_operation.getNdbRecord(),
                           rowBuffer,
-                          false, /*read_range_no*/
-                          false  /*read_key_info*/);
+                          m_operation.needRangeNo(),
+                          /*read_key_info=*/ false);
 } //NdbResultStream::prepare
 
 /** Locate, and return 'tupleNo', of first tuple with specified parentId.
@@ -1308,20 +1312,29 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
         {
           if (childMatched == true)
           {
-            // Found a match for this outer joined child,
-            // remember that to avoid later NULL extensions
-            m_tupleSet[tupleNo].m_matchingChild.set(childId);
-            if (unlikely(traceSignals)) {
-              ndbout << "prepareResultSet, isOuterJoin"
-                     << ", matched 'innerNest'"
-                     << ", opNo: " << thisOpId
-                     << ", row: " << tupleNo
-                     << ", child: " << childId
-                     << endl;
-            }
-            if (childStream.isAntiJoin()) {
-              hasMatchingChild.clear(thisOpId);  // Skip this tupleNo
-              break;
+            /**
+             * Found a match for this outer joined child.
+             * If child is the firstInner in this outer-joined_nest, the entire
+             * nest matched the 'outer' join condition. Thus, no later
+             * NULL-extended rows should be created for this nest.
+             * -> Remember that to avoid later NULL extensions
+             * (Also see comments for 'm_matchingChild' member variable)
+             */
+            if (childStream.isFirstInner())
+            {
+              m_tupleSet[tupleNo].m_matchingChild.set(childId);
+              if (unlikely(traceSignals)) {
+                ndbout << "prepareResultSet, isOuterJoin"
+                       << ", matched 'innerNest'"
+                       << ", opNo: " << thisOpId
+                       << ", row: " << tupleNo
+                       << ", child: " << childId
+                       << endl;
+              }
+              if (childStream.isAntiJoin()) {
+                hasMatchingChild.clear(thisOpId);  // Skip this tupleNo/nest
+                break;
+              }
             }
           }
           /**
@@ -1804,6 +1817,12 @@ NdbQuery::setBound(const NdbRecord *keyRecord,
   } else {
     return 0;
   }
+}
+
+int
+NdbQuery::getRangeNo() const
+{
+  return m_impl.getRangeNo();
 }
 
 NdbQuery::NextResultOutcome
@@ -2532,6 +2551,17 @@ NdbQueryImpl::setBound(const NdbRecord *key_record,
   return 0;
 } // NdbQueryImpl::setBound()
 
+int
+NdbQueryImpl::getRangeNo() const
+{
+  const NdbWorker* worker = m_applFrags.getCurrent();
+  if (worker != NULL) {
+    const int range_no = worker->getResultStream(0).getCurrentRangeNo();
+    if (range_no >= 0) return range_no;
+    assert(!needRangeNo());
+  }
+  return 0;
+}
 
 Uint32
 NdbQueryImpl::getNoOfOperations() const
@@ -4804,6 +4834,12 @@ NdbQueryOperationImpl::serializeProject(Uint32Buffer& attrInfo)
     recAttr = recAttr->next();
   }
 
+  if (needRangeNo()) {
+    Uint32 ah;
+    AttributeHeader::init(&ah, AttributeHeader::RANGE_NO, 0);
+    attrInfo.append(ah);
+  }
+
   const bool withCorrelation = getQueryDef().isScanQuery();
   if (withCorrelation) {
     Uint32 ah;
@@ -5883,7 +5919,7 @@ Uint32 NdbQueryOperationImpl::getRowSize() const
   if (m_rowSize == 0xffffffff)
   {
     m_rowSize = 
-      NdbReceiver::ndbrecord_rowsize(m_ndbRecord, false);
+      NdbReceiver::ndbrecord_rowsize(m_ndbRecord, needRangeNo());
   }
   return m_rowSize;
 }
@@ -5947,7 +5983,8 @@ Uint32 NdbQueryOperationImpl::getMaxBatchBytes() const
     NdbReceiver::result_bufsize(m_ndbRecord,
                                 readMask.rep.data,
                                 m_firstRecAttr,
-                                0, false,           //No 'key_size' and 'read_range'
+                                /*key_size = */ 0,
+                                needRangeNo(),
                                 withCorrelation,
                                 batchFrags,
                                 batchRows, 

@@ -28,8 +28,9 @@ CREATE TABLE t1 (f INT) ENGINE= INNODB;
 
 --echo # Setup GLOBAL.DEBUG at slave to reach commit
 --source include/rpl_connection_slave.inc
---let $debug_saved= `SELECT @@GLOBAL.DEBUG`
-SET @@GLOBAL.DEBUG= '+d,dbug.reached_commit';
+
+--let $debug_point= dbug.reached_commit
+--source include/add_debug_point.inc
 
 --echo # Do some DML operation on master so that it will be blocked on
 --echo # slave as global read lock is in place.
@@ -53,7 +54,9 @@ let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
 query_vertical SHOW SLAVE STATUS;
 --enable_result_log
 UNLOCK TABLES;
-SET @@GLOBAL.DEBUG= '$debug_saved';
+
+--let $debug_point= dbug.reached_commit
+--source include/remove_debug_point.inc
 
 --echo # Restart SQL thread so that it notices debug has changed
 --source include/restart_slave_sql.inc

@@ -25,6 +25,7 @@
 #define DBSPJ_C
 #include "Dbspj.hpp"
 
+#include <cstring>
 #include <ndb_version.h>
 #include <SectionReader.hpp>
 #include <signaldata/LqhKey.hpp>
@@ -56,7 +57,6 @@
 
 #define JAM_FILE_ID 479
 
-extern EventLogger* g_eventLogger;
 extern Uint32 ErrorSignalReceive;
 extern Uint32 ErrorMaxSegmentsToSeize;
 
@@ -120,6 +120,77 @@ const Ptr<Dbspj::TreeNode> Dbspj::NullTreeNodePtr(0, RNIL );
 const Dbspj::RowRef Dbspj::NullRowRef = { RNIL, GLOBAL_PAGE_SIZE_WORDS};
 
 
+/**
+ * The guarded pointers add an extra level of safety where incomming
+ * signals refers internal objects via an 'i-pointer'. The getPtr()
+ * method itself offer little protection agains 'out of bounds' i-pointers.
+ * Thus we maintain the guarded pointers in an internal hash list as well.
+ * Using the hash list for looking up untrusty 'i-pointer' guarantees that
+ * only valid i-pointers will find their real objects.
+ */
+void Dbspj::insertGuardedPtr(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
+{
+  treeNodePtr.p->key = treeNodePtr.i;
+  m_treenode_hash.add(treeNodePtr);
+}
+
+void Dbspj::removeGuardedPtr(Ptr<TreeNode> treeNodePtr)
+{
+  m_treenode_hash.remove(treeNodePtr);
+}
+
+inline
+bool Dbspj::getGuardedPtr(Ptr<TreeNode> &treeNodePtr, Uint32 ptrI)
+{
+  /**
+   * We could have looked up the pointer directly with getPtr(). However that
+   * is regarded unsafe for a 'guarded pointer', as there is no checks
+   * in getPtr() for the page_no / pos being within legal bounds.
+   * So we use our internal (trusted) hash structures instead and search
+   * for an object with the specified 'i-pointer'.
+   */
+  const bool found = m_treenode_hash.find(treeNodePtr, ptrI);
+#if !defined(NDEBUG)
+  if (found)
+  {
+    Ptr<TreeNode> check;
+    m_treenode_pool.getPtr(check, ptrI);
+    ndbassert(check.p == treeNodePtr.p);
+    ndbassert(check.i == treeNodePtr.i);
+  }
+#endif
+  return found;
+}
+
+
+void Dbspj::insertGuardedPtr(Ptr<Request> requestPtr, Ptr<ScanFragHandle> scanFragPtr)
+{
+  scanFragPtr.p->key = scanFragPtr.i;
+  m_scanfraghandle_hash.add(scanFragPtr);
+}
+
+void Dbspj::removeGuardedPtr(Ptr<ScanFragHandle> scanFragPtr)
+{
+  m_scanfraghandle_hash.remove(scanFragPtr);
+}
+
+inline
+bool Dbspj::getGuardedPtr(Ptr<ScanFragHandle> &scanFragPtr, Uint32 ptrI)
+{
+  const bool found = m_scanfraghandle_hash.find(scanFragPtr, ptrI);
+#if !defined(NDEBUG)
+  if (found)
+  {
+    Ptr<ScanFragHandle> check;
+    m_scanfraghandle_pool.getPtr(check, ptrI);
+    ndbassert(check.p == scanFragPtr.p);
+    ndbassert(check.i == scanFragPtr.i);
+  }
+#endif
+  return found;
+}
+
+
 void Dbspj::execSIGNAL_DROPPED_REP(Signal* signal)
 {
   /* An incoming signal was dropped, handle it.
@@ -171,7 +242,7 @@ void Dbspj::execSIGNAL_DROPPED_REP(Signal* signal)
     const Uint32 ptrI = truncatedTransIdAI->connectPtr;
 
     Ptr<TreeNode> treeNodePtr;
-    m_treenode_pool.getPtr(treeNodePtr, ptrI);
+    ndbrequire(getGuardedPtr(treeNodePtr, ptrI));
     Ptr<Request> requestPtr;
     m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
   
@@ -507,6 +578,8 @@ void Dbspj::execREAD_CONFIG_REQ(Signal* signal)
   m_scanfraghandle_pool.arena_pool_init(&m_arenaAllocator, RT_SPJ_SCANFRAG, pc);
   m_lookup_request_hash.setSize(16);
   m_scan_request_hash.setSize(16);
+  m_treenode_hash.setSize(256);
+  m_scanfraghandle_hash.setSize(1024);
   void* ptr = m_ctx.m_mm.get_memroot();
   m_page_pool.set((RowPage*)ptr, (Uint32)~0);
 
@@ -574,18 +647,18 @@ void Dbspj::execSTTOR(Signal* signal)
 #ifdef UNIT_TEST_DATABUFFER2
   if (tphase == 120)
   {
-    ndbout_c("basic test of ArenaPool / DataBuffer");
+    g_eventLogger->info("basic test of ArenaPool / DataBuffer");
 
     for (Uint32 i = 0; i<100; i++)
     {
       ArenaHead ah;
       if (!m_arenaAllocator.seize(ah))
       {
-        ndbout_c("Failed to allocate arena");
+        g_eventLogger->info("Failed to allocate arena");
         break;
       }
 
-      ndbout_c("*** LOOP %u", i);
+      g_eventLogger->info("*** LOOP %u", i);
       Uint32 sum = 0;
       Dependency_map::Head head;
       LocalArenaPool<DataBufferSegment<14> > pool(ah, m_dependency_map_pool);
@@ -593,7 +666,7 @@ void Dbspj::execSTTOR(Signal* signal)
       {
         Uint32 sz = rand() % 1000;
         if (0)
-          ndbout_c("adding %u", sz);
+          g_eventLogger->info("adding %u", sz);
         Local_dependency_map list(pool, head);
         for (Uint32 i = 0; i<sz; i++)
           signal->theData[i] = sum + i;
@@ -618,19 +691,19 @@ void Dbspj::execSTTOR(Signal* signal)
       Resource_limit rl;
       if (m_ctx.m_mm.get_resource_limit(7, rl))
       {
-        ndbout_c("Resource %d min: %d max: %d curr: %d",
-                 7, rl.m_min, rl.m_max, rl.m_curr);
+        g_eventLogger->info("Resource %d min: %d max: %d curr: %d", 7, rl.m_min,
+                            rl.m_max, rl.m_curr);
       }
 
       {
-        ndbout_c("release map");
+        g_eventLogger->info("release map");
         Local_dependency_map list(pool, head);
         list.release();
       }
 
-      ndbout_c("release all");
+      g_eventLogger->info("release all");
       m_arenaAllocator.release(ah);
-      ndbout_c("*** LOOP %u sum: %u", i, sum);
+      g_eventLogger->info("*** LOOP %u sum: %u", i, sum);
     }
   }
 #endif
@@ -825,7 +898,7 @@ Dbspj::execCONTINUEB(Signal* signal)
   {
     Ptr<TreeNode> treeNodePtr;
     Ptr<Request> requestPtr;
-    m_treenode_pool.getPtr(treeNodePtr, signal->theData[1]);
+    ndbrequire(getGuardedPtr(treeNodePtr, signal->theData[1]));
     m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
     scanFrag_sendDihGetNodesReq(signal, requestPtr, treeNodePtr);
     checkPrepareComplete(signal, requestPtr);
@@ -953,8 +1026,9 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
     if (ERROR_INSERTED_CLEAR(17001))
     {
       jam();
-      ndbout_c("Injecting OutOfQueryMem error 17001 at line %d file %s",
-                __LINE__,  __FILE__);
+      g_eventLogger->info(
+          "Injecting OutOfQueryMem error 17001 at line %d file %s", __LINE__,
+          __FILE__);
       break;
     }
     if (unlikely(!m_request_pool.seize(ah, requestPtr)))
@@ -1058,7 +1132,7 @@ Dbspj::do_init(Request* requestP, const LqhKeyReq* req, Uint32 senderRef)
   requestP->m_transId[1] = req->transId2;
   requestP->m_rootFragId = LqhKeyReq::getFragmentId(req->fragmentData);
   requestP->m_rootFragCnt = 1;
-  bzero(requestP->m_lookup_node_data, sizeof(requestP->m_lookup_node_data));
+  std::memset(requestP->m_lookup_node_data, 0, sizeof(requestP->m_lookup_node_data));
 #ifdef SPJ_TRACE_TIME
   requestP->m_cnt_batches = 0;
   requestP->m_sum_rows = 0;
@@ -1244,7 +1318,7 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
   const ScanFragReq * req = (ScanFragReq *)&signal->theData[0];
 
 #ifdef DEBUG_SCAN_FRAGREQ
-  ndbout_c("Incoming SCAN_FRAGREQ ");
+  g_eventLogger->info("Incoming SCAN_FRAGREQ ");
   printSCAN_FRAGREQ(stdout, signal->getDataPtrSend(),
                     ScanFragReq::SignalLength + 2,
                     DBLQH);
@@ -1272,8 +1346,9 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
 
     if (ERROR_INSERTED_CLEAR(17002))
     {
-      ndbout_c("Injecting OutOfQueryMem error 17002 at line %d file %s",
-                __LINE__,  __FILE__);
+      g_eventLogger->info(
+          "Injecting OutOfQueryMem error 17002 at line %d file %s", __LINE__,
+          __FILE__);
       jam();
       break;
     }
@@ -1403,7 +1478,7 @@ Dbspj::do_init(Request* requestP, const ScanFragReq* req, Uint32 senderRef)
   requestP->m_rootResultData = req->resultData;
   requestP->m_rootFragId = req->fragmentNoKeyLen;
   requestP->m_rootFragCnt = 0; //Filled in later
-  bzero(requestP->m_lookup_node_data, sizeof(requestP->m_lookup_node_data));
+  std::memset(requestP->m_lookup_node_data, 0, sizeof(requestP->m_lookup_node_data));
 #ifdef SPJ_TRACE_TIME
   requestP->m_cnt_batches = 0;
   requestP->m_sum_rows = 0;
@@ -1527,8 +1602,9 @@ Dbspj::build(Build_context& ctx,
     }
     if (ERROR_INSERTED_CLEAR(17006))
     {
-      ndbout_c("Injecting UnknowQueryOperation error 17006 at line %d file %s",
-                __LINE__,  __FILE__);
+      g_eventLogger->info(
+          "Injecting UnknowQueryOperation error 17006 at line %d file %s",
+          __LINE__, __FILE__);
       jam();
       goto error;
     }
@@ -1588,7 +1664,7 @@ Dbspj::build(Build_context& ctx,
        * Convert the deprecated SCAN_INDEX_v1 node+param to new SCAN_FRAG:
        *  - The 'node' formats are identical, no conversion needed.
        *  - The QN_ScanIndexParameters has split the single batchSize into
-       *    two seperate 'batch_size' members and introduced an additional
+       *    two separate 'batch_size' members and introduced an additional
        *    three unused Uint32 members for future use. (Total 4)
        *    Extend entire param block to make room for it,
        *    fill in from old batchSize argument.
@@ -2329,8 +2405,9 @@ Dbspj::createNode(Build_context& ctx, Ptr<Request> requestPtr,
    */
   if (ERROR_INSERTED_CLEAR(17005))
   {
-    ndbout_c("Injecting OutOfOperations error 17005 at line %d file %s",
-             __LINE__,  __FILE__);
+    g_eventLogger->info(
+        "Injecting OutOfOperations error 17005 at line %d file %s", __LINE__,
+        __FILE__);
     jam();
     return DbspjErr::OutOfOperations;
   }
@@ -2342,6 +2419,7 @@ Dbspj::createNode(Build_context& ctx, Ptr<Request> requestPtr,
     Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
     list.addLast(treeNodePtr);
     treeNodePtr.p->m_node_no = ctx.m_cnt;
+    insertGuardedPtr(requestPtr, treeNodePtr);
     return 0;
   }
   return DbspjErr::OutOfOperations;
@@ -2743,7 +2821,7 @@ Dbspj::sendConf(Signal* signal, Ptr<Request> requestPtr, bool is_complete)
       {
         if (treeNodePtr.p->m_state == TreeNode::TN_ACTIVE)
         {
-          assert(treeNodePtr.p->m_node_no <= 31);
+          ndbassert(treeNodePtr.p->m_node_no <= 31);
           activeMask |= (1 << treeNodePtr.p->m_node_no);
         }
       }
@@ -2764,11 +2842,11 @@ Dbspj::sendConf(Signal* signal, Ptr<Request> requestPtr, bool is_complete)
       if (is_complete)
       {
         Uint32 cnt = requestPtr.p->m_cnt_batches;
-        ndbout_c("batches: %u avg_rows: %u avg_running: %u avg_wait: %u",
-                 cnt,
-                 (requestPtr.p->m_sum_rows / cnt),
-                 (requestPtr.p->m_sum_running / cnt),
-                 cnt == 1 ? 0 : requestPtr.p->m_sum_waiting / (cnt - 1));
+        g_eventLogger->info(
+            "batches: %u avg_rows: %u avg_running: %u avg_wait: %u", cnt,
+            (requestPtr.p->m_sum_rows / cnt),
+            (requestPtr.p->m_sum_running / cnt),
+            cnt == 1 ? 0 : requestPtr.p->m_sum_waiting / (cnt - 1));
       }
 #endif
 
@@ -2782,7 +2860,7 @@ Dbspj::sendConf(Signal* signal, Ptr<Request> requestPtr, bool is_complete)
         requestPtr.p->m_state |= Request::RS_WAITING;
       }
 #ifdef DEBUG_SCAN_FRAGREQ
-      ndbout_c("Dbspj::sendConf() sending SCAN_FRAGCONF ");
+      g_eventLogger->info("Dbspj::sendConf() sending SCAN_FRAGCONF ");
       printSCAN_FRAGCONF(stdout, signal->getDataPtrSend(),
                          conf->total_len,
                          DBLQH);
@@ -3157,6 +3235,7 @@ Dbspj::cleanup(Ptr<Request> requestPtr)
       ndbrequire(nodePtr.p->m_info != 0 && nodePtr.p->m_info->m_cleanup != 0);
       (this->*(nodePtr.p->m_info->m_cleanup))(requestPtr, nodePtr);
 
+      removeGuardedPtr(nodePtr);
       m_treenode_pool.release(nodePtr);
     }
   }
@@ -3316,7 +3395,7 @@ Dbspj::execLQHKEYREF(Signal* signal)
   const LqhKeyRef* ref = reinterpret_cast<const LqhKeyRef*>(signal->getDataPtr());
 
   Ptr<TreeNode> treeNodePtr;
-  m_treenode_pool.getPtr(treeNodePtr, ref->connectPtr);
+  ndbrequire(getGuardedPtr(treeNodePtr, ref->connectPtr));
 
   Ptr<Request> requestPtr;
   m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
@@ -3345,7 +3424,7 @@ Dbspj::execLQHKEYCONF(Signal* signal)
 
   const LqhKeyConf* conf = reinterpret_cast<const LqhKeyConf*>(signal->getDataPtr());
   Ptr<TreeNode> treeNodePtr;
-  m_treenode_pool.getPtr(treeNodePtr, conf->opPtr);
+  ndbrequire(getGuardedPtr(treeNodePtr, conf->opPtr));
 
   Ptr<Request> requestPtr;
   m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
@@ -3371,7 +3450,7 @@ Dbspj::execSCAN_FRAGREF(Signal* signal)
   const ScanFragRef* ref = reinterpret_cast<const ScanFragRef*>(signal->getDataPtr());
 
   Ptr<ScanFragHandle> scanFragHandlePtr;
-  m_scanfraghandle_pool.getPtr(scanFragHandlePtr, ref->senderData);
+  ndbrequire(getGuardedPtr(scanFragHandlePtr, ref->senderData));
   Ptr<TreeNode> treeNodePtr;
   m_treenode_pool.getPtr(treeNodePtr, scanFragHandlePtr.p->m_treeNodePtrI);
   Ptr<Request> requestPtr;
@@ -3412,7 +3491,7 @@ Dbspj::execSCAN_HBREP(Signal* signal)
   Uint32 transid2 = signal->theData[2];
 
   Ptr<ScanFragHandle> scanFragHandlePtr;
-  m_scanfraghandle_pool.getPtr(scanFragHandlePtr, senderData);
+  ndbrequire(getGuardedPtr(scanFragHandlePtr, senderData));
   Ptr<TreeNode> treeNodePtr;
   m_treenode_pool.getPtr(treeNodePtr, scanFragHandlePtr.p->m_treeNodePtrI);
   Ptr<Request> requestPtr;
@@ -3474,14 +3553,14 @@ Dbspj::execSCAN_FRAGCONF(Signal* signal)
     reinterpret_cast<const ScanFragConf*>(signal->getDataPtr());
 
 #ifdef DEBUG_SCAN_FRAGREQ
-  ndbout_c("Dbspj::execSCAN_FRAGCONF() receiving SCAN_FRAGCONF ");
+  g_eventLogger->info("Dbspj::execSCAN_FRAGCONF() receiving SCAN_FRAGCONF ");
   printSCAN_FRAGCONF(stdout, signal->getDataPtrSend(),
                      conf->total_len,
                      DBLQH);
 #endif
 
   Ptr<ScanFragHandle> scanFragHandlePtr;
-  m_scanfraghandle_pool.getPtr(scanFragHandlePtr, conf->senderData);
+  ndbrequire(getGuardedPtr(scanFragHandlePtr, conf->senderData));
   Ptr<TreeNode> treeNodePtr;
   m_treenode_pool.getPtr(treeNodePtr, scanFragHandlePtr.p->m_treeNodePtrI);
   Ptr<Request> requestPtr;
@@ -3654,7 +3733,7 @@ Dbspj::execTRANSID_AI(Signal* signal)
   Uint32 ptrI = req->connectPtr;
 
   Ptr<TreeNode> treeNodePtr;
-  m_treenode_pool.getPtr(treeNodePtr, ptrI);
+  ndbrequire(getGuardedPtr(treeNodePtr, ptrI));
   Ptr<Request> requestPtr;
   m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
   
@@ -4229,8 +4308,9 @@ Dbspj::allocPage(Ptr<RowPage> & ptr)
     if (ERROR_INSERTED_CLEAR(17003))
     {
       jam();
-      ndbout_c("Injecting failed '::allocPage', error 17003 at line %d file %s",
-               __LINE__,  __FILE__);
+      g_eventLogger->info(
+          "Injecting failed '::allocPage', error 17003 at line %d file %s",
+          __LINE__, __FILE__);
       return false;
     }
     ptr.p = (RowPage*)m_ctx.m_mm.alloc_page(RT_SPJ_DATABUFFER,
@@ -4332,8 +4412,9 @@ Dbspj::checkTableError(Ptr<TreeNode> treeNodePtr) const
   {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
-    ndbout_c("::checkTableError, injecting NoSuchTable error at line %d file %s",
-              __LINE__,  __FILE__);
+    g_eventLogger->info(
+        "::checkTableError, injecting NoSuchTable error at line %d file %s",
+        __LINE__, __FILE__);
     return DbspjErr::NoSuchTable;
   }
   return err;
@@ -4795,7 +4876,7 @@ Dbspj::lookup_build(Build_context& ctx,
 
     Uint32 treeBits = node->requestInfo;
     Uint32 paramBits = param->requestInfo;
-    //ndbout_c("Dbspj::lookup_build() treeBits=%.8x paramBits=%.8x",
+    // g_eventLogger->info("Dbspj::lookup_build() treeBits=%.8x paramBits=%.8x",
     //         treeBits, paramBits);
     LqhKeyReq* dst = (LqhKeyReq*)treeNodePtr.p->m_lookup_data.m_lqhKeyReq;
     {
@@ -5076,8 +5157,9 @@ Dbspj::lookup_send(Signal* signal,
         {
           jam();
           CLEAR_ERROR_INSERT_VALUE;
-          ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
-                   __LINE__,  __FILE__);
+          g_eventLogger->info(
+              "Injecting OutOfSectionMemory error at line %d file %s", __LINE__,
+              __FILE__);
           releaseSection(keyInfoPtrI);
           err = DbspjErr::OutOfSectionMemory;
           break;
@@ -5124,7 +5206,7 @@ Dbspj::lookup_send(Signal* signal,
     }
 
 #if defined DEBUG_LQHKEYREQ
-    ndbout_c("LQHKEYREQ to %x", ref);
+    g_eventLogger->info("LQHKEYREQ to %x", ref);
     printLQHKEYREQ(stdout, signal->getDataPtrSend(),
                    NDB_ARRAY_SIZE(treeNodePtr.p->m_lookup_data.m_lqhKeyReq),
                    DBLQH);
@@ -5620,6 +5702,9 @@ Dbspj::lookup_parent_row(Signal* signal,
     if (treeNodePtr.p->m_bits & TreeNode::T_ATTRINFO_CONSTRUCTED)
     {
       jam();
+      // Need to build a modified attrInfo, extended with a parameter
+      // build with the 'attrParamPattern' applied to the parent rowRef
+      DEBUG("parent_row w/ T_ATTRINFO_CONSTRUCTED");
       Uint32 tmp = RNIL;
 
       /**
@@ -5635,8 +5720,9 @@ Dbspj::lookup_parent_row(Signal* signal,
       {
         jam();
         CLEAR_ERROR_INSERT_VALUE;
-        ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
-                 __LINE__,  __FILE__);
+        g_eventLogger->info(
+            "Injecting OutOfSectionMemory error at line %d file %s", __LINE__,
+            __FILE__);
         err = DbspjErr::OutOfSectionMemory;
         break;
       }
@@ -5655,7 +5741,14 @@ Dbspj::lookup_parent_row(Signal* signal,
         getSection(ptr, tmp);
         org_size = ptr.sz;
       }
-
+      Uint32 paramLen = 0;  // Set paramLen after it has been expand'ed
+      if (unlikely(!appendToSection(tmp, &paramLen, 1)))
+      {
+        jam();
+        releaseSection(tmp);
+        err = DbspjErr::OutOfSectionMemory;
+        break;
+      }
       bool hasNull;
       LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena, m_dependency_map_pool);
       Local_pattern_store pattern(pool, treeNodePtr.p->m_attrParamPattern);
@@ -5666,17 +5759,20 @@ Dbspj::lookup_parent_row(Signal* signal,
         releaseSection(tmp);
         break;
       }
-//    ndbrequire(!hasNull);
 
       /**
-       * Update size of subsrouting section, which contains arguments
+       * Set size of this parameter. Note that parameter 'hasNull' is OK.
        */
       SegmentedSectionPtr ptr;
       getSection(ptr, tmp);
       Uint32 new_size = ptr.sz;
-      Uint32 * sectionptrs = ptr.p->theData;
-      sectionptrs[4] = new_size - org_size;
+      paramLen = new_size - org_size;
+      writeToSection(tmp, org_size, &paramLen, 1);
 
+      Uint32 * sectionptrs = ptr.p->theData;
+      sectionptrs[4] = paramLen;
+
+      // Set new constructed attrInfo, containing the constructed parameter
       treeNodePtr.p->m_send.m_attrInfoPtrI = tmp;
     }
 
@@ -6304,6 +6400,7 @@ Dbspj::scanFrag_build(Build_context& ctx,
               fragPtr.p->m_ref = ref;
               fragPtr.p->m_next_ref = ref;
               list.addLast(fragPtr);
+              insertGuardedPtr(requestPtr, fragPtr);
             }
             else
             {
@@ -6333,6 +6430,7 @@ Dbspj::scanFrag_build(Build_context& ctx,
             fragPtr.p->m_ref = ref;
             fragPtr.p->m_next_ref = ref;
             list.addLast(fragPtr);
+            insertGuardedPtr(requestPtr, fragPtr);
           }
           else
           {
@@ -6607,7 +6705,7 @@ Dbspj::execDIH_SCAN_TAB_REF(Signal* signal)
   DihScanTabRef * ref = (DihScanTabRef*)signal->getDataPtr();
 
   Ptr<TreeNode> treeNodePtr;
-  m_treenode_pool.getPtr(treeNodePtr, ref->senderData);
+  ndbrequire(getGuardedPtr(treeNodePtr, ref->senderData));
   Ptr<Request> requestPtr;
   m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
 
@@ -6625,8 +6723,7 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
   DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
 
   Ptr<TreeNode> treeNodePtr;
-  m_treenode_pool.getPtr(treeNodePtr, conf->senderData);
-
+  ndbrequire(getGuardedPtr(treeNodePtr, conf->senderData));
   ndbrequire(treeNodePtr.p->m_info == &g_ScanFragOpInfo);
 
   ScanFragData& data = treeNodePtr.p->m_scanFrag_data;
@@ -6673,7 +6770,7 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
   {
     Ptr<ScanFragHandle> fragPtr;
 
-    /** Allocate & init all 'fragCnt' fragment desriptors */
+    /** Allocate & init all 'fragCnt' fragment descriptors */
     {
       Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
 
@@ -6695,6 +6792,7 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
           fragPtr.p->init(fragNo, readBackup);
           fragPtr.p->m_treeNodePtrI = treeNodePtr.i;
           list.addLast(fragPtr);
+          insertGuardedPtr(requestPtr, fragPtr);
         }
         else
         {
@@ -7108,8 +7206,9 @@ Dbspj::scanFrag_parent_row(Signal* signal,
       {
         jam();
         CLEAR_ERROR_INSERT_VALUE;
-        ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
-                 __LINE__,  __FILE__);
+        g_eventLogger->info(
+            "Injecting OutOfSectionMemory error at line %d file %s", __LINE__,
+            __FILE__);
         err = DbspjErr::OutOfSectionMemory;
         break;
       }
@@ -7126,7 +7225,7 @@ Dbspj::scanFrag_parent_row(Signal* signal,
       {
         jam();
         DEBUG("Key contain NULL values, ignoring it");
-        assert((treeNodePtr.p->m_bits & TreeNode::T_ONE_SHOT) == 0);
+        ndbassert((treeNodePtr.p->m_bits & TreeNode::T_ONE_SHOT) == 0);
         // Ignore this request as 'NULL == <column>' will never give a match
         releaseSection(keyPtrI);
         return;  // Bailout, SCANREQ would have returned 0 rows anyway
@@ -7147,6 +7246,49 @@ Dbspj::scanFrag_parent_row(Signal* signal,
       jam();
       // Fixed key...fix later...
       ndbabort();
+    }
+
+    if (treeNodePtr.p->m_bits & TreeNode::T_ATTRINFO_CONSTRUCTED)
+    {
+      jam();
+      // Append to fragPtr's parameter set
+      // Build with the 'attrParamPattern' applied to the parent rowRef
+      DEBUG("parent_row w/ T_ATTRINFO_CONSTRUCTED");
+      Uint32 paramPtrI = fragPtr.p->m_paramPtrI;
+      Uint32 org_size = 0;
+      if (paramPtrI != RNIL)
+      {
+        // Get current end of parameter section
+        SegmentedSectionPtr ptr;
+        getSection(ptr, paramPtrI);
+        org_size = ptr.sz;
+      }
+      Uint32 paramLen = 0;  // Set paramLen after it has been expanded
+      if (unlikely(!appendToSection(paramPtrI, &paramLen, 1)))
+      {
+        jam();
+        err = DbspjErr::OutOfSectionMemory;
+        break;
+      }
+      bool hasNull = false;
+      Local_pattern_store pattern(pool, treeNodePtr.p->m_attrParamPattern);
+      err = expand(paramPtrI, pattern, rowRef, hasNull);
+      if (unlikely(err != 0))
+      {
+        jam();
+        break;
+      }
+
+      /**
+       * Set size of this parameter. Note that parameter 'isNull' is OK.
+       */
+      {
+        SegmentedSectionPtr ptr;
+        getSection(ptr, paramPtrI);
+        paramLen = ptr.sz - org_size;
+      }
+      writeToSection(paramPtrI, org_size, &paramLen, 1);
+      fragPtr.p->m_paramPtrI = paramPtrI;
     }
 
     if (treeNodePtr.p->m_bits & TreeNode::T_ONE_SHOT)
@@ -7536,13 +7678,14 @@ Dbspj::scanFrag_send(Signal* signal,
        * - Only the rootNode is ONE_SHOT.
        * - keyInfo comes from either m_send.m_keyInfoPtrI or
        *   fragPtr.p->m_rangePtrI (not both! - 'XOR').
-       * - If the child scan is pruned, a seperate 'rangePtr' is
+       * - If the child scan is pruned, a separate 'rangePtr' is
        *   build for each frag - Non-pruned scan store the 'rangePtr'
        *   in the first frag, which is reused for all the frags.
        * - Child nodes can possibly be 'repeatable', which implies
        *   that m_rangePtrI can't be released yet.
-       * - attrInfo is always taken from m_send.m_attrInfoPtrI, and
-       *   is reused from all frag scans, either repeated or not!
+       * - attrInfo is always taken from m_send.m_attrInfoPtrI, possibly
+       *   with constructed parameters appended. It is reused from
+       *   all frag scans, either repeated or not!
        *
        * Note the somewhat different lifetime of key- vs attrInfo:
        * Except for the ONE_SHOT rootNode, the attrInfo always has
@@ -7565,6 +7708,7 @@ Dbspj::scanFrag_send(Signal* signal,
         jam();
         ndbassert(!repeatable);
         ndbassert(fragPtr.p->m_rangePtrI == RNIL);
+        ndbassert(fragPtr.p->m_paramPtrI == RNIL);
         /**
          * Pass sections to send and release them (root only)
          */
@@ -7600,9 +7744,12 @@ Dbspj::scanFrag_send(Signal* signal,
         /**
          * 'releaseAtSend' is set above based on the keyInfo lifetime.
          * Copy the attrInfo (comment above) whenever needed.
+         * If the attrInfo is constructed it has to be duplicated as well
+         * in preparation for the parameter to be appended
          */
-        if (releaseAtSend)
-        {
+        if (releaseAtSend ||
+            treeNodePtr.p->m_bits & TreeNode::T_ATTRINFO_CONSTRUCTED)
+	{
           jam();
           /**
            * Test execution terminated due to 'OutOfSectionMemory' which
@@ -7619,8 +7766,9 @@ Dbspj::scanFrag_send(Signal* signal,
           {
             jam();
             CLEAR_ERROR_INSERT_VALUE;
-            ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
-                     __LINE__,  __FILE__);
+            g_eventLogger->info(
+                "Injecting OutOfSectionMemory error at line %d file %s",
+                __LINE__, __FILE__);
             err = DbspjErr::OutOfSectionMemory;
             break;
           }
@@ -7633,9 +7781,41 @@ Dbspj::scanFrag_send(Signal* signal,
             break;
           }
           attrInfoPtrI = tmp;
+        } //if (releaseAtSend || ATTRINFO_CONSTRUCTED)
 
+        if (treeNodePtr.p->m_bits & TreeNode::T_ATTRINFO_CONSTRUCTED)
+        {
+          jam();
+          /**
+           * We constructed a parameter section in scanFrag_parent_row(), append
+           * it to the attrInfo as we send each fragment scans.
+           */
+          SectionReader params(fragWithRangePtr.p->m_paramPtrI, getSectionSegmentPool());
+          const Uint32 paramLen = params.getSize();
+          err = appendReaderToSection(attrInfoPtrI, params, paramLen);
+          if (unlikely(err != 0))
+          {
+            jam();
+            releaseSection(attrInfoPtrI);
+            break;
+          }
+          SegmentedSectionPtr ptr;
+          getSection(ptr, attrInfoPtrI);
+          Uint32 *sectionptrs = ptr.p->theData;
+          sectionptrs[4] = paramLen;
+        } //ATTRINFO_CONSTRUCTED
+
+        if (releaseAtSend)
+        {
+          jam();
           /** Reflect the release of the keyInfo 'range' set above */
           fragWithRangePtr.p->m_rangePtrI = RNIL;
+
+          if (fragWithRangePtr.p->m_paramPtrI != RNIL)
+          {
+            releaseSection(fragWithRangePtr.p->m_paramPtrI);
+            fragWithRangePtr.p->m_paramPtrI = RNIL;
+          }
         } //if (releaseAtSend)
       }
 
@@ -7650,7 +7830,7 @@ Dbspj::scanFrag_send(Signal* signal,
       }
 
 #if defined DEBUG_SCAN_FRAGREQ
-      ndbout_c("SCAN_FRAGREQ to %x", fragPtr.p->m_ref);
+      g_eventLogger->info("SCAN_FRAGREQ to %x", fragPtr.p->m_ref);
       printSCAN_FRAGREQ(stdout, signal->getDataPtrSend(),
                         NDB_ARRAY_SIZE(treeNodePtr.p->m_scanFrag_data.m_scanFragReq),
                         DBLQH);
@@ -7690,8 +7870,9 @@ Dbspj::scanFrag_send(Signal* signal,
       {
         jam();
         CLEAR_ERROR_INSERT_VALUE;
-        ndbout_c("Injecting invalid schema version error at line %d file %s",
-                 __LINE__,  __FILE__);
+        g_eventLogger->info(
+            "Injecting invalid schema version error at line %d file %s",
+            __LINE__, __FILE__);
         // Provoke 'Invalid schema version' in order to receive SCAN_FRAGREF
         req->schemaVersion++;
       }
@@ -7868,6 +8049,11 @@ Dbspj::scanFrag_send(Signal* signal,
       if (releaseAtSend)
       {
         ndbassert(handle.m_cnt == 0);
+      }
+      else if (treeNodePtr.p->m_bits & TreeNode::T_ATTRINFO_CONSTRUCTED)
+      {
+        // Release the constructed attrInfo
+        releaseSection(attrInfoPtrI);
       }
       handle.clear();
 
@@ -8543,7 +8729,6 @@ Dbspj::scanFrag_execNODE_FAILREP(Signal* signal,
     break;
   }
 
-
   Uint32 sum = 0;
   ScanFragData& data = treeNodePtr.p->m_scanFrag_data;
   Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
@@ -8570,7 +8755,7 @@ Dbspj::scanFrag_execNODE_FAILREP(Signal* signal,
       data.m_frags_complete++;
       ndbrequire(data.m_frags_not_started > 0);
       data.m_frags_not_started--;
-      // fall through
+      [[fallthrough]];
     case ScanFragHandle::SFH_COMPLETE:
       jam();
       sum++; // indicate that we should abort
@@ -8586,7 +8771,7 @@ Dbspj::scanFrag_execNODE_FAILREP(Signal* signal,
       jam();
       ndbrequire(data.m_frags_outstanding > 0);
       data.m_frags_outstanding--;
-      // fall through
+      [[fallthrough]];
     case ScanFragHandle::SFH_WAIT_NEXTREQ:
       jam();
       sum++;
@@ -8640,6 +8825,11 @@ Dbspj::scanFrag_release_rangekeys(Ptr<Request> requestPtr,
         releaseSection(fragPtr.p->m_rangePtrI);
         fragPtr.p->m_rangePtrI = RNIL;
       }
+      if (fragPtr.p->m_paramPtrI != RNIL)
+      {
+        releaseSection(fragPtr.p->m_paramPtrI);
+        fragPtr.p->m_paramPtrI = RNIL;
+      }
     }
   }
   else
@@ -8652,13 +8842,18 @@ Dbspj::scanFrag_release_rangekeys(Ptr<Request> requestPtr,
       releaseSection(fragPtr.p->m_rangePtrI);
       fragPtr.p->m_rangePtrI = RNIL;
     }
+    if (fragPtr.p->m_paramPtrI != RNIL)
+    {
+      releaseSection(fragPtr.p->m_paramPtrI);
+      fragPtr.p->m_paramPtrI = RNIL;
+    }
   }
 }
 
 /**
  * Parent batch has completed, and will not refetch (X-joined) results
- * from its childs. Release & reset range keys which are unsent or we
- * have kept for possible resubmits.
+ * from its childs. Release & reset range keys and parameters which are
+ * unsent or we have kept for possible resubmits.
  */
 void
 Dbspj::scanFrag_parent_batch_cleanup(Ptr<Request> requestPtr,
@@ -8685,6 +8880,18 @@ Dbspj::scanFrag_cleanup(Ptr<Request> requestPtr,
    * parent batches...release them to avoid memleak.
    */
   scanFrag_release_rangekeys(requestPtr,treeNodePtr);
+
+  /**
+   * Disallow refering the fragPtr memory object from incomming signals.
+   */
+  {
+    Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
+    Ptr<ScanFragHandle> fragPtr;
+    for (list.first(fragPtr); !fragPtr.isNull(); list.next(fragPtr))
+    {
+      removeGuardedPtr(fragPtr);
+    }
+  }
 
   if (treeNodePtr.p->m_bits & TreeNode::T_PRUNE_PATTERN)
   {
@@ -8953,8 +9160,9 @@ Dbspj::appendToPattern(Local_pattern_store & pattern,
 
   if (ERROR_INSERTED_CLEAR(17008))
   {
-    ndbout_c("Injecting OutOfQueryMemory error 17008 at line %d file %s",
-             __LINE__,  __FILE__);
+    g_eventLogger->info(
+        "Injecting OutOfQueryMemory error 17008 at line %d file %s", __LINE__,
+        __FILE__);
     jam();
     return DbspjErr::OutOfQueryMemory;
   }
@@ -8978,8 +9186,9 @@ Dbspj::appendParamToPattern(Local_pattern_store &dst,
 
   if (ERROR_INSERTED_CLEAR(17009))
   {
-    ndbout_c("Injecting OutOfQueryMemory error 17009 at line %d file %s",
-             __LINE__,  __FILE__);
+    g_eventLogger->info(
+        "Injecting OutOfQueryMemory error 17009 at line %d file %s", __LINE__,
+        __FILE__);
     jam();
     return DbspjErr::OutOfQueryMemory;
   }
@@ -8996,8 +9205,9 @@ Dbspj::appendToSection(Uint32& firstSegmentIVal,
   if (ERROR_INSERTED(17510) && fi_cnt++ % 13 == 0)
   {
     jam();
-    ndbout_c("Injecting appendToSection error 17510 at line %d file %s",
-             __LINE__,  __FILE__);
+    g_eventLogger->info(
+        "Injecting appendToSection error 17510 at line %d file %s", __LINE__,
+        __FILE__);
     return false;
   }
   else
@@ -9020,8 +9230,9 @@ Dbspj::appendParamHeadToPattern(Local_pattern_store &dst,
 
   if (ERROR_INSERTED_CLEAR(17010))
   {
-    ndbout_c("Injecting OutOfQueryMemory error 17010 at line %d file %s",
-             __LINE__,  __FILE__);
+    g_eventLogger->info(
+        "Injecting OutOfQueryMemory error 17010 at line %d file %s", __LINE__,
+        __FILE__);
     jam();
     return DbspjErr::OutOfQueryMemory;
   }
@@ -9502,8 +9713,8 @@ Uint32
 Dbspj::parseDA(Build_context& ctx,
                Ptr<Request> requestPtr,
                Ptr<TreeNode> treeNodePtr,
-               DABuffer& tree, Uint32 treeBits,
-               DABuffer& param, Uint32 paramBits)
+               DABuffer& tree, const Uint32 treeBits,
+               DABuffer& param, const Uint32 paramBits)
 {
   Uint32 err;
   Uint32 attrInfoPtrI = RNIL;
@@ -9526,8 +9737,9 @@ Dbspj::parseDA(Build_context& ctx,
     {
       jam();
       CLEAR_ERROR_INSERT_VALUE;
-      ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
-                __LINE__,  __FILE__);
+      g_eventLogger->info(
+          "Injecting OutOfSectionMemory error at line %d file %s", __LINE__,
+          __FILE__);
       err = DbspjErr::OutOfSectionMemory;
       break;
     }
@@ -9693,8 +9905,8 @@ Dbspj::parseDA(Build_context& ctx,
     } // DABits::NI_KEY_...
 
     const Uint32 mask =
-      DABits::NI_LINKED_ATTR | DABits::NI_ATTR_INTERPRET |
-      DABits::NI_ATTR_LINKED | DABits::NI_ATTR_PARAMS;
+      DABits::NI_LINKED_ATTR |
+      DABits::NI_ATTR_INTERPRET | DABits::NI_ATTR_LINKED;
 
     if (((treeBits & mask) | (paramBits & DABits::PI_ATTR_LIST)) != 0)
     {
@@ -9706,16 +9918,10 @@ Dbspj::parseDA(Build_context& ctx,
 
        * - NI_ATTR_INTERPRET - tree contains interpreted program
        * - NI_ATTR_LINKED - means that the attr-info contains linked-values
-       * - NI_ATTR_PARAMS - means that the attr-info is parameterized
-       *   PI_ATTR_PARAMS - means that the parameters contains attr parameters
        *
        * IF NI_ATTR_INTERPRET
        *   DATA0[LO/HI] = Length of program / total #arguments to program
        *   DATA1..N     = Program
-       *
-       * IF NI_ATTR_PARAMS
-       *   DATA0[LO/HI] = Length / #param
-       *   DATA1..N     = PARAM-0...PARAM-M
        *
        * IF PI_ATTR_INTERPRET
        *   DATA0[LO/HI] = Length of program / Length of subroutine-part
@@ -9723,19 +9929,17 @@ Dbspj::parseDA(Build_context& ctx,
        *
        * IF NI_ATTR_LINKED
        *   DATA0[LO/HI] = Length / #
-       *
-       *
        */
-      Uint32 sections[5] = { 0, 0, 0, 0, 0 };
-      Uint32 * sectionptrs = 0;
+      Uint32 *sectionptrs = nullptr;
 
-      bool interpreted =
+      const bool interpreted =
         (treeBits & DABits::NI_ATTR_INTERPRET) ||
         (paramBits & DABits::PI_ATTR_INTERPRET) ||
         (treeNodePtr.p->m_bits & TreeNode::T_ATTR_INTERPRETED);
 
       if (interpreted)
       {
+        static constexpr Uint32 sections[5] = { 0, 0, 0, 0, 0 };
         /**
          * Add section headers for interpreted execution
          *   and create pointer so that they can be updated later
@@ -9752,47 +9956,66 @@ Dbspj::parseDA(Build_context& ctx,
         getSection(ptr, attrInfoPtrI);
         sectionptrs = ptr.p->theData;
 
-        if (treeBits & DABits::NI_ATTR_INTERPRET)
+        /**
+         * Note that there might be a NI_ATTR_LINKED without a NI_ATTR_INTERPRET.
+         * INTERPRET code can then be specified with PI_ATTR_INTERPRET. (or not)
+         */
+        if (treeBits & (DABits::NI_ATTR_INTERPRET
+                        | DABits::NI_ATTR_LINKED))
         {
           jam();
-
-          /**
-           * Having two interpreter programs is an error.
-           */
-          err = DbspjErr::BothTreeAndParametersContainInterpretedProgram;
-          if (unlikely(paramBits & DABits::PI_ATTR_INTERPRET))
-          {
-            jam();
-            break;
-          }
-
-          treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
           Uint32 len2 = * tree.ptr++;
           Uint32 len_prg = len2 & 0xFFFF; // Length of interpret program
           Uint32 len_pattern = len2 >> 16;// Length of attr param pattern
-          err = DbspjErr::OutOfSectionMemory;
-          if (unlikely(!appendToSection(attrInfoPtrI, tree.ptr, len_prg)))
+
+          // Note: NI_ATTR_INTERPRET seems to never have been used, nor tested
+          if (treeBits & DABits::NI_ATTR_INTERPRET)
           {
             jam();
-            break;
-          }
+            /**
+             * Having two interpreter programs is an error.
+             */
+            err = DbspjErr::BothTreeAndParametersContainInterpretedProgram;
+            if (unlikely(paramBits & DABits::PI_ATTR_INTERPRET))
+            {
+              jam();
+              break;
+            }
 
-          tree.ptr += len_prg;
-          sectionptrs[1] = len_prg; // size of interpret program
+            treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
+            err = DbspjErr::OutOfSectionMemory;
+            if (unlikely(!appendToSection(attrInfoPtrI, tree.ptr, len_prg)))
+            {
+              jam();
+              break;
+            }
+            tree.ptr += len_prg;
+            sectionptrs[1] = len_prg; // size of interpret program
+          }  // NI_ATTR_INTERPRET
 
-          Uint32 tmp = * tree.ptr ++; // attr-pattern header
-          Uint32 cnt = tmp & 0xFFFF;
+          /**
+           * We do not support (or need) API supplied parameters to
+           * be expand'ed into the interpreter parameter section.
+           * Such parameters has always been included directly into the
+           * generated interpreter code. Thus the no_param being set up
+           * as expand() arguemt here.
+           */
+          DABuffer no_param;
+          no_param.ptr = nullptr;
 
           if (treeBits & DABits::NI_ATTR_LINKED)
           {
             jam();
+            DEBUG("NI_ATTR_LINKED" << ", len_pattern:" << len_pattern);
             /**
              * Expand pattern into a new pattern (with linked values)
+             * Real attrInfo will be constructed with another expand
+             * when parent row values arrives.
              */
             LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena,
                                     m_dependency_map_pool);
             Local_pattern_store pattern(pool,treeNodePtr.p->m_attrParamPattern);
-            err = expand(pattern, treeNodePtr, tree, len_pattern, param, cnt);
+            err = expand(pattern, treeNodePtr, tree, len_pattern, no_param, 0);
             if (unlikely(err))
             {
               jam();
@@ -9803,36 +10026,81 @@ Dbspj::parseDA(Build_context& ctx,
              */
             treeNodePtr.p->m_bits |= TreeNode::T_ATTRINFO_CONSTRUCTED;
           }
-          else
+          else if (len_pattern > 0)
           {
             jam();
+            // This code branch has never been tested, unused as well.
+            ndbassert(false);  // Need validation before being used.
+
             /**
              * Expand pattern directly into attr-info param
              *   This means a "fixed" attr-info param from here on
              */
             bool hasNull;
-            err = expand(attrParamPtrI, tree, len_pattern, param, cnt, hasNull);
+            err = expand(attrParamPtrI, tree, len_pattern, no_param, 0, hasNull);
             if (unlikely(err))
             {
               jam();
               break;
             }
-//          ndbrequire(!hasNull);
-          }
-        }
-        else // if (treeBits & DABits::NI_ATTR_INTERPRET)
+          }  // NI_ATTR_LINKED
+        } // NI_ATTR_INTERPRET | NI_ATTR_LINKED
+
+        /**
+         * Interpreter code may also be (usually is) specified in the
+         * param-section. That might be combined with a NI_ATTR_LINKED
+         * containing the constructor receipe for a parameter.
+         */
+        if (paramBits & DABits::PI_ATTR_INTERPRET)
         {
           jam();
-          /**
-           * Only relevant for interpreted stuff
-           */
-          ndbrequire((treeBits & DABits::NI_ATTR_PARAMS) == 0);
-          ndbrequire((paramBits & DABits::PI_ATTR_PARAMS) == 0);
-          ndbrequire((treeBits & DABits::NI_ATTR_LINKED) == 0);
+          DEBUG("PI_ATTR_INTERPRET");
 
+          /**
+           * Add the interpreted code that represents the scan filter.
+           */
+          const Uint32 len2 = * param.ptr++;
+          const Uint32 program_len = len2 & 0xFFFF;
+          const Uint32 subroutine_len = len2 >> 16;
+          err = DbspjErr::OutOfSectionMemory;
+          if (unlikely(!appendToSection(attrInfoPtrI, param.ptr, program_len)))
+          {
+            jam();
+            break;
+          }
+          /**
+           * The interpreted code is added is in the "Interpreted execute region"
+           * of the attrinfo (see Dbtup::interpreterStartLab() for details).
+           * It will thus execute before reading the attributes that constitutes
+           * the projections.
+           */
+          sectionptrs[1] = program_len;
+          param.ptr += program_len;
+
+          if (subroutine_len > 0)
+          {
+            jam();
+            // This code branch has never been tested, unused as well.
+            ndbassert(false);  // Need validation before being used.
+
+            err = DbspjErr::OutOfSectionMemory;
+            if (unlikely(!appendToSection(attrParamPtrI,
+                                          param.ptr, subroutine_len)))
+            {
+              jam();
+              break;
+            }
+            sectionptrs[4] = subroutine_len;
+            param.ptr += subroutine_len;
+          }
+          treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
+        }
+        else // not PI_ATTR_INTERPRET
+        {
+          jam();
           treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
 
-          if (! (paramBits & DABits::PI_ATTR_INTERPRET))
+          if (! (treeBits & DABits::NI_ATTR_INTERPRET))
           {
             jam();
 
@@ -9850,47 +10118,8 @@ Dbspj::parseDA(Build_context& ctx,
             }
             sectionptrs[1] = 1;
           }
-        } // if (treeBits & DABits::NI_ATTR_INTERPRET)
+        } // PI_ATTR_INTERPRET)
       } // if (interpreted)
-
-      if (paramBits & DABits::PI_ATTR_INTERPRET)
-      {
-        jam();
-
-        /**
-         * Add the interpreted code that represents the scan filter.
-         */
-        const Uint32 len2 = * param.ptr++;
-        Uint32 program_len = len2 & 0xFFFF;
-        Uint32 subroutine_len = len2 >> 16;
-        err = DbspjErr::OutOfSectionMemory;
-        if (unlikely(!appendToSection(attrInfoPtrI, param.ptr, program_len)))
-        {
-          jam();
-          break;
-        }
-        /**
-         * The interpreted code is added is in the "Interpreted execute region"
-         * of the attrinfo (see Dbtup::interpreterStartLab() for details).
-         * It will thus execute before reading the attributes that constitutes
-         * the projections.
-         */
-        sectionptrs[1] = program_len;
-        param.ptr += program_len;
-
-        if (subroutine_len)
-        {
-          if (unlikely(!appendToSection(attrParamPtrI,
-                                        param.ptr, subroutine_len)))
-          {
-            jam();
-            break;
-          }
-          sectionptrs[4] = subroutine_len;
-          param.ptr += subroutine_len;
-        }
-        treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
-      }
 
       Uint32 sum_read = 0;
       Uint32 dst[MAX_ATTRIBUTES_IN_TABLE + 2];

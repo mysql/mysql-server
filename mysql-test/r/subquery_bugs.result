@@ -604,8 +604,8 @@ EXPLAIN
         -> Materialize with deduplication  (cost=3.42..3.42 rows=1)
             -> Nested loop left join  (cost=0.81 rows=1)
                 -> Filter: (t1.f1 >= 'o')  (cost=0.46 rows=1)
-                    -> Index range scan on t1 using k1  (cost=0.46 rows=1)
-                -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.35 rows=1)
+                    -> Covering index range scan on t1 using k1 over ('o' <= f1)  (cost=0.46 rows=1)
+                -> Single-row covering index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.35 rows=1)
     -> Single-row index lookup on t1 using PRIMARY (pk=`<subquery2>`.pk)  (cost=0.35 rows=1)
 
 DROP TABLE t1, t2;
@@ -623,7 +623,6 @@ SELECT 1
 FROM t1 LEFT JOIN t1 AS t2 ON 'f' IN ( SELECT f1 FROM t1 )
 WHERE EXISTS ( SELECT * FROM t1 LEFT JOIN t1 AS t3 ON t3.f1='a' )
 );
-ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t1;
 #
 # Bug #29231551: WL#12470: SIG 6 QEP_TAB->LAST_INNER() == (-2) CONNECTJOINS()|SQL/SQL_EXECUTOR.CC
@@ -647,7 +646,7 @@ EXPLAIN
 -> Nested loop left join  (cost=0.91 rows=1)
     -> Nested loop semijoin  (cost=0.68 rows=1)
         -> Filter: ((t1.f1 = 80) and (t1.pk > 80))  (cost=0.46 rows=0)
-            -> Index range scan on t1 using PRIMARY  (cost=0.46 rows=1)
+            -> Index range scan on t1 using PRIMARY over (80 < pk)  (cost=0.46 rows=1)
         -> Nested loop inner join  (cost=0.77 rows=2)
             -> Table scan on t5  (cost=0.45 rows=1)
             -> Index scan on t4 using PRIMARY  (cost=1.30 rows=2)
@@ -787,7 +786,7 @@ EXPLAIN
                 -> Nested loop left join  (cost=2.50 rows=5)
                     -> Filter: (t3.col_int_key <> t2.pk)  (cost=0.75 rows=5)
                         -> Table scan on t3  (cost=0.75 rows=5)
-                    -> Index lookup on t4 using ix2 (col_int_key=t3.pk)  (cost=0.27 rows=1)
+                    -> Covering index lookup on t4 using ix2 (col_int_key=t3.pk)  (cost=0.27 rows=1)
 
 SELECT * FROM t1 WHERE pk IN (
 SELECT t2.pk FROM
@@ -807,7 +806,7 @@ INSERT INTO t1 VALUES (1,'D'), (20,'G');
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN FORMAT=TREE SELECT * FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
+EXPLAIN FORMAT=TREE SELECT d0.f1, d0.pk, t1.pk, t1.f1 FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
 EXPLAIN
 -> Sort: d0.f1
     -> Stream results  (cost=6.95 rows=8)
@@ -822,11 +821,11 @@ EXPLAIN
                     -> Table scan on t1  (cost=0.23 rows=2)
                 -> Table scan on t1  (cost=0.23 rows=2)
 
-SELECT * FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
-pk	f1	pk	f1
-1	D	1	D
-1	D	20	G
-20	G	NULL	NULL
+SELECT d0.f1, d0.pk, t1.pk, t1.f1 FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
+f1	pk	pk	f1
+D	1	1	D
+D	1	20	G
+G	20	NULL	NULL
 DROP TABLE t1;
 #
 # Bug#29664504 REGRESSION: CRASHING FROM ITEM_FUNC_AS_WKT::VAL_STR_ASCII()
@@ -919,7 +918,7 @@ EXPLAIN
             -> Index scan on t1 using f2_idx  (cost=0.35 rows=1)
             -> Filter: (cast(t2.f1 as double) > cast(table1.f2 as double))  (cost=0.35 rows=1)
                 -> Index range scan on t2 (re-planned for each iteration)  (cost=0.35 rows=1)
-        -> Index lookup on t3 using f2_idx (f2=t2.f2)  (cost=0.35 rows=1)
+        -> Covering index lookup on t3 using f2_idx (f2=t2.f2)  (cost=0.35 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.table1.f2' of SELECT #2 was resolved in SELECT #1
@@ -1120,7 +1119,7 @@ GROUP BY table_user.id
 EXPLAIN
 -> Index scan on table_city using PRIMARY  (cost=0.85 rows=6)
 -> Select #2 (subquery in projection; dependent)
-    -> Aggregate: group_concat(d.id separator ',')
+    -> Aggregate: group_concat(d.id separator ',')  (cost=5.95..8.40 rows=5)
         -> Table scan on d  (cost=0.51..2.56 rows=5)
             -> Materialize  (cost=5.85..7.90 rows=5)
                 -> Table scan on <temporary>  (cost=0.51..2.56 rows=5)
@@ -1130,7 +1129,7 @@ EXPLAIN
                                 -> Table scan on <subquery4>  (cost=0.49..2.56 rows=5)
                                     -> Materialize with deduplication  (cost=2.06..4.14 rows=5)
                                         -> Index lookup on table_city_user using city (city=table_city.id)  (cost=1.05 rows=5)
-                            -> Single-row index lookup on table_user using PRIMARY (id=`<subquery4>`.`user`)  (cost=0.35 rows=1)
+                            -> Single-row covering index lookup on table_user using PRIMARY (id=`<subquery4>`.`user`)  (cost=0.35 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.table_city.id' of SELECT #4 was resolved in SELECT #1
@@ -1190,8 +1189,8 @@ EXPLAIN
                                         -> Hash
                                             -> Nested loop left join  (cost=1.15 rows=2)
                                                 -> Index scan on b using idx_b  (cost=0.45 rows=2)
-                                                -> Index lookup on c_inner using idx_c (c=b.c)  (cost=0.30 rows=1)
-                    -> Index lookup on d using idx_d (c=`<subquery2>`.c)  (cost=0.60 rows=1)
+                                                -> Covering index lookup on c_inner using idx_c (c=b.c)  (cost=0.30 rows=1)
+                    -> Covering index lookup on d using idx_d (c=`<subquery2>`.c)  (cost=0.60 rows=1)
 
 SELECT /*+ JOIN_ORDER(b, c_inner, c_inner_inner, d, c) */ d.c
 FROM d JOIN c
@@ -1390,7 +1389,7 @@ EXPLAIN
                         -> Materialize with deduplication  (cost=2.96..2.96 rows=1)
                             -> Filter: (t4.col_int is not null)  (cost=0.35 rows=1)
                                 -> Table scan on t4  (cost=0.35 rows=1)
-    -> Single-row index lookup on t2 using pk (pk=t3.pk)  (cost=0.12 rows=1)
+    -> Single-row covering index lookup on t2 using pk (pk=t3.pk)  (cost=0.12 rows=1)
 
 DROP TABLE t1, t2, t3, t4;
 CREATE TABLE t1 (
@@ -1464,12 +1463,12 @@ EXPLAIN
         -> Filter: (<in_optimizer>((t1.col_int_key + 6),(t1.col_int_key + 6) in (select #2) is false) and (t1.col_int_key is not null))  (cost=0.35 rows=1)
             -> Table scan on t1  (cost=0.35 rows=1)
             -> Select #2 (subquery in condition; run only once)
-                -> Filter: (((t1.col_int_key + 6) = `<materialized_subquery>`.field4))
+                -> Filter: (((t1.col_int_key + 6) = `<materialized_subquery>`.field4))  (cost=3.45..3.45 rows=16)
                     -> Limit: 1 row(s)
                         -> Index lookup on <materialized_subquery> using <auto_distinct_key> (field4=(t1.col_int_key + 6))
                             -> Materialize with deduplication  (cost=3.45..3.45 rows=16)
                                 -> Index scan on table1s using col_int_unique  (cost=1.85 rows=16)
-        -> Single-row index lookup on t3 using PRIMARY (pk=t1.col_int_key)  (cost=0.35 rows=1)
+        -> Single-row covering index lookup on t3 using PRIMARY (pk=t1.col_int_key)  (cost=0.35 rows=1)
     -> Index lookup on t2 using col_int_key (col_int_key=t1.col_int_key)  (cost=0.40 rows=1)
 
 SELECT *
@@ -1883,3 +1882,129 @@ CREATE TABLE t2 (b INTEGER);
 SELECT ( SELECT b FROM t2 ORDER BY a, MIN(a) LIMIT 1 ) FROM t1 GROUP BY a;
 ( SELECT b FROM t2 ORDER BY a, MIN(a) LIMIT 1 )
 DROP TABLE t1, t2;
+#
+# Bug #32680367: ASSERTION `PATH->COST >= PATH->INIT_COST' FAILED|JOIN_OPTIMIZER.CC - HYPERGRAPH
+#
+CREATE TABLE t1 (a VARCHAR(1));
+INSERT INTO t1 VALUES (NULL), ('r');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT * FROM t1 WHERE a <= ALL (
+SELECT 'a' FROM t1 AS t2
+WHERE t2.a < t1.a AND t2.a NOT IN (SELECT a FROM t1)
+);
+a
+NULL
+r
+DROP TABLE t1;
+#
+# Bug #32937950 - HYPERGRAPH: CACHED_ITEM* NEW_CACHED_ITEM: ASSERTION `0' FAILED.
+#
+CREATE TABLE t1 (
+a INTEGER,
+PRIMARY KEY (a)
+) PARTITION BY LINEAR KEY () PARTITIONS 4;
+SELECT 1 FROM t1 WHERE
+( SELECT a FROM ( SELECT 1 ) AS q )
+IN ( SELECT a FROM t1 WHERE a > 0 GROUP BY a );
+1
+DROP TABLE t1;
+#
+# Bug #32934187: HYPERGRAPH: CRASHING IN ITEM_IN_SUBSELECT::EXEC
+#
+CREATE TABLE t1 (a DATETIME);
+INSERT INTO t1 VALUES ('2000-01-01 00:00:00');
+INSERT INTO t1 VALUES ('2000-01-01 00:00:00');
+SET @b := _latin1 'a';
+SELECT 1 FROM t1 WHERE (@b IN ( SELECT a FROM t1 )) = a;
+DROP TABLE t1;
+#
+# Bug#32895824: SIGNAL 6 ASSERTION`!NULL_VALUE || IS_NULLABLE()'
+#               FAILED IN ../SQL/ITEM_FUNC.CC
+#
+CREATE TABLE t(pk INT PRIMARY KEY);
+SELECT 1 FROM t
+WHERE CAST(pk AS UNSIGNED INTEGER) = 1
+AND pk = (SELECT 1 FROM t);
+1
+DROP TABLE t;
+#
+# Bug #32932969: ASSERTION `ITEM->IS_NULLABLE()' FAILED.
+#
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1);
+SELECT 1 FROM t1 GROUP BY (
+SELECT COALESCE(18446744073709551614, COUNT(ST_AREA(ST_ASWKT(a))))
+) WITH ROLLUP;
+ERROR 22023: Invalid GIS data provided to function st_astext.
+DROP TABLE t1;
+#
+# Bug #33076462: PB2: FAILURE IN RQG_MULTI_UPDATE_DELETE TEST
+#
+CREATE TABLE t1 ( c INTEGER, KEY (c) );
+CREATE TABLE t2 ( pk INTEGER );
+INSERT INTO t2 VALUES (7);
+CREATE TABLE t3 (
+a INTEGER,
+b INTEGER,
+c INTEGER,
+KEY (a)
+);
+INSERT INTO t3 VALUES (3,4,NULL);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+UPDATE t1, t2
+SET t1.c = 0
+WHERE t1.c <> (
+SELECT
+t3.c
+FROM
+t3
+JOIN t3 AS t3_b ON t3_b.a > t3.a
+WHERE t3.b <= t3.b XOR t2.pk = 3
+);
+DROP TABLE t1, t2, t3;
+#
+# Bug #33030793: WL#14419: ASSERTION `NEW_PATH->COST >= NEW_PATH->INIT_COST' FAILED
+#
+CREATE TABLE t1 ( a BLOB );
+SELECT t1.a
+FROM
+t1,
+LATERAL ( SELECT t1.a FROM t1 AS inner_t1 LIMIT 1 ) AS d1
+WHERE 1 IN ( SELECT a FROM t1 )
+ORDER BY a;
+a
+DROP TABLE t1;
+#
+# Bug #33045256: WL#14419: ASSERTION `NULLPTR != DYNAMIC_CAST<TARGET>(ARG)' FAILED
+#
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1);
+SELECT * FROM (
+SELECT a, JSON_ARRAYAGG(a) OVER () AS b FROM t1
+) AS d1
+WHERE (a,b) IN (
+SELECT a, JSON_ARRAYAGG(a) OVER () AS b FROM t1
+);
+DROP TABLE t1;
+#
+# Bug #33075707: HYPERGRAPH: ASSERTION `COND->REAL_ITEM()->IS_BOOL_FUNC()' FAILED
+#
+CREATE TABLE t1 ( a VARCHAR(1) );
+INSERT INTO t1 VALUES ('0');
+SELECT 1
+FROM t1
+WHERE a NOT IN (
+SELECT 1
+FROM
+t1 AS t2
+LEFT JOIN t1 AS t3 ON (t2.a = t3.a OR 0 IN ( SELECT REGEXP_LIKE(a, '') FROM t1 ))
+);
+1
+1
+DROP TABLE t1;

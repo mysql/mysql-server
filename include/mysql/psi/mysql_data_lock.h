@@ -54,7 +54,7 @@ void inline_mysql_data_lock_register(
 #ifdef HAVE_PSI_DATA_LOCK_INTERFACE
     PSI_engine_data_lock_inspector *i
 #else
-    PSI_engine_data_lock_inspector *i MY_ATTRIBUTE((unused))
+    PSI_engine_data_lock_inspector *i [[maybe_unused]]
 #endif /* HAVE_PSI_DATA_LOCK_INTERFACE */
 ) {
 #ifdef HAVE_PSI_DATA_LOCK_INTERFACE
@@ -68,7 +68,7 @@ void inline_mysql_data_lock_unregister(
 #ifdef HAVE_PSI_DATA_LOCK_INTERFACE
     PSI_engine_data_lock_inspector *i
 #else
-    PSI_engine_data_lock_inspector *i MY_ATTRIBUTE((unused))
+    PSI_engine_data_lock_inspector *i [[maybe_unused]]
 #endif /* HAVE_PSI_DATA_LOCK_INTERFACE */
 ) {
 #ifdef HAVE_PSI_DATA_LOCK_INTERFACE

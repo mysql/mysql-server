@@ -49,7 +49,7 @@ class Parameter : virtual public Entity_object {
   typedef tables::Parameters DD_table;
 
  public:
-  ~Parameter() override {}
+  ~Parameter() override = default;
 
  public:
   enum enum_parameter_mode { PM_IN = 1, PM_OUT, PM_INOUT };

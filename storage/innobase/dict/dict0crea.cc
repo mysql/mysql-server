@@ -96,7 +96,7 @@ dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace) {
   space_id_t space = 0;
   ut_d(static uint32_t crash_injection_after_create_counter = 1;);
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
   ut_ad(tablespace);
 
   DBUG_EXECUTE_IF("out_of_tablespace_disk", return (DB_OUT_OF_FILE_SPACE););
@@ -184,7 +184,7 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table,
   char *filepath;
   ut_d(static uint32_t crash_injection_after_create_counter = 1;);
 
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   needs_file_per_table =
       DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE);
@@ -232,18 +232,18 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table,
     bool exists;
     if (os_file_status(filepath, &exists, &type)) {
       if (exists) {
-        ut_free(filepath);
+        ut::free(filepath);
         return DB_TABLESPACE_EXISTS;
       }
     } else {
-      ut_free(filepath);
+      ut::free(filepath);
       return DB_IO_ERROR;
     }
 
     err = log_ddl->write_delete_space_log(trx, table, space, filepath, false,
                                           false);
     if (err != DB_SUCCESS) {
-      ut_free(filepath);
+      ut::free(filepath);
       return err;
     }
 
@@ -266,7 +266,7 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table,
     err = fil_ibd_create(space, tablespace_name.c_str(), filepath, fsp_flags,
                          size);
 
-    ut_free(filepath);
+    ut::free(filepath);
 
     DBUG_INJECT_CRASH("ddl_crash_after_create_tablespace",
                       crash_injection_after_create_counter++);
@@ -350,7 +350,7 @@ void dict_build_index_def(const dict_table_t *table, /*!< in: table */
                           dict_index_t *index,       /*!< in/out: index */
                           trx_t *trx) /*!< in/out: InnoDB transaction handle */
 {
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
   ut_ad((UT_LIST_GET_LEN(table->indexes) > 0) || index->is_clustered());
 
   if (!table->is_intrinsic()) {
@@ -389,7 +389,7 @@ dberr_t dict_create_index_tree_in_mem(dict_index_t *index, trx_t *trx) {
   mtr_t mtr;
   ulint page_no = FIL_NULL;
 
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   DBUG_EXECUTE_IF("ib_dict_create_index_tree_fail", return (DB_OUT_OF_MEMORY););
 
@@ -452,7 +452,7 @@ dberr_t dict_create_index_tree_in_mem(dict_index_t *index, trx_t *trx) {
 @param[in]	root_page_no	index root page number */
 void dict_drop_temporary_table_index(const dict_index_t *index,
                                      page_no_t root_page_no) {
-  ut_ad(mutex_own(&dict_sys->mutex) || index->table->is_intrinsic());
+  ut_ad(dict_sys_mutex_own() || index->table->is_intrinsic());
   ut_ad(index->table->is_temporary());
   ut_ad(index->page == FIL_NULL);
 
@@ -663,7 +663,7 @@ dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
 
   ut_ad(fsp_flags_is_valid(flags));
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   rec_format_t rec_format;
 
@@ -749,7 +749,7 @@ dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
       dict_index_add_to_cache(table, temp_index, index_root_page_num, false);
   ut_a(error == DB_SUCCESS);
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   /* After re-acquiring dict_sys mutex, check if there is already
   a table created by other threads. Just keep one copy in memory */

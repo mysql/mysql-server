@@ -52,7 +52,6 @@
 
 #define JAM_FILE_ID 420
 
-extern EventLogger * g_eventLogger;
 
 void Dbtup::initData() 
 {
@@ -494,6 +493,7 @@ void Dbtup::execCONTINUEB(Signal* signal)
     ndbrequire(handle.m_cnt == 1);
     SegmentedSectionPtr ssptr;
     handle.getSection(ssptr, 0);
+    ndbrequire(ssptr.sz <= NDB_ARRAY_SIZE(f_undo.m_data));
     ::copy(f_undo.m_data, ssptr);
     releaseSections(handle);
     disk_restart_undo(signal,
@@ -1179,9 +1179,13 @@ void Dbtup::execTUPSEIZEREQ(Signal* signal)
   return;
 }//Dbtup::execTUPSEIZEREQ()
 
-#define printFragment(t){ for(Uint32 i = 0; i < NDB_ARRAY_SIZE(t.p->fragid);i++){ \
-  ndbout_c("table = %d fragid[%d] = %d fragrec[%d] = %d", \
-           t.i, t.p->fragid[i], i, t.p->fragrec[i]); }}
+#define printFragment(t)                                                      \
+  {                                                                           \
+    for (Uint32 i = 0; i < NDB_ARRAY_SIZE(t.p->fragid); i++) {                \
+      g_eventLogger->info("table = %d fragid[%d] = %d fragrec[%d] = %d", t.i, \
+                          t.p->fragid[i], i, t.p->fragrec[i]);                \
+    }                                                                         \
+  }
 
 Dbtup::Operationrec*
 Dbtup::get_operation_ptr(Uint32 i)

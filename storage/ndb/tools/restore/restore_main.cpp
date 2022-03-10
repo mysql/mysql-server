@@ -77,11 +77,6 @@ static int ga_error_thread = 0;
 static const char* default_backupPath = "." DIR_SEPARATOR;
 static const char* ga_backupPath = default_backupPath;
 
-static const char *opt_nodegroup_map_str= 0;
-static unsigned opt_nodegroup_map_len= 0;
-static NODE_GROUP_MAP opt_nodegroup_map[MAX_NODE_GROUP_MAPS];
-#define OPT_NDB_NODEGROUP_MAP 'z'
-
 static bool opt_decrypt = false;
 
 // g_backup_password global, directly accessed in Restore.cpp.
@@ -168,6 +163,7 @@ enum ndb_restore_options {
   ,OPT_ERROR_INSERT
 #endif
   ,OPT_REMAP_COLUMN = 'x'
+  ,OPT_NODEGROUP_MAP = 'z'
 };
 static const char *opt_fields_enclosed_by= NULL;
 static const char *opt_fields_terminated_by= NULL;
@@ -360,10 +356,10 @@ static struct my_option my_long_options[] =
     "Do not ignore system table during --print-data.", 
     (uchar**) &ga_dont_ignore_systab_0, (uchar**) &ga_dont_ignore_systab_0, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "ndb-nodegroup-map", OPT_NDB_NODEGROUP_MAP,
-    "Nodegroup map for ndbcluster. Syntax: list of (source_ng, dest_ng)",
-    (uchar**) &opt_nodegroup_map_str,
-    (uchar**) &opt_nodegroup_map_str,
+  { "ndb-nodegroup-map", OPT_NODEGROUP_MAP,
+    "Nodegroup specification. Not supported anymore, value will be ignored.",
+    nullptr,
+    nullptr,
     0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "fields-enclosed-by", NDB_OPT_NOSHORT,
@@ -524,114 +520,6 @@ static struct my_option my_long_options[] =
 };
 
 
-static char* analyse_one_map(char *map_str, uint16 *source, uint16 *dest)
-{
-  char *end_ptr;
-  int number;
-  DBUG_ENTER("analyse_one_map");
-  /*
-    Search for pattern ( source_ng , dest_ng )
-  */
-
-  while (isspace(*map_str)) map_str++;
-
-  if (*map_str != '(')
-  {
-    DBUG_RETURN(NULL);
-  }
-  map_str++;
-
-  while (isspace(*map_str)) map_str++;
-
-  number= strtol(map_str, &end_ptr, 10);
-  if (!end_ptr || number < 0 || number >= MAX_NODE_GROUP_MAPS)
-  {
-    DBUG_RETURN(NULL);
-  }
-  *source= (uint16)number;
-  map_str= end_ptr;
-
-  while (isspace(*map_str)) map_str++;
-
-  if (*map_str != ',')
-  {
-    DBUG_RETURN(NULL);
-  }
-  map_str++;
-
-  number= strtol(map_str, &end_ptr, 10);
-  if (!end_ptr || number < 0 || number >= NDB_UNDEF_NODEGROUP)
-  {
-    DBUG_RETURN(NULL);
-  }
-  *dest= (uint16)number;
-  map_str= end_ptr;
-
-  if (*map_str != ')')
-  {
-    DBUG_RETURN(NULL);
-  }
-  map_str++;
-
-  while (isspace(*map_str)) map_str++;
-  DBUG_RETURN(map_str);
-}
-
-static bool insert_ng_map(NODE_GROUP_MAP *ng_map,
-                          uint16 source_ng, uint16 dest_ng)
-{
-  uint index= source_ng;
-  uint ng_index= ng_map[index].no_maps;
-
-  opt_nodegroup_map_len++;
-  if (ng_index >= MAX_MAPS_PER_NODE_GROUP)
-    return true;
-  ng_map[index].no_maps++;
-  ng_map[index].map_array[ng_index]= dest_ng;
-  return false;
-}
-
-static void init_nodegroup_map()
-{
-  uint i,j;
-  NODE_GROUP_MAP *ng_map = &opt_nodegroup_map[0];
-
-  for (i = 0; i < MAX_NODE_GROUP_MAPS; i++)
-  {
-    ng_map[i].no_maps= 0;
-    for (j= 0; j < MAX_MAPS_PER_NODE_GROUP; j++)
-      ng_map[i].map_array[j]= NDB_UNDEF_NODEGROUP;
-  }
-}
-
-static bool analyse_nodegroup_map(const char *ng_map_str,
-                                  NODE_GROUP_MAP *ng_map)
-{
-  uint16 source_ng, dest_ng;
-  char *local_str= (char*)ng_map_str;
-  DBUG_ENTER("analyse_nodegroup_map");
-
-  do
-  {
-    if (!local_str)
-    {
-      DBUG_RETURN(TRUE);
-    }
-    local_str= analyse_one_map(local_str, &source_ng, &dest_ng);
-    if (!local_str)
-    {
-      DBUG_RETURN(TRUE);
-    }
-    if (insert_ng_map(ng_map, source_ng, dest_ng))
-    {
-      DBUG_RETURN(TRUE);
-    }
-    if (!(*local_str))
-      break;
-  } while (TRUE);
-  DBUG_RETURN(FALSE);
-}
-
 static bool parse_remap_option(const BaseString option,
                                BaseString& db_name,
                                BaseString& tab_name,
@@ -750,20 +638,11 @@ get_one_option(int optid, const struct my_option *opt, char *argument)
     info.setLevel(254);
     info << "Backup Id = " << ga_backupId << endl;
     break;
-  case OPT_NDB_NODEGROUP_MAP:
-    /*
-      This option is used to set a map from nodegroup in original cluster
-      to nodegroup in new cluster.
-    */
-    opt_nodegroup_map_len= 0;
-
-    info.setLevel(254);
-    info << "Analyse node group map" << endl;
-    if (analyse_nodegroup_map(opt_nodegroup_map_str,
-                              &opt_nodegroup_map[0]))
-    {
-      exitHandler(NdbToolsProgramExitCode::WRONG_ARGS);
-    }
+  case OPT_NODEGROUP_MAP:
+    // Support for mappping nodegroups during restore has been removed, just
+    // print message saying the setting is ignored
+    err << "NOTE! Support for --ndb-nodegroup-map=<string> has been removed"
+        << endl;
     break;
   case OPT_INCLUDE_DATABASES:
   case OPT_EXCLUDE_DATABASES:
@@ -861,7 +740,6 @@ readArguments(Ndb_opts & opts, char*** pargv)
   BaseString tmp;
   debug << "Load defaults" << endl;
 
-  init_nodegroup_map();
   debug << "handle_options" << endl;
 
   opts.set_usage_funcs(short_usage_sub);
@@ -911,37 +789,6 @@ readArguments(Ndb_opts & opts, char*** pargv)
     err << "Backup ID not specified, please provide --backupid" << endl;
     exitHandler(NdbToolsProgramExitCode::WRONG_ARGS);
   }
-
-
-  for (i = 0; i < MAX_NODE_GROUP_MAPS; i++)
-    opt_nodegroup_map[i].curr_index = 0;
-
-#if 0
-  /*
-    Test code written t{
-o verify nodegroup mapping
-  */
-  printf("Handled options successfully\n");
-  Uint16 map_ng[16];
-  Uint32 j;
-  for (j = 0; j < 4; j++)
-  {
-  for (i = 0; i < 4 ; i++)
-    map_ng[i] = i;
-  map_nodegroups(&map_ng[0], (Uint32)4);
-  for (i = 0; i < 4 ; i++)
-    printf("NG %u mapped to %u \n", i, map_ng[i]);
-  }
-  for (j = 0; j < 4; j++)
-  {
-  for (i = 0; i < 8 ; i++)
-    map_ng[i] = i >> 1;
-  map_nodegroups(&map_ng[0], (Uint32)8);
-  for (i = 0; i < 8 ; i++)
-    printf("NG %u mapped to %u \n", i >> 1, map_ng[i]);
-  }
-  exit(NdbToolsProgramExitCode::WRONG_ARGS);
-#endif
 
   for (;;)
   {
@@ -1121,8 +968,7 @@ o verify nodegroup mapping
 
 bool create_consumers(RestoreThreadData *data)
 {
-  BackupPrinter *printer = new BackupPrinter(opt_nodegroup_map,
-                                opt_nodegroup_map_len);
+  BackupPrinter *printer = new BackupPrinter();
   if (printer == NULL)
     return false;
 
@@ -1132,8 +978,6 @@ bool create_consumers(RestoreThreadData *data)
                        data->m_part_id,
                        ga_slice_id);
   BackupRestore* restore = new BackupRestore(g_cluster_connection,
-                                             opt_nodegroup_map,
-                                             opt_nodegroup_map_len,
                                              threadname,
                                              ga_nParallelism);
 
@@ -2454,6 +2298,17 @@ int do_restore(RestoreThreadData *thrdata)
       info.setLevel(255);
       restoreLogger.log_info(" Object create progress: %u objects out of %u",
                              i+1, metaData.getNoOfObjects());
+    }
+  }
+
+  restoreLogger.log_debug("Handling index stat tables");
+  for (i = 0; i < g_consumers.size(); i++)
+  {
+    if (!g_consumers[i]->handle_index_stat_tables())
+    {
+      restoreLogger.log_error(
+          "Restore: Failed to handle index stat tables ... Exiting ");
+      return NdbToolsProgramExitCode::FAILED;
     }
   }
 

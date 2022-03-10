@@ -74,8 +74,6 @@
 
 struct CHARSET_INFO;
 
-#include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 248
 
@@ -843,6 +841,12 @@ protected:
                            Uint32 delayInMilliSeconds,
 			   Uint32 length,
 			   SectionHandle* sections) const;
+
+  void sendSignalOverAllLinks(BlockReference ref,
+                        GlobalSignalNumber gsn,
+                        Signal25* signal,
+                        Uint32 length,
+                        JobBufferLevel jbuf ) const ;
 
   /**
    * EXECUTE_DIRECT comes in five variants.
@@ -2780,7 +2784,7 @@ BLOCK::addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force){ \
 
 struct Hash2FragmentMap
 {
-  STATIC_CONST( MAX_MAP = NDB_MAX_HASHMAP_BUCKETS );
+  static constexpr Uint32 MAX_MAP = NDB_MAX_HASHMAP_BUCKETS;
   Uint32 m_cnt;
   Uint32 m_fragments;
   Uint16 m_map[MAX_MAP];

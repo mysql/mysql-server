@@ -829,9 +829,10 @@ BasicSplicer::State XProtocolSplicer::xproto_splice_int(
                     xproto_server_message_to_string(message_type));
 #endif
 
-          if (message_type == Mysqlx::ServerMessages::OK ||
-              message_type == Mysqlx::ServerMessages::ERROR ||
-              message_type == Mysqlx::ServerMessages::SESS_AUTHENTICATE_OK) {
+          if (!xproto_client_msg_type_.empty() &&
+              (message_type == Mysqlx::ServerMessages::OK ||
+               message_type == Mysqlx::ServerMessages::ERROR ||
+               message_type == Mysqlx::ServerMessages::SESS_AUTHENTICATE_OK)) {
             const uint8_t client_message_type = xproto_client_msg_type_[0];
             // client command is finished, remove it from the FIFO.
             xproto_client_msg_type_.erase(xproto_client_msg_type_.begin());

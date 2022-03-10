@@ -52,7 +52,7 @@ SELECT CHANNEL_NAME, LAST_ERROR_MESSAGE FROM performance_schema.replication_conn
 SELECT CHANNEL_NAME, TLS_VERSION FROM performance_schema.replication_connection_configuration;
 SELECT CHANNEL_NAME, TLS_VERSION FROM performance_schema.replication_connection_configuration ORDER BY CHANNEL_NAME;
 
---let $is_mts= `SELECT @@global.slave_parallel_workers`
+--let $is_mts= `SELECT @@global.replica_parallel_workers`
 if ($is_mts)
 {
   --echo

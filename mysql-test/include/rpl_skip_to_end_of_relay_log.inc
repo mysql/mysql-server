@@ -5,7 +5,7 @@
 #
 # WARNING! After using this file with auto_position=0, the applier
 # thread's master_log_pos is not up to date. This can cause
-# MASTER_POS_WAIT to hang. The applier thread's source_log_pos is only
+# SOURCE_POS_WAIT to hang. The applier thread's source_log_pos is only
 # updated when the applier thread executes events, not when CHANGE
 # MASTER is used to fast-forward the position as this script does.
 #

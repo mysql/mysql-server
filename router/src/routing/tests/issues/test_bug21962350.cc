@@ -56,7 +56,6 @@
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/stdx/expected.h"
-#include "mysql/harness/stdx/type_traits.h"
 #include "mysqlrouter/routing.h"
 #include "protocol/protocol.h"
 #include "tcp_address.h"
@@ -188,7 +187,7 @@ TEST_F(Bug21962350, CleanupQuarantine) {
     ai->ai_addr = reinterpret_cast<sockaddr *>(addr_in);
     ai->ai_addrlen = sizeof(sockaddr_in);
 
-    return {stdx::in_place, ai, mock_free_addrinfo};
+    return {std::in_place, ai, mock_free_addrinfo};
   };
 
   EXPECT_CALL(*sock_service, getaddrinfo(_, _, _))

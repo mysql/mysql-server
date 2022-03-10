@@ -45,9 +45,9 @@
 #include "prealloced_array.h"  // Prealloced_array
 #include "sql/log_event.h"     // Format_description_log_event
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_mts_submode.h"  // enum_mts_parallel_type
+#include "sql/rpl_mta_submode.h"  // enum_mts_parallel_type
+#include "sql/rpl_replica.h"      // MTS_WORKER_UNDEF
 #include "sql/rpl_rli.h"          // Relay_log_info
-#include "sql/rpl_slave.h"        // MTS_WORKER_UNDEF
 #include "sql/sql_class.h"
 #include "sql/system_variables.h"
 
@@ -107,7 +107,7 @@ Slave_worker *get_least_occupied_worker(Relay_log_info *rli,
 #define SLAVE_INIT_DBS_IN_GROUP 4  // initial allocation for CGEP dynarray
 
 struct Slave_job_group {
-  Slave_job_group() {}
+  Slave_job_group() = default;
 
   /*
     We need a custom copy constructor and assign operator because std::atomic<T>
@@ -283,7 +283,7 @@ class circular_buffer_queue {
     m_Q.resize(size);
   }
   circular_buffer_queue() : m_Q(PSI_INSTRUMENT_ME), inited_queue(false) {}
-  ~circular_buffer_queue() {}
+  ~circular_buffer_queue() = default;
 
   /**
      Content of the being dequeued item is copied to the arg-pointer
@@ -820,6 +820,18 @@ class Slave_worker : public Relay_log_info {
   int slave_worker_exec_event(Log_event *ev);
 
   /**
+    Make the necessary changes to both the `Slave_worker` and current
+    `Log_event` objects, before retrying to apply the transaction.
+
+    Since the event is going to be re-read from the relay-log file, there
+    may be actions needed to be taken to reset the state both of `this`
+    instance, as well as of the current `Log_event` being processed.
+
+    @param event The `Log_event` object currently being processed.
+   */
+  void prepare_for_retry(Log_event &event);
+
+  /**
     Checks if the transaction can be retried, and if not, reports an error.
 
     @param[in] thd          The THD object of current thread.
@@ -886,14 +898,14 @@ class Slave_worker : public Relay_log_info {
   }
 
   /**
-     Return true if slave-preserve-commit-order is enabled and an
+     Return true if replica-preserve-commit-order is enabled and an
      earlier transaction is waiting for a row-level lock held by this
      transaction.
   */
   bool found_commit_order_deadlock();
 
   /**
-     Called when slave-preserve-commit-order is enabled, by the worker
+     Called when replica-preserve-commit-order is enabled, by the worker
      processing an earlier transaction that waits on a row-level lock
      held by this worker's transaction.
   */

@@ -6059,7 +6059,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
 EXPLAIN FORMAT=tree SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30;
 EXPLAIN
 -> Limit: 30 row(s)  (cost=61.11..61.11 rows=30)
-    -> Sort: v1.f2, v1.f0, limit input to 30 row(s) per chunk
+    -> Sort: v1.f2, v1.f0, limit input to 30 row(s) per chunk  (cost=61.11..61.11 rows=100)
         -> Table scan on v1  (cost=13.75 rows=100)
             -> Materialize  (cost=61.11..61.11 rows=100)
                 -> Limit: 100 row(s)  (cost=51.11 rows=100)

@@ -1,5 +1,5 @@
-# restart: --log-error=MYSQLTEST_VARDIR/log/replicate_same_server_id.err --log-slave-updates --replicate-same-server-id --gtid-mode=ON --enforce-gtid-consistency
+# restart: --log-error=MYSQLTEST_VARDIR/log/replicate_same_server_id.err --log-replica-updates --replicate-same-server-id --gtid-mode=ON --enforce-gtid-consistency
 include/assert_grep.inc [Assert that the server starts and emits a warning]
 SET @@global.gtid_mode=ON_PERMISSIVE;
-ERROR HY000: SET @@GLOBAL.GTID_MODE = ON_PERMISSIVE is not allowed because replicate_same_server_id is set together with log_slave_updates and log_bin. Thus, any anonymous transactions would circulate infinitely in case this server is part of a circular replication topology.
+ERROR HY000: SET @@GLOBAL.GTID_MODE = ON_PERMISSIVE is not allowed because replicate_same_server_id is set together with log_replica_updates and log_bin. Thus, any anonymous transactions would circulate infinitely in case this server is part of a circular replication topology.
 # restart

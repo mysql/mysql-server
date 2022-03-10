@@ -41,9 +41,7 @@ select keyring_key_store('Key_1','AES',123);
 select keyring_key_store(NULL,'AES',123);
 --error ER_CANT_INITIALIZE_UDF
 select keyring_key_store('Key_1',NULL,123);
---error ER_CANT_INITIALIZE_UDF
 select keyring_key_store('Key_1','AES',NULL);
---error ER_CANT_INITIALIZE_UDF
 select keyring_key_store(NULL,NULL,NULL);
 --error ER_CANT_INITIALIZE_UDF
 select keyring_key_store(1234,NULL,'53247@#$%^');
@@ -53,15 +51,12 @@ select keyring_key_store(1,'AES','123');
 select keyring_key_store('Key_1',123,'123');
 --error ER_CANT_INITIALIZE_UDF
 select keyring_key_fetch(1);
---error ER_CANT_INITIALIZE_UDF
 select keyring_key_fetch(NULL);
 --error ER_CANT_INITIALIZE_UDF
 select keyring_key_type_fetch(1);
---error ER_CANT_INITIALIZE_UDF
 select keyring_key_type_fetch(NULL);
 --error ER_CANT_INITIALIZE_UDF
 select keyring_key_length_fetch(1);
---error ER_CANT_INITIALIZE_UDF
 select keyring_key_length_fetch(NULL);
 --error ER_CANT_INITIALIZE_UDF
 select keyring_key_generate('Key_1','AES','123');
@@ -81,7 +76,6 @@ select keyring_key_generate('Key_1',123,'123');
 select keyring_key_generate('Key_invalid_key_type',123,123);
 --error ER_CANT_INITIALIZE_UDF
 select keyring_key_remove(1);
---error ER_CANT_INITIALIZE_UDF
 select keyring_key_remove(NULL);
 # End of wrong argument type
 

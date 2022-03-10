@@ -65,28 +65,6 @@ struct st_row_rpl_async_conn_failover_managed {
   Json_wrapper configuration;
 };
 
-class PFS_index_rpl_async_conn_failover_managed : public PFS_engine_index {
- public:
-  PFS_index_rpl_async_conn_failover_managed()
-      : PFS_engine_index(&m_key_1, &m_key_2),
-        m_key_1("CHANNEL_NAME"),
-        m_key_2("MANAGED_NAME") {}
-
-  ~PFS_index_rpl_async_conn_failover_managed() override {}
-
-  /**
-    Match fetched row with searched values.
-
-    @param source_managed_tuple  the tuple contains source network configuration
-                                 details to be matched.
-  */
-  virtual bool match(RPL_FAILOVER_MANAGED_JSON_TUPLE source_managed_tuple);
-
- private:
-  PFS_key_name m_key_1;  // channel_name key
-  PFS_key_name m_key_2;  // managed_name key
-};
-
 /**
   Table
   PERFORMANCE_SCHEMA.TABLE_RPL_ASYNC_CONNECTION_FAILOVER_MANAGED.
@@ -96,7 +74,17 @@ class table_rpl_async_connection_failover_managed : public PFS_engine_table {
   typedef PFS_simple_index pos_t;
 
  private:
-  int make_row(RPL_FAILOVER_MANAGED_JSON_TUPLE source_managed_tuple);
+  /**
+    Stores current row (i.e.index) values for the table into m_row struct
+    members. This stored data is read later through read_row_values().
+
+    @param[in] index  current row position.
+
+    @return Operation status
+      @retval 0     Success
+      @retval != 0  Error (error code returned)
+  */
+  int make_row(uint index);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -117,10 +105,14 @@ class table_rpl_async_connection_failover_managed : public PFS_engine_table {
   /**
     Read the current row values.
 
-    @param table            Table handle
-    @param buf              row buffer
-    @param fields           Table fields
-    @param read_all         true if all columns are read.
+    @param[in] table            Table handle
+    @param[in] buf              row buffer
+    @param[in] fields           Table fields
+    @param[in] read_all         true if all columns are read.
+
+    @return Operation status
+      @retval 0     Success
+      @retval != 0  Error (error code returned)
   */
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                       bool read_all) override;
@@ -136,7 +128,7 @@ class table_rpl_async_connection_failover_managed : public PFS_engine_table {
   /**
     Open table function.
 
-    @param tbs  Table share object
+    @param[in] tbs  Table share object
   */
   static PFS_engine_table *create(PFS_engine_table_share *tbs);
 
@@ -153,8 +145,8 @@ class table_rpl_async_connection_failover_managed : public PFS_engine_table {
   /**
     Initialize table for random read or scan.
 
-    @param scan  if true: Initialize for random scans through rnd_next()
-                 if false: Initialize for random reads through rnd_pos()
+    @param[in] scan  if true: Initialize for random scans through rnd_next()
+                     if false: Initialize for random reads through rnd_pos()
 
     @return Operation status
       @retval 0     Success
@@ -174,7 +166,7 @@ class table_rpl_async_connection_failover_managed : public PFS_engine_table {
   /**
     Read row via random scan from position.
 
-    @param      pos  Position from position() call
+    @param[in]      pos  Position from position() call
 
     @return Operation status
       @retval 0     Success
@@ -182,36 +174,9 @@ class table_rpl_async_connection_failover_managed : public PFS_engine_table {
   */
   int rnd_pos(const void *pos) override;
 
-  /**
-    Initialize use of index.
-
-    @param idx     Index to use
-    @param sorted  Use sorted order
-
-    @return Operation status
-      @retval 0     Success
-      @retval != 0  Error (error code returned)
-  */
-  int index_init(uint idx, bool sorted) override;
-
-  /**
-    Read next row via random scan.
-
-    @return Operation status
-      @retval 0     Success
-      @retval != 0  Error (error code returned)
-  */
-  int index_next() override;
-
  private:
-  /* Index object to get match searched values */
-  PFS_index_rpl_async_conn_failover_managed *m_opened_index;
-
   /* Stores the data being read i.e. source connection details. */
-  std::vector<RPL_FAILOVER_MANAGED_JSON_TUPLE> source_managed_list;
-
-  /* Stores error happened while reading rows */
-  bool read_error;
+  std::vector<RPL_FAILOVER_MANAGED_JSON_TUPLE> m_source_managed_list{};
 
   /* Stores the current number of rows read. */
   static ha_rows num_rows;

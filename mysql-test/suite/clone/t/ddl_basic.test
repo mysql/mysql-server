@@ -1,0 +1,46 @@
+# Test clone with concurrent DDL
+--source include/have_debug_sync.inc
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--let $ddl_no_table = 1
+--source ../include/create_ddl_schema.inc
+
+--let $dml_stmt_check = CALL execute_dml(1, 0, 100, 100, 10, 0)
+
+--echo # 1. CREATE TABLE while clone in progress
+--let $ddl_op1 = CREATE TABLE
+--let $ddl_stmt1 = (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB)
+--let $ddl_post1 = PARTITION BY KEY(col1) PARTITIONS 5
+
+--let $dml_stmt1  = INSERT INTO t1 SELECT * FROM t
+--let $dml_stmt11 = INSERT INTO t11 SELECT * FROM t
+
+--let $dml_stmt2 = CALL execute_dml(0, 0, 100, 100, 10, 0)
+--let $dml_stmt21 = INSERT INTO t21 SELECT * FROM t
+
+--source ../include/ddl_common.inc
+
+--echo # 2. DROP TABLE while clone in progress
+--let $ddl_op1 = DROP TABLE
+--let $ddl_stmt1 =
+--let $ddl_post1 =
+
+--let $dml_stmt1 = SHOW TABLES
+--let $dml_stmt11 = SHOW TABLES
+
+--let $dml_stmt2 = SHOW TABLES
+--let $dml_stmt21 = SHOW TABLES
+
+--let $ddl_skip_check = 1
+
+--source ../include/ddl_common.inc
+
+--echo # Cleanup
+--let $ddl_drop_schema_tables = 1
+--let $ddl_recreate_schema_tables = 1
+--source ../include/drop_ddl_schema.inc
+
+--echo # Uninstall clone
+UNINSTALL PLUGIN clone;

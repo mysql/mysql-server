@@ -26,7 +26,9 @@ SHOW INDEX FROM t1;
 # nl search
 # Also tests FORMAT=tree printing of full-text search iterators.
 
+--skip_if_hypergraph  # Does not add a redundant filter on top.
 EXPLAIN FORMAT=tree select * from t1 where MATCH(a,b) AGAINST ("collections");
+--sorted_result
 select * from t1 where MATCH(a,b) AGAINST ("collections");
 explain select * from t1 where MATCH(a,b) AGAINST ("collections");
 select * from t1 where MATCH(a,b) AGAINST ("indexes");
@@ -35,8 +37,10 @@ select * from t1 where MATCH(a,b) AGAINST ("only");
 
 # query expansion
 
+--sorted_result
 select * from t1 where MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION);
 select * from t1 where MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION);
+--sorted_result
 select * from t1 where MATCH(a,b) AGAINST ("indexes collections" WITH QUERY EXPANSION);
 
 # IN NATURAL LANGUAGE MODE
@@ -97,6 +101,7 @@ select * from t1 where MATCH a AGAINST ("search" IN BOOLEAN MODE);
 select * from t1 where MATCH b AGAINST ("sear*" IN BOOLEAN MODE);
 
 # UNION of fulltext's
+--sorted_result
 select * from t1 where MATCH(a,b) AGAINST ("collections") UNION ALL select * from t1 where MATCH(a,b) AGAINST ("indexes");
 
 #update/delete with fulltext index
@@ -112,11 +117,15 @@ drop table t1;
 #
 create table t1 (a varchar(200) not null, fulltext (a));
 insert t1 values ("aaa10 bbb20"), ("aaa20 bbb15"), ("aaa30 bbb10");
+--sorted_result
 select * from t1 where match a against ("+aaa* +bbb*" in boolean mode);
+--sorted_result
 select * from t1 where match a against ("+aaa* +bbb1*" in boolean mode);
 select * from t1 where match a against ("+aaa* +ccc*" in boolean mode);
 select * from t1 where match a against ("+aaa10 +(bbb*)" in boolean mode);
+--sorted_result
 select * from t1 where match a against ("+(+aaa* +bbb1*)" in boolean mode);
+--sorted_result
 select * from t1 where match a against ("(+aaa* +bbb1*)" in boolean mode);
 drop table t1;
 
@@ -225,6 +234,7 @@ insert into t1 values (1,"I wonder why the fulltext index doesnt work?");
 SELECT * from t1 where MATCH (b) AGAINST ('apples');
 
 insert into t1 values (2,"fullaaa fullzzz");
+--sorted_result
 select * from t1 where match b against ('full*' in boolean mode);
 
 drop table t1;
@@ -773,3 +783,12 @@ SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('ABCD' IN NATURAL LANGUAGE MODE);
 
 DROP TABLE t1;
 --remove_file $INCFILE
+
+--echo #
+--echo # Bug#32611913: ASSERT FAILURE IN ITEM_FUNC_MATCH::EQ()
+--echo #
+
+CREATE TABLE t(x VARCHAR(10), FULLTEXT KEY (x));
+SELECT x FROM t GROUP BY x, MATCH(x) AGAINST ('abc')
+  HAVING MATCH(x) AGAINST ('abc');
+DROP TABLE t;

@@ -14,8 +14,8 @@ Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed 
 SET GLOBAL slave_rows_search_algorithms= 'INDEX_SCAN,TABLE_SCAN';
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
-set @old_slave_exec_mode= @@global.slave_exec_mode;
-set @@global.slave_exec_mode= IDEMPOTENT;
+set @old_replica_exec_mode= @@global.replica_exec_mode;
+set @@global.replica_exec_mode= IDEMPOTENT;
 create table ti1 (b int primary key) engine = innodb;
 create table ti2 (a int primary key, b int, foreign key (b) references ti1(b))
 engine = innodb;
@@ -53,12 +53,12 @@ select * from ti2 order by b /* must be (1,1),(2,2) - not inserted */;
 a	b
 1	1
 2	2
-set global slave_exec_mode='IDEMPOTENT';
-set global slave_exec_mode='STRICT';
-set global slave_exec_mode='IDEMPOTENT,STRICT';
-ERROR 42000: Variable 'slave_exec_mode' can't be set to the value of 'IDEMPOTENT,STRICT'
-select @@global.slave_exec_mode /* must be STRICT */;
-@@global.slave_exec_mode
+set global replica_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='STRICT';
+set global replica_exec_mode='IDEMPOTENT,STRICT';
+ERROR 42000: Variable 'replica_exec_mode' can't be set to the value of 'IDEMPOTENT,STRICT'
+select @@global.replica_exec_mode /* must be STRICT */;
+@@global.replica_exec_mode
 STRICT
 *** foreign keys errors as above now forces to stop
 set foreign_key_checks=0;
@@ -98,12 +98,12 @@ b
 set foreign_key_checks= 0;
 delete from ti2 where b=1;
 set foreign_key_checks= 1;
-set global slave_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/sync_slave_sql_with_master.inc
-set global slave_exec_mode='STRICT';
+set global replica_exec_mode='STRICT';
 include/sync_slave_sql_with_master.inc
 *** conspire the following insert failure
 *** conspire future problem
@@ -119,12 +119,12 @@ a	b
 set foreign_key_checks= 0;
 insert into ti1 set b=3;
 set foreign_key_checks= 1;
-set global slave_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/sync_slave_sql_with_master.inc
-set global slave_exec_mode='STRICT';
+set global replica_exec_mode='STRICT';
 include/sync_slave_sql_with_master.inc
 select * from ti2 order by b /* must be (2,2),(3,3) */;
 a	b
@@ -141,12 +141,12 @@ Last_SQL_Error
 set foreign_key_checks= 0;
 delete from ti1 where b=1;
 set foreign_key_checks= 1;
-set global slave_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/sync_slave_sql_with_master.inc
-set global slave_exec_mode='STRICT';
+set global replica_exec_mode='STRICT';
 CREATE TABLE t1 (a INT PRIMARY KEY);
 CREATE TABLE t2 (a INT);
 INSERT INTO t1 VALUES (-1),(-2),(-3);
@@ -159,23 +159,23 @@ DELETE FROM t1 WHERE a = -2;
 include/wait_for_slave_sql_to_stop.inc
 Last_SQL_Error
 1032
-set global slave_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/sync_slave_sql_with_master.inc
-set global slave_exec_mode='STRICT';
+set global replica_exec_mode='STRICT';
 DELETE FROM t2 WHERE a = -2;
 *** slave must stop (Key was not found)
 include/wait_for_slave_sql_to_stop.inc
 Last_SQL_Error
 1032
-set global slave_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/sync_slave_sql_with_master.inc
-set global slave_exec_mode='STRICT';
+set global replica_exec_mode='STRICT';
 UPDATE t1 SET a = 1 WHERE a = -1;
 UPDATE t2 SET a = 1 WHERE a = -1;
 UPDATE t1 SET a = 1 WHERE a = -1;
@@ -183,32 +183,32 @@ UPDATE t1 SET a = 1 WHERE a = -1;
 include/wait_for_slave_sql_to_stop.inc
 Last_SQL_Error
 1032
-set global slave_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/sync_slave_sql_with_master.inc
-set global slave_exec_mode='STRICT';
+set global replica_exec_mode='STRICT';
 UPDATE t2 SET a = 1 WHERE a = -1;
 *** slave must stop (Key was not found)
 include/wait_for_slave_sql_to_stop.inc
 Last_SQL_Error
 1032
-set global slave_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/sync_slave_sql_with_master.inc
-SET @@global.slave_exec_mode= @old_slave_exec_mode;
+SET @@global.replica_exec_mode= @old_replica_exec_mode;
 drop table t1,t2,ti2,ti1;
 include/sync_slave_sql_with_master.inc
-set @@global.slave_exec_mode= @old_slave_exec_mode;
+set @@global.replica_exec_mode= @old_replica_exec_mode;
 include/rpl_reset.inc
 SET GLOBAL slave_rows_search_algorithms= 'INDEX_SCAN,HASH_SCAN';
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
-set @old_slave_exec_mode= @@global.slave_exec_mode;
-set @@global.slave_exec_mode= IDEMPOTENT;
+set @old_replica_exec_mode= @@global.replica_exec_mode;
+set @@global.replica_exec_mode= IDEMPOTENT;
 create table ti1 (b int primary key) engine = innodb;
 create table ti2 (a int primary key, b int, foreign key (b) references ti1(b))
 engine = innodb;
@@ -246,12 +246,12 @@ select * from ti2 order by b /* must be (1,1),(2,2) - not inserted */;
 a	b
 1	1
 2	2
-set global slave_exec_mode='IDEMPOTENT';
-set global slave_exec_mode='STRICT';
-set global slave_exec_mode='IDEMPOTENT,STRICT';
-ERROR 42000: Variable 'slave_exec_mode' can't be set to the value of 'IDEMPOTENT,STRICT'
-select @@global.slave_exec_mode /* must be STRICT */;
-@@global.slave_exec_mode
+set global replica_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='STRICT';
+set global replica_exec_mode='IDEMPOTENT,STRICT';
+ERROR 42000: Variable 'replica_exec_mode' can't be set to the value of 'IDEMPOTENT,STRICT'
+select @@global.replica_exec_mode /* must be STRICT */;
+@@global.replica_exec_mode
 STRICT
 *** foreign keys errors as above now forces to stop
 set foreign_key_checks=0;
@@ -291,12 +291,12 @@ b
 set foreign_key_checks= 0;
 delete from ti2 where b=1;
 set foreign_key_checks= 1;
-set global slave_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/sync_slave_sql_with_master.inc
-set global slave_exec_mode='STRICT';
+set global replica_exec_mode='STRICT';
 include/sync_slave_sql_with_master.inc
 *** conspire the following insert failure
 *** conspire future problem
@@ -312,12 +312,12 @@ a	b
 set foreign_key_checks= 0;
 insert into ti1 set b=3;
 set foreign_key_checks= 1;
-set global slave_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/sync_slave_sql_with_master.inc
-set global slave_exec_mode='STRICT';
+set global replica_exec_mode='STRICT';
 include/sync_slave_sql_with_master.inc
 select * from ti2 order by b /* must be (2,2),(3,3) */;
 a	b
@@ -334,12 +334,12 @@ Last_SQL_Error
 set foreign_key_checks= 0;
 delete from ti1 where b=1;
 set foreign_key_checks= 1;
-set global slave_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/sync_slave_sql_with_master.inc
-set global slave_exec_mode='STRICT';
+set global replica_exec_mode='STRICT';
 CREATE TABLE t1 (a INT PRIMARY KEY);
 CREATE TABLE t2 (a INT);
 INSERT INTO t1 VALUES (-1),(-2),(-3);
@@ -352,23 +352,23 @@ DELETE FROM t1 WHERE a = -2;
 include/wait_for_slave_sql_to_stop.inc
 Last_SQL_Error
 1032
-set global slave_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/sync_slave_sql_with_master.inc
-set global slave_exec_mode='STRICT';
+set global replica_exec_mode='STRICT';
 DELETE FROM t2 WHERE a = -2;
 *** slave must stop (Key was not found)
 include/wait_for_slave_sql_to_stop.inc
 Last_SQL_Error
 1032
-set global slave_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/sync_slave_sql_with_master.inc
-set global slave_exec_mode='STRICT';
+set global replica_exec_mode='STRICT';
 UPDATE t1 SET a = 1 WHERE a = -1;
 UPDATE t2 SET a = 1 WHERE a = -1;
 UPDATE t1 SET a = 1 WHERE a = -1;
@@ -376,26 +376,26 @@ UPDATE t1 SET a = 1 WHERE a = -1;
 include/wait_for_slave_sql_to_stop.inc
 Last_SQL_Error
 1032
-set global slave_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/sync_slave_sql_with_master.inc
-set global slave_exec_mode='STRICT';
+set global replica_exec_mode='STRICT';
 UPDATE t2 SET a = 1 WHERE a = -1;
 *** slave must stop (Key was not found)
 include/wait_for_slave_sql_to_stop.inc
 Last_SQL_Error
 1032
-set global slave_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/sync_slave_sql_with_master.inc
-SET @@global.slave_exec_mode= @old_slave_exec_mode;
+SET @@global.replica_exec_mode= @old_replica_exec_mode;
 drop table t1,t2,ti2,ti1;
 include/sync_slave_sql_with_master.inc
-set @@global.slave_exec_mode= @old_slave_exec_mode;
+set @@global.replica_exec_mode= @old_replica_exec_mode;
 set @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.

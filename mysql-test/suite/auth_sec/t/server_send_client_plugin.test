@@ -1,0 +1,41 @@
+--source include/have_debug.inc
+
+#
+# Server should send client plugin name to client
+# during first handshake sequence.
+# (see WL14308)
+#
+CREATE USER u1 IDENTIFIED WITH 'mysql_native_password' BY 'foo';
+CREATE USER u2 IDENTIFIED WITH 'caching_sha2_password' BY 'foo';
+SHOW VARIABLES LIKE 'default_authentication_plugin';
+SELECT user,plugin FROM mysql.user WHERE user='u1' or user='u2';
+# Server will first be blocked from attempting to change
+# the authentication plugin.
+# This means we can assert that the client picks up the
+# server recommended client plugin value rather
+# than the default caching_sha2_password.
+SET GLOBAL debug='+d,assert_authentication_roundtrips';
+--connect(con1,localhost,u1,foo,,,,)
+# Succeeds because server sent client plugin
+# native password as default.
+SELECT @@debug,current_user();
+--connection default
+# We attempt the same thing but with the caching_sha2_password
+# this time our connection will fail because we use a different
+# client plugin than the default which will provoke a request
+# from the server to the client to switch.
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+--connect(con2,localhost,u2,foo,,,,)
+--connection default
+--enable_query_log
+# Just to be sure, we test the same without the error injection
+SET GLOBAL debug='-d,assert_authentication_roundtrips';
+--connect(con2,localhost,u2,foo,,,,)
+# ..which should work just fine.
+SELECT @@debug,current_user();
+--connection default
+DROP USER u1;
+DROP USER u2;
+--disconnect con1
+--disconnect con2

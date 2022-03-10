@@ -42,6 +42,9 @@ select count(*),sum(n),sum(floor(n/20)*(n%20)) from closure;
 
 # bi-directional edges
 
+# Skip in hypergraph mode since it chooses a very inefficient query plan,
+# due to not being able to push the condition into an index yet.
+--skip_if_hypergraph
 with recursive closure as (select @start_node as n union select case when s=closure.n then e else s end from edges, closure where s=closure.n or e=closure.n) select count(*),sum(n),sum(floor(n/20)*(n%20)) from closure;
 
 # equivalent query with two recursive members

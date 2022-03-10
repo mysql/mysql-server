@@ -34,7 +34,6 @@
 
 #define JAM_FILE_ID 349
 
-extern EventLogger * g_eventLogger;
 
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
 #define DEBUG_MEM

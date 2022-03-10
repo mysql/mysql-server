@@ -1,0 +1,12 @@
+!include ./my.cnf
+
+[cluster_config.1]
+NoOfReplicas=                  2
+ndbd=,,,
+ndb_mgmd=
+mysqld=,
+ndbapi=,,,,,,,,,,,
+
+[mysqld]
+# Set schema distribution timeout to low value
+ndb-schema-dist-timeout=5

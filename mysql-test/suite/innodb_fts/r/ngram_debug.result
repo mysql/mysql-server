@@ -41,9 +41,9 @@ id	title
 SELECT * FROM articles WHERE
 MATCH(title) AGAINST('mysql');
 id	title
-4	MySQL database
-3	My SQL is good
 2	Myname is wonder
+3	My SQL is good
+4	MySQL database
 SELECT * FROM articles WHERE
 MATCH(title) AGAINST('mysql' IN BOOLEAN MODE);
 id	title
@@ -78,11 +78,11 @@ INSERT INTO articles (title, body) VALUES
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('的* 或* 东西' IN BOOLEAN MODE);
 id	title	body
-5	数据库是数据的结构化集合	它可以是任何东西
 1	从简单购物清单到画展	或企业网络中的海量数据
+2	要想将数据添加到数据库	访问、处理计算机数据库中保存的数据
 3	从简单的购物清单到画展	或企业网络中的海量数据
 4	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
-2	要想将数据添加到数据库	访问、处理计算机数据库中保存的数据
+5	数据库是数据的结构化集合	它可以是任何东西
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('简单的' IN BOOLEAN MODE);
 id	title	body
@@ -146,12 +146,12 @@ id	title	body
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数据 (+xyz -bc)' IN BOOLEAN MODE);
 id	title	body
+1	从简单购物清单到画展	或企业网络中的海量数据
 2	要想将数据添加到数据库	访问、处理计算机数据库中保存的数据
+3	从简单的购物清单到画展	或企业网络中的海量数据
 4	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 5	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据 abc xyz
 6	数据库是数据的结构化集合	它可以是任何东西
-1	从简单购物清单到画展	或企业网络中的海量数据
-3	从简单的购物清单到画展	或企业网络中的海量数据
 DROP TABLE user_stopword;
 DROP TABLE articles;
 SET GLOBAL innodb_ft_server_stopword_table=default;

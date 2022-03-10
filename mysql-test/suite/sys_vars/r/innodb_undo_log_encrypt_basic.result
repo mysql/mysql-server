@@ -51,6 +51,7 @@ ERROR 42000: Incorrect argument type to variable 'innodb_undo_log_encrypt'
 set global innodb_undo_log_encrypt='foo';
 ERROR 42000: Variable 'innodb_undo_log_encrypt' can't be set to the value of 'foo'
 set global innodb_undo_log_encrypt=-2;
+ERROR 42000: Variable 'innodb_undo_log_encrypt' can't be set to the value of '-2'
 set global innodb_undo_log_encrypt=1e1;
 ERROR 42000: Incorrect argument type to variable 'innodb_undo_log_encrypt'
 set global innodb_undo_log_encrypt=2;

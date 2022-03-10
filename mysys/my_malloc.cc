@@ -57,33 +57,20 @@ static void my_raw_free(void *ptr);
 extern void my_free(void *ptr);
 
 #ifdef USE_MALLOC_WRAPPER
-struct my_memory_header {
-  PSI_memory_key m_key;
-  uint m_magic;
-  size_t m_size;
-  PSI_thread *m_owner;
-};
-typedef struct my_memory_header my_memory_header;
-#define HEADER_SIZE 32
-
-#define MAGIC 1234
-
-#define USER_TO_HEADER(P) ((my_memory_header *)(((char *)P) - HEADER_SIZE))
-#define HEADER_TO_USER(P) (((char *)P) + HEADER_SIZE)
 
 void *my_malloc(PSI_memory_key key, size_t size, myf flags) {
   my_memory_header *mh;
   size_t raw_size;
-  static_assert(sizeof(my_memory_header) <= HEADER_SIZE,
+  static_assert(sizeof(my_memory_header) <= PSI_HEADER_SIZE,
                 "We must reserve enough memory to hold the header.");
 
-  raw_size = HEADER_SIZE + size;
+  raw_size = PSI_HEADER_SIZE + size;
   mh = (my_memory_header *)my_raw_malloc(raw_size, flags);
   if (likely(mh != nullptr)) {
     void *user_ptr;
-    mh->m_magic = MAGIC;
+    mh->m_magic = PSI_MEMORY_MAGIC;
     mh->m_size = size;
-    mh->m_key = PSI_MEMORY_CALL(memory_alloc)(key, size, &mh->m_owner);
+    mh->m_key = PSI_MEMORY_CALL(memory_alloc)(key, raw_size, &mh->m_owner);
     user_ptr = HEADER_TO_USER(mh);
     MEM_MALLOCLIKE_BLOCK(user_ptr, size, 0, (flags & MY_ZEROFILL));
     return user_ptr;
@@ -100,8 +87,9 @@ void *my_realloc(PSI_memory_key key, void *ptr, size_t size, myf flags) {
   if (ptr == nullptr) return my_malloc(key, size, flags);
 
   old_mh = USER_TO_HEADER(ptr);
-  assert((old_mh->m_key == key) || (old_mh->m_key == PSI_NOT_INSTRUMENTED));
-  assert(old_mh->m_magic == MAGIC);
+  assert((PSI_REAL_MEM_KEY(old_mh->m_key) == key) ||
+         (old_mh->m_key == PSI_NOT_INSTRUMENTED));
+  assert(old_mh->m_magic == PSI_MEMORY_MAGIC);
 
   old_size = old_mh->m_size;
 
@@ -113,8 +101,9 @@ void *my_realloc(PSI_memory_key key, void *ptr, size_t size, myf flags) {
     my_memory_header *new_mh = USER_TO_HEADER(new_ptr);
 #endif
 
-    assert((new_mh->m_key == key) || (new_mh->m_key == PSI_NOT_INSTRUMENTED));
-    assert(new_mh->m_magic == MAGIC);
+    assert((PSI_REAL_MEM_KEY(new_mh->m_key) == key) ||
+           (new_mh->m_key == PSI_NOT_INSTRUMENTED));
+    assert(new_mh->m_magic == PSI_MEMORY_MAGIC);
     assert(new_mh->m_size == size);
 
     min_size = (old_size < size) ? old_size : size;
@@ -132,9 +121,9 @@ void my_claim(const void *ptr, bool claim) {
   if (ptr == nullptr) return;
 
   mh = USER_TO_HEADER(const_cast<void *>(ptr));
-  assert(mh->m_magic == MAGIC);
-  mh->m_key =
-      PSI_MEMORY_CALL(memory_claim)(mh->m_key, mh->m_size, &mh->m_owner, claim);
+  assert(mh->m_magic == PSI_MEMORY_MAGIC);
+  mh->m_key = PSI_MEMORY_CALL(memory_claim)(
+      mh->m_key, mh->m_size + PSI_HEADER_SIZE, &mh->m_owner, claim);
 }
 
 void my_free(void *ptr) {
@@ -143,8 +132,9 @@ void my_free(void *ptr) {
   if (ptr == nullptr) return;
 
   mh = USER_TO_HEADER(ptr);
-  assert(mh->m_magic == MAGIC);
-  PSI_MEMORY_CALL(memory_free)(mh->m_key, mh->m_size, mh->m_owner);
+  assert(mh->m_magic == PSI_MEMORY_MAGIC);
+  PSI_MEMORY_CALL(memory_free)
+  (mh->m_key, mh->m_size + PSI_HEADER_SIZE, mh->m_owner);
   /* Catch double free */
   mh->m_magic = 0xDEAD;
   MEM_FREELIKE_BLOCK(ptr, 0);
@@ -153,20 +143,20 @@ void my_free(void *ptr) {
 
 #else
 
-void *my_malloc(PSI_memory_key key MY_ATTRIBUTE((unused)), size_t size,
+void *my_malloc(PSI_memory_key key [[maybe_unused]], size_t size,
                 myf my_flags) {
   return my_raw_malloc(size, my_flags);
 }
 
 static void *my_raw_realloc(void *oldpoint, size_t size, myf my_flags);
 
-void *my_realloc(PSI_memory_key key MY_ATTRIBUTE((unused)), void *ptr,
-                 size_t size, myf flags) {
+void *my_realloc(PSI_memory_key key [[maybe_unused]], void *ptr, size_t size,
+                 myf flags) {
   return my_raw_realloc(ptr, size, flags);
 }
 
-void my_claim(const void *ptr MY_ATTRIBUTE((unused)),
-              bool claim MY_ATTRIBUTE((unused))) { /* Empty */
+void my_claim(const void *ptr [[maybe_unused]],
+              bool claim [[maybe_unused]]) { /* Empty */
 }
 
 void my_free(void *ptr) { my_raw_free(ptr); }

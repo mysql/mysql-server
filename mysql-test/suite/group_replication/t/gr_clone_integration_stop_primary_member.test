@@ -77,6 +77,7 @@ INSERT INTO t1 VALUES (2);
 
 --let $_group_replication_local_address2= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds2= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $_group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
 
 # Persist the primary mode settings so mysqld_safe starts with them
 SET PERSIST group_replication_enforce_update_everywhere_checks= OFF;
@@ -93,6 +94,7 @@ SET PERSIST group_replication_single_primary_mode= ON;
 --eval SET PERSIST  group_replication_group_name= "$group_replication_group_name"
 --eval SET PERSIST  group_replication_local_address= "$_group_replication_local_address2"
 --eval SET PERSIST  group_replication_group_seeds= "$_group_replication_group_seeds2"
+--eval SET PERSIST  group_replication_communication_stack= "$_group_replication_comm_stack"
 
 SET PERSIST group_replication_start_on_boot= ON;
 --enable_query_log
@@ -201,6 +203,7 @@ RESET PERSIST IF EXISTS group_replication_group_name;
 RESET PERSIST IF EXISTS group_replication_local_address;
 RESET PERSIST IF EXISTS group_replication_group_seeds;
 RESET PERSIST IF EXISTS group_replication_start_on_boot;
+RESET PERSIST IF EXISTS group_replication_communication_stack;
 
 SET GLOBAL read_only= FALSE;
 

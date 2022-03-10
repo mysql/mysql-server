@@ -54,8 +54,8 @@ class Command_iterator {
   virtual void end(void) {}
 
  protected:
-  Command_iterator() {}
-  ~Command_iterator() {}
+  Command_iterator() = default;
+  ~Command_iterator() = default;
 };
 
 /** File bootstrap command reader */

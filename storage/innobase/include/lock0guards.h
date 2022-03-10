@@ -71,6 +71,10 @@ class Global_shared_latch_guard : private ut::Non_copyable {
  public:
   Global_shared_latch_guard(ut::Location location);
   ~Global_shared_latch_guard();
+  /** Checks if there is a thread requesting the global_latch in exclusive mode
+  blocked by our thread.
+  @return true iff there is an x-latcher blocked by our s-latch. */
+  bool is_x_blocked_by_us();
 };
 
 /**

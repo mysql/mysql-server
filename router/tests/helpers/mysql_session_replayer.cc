@@ -30,7 +30,7 @@ using mysqlrouter::MySQLSession;
 
 MySQLSessionReplayer::MySQLSessionReplayer(bool trace) : trace_(trace) {}
 
-MySQLSessionReplayer::~MySQLSessionReplayer() {}
+MySQLSessionReplayer::~MySQLSessionReplayer() = default;
 
 void MySQLSessionReplayer::connect(const std::string &host, unsigned int port,
                                    const std::string &user,
@@ -278,7 +278,7 @@ const char *MySQLSessionReplayer::last_error() {
 unsigned int MySQLSessionReplayer::last_errno() { return last_error_code; }
 
 std::string MySQLSessionReplayer::quote(const std::string &s,
-                                        char qchar) noexcept {
+                                        char qchar) const {
   std::string quoted;
   quoted.push_back(qchar);
   quoted.append(mysqlrouter::escape_sql_string(s));
@@ -370,17 +370,4 @@ bool MySQLSessionReplayer::print_expected() {
   return !call_info_.empty();
 }
 
-MySQLSessionReplayer::CallInfo::CallInfo(const CallInfo &ci)
-    : type(ci.type),
-      error(ci.error),
-      error_code(ci.error_code),
-      sql(ci.sql),
-      last_insert_id(ci.last_insert_id),
-      warning_count(ci.warning_count),
-      num_fields(ci.num_fields),
-      rows(ci.rows),
-      host(ci.host),
-      port(ci.port),
-      user(ci.user),
-      password(ci.password),
-      unix_socket(ci.unix_socket) {}
+MySQLSessionReplayer::CallInfo::CallInfo(const CallInfo &) = default;

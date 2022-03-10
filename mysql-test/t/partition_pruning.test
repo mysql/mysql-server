@@ -1431,9 +1431,7 @@ ANALYZE TABLE t1;
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_external_lock';
 
 --echo # ... as compared to this, which will scan both partitions
@@ -1444,9 +1442,7 @@ show status like 'Handler_external_lock';
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_external_lock';
 
 --echo # This will only scan partition p1
@@ -1457,9 +1453,7 @@ show status like 'Handler_external_lock';
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_external_lock';
 
 --echo # This will only scan partition p1 but with a LIMIT
@@ -1470,9 +1464,7 @@ show status like 'Handler_external_lock';
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_external_lock';
 
 --sorted_result
@@ -1486,9 +1478,7 @@ select * from t1;
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_external_lock';
 
 --let $q = delete from t1 where a+1=5+1
@@ -1498,9 +1488,7 @@ show status like 'Handler_external_lock';
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_external_lock';
 
 --echo # Will only delete from p0
@@ -1511,9 +1499,7 @@ show status like 'Handler_external_lock';
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_external_lock';
 
 --sorted_result
@@ -1533,9 +1519,7 @@ ANALYZE TABLE t2;
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_external_lock';
 
 --let $q = delete t1,t2 from t1, t2 where t1.a=5 and t2.a=5
@@ -1545,9 +1529,7 @@ show status like 'Handler_external_lock';
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_external_lock';
 
 --let $q = delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=5
@@ -1557,9 +1539,7 @@ show status like 'Handler_external_lock';
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_external_lock';
 
 --let $q = delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=3
@@ -1569,9 +1549,7 @@ show status like 'Handler_external_lock';
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_external_lock';
 
 --sorted_result
@@ -1678,28 +1656,24 @@ DROP TABLE t3;
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
 --let $q = update t2 set a = 1002 where a = 1001
 --replace_column 10 #
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
 --let $q = update t2 set b = 6 where a = 600
 --replace_column 10 #
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
 --let $q = update t2 set b = 6 where a > 600 and a < 800
 --replace_column 10 #
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
 --let $q = delete from t2 where a > 600
 --replace_column 10 #
@@ -1708,7 +1682,6 @@ show status like 'Handler_read_rnd_next';
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
 
 drop table t2;
@@ -1802,18 +1775,14 @@ explain select * from t2 where b > 0 and b < 5;
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_key';
 --let $q = update t2 set a = 111 where b in (5,6,7)
 --replace_column 10 #
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_key';
 --let $q = update t2 set a = 222 where b = 7
 
@@ -1831,9 +1800,7 @@ SET @@optimizer_trace="enabled=off";
 }
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_key';
 --let $q = delete from t2 where b = 8
 --replace_column 10 #
@@ -1851,35 +1818,25 @@ SET @@optimizer_trace="enabled=off";
 }
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_key';
 --let $q = delete from t2 where b > 5
 --replace_column 10 #
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_key';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_prev';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_next';
 --let $q = delete from t2 where b < 5 or b > 3
 --replace_column 10 #
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_key';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_prev';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_next';
 
 drop table t1, t2;
@@ -2362,3 +2319,40 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 >= 4;
 --replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 > 4;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#32134145 - PARTITION PRUNING FAILS WITH EXPLICIT TIME_ZONE
+--echo # OFFSET IN DATETIME LITERAL
+--echo #
+# Table with 2 partitions, p1 < 2020-02-01 and p2 < 2020-03-01
+CREATE TABLE tp (
+  id int unsigned NOT NULL,
+  ts timestamp NOT NULL,
+  PRIMARY KEY (id, ts)
+)
+PARTITION BY RANGE (unix_timestamp(ts))
+(
+ PARTITION p1 VALUES LESS THAN (1580515200),
+ PARTITION p2 VALUES LESS THAN (1583020800)
+);
+
+SET time_zone = '+00:00';
+
+#Insert one row in each parition
+INSERT INTO tp VALUES (1, '2020-01-01');
+INSERT INTO tp VALUES (1, '2020-02-01');
+
+SELECT COUNT(*) FROM tp PARTITION(p1);
+SELECT COUNT(*) FROM tp PARTITION(p2);
+
+SELECT * FROM tp WHERE ts >= '2020-01-01 00:00:00+00:00' AND ts <='2020-02-01 00:00:00+00:00';
+
+SET time_zone = '+01:00';
+SELECT * FROM tp WHERE ts >= '2020-01-01 00:00:00+00:00' AND ts <='2020-02-01 00:00:00+00:00';
+
+#expect the same result even without partitioning
+ALTER TABLE tp REMOVE PARTITIONING;
+SELECT * FROM tp WHERE ts >= '2020-01-01 00:00:00+00:00' AND ts <='2020-02-01 00:00:00+00:00';
+
+SET time_zone = DEFAULT;
+DROP TABLE tp;

@@ -777,6 +777,11 @@ DROP TABLE t;
 # Bug#22510353: UNNECESSARY USING TEMPORARY FOR UPDATE
 #
 ###############################################################################
+# Execute RESET REPLICA before calling rpl_reset.inc
+# To avoid failure in MTS and rpl-priv_checks_user runs
+--source include/stop_slave_io.inc
+RESET REPLICA;
+
 -- source include/rpl_reset.inc
 -- connection master
 -- let $row_img_set=master:FULL:N,slave:FULL:Y

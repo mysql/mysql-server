@@ -1,0 +1,123 @@
+--echo #
+--echo # Collection of test cases to verify that the hypergraph optimizer is used
+--echo #
+
+--source include/have_optimizer_trace.inc # Verifies optimizer trace support
+--source include/have_hypergraph.inc # Enables hypergraph optimizer
+
+--echo #
+--echo # Bug #33296454: Use the hypergraph optimizer for SET statements
+--echo #
+
+# Description:
+# Subqueries in SET statements are optimized with the old optimizer, even if
+# the hypergraph optimizer is enabled.
+#
+# Example SET statement:
+# SET optimizer_switch = 'hypergraph_optimizer=on';
+# SET @x = (SELECT COUNT(*) FROM t);
+#
+# Test approach:
+# Check that the string 'Constructed hypergraph' appears in the optimizer trace
+# after running a SET statement with the hypergraph optimizer enabled.
+
+SET optimizer_trace='enabled=on';
+
+CREATE TABLE t(x INT);
+INSERT INTO t VALUES (1), (2), (3);
+
+SET @x = (SELECT COUNT(*) FROM t);
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE TRACE LIKE '%Constructed hypergraph%';
+SELECT @x;
+
+SET @x = (SELECT COUNT(*) FROM t WHERE x >= 2);
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE TRACE LIKE '%Constructed hypergraph%';
+SELECT @x;
+
+SET @x = 1 + (SELECT COUNT(*) FROM t);
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE TRACE LIKE '%Constructed hypergraph%';
+SELECT @x;
+
+SET @x = 1 IN (SELECT x FROM t);
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE TRACE LIKE '%Constructed hypergraph%';
+SELECT @x;
+
+SET @x = EXISTS (SELECT x FROM t);
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE TRACE LIKE '%Constructed hypergraph%';
+SELECT @x;
+
+# Verify that prepared SET statements use the optimizer that was active
+# when PREPARE was called and that the behaviour is consistent with prepared
+# SELECT statements
+
+--echo # Case 1.a: Preparation: 'hypergraph_optimizer=on', execution: 'hypergraph_optimizer=on'
+PREPARE ps_set FROM 'SET @x = (SELECT COUNT(*) FROM t)';
+PREPARE ps_select FROM 'SELECT COUNT(*) FROM t';
+
+EXECUTE ps_set;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE TRACE LIKE '%Constructed hypergraph%';
+
+EXECUTE ps_select;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE TRACE LIKE '%Constructed hypergraph%';
+
+--echo # Case 1.b: Preparation: 'hypergraph_optimizer=on', execution: 'hypergraph_optimizer=off'
+SET optimizer_switch = 'hypergraph_optimizer=off';
+
+EXECUTE ps_set;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE TRACE LIKE '%Constructed hypergraph%';
+
+EXECUTE ps_select;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE TRACE LIKE '%Constructed hypergraph%';
+
+--echo # Case 2.a: Preparation: 'hypergraph_optimizer=off', execution: 'hypergraph_optimizer=on'
+SET optimizer_switch = 'hypergraph_optimizer=off';
+PREPARE ps_set FROM 'SET @x = (SELECT COUNT(*) FROM t)';
+PREPARE ps_select FROM 'SELECT COUNT(*) FROM t';
+
+# Set 'hypergraph_optimizer=on' while suppressing warnings
+--source include/have_hypergraph.inc
+
+EXECUTE ps_set;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE TRACE LIKE '%Constructed hypergraph%';
+
+EXECUTE ps_select;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE TRACE LIKE '%Constructed hypergraph%';
+
+--echo # Case 2.b: Preparation: 'hypergraph_optimizer=off', execution: 'hypergraph_optimizer=off'
+SET optimizer_switch = 'hypergraph_optimizer=off';
+
+EXECUTE ps_set;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE TRACE LIKE '%Constructed hypergraph%';
+
+EXECUTE ps_select;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE TRACE LIKE '%Constructed hypergraph%';
+
+# Verify that 'Constructed hypergraph' is missing from the optimizer trace
+# when the hypergraph optimizer is disabled
+
+SET optimizer_switch = 'hypergraph_optimizer=off';
+SET @x = (SELECT COUNT(*) FROM t);
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE TRACE LIKE '%Constructed hypergraph%';
+SELECT @x;
+
+--echo # Clean up for Bug #33296454
+
+DROP TABLE t;
+SET optimizer_trace='enabled=off';
+SET optimizer_switch=default;
+
+--echo # Bug #33296454 done

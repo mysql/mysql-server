@@ -82,3 +82,4 @@ SET GLOBAL general_log=       @old_general_log;
 SET GLOBAL log_output=        @old_log_output;
 #Cleanup
 DROP USER 'user_tcp'@'127.0.0.1', 'user_ssl'@'127.0.0.1';
+TRUNCATE TABLE mysql.general_log;

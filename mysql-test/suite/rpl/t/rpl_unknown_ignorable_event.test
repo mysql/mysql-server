@@ -47,7 +47,7 @@ CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
 --source include/sync_slave_sql_with_master.inc
 --echo # Set a debug point on slave to simulate unknown ignorable log events.
 SET @save_debug=@@global.debug;
-SET GLOBAL DEBUG='d,simulate_unknown_ignorable_log_event';
+SET GLOBAL DEBUG='+d,simulate_unknown_ignorable_log_event';
 
 --source include/rpl_connection_master.inc
 

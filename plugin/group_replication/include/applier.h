@@ -78,7 +78,7 @@ class Action_packet : public Packet {
   Action_packet(enum_packet_action action)
       : Packet(ACTION_PACKET_TYPE), packet_action(action) {}
 
-  ~Action_packet() override {}
+  ~Action_packet() override = default;
 
   enum_packet_action packet_action;
 };
@@ -97,7 +97,7 @@ class View_change_packet : public Packet {
   View_change_packet(std::string &view_id_arg)
       : Packet(VIEW_CHANGE_PACKET_TYPE), view_id(view_id_arg) {}
 
-  ~View_change_packet() override {}
+  ~View_change_packet() override = default;
 
   std::string view_id;
   std::vector<std::string> group_executed_set;
@@ -119,7 +119,7 @@ class Single_primary_action_packet : public Packet {
   Single_primary_action_packet(enum enum_action action_arg)
       : Packet(SINGLE_PRIMARY_PACKET_TYPE), action(action_arg) {}
 
-  ~Single_primary_action_packet() override {}
+  ~Single_primary_action_packet() override = default;
 
   enum enum_action action;
 };
@@ -170,7 +170,7 @@ class Transaction_prepared_action_packet : public Packet {
     }
   }
 
-  ~Transaction_prepared_action_packet() override {}
+  ~Transaction_prepared_action_packet() override = default;
 
   const bool m_sid_specified;
   const rpl_gno m_gno;
@@ -201,7 +201,7 @@ class Sync_before_execution_action_packet : public Packet {
         m_thread_id(thread_id),
         m_gcs_member_id(gcs_member_id.get_member_id()) {}
 
-  ~Sync_before_execution_action_packet() override {}
+  ~Sync_before_execution_action_packet() override = default;
 
   const my_thread_id m_thread_id;
   const Gcs_member_identifier m_gcs_member_id;
@@ -225,7 +225,7 @@ class Leaving_members_action_packet : public Packet {
       : Packet(LEAVING_MEMBERS_PACKET_TYPE),
         m_leaving_members(leaving_members) {}
 
-  ~Leaving_members_action_packet() override {}
+  ~Leaving_members_action_packet() override = default;
 
   const std::vector<Gcs_member_identifier> m_leaving_members;
 };
@@ -238,7 +238,7 @@ typedef enum enum_applier_state {
 
 class Applier_module_interface {
  public:
-  virtual ~Applier_module_interface() {}
+  virtual ~Applier_module_interface() = default;
   virtual Certification_handler *get_certification_handler() = 0;
   virtual int wait_for_applier_complete_suspension(
       bool *abort_flag, bool wait_for_execution = true) = 0;
@@ -314,7 +314,7 @@ class Applier_module : public Applier_module_interface {
       @retval !=0    yes
   */
   bool is_applier_thread_aborted() {
-    return (applier_aborted || applier_thd->killed);
+    return (applier_aborted || applier_thd == nullptr || applier_thd->killed);
   }
 
   /**
@@ -334,7 +334,6 @@ class Applier_module : public Applier_module_interface {
     @param[in] stop_timeout               the timeout when waiting on shutdown
     @param[in] group_sidno                the group configured sidno
     @param[in] gtid_assignment_block_size the group gtid assignment block size
-    @param[in] shared_stop_lock           the lock used to block transactions
 
     @return the operation status
       @retval 0      OK
@@ -342,8 +341,7 @@ class Applier_module : public Applier_module_interface {
   */
   int setup_applier_module(Handler_pipeline_type pipeline_type, bool reset_logs,
                            ulong stop_timeout, rpl_sidno group_sidno,
-                           ulonglong gtid_assignment_block_size,
-                           Shared_writelock *shared_stop_lock);
+                           ulonglong gtid_assignment_block_size);
 
   /**
     Configure the applier pipeline handlers
@@ -548,8 +546,8 @@ class Applier_module : public Applier_module_interface {
   void awake_applier_module() override {
     mysql_mutex_lock(&suspend_lock);
     suspended = false;
-    mysql_mutex_unlock(&suspend_lock);
     mysql_cond_broadcast(&suspend_cond);
+    mysql_mutex_unlock(&suspend_lock);
   }
 
   /**
@@ -880,14 +878,9 @@ class Applier_module : public Applier_module_interface {
   mysql_cond_t suspend_cond;
   /* Suspend flag that informs if the applier is suspended */
   bool suspended;
-  /* Suspend wait flag used when waiting for the applier to suspend */
-  bool waiting_for_applier_suspension;
 
   /* The condition for signaling the applier suspension*/
   mysql_cond_t suspension_waiting_condition;
-
-  /* The stop lock used when killing transaction/stopping server*/
-  Shared_writelock *shared_stop_write_lock;
 
   /* The incoming event queue */
   Synchronized_queue<Packet *> *incoming;

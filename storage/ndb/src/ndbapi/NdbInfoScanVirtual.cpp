@@ -112,7 +112,7 @@ public:
   /*
      Start reading of row(s) from the virtual table
   */
-  virtual bool start_scan(VirtualScanContext* ctx) const  = 0;
+  virtual bool start_scan(VirtualScanContext* ctx) const = 0;
 
   /*
     Read one row from the virtual table
@@ -126,9 +126,61 @@ public:
   */
   virtual int read_row(VirtualScanContext* ctx, Row& row, Uint32 row_number) const = 0;
 
-  virtual ~VirtualTable() = 0;
+  /*
+    key: int32 primary key value
+    returns row number in table
+  */
+  int seek(std::map<int, int>::const_iterator &,
+           const int &key, NdbInfoScanOperation::Seek) const;
+
+ virtual ~VirtualTable() = 0;
+
+protected:
+  std::map<int, int> m_index;
 };
 
+int VirtualTable::seek(std::map<int, int>::const_iterator &iter,
+                       const int &key,
+                       NdbInfoScanOperation::Seek seek) const {
+  switch(seek.mode) {
+    case NdbInfoScanOperation::Seek::Mode::first:
+      iter = m_index.cbegin();
+      return iter->second;
+    case NdbInfoScanOperation::Seek::Mode::last:
+      iter = std::prev(m_index.cend(), 1);
+      return iter->second;
+    case NdbInfoScanOperation::Seek::Mode::next:
+      if(iter == m_index.cend()) return -1;
+      if(++iter == m_index.cend()) return -1;
+      return iter->second;
+    case NdbInfoScanOperation::Seek::Mode::previous:
+      if(iter == m_index.cbegin()) return -1;
+      iter--;
+      return iter->second;
+    case NdbInfoScanOperation::Seek::Mode::value:
+      iter = m_index.lower_bound(key);
+      break;
+  }
+  if(iter == m_index.cend()) return -1;
+
+  /* Check for exact match */
+  if(! (seek.inclusive && (iter->first == key)))
+  {
+    /* Exact match failed. Check for bounded ranges */
+    if(seek.high || seek.low)
+    {
+      if(seek.high && iter->first == key) iter++;
+      else if(seek.low)
+      {
+        if(iter == m_index.cbegin()) return -1; // nothing lower than first rec
+        iter--;
+      }
+    }
+    else return -1; // exact match failed and ranges are not wanted
+  }
+
+  return (iter == m_index.cend()) ? -1 : iter->second;
+}
 
 VirtualTable::~VirtualTable() {}
 
@@ -302,7 +354,33 @@ class VirtualScanContext {
   }
   NdbTransaction *getTrans() { return m_trans; }
 
+  bool scanTable(const NdbRecord *result_record,
+                 NdbOperation::LockMode lock_mode = NdbOperation::LM_Read,
+                 const unsigned char *result_mask = 0,
+                 const NdbScanOperation::ScanOptions *options = 0,
+                 Uint32 sizeOfOptions = 0) {
+    assert(m_trans != nullptr);
+    m_scan_op = m_trans->scanTable(result_record, lock_mode, result_mask,
+                                   options, sizeOfOptions);
+    if (!m_scan_op) return false;
+    if (m_trans->execute(NdbTransaction::NoCommit) != 0) return false;
+    return true;
+  }
+  NdbScanOperation *getScanOp() { return m_scan_op; }
+
+  bool createRecord(NdbDictionary::RecordSpecification *recordSpec,
+                    Uint32 length, Uint32 elemSize) {
+    assert(m_record == nullptr);  // Only one record supported for now
+    m_record = m_ndb->getDictionary()->createRecord(m_ndbtab, recordSpec,
+                                                    length, elemSize);
+    return (m_record != nullptr);
+  }
+
+  const NdbRecord *getRecord() { return m_record; }
+
   ~VirtualScanContext() {
+    if (m_record) m_ndb->getDictionary()->releaseRecord(m_record);
+    if (m_scan_op) m_scan_op->close();
     if (m_trans) m_ndb->closeTransaction(m_trans);
     if (m_ndbtab) m_ndb->getDictionary()->removeTableGlobal(*m_ndbtab, 0);
     delete m_ndb;
@@ -313,6 +391,8 @@ class VirtualScanContext {
   Ndb *m_ndb{nullptr};
   const NdbDictionary::Table *m_ndbtab{nullptr};
   NdbTransaction *m_trans{nullptr};
+  NdbScanOperation *m_scan_op{nullptr};
+  NdbRecord* m_record{nullptr};
 };
 
 int NdbInfoScanVirtual::execute()
@@ -384,17 +464,33 @@ int NdbInfoScanVirtual::init()
   return NdbInfo::ERR_NoError;
 }
 
+bool NdbInfoScanVirtual::seek(NdbInfoScanOperation::Seek mode, int key) {
+  int r = m_virt->seek(m_index_pos, key, mode);
+  if(r == -1) return false;
+  m_row_counter = r;
+  return true;
+}
+
 NdbInfoScanVirtual::~NdbInfoScanVirtual()
 {
   delete m_ctx;
   delete[] m_buffer;
 }
 
+// Tables begin here
 
 #include "kernel/BlockNames.hpp"
 class BlocksTable : public VirtualTable
 {
 public:
+  BlocksTable() {
+    for(int row = 0; row < NO_OF_BLOCKS ; row++)
+    {
+      const BlockName & bn = BlockNames[row];
+      m_index[bn.number] = row;
+    }
+  }
+
   bool start_scan(VirtualScanContext*) const override { return true; }
 
   int read_row(VirtualScanContext*, VirtualTable::Row& w,
@@ -416,6 +512,8 @@ public:
   {
     NdbInfo::Table* tab = new NdbInfo::Table("blocks",
                                              NdbInfo::Table::InvalidTableId,
+                                             NO_OF_BLOCK_NAMES,
+                                             true,
                                              this);
     if (!tab)
       return NULL;
@@ -432,18 +530,14 @@ public:
 #include "kernel/signaldata/DictTabInfo.hpp"
 class DictObjTypesTable : public VirtualTable
 {
-public:
-  bool start_scan(VirtualScanContext*) const override { return true; }
-
-  int read_row(VirtualScanContext*, VirtualTable::Row& w,
-                Uint32 row_number) const override
-  {
-    struct Entry {
+private:
+  // The compiler will catch if the array size is too small
+  static constexpr int OBJ_TYPES_TABLE_SIZE = 20;
+  struct Entry {
      const DictTabInfo::TableType type;
      const char* name;
     };
-
-    static const Entry entries[] =
+    struct Entry entries[OBJ_TYPES_TABLE_SIZE] =
      {
        {DictTabInfo::SystemTable, "System table"},
        {DictTabInfo::UserTable, "User table"},
@@ -467,7 +561,20 @@ public:
        {DictTabInfo::SchemaTransaction, "Schema transaction"}
      };
 
-    if (row_number >= sizeof(entries) / sizeof(entries[0]))
+public:
+  DictObjTypesTable() {
+    for(int row_count = 0 ; row_count < OBJ_TYPES_TABLE_SIZE ; row_count++)
+    {
+      m_index[entries[row_count].type] = row_count;
+    }
+  }
+
+  bool start_scan(VirtualScanContext*) const override { return true; }
+
+  int read_row(VirtualScanContext*, VirtualTable::Row& w,
+                Uint32 row_number) const override
+  {
+    if (row_number >= OBJ_TYPES_TABLE_SIZE)
     {
       // No more rows
       return 0;
@@ -483,6 +590,8 @@ public:
   {
     NdbInfo::Table* tab = new NdbInfo::Table("dict_obj_types",
                                              NdbInfo::Table::InvalidTableId,
+                                             OBJ_TYPES_TABLE_SIZE,
+                                             true,
                                              this);
     if (!tab)
       return NULL;
@@ -616,6 +725,8 @@ public:
   {
     NdbInfo::Table* tab = new NdbInfo::Table("error_messages",
                                              NdbInfo::Table::InvalidTableId,
+                                             m_error_messages.size(),
+                                             true,
                                              this);
     if (!tab)
       return NULL;
@@ -649,6 +760,7 @@ public:
     ConfigInfo::ParamInfoIter param_iter(m_config_info,
                                          CFG_SECTION_NODE,
                                          NODE_TYPE_DB);
+    int row_count = 0;
 
     while((pinfo= param_iter.next())) {
       if (pinfo->_paramId == 0 || // KEY_INTERNAL
@@ -657,6 +769,8 @@ public:
 
       if (m_config_params.push_back(pinfo) != 0)
         return false;
+
+      m_index[pinfo->_paramId] = row_count++;
     }
     return true;
   }
@@ -792,6 +906,8 @@ public:
   {
     NdbInfo::Table* tab = new NdbInfo::Table("config_params",
                                              NdbInfo::Table::InvalidTableId,
+                                             m_config_params.size(),
+                                             true,
                                              this);
     if (!tab)
       return NULL;
@@ -838,7 +954,10 @@ public:
     m_table_name(table_name)
   {
     while(m_array[m_array_count].name != 0)
-      m_array_count++;
+    {
+       m_index[m_array[m_array_count].value] = m_array_count;
+       m_array_count++;
+    }
   }
 
   bool start_scan(VirtualScanContext*) const override { return true; }
@@ -865,6 +984,8 @@ public:
   {
     NdbInfo::Table* tab = new NdbInfo::Table(m_table_name,
                                              NdbInfo::Table::InvalidTableId,
+                                             m_array_count,
+                                             true,
                                              this);
     if (!tab)
       return NULL;
@@ -966,6 +1087,8 @@ public:
   {
     NdbInfo::Table* tab = new NdbInfo::Table("backup_id",
                                              NdbInfo::Table::InvalidTableId,
+                                             1,
+                                             true,
                                              this);
     if (!tab)
       return NULL;
@@ -977,6 +1100,98 @@ public:
       return NULL;
     if (!tab->addColumn(NdbInfo::Column("row_id", 2,
                                         NdbInfo::Column::Number64)))
+      return NULL;
+    return tab;
+  }
+};
+
+class IndexStatsTable : public VirtualTable {
+  struct IndexStatRow {
+    Uint32 index_id;
+    Uint32 index_version;
+    Uint32 sample_version;
+  };
+
+public:
+  bool start_scan(VirtualScanContext *ctx) const override {
+    DBUG_TRACE;
+    if (!ctx->create_ndb("mysql")) return false;
+    if (!ctx->openTable("ndb_index_stat_head")) return false;
+    if (!ctx->startTrans()) return false;
+    const NdbDictionary::Table *const ndbtab = ctx->getTable();
+    const NdbDictionary::Column *const index_id_col =
+        ndbtab->getColumn("index_id");
+    const NdbDictionary::Column *const index_version_col =
+        ndbtab->getColumn("index_version");
+    const NdbDictionary::Column *const sample_version_col =
+        ndbtab->getColumn("sample_version");
+
+    // Set up record specification for the 3 columns
+    NdbDictionary::RecordSpecification record_spec[3];
+    record_spec[0].column = index_id_col;
+    record_spec[0].offset = offsetof(IndexStatRow, index_id);
+    record_spec[0].nullbit_byte_offset = 0;  // Not nullable
+    record_spec[0].nullbit_bit_in_byte = 0;
+
+    record_spec[1].column = index_version_col;
+    record_spec[1].offset = offsetof(IndexStatRow, index_version);
+    record_spec[1].nullbit_byte_offset = 0;  // Not nullable
+    record_spec[1].nullbit_bit_in_byte = 0;
+
+    record_spec[2].column = sample_version_col;
+    record_spec[2].offset = offsetof(IndexStatRow, sample_version);
+    record_spec[2].nullbit_byte_offset = 0;  // Not nullable
+    record_spec[2].nullbit_bit_in_byte = 0;
+    if (!ctx->createRecord(record_spec, 3, sizeof(record_spec[0]))) {
+      return false;
+    }
+
+    // Set up attribute mask to scan only the 3 columns of interest
+    const unsigned char attr_mask = ((1 << index_id_col->getColumnNo()) |
+                                     (1 << index_version_col->getColumnNo()) |
+                                     (1 << sample_version_col->getColumnNo()));
+    if (!ctx->scanTable(ctx->getRecord(), NdbOperation::LM_Read, &attr_mask)) {
+      return false;
+    }
+    return true;
+  }
+
+  int read_row(VirtualScanContext *ctx, VirtualTable::Row &w,
+               Uint32) const override {
+    IndexStatRow *row_data;
+    const int scan_next_result =
+        ctx->getScanOp()->nextResult((const char **)&row_data, true, false);
+    if (scan_next_result == 0) {
+      // Row found
+      w.write_number(row_data->index_id);
+      w.write_number(row_data->index_version);
+      w.write_number(row_data->sample_version);
+      return 1;
+    }
+    if (scan_next_result == 1) {
+      // No more rows
+      return 0;
+    }
+    // Error
+    return NdbInfo::ERR_ClusterFailure;
+  }
+
+  NdbInfo::Table* get_instance() const override {
+    NdbInfo::Table *tab = new NdbInfo::Table("index_stats",
+                                             NdbInfo::Table::InvalidTableId,
+                                             64, // Hard-coded estimate
+                                             false,
+                                             this);
+    if (!tab)
+      return NULL;
+    if (!tab->addColumn(NdbInfo::Column("index_id", 0,
+                                        NdbInfo::Column::Number)))
+      return NULL;
+    if (!tab->addColumn(NdbInfo::Column("index_version", 1,
+                                        NdbInfo::Column::Number)))
+      return NULL;
+    if (!tab->addColumn(NdbInfo::Column("sample_version", 2,
+                                        NdbInfo::Column::Number)))
       return NULL;
     return tab;
   }
@@ -1066,6 +1281,15 @@ NdbInfoScanVirtual::create_virtual_tables(Vector<NdbInfo::Table*>& list)
       return false;
 
     if (list.push_back(backupIdTable->get_instance()) != 0)
+      return false;
+  }
+
+  {
+    IndexStatsTable *indexStatTable = new IndexStatsTable;
+    if (!indexStatTable)
+      return false;
+
+    if (list.push_back(indexStatTable->get_instance()) != 0)
       return false;
   }
 

@@ -50,7 +50,7 @@ class Index_element : virtual public Weak_object {
   enum enum_index_element_order { ORDER_UNDEF = 1, ORDER_ASC, ORDER_DESC };
 
  public:
-  ~Index_element() override {}
+  ~Index_element() override = default;
 
   /////////////////////////////////////////////////////////////////////////
   // index.

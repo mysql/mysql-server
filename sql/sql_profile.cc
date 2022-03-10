@@ -78,9 +78,9 @@ static const size_t MAX_QUERY_LENGTH = 300;
 /**
   Connects Information_Schema and Profiling.
 */
-int fill_query_profile_statistics_info(
-    THD *thd MY_ATTRIBUTE((unused)), TABLE_LIST *tables MY_ATTRIBUTE((unused)),
-    Item *) {
+int fill_query_profile_statistics_info(THD *thd [[maybe_unused]],
+                                       TABLE_LIST *tables [[maybe_unused]],
+                                       Item *) {
 #if defined(ENABLED_PROFILING)
   const char *old = thd->lex->sql_command == SQLCOM_SHOW_PROFILE
                         ? "SHOW PROFILE"

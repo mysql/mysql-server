@@ -55,7 +55,7 @@ NdbObjectIdMap::NdbObjectIdMap(Uint32 sz, Uint32 eSz, NdbMutex* mutex):
 {
   expand(sz);
 #ifdef DEBUG_OBJECTMAP
-  ndbout_c("NdbObjectIdMap:::NdbObjectIdMap(%u)", sz);
+  g_eventLogger->info("NdbObjectIdMap:::NdbObjectIdMap(%u)", sz);
 #endif
 }
 

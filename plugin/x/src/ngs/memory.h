@@ -42,7 +42,7 @@ namespace detail {
 template <class T>
 class PFS_allocator : public std::allocator<T> {
  public:
-  PFS_allocator() {}
+  PFS_allocator() = default;
 
   template <class U>
   PFS_allocator(PFS_allocator<U> const &) {}
@@ -52,7 +52,7 @@ class PFS_allocator : public std::allocator<T> {
     typedef PFS_allocator<U> other;
   };
 
-  T *allocate(size_t n, const void *hint MY_ATTRIBUTE((unused)) = nullptr) {
+  T *allocate(size_t n, const void *hint [[maybe_unused]] = nullptr) {
     return reinterpret_cast<T *>(my_malloc(
         IS_PSI_AVAILABLE(KEY_memory_x_objects, 0), sizeof(T) * n, MYF(MY_WME)));
   }

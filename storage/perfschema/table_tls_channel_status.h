@@ -67,7 +67,7 @@ class table_tls_channel_status : public PFS_engine_table {
   int rnd_next() override;
   int rnd_pos(const void *pos) override;
 
-  ~table_tls_channel_status() override {}
+  ~table_tls_channel_status() override = default;
 
  protected:
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,

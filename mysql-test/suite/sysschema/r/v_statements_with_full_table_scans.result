@@ -11,8 +11,8 @@ rows_sent	bigint unsigned	NO		NULL
 rows_examined	bigint unsigned	NO		NULL	
 rows_sent_avg	decimal(21,0)	YES		NULL	
 rows_examined_avg	decimal(21,0)	YES		NULL	
-first_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
-last_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
+first_seen	timestamp(6)	NO		NULL	
+last_seen	timestamp(6)	NO		NULL	
 digest	varchar(64)	YES		NULL	
 SELECT * FROM sys.statements_with_full_table_scans;
 DESC sys.x$statements_with_full_table_scans;
@@ -28,8 +28,8 @@ rows_sent	bigint unsigned	NO		NULL
 rows_examined	bigint unsigned	NO		NULL	
 rows_sent_avg	decimal(21,0)	YES		NULL	
 rows_examined_avg	decimal(21,0)	YES		NULL	
-first_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
-last_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
+first_seen	timestamp(6)	NO		NULL	
+last_seen	timestamp(6)	NO		NULL	
 digest	varchar(64)	YES		NULL	
 SELECT * FROM sys.x$statements_with_full_table_scans;
 CREATE DATABASE v_statements_with_full_table_scans;

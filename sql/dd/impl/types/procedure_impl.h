@@ -46,9 +46,9 @@ class Object_table;
 
 class Procedure_impl : public Routine_impl, public Procedure {
  public:
-  Procedure_impl() {}
+  Procedure_impl() = default;
 
-  ~Procedure_impl() override {}
+  ~Procedure_impl() override = default;
 
  public:
   bool update_routine_name_key(Name_key *key, Object_id schema_id,
@@ -174,6 +174,16 @@ class Procedure_impl : public Routine_impl, public Procedure {
  private:
   Procedure_impl(const Procedure_impl &src);
   Procedure_impl *clone() const override { return new Procedure_impl(*this); }
+
+  // N.B.: returning dd::Procedure from this function might confuse MSVC
+  // compiler thanks to diamond inheritance.
+  Procedure_impl *clone_dropped_object_placeholder() const override {
+    Procedure_impl *placeholder = new Procedure_impl();
+    placeholder->set_id(id());
+    placeholder->set_schema_id(schema_id());
+    placeholder->set_name(name());
+    return placeholder;
+  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

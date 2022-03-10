@@ -53,12 +53,19 @@ static void lock_wait_table_print(void) {
   const srv_slot_t *slot = lock_sys->waiting_threads;
 
   for (uint32_t i = 0; i < srv_max_n_threads; i++, ++slot) {
-    fprintf(stderr,
-            "Slot %lu: thread type %lu,"
-            " in use %lu, susp %lu, timeout %lu, time %lu\n",
-            (ulong)i, (ulong)slot->type, (ulong)slot->in_use,
-            (ulong)slot->suspended, slot->wait_timeout,
-            (ulong)(ut_time_monotonic() - slot->suspend_time));
+    fprintf(
+        stderr,
+        "Slot %lu: thread type %lu, in use %lu, susp %lu, timeout %" PRIu64
+        ", time %" PRIu64 "\n",
+        (ulong)i, (ulong)slot->type, (ulong)slot->in_use,
+        (ulong)slot->suspended,
+        static_cast<uint64_t>(
+            std::chrono::duration_cast<std::chrono::seconds>(slot->wait_timeout)
+                .count()),
+        static_cast<uint64_t>(
+            std::chrono::duration_cast<std::chrono::seconds>(
+                std::chrono::steady_clock::now() - slot->suspend_time)
+                .count()));
   }
 }
 
@@ -124,9 +131,10 @@ static uint64_t lock_wait_table_reservations = 0;
 /** Reserves a slot in the thread table for the current user OS thread.
  @return reserved slot */
 static srv_slot_t *lock_wait_table_reserve_slot(
-    que_thr_t *thr,     /*!< in: query thread associated
-                        with the user OS thread */
-    ulong wait_timeout) /*!< in: lock wait timeout value */
+    que_thr_t *thr, /*!< in: query thread associated
+                    with the user OS thread */
+    std::chrono::steady_clock::duration
+        wait_timeout) /*!< in: lock wait timeout value */
 {
   srv_slot_t *slot;
 
@@ -149,7 +157,7 @@ static srv_slot_t *lock_wait_table_reserve_slot(
 
       os_event_reset(slot->event);
       slot->suspended = TRUE;
-      slot->suspend_time = ut_time_monotonic();
+      slot->suspend_time = std::chrono::steady_clock::now();
       slot->wait_timeout = wait_timeout;
 
       if (slot == lock_sys->last_slot) {
@@ -197,8 +205,7 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
   srv_slot_t *slot;
   trx_t *trx;
   ibool was_declared_inside_innodb;
-  ib_time_monotonic_ms_t start_time = 0;
-  ulong lock_wait_timeout;
+  std::chrono::steady_clock::time_point start_time;
 
   trx = thr_get_trx(thr);
 
@@ -210,7 +217,7 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
   incomplete transactions that are being rolled back after crash
   recovery) will use the global value of
   innodb_lock_wait_timeout, because trx->mysql_thd == NULL. */
-  lock_wait_timeout = trx_lock_wait_timeout_get(trx);
+  const auto lock_wait_timeout = trx_lock_wait_timeout_get(trx);
 
   lock_wait_mutex_enter();
 
@@ -244,7 +251,7 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
     srv_stats.n_lock_wait_count.inc();
     srv_stats.n_lock_wait_current_count.inc();
 
-    start_time = ut_time_monotonic_us();
+    start_time = std::chrono::steady_clock::now();
   }
 
   lock_wait_mutex_exit();
@@ -271,7 +278,7 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
     case RW_X_LATCH:
       /* We may wait for rec lock in dd holding
       dict_operation_lock for creating FTS AUX table */
-      ut_ad(!mutex_own(&dict_sys->mutex));
+      ut_ad(!dict_sys_mutex_own());
       rw_lock_x_unlock(dict_operation_lock);
       break;
   }
@@ -315,24 +322,24 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
     rw_lock_x_lock(dict_operation_lock);
   }
 
-  const auto wait_time = ut_time_monotonic() - slot->suspend_time;
+  const auto wait_time = std::chrono::steady_clock::now() - slot->suspend_time;
 
   /* Release the slot for others to use */
 
   lock_wait_table_release_slot(slot);
 
   if (thr->lock_state == QUE_THR_LOCK_ROW) {
-    const auto finish_time = ut_time_monotonic_us();
-
-    const uint64_t diff_time =
-        (finish_time > start_time) ? (uint64_t)(finish_time - start_time) : 0;
+    const auto diff_time = std::chrono::steady_clock::now() - start_time;
 
     srv_stats.n_lock_wait_current_count.dec();
-    srv_stats.n_lock_wait_time.add(diff_time);
+    srv_stats.n_lock_wait_time.add(
+        std::chrono::duration_cast<std::chrono::microseconds>(diff_time)
+            .count());
 
     /* Only update the variable if we successfully
     retrieved the start and finish times. See Bug#36819. */
-    if (diff_time > lock_sys->n_lock_max_wait_time && start_time != 0) {
+    if (diff_time > lock_sys->n_lock_max_wait_time &&
+        start_time != std::chrono::steady_clock::time_point{}) {
       lock_sys->n_lock_max_wait_time = diff_time;
     }
 
@@ -349,8 +356,8 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
     return;
   }
 
-  if (lock_wait_timeout < 100000000 && wait_time > (double)lock_wait_timeout &&
-      !trx_is_high_priority(trx)) {
+  if (lock_wait_timeout < std::chrono::seconds(100000000) &&
+      wait_time > lock_wait_timeout && !trx_is_high_priority(trx)) {
     trx->error_state = DB_LOCK_WAIT_TIMEOUT;
 
     MONITOR_INC(MONITOR_TIMEOUT);
@@ -475,21 +482,13 @@ static void lock_wait_check_and_cancel(
 {
   trx_t *trx;
 
-  const auto suspend_time = slot->suspend_time;
-
-  ut_ad(lock_wait_mutex_own());
-
-  ut_ad(slot->in_use);
-
-  ut_ad(slot->suspended);
-
-  const auto wait_time = ut_time_monotonic() - suspend_time;
+  const auto wait_time = std::chrono::steady_clock::now() - slot->suspend_time;
 
   trx = thr_get_trx(slot->thr);
 
   if (trx_is_interrupted(trx) ||
-      (slot->wait_timeout < 100000000 &&
-       (wait_time > (int64_t)slot->wait_timeout || wait_time < 0))) {
+      (slot->wait_timeout < std::chrono::seconds{100000000} &&
+       wait_time > slot->wait_timeout)) {
     /* Timeout exceeded or a wrap-around in system time counter: cancel the lock
     request queued by the transaction and release possible other transactions
     waiting behind; it is possible that the lock has already been granted: in
@@ -1433,11 +1432,12 @@ void lock_wait_timeout_thread() {
   ut_ad(!srv_read_only_mode);
 
   /** The last time we've checked for timeouts. */
-  auto last_checked_for_timeouts_at = ut_time();
+  auto last_checked_for_timeouts_at = std::chrono::steady_clock::now();
   do {
-    auto now = ut_time();
-    if (0.5 < ut_difftime(now, last_checked_for_timeouts_at)) {
-      last_checked_for_timeouts_at = now;
+    auto current_time = std::chrono::steady_clock::now();
+    if (std::chrono::milliseconds(500) <
+        current_time - last_checked_for_timeouts_at) {
+      last_checked_for_timeouts_at = current_time;
       lock_wait_check_slots_for_timeouts();
     }
 
@@ -1445,7 +1445,7 @@ void lock_wait_timeout_thread() {
 
     /* When someone is waiting for a lock, we wake up every second (at worst)
     and check if a timeout has passed for a lock wait */
-    os_event_wait_time_low(event, 1000000, sig_count);
+    os_event_wait_time_low(event, std::chrono::seconds{1}, sig_count);
     sig_count = os_event_reset(event);
 
   } while (srv_shutdown_state.load() < SRV_SHUTDOWN_CLEANUP);

@@ -1,9 +1,9 @@
 create table t1 (a int key, b int unique, c int) engine ndb;
-ERROR HY000: Can't create table 't1'
+ERROR HY000: Can't create table 't1' (use SHOW WARNINGS for more info).
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 299 'Operation not allowed or aborted due to single user mode' from NDB
-Error	1005	Can't create table 't1'
+Error	1005	Can't create table 't1' (use SHOW WARNINGS for more info).
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 16M

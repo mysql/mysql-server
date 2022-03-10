@@ -4,33 +4,10 @@
 --source include/have_debug_sync.inc
 --source include/count_sessions.inc
 
---echo # Prepare for creating Encrypted Table
 --let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
 --let $MYSQLD_DATADIR= `select @@datadir;`
 
---let $ENCRYPT_DATADIR = $MYSQL_TMP_DIR/data_encrypt
---let $ENCRYPT_ERROR_FILE = $MYSQL_TMP_DIR/boot_encrypt_log
-
---let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql
---let $START_PAGE_SIZE= `select @@innodb_page_size`
-
---echo # create bootstrap file
-write_file $BOOTSTRAP_SQL;
-CREATE DATABASE test DEFAULT CHARACTER SET latin1;
-EOF
---mkdir $ENCRYPT_DATADIR
-
---echo # Create and start mysqld with keyring plugin.
---source include/shutdown_mysqld.inc
-
---replace_result $MYSQLD MYSQLD $BOOTSTRAP_SQL BOOTSTRAP_SQL $ENCRYPT_DATADIR ENCRYPT_DATADIR $START_PAGE_SIZE PAGE_SIZE $ENCRYPT_ERROR_FILE ENCRYPT_ERROR_FILE
---let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --init-file=$BOOTSTRAP_SQL --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_page_size=$START_PAGE_SIZE --datadir=$ENCRYPT_DATADIR > $ENCRYPT_ERROR_FILE  2>&1
-
---exec $NEW_CMD
-
---replace_result $KEYRING_PLUGIN KEYRING_PLUGIN $MYSQL_TMP_DIR MYSQL_TMP_DIR $ENCRYPT_DATADIR ENCRYPT_DATADIR
---let $restart_parameters=restart: --datadir=$ENCRYPT_DATADIR --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring
---source include/start_mysqld.inc
+--source ../include/encrypt_begin.inc
 
 --echo ## Install plugin
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
@@ -41,7 +18,7 @@ EOF
 
 if(!$page_compression) {
 --echo # In connection default - starting clone
-# Validate that redo and undo encryption cannot be set when clone in progress. */
+# Validate that redo and undo encryption can be set when clone in progress. */
 SET DEBUG_SYNC = 'clone_file_copy SIGNAL set_encryption WAIT_FOR resume_clone';
 --source ../include/clone_command_send.inc
 
@@ -50,12 +27,10 @@ connect (con1,localhost,root,,);
 SET DEBUG_SYNC = 'now WAIT_FOR set_encryption';
 
 SHOW VARIABLES LIKE 'innodb_redo_log_encrypt';
---error ER_CLONE_IN_PROGRESS
 SET GLOBAL innodb_redo_log_encrypt = ON;
 SHOW VARIABLES LIKE 'innodb_redo_log_encrypt';
 
 SHOW VARIABLES LIKE 'innodb_undo_log_encrypt';
---error ER_CLONE_IN_PROGRESS
 SET GLOBAL innodb_undo_log_encrypt = ON;
 SHOW VARIABLES LIKE 'innodb_undo_log_encrypt';
 
@@ -66,6 +41,8 @@ connection default;
 --reap
 disconnect con1;
 --force-rmdir $CLONE_DATADIR
+SET GLOBAL innodb_redo_log_encrypt = OFF;
+SET GLOBAL innodb_undo_log_encrypt = OFF;
 }
 
 # Modify the schema and add compressed table
@@ -229,16 +206,4 @@ UNINSTALL PLUGIN clone;
 UNINSTALL PLUGIN keyring_file;
 SET DEBUG_SYNC = 'RESET';
 
-# Restart default database
---let restart_parameters="restart:"
---source include/restart_mysqld.inc
-
---echo # Restart server and remove encrypted data directory
-let $restart_parameters = "restart:";
---source include/restart_mysqld.inc
-
-# Temporary file Cleanup
---force-rmdir $ENCRYPT_DATADIR
---remove_file $ENCRYPT_ERROR_FILE
---remove_file $BOOTSTRAP_SQL
---remove_file $MYSQL_TMP_DIR/mysecret_keyring
+--source ../include/encrypt_end.inc

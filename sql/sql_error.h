@@ -135,7 +135,7 @@ class Sql_condition {
                 const char *message_text);
 
   /** Destructor. */
-  ~Sql_condition() {}
+  ~Sql_condition() = default;
 
   /**
     Copy optional condition items attributes.
@@ -226,10 +226,6 @@ class ErrConvString {
   explicit ErrConvString(const String *str) {
     buf_length = err_conv(err_buffer, sizeof(err_buffer), str->ptr(),
                           str->length(), str->charset());
-  }
-
-  ErrConvString(const char *str, const CHARSET_INFO *cs) {
-    buf_length = err_conv(err_buffer, sizeof(err_buffer), str, strlen(str), cs);
   }
 
   ErrConvString(const char *str, size_t length) {

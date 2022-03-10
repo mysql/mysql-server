@@ -65,16 +65,16 @@ void rw_lock_remove_debug_info(rw_lock_t *lock,  /*!< in: rw-lock */
 
 /** Check if there are threads waiting for the rw-lock.
  @return true if waiters, false otherwise */
-UNIV_INLINE
-bool rw_lock_get_waiters(const rw_lock_t *lock) /*!< in: rw-lock */
+static inline bool rw_lock_get_waiters(
+    const rw_lock_t *lock) /*!< in: rw-lock */
 {
   return lock->waiters.load();
 }
 
 /** Sets lock->waiters to true. It is not an error if lock->waiters is already
  true. */
-UNIV_INLINE
-void rw_lock_set_waiter_flag(rw_lock_t *lock) /*!< in/out: rw-lock */
+static inline void rw_lock_set_waiter_flag(
+    rw_lock_t *lock) /*!< in/out: rw-lock */
 {
   bool zero = false;
   lock->waiters.compare_exchange_strong(zero, true);
@@ -82,8 +82,8 @@ void rw_lock_set_waiter_flag(rw_lock_t *lock) /*!< in/out: rw-lock */
 
 /** Resets lock->waiters to false. It is not an error if lock->waiters is
  already false. */
-UNIV_INLINE
-void rw_lock_reset_waiter_flag(rw_lock_t *lock) /*!< in/out: rw-lock */
+static inline void rw_lock_reset_waiter_flag(
+    rw_lock_t *lock) /*!< in/out: rw-lock */
 {
   bool one = true;
   lock->waiters.compare_exchange_strong(one, false);
@@ -92,8 +92,8 @@ void rw_lock_reset_waiter_flag(rw_lock_t *lock) /*!< in/out: rw-lock */
 /** Returns the write-status of the lock - this function made more sense
  with the old rw_lock implementation.
  @return RW_LOCK_NOT_LOCKED, RW_LOCK_X, RW_LOCK_X_WAIT, RW_LOCK_SX */
-UNIV_INLINE
-ulint rw_lock_get_writer(const rw_lock_t *lock) /*!< in: rw-lock */
+static inline ulint rw_lock_get_writer(
+    const rw_lock_t *lock) /*!< in: rw-lock */
 {
   lint lock_word = lock->lock_word;
 
@@ -119,8 +119,8 @@ ulint rw_lock_get_writer(const rw_lock_t *lock) /*!< in: rw-lock */
 
 /** Returns the number of readers (s-locks).
  @return number of readers */
-UNIV_INLINE
-ulint rw_lock_get_reader_count(const rw_lock_t *lock) /*!< in: rw-lock */
+static inline ulint rw_lock_get_reader_count(
+    const rw_lock_t *lock) /*!< in: rw-lock */
 {
   lint lock_word = lock->lock_word;
   ut_ad(lock_word <= X_LOCK_DECR);
@@ -151,8 +151,8 @@ ulint rw_lock_get_reader_count(const rw_lock_t *lock) /*!< in: rw-lock */
 /** Returns the value of writer_count for the lock. Does not reserve the lock
  mutex, so the caller must be sure it is not changed during the call.
  @return value of writer_count */
-UNIV_INLINE
-ulint rw_lock_get_x_lock_count(const rw_lock_t *lock) /*!< in: rw-lock */
+static inline ulint rw_lock_get_x_lock_count(
+    const rw_lock_t *lock) /*!< in: rw-lock */
 {
   lint lock_copy = lock->lock_word;
   ut_ad(lock_copy <= X_LOCK_DECR);
@@ -179,8 +179,8 @@ ulint rw_lock_get_x_lock_count(const rw_lock_t *lock) /*!< in: rw-lock */
 /** Returns the number of sx-lock for the lock. Does not reserve the lock
  mutex, so the caller must be sure it is not changed during the call.
  @return value of sx-lock count */
-UNIV_INLINE
-ulint rw_lock_get_sx_lock_count(const rw_lock_t *lock) /*!< in: rw-lock */
+static inline ulint rw_lock_get_sx_lock_count(
+    const rw_lock_t *lock) /*!< in: rw-lock */
 {
 #ifdef UNIV_DEBUG
   lint lock_copy = lock->lock_word;
@@ -227,15 +227,15 @@ bool rw_lock_lock_word_decr(rw_lock_t *lock, /*!< in/out: rw-lock */
 
 /** Increments lock_word the specified amount and returns new value.
  @return lock->lock_word after increment */
-UNIV_INLINE
-lint rw_lock_lock_word_incr(rw_lock_t *lock, /*!< in/out: rw-lock */
-                            ulint amount)    /*!< in: amount of increment */
+static inline lint rw_lock_lock_word_incr(
+    rw_lock_t *lock, /*!< in/out: rw-lock */
+    ulint amount)    /*!< in: amount of increment */
 {
   return (lock->lock_word.fetch_add(amount) + amount);
 }
 
-UNIV_INLINE
-void rw_lock_set_writer_id_and_recursion_flag(rw_lock_t *lock, bool recursive) {
+static inline void rw_lock_set_writer_id_and_recursion_flag(rw_lock_t *lock,
+                                                            bool recursive) {
   lock->writer_thread.store(std::this_thread::get_id(),
                             std::memory_order_relaxed);
   lock->recursive.store(recursive, std::memory_order_release);
@@ -247,7 +247,7 @@ void rw_lock_set_writer_id_and_recursion_flag(rw_lock_t *lock, bool recursive) {
 ALWAYS_INLINE
 bool rw_lock_s_lock_low(
     rw_lock_t *lock, /*!< in: pointer to rw-lock */
-    ulint pass MY_ATTRIBUTE((unused)),
+    ulint pass [[maybe_unused]],
     /*!< in: pass value; != 0, if the lock will be
     passed to another thread to unlock */
     const char *file_name, /*!< in: file name where lock requested */
@@ -276,8 +276,7 @@ bool rw_lock_s_lock_low(
  in exclusive mode, or there is an exclusive lock request waiting, the
  function spins a preset time (controlled by srv_n_spin_wait_rounds), waiting
  for the lock, before suspending the thread. */
-UNIV_INLINE
-void rw_lock_s_lock_func(
+static inline void rw_lock_s_lock_func(
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     ulint pass,            /*!< in: pass value; != 0, if the lock will
                            be passed to another thread to unlock */
@@ -309,8 +308,7 @@ void rw_lock_s_lock_func(
  rw-lock in exclusive mode for the current thread if the lock can be
  obtained immediately.
  @return true if success */
-UNIV_INLINE
-bool rw_lock_x_lock_func_nowait(
+static inline bool rw_lock_x_lock_func_nowait(
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     const char *file_name, /*!< in: file name where lock requested */
     ulint line)            /*!< in: line where requested */
@@ -356,8 +354,7 @@ bool rw_lock_x_lock_func_nowait(
 }
 
 /** Releases a shared mode lock. */
-UNIV_INLINE
-void rw_lock_s_unlock_func(
+static inline void rw_lock_s_unlock_func(
 #ifdef UNIV_DEBUG
     ulint pass,      /*!< in: pass value; != 0, if the lock may have
                      been passed to another thread to unlock */
@@ -385,8 +382,7 @@ void rw_lock_s_unlock_func(
 }
 
 /** Releases an exclusive mode lock. */
-UNIV_INLINE
-void rw_lock_x_unlock_func(
+static inline void rw_lock_x_unlock_func(
 #ifdef UNIV_DEBUG
     ulint pass,      /*!< in: pass value; != 0, if the lock may have
                      been passed to another thread to unlock */
@@ -440,8 +436,7 @@ void rw_lock_x_unlock_func(
 }
 
 /** Releases a sx mode lock. */
-UNIV_INLINE
-void rw_lock_sx_unlock_func(
+static inline void rw_lock_sx_unlock_func(
 #ifdef UNIV_DEBUG
     ulint pass,      /*!< in: pass value; != 0, if the lock may have
                      been passed to another thread to unlock */
@@ -488,8 +483,7 @@ void rw_lock_sx_unlock_func(
 /** Performance schema instrumented wrap function for rw_lock_create_func().
  NOTE! Please use the corresponding macro rw_lock_create(), not directly
  this function! */
-UNIV_INLINE
-void pfs_rw_lock_create_func(
+static inline void pfs_rw_lock_create_func(
     mysql_pfs_key_t key, /*!< in: key registered with
                          performance schema */
     rw_lock_t *lock,     /*!< in/out: pointer to memory */
@@ -500,7 +494,7 @@ void pfs_rw_lock_create_func(
     const char *cfile_name,  /*!< in: file name where created */
     ulint cline)             /*!< in: file line where created */
 {
-  new (lock) rw_lock_t;
+  new (lock) rw_lock_t{};
 
   /* Initialize the rwlock for performance schema */
   lock->pfs_psi = PSI_RWLOCK_CALL(init_rwlock)(key.m_value, lock);
@@ -515,8 +509,7 @@ void pfs_rw_lock_create_func(
 /** Performance schema instrumented wrap function for rw_lock_x_lock_func()
  NOTE! Please use the corresponding macro rw_lock_x_lock(), not directly
  this function! */
-UNIV_INLINE
-void pfs_rw_lock_x_lock_func(
+static inline void pfs_rw_lock_x_lock_func(
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     ulint pass,            /*!< in: pass value; != 0, if the lock will
                            be passed to another thread to unlock */
@@ -551,8 +544,7 @@ void pfs_rw_lock_x_lock_func(
  NOTE! Please use the corresponding macro rw_lock_x_lock_func(),
  not directly this function!
  @return true if success */
-UNIV_INLINE
-bool pfs_rw_lock_x_lock_func_nowait(
+static inline bool pfs_rw_lock_x_lock_func_nowait(
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     const char *file_name, /*!< in: file name where lock
                          requested */
@@ -589,8 +581,8 @@ bool pfs_rw_lock_x_lock_func_nowait(
 /** Performance schema instrumented wrap function for rw_lock_free_func()
  NOTE! Please use the corresponding macro rw_lock_free(), not directly
  this function! */
-UNIV_INLINE
-void pfs_rw_lock_free_func(rw_lock_t *lock) /*!< in: pointer to rw-lock */
+static inline void pfs_rw_lock_free_func(
+    rw_lock_t *lock) /*!< in: pointer to rw-lock */
 {
   if (lock->pfs_psi != nullptr) {
     PSI_RWLOCK_CALL(destroy_rwlock)(lock->pfs_psi);
@@ -616,7 +608,7 @@ void pfs_rw_lock_s_lock_func(rw_lock_t *lock, /*!< in: pointer to rw-lock */
       PSI_rwlock_locker *locker;
       PSI_rwlock_locker_state state;
 
-      /* Instrumented to inform we are aquiring a shared rwlock */
+      /* Instrumented to inform we are acquiring a shared rwlock */
       locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
           &state, lock->pfs_psi, PSI_RWLOCK_SHAREDLOCK, file_name,
           static_cast<uint>(line));
@@ -636,21 +628,21 @@ void pfs_rw_lock_s_lock_func(rw_lock_t *lock, /*!< in: pointer to rw-lock */
 /** Performance schema instrumented wrap function for rw_lock_sx_lock_func()
  NOTE! Please use the corresponding macro rw_lock_sx_lock(), not
  directly this function! */
-UNIV_INLINE
-void pfs_rw_lock_sx_lock_func(rw_lock_t *lock, /*!< in: pointer to rw-lock */
-                              ulint pass,      /*!< in: pass value; != 0, if the
-                                               lock will be passed to another
-                                               thread to unlock */
-                              const char *file_name, /*!< in: file name where
-                                                   lock requested */
-                              ulint line) /*!< in: line where requested */
+static inline void pfs_rw_lock_sx_lock_func(
+    rw_lock_t *lock,       /*!< in: pointer to rw-lock */
+    ulint pass,            /*!< in: pass value; != 0, if the
+                           lock will be passed to another
+                           thread to unlock */
+    const char *file_name, /*!< in: file name where
+                         lock requested */
+    ulint line)            /*!< in: line where requested */
 {
   if (lock->pfs_psi != nullptr) {
     if (lock->pfs_psi->m_enabled) {
       PSI_rwlock_locker *locker;
       PSI_rwlock_locker_state state;
 
-      /* Instrumented to inform we are aquiring a shared rwlock */
+      /* Instrumented to inform we are acquiring a shared rwlock */
       locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
           &state, lock->pfs_psi, PSI_RWLOCK_SHAREDEXCLUSIVELOCK, file_name,
           static_cast<uint>(line));
@@ -671,8 +663,7 @@ void pfs_rw_lock_sx_lock_func(rw_lock_t *lock, /*!< in: pointer to rw-lock */
  NOTE! Please use the corresponding macro rw_lock_s_lock(), not
  directly this function!
  @return true if success */
-UNIV_INLINE
-ibool pfs_rw_lock_s_lock_low(
+static inline ibool pfs_rw_lock_s_lock_low(
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     ulint pass,            /*!< in: pass value; != 0, if the
                            lock will be passed to another
@@ -710,8 +701,7 @@ ibool pfs_rw_lock_s_lock_low(
  NOTE! Please use the corresponding macro, not
  directly this function!
  @return true if success */
-UNIV_INLINE
-bool pfs_rw_lock_sx_lock_low(
+static inline bool pfs_rw_lock_sx_lock_low(
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     ulint pass,            /*!< in: pass value; != 0, if the
                            lock will be passed to another
@@ -726,7 +716,7 @@ bool pfs_rw_lock_sx_lock_low(
       PSI_rwlock_locker *locker;
       PSI_rwlock_locker_state state;
 
-      /* Instrumented to inform we are aquiring a shared
+      /* Instrumented to inform we are acquiring a shared
       exclusive rwlock */
       locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
           &state, lock->pfs_psi, PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK, file_name,
@@ -749,8 +739,7 @@ bool pfs_rw_lock_sx_lock_low(
 /** Performance schema instrumented wrap function for rw_lock_x_unlock_func()
  NOTE! Please use the corresponding macro rw_lock_x_unlock(), not directly
  this function! */
-UNIV_INLINE
-void pfs_rw_lock_x_unlock_func(
+static inline void pfs_rw_lock_x_unlock_func(
 #ifdef UNIV_DEBUG
     ulint pass,      /*!< in: pass value; != 0, if the
                      lock may have been passed to another
@@ -775,8 +764,7 @@ void pfs_rw_lock_x_unlock_func(
 /** Performance schema instrumented wrap function for rw_lock_sx_unlock_func()
  NOTE! Please use the corresponding macro rw_lock_sx_unlock(), not directly
  this function! */
-UNIV_INLINE
-void pfs_rw_lock_sx_unlock_func(
+static inline void pfs_rw_lock_sx_unlock_func(
 #ifdef UNIV_DEBUG
     ulint pass,      /*!< in: pass value; != 0, if the
                      lock may have been passed to another

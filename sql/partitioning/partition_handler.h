@@ -192,8 +192,8 @@ class Partition_share : public Handler_share {
 */
 class Partition_handler {
  public:
-  Partition_handler() {}
-  virtual ~Partition_handler() {}
+  Partition_handler() = default;
+  virtual ~Partition_handler() = default;
 
   /**
     Get dynamic table information from partition.
@@ -216,8 +216,8 @@ class Partition_handler {
     @param info  Create info.
     @return Number of default partitions.
   */
-  virtual int get_default_num_partitions(
-      HA_CREATE_INFO *info MY_ATTRIBUTE((unused))) {
+  virtual int get_default_num_partitions(HA_CREATE_INFO *info
+                                         [[maybe_unused]]) {
     return 1;
   }
   /**
@@ -228,8 +228,8 @@ class Partition_handler {
 
     @param[in,out] part_info  Partition object to setup.
   */
-  virtual void set_auto_partitions(
-      partition_info *part_info MY_ATTRIBUTE((unused))) {}
+  virtual void set_auto_partitions(partition_info *part_info [[maybe_unused]]) {
+  }
   /**
     Get number of partitions for table in SE
 
@@ -240,7 +240,7 @@ class Partition_handler {
     @retval false for success
     @retval true for failure, for example table didn't exist in engine
   */
-  virtual bool get_num_parts(const char *name MY_ATTRIBUTE((unused)),
+  virtual bool get_num_parts(const char *name [[maybe_unused]],
                              uint *num_parts) {
     *num_parts = 0;
     return false;
@@ -302,9 +302,7 @@ class Partition_handler {
 
     @return Supported alter table flags.
   */
-  virtual uint alter_flags(uint flags MY_ATTRIBUTE((unused))) const {
-    return 0;
-  }
+  virtual uint alter_flags(uint flags [[maybe_unused]]) const { return 0; }
 
   /**
     Get partition row type from SE
@@ -335,10 +333,10 @@ class Partition_handler {
 
     @sa Partition_handler::exchange_partition().
   */
-  virtual int exchange_partition_low(
-      uint part_id MY_ATTRIBUTE((unused)),
-      dd::Table *part_table_def MY_ATTRIBUTE((unused)),
-      dd::Table *swap_table_def MY_ATTRIBUTE((unused))) {
+  virtual int exchange_partition_low(uint part_id [[maybe_unused]],
+                                     dd::Table *part_table_def [[maybe_unused]],
+                                     dd::Table *swap_table_def
+                                     [[maybe_unused]]) {
     return HA_ERR_WRONG_COMMAND;
   }
 
@@ -415,7 +413,7 @@ class Partition_helper {
       @retval false success.
       @retval true  failure.
   */
-  bool init_partitioning(MEM_ROOT *mem_root MY_ATTRIBUTE((unused))) {
+  bool init_partitioning(MEM_ROOT *mem_root [[maybe_unused]]) {
 #ifndef NDEBUG
     m_key_not_found_partitions.bitmap = nullptr;
 #endif
@@ -827,7 +825,7 @@ class Partition_helper {
   /** Release auto_increment in all underlying partitions. */
   virtual void release_auto_increment_all_parts() {}
   /** Save or persist the current max auto increment. */
-  virtual void save_auto_increment(ulonglong nr MY_ATTRIBUTE((unused))) {}
+  virtual void save_auto_increment(ulonglong nr [[maybe_unused]]) {}
   /**
     Per partition equivalent of rnd_* and index_* functions.
 
@@ -878,8 +876,8 @@ class Partition_helper {
       @retval    0   Success.
       @retval != 0   Error code.
   */
-  virtual int init_record_priority_queue_for_parts(
-      uint used_parts MY_ATTRIBUTE((unused))) {
+  virtual int init_record_priority_queue_for_parts(uint used_parts
+                                                   [[maybe_unused]]) {
     return 0;
   }
   /**
@@ -892,8 +890,7 @@ class Partition_helper {
 
     @param part_id  Partition to checksum.
   */
-  virtual ha_checksum checksum_in_part(
-      uint part_id MY_ATTRIBUTE((unused))) const {
+  virtual ha_checksum checksum_in_part(uint part_id [[maybe_unused]]) const {
     assert(0);
     return 0;
   }

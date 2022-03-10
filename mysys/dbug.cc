@@ -594,7 +594,7 @@ static int DbugParse(CODE_STATE *cs, const char *control) {
       case 'A':
       case 'O':
         stack->flags |= FLUSH_ON_WRITE;
-        /* fall through */
+        [[fallthrough]];
       case 'a':
       case 'o':
         /* In case we already have an open file. */
@@ -1145,7 +1145,7 @@ void _db_enter_(const char *_func_, int func_len, const char *_file_,
     case ENABLE_TRACE:
       cs->framep->level |= TRACE_ON;
       if (!TRACING) break;
-      /* fall through */
+      [[fallthrough]];
     case DO_TRACE:
       if (TRACING) {
         if (!cs->locked) native_mutex_lock(&THR_LOCK_dbug);
@@ -1157,7 +1157,7 @@ void _db_enter_(const char *_func_, int func_len, const char *_file_,
       break;
     case DISABLE_TRACE:
       cs->framep->level &= ~TRACE_ON;
-      /* fall through */
+      [[fallthrough]];
     case DONT_TRACE:
       break;
   }

@@ -32,8 +32,7 @@
 #include <new>      // ::operator new
 #include <utility>  // std::forward
 
-#include "mysql/harness/stdx/type_traits.h"
-#if defined(__GNUC__) || defined(__clang__) || defined(__SUNPRO_CC)
+#if defined(__GNUC__) || defined(__clang__)
 #define RESO_ASSUME(x) \
   if (!(x)) __builtin_unreachable();
 #elif defined(_MSC_VER)
@@ -108,8 +107,8 @@ union storage_t {
   using value_type = T;
   using error_type = E;
 
-  storage_t() {}
-  ~storage_t() {}
+  storage_t() {}   // NOLINT(modernize-use-equals-default)
+  ~storage_t() {}  // NOLINT(modernize-use-equals-default)
 
   template <bool B = std::is_default_constructible<T>::value,
             std::enable_if_t<B> * = nullptr>
@@ -133,7 +132,7 @@ union storage_t {
   template <class... Args,
             typename std::enable_if_t<
                 std::is_constructible<T, Args &&...>::value, void *> = nullptr>
-  void construct_value(in_place_t, Args &&... args) {
+  void construct_value(std::in_place_t, Args &&... args) {
     new (&value_) value_type(std::forward<Args>(args)...);
   }
 
@@ -147,7 +146,7 @@ union storage_t {
   // enable inplace construction of error, if the E supports it
   template <class... Args, typename std::enable_if_t<std::is_constructible<
                                E, Args &&...>::value> * = nullptr>
-  void construct_error(in_place_t, Args &&... args) {
+  void construct_error(std::in_place_t, Args &&... args) {
     new (&error_) error_type(std::forward<Args>(args)...);
   }
 
@@ -176,8 +175,8 @@ union storage_t<T, void> {
   using value_type = T;
   using error_type = void;
 
-  storage_t() {}
-  ~storage_t() {}
+  storage_t() {}   // NOLINT(modernize-use-equals-default)
+  ~storage_t() {}  // NOLINT(modernize-use-equals-default)
 
   template <bool B = std::is_default_constructible<T>::value,
             std::enable_if_t<B> * = nullptr>
@@ -201,7 +200,7 @@ union storage_t<T, void> {
   template <class... Args,
             typename std::enable_if_t<
                 std::is_constructible<T, Args &&...>::value, void *> = nullptr>
-  void construct_value(in_place_t, Args &&... args) {
+  void construct_value(std::in_place_t, Args &&... args) {
     new (&value_) value_type(std::forward<Args>(args)...);
   }
 
@@ -231,8 +230,8 @@ union storage_t<void, E> {
 
   static_assert(!std::is_void<E>::value, "E must not be void");
 
-  storage_t() {}
-  ~storage_t() {}
+  storage_t() {}   // NOLINT(modernize-use-equals-default)
+  ~storage_t() {}  // NOLINT(modernize-use-equals-default)
 
   void construct_error(error_type const &e) { new (&error_) error_type(e); }
   void construct_error(error_type &&e) {
@@ -243,7 +242,7 @@ union storage_t<void, E> {
   template <
       class... Args,
       std::enable_if_t<std::is_constructible<E, Args &&...>::value> * = nullptr>
-  void construct_error(in_place_t, Args &&... args) {
+  void construct_error(std::in_place_t, Args &&... args) {
     new (&error_) error_type(std::forward<Args>(args)...);
   }
 
@@ -392,13 +391,13 @@ struct assign_base<member_policy::copy | member_policy::move> {
 };
 
 template <class B>
-using not_ = stdx::negation<B>;
+using not_ = std::negation<B>;
 
 template <class... B>
-using and_ = stdx::conjunction<B...>;
+using and_ = std::conjunction<B...>;
 
 template <class... B>
-using or_ = stdx::disjunction<B...>;
+using or_ = std::disjunction<B...>;
 
 // enable copy constructor if T and E are copy-constructible or void
 // enable move constructor if T and E are move-constructible or void
@@ -472,38 +471,11 @@ class ExpectedImpl : public ExpectedImplBase {
   }
 
   // enable inplace construction of value_type, if the T supports it
-  template <
-      class... Args
-#if !defined(__SUNPRO_CC)
-      // disabled the 'is_constructible' check as it triggers:
-      //
-      //  >> Assertion:   (../lnk/substitute.cc, line 1131)
-      //	      while processing ./test_expected.cc at line 4.
-      //
-      // with devstudio-12.6's CC
-      //
-      // That means:
-      //
-      // stdx::expected<std::string, void> res(stdx::in_place, 1.0); will report
-      // the error for:
-      //
-      //   Could not find a match for stdx::base::storage_t<std::string,
-      //   double>::construct_value(const stdx::in_place_t, double)
-      //
-      // Instead for
-      //
-      //   Could not find a match for stdx::base::ExpectedImpl<std::string,
-      //   double>::ExpectedImpl(const stdx::in_place_t, double)
-      //
-      // as the same check is done in construct_value() and does not trigger
-      // the assertion.
-      ,
-      typename std::enable_if_t<std::is_constructible<T, Args &&...>::value> * =
-          nullptr
-#endif
-      >
-  constexpr ExpectedImpl(in_place_t, Args &&... args) : ExpectedImplBase{true} {
-    storage_.construct_value(stdx::in_place, std::forward<Args>(args)...);
+  template <class... Args, typename std::enable_if_t<std::is_constructible<
+                               T, Args &&...>::value> * = nullptr>
+  constexpr ExpectedImpl(std::in_place_t, Args &&... args)
+      : ExpectedImplBase{true} {
+    storage_.construct_value(std::in_place, std::forward<Args>(args)...);
   }
 
   constexpr ExpectedImpl(const ExpectedImpl &other)
@@ -798,17 +770,11 @@ class ExpectedImpl<T, void> : public ExpectedImplBase {
   }
 
   // enable inplace construction of value_type, if the T supports it
-  template <class... Args
-#if !defined(__SUNPRO_CC)
-            // see the generic ExpectedImpl(in_place_t, ...) why this check is
-            // disabled.
-            ,
-            typename std::enable_if_t<
-                std::is_constructible<T, Args &&...>::value> * = nullptr
-#endif
-            >
-  constexpr ExpectedImpl(in_place_t, Args &&... args) : ExpectedImplBase{true} {
-    storage_.construct_value(stdx::in_place, std::forward<Args>(args)...);
+  template <class... Args, typename std::enable_if_t<std::is_constructible<
+                               T, Args &&...>::value> * = nullptr>
+  constexpr ExpectedImpl(std::in_place_t, Args &&... args)
+      : ExpectedImplBase{true} {
+    storage_.construct_value(std::in_place, std::forward<Args>(args)...);
   }
 
   constexpr ExpectedImpl(const ExpectedImpl &other)
@@ -993,73 +959,11 @@ class expected : public ExpectedImpl<T, E>,
                  private base::select_ctor_base<T, E> {
  public:
   static_assert(!std::is_reference<T>::value, "T must not be a reference");
-  static_assert(!std::is_same<T, std::remove_cv<in_place_t>>::value,
-                "T must not be in_place_t");
+  static_assert(!std::is_same<T, std::remove_cv<std::in_place_t>>::value,
+                "T must not be std::in_place_t");
   static_assert(!std::is_same<T, std::remove_cv<unexpected<E>>>::value,
                 "T must not be unexpected<E>");
   static_assert(!std::is_reference<E>::value, "E must not be a reference");
-
-#if defined(__SUNPRO_CC)
-  // sunpro generates a wrong default assign-move which forces use
-  // to declare all the implicit constructors/assign-ops explicitly
-  // as default which leads to slightly worse error-messages:
-  //
-  // clang:
-  //
-  //  call to implicitly-deleted default constructor of
-  //  'stdx::expected<no_default_construct, void>'
-  //
-  //  note: default constructor of
-  //  'expected<no_default_construct, void>' is implicitly deleted
-  //    because base class 'ExpectedImpl<no_default_construct, void>' has no
-  //    default constructor
-  //
-  // vs.
-  //
-  //  call to implicitly-deleted default constructor of
-  //  'stdx::expected<no_default_construct, void>'
-  //
-  //  explicitly defaulted function was implicitly deleted here
-  //  expected() = default;
-  //
-  //  note: default constructor of
-  //  'expected<no_default_construct, void>' is implicitly deleted
-  //    because base class 'ExpectedImpl<no_default_construct, void>' has no
-  //    default constructor
-  //
-  expected() = default;
-
-  expected(const expected &) = default;
-  expected &operator=(const expected &) = default;
-
-  // sunpro generates the default move-assign, move-construct which:
-  //
-  // 1. ExpectedImpl<T, E>::operator=(std::move(other))
-  // 2. memmove(this, &other, sizeof(other));
-  //
-  // where the memmove trashes the just moved value
-
-#if 0
-  // this constructor should be only visible if T and E and move-constructible
-  // but with sunpro it leads to
-  //
-  //    CC: Fatal error in .../developerstudio12.6/lib/compilers/bin/ccfe : Signal number = 139
-  //
-  // Therefore, it is left unconditionally enabled which makes this type
-  // look move-constructible even though it may not be.
-  template <
-      bool B = std::is_move_constructible<base::select_ctor_base<T, E>>::value,
-      std::enable_if_t<B> * = nullptr>
-#endif
-  expected(expected &&other) : ExpectedImpl<T, E>{std::move(other)} {}
-
-  template <bool B = std::is_move_assignable<T>::value,
-            std::enable_if_t<B> * = nullptr>
-  expected &operator=(expected &&other) {
-    ExpectedImpl<T, E>::operator=(std::move(other));
-    return *this;
-  }
-#endif
 
   // inherit all the constructors of our base
   using ExpectedImpl<T, E>::ExpectedImpl;

@@ -331,7 +331,7 @@ int mysql_client_plugin_init() {
 
   mysql_mutex_init(key_mutex_LOCK_load_client_plugin, &LOCK_load_client_plugin,
                    MY_MUTEX_INIT_SLOW);
-  init_alloc_root(key_memory_root, &mem_root, 128, 128);
+  ::new ((void *)&mem_root) MEM_ROOT(key_memory_root, 128);
 
   memset(&plugin_list, 0, sizeof(plugin_list));
 
@@ -370,7 +370,7 @@ void mysql_client_plugin_deinit() {
 
   memset(&plugin_list, 0, sizeof(plugin_list));
   initialized = false;
-  free_root(&mem_root, MYF(0));
+  mem_root.Clear();
   mysql_mutex_destroy(&LOCK_load_client_plugin);
 }
 
@@ -583,4 +583,13 @@ int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
   /* does the plugin support options call? */
   if (!plugin || !plugin->options) return 1;
   return plugin->options(option, value);
+}
+
+/* see <mysql/client_plugin.h> for a full description */
+int mysql_plugin_get_option(struct st_mysql_client_plugin *plugin,
+                            const char *option, void *value) {
+  DBUG_TRACE;
+  /* does the plugin support options call? */
+  if (!plugin || !plugin->get_options) return 1;
+  return plugin->get_options(option, value);
 }

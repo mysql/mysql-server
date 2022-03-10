@@ -44,8 +44,8 @@ namespace gis {
 /// true if the visitor aborte exectuion and false otherwise.
 class Geometry_visitor {
  public:
-  Geometry_visitor() {}
-  virtual ~Geometry_visitor() {}
+  Geometry_visitor() = default;
+  virtual ~Geometry_visitor() = default;
 
   /// Enters a compound geometry.
   ///

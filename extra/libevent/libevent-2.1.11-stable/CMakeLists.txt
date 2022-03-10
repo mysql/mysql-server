@@ -816,6 +816,10 @@ set(SRC_CORE
     signal.c
     strlcpy.c)
 
+IF(EVENT__HAVE_STRLCPY)
+  LIST(REMOVE_ITEM SRC_CORE strlcpy.c)
+ENDIF()
+
 if(EVENT__HAVE_SELECT)
     list(APPEND SRC_CORE select.c)
 endif()
@@ -968,6 +972,11 @@ if (CMAKE_USE_PTHREADS_INIT)
   SET_TARGET_PROPERTIES(event_pthreads
     PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
 endif()
+
+MY_CHECK_C_COMPILER_FLAG("-Warray-parameter" HAVE_ARRAY_PARAMETER)
+IF(HAVE_ARRAY_PARAMETER)
+  TARGET_COMPILE_OPTIONS(event_core PRIVATE "-Wno-array-parameter")
+ENDIF()
 
 # Do not generate legacy event library, and do not install or test anything.
 RETURN()

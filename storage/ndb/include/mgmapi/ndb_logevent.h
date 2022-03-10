@@ -245,6 +245,11 @@ extern "C" {
      *   report will not be produced.
      */
     ,NDB_LE_EventBufferStatus2 = 85
+    /** NDB_LE_EventBufferStatus3 is an extension of
+      * NDB_LE_EventBufferStatus with new fields added to extend the sizes
+      * of total, max and alloc'ed bytes to 64-bit values
+      */
+    ,NDB_LE_EventBufferStatus3 = 87
   };
 
   /**
@@ -546,6 +551,21 @@ extern "C" {
     unsigned latest_buffered_epoch_h;
     unsigned ndb_reference;
     unsigned report_reason;
+  };
+
+  struct ndb_logevent_EventBufferStatus3 {
+    unsigned usage_l;
+    unsigned alloc_l;
+    unsigned max_l;
+    unsigned latest_consumed_epoch_l;
+    unsigned latest_consumed_epoch_h;
+    unsigned latest_buffered_epoch_l;
+    unsigned latest_buffered_epoch_h;
+    unsigned ndb_reference;
+    unsigned report_reason;
+    unsigned usage_h;
+    unsigned alloc_h;
+    unsigned max_h;
   };
 
   /* STATISTIC */
@@ -942,6 +962,7 @@ extern "C" {
       struct ndb_logevent_EventBufferStatus EventBufferStatus;
       struct ndb_logevent_SavedEvent SavedEvent;
       struct ndb_logevent_EventBufferStatus2 EventBufferStatus2;
+      struct ndb_logevent_EventBufferStatus3 EventBufferStatus3;
 
       /** Log event data for @ref NDB_LE_BackupStarted */
       struct ndb_logevent_BackupStarted BackupStarted;
@@ -1010,7 +1031,8 @@ enum ndb_logevent_event_buffer_status_report_reason{
   PARTIALLY_BUFFERING,
   BUFFERED_EPOCHS_OVER_THRESHOLD,
   ENOUGH_FREE_EVENTBUFFER,
-  LOW_FREE_EVENTBUFFER
+  LOW_FREE_EVENTBUFFER,
+  EVENTBUFFER_USAGE_HIGH
 };
 
 #ifdef __cplusplus

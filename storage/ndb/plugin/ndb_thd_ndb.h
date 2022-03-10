@@ -27,8 +27,8 @@
 
 #include "map_helpers.h"
 #include "storage/ndb/plugin/ndb_share.h"
+#include "storage/ndb/plugin/ndb_thd.h"
 
-struct THD_NDB_SHARE;
 class THD;
 
 /*
@@ -49,17 +49,61 @@ class Thd_ndb {
   static Thd_ndb *seize(THD *);
   static void release(Thd_ndb *thd_ndb);
 
-  void init_open_tables();
+  // Keeps track of stats for tables taking part in transaction
+  class Trans_tables {
+   public:
+    struct Stats {
+     private:
+      static constexpr uint64_t INVALID_TABLE_ROWS = ~0;
+
+     public:
+      int uncommitted_rows{0};
+      uint64_t table_rows{INVALID_TABLE_ROWS};
+
+      // Check if stats are invalid, i.e has never been updated with number of
+      // rows in the table (from NDB or other (potentially cached) source)
+      bool invalid() const { return table_rows == INVALID_TABLE_ROWS; }
+
+      void update_uncommitted_rows(int changed_rows) {
+        DBUG_TRACE;
+        uncommitted_rows += changed_rows;
+        DBUG_PRINT("info", ("changed_rows: %d -> new value: %d", changed_rows,
+                            uncommitted_rows));
+      }
+    };
+    void clear();
+    Stats *register_stats(NDB_SHARE *share);
+    void reset_stats();
+    void update_cached_stats_with_committed();
+
+   private:
+    std::unordered_map<NDB_SHARE *, Stats> m_map;
+    void dbug_print_elem(const std::pair<NDB_SHARE *, Stats> &elem,
+                         bool check_reset) const;
+    void dbug_print(bool check_reset = false) const;
+  } trans_tables;
 
   class Ndb_cluster_connection *connection;
   class Ndb *ndb;
   class ha_ndbcluster *m_handler;
-  uint lock_count;
-  uint start_stmt_count;
+
+  // Reference counter for external_lock() calls. The counter controls that
+  // the handlerton is registered as being part of the MySQL transaction only at
+  // the first external_lock() call (when the counter is zero). Also the counter
+  // controls that any started NDB transaction is closed when external_lock(..,
+  // F_UNLOCK) is called for the last time (i.e when the counter is back to zero
+  // again).
+  uint external_lock_count{0};
+
+  // Reference counter for start_stmt() calls. The counter controls that the
+  // handlerton is registered as being part of the MySQL transaction at the
+  // first start_stmt() call (when the counter is zero). When MySQL
+  // ends the transaction by calling either ndbcluster_commit() or
+  // ndbcluster_rollback(), the counter is then reset back to zero.
+  uint start_stmt_count{0};
+
   uint save_point_count;
   class NdbTransaction *trans;
-  bool m_error;
-  bool m_slow_path;
   bool m_force_send;
 
   enum Options {
@@ -129,7 +173,7 @@ class Thd_ndb {
     TRANS_INJECTED_APPLY_STATUS = 1 << 0,
 
     /*
-       Indicator that no looging is performd by this MySQL Server ans thus
+       Indicates that no logging is performed by this MySQL Server and thus
        the anyvalue should have the nologging bit turned on
     */
     TRANS_NO_LOGGING = 1 << 1,
@@ -151,8 +195,7 @@ class Thd_ndb {
   // Start of transaction check, to automatically detect which
   // trans options should be enabled
   void transaction_checks(void);
-  malloc_unordered_map<const void *, THD_NDB_SHARE *> open_tables{
-      PSI_INSTRUMENT_ME};
+
   /*
     This is a memroot used to buffer rows for batched execution.
     It is reset after every execute().
@@ -210,6 +253,9 @@ class Thd_ndb {
   void increment_hinted_trans_count() { m_hinted_trans_count++; }
   uint hinted_trans_count() const { return m_hinted_trans_count; }
 
+  // Number of times that table stats has been fetched from NDB
+  uint m_fetch_table_stats{0};
+
   NdbTransaction *global_schema_lock_trans;
   uint global_schema_lock_count;
   uint global_schema_lock_error;
@@ -228,6 +274,8 @@ class Thd_ndb {
   bool is_slave_thread(void) const { return m_slave_thread; }
 
   const THD *get_thd() const { return m_thd; }
+
+  int sql_command() const { return thd_sql_command(m_thd); }
 
   /*
     @brief Push a warning message onto THD's condition stack.

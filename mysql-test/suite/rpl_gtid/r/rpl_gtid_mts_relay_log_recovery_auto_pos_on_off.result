@@ -9,7 +9,7 @@ CALL mtr.add_suppression("Slave SQL.*Duplicate entry.* Error_code: MY-001062");
 CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0;
-SET @@global.slave_parallel_workers=4;
+SET @@global.replica_parallel_workers=4;
 include/start_slave.inc
 [connection master]
 CREATE DATABASE d1;
@@ -66,7 +66,7 @@ include/stop_slave_io.inc
 DELETE FROM d1.t1 where a=1;
 DELETE FROM d2.t1 where a=2;
 DELETE FROM d3.t1 where a=3;
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --skip_slave_start=FALSE --sync_master_info=1 --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --skip_replica_start=FALSE --sync_source_info=1 --relay-log-recovery=1]
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:d4.t1, slave:d4.t1]
@@ -82,7 +82,7 @@ include/sync_slave_sql_with_master.inc
 include/rpl_reset.inc
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1;
-SET @@global.slave_parallel_workers=4;
+SET @@global.replica_parallel_workers=4;
 include/start_slave.inc
 [connection master]
 CREATE DATABASE d1;
@@ -139,7 +139,7 @@ include/stop_slave_io.inc
 DELETE FROM d1.t1 where a=1;
 DELETE FROM d2.t1 where a=2;
 DELETE FROM d3.t1 where a=3;
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --skip_slave_start=FALSE --sync_master_info=1 --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --skip_replica_start=FALSE --sync_source_info=1 --relay-log-recovery=1]
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:d4.t1, slave:d4.t1]

@@ -80,6 +80,11 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLESPACE ts1;
 DROP TABLESPACE ts2;
+
+# Remove --innodb-directories=
+--let $restart_parameters = restart:
+--source include/restart_mysqld_no_echo.inc
+
 --exec attrib -S -H $MYSQL_TMP_DIR/other_dir
 --remove_file $MYSQL_TMP_DIR/other_dir/ibdata1
 --remove_file $MYSQL_TMP_DIR/other_dir/test/t1.ibd

@@ -41,7 +41,7 @@ class AccFragReq {
    */
   friend class Dbacc;
 public:
-  STATIC_CONST( SignalLength = 12 );
+  static constexpr Uint32 SignalLength = 12;
 
 private:
   Uint32 userPtr;
@@ -69,7 +69,7 @@ class AccFragConf {
    */
   friend class Dblqh;
 public:
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 SignalLength = 7;
 
 private:
   Uint32 userPtr;
@@ -90,7 +90,7 @@ class AccFragRef {
    */
   friend class Dblqh;
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
 private:
   Uint32 userPtr;

@@ -36,6 +36,7 @@
 
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/stdx/type_traits.h"  // endian
 #include "mysqlrouter/classic_protocol_codec_base.h"
 #include "mysqlrouter/classic_protocol_codec_error.h"
 #include "mysqlrouter/classic_protocol_wire.h"

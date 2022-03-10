@@ -135,7 +135,7 @@ PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END] = {
 void MDL_key::init_psi_keys() {
   int i;
   int count;
-  PSI_stage_info *info MY_ATTRIBUTE((unused));
+  PSI_stage_info *info [[maybe_unused]];
 
   count =
       static_cast<int>(array_elements(MDL_key::m_namespace_to_wait_state_name));
@@ -2579,9 +2579,9 @@ bool MDL_lock::has_pending_conflicting_lock(enum_mdl_type type) {
   return result;
 }
 
-MDL_wait_for_graph_visitor::~MDL_wait_for_graph_visitor() {}
+MDL_wait_for_graph_visitor::~MDL_wait_for_graph_visitor() = default;
 
-MDL_wait_for_subgraph::~MDL_wait_for_subgraph() {}
+MDL_wait_for_subgraph::~MDL_wait_for_subgraph() = default;
 
 /**
   Check if ticket represents metadata lock of "stronger" or equal type
@@ -4090,6 +4090,11 @@ void MDL_context::release_lock(enum_mdl_duration duration, MDL_ticket *ticket) {
   assert(this == ticket->get_ctx());
   mysql_mutex_assert_not_owner(&LOCK_open);
 
+  // Remove ticket from the Ticket_store before actually releasing the lock,
+  // so this removal process can safely reference MDL_lock::m_key in cases
+  // when Ticket_store uses hash-based secondary index.
+  m_ticket_store.remove(duration, ticket);
+
   /*
     If lock we are about to release requires post-release notification
     of SEs, we need to save its MDL_key on stack. This is necessary to
@@ -4179,7 +4184,6 @@ void MDL_context::release_lock(enum_mdl_duration duration, MDL_ticket *ticket) {
     */
     lock->remove_ticket(this, m_pins, &MDL_lock::m_granted, ticket);
   }
-  m_ticket_store.remove(duration, ticket);
   if (ticket->m_hton_notified) {
     mysql_mdl_set_status(ticket->m_psi, MDL_ticket::POST_RELEASE_NOTIFY);
     m_owner->notify_hton_post_release_exclusive(&key_for_hton);
@@ -4651,15 +4655,16 @@ MDL_ticket_store::MDL_ticket_handle MDL_ticket_store::find_in_hash(
   auto foundrng = m_map->equal_range(&req.key);
 
   const MDL_ticket_handle *found_handle = nullptr;
-  std::find_if(foundrng.first, foundrng.second,
-               [&](const Ticket_map::value_type &vt) {
-                 auto &th = vt.second;
-                 if (!th.m_ticket->has_stronger_or_equal_type(req.type)) {
-                   return false;
-                 }
-                 found_handle = &th;
-                 return (th.m_dur == req.duration);
-               });
+  // VS tags std::find_if with 'nodiscard'.
+  (void)std::find_if(foundrng.first, foundrng.second,
+                     [&](const Ticket_map::value_type &vt) {
+                       auto &th = vt.second;
+                       if (!th.m_ticket->has_stronger_or_equal_type(req.type)) {
+                         return false;
+                       }
+                       found_handle = &th;
+                       return (th.m_dur == req.duration);
+                     });
 
   if (found_handle != nullptr) {
     return *found_handle;

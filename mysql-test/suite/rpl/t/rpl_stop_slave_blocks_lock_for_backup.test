@@ -9,11 +9,11 @@
 # TC1. Lock instance for backup while `STOP SLAVE` executes
 # ---------------------------------------------------------
 # 1) Open two different connections, A and B to the slave node and set
-#    `stop_slave_dont_release_backup_lock` debug sync point in both.
+#    `stop_replica_dont_release_backup_lock` debug sync point in both.
 # 2) Through connection A, send a `STOP SLAVE` statement to the server that,
 #    after acquiring the BACKUP lock, will wait for a
 #    `tried_to_lock_instance_for_backup` signal in the
-#    `stop_slave_dont_release_backup_lock` sync point.
+#    `stop_replica_dont_release_backup_lock` sync point.
 # 3) Through connection B, execute a `LOCK INSTANCE FOR BACKUP` statement and
 #    expect a `ER_LOCK_WAIT_TIMEOUT` error.
 # 4) Through connection B, send the `tried_to_lock_instance_for_backup` signal.
@@ -23,11 +23,11 @@
 # TC2. Lock instance for backup while `STOP SLAVE SQL_THREAD` executes
 # --------------------------------------------------------------------
 # 1) Open two different connections, A and B to the slave node and set
-#    `stop_slave_dont_release_backup_lock` debug sync point in both.
+#    `stop_replica_dont_release_backup_lock` debug sync point in both.
 # 2) Through connection A, send a `STOP SLAVE SQL_THREAD` statement to the
 #    server that, after acquiring the BACKUP lock, will wait for a
 #    `tried_to_lock_instance_for_backup` signal in the
-#    `stop_slave_dont_release_backup_lock` sync point.
+#    `stop_replica_dont_release_backup_lock` sync point.
 # 3) Through connection B, execute a `LOCK INSTANCE FOR BACKUP` statement and
 #    expect a `ER_LOCK_WAIT_TIMEOUT` error.
 # 4) Through connection B, send the `tried_to_lock_instance_for_backup` signal.
@@ -54,23 +54,23 @@
   }
 
   # 1) Open two different connections, A and B to the slave node and set
-  #    `stop_slave_dont_release_backup_lock` debug sync point in both.
+  #    `stop_replica_dont_release_backup_lock` debug sync point in both.
   --source include/rpl_connection_slave.inc
-  SET DEBUG = "+d,stop_slave_dont_release_backup_lock";
+  SET DEBUG = "+d,stop_replica_dont_release_backup_lock";
   --source include/rpl_connection_slave1.inc
   CALL mtr.add_suppression("Lock wait timeout exceeded; try restarting transaction");
-  SET DEBUG = "+d,stop_slave_dont_release_backup_lock";
+  SET DEBUG = "+d,stop_replica_dont_release_backup_lock";
 
   # 2) Through connection A, send $statement to the server that, after acquiring
   #    the BACKUP lock, will wait for a `tried_to_lock_instance_for_backup`
-  #    signal in the `stop_slave_dont_release_backup_lock` sync point.
+  #    signal in the `stop_replica_dont_release_backup_lock` sync point.
   --source include/rpl_connection_slave.inc
   --send_eval $statement
 
   # 3) Through connection B, execute a `LOCK INSTANCE FOR BACKUP` statement and
   #    expect a `ER_LOCK_WAIT_TIMEOUT` error.
   --source include/rpl_connection_slave1.inc
-  SET DEBUG_SYNC = "now WAIT_FOR slave_acquired_backup_lock";
+  SET DEBUG_SYNC = "now WAIT_FOR replica_acquired_backup_lock";
   --error ER_LOCK_WAIT_TIMEOUT
   LOCK INSTANCE FOR BACKUP;
 
@@ -85,9 +85,9 @@
   START SLAVE;
 
   --source include/rpl_connection_slave.inc
-  SET DEBUG = "-d,stop_slave_dont_release_backup_lock";
+  SET DEBUG = "-d,stop_replica_dont_release_backup_lock";
   --source include/rpl_connection_slave1.inc
-  SET DEBUG = "-d,stop_slave_dont_release_backup_lock";
+  SET DEBUG = "-d,stop_replica_dont_release_backup_lock";
 #END OF
 PROCEDURE
 

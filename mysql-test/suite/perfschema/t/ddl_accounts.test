@@ -18,3 +18,8 @@ DROP INDEX `PRIMARY` ON performance_schema.accounts;
 -- error ER_DBACCESS_DENIED_ERROR
 DROP INDEX `ACCOUNT`
   ON performance_schema.accounts;
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.accounts;
+
+DROP TABLE test.create_select;

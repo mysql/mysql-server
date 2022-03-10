@@ -1,3 +1,4 @@
+
 ################################################################################
 # Base test to verify the default values of the group replication variables.
 #
@@ -9,6 +10,7 @@
 ################################################################################
 
 --let $group_replication_group_name= dddddddd-dddd-dddd-dddd-dddddddddddd
+--source include/force_restart.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
@@ -84,9 +86,12 @@ SET @@GLOBAL.group_replication_communication_max_message_size= default;
 --let $saved_gr_recovery_tls_version = `SELECT @@GLOBAL.group_replication_recovery_tls_version;`
 --let $saved_gr_recovery_tls_ciphersuites = `SELECT @@GLOBAL.group_replication_recovery_tls_ciphersuites;`
 --let $saved_gr_advertise_recovery_endpoints = `SELECT @@GLOBAL.group_replication_advertise_recovery_endpoints;`
+--let $saved_gr_view_change_uuid = `SELECT @@GLOBAL.group_replication_view_change_uuid;`
+--let $saved_gr_communication_stack = `SELECT @@GLOBAL.group_replication_communication_stack;`
+--let $saved_gr_paxos_single_leader = `SELECT @@GLOBAL.group_replication_paxos_single_leader;`
 
 # Total number of GR variables.
---let $total_gr_vars= 58
+--let $total_gr_vars= 61
 
 --echo #
 --echo # Test Unit#1
@@ -154,6 +159,9 @@ SET @@GLOBAL.group_replication_recovery_zstd_compression_level= default;
 SET @@GLOBAL.group_replication_recovery_tls_version= default;
 SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= default;
 SET @@GLOBAL.group_replication_advertise_recovery_endpoints = default;
+SET @@GLOBAL.group_replication_view_change_uuid= default;
+SET @@GLOBAL.group_replication_communication_stack = default;
+SET @@GLOBAL.group_replication_paxos_single_leader = default;
 
 # Session variables
 SET @@SESSION.group_replication_consistency= default;
@@ -179,8 +187,8 @@ SET @@SESSION.group_replication_consistency= default;
 --source include/assert.inc
 
 # group_replication_components_stop_timeout
---let $assert_text= Default group_replication_components_stop_timeout is 31536000
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_components_stop_timeout]" = 31536000
+--let $assert_text= Default group_replication_components_stop_timeout is 300
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_components_stop_timeout]" = 300
 --source include/assert.inc
 
 # group_replication_compression_threshold
@@ -358,8 +366,8 @@ SET @@SESSION.group_replication_consistency= default;
 --source include/assert.inc
 
 # group_replication_recovery_tls_version
---let $assert_text= Default group_replication_recovery_tls_version is "TLSv1,TLSv1.1,TLSv1.2,TLSv1.3"
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_tls_version]" = "TLSv1,TLSv1.1,TLSv1.2,TLSv1.3"
+--let $assert_text= Default group_replication_recovery_tls_version is "TLSv1.2,TLSv1.3"
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_tls_version]" = "TLSv1.2,TLSv1.3"
 --source include/assert.inc
 
 # group_replication_recovery_tls_ciphersuites
@@ -372,6 +380,22 @@ SET @@SESSION.group_replication_consistency= default;
 --let $assert_text= Default group_replication_advertise_recovery_endpoints is "DEFAULT"
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_advertise_recovery_endpoints]" = "DEFAULT"
 --source include/assert.inc
+
+# group_replication_view_change_uuid
+--let $assert_text= Default group_replication_view_change_uuid is "AUTOMATIC"
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_view_change_uuid]" = "AUTOMATIC"
+--source include/assert.inc
+
+# group_replication_communication_stack
+--let $assert_text= Default group_replication_communication_stack is XCom
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_stack]" = "XCom"
+--source include/assert.inc
+
+# group_replication_paxos_single_leader
+--let $assert_text= Default group_replication_paxos_single_leader is 0
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_paxos_single_leader]" = 0
+--source include/assert.inc
+
 
 --echo #
 --echo # Clean up
@@ -426,6 +450,9 @@ SET @@SESSION.group_replication_consistency= default;
 --eval SET @@GLOBAL.group_replication_recovery_tls_version= "$saved_gr_recovery_tls_version"
 --eval SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= "$saved_gr_recovery_tls_ciphersuites"
 --eval SET @@GLOBAL.group_replication_advertise_recovery_endpoints= "$saved_gr_advertise_recovery_endpoints"
+--eval SET @@GLOBAL.group_replication_view_change_uuid= "$saved_gr_view_change_uuid"
+--eval SET @@GLOBAL.group_replication_communication_stack= "$saved_gr_communication_stack"
+--eval SET @@GLOBAL.group_replication_paxos_single_leader= $saved_gr_paxos_single_leader
 --enable_query_log
 
 --let $total_gr_vars=

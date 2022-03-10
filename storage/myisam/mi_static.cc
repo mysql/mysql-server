@@ -66,9 +66,7 @@ st_keycache_thread_var main_thread_keycache_var;
 /* Used by myisamchk */
 thread_local st_keycache_thread_var *keycache_tls = nullptr;
 
-static int always_valid(const char *filename MY_ATTRIBUTE((unused))) {
-  return 0;
-}
+static int always_valid(const char *filename [[maybe_unused]]) { return 0; }
 
 int (*myisam_test_invalid_symlink)(const char *filename) = always_valid;
 
@@ -167,8 +165,9 @@ static PSI_file_info all_myisam_files[] = {
 PSI_thread_key mi_key_thread_find_all_keys;
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-static PSI_thread_info all_myisam_threads[] = {
-    {&mi_key_thread_find_all_keys, "find_all_keys", 0, 0, PSI_DOCUMENT_ME}};
+static PSI_thread_info all_myisam_threads[] = {{&mi_key_thread_find_all_keys,
+                                                "find_all_keys", "mi_all_keys",
+                                                0, 0, PSI_DOCUMENT_ME}};
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
@@ -208,8 +207,8 @@ static PSI_memory_info all_myisam_memory[] = {
 
 #ifdef HAVE_PSI_INTERFACE
 void init_myisam_psi_keys() {
-  const char *category MY_ATTRIBUTE((unused)) = "myisam";
-  int count MY_ATTRIBUTE((unused));
+  const char *category [[maybe_unused]] = "myisam";
+  int count [[maybe_unused]];
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
   count = array_elements(all_myisam_mutexes);

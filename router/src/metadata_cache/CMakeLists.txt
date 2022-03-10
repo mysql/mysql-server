@@ -67,7 +67,7 @@ IF(WIN32)
     COMPONENT Router)
 ENDIF()
 
-IF(WITH_UNIT_TESTS AND GMOCK_FOUND)
+IF(WITH_UNIT_TESTS)
   ADD_LIBRARY(metadata_cache_static STATIC ${METADATA_CACHE_SOURCES})
   TARGET_LINK_LIBRARIES(metadata_cache_static
     router_lib

@@ -9,13 +9,13 @@
 # counterpart rpl_parallel.test. Read more comments in there.
 #
 
---source include/not_mts_slave_parallel_workers.inc
+--source include/not_mts_replica_parallel_workers.inc
 --source include/master-slave.inc
 
 connection slave;
 
-set @save.mts_slave_parallel_workers= 0;
-select @@global.slave_parallel_workers as 'zero';
+set @save.mts_replica_parallel_workers= 0;
+select @@global.replica_parallel_workers as 'zero';
 
 connection master;
 

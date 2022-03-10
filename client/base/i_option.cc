@@ -28,4 +28,4 @@ using namespace Mysql::Tools::Base::Options;
 
 uint32 I_option::last_optid = 256;
 
-I_option::~I_option() {}
+I_option::~I_option() = default;

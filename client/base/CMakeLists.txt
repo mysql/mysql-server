@@ -20,6 +20,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}/client/include
+)
+
 ADD_LIBRARY(client_base STATIC
   bool_option.cc
   char_array_option.cc
@@ -44,6 +48,7 @@ ADD_LIBRARY(client_base STATIC
   show_variable_query_extractor.cc
 
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
+  ${CMAKE_SOURCE_DIR}/client/multi_factor_passwordopt-vars.cc
 )
 
 TARGET_LINK_LIBRARIES(client_base mysqlclient)

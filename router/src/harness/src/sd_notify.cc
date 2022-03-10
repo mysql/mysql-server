@@ -115,13 +115,7 @@ connect_to_notify_socket(net::io_context &io_ctx,
 
       // stay in the loop in case we got interrupted.
     } else {
-#if defined(__SUNPRO_CC)
-      // suncc needs a std::move(), while gcc complains about redundant
-      // std::move().
-      return std::move(sock);
-#else
       return sock;
-#endif
     }
   } while (true);
 }
@@ -138,7 +132,7 @@ static stdx::expected<void, std::error_code> notify(
 
   const auto write_res = net::write(sock, net::buffer(msg));
   if (!write_res) {
-    return connect_res.get_unexpected();
+    return write_res.get_unexpected();
   }
 
   return {};
@@ -164,6 +158,8 @@ static bool notify(const std::string &msg) {
 
   return true;
 }
+
+bool notify_status(const std::string &msg) { return notify("STATUS=" + msg); }
 
 bool notify_ready() { return notify("READY=1"); }
 

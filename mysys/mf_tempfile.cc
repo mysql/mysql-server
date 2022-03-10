@@ -216,9 +216,9 @@ static int create_temp_file_uuid(char *to, const std::string &dir,
 */
 
 File create_temp_file(char *to, const char *dir, const char *prefix,
-                      int mode MY_ATTRIBUTE((unused)),
+                      int mode [[maybe_unused]],
                       UnlinkOrKeepFile unlink_or_keep,
-                      myf MyFlags MY_ATTRIBUTE((unused))) {
+                      myf MyFlags [[maybe_unused]]) {
   File file = -1;
 #ifdef _WIN32
   TCHAR path_buf[MAX_PATH + 1];

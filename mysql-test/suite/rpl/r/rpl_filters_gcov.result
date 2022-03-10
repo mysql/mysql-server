@@ -17,43 +17,49 @@ SET @saved_debug= @@GLOBAL.debug;
 # 1. Simulate an error on copying global replication filters
 #    when executing CHANGE MASTER TO.
 #
-SET GLOBAL debug='d,simulate_out_of_memory_on_copy_do_table';
+SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_do_table';
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 ERROR HY001: Out of memory; restart server and try again (needed 0 bytes)
 RESET SLAVE ALL FOR CHANNEL 'ch1';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-SET GLOBAL debug='d,simulate_out_of_memory_on_copy_ignore_table';
+SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_do_table';
+SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_ignore_table';
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 ERROR HY001: Out of memory; restart server and try again (needed 0 bytes)
 RESET SLAVE ALL FOR CHANNEL 'ch1';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-SET GLOBAL debug='d,simulate_out_of_memory_on_copy_wild_do_table';
+SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_ignore_table';
+SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_wild_do_table';
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 ERROR HY001: Out of memory; restart server and try again (needed 0 bytes)
 RESET SLAVE ALL FOR CHANNEL 'ch1';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-SET GLOBAL debug='d,simulate_out_of_memory_on_copy_wild_ignore_table';
+SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_wild_do_table';
+SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_wild_ignore_table';
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 ERROR HY001: Out of memory; restart server and try again (needed 0 bytes)
 RESET SLAVE ALL FOR CHANNEL 'ch1';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-SET GLOBAL debug='d,simulate_out_of_memory_on_copy_ignore_db';
+SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_wild_ignore_table';
+SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_ignore_db';
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 ERROR HY001: Out of memory; restart server and try again (needed 0 bytes)
 RESET SLAVE ALL FOR CHANNEL 'ch1';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-SET GLOBAL debug='d,simulate_out_of_memory_on_copy_do_db';
+SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_ignore_db';
+SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_do_db';
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 ERROR HY001: Out of memory; restart server and try again (needed 0 bytes)
 RESET SLAVE ALL FOR CHANNEL 'ch1';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-SET GLOBAL debug='d,simulate_out_of_memory_on_copy_rewrite_db';
+SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_do_db';
+SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_rewrite_db';
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 ERROR HY001: Out of memory; restart server and try again (needed 0 bytes)
 RESET SLAVE ALL FOR CHANNEL 'ch1';
@@ -63,7 +69,8 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 # 2. Simulate an error on creating channel's replication filters
 #    when executing CHANGE MASTER TO.
 #
-SET GLOBAL debug='d,simulate_out_of_memory_on_create_filter';
+SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_rewrite_db';
+SET GLOBAL debug='+d,simulate_out_of_memory_on_create_filter';
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 ERROR HY001: Out of memory; restart server and try again (needed 0 bytes)
 RESET SLAVE ALL FOR CHANNEL 'ch1';
@@ -72,17 +79,20 @@ ERROR HY000: Slave channel 'ch1' does not exist.
 # 3. Simulate an error on executing CHANGE REPLICATION FILTER
 #    with no FOR CHANNEL clause.
 #
-SET GLOBAL debug='d,simulate_out_of_memory_on_CRF';
+SET GLOBAL debug='-d,simulate_out_of_memory_on_create_filter';
+SET GLOBAL debug='+d,simulate_out_of_memory_on_CRF';
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1);
 ERROR HY001: Out of memory; restart server and try again (needed 0 bytes)
-SET GLOBAL debug='d,simulate_out_of_memory_on_global_CRF';
+SET GLOBAL debug='-d,simulate_out_of_memory_on_CRF';
+SET GLOBAL debug='+d,simulate_out_of_memory_on_global_CRF';
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1);
 ERROR HY001: Out of memory; restart server and try again (needed 0 bytes)
 #
 # 4. Simulate an error on executing CHANGE REPLICATION FILTER
 #    with FOR CHANNEL clause.
 #
-SET GLOBAL debug='d,simulate_out_of_memory_on_CRF_FOR_CHA';
+SET GLOBAL debug='-d,simulate_out_of_memory_on_global_CRF';
+SET GLOBAL debug='+d,simulate_out_of_memory_on_CRF_FOR_CHA';
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1) FOR CHANNEL '' ;
 ERROR HY001: Out of memory; restart server and try again (needed 0 bytes)
 START SLAVE SQL_THREAD FOR CHANNEL '';

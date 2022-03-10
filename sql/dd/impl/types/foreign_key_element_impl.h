@@ -61,7 +61,7 @@ class Foreign_key_element_impl : public Weak_object_impl,
   Foreign_key_element_impl(const Foreign_key_element_impl &src,
                            Foreign_key_impl *parent, Column *column);
 
-  ~Foreign_key_element_impl() override {}
+  ~Foreign_key_element_impl() override = default;
 
  public:
   const Object_table &object_table() const override;

@@ -110,7 +110,7 @@ static TYPELIB password_policy_typelib_t = {array_elements(policy_names) - 1,
 
 typedef std::string string_type;
 typedef std::set<string_type> set_type;
-static set_type dictionary_words;
+static set_type *dictionary_words{nullptr};
 
 static int validate_password_length;
 static int validate_password_number_count;
@@ -146,8 +146,8 @@ static void dictionary_activate(set_type *dict_words) {
   new_ts = my_strdup(PSI_NOT_INSTRUMENTED, timebuf, MYF(0));
 
   mysql_rwlock_wrlock(&LOCK_dict_file);
-  std::swap(dictionary_words, *dict_words);
-  validate_password_dictionary_file_words_count = dictionary_words.size();
+  std::swap(*dictionary_words, *dict_words);
+  validate_password_dictionary_file_words_count = dictionary_words->size();
   std::swap(new_ts, validate_password_dictionary_file_last_parsed);
   mysql_rwlock_unlock(&LOCK_dict_file);
 
@@ -197,7 +197,7 @@ static void read_dictionary_file() {
 /* Clear words from std::set */
 static void free_dictionary_file() {
   mysql_rwlock_wrlock(&LOCK_dict_file);
-  if (!dictionary_words.empty()) dictionary_words.clear();
+  if (!dictionary_words->empty()) dictionary_words->clear();
   if (validate_password_dictionary_file_last_parsed) {
     my_free(validate_password_dictionary_file_last_parsed);
     validate_password_dictionary_file_last_parsed = nullptr;
@@ -214,7 +214,7 @@ static int validate_dictionary_check(mysql_string_handle password) {
   int error = 0;
   char *buffer;
 
-  if (dictionary_words.empty()) return (1);
+  if (dictionary_words->empty()) return (1);
 
   /* New String is allocated */
   mysql_string_handle lower_string_handle = mysql_string_to_lowercase(password);
@@ -238,8 +238,8 @@ static int validate_dictionary_check(mysql_string_handle password) {
     substr_pos = 0;
     while (substr_pos + substr_length <= length) {
       password_substr = password_str.substr(substr_pos, substr_length);
-      itr = dictionary_words.find(password_substr);
-      if (itr != dictionary_words.end()) {
+      itr = dictionary_words->find(password_substr);
+      if (itr != dictionary_words->end()) {
         mysql_rwlock_unlock(&LOCK_dict_file);
         free(buffer);
         return (0);
@@ -473,6 +473,7 @@ static struct st_mysql_validate_password validate_password_descriptor = {
 static int validate_password_init(MYSQL_PLUGIN plugin_info) {
   push_deprecated_warn(thd_get_current_thd(), "validate password plugin",
                        "validate_password component");
+  dictionary_words = new set_type();
   // Initialize error logging service.
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return (1);
 
@@ -493,12 +494,14 @@ static int validate_password_init(MYSQL_PLUGIN plugin_info) {
   It empty the std::set and returns 0
 */
 
-static int validate_password_deinit(void *arg MY_ATTRIBUTE((unused))) {
+static int validate_password_deinit(void *arg [[maybe_unused]]) {
   push_deprecated_warn(thd_get_current_thd(), "validate password plugin",
                        "validate_password component");
   free_dictionary_file();
   mysql_rwlock_destroy(&LOCK_dict_file);
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
+  delete dictionary_words;
+  dictionary_words = nullptr;
   return (0);
 }
 
@@ -507,9 +510,9 @@ static int validate_password_deinit(void *arg MY_ATTRIBUTE((unused))) {
   If dictionary file is changed, this function will flush
   the cache and re-load the new dictionary file.
 */
-static void dictionary_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                              SYS_VAR *var MY_ATTRIBUTE((unused)),
-                              void *var_ptr, const void *save) {
+static void dictionary_update(MYSQL_THD thd [[maybe_unused]],
+                              SYS_VAR *var [[maybe_unused]], void *var_ptr,
+                              const void *save) {
   *static_cast<const char **>(var_ptr) =
       *static_cast<const char **>(const_cast<void *>(save));
   read_dictionary_file();
@@ -522,8 +525,8 @@ static void dictionary_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
   3. validate_password_mixed_case_count
   4. validate_password_special_char_count
 */
-static void length_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                          SYS_VAR *var MY_ATTRIBUTE((unused)), void *var_ptr,
+static void length_update(MYSQL_THD thd [[maybe_unused]],
+                          SYS_VAR *var [[maybe_unused]], void *var_ptr,
                           const void *save) {
   /* check if there is an actual change */
   if (*static_cast<int *>(var_ptr) == *static_cast<const int *>(save)) return;

@@ -67,6 +67,7 @@ DROP TABLE test_log;
 SET GLOBAL general_log_file=  @old_general_log_file;
 SET GLOBAL general_log=       @old_general_log;
 SET GLOBAL log_output=        @old_log_output;
+TRUNCATE TABLE mysql.general_log;
 set global debug= default;
 revoke select on *.* from 'root'@'santa.claus.ipv4.example.com';
 drop user 'root'@'santa.claus.ipv4.example.com';

@@ -92,7 +92,7 @@ stdx::expected<std::string, std::error_code> getcwd() {
     return stdx::make_unexpected(last_posix_error_code());
   }
 #else
-  std::array<char, PATH_MAX> cwd;
+  std::array<char, PATH_MAX> cwd{};
   if (nullptr == ::getcwd(cwd.data(), cwd.size())) {
     return stdx::make_unexpected(last_error_code());
   }
@@ -133,6 +133,15 @@ path current_path(std::error_code &ec) noexcept {
   ec = res.error();
 
   return {};
+}
+
+path current_path() {
+  std::error_code ec;
+
+  auto p = current_path(ec);
+  if (ec) throw std::system_error(ec);
+
+  return p;
 }
 
 bool remove(const path &p, std::error_code &ec) noexcept {

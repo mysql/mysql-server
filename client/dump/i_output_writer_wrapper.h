@@ -36,7 +36,7 @@ namespace Dump {
  */
 class I_output_writer_wrapper {
  public:
-  virtual ~I_output_writer_wrapper() {}
+  virtual ~I_output_writer_wrapper() = default;
   /**
     Add new Output Writer to supply formatted strings to.
    */

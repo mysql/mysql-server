@@ -27,15 +27,16 @@
 #include <algorithm>
 #include <atomic>
 #include <memory>
+#include <string>
+#include <utility>
 
 #include "m_ctype.h"
-#include "m_string.h"
+#include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "sql/debug_sync.h"
@@ -43,19 +44,16 @@
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"  // Item_func_like
-#include "sql/key_spec.h"
-#include "sql/opt_range.h"  // SQL_SELECT
-#include "sql/opt_trace.h"  // Opt_trace_object
+#include "sql/iterators/basic_row_iterators.h"
+#include "sql/iterators/composite_iterators.h"
+#include "sql/iterators/row_iterator.h"
+#include "sql/iterators/timing_iterator.h"
 #include "sql/protocol.h"
-#include "sql/records.h"  // init_table_iterator
-#include "sql/row_iterator.h"
 #include "sql/sql_base.h"  // REPORT_ALL_ERRORS
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
-#include "sql/sql_executor.h"  // QEP_TAB
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
-#include "sql/sql_optimizer.h"
 #include "sql/sql_table.h"  // primary_key_name
 #include "sql/table.h"
 #include "sql_string.h"
@@ -193,7 +191,7 @@ static void memorize_variant_topic(THD *thd, int count,
   SYNOPSIS
     search_topics()
     thd 	 Thread handler
-    topics	 Table of topics
+    iterator     Iterator giving topics
     find_fields  Filled array of info for fields
     select	 Function to test for matching help topic.
                  Normally 'help_topic.name like 'bit%'
@@ -213,20 +211,13 @@ static void memorize_variant_topic(THD *thd, int count,
 
 */
 
-static int search_topics(THD *thd, QEP_TAB *topics,
+static int search_topics(THD *thd, RowIterator *iterator,
                          struct st_find_field *find_fields, List<String> *names,
                          String *name, String *description, String *example) {
   int count = 0;
   DBUG_TRACE;
 
-  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-      thd, nullptr, topics,
-      /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
-  if (iterator == nullptr) return 0;
-
   while (!iterator->Read()) {
-    if (!topics->condition()->val_int())  // Doesn't match like
-      continue;
     memorize_variant_topic(thd, count, find_fields, names, name, description,
                            example);
     count++;
@@ -239,8 +230,7 @@ static int search_topics(THD *thd, QEP_TAB *topics,
 
   SYNOPSIS
     search_keyword()
-    thd          Thread handler
-    keywords     Table of keywords
+    iterator     Iterator giving keywords
     find_fields  Filled array of info for fields
     select       Function to test for matching keyword.
                  Normally 'help_keyword.name like 'bit%'
@@ -253,20 +243,12 @@ static int search_topics(THD *thd, QEP_TAB *topics,
     2   found more then one topic matching the mask
 */
 
-static int search_keyword(THD *thd, QEP_TAB *keywords,
+static int search_keyword(RowIterator *iterator,
                           struct st_find_field *find_fields, int *key_id) {
   int count = 0;
   DBUG_TRACE;
 
-  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-      thd, nullptr, keywords,
-      /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
-  if (iterator == nullptr) return 0;
-
   while (!iterator->Read() && count < 2) {
-    if (!keywords->condition()->val_int())  // Dosn't match like
-      continue;
-
     *key_id = (int)find_fields[help_keyword_help_keyword_id].field->val_int();
 
     count++;
@@ -359,7 +341,7 @@ static int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
   Look for categories by mask.
 
   @param thd          THD for init_table_iterator
-  @param categories   Table of categories
+  @param iterator     Iterator giving categories.
   @param find_fields  Filled array of info for fields
   @param names        List of found categories names (out)
   @param res_id	      Primary index of found category
@@ -367,7 +349,7 @@ static int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
 
   @return             Number of categories found
  */
-static int search_categories(THD *thd, QEP_TAB *categories,
+static int search_categories(THD *thd, RowIterator *iterator,
                              struct st_find_field *find_fields,
                              List<String> *names, int16 *res_id) {
   Field *pfname = find_fields[help_category_name].field;
@@ -376,14 +358,7 @@ static int search_categories(THD *thd, QEP_TAB *categories,
 
   DBUG_TRACE;
 
-  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-      thd, nullptr, categories,
-      /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
-  if (iterator == nullptr) return 0;
-
   while (!iterator->Read()) {
-    if (categories->condition() && !categories->condition()->val_int())
-      continue;
     String *lname = new (thd->mem_root) String;
     get_field(thd->mem_root, pfname, lname);
     if (++count == 1 && res_id) *res_id = (int16)pcat_id->val_int();
@@ -398,22 +373,17 @@ static int search_categories(THD *thd, QEP_TAB *categories,
   SYNOPSIS
     get_all_items_for_category()
     thd	    Thread handler
-    items   Table of items
+    iterator  Iterator giving items
     pfname  Field "name" in items
     select  "where" part of query..
     res     list of finded names
 */
 
-static void get_all_items_for_category(THD *thd, QEP_TAB *items, Field *pfname,
-                                       List<String> *res) {
+static void get_all_items_for_category(THD *thd, RowIterator *iterator,
+                                       Field *pfname, List<String> *res) {
   DBUG_TRACE;
 
-  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-      thd, nullptr, items,
-      /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
-  if (iterator == nullptr) return;
   while (!iterator->Read()) {
-    if (!items->condition()->val_int()) continue;
     String *name = new (thd->mem_root) String();
     get_field(thd->mem_root, pfname, name);
     res->push_back(name);
@@ -560,38 +530,28 @@ static int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol,
   @param thd      Thread handler
   @param cond     WHERE part of select
   @param table    goal table
-  @param tab      QEP_TAB
 
-  @returns true if error
-
-  @note Side-effects: 'table', 'cond' and possibly a 'quick' are assigned to
-  'tab'
+  @returns an iterator, or nullptr if error
 */
 
-static bool prepare_simple_query_block(THD *thd, Item *cond, TABLE *table,
-                                       QEP_TAB *tab) {
+static unique_ptr_destroy_only<RowIterator> prepare_simple_query_block(
+    THD *thd, Item *cond, TABLE *table) {
   if (!cond->fixed) cond->fix_fields(thd, &cond);  // can never fail
 
-  // Initialize the cost model that will be used for this table
-  table->init_cost_model(thd->cost_model());
-
-  /* Assume that no indexes cover all required fields */
-  table->covering_keys.clear_all();
-
-  tab->set_table(table);
-  tab->set_condition(cond);
-
-  // Wrapper for correct JSON in optimizer trace
-  Opt_trace_object wrapper(&thd->opt_trace);
-  Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
-  QUICK_SELECT_I *qck;
-  const bool impossible =
-      test_quick_select(thd, keys_to_use, 0, HA_POS_ERROR, false,
-                        ORDER_NOT_RELEVANT, tab, cond, &needed_reg_dummy, &qck,
-                        tab->table()->force_index, thd->lex->query_block) < 0;
-  tab->set_quick(qck);
-
-  return impossible || (tab->quick() && tab->quick()->reset());
+  unique_ptr_destroy_only<RowIterator> table_scan_iterator =
+      NewIterator<TableScanIterator>(thd, thd->mem_root, table,
+                                     /*expected_rows=*/100.0,
+                                     /*examined_rows=*/nullptr);
+  if (table_scan_iterator == nullptr) {
+    return nullptr;
+  }
+  unique_ptr_destroy_only<RowIterator> filter_iterator =
+      NewIterator<FilterIterator>(thd, thd->mem_root,
+                                  std::move(table_scan_iterator), cond);
+  if (filter_iterator == nullptr || filter_iterator->Init()) {
+    return nullptr;
+  }
+  return filter_iterator;
 }
 
 /**
@@ -602,19 +562,18 @@ static bool prepare_simple_query_block(THD *thd, Item *cond, TABLE *table,
   @param  mlen     length of mask
   @param  table    goal table
   @param  pfname   field "name" in table
-  @param  tab      QEP_TAB
 
-  @returns true if error
+  @returns an iterator, or nullptr if error
   @see prepare_simple_query_block()
 */
 
-static bool prepare_select_for_name(THD *thd, const char *mask, size_t mlen,
-                                    TABLE *table, Field *pfname, QEP_TAB *tab) {
+static unique_ptr_destroy_only<RowIterator> prepare_select_for_name(
+    THD *thd, const char *mask, size_t mlen, TABLE *table, Field *pfname) {
   Item *cond = new Item_func_like(
       new Item_field(pfname), new Item_string(mask, mlen, pfname->charset()),
       new Item_string("\\", 1, &my_charset_latin1));
-  if (thd->is_fatal_error()) return true; /* purecov: inspected */
-  return prepare_simple_query_block(thd, cond, table, tab);
+  if (thd->is_fatal_error()) return nullptr; /* purecov: inspected */
+  return prepare_simple_query_block(thd, cond, table);
 }
 
 /*
@@ -677,26 +636,23 @@ bool mysqld_help(THD *thd, const char *mask) {
     tables[i]->table->file->init_table_handle_for_HANDLER();
 
   {
-    QEP_TAB_standalone qep_tab_st;
-    QEP_TAB &tab = qep_tab_st.as_QEP_TAB();
-    if (prepare_select_for_name(thd, mask, mlen, tables[0]->table,
-                                used_fields[help_topic_name].field, &tab))
-      goto error;
+    unique_ptr_destroy_only<RowIterator> iterator = prepare_select_for_name(
+        thd, mask, mlen, tables[0]->table, used_fields[help_topic_name].field);
+    if (iterator == nullptr) goto error;
 
-    count_topics = search_topics(thd, &tab, used_fields, &topics_list, &name,
-                                 &description, &example);
+    count_topics = search_topics(thd, iterator.get(), used_fields, &topics_list,
+                                 &name, &description, &example);
   }
 
   if (count_topics == 0) {
     int key_id = 0;
-    QEP_TAB_standalone qep_tab_st;
-    QEP_TAB &tab = qep_tab_st.as_QEP_TAB();
 
-    if (prepare_select_for_name(thd, mask, mlen, tables[3]->table,
-                                used_fields[help_keyword_name].field, &tab))
-      goto error;
+    unique_ptr_destroy_only<RowIterator> iterator =
+        prepare_select_for_name(thd, mask, mlen, tables[3]->table,
+                                used_fields[help_keyword_name].field);
+    if (iterator == nullptr) goto error;
 
-    count_topics = search_keyword(thd, &tab, used_fields, &key_id);
+    count_topics = search_keyword(iterator.get(), used_fields, &key_id);
     count_topics =
         (count_topics != 1)
             ? 0
@@ -709,16 +665,14 @@ bool mysqld_help(THD *thd, const char *mask) {
     int16 category_id;
     Field *cat_cat_id = used_fields[help_category_parent_category_id].field;
     {
-      QEP_TAB_standalone qep_tab_st;
-      QEP_TAB &tab = qep_tab_st.as_QEP_TAB();
-
-      if (prepare_select_for_name(thd, mask, mlen, tables[1]->table,
-                                  used_fields[help_category_name].field, &tab))
-        goto error;
+      unique_ptr_destroy_only<RowIterator> iterator =
+          prepare_select_for_name(thd, mask, mlen, tables[1]->table,
+                                  used_fields[help_category_name].field);
+      if (iterator == nullptr) goto error;
 
       DEBUG_SYNC(thd, "before_help_record_read");
 
-      count_categories = search_categories(thd, &tab, used_fields,
+      count_categories = search_categories(thd, iterator.get(), used_fields,
                                            &categories_list, &category_id);
     }
     if (!count_categories) {
@@ -736,23 +690,19 @@ bool mysqld_help(THD *thd, const char *mask) {
           new Item_field(cat_cat_id), new Item_int((int32)category_id));
 
       {
-        QEP_TAB_standalone qep_tab_st;
-        QEP_TAB &tab = qep_tab_st.as_QEP_TAB();
-
-        if (prepare_simple_query_block(thd, cond_topic_by_cat, tables[0]->table,
-                                       &tab))
-          goto error;
-        get_all_items_for_category(
-            thd, &tab, used_fields[help_topic_name].field, &topics_list);
+        unique_ptr_destroy_only<RowIterator> iterator =
+            prepare_simple_query_block(thd, cond_topic_by_cat,
+                                       tables[0]->table);
+        if (iterator == nullptr) goto error;
+        get_all_items_for_category(thd, iterator.get(),
+                                   used_fields[help_topic_name].field,
+                                   &topics_list);
       }
       {
-        QEP_TAB_standalone qep_tab_st;
-        QEP_TAB &tab = qep_tab_st.as_QEP_TAB();
-
-        if (prepare_simple_query_block(thd, cond_cat_by_cat, tables[1]->table,
-                                       &tab))
-          goto error;
-        get_all_items_for_category(thd, &tab,
+        unique_ptr_destroy_only<RowIterator> iterator =
+            prepare_simple_query_block(thd, cond_cat_by_cat, tables[1]->table);
+        if (iterator == nullptr) goto error;
+        get_all_items_for_category(thd, iterator.get(),
                                    used_fields[help_category_name].field,
                                    &subcategories_list);
       }
@@ -771,13 +721,12 @@ bool mysqld_help(THD *thd, const char *mask) {
         send_variant_2_list(mem_root, protocol, &topics_list, "N", nullptr))
       goto error;
 
-    QEP_TAB_standalone qep_tab_st;
-    QEP_TAB &tab = qep_tab_st.as_QEP_TAB();
-
-    if (prepare_select_for_name(thd, mask, mlen, tables[1]->table,
-                                used_fields[help_category_name].field, &tab))
-      goto error;
-    search_categories(thd, &tab, used_fields, &categories_list, nullptr);
+    unique_ptr_destroy_only<RowIterator> iterator =
+        prepare_select_for_name(thd, mask, mlen, tables[1]->table,
+                                used_fields[help_category_name].field);
+    if (iterator == nullptr) goto error;
+    search_categories(thd, iterator.get(), used_fields, &categories_list,
+                      nullptr);
     /* Then send categories */
     if (send_variant_2_list(mem_root, protocol, &categories_list, "Y", nullptr))
       goto error;

@@ -62,8 +62,8 @@
 #include "sql/query_options.h"
 #include "sql/rpl_context.h"
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_slave_commit_order_manager.h"  // Commit_order_manager
-#include "sql/sql_class.h"                       // THD
+#include "sql/rpl_replica_commit_order_manager.h"  // Commit_order_manager
+#include "sql/sql_class.h"                         // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_list.h"
@@ -304,7 +304,7 @@ bool Recovered_xa_transactions::recover_prepared_xa_transactions() {
 
       m_prepared_xa_trans.pop_front();
     }
-    free_root(&m_mem_root, MYF(0));
+    m_mem_root.Clear();
     m_mem_root_inited = false;
   }
 
@@ -1151,7 +1151,8 @@ bool Sql_cmd_xa_end::trans_xa_end(THD *thd) {
   /* TODO: SUSPEND and FOR MIGRATE are not supported yet. */
   if (m_xa_opt != XA_NONE)
     my_error(ER_XAER_INVAL, MYF(0));
-  else if (!xid_state->has_state(XID_STATE::XA_ACTIVE))
+  else if (!xid_state->has_state(XID_STATE::XA_ACTIVE) &&
+           !xid_state->has_state(XID_STATE::XA_ROLLBACK_ONLY))
     my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
   else if (!xid_state->has_same_xid(m_xid))
     my_error(ER_XAER_NOTA, MYF(0));

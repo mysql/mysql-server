@@ -1,4 +1,4 @@
-# This test checks if the option slave-preserve-commit-order
+# This test checks if the option replica-preserve-commit-order
 # ensures that the transactions commit order is the same as
 # transactions are logged on relay log.
 #
@@ -13,7 +13,7 @@
 # binary log, then after reapplying there will be no rows where
 # t.id != t.a.
 #
---source include/only_mts_slave_parallel_workers.inc
+--source include/only_mts_replica_parallel_workers.inc
 --source include/have_group_replication_plugin.inc
 
 --echo

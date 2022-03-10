@@ -46,6 +46,7 @@ int my_mkdir(const char *dir, int Flags, myf MyFlags) {
   DBUG_PRINT("enter", ("dir: %s", dir));
 
 #if defined(_WIN32)
+  (void)Flags;  // [[maybe_unused]]
   if (_mkdir(dir))
 #else
   if (mkdir(dir, Flags & my_umask_dir))

@@ -31,6 +31,8 @@ std::unique_ptr<Codec> Factory::build_codec(Log_event_type t) {
     case TRANSACTION_PAYLOAD_EVENT:
       return std::make_unique<
           binary_log::codecs::binary::Transaction_payload>();
+    case HEARTBEAT_LOG_EVENT_V2:
+      return std::make_unique<binary_log::codecs::binary::Heartbeat>();
     default:              /* purecov: inspected */
       BAPI_ASSERT(false); /* purecov: inspected */
   }

@@ -144,7 +144,7 @@ TEST_F(StringsUTF8Test, MyWellFormedLenUtf8) {
 }
 
 TEST_F(StringsUTF8Test, MyIsmbcharUtf8) {
-  char utf8_src[8];
+  char utf8_src[8] = {0};
 
   /* valid utf8 charaters, testing for boundry values */
   utf8_src[0] = '\x00';
@@ -518,7 +518,7 @@ TEST_F(StringsUTF8mb4Test, MyWellFormedLenUtf8mb4) {
 }
 
 TEST_F(StringsUTF8mb4Test, MyIsmbcharUtf8mb4) {
-  char utf8_src[8];
+  char utf8_src[8] = {0};
 
   /* valid utf8mb4 charaters, testing for boundry values */
   utf8_src[0] = '\x00';

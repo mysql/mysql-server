@@ -2304,3 +2304,39 @@ DESCRIBE t2;
 
 DROP TABLE t1, t2;
 
+--echo # Bug#31348202: Wrong result is returned with UNION syntax
+
+let $query = SELECT 19 AS c UNION ALL SELECT 2.9;
+eval $query;
+eval CREATE TABLE t1 AS $query;
+DESCRIBE t1;
+DROP TABLE t1;
+let $query = SELECT 19 AS c UNION ALL SELECT 'XX';
+eval $query;
+eval CREATE TABLE t1 AS $query;
+DESCRIBE t1;
+DROP TABLE t1;
+let $query = SELECT -19 AS c UNION ALL SELECT 'XX';
+eval $query;
+eval CREATE TABLE t1 AS $query;
+DESCRIBE t1;
+DROP TABLE t1;
+let $query = SELECT 19.0 AS c UNION ALL SELECT 'XX';
+eval $query;
+eval CREATE TABLE t1 AS $query;
+DESCRIBE t1;
+DROP TABLE t1;
+let $query = SELECT -19.0 AS c UNION ALL SELECT 'XX';
+eval $query;
+eval CREATE TABLE t1 AS $query;
+DESCRIBE t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#33066455: REGRESSION: ACCESSPATH*
+--echo #               MOVECOMPOSITEITERATORSFROMTABLEPATH(ACCESSPATH*):
+--echo #               ASSERTION `FALSE' FAILED.
+--echo #
+
+EXPLAIN FORMAT=TREE SELECT 1 UNION SELECT 1 LIMIT 0;
+SELECT 1 UNION SELECT 1 LIMIT 0;

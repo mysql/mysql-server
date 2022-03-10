@@ -5,3 +5,6 @@ ALTER TABLE performance_schema.events_waits_history_long ADD INDEX test_index(EV
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 CREATE UNIQUE INDEX test_index ON performance_schema.events_waits_history_long(EVENT_ID);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE TABLE test.create_select
+AS SELECT * from performance_schema.events_waits_history_long;
+DROP TABLE test.create_select;

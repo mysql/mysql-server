@@ -2124,13 +2124,13 @@ Ndb::getSchemaFromInternalName(const char * internalName)
   return ret;
 }
 
-unsigned Ndb::get_eventbuf_max_alloc()
+Uint64 Ndb::get_eventbuf_max_alloc()
 {
     return theEventBuffer->m_max_alloc;
 }
 
 void
-Ndb::set_eventbuf_max_alloc(unsigned sz)
+Ndb::set_eventbuf_max_alloc(Uint64 sz)
 {
   if (theEventBuffer != NULL)
   {
@@ -2247,11 +2247,11 @@ Ndb::printOverflowErrorAndExit()
                        getReference(), getNdbObjectName());
   g_eventLogger->error("Ndb Event Buffer : Event buffer out of memory.");
   g_eventLogger->error("Ndb Event Buffer : Fatal error.");
-  Uint32 maxalloc = get_eventbuf_max_alloc();
+  Uint64 maxalloc = get_eventbuf_max_alloc();
   if (maxalloc != 0)
   {
     // limited memory is allocated for event buffer, give recommendation
-    g_eventLogger->error("Ndb Event Buffer : Change eventbuf_max_alloc (Current max_alloc is %u).", maxalloc);
+    g_eventLogger->error("Ndb Event Buffer : Change eventbuf_max_alloc (Current max_alloc is %llu).", maxalloc);
   }
   g_eventLogger->error("Ndb Event Buffer : Consider using the new API.");
   exit(-1);

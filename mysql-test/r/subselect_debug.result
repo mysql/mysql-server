@@ -74,3 +74,23 @@ ERROR HY000: Unknown error
 SET DEBUG='-d,create_duplicate_weedout_tmp_table_error';
 DROP TABLE t;
 SET optimizer_switch = DEFAULT;
+#
+# Bug#31117893 - GROUP BY WILL THROW TABLE IS
+#   FULL WHEN TEMPTABLE MEMORY ALLOCATION EXCEED LIMIT
+#
+CREATE TABLE t1(
+id INT,
+pad VARCHAR(60),
+pad1 VARCHAR(513)
+);
+INSERT INTO t1 VALUES (1, REPEAT('a',59), REPEAT('a',512));
+INSERT INTO t1 VALUES (2, REPEAT('a',59), REPEAT('a',512));
+SET SESSION debug = '+d, simulate_temp_storage_engine_full';
+SELECT COUNT(*), pad FROM t1 GROUP BY pad;
+COUNT(*)	pad
+2	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+SELECT COUNT(*), pad1 FROM t1 GROUP BY pad1;
+COUNT(*)	pad1
+2	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+SET SESSION debug = '-d, simulate_temp_storage_engine_full';
+DROP TABLE t1;

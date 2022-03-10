@@ -74,7 +74,7 @@ class Set_protocol_notification : public Parameterized_notification<false> {
       Gcs_protocol_version version)
       : m_functor(functor), m_changer(protocol_changer), m_version(version) {}
 
-  ~Set_protocol_notification() override {}
+  ~Set_protocol_notification() override = default;
 
  private:
   void do_execute() override { (*m_functor)(m_changer, m_version); }

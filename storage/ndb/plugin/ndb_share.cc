@@ -68,63 +68,63 @@ static inline void format_key(char *buf, size_t buf_size, const char *db_name,
                        ndb_name_is_temp(table_name) ? FN_IS_TMP : 0);
 }
 
+NDB_SHARE::NDB_SHARE(const char *key_arg) {
+  /* Allocates enough space for key, db, and table_name */
+  key = NDB_SHARE::create_key(key_arg);
+
+  db = NDB_SHARE::key_get_db_name(key);
+  table_name = NDB_SHARE::key_get_table_name(key);
+
+  thr_lock_init(&lock);
+  mysql_mutex_init(PSI_INSTRUMENT_ME, &mutex, MY_MUTEX_INIT_FAST);
+
+#ifndef NDEBUG
+  refs = new Ndb_share_references();
+#endif
+
+  // Turn on special flag for mysql.ndb_apply_status table
+  if (strcmp(db, "mysql") == 0 && strcmp(table_name, "ndb_apply_status") == 0) {
+    DBUG_PRINT("info", ("Setting FLAG_TABLE_IS_APPLY_STATUS"));
+    flags |= FLAG_TABLE_IS_APPLY_STATUS;
+  }
+
+  // Initialize to preserve same behaviour as zerofilling malloc
+  // in prior versions
+  tuple_id_range.m_first_tuple_id = 0;
+  tuple_id_range.m_last_tuple_id = 0;
+  tuple_id_range.m_highest_seen = 0;
+}
+
 NDB_SHARE *NDB_SHARE::create(const char *key) {
   if (DBUG_EVALUATE_IF("ndb_share_create_fail1", true, false)) {
     // Simulate failure to create NDB_SHARE
     return nullptr;
   }
 
-  NDB_SHARE *share;
-  if (!(share = (NDB_SHARE *)my_malloc(PSI_INSTRUMENT_ME, sizeof(*share),
-                                       MYF(MY_WME | MY_ZEROFILL))))
-    return nullptr;
-
-  share->flags = 0;
-  share->state = NSS_INITIAL;
-
-  /* Allocates enough space for key, db, and table_name */
-  share->key = NDB_SHARE::create_key(key);
-
-  share->db = NDB_SHARE::key_get_db_name(share->key);
-  share->table_name = NDB_SHARE::key_get_table_name(share->key);
-
-  thr_lock_init(&share->lock);
-  mysql_mutex_init(PSI_INSTRUMENT_ME, &share->mutex, MY_MUTEX_INIT_FAST);
-
-  share->m_cfn_share = nullptr;
-
-  share->op = 0;
-
-#ifndef NDEBUG
-  assert(share->m_use_count == 0);
-  share->refs = new Ndb_share_references();
-#endif
-
-  share->inplace_alter_new_table_def = nullptr;
-
-  return share;
+  return new (std::nothrow) NDB_SHARE(key);
 }
 
-void NDB_SHARE::destroy(NDB_SHARE *share) {
-  thr_lock_delete(&share->lock);
-  mysql_mutex_destroy(&share->mutex);
+NDB_SHARE::~NDB_SHARE() {
+  thr_lock_delete(&lock);
+  mysql_mutex_destroy(&mutex);
 
   // ndb_index_stat_free() should have cleaned up:
-  assert(share->index_stat_list == NULL);
+  assert(index_stat_list == nullptr);
 
-  teardown_conflict_fn(g_ndb, share->m_cfn_share);
+  teardown_conflict_fn(g_ndb, m_cfn_share);
 
 #ifndef NDEBUG
-  assert(share->m_use_count == 0);
-  assert(share->refs->check_empty());
-  delete share->refs;
+  assert(m_use_count == 0);
+  assert(refs->check_empty());
+  delete refs;
 #endif
 
   // Release memory for the variable length strings held by
   // key but also referenced by db, table_name and shadow_table->db etc.
-  free_key(share->key);
-  my_free(share);
+  free_key(key);
 }
+
+void NDB_SHARE::destroy(NDB_SHARE *share) { delete share; }
 
 /*
   Struct holding dynamic length strings for NDB_SHARE. The type is
@@ -562,7 +562,7 @@ int NDB_SHARE::rename_share(NDB_SHARE *share, NDB_SHARE_KEY *new_key) {
 
   if (share->op) {
     Ndb_event_data *event_data =
-        static_cast<Ndb_event_data *>(share->op->getCustomData());
+        Ndb_event_data::get_event_data(share->op->getCustomData());
     if (event_data && event_data->shadow_table) {
       if (!ndb_name_is_temp(share->table_name)) {
         DBUG_PRINT("info", ("Renaming shadow table"));
@@ -708,15 +708,15 @@ void NDB_SHARE::mark_share_dropped_impl(NDB_SHARE **share_ptr) {
   DBUG_TRACE;
   mysql_mutex_assert_owner(&shares_mutex);
 
-  // The NDB_SHARE should not have any event operations, those
-  // should have been removed already _before_ marking the NDB_SHARE
-  // as dropped.
-  assert(share->op == nullptr);
-
   if (share->state == NSS_DROPPED) {
     // The NDB_SHARE was already marked as dropped
     return;
   }
+
+  // The NDB_SHARE should not have any event operation, it
+  // should have been removed already _before_ marking the NDB_SHARE
+  // as dropped.
+  assert(share->have_event_operation() == false);
 
   // The index_stat is not needed anymore, free it.
   ndb_index_stat_free(share);
@@ -807,3 +807,26 @@ void NDB_SHARE::dbg_check_shares_update() {
   }
 }
 #endif
+
+bool NDB_SHARE::install_event_op(NdbEventOperation *new_op, bool replace_op) {
+  // Require mutex to be held
+  mysql_mutex_assert_owner(&mutex);
+
+  // Only allow installing op with properly setup custom data
+  ndbcluster::ndbrequire(
+      Ndb_event_data::check_custom_data(new_op->getCustomData(), this));
+
+  // Only allow replacing op unless "replace_op" (which is used by inplace alter
+  // who will replace the old op with new in an atomic fashion)
+  ndbcluster::ndbrequire(op == nullptr || (op && replace_op));
+
+  // Don't allow installing op in other states than NSS_INITIAL. This will for
+  // example detect when a user thread tries to install event op on a share
+  // which has been "dropped" (by the binlog thread) during CREATE TABLE.
+  if (state != NSS_INITIAL) {
+    return false;
+  }
+
+  op = new_op;
+  return true;
+}

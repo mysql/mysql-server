@@ -40,6 +40,19 @@ SET(WITH_MECAB_DOC
   "${WITH_MECAB_DOC} | </path/to/custom/installation> (use custom version)")
 
 
+FUNCTION(WARN_MISSING_SYSTEM_MECAB OUTPUT_WARNING)
+  IF(NOT MECAB_FOUND AND WITH_MECAB STREQUAL "system")
+    SET(DEBIAN_PKGS "libmecab-dev mecab-ipadic mecab-ipadic-utf8 ")
+    SET(REDHAT_PKGS "mecab-devel mecab-ipadic mecab-ipadic-EUCJP")
+
+    MESSAGE(WARNING "Cannot find MECAB system libraries. "
+      "  Debian/Ubuntu: apt install ${DEBIAN_PKGS}\n"
+      "  Fedora:        yum install ${REDHAT_PKGS}\n"
+      )
+    SET(${OUTPUT_WARNING} 1 PARENT_SCOPE)
+  ENDIF()
+ENDFUNCTION()
+
 # Off by default, can be overridden on command line.
 SET(WITH_MECAB CACHE STRING "${WITH_MECAB_DOC}")
 
@@ -109,6 +122,7 @@ FUNCTION (MYSQL_CHECK_MECAB)
        MECAB_LIBRARY
       )
       SET(MECAB_FOUND TRUE)
+      SET(MECAB_FOUND TRUE PARENT_SCOPE)
     ELSE()
       SET(MECAB_FOUND FALSE)
     ENDIF()
@@ -149,6 +163,8 @@ FUNCTION (MYSQL_CHECK_MECAB)
             COMPONENT "Server"
           )
           MESSAGE(STATUS "INSTALL ${MECAB_LIBRARY_LOCATION}/mecab")
+          SET(MECAB_IPADIC_PARENT "${MECAB_LIBRARY_LOCATION}/mecab" CACHE FILEPATH
+            "Location of mecab ipadic dictionary")
         ELSE()
           MESSAGE(STATUS
             "Could not find ${MECAB_LIBRARY_LOCATION}/mecab/dic")
@@ -175,7 +191,7 @@ FUNCTION (MYSQL_CHECK_MECAB)
         "WITH_MECAB option are : ${WITH_MECAB_DOC}")
     ENDIF()
   ELSE()
-    MESSAGE(SEND_ERROR
+    MESSAGE(FATAL_ERROR
       "Wrong option or path for WITH_MECAB. "
       "Valid WITH_MECAB options are : ${WITH_MECAB_DOC}")
   ENDIF()

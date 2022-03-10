@@ -36,9 +36,9 @@ Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 reset master;
 include/start_slave.inc
-show status like 'slave_open_temp_tables';
+show status like 'replica_open_temp_tables';
 Variable_name	Value
-Slave_open_temp_tables	0
+Replica_open_temp_tables	0
 drop temporary table if exists t1;
 include/stop_slave.inc
 reset slave;

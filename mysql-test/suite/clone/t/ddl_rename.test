@@ -1,0 +1,33 @@
+# Test clone with concurrent rename
+--source include/have_debug_sync.inc
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--source ../include/create_ddl_schema.inc
+
+--echo # 1. ALTER TABLE RENAME while clone in progress
+
+--let $ddl_table_extn_show = _new
+
+--let $ddl_table_rename1 = 1
+--let $ddl_table_extn1 = _new
+--let $ddl_op1 = ALTER TABLE
+--let $ddl_stmt1 = RENAME
+
+--let $dml_stmt1 = INSERT INTO t1_new SELECT * FROM t ON DUPLICATE KEY UPDATE col2 = t1_new.col2 + 1;
+--let $dml_stmt11 = INSERT INTO t11_new SELECT * FROM t ON DUPLICATE KEY UPDATE col2 = t11_new.col2 + 1;
+
+--let $dml_stmt2 = INSERT INTO t2_new SELECT * FROM t ON DUPLICATE KEY UPDATE col2 = t2_new.col2 + 1;
+--let $dml_stmt21 = INSERT INTO t21_new SELECT * FROM t ON DUPLICATE KEY UPDATE col2 = t21_new.col2 + 1;
+
+--source ../include/ddl_common.inc
+
+--echo # Cleanup
+--let $ddl_drop_schema_tables = 1
+--let $ddl_recreate_schema_tables = 1
+--let $ddl_drop_renamed_tables = 1
+--source ../include/drop_ddl_schema.inc
+
+--echo # Uninstall clone
+UNINSTALL PLUGIN clone;

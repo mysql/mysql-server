@@ -26,7 +26,7 @@ CREATE TEMPORARY TABLE temp1 (i INT);
 END
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE temp1 (i INT)
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 #
 # Verify that DROP TEMPORARY TABLE in a single STMT EVENT
@@ -87,7 +87,7 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 #
 # Verify that DROP TEMPORARY TABLE in a MULTI STMTs EVENT
@@ -125,7 +125,7 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 DROP TABLE t1;
 include/rpl_end.inc

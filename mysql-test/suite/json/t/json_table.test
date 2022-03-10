@@ -1,6 +1,5 @@
 # For stable statistics
 --source include/have_innodb_16k.inc
---source include/not_hypergraph.inc  # Does not support materialized table functions.
 --echo # 
 --echo # WL#8867: Add JSON_TABLE table function
 --echo # 
@@ -13,6 +12,7 @@ let $query=select * from
   ) as tt;
 eval $query;
 eval explain $query; 
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;   # Tests printing of MaterializedTableFunctionIterator.
 
 --error ER_INVALID_DEFAULT
@@ -1505,3 +1505,30 @@ SELECT HEX(a) FROM JSON_TABLE(
   '$'
   COLUMNS(a BINARY(5) PATH '$[1]' NULL ON EMPTY)
 ) e;
+
+--echo #
+--echo # Bug#32591074: JSON_TABLE'S CHECK FOR DUPLICATE COLUMN NAMES IS
+--echo #               CASE-SENSITIVE
+--echo #
+
+--error ER_DUP_FIELDNAME
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (o FOR ORDINALITY, O FOR ORDINALITY)) jt;
+
+--echo #
+--echo # Bug#33351497: JSON_TABLE function report duplicate column name
+--echo #
+
+# Used to compare only the first 64 bytes of the column names and
+# incorrectly report duplicate column name.
+
+SELECT * FROM JSON_TABLE('[1, 2]', '$' COLUMNS (
+  测试列aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa INT PATH '$[0]',
+  测试列aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabb INT PATH '$[1]')
+) AS jt;
+
+--echo #
+--echo # Bug#33414235: Item_row::illegal_method_call const: Assertion `0' failed.
+--echo #
+--error ER_OPERAND_COLUMNS
+SELECT 1 FROM JSON_TABLE(ROW(1, 2), '$' COLUMNS (o FOR ORDINALITY)) AS jt;

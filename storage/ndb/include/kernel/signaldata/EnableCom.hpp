@@ -36,7 +36,7 @@ class EnableComReq  {
   friend class TrpmanProxy;
 
 public:
-  STATIC_CONST( SignalLength = 3);
+  static constexpr Uint32 SignalLength = 3;
 private:
 
   Uint32 m_senderRef;
@@ -52,7 +52,7 @@ class EnableComConf  {
   friend class Cmvmi;
 
 public:
-  STATIC_CONST( SignalLength = 3);
+  static constexpr Uint32 SignalLength = 3;
 private:
 
   Uint32 m_senderRef;

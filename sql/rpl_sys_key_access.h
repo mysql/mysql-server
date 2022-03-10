@@ -51,7 +51,7 @@ class Rpl_sys_key_access {
   /**
     Construction.
   */
-  Rpl_sys_key_access() {}
+  Rpl_sys_key_access() = default;
 
   /**
     Destruction.

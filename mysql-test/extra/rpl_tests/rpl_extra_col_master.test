@@ -695,6 +695,9 @@ DROP TABLE t14;
 
 connection slave;
 
+# Execute RESET REPLICA before calling rpl_reset.inc
+# To avoid failure in MTS and rpl-priv_checks_user runs
+RESET REPLICA;
 # reset master and slave and start slave
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc

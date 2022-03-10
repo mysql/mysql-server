@@ -55,6 +55,22 @@ class path {
   string_type native_path_;
 };
 
+/**
+ * get current path.
+ *
+ * @throws std::system_error on error
+ *
+ * @returns current path
+ */
+HARNESS_STDX_EXPORT path current_path();
+
+/**
+ * get current path.
+ *
+ * sets ec on error.
+ *
+ * @returns current path
+ */
 HARNESS_STDX_EXPORT path current_path(std::error_code &ec) noexcept;
 
 HARNESS_STDX_EXPORT bool remove(const path &p, std::error_code &ec) noexcept;

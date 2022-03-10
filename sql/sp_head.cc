@@ -1692,7 +1692,7 @@ void sp_head::destroy(sp_head *sp) {
 
   sp->~sp_head();
 
-  free_root(&own_root, MYF(0));
+  own_root.Clear();
 }
 
 sp_head::sp_head(MEM_ROOT &&mem_root, enum_sp_type type)
@@ -1969,7 +1969,7 @@ void sp_head::returns_type(THD *thd, String *result) const {
 
   if (field->has_charset()) {
     result->append(STRING_WITH_LEN(" CHARSET "));
-    result->append(m_return_field_def.charset->csname);
+    result->append(replace_utf8_utf8mb3(m_return_field_def.charset->csname));
     if (!(m_return_field_def.charset->state & MY_CS_PRIMARY)) {
       result->append(STRING_WITH_LEN(" COLLATE "));
       result->append(m_return_field_def.charset->name);
@@ -2021,12 +2021,12 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
     Stack size depends on the platform:
       - for most platforms (8 * STACK_MIN_SIZE) is enough;
       - for Solaris SPARC 64 (10 * STACK_MIN_SIZE) is required.
-      - for clang and UBSAN we need even more stack space.
+      - for clang and ASAN/UBSAN we need even more stack space.
   */
 
   {
-#if defined(__sparc) && defined(__SUNPRO_CC)
-    const int sp_stack_size = 10 * STACK_MIN_SIZE;
+#if defined(__clang__) && defined(HAVE_ASAN)
+    const int sp_stack_size = 12 * STACK_MIN_SIZE;
 #elif defined(__clang__) && defined(HAVE_UBSAN)
     const int sp_stack_size = 16 * STACK_MIN_SIZE;
 #else
@@ -2243,7 +2243,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
     thd->cleanup_after_query();
 
     // Release memory allocated during execution of the instruction
-    free_root(&execute_mem_root, MYF(0));
+    execute_mem_root.Clear();
 
     /*
       Find and process SQL handlers unless it is a fatal error (fatal
@@ -2500,7 +2500,7 @@ err_with_cleanup:
 
   ::destroy(trigger_runtime_ctx);
   call_arena.free_items();
-  free_root(&call_mem_root, MYF(0));
+  call_mem_root.Clear();
   thd->sp_runtime_ctx = parent_sp_runtime_ctx;
 
   if (thd->killed) thd->send_kill_message();
@@ -2709,7 +2709,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
 err_with_cleanup:
   ::destroy(func_runtime_ctx);
   call_arena.free_items();
-  free_root(&call_mem_root, MYF(0));
+  call_mem_root.Clear();
   thd->sp_runtime_ctx = parent_sp_runtime_ctx;
 
   /*
@@ -2727,7 +2727,8 @@ bool sp_head::execute_procedure(THD *thd, mem_root_deque<Item *> *args) {
   bool err_status = false;
   uint params = m_root_parsing_ctx->context_var_count();
   /* Query start time may be reset in a multi-stmt SP; keep this for later. */
-  ulonglong utime_before_sp_exec = thd->utime_after_lock;
+  ulonglong lock_usec_before_sp_exec;
+  thd->push_lock_usec(lock_usec_before_sp_exec);
   sp_rcontext *parent_sp_runtime_ctx = thd->sp_runtime_ctx;
   sp_rcontext *sp_runtime_ctx_saved = thd->sp_runtime_ctx;
   bool save_enable_slow_log = false;
@@ -2929,7 +2930,7 @@ bool sp_head::execute_procedure(THD *thd, mem_root_deque<Item *> *args) {
 
   ::destroy(proc_runtime_ctx);
   thd->sp_runtime_ctx = sp_runtime_ctx_saved;
-  thd->utime_after_lock = utime_before_sp_exec;
+  thd->pop_lock_usec(lock_usec_before_sp_exec);
 
   /*
     If not insided a procedure and a function printing warning

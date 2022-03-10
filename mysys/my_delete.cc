@@ -96,7 +96,7 @@ int nt_share_delete(const char *name, myf MyFlags) {
 
   for (cnt = GetTickCount(); cnt; cnt--) {
     errno = 0;
-    sprintf(buf, "%s.%08X.deleted", name, cnt);
+    sprintf(buf, "%s.%08lX.deleted", name, cnt);
     if (MoveFile(name, buf)) break;
 
     if ((errno = GetLastError()) == ERROR_ALREADY_EXISTS) continue;

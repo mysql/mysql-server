@@ -7,7 +7,7 @@ source index_stat_enable.inc;
 
 create table record_in_range(no int primary key auto_increment,
 query varchar(256), part_count int, 
-explain_rows int, count_rows int) engine = myisam;
+explain_rows int, count_rows int) engine = innodb;
 
 CREATE TABLE t1(
   K INT NOT NULL AUTO_INCREMENT,
@@ -24,15 +24,15 @@ INSERT INTO t1(I,J,L) VALUES
 (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
 (6,6,6),(7,7,7),(8,8,8),(9,9,9),(0,0,0);
 
-INSERT INTO t1(I,J,L) SELECT I,1,I FROM t1 ORDER BY K;
-INSERT INTO t1(I,J,L) SELECT I,2,I FROM t1 ORDER BY K;
-INSERT INTO t1(I,J,L) SELECT I,3,I FROM t1 ORDER BY K;
-INSERT INTO t1(I,J,L) SELECT I,4,I FROM t1 ORDER BY K;
-INSERT INTO t1(I,J,L) SELECT I,5,I FROM t1 ORDER BY K;
-INSERT INTO t1(I,J,L) SELECT I,6,I FROM t1 ORDER BY K;
-INSERT INTO t1(I,J,L) SELECT I,7,I FROM t1 ORDER BY K;
-INSERT INTO t1(I,J,L) SELECT I,8,I FROM t1 ORDER BY K;
-INSERT INTO t1(I,J,L) SELECT I,9,I FROM t1 ORDER BY K;
+INSERT INTO t1(I,J,L) SELECT I,1,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,2,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,3,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,4,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,5,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,6,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,7,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,8,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,9,I FROM t1;
 
 select i, count(*) from t1 group by 1 order by 1;
 select l, count(*) from t1 group by 1 order by 1;
