@@ -21,7 +21,7 @@ WHERE SQL_TEXT = "SHOW PROCESSLIST";
 EVENT_NAME	SQL_TEXT	BROKEN_ROWS_SENT
 statement/sql/show_processlist	SHOW PROCESSLIST	0
 TRUNCATE TABLE performance_schema.events_statements_history;
-set @@global.performance_schema_show_processlist = ON;
+SET @@global.performance_schema_show_processlist = ON;
 SHOW GRANTS;
 Grants for regular@localhost
 GRANT USAGE ON *.* TO `regular`@`localhost`
@@ -56,7 +56,7 @@ WHERE SQL_TEXT = "SHOW PROCESSLIST";
 EVENT_NAME	SQL_TEXT	BROKEN_ROWS_SENT
 statement/sql/show_processlist	SHOW PROCESSLIST	0
 TRUNCATE TABLE performance_schema.events_statements_history;
-set @@global.performance_schema_show_processlist = ON;
+SET @@global.performance_schema_show_processlist = ON;
 SHOW GRANTS;
 Grants for regular@localhost
 GRANT PROCESS ON *.* TO `regular`@`localhost`

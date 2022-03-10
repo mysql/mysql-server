@@ -34,7 +34,7 @@ SELECT EVENT_NAME, SQL_TEXT, ROWS_SENT as BROKEN_ROWS_SENT
   WHERE SQL_TEXT = "SHOW PROCESSLIST";
 
 TRUNCATE TABLE performance_schema.events_statements_history;
-set @@global.performance_schema_show_processlist = ON;
+SET @@global.performance_schema_show_processlist = ON;
 
 connection reg;
 
@@ -88,7 +88,7 @@ SELECT EVENT_NAME, SQL_TEXT, ROWS_SENT as BROKEN_ROWS_SENT
   WHERE SQL_TEXT = "SHOW PROCESSLIST";
 
 TRUNCATE TABLE performance_schema.events_statements_history;
-set @@global.performance_schema_show_processlist = ON;
+SET @@global.performance_schema_show_processlist = ON;
 
 connection reg2;
 
