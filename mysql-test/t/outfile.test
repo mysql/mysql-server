@@ -31,7 +31,7 @@ select load_file(concat(@tmpdir,"/outfile-test.2"));
 disable_query_log;
 eval select * into dumpfile "../../tmp/outfile-test.3" from t1 where a is null;
 enable_query_log;
-select load_file(concat(@tmpdir,"/outfile-test.3"));
+select length(load_file(concat(@tmpdir,"/outfile-test.3")));
 
 # the following should give errors
 

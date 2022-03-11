@@ -353,21 +353,6 @@ DROP TABLE t1;
 --echo
 --echo Test weird delimiters between date and time parts
 --echo
---echo # newline
-SELECT TIMESTAMP'2021-07-20
-18:45:00';
---echo # TAB
-SELECT TIMESTAMP'2021-07-20	18:45:00';
---echo # Form feed
-SELECT TIMESTAMP'2021-07-2018:45:00';
---echo # Carriage return
-SELECT TIMESTAMP'2021-07-1718:45:00';
---echo # Vertical tab: not accepted even though it is considered space in C++
---error ER_WRONG_VALUE
-SELECT TIMESTAMP'2021-07-2018:45:00';
---echo # Something else
---error ER_WRONG_VALUE
-SELECT TIMESTAMP'2021-07-2018:45:00';
 --echo # Delimiter instead of space
 SELECT TIMESTAMP'2021-07-17.18:45:00';
 SELECT TIMESTAMP'2021-07-17-18:45:00';

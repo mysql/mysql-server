@@ -626,39 +626,6 @@ DROP TABLE t1;
 
 Test weird delimiters between date and time parts
 
-# newline
-SELECT TIMESTAMP'2021-07-20
-18:45:00';
-TIMESTAMP'2021-07-20
-18:45:00'
-2021-07-20 18:45:00
-Warnings:
-Warning	4095	Delimiter '\n' in position 10 in datetime value '2021-07-20
-18:45:00' at row 1 is deprecated. Prefer the standard ' '.
-# TAB
-SELECT TIMESTAMP'2021-07-20	18:45:00';
-TIMESTAMP'2021-07-20	18:45:00'
-2021-07-20 18:45:00
-Warnings:
-Warning	4095	Delimiter '\t' in position 10 in datetime value '2021-07-20	18:45:00' at row 1 is deprecated. Prefer the standard ' '.
-# Form feed
-SELECT TIMESTAMP'2021-07-2018:45:00';
-TIMESTAMP'2021-07-2018:45:00'
-2021-07-20 18:45:00
-Warnings:
-Warning	4095	Delimiter '\f' in position 10 in datetime value '2021-07-2018:45:00' at row 1 is deprecated. Prefer the standard ' '.
-# Carriage return
-SELECT TIMESTAMP'2021-07-1718:45:00';
-TIMESTAMP'2021-07-1718:45:00'
-2021-07-17 18:45:00
-Warnings:
-Warning	4095	Delimiter '\r' in position 10 in datetime value '2021-07-1718:45:00' at row 1 is deprecated. Prefer the standard ' '.
-# Vertical tab: not accepted even though it is considered space in C++
-SELECT TIMESTAMP'2021-07-2018:45:00';
-ERROR HY000: Incorrect DATETIME value: '2021-07-2018:45:00'
-# Something else
-SELECT TIMESTAMP'2021-07-2018:45:00';
-ERROR HY000: Incorrect DATETIME value: '2021-07-2018:45:00'
 # Delimiter instead of space
 SELECT TIMESTAMP'2021-07-17.18:45:00';
 TIMESTAMP'2021-07-17.18:45:00'

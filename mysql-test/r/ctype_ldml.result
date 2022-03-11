@@ -591,13 +591,11 @@ create table t1 (c1 char(1) character set ucs2 collate ucs2_vn_ci);
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	4079	'ucs2_vn_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
-insert into t1 values (0x0061);
 set @@character_set_results=NULL;
 select * from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	t1	t1	c1	c1	254	2	2	Y	0	0	359
+def	test	t1	t1	c1	c1	254	2	0	Y	0	0	359
 c1
- a
 drop table t1;
 CREATE TABLE t1 (s1 char(10) character set utf8 collate utf8_maxuserid_ci);
 Warnings:

@@ -1791,9 +1791,6 @@ t1	CREATE TABLE `t1` (
   `russian_deviant` enum('E','F','EÿF','F,E') NOT NULL DEFAULT 'E'
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
-create table t1(exhausting_charset enum('ABCDEFGHIJKLMNOPQRSTUVWXYZ','	
- !"','#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~','xx\','yy\€','zz‚ƒ„…†‡‰‹‘’“”•–—™› ΅Ά£¤¥¦§¨©ª«¬­®―°±²³΄µ¶·ΈΉΊ»Ό½ΎΏΐΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡÒΣΤΥΦΧΨΩΪΫάέήίΰαβγδεζηθικλμνξοπρςστυφχψωϊϋόύώÿ'));
-drop table t1;
 CREATE TABLE t1 (
 id INT AUTO_INCREMENT PRIMARY KEY,
 c1 ENUM('a', '', 'b')

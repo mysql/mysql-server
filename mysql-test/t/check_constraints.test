@@ -1786,7 +1786,7 @@ INSERT INTO t1(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10)
     VALUES(B'1111111',0,5,5,5,1,1,1.2,1.2,1.2);
 INSERT INTO t1(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10)
     VALUES(B'1111111',0,5,5,5,11,11,10.2,10.2,10.2);
-SELECT * FROM t1;
+SELECT HEX(c1), c2, c3, c4, c5, c6, c7, c8, c9, c10, c11 FROM t1;
 DROP TABLE t1;
 DROP DATABASE test1;
 --remove_file $MYSQLTEST_VARDIR/tmp/test1_db.sql
@@ -1820,7 +1820,7 @@ INSERT INTO t2(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10)
     VALUES(B'1111000',0,10,10,10,5,5,9.1,9.1,9.1);
 INSERT INTO t2(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10)
     VALUES(B'1111000',1,11,11,11,5,5,9.1,9.1,9.1);
-SELECT * FROM t2;
+SELECT HEX(c1), c2, c3, c4, c5, c6, c7, c8, c9, c10 FROM t2;
 DROP TABLE t2;
 DROP DATABASE test2;
 --remove_file $MYSQLTEST_VARDIR/tmp/test2_db.sql
