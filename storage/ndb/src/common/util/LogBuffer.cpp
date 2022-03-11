@@ -23,23 +23,29 @@
 */
 
 #include "portlib/ndb_compiler.h"
+#include "util/cstrbuf.h"
+#include "util/require.h"
 #include <LogBuffer.hpp>
 #include <portlib/NdbCondition.h>
 #include <portlib/NdbThread.h>
 #include <BaseString.hpp>
 #include <NdbSleep.h>
 
-size_t
-ByteStreamLostMsgHandler::getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs)
+size_t ByteStreamLostMsgHandler::getSizeOfLostMsg(size_t lost_bytes,
+                                                  size_t /*lost_msgs*/)
 {
-  size_t lost_msg_len = snprintf(NULL, 0, m_lost_msg_fmt, lost_bytes);
-  return lost_msg_len;
+  cstrbuf<0> nullbuf;
+  require(nullbuf.appendf(LOST_BYTES_FMT, lost_bytes) != -1);
+  return nullbuf.untruncated_length();
 }
 
-bool
-ByteStreamLostMsgHandler::writeLostMsg(char* buf, size_t buf_size, size_t lost_bytes, size_t lost_msgs)
+bool ByteStreamLostMsgHandler::writeLostMsg(char* buf,
+                                            size_t buf_size,
+                                            size_t lost_bytes,
+                                            size_t /*lost_msgs*/)
 {
-  snprintf(buf, buf_size, m_lost_msg_fmt, lost_bytes);
+  cstrbuf strbuf({buf, buf_size});
+  require(strbuf.appendf(LOST_BYTES_FMT, lost_bytes) != -1);
   return true;
 }
 
@@ -599,7 +605,7 @@ void* thread_consumer1(void* dummy)
   size_t lost_count = buf_t2->getLostCount();
   if(lost_count)
   {
-    fprintf(stdout, "\n*** %lu BYTES LOST ***\n", (unsigned long)lost_count);
+    fprintf(stdout, LostMsgHandler::LOST_BYTES_FMT, lost_count);
   }
 
   NdbThread_Exit(NULL);

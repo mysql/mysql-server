@@ -980,7 +980,7 @@ void* async_log_func(void* args)
   size_t lost_count = logBuf->getLostCount();
   if(lost_count)
   {
-    fprintf(f, "\n*** %lu BYTES LOST ***\n", (unsigned long)lost_count);
+    fprintf(f, LostMsgHandler::LOST_BYTES_FMT, lost_count);
     fflush(f);
   }
 
