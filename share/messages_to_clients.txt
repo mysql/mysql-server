@@ -7867,6 +7867,31 @@ OBSOLETE_ER_CANT_START_SERVER_NAMED_PIPE
 ER_WRITE_SET_EXCEEDS_LIMIT
   eng "The size of writeset data for the current transaction exceeds a limit imposed by an external component. If using Group Replication check 'group_replication_transaction_size_limit'."
 
+# Created in 8.0: ER_DEPRECATED_TLS_VERSION_SESSION (13745)
+# Back ported in 5.7: ER_DEPRECATED_TLS_VERSION_SESSION (3232)
+# Obsolete in 8.0: OBSOLETE_ER_DEPRECATED_TLS_VERSION_SESSION (13745)
+# Reserved in 8.0: OBSOLETE_ER_DEPRECATED_TLS_VERSION_SESSION_57 (3232)
+# This error was never used in 8.0,
+# this entry is to preserve error numbering for 5.7 -> 8.0 merges.
+OBSOLETE_ER_DEPRECATED_TLS_VERSION_SESSION_57
+  eng "Accepted a connection with deprecated protocol '%s' for account `%s`@`%s` from host `%s`. Client supplied username `%s`"
+
+# Created in 8.0: ER_WARN_DEPRECATED_TLS_VERSION_FOR_CHANNEL_CLI (4038)
+# Created in 8.0: ER_WARN_DEPRECATED_TLS_VERSION_FOR_CHANNEL (13746)
+# Back ported in 5.7: ER_WARN_DEPRECATED_TLS_VERSION (3233)
+# Obsolete in 8.0: OBSOLETE_ER_WARN_DEPRECATED_TLS_VERSION_FOR_CHANNEL_CLI (4038)
+# Obsolete in 8.0: OBSOLETE_ER_WARN_DEPRECATED_TLS_VERSION_FOR_CHANNEL (13746)
+# Reserved in 8.0: OBSOLETE_ER_WARN_DEPRECATED_TLS_VERSION_57 (3233)
+# This error was never used in 8.0,
+# this entry is to preserve error numbering for 5.7 -> 8.0 merges.
+OBSOLETE_ER_WARN_DEPRECATED_TLS_VERSION_57
+  eng "A deprecated TLS version %s is enabled. Please use TLSv1.2 or higher."
+
+# In 5.7: ER_WARN_WRONG_NATIVE_TABLE_STRUCTURE
+# Not used in 8.0
+OBSOLETE_ER_WARN_WRONG_NATIVE_TABLE_STRUCTURE
+  eng "Optional native table '%-.64s'.'%-.64s' has the wrong structure or is missing."
+
 #
 #  End of 5.7 error messages (server-to-client).
 #
