@@ -33,6 +33,7 @@ mysql_upgrade: [ERROR] 1050: Table 'table_io_waits_summary_by_index_usage' alrea
 mysql_upgrade: [ERROR] 1050: Table 'table_io_waits_summary_by_table' already exists
 mysql_upgrade: [ERROR] 1050: Table 'table_lock_waits_summary_by_table' already exists
 mysql_upgrade: [ERROR] 1050: Table 'threads' already exists
+mysql_upgrade: [ERROR] 1050: Table 'processlist' already exists
 mysql_upgrade: [ERROR] 1050: Table 'events_stages_current' already exists
 mysql_upgrade: [ERROR] 1050: Table 'events_stages_history' already exists
 mysql_upgrade: [ERROR] 1050: Table 'events_stages_history_long' already exists

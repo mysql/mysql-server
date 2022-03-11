@@ -1,0 +1,349 @@
+
+--source include/no_protocol.inc
+--source include/not_embedded.inc
+
+call mtr.add_suppression("Optional native table 'performance_schema'.'processlist' has the wrong structure or is missing.");
+call mtr.add_suppression("Column count of performance_schema.processlist is wrong. Expected 8, found 2. The table is probably corrupted");
+
+--echo ##
+--echo ## Verify fresh 5.7 instance
+--echo ##
+
+SELECT @@global.performance_schema_show_processlist;
+
+SHOW CREATE TABLE performance_schema.processlist;
+
+--echo ##
+--echo ## Simulate old 5.7 instance
+--echo ##
+
+DROP TABLE performance_schema.processlist;
+
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE performance_schema.processlist;
+
+let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+--exec echo "wait" > $restart_file
+--echo ##
+--echo ## Server shutdown
+--echo ##
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--echo ##
+--echo ### Server restart
+--echo ##
+--exec echo "restart:">$restart_file
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo ##
+--echo ## Verify old 5.7 instance
+--echo ##
+
+SELECT @@global.performance_schema_show_processlist;
+
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE performance_schema.processlist;
+
+--error ER_NO_SUCH_TABLE
+SELECT * FROM performance_schema.processlist;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SHOW PROCESSLIST;
+
+SET GLOBAL performance_schema_show_processlist = 'ON';
+
+--error ER_NO_SUCH_TABLE
+SELECT * FROM performance_schema.processlist;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+--error ER_NO_SUCH_TABLE
+SHOW PROCESSLIST;
+
+--echo ##
+--echo ## Perform broken upgrade (case 1)
+--echo ##
+
+CREATE TABLE performance_schema.processlist (a int, b int);
+
+SHOW CREATE TABLE performance_schema.processlist;
+
+SET GLOBAL performance_schema_show_processlist = 'OFF';
+
+SELECT * FROM performance_schema.processlist;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SHOW PROCESSLIST;
+
+SET GLOBAL performance_schema_show_processlist = 'ON';
+
+SELECT * FROM performance_schema.processlist;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+--error ER_BAD_FIELD_ERROR
+SHOW PROCESSLIST;
+
+--exec echo "wait" > $restart_file
+--echo ##
+--echo ## Server shutdown
+--echo ##
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--echo ##
+--echo ### Server restart
+--echo ##
+--exec echo "restart:">$restart_file
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SHOW CREATE TABLE performance_schema.processlist;
+
+SET GLOBAL performance_schema_show_processlist = 'OFF';
+
+SELECT * FROM performance_schema.processlist;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SHOW PROCESSLIST;
+
+SET GLOBAL performance_schema_show_processlist = 'ON';
+
+SELECT * FROM performance_schema.processlist;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+--error ER_BAD_FIELD_ERROR
+SHOW PROCESSLIST;
+
+--echo ##
+--echo ## Perform broken upgrade (case 2)
+--echo ##
+
+DROP TABLE performance_schema.processlist;
+CREATE TABLE performance_schema.processlist (
+  `ID` bigint(20) unsigned NOT NULL,
+  `USER` varchar(32) DEFAULT NULL,
+  `HOST` varchar(66) DEFAULT NULL,
+  `DB` varchar(64) DEFAULT NULL,
+  `COMMAND` varchar(16) DEFAULT NULL,
+  `TIME` bigint(20) DEFAULT NULL,
+  `STATE` varchar(64) DEFAULT NULL,
+  `INFO` longtext
+);
+
+SHOW CREATE TABLE performance_schema.processlist;
+
+SET GLOBAL performance_schema_show_processlist = 'OFF';
+
+SELECT * FROM performance_schema.processlist;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SHOW PROCESSLIST;
+
+SET GLOBAL performance_schema_show_processlist = 'ON';
+
+SELECT * FROM performance_schema.processlist;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+# Works and returns no data, innodb table is empty.
+SHOW PROCESSLIST;
+
+--exec echo "wait" > $restart_file
+--echo ##
+--echo ## Server shutdown
+--echo ##
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--echo ##
+--echo ### Server restart
+--echo ##
+--exec echo "restart:">$restart_file
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SHOW CREATE TABLE performance_schema.processlist;
+
+SET GLOBAL performance_schema_show_processlist = 'OFF';
+
+SELECT * FROM performance_schema.processlist;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SHOW PROCESSLIST;
+
+SET GLOBAL performance_schema_show_processlist = 'ON';
+
+SELECT * FROM performance_schema.processlist;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+# Works and returns no data, innodb table is empty.
+SHOW PROCESSLIST;
+
+--echo ##
+--echo ## Perform broken upgrade (case 3)
+--echo ##
+
+DROP TABLE performance_schema.processlist;
+CREATE TABLE performance_schema.processlist
+  LIKE INFORMATION_SCHEMA.PROCESSLIST;
+
+SHOW CREATE TABLE performance_schema.processlist;
+
+SET GLOBAL performance_schema_show_processlist = 'OFF';
+
+SELECT * FROM performance_schema.processlist;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SHOW PROCESSLIST;
+
+SET GLOBAL performance_schema_show_processlist = 'ON';
+
+SELECT * FROM performance_schema.processlist;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+# Works and returns no data, innodb table is empty.
+SHOW PROCESSLIST;
+
+--exec echo "wait" > $restart_file
+--echo ##
+--echo ## Server shutdown
+--echo ##
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--echo ##
+--echo ### Server restart
+--echo ##
+--exec echo "restart:">$restart_file
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SHOW CREATE TABLE performance_schema.processlist;
+
+SET GLOBAL performance_schema_show_processlist = 'OFF';
+
+SELECT * FROM performance_schema.processlist;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SHOW PROCESSLIST;
+
+SET GLOBAL performance_schema_show_processlist = 'ON';
+
+SELECT * FROM performance_schema.processlist;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+# Works and returns no data, innodb table is empty.
+SHOW PROCESSLIST;
+
+--echo ##
+--echo ## Perform correct upgrade
+--echo ##
+
+DROP TABLE performance_schema.processlist;
+CREATE TABLE performance_schema.processlist (
+  `ID` bigint(20) unsigned NOT NULL,
+  `USER` varchar(32) DEFAULT NULL,
+  `HOST` varchar(66) DEFAULT NULL,
+  `DB` varchar(64) DEFAULT NULL,
+  `COMMAND` varchar(16) DEFAULT NULL,
+  `TIME` bigint(20) DEFAULT NULL,
+  `STATE` varchar(64) DEFAULT NULL,
+  `INFO` longtext
+) ENGINE = 'PERFORMANCE_SCHEMA';
+
+SHOW CREATE TABLE performance_schema.processlist;
+
+SET GLOBAL performance_schema_show_processlist = 'OFF';
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SELECT * FROM performance_schema.processlist;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SHOW PROCESSLIST;
+
+SET GLOBAL performance_schema_show_processlist = 'ON';
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SELECT * FROM performance_schema.processlist;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SHOW PROCESSLIST;
+
+--exec echo "wait" > $restart_file
+--echo ##
+--echo ## Server shutdown
+--echo ##
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--echo ##
+--echo ### Server restart
+--echo ##
+--exec echo "restart:">$restart_file
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SHOW CREATE TABLE performance_schema.processlist;
+
+SET GLOBAL performance_schema_show_processlist = 'OFF';
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SELECT * FROM performance_schema.processlist;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SHOW PROCESSLIST;
+
+SET GLOBAL performance_schema_show_processlist = 'ON';
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SELECT * FROM performance_schema.processlist;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+--replace_column 3 [HOST:PORT] 6 [TIME]
+SHOW PROCESSLIST;
+
+# Cleanup
+
+SET GLOBAL performance_schema_show_processlist = 'OFF';
+

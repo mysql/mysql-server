@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -515,6 +515,7 @@ static int check_connection(THD *thd)
     LEX_CSTRING main_sctx_ip;
 
     peer_rc= vio_peer_addr(net->vio, ip, &thd->peer_port, NI_MAXHOST);
+    mysql_thread_set_peer_port(thd->peer_port);
 
     /*
     ===========================================================================

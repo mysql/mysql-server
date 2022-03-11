@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -88,6 +88,12 @@ extern "C" {
   to the volatility of a session.
 */
 #define PSI_FLAG_VOLATILITY_SESSION (1 << 6)
+
+/**
+  System thread flag.
+  Indicates that the instrumented object exists on a system thread.
+*/
+#define PSI_FLAG_THREAD_SYSTEM (1 << 9)
 
 #ifdef HAVE_PSI_INTERFACE
 

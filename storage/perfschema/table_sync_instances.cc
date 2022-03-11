@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -61,6 +61,11 @@ TABLE_FIELD_DEF
 table_mutex_instances::m_field_def=
 { 3, mutex_field_types };
 
+PFS_engine_table_share_state
+table_mutex_instances::m_share_state = {
+  false /* m_checked */
+};
+
 PFS_engine_table_share
 table_mutex_instances::m_share=
 {
@@ -73,8 +78,9 @@ table_mutex_instances::m_share=
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
 };
 
 PFS_engine_table* table_mutex_instances::create(void)
@@ -235,6 +241,11 @@ TABLE_FIELD_DEF
 table_rwlock_instances::m_field_def=
 { 4, rwlock_field_types };
 
+PFS_engine_table_share_state
+table_rwlock_instances::m_share_state = {
+  false /* m_checked */
+};
+
 PFS_engine_table_share
 table_rwlock_instances::m_share=
 {
@@ -247,8 +258,9 @@ table_rwlock_instances::m_share=
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
 };
 
 PFS_engine_table* table_rwlock_instances::create(void)
@@ -406,6 +418,11 @@ TABLE_FIELD_DEF
 table_cond_instances::m_field_def=
 { 2, cond_field_types };
 
+PFS_engine_table_share_state
+table_cond_instances::m_share_state = {
+  false /* m_checked */
+};
+
 PFS_engine_table_share
 table_cond_instances::m_share=
 {
@@ -418,8 +435,9 @@ table_cond_instances::m_share=
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
 };
 
 PFS_engine_table* table_cond_instances::create(void)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -240,6 +240,17 @@ extern "C" void *event_scheduler_thread(void *arg)
 
   mysql_thread_set_psi_id(thd->thread_id());
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  /* Update the thread instrumentation. */
+  PSI_THREAD_CALL(set_thread_account)
+    (thd->security_context()->user().str,
+     thd->security_context()->user().length,
+     thd->security_context()->host_or_ip().str,
+     thd->security_context()->host_or_ip().length);
+  PSI_THREAD_CALL(set_thread_command)(thd->get_command());
+  PSI_THREAD_CALL(set_thread_start_time)(thd->query_start());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
+
   res= post_init_event_thread(thd);
 
   DBUG_ENTER("event_scheduler_thread");
@@ -285,6 +296,17 @@ extern "C" void *event_worker_thread(void *arg)
   thd->claim_memory_ownership();
 
   mysql_thread_set_psi_id(thd->thread_id());
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  /* Update the thread instrumentation. */
+  PSI_THREAD_CALL(set_thread_account)
+    (thd->security_context()->user().str,
+     thd->security_context()->user().length,
+     thd->security_context()->host_or_ip().str,
+     thd->security_context()->host_or_ip().length);
+  PSI_THREAD_CALL(set_thread_command)(thd->get_command());
+  PSI_THREAD_CALL(set_thread_start_time)(thd->query_start());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   Event_worker_thread worker_thread;
   worker_thread.run(thd, event);

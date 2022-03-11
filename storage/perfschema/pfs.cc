@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -2557,6 +2557,16 @@ void pfs_set_thread_v1(PSI_thread* thread)
 {
   PFS_thread *pfs= reinterpret_cast<PFS_thread*> (thread);
   my_thread_set_THR_PFS(pfs);
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+*/
+void pfs_set_thread_peer_port_v1(PSI_thread *thread, uint port) {
+  PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
+  if (likely(pfs != NULL)) {
+    pfs->m_peer_port = port;
+  }
 }
 
 /**
@@ -7121,7 +7131,8 @@ PSI_v1 PFS_v1=
   pfs_set_metadata_lock_status_v1,
   pfs_destroy_metadata_lock_v1,
   pfs_start_metadata_wait_v1,
-  pfs_end_metadata_wait_v1
+  pfs_end_metadata_wait_v1,
+  pfs_set_thread_peer_port_v1
 };
 
 static void* get_interface(int version)

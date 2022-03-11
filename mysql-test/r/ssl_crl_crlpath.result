@@ -2,6 +2,7 @@
 Variable_name	Value
 have_openssl	YES
 have_ssl	YES
+performance_schema_show_processlist	OFF
 ssl_ca	MYSQL_TEST_DIR/std_data/crl-ca-cert.pem
 ssl_capath	
 ssl_cert	MYSQL_TEST_DIR/std_data/crl-server-cert.pem
@@ -13,6 +14,7 @@ ssl_key	MYSQL_TEST_DIR/std_data/crl-server-key.pem
 Variable_name	Value
 have_openssl	YES
 have_ssl	YES
+performance_schema_show_processlist	OFF
 ssl_ca	MYSQL_TEST_DIR/std_data/crl-ca-cert.pem
 ssl_capath	
 ssl_cert	MYSQL_TEST_DIR/std_data/crl-server-cert.pem

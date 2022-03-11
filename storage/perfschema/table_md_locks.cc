@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -95,6 +95,11 @@ TABLE_FIELD_DEF
 table_metadata_locks::m_field_def=
 { 10, field_types };
 
+PFS_engine_table_share_state
+table_metadata_locks::m_share_state = {
+  false /* m_checked */
+};
+
 PFS_engine_table_share
 table_metadata_locks::m_share=
 {
@@ -107,8 +112,9 @@ table_metadata_locks::m_share=
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
 };
 
 PFS_engine_table* table_metadata_locks::create(void)

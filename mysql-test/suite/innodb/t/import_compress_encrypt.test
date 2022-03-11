@@ -13,6 +13,9 @@
 call mtr.add_suppression("Resizing redo log");
 call mtr.add_suppression("Starting to delete and rewrite log files");
 call mtr.add_suppression("New log files created");
+# Table 'performance_schema'.'processlist' was added in 5.7.39
+# It is not present in the 5.7.32 import test file.
+call mtr.add_suppression("Optional native table 'performance_schema'.'processlist' has the wrong structure or is missing");
 --enable_query_log
 
 --echo # SETUP

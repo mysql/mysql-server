@@ -1,0 +1,2 @@
+--loose-disable-performance-schema
+--loose-performance-schema-show-processlist=ON

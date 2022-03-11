@@ -847,6 +847,9 @@ The following options may be given as the first argument:
  --performance-schema-setup-objects-size=# 
  Maximum number of rows in SETUP_OBJECTS. Use 0 to
  disable, -1 for automated scaling.
+ --performance-schema-show-processlist 
+ Default startup value to enable SHOW PROCESSLIST in the
+ performance schema.
  --performance-schema-users-size=# 
  Maximum number of instrumented users. Use 0 to disable,
  -1 for automated scaling.
@@ -1531,6 +1534,7 @@ performance-schema-max-thread-instances -1
 performance-schema-session-connect-attrs-size -1
 performance-schema-setup-actors-size -1
 performance-schema-setup-objects-size -1
+performance-schema-show-processlist FALSE
 performance-schema-users-size -1
 port ####
 port-open-timeout 0

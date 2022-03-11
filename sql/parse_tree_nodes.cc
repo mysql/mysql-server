@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@
 #include "sp_instr.h"       // sp_instr_set
 #include "sql_delete.h"     // Sql_cmd_delete_multi, Sql_cmd_delete
 #include "sql_insert.h"     // Sql_cmd_insert...
-
+#include "sql_show_processlist.h" // pfs_processlist_enabled
 
 bool PT_group::contextualize(Parse_context *pc)
 {
@@ -1019,4 +1019,20 @@ bool PT_alter_instance::contextualize(Parse_context *pc)
   LEX *lex= pc->thd->lex;
   lex->no_write_to_binlog= false;
   return false;
+}
+
+Sql_cmd *PT_show_processlist::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  // Read once, to avoid race conditions.
+  bool use_pfs = pfs_processlist_enabled;
+
+  m_sql_cmd.set_use_pfs(use_pfs);
+  if (use_pfs) {
+    if (build_processlist_query(m_pos, thd, m_sql_cmd.verbose()))
+      return NULL;
+  }
+
+  return &m_sql_cmd;
 }

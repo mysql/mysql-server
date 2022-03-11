@@ -855,6 +855,14 @@ def	performance_schema	prepared_statements_instances	SUM_SORT_ROWS	32	NULL	NO	bi
 def	performance_schema	prepared_statements_instances	SUM_SORT_SCAN	33	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	prepared_statements_instances	SUM_NO_INDEX_USED	34	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	prepared_statements_instances	SUM_NO_GOOD_INDEX_USED	35	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	processlist	ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	processlist	USER	2	NULL	YES	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references		
+def	performance_schema	processlist	HOST	3	NULL	YES	varchar	66	198	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(66)			select,insert,update,references		
+def	performance_schema	processlist	DB	4	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
+def	performance_schema	processlist	COMMAND	5	NULL	YES	varchar	16	48	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(16)			select,insert,update,references		
+def	performance_schema	processlist	TIME	6	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references		
+def	performance_schema	processlist	STATE	7	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
+def	performance_schema	processlist	INFO	8	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select,insert,update,references		
 def	performance_schema	replication_applier_configuration	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references		
 def	performance_schema	replication_applier_configuration	DESIRED_DELAY	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
 def	performance_schema	replication_applier_status	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references		

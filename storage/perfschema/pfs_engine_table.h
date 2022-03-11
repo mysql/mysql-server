@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -285,6 +285,11 @@ typedef int (*pfs_delete_all_rows_t)(void);
 /** Callback to get a row count. */
 typedef ha_rows (*pfs_get_row_count_t)(void);
 
+struct PFS_engine_table_share_state {
+  /** Schema integrity flag. */
+  bool m_checked;
+};
+
 /**
   A PERFORMANCE_SCHEMA table share.
   This data is shared by all the table handles opened on the same table.
@@ -293,6 +298,7 @@ struct PFS_engine_table_share
 {
   static void check_all_tables(THD *thd);
   void check_one_table(THD *thd);
+  bool is_table_checked(TABLE *table) const;
   static void init_all_locks(void);
   static void delete_all_locks(void);
   /** Get the row count. */
@@ -318,10 +324,12 @@ struct PFS_engine_table_share
   THR_LOCK *m_thr_lock_ptr;
   /** Table fields definition. */
   TABLE_FIELD_DEF *m_field_def;
-  /** Schema integrity flag. */
-  bool m_checked;
   /** Table is available even if the Performance Schema is disabled. */
   bool m_perpetual;
+  /** Table is optional. */
+  bool m_optional;
+  /** Dynamic state. */
+  PFS_engine_table_share_state *m_state;
 };
 
 /**
@@ -455,6 +463,24 @@ public:
 
 /** Singleton instance of PFS_readonly_world_acl */
 extern PFS_truncatable_world_acl pfs_truncatable_world_acl;
+
+
+/**
+  Privileges for readable processlist tables.
+*/
+class PFS_readonly_processlist_acl : public PFS_readonly_acl {
+ public:
+  PFS_readonly_processlist_acl()
+  {}
+
+  ~PFS_readonly_processlist_acl()
+  {}
+
+  virtual ACL_internal_access_result check(ulong want_access, ulong *save_priv) const;
+};
+
+/** Singleton instance of PFS_readonly_processlist_acl */
+extern PFS_readonly_processlist_acl pfs_readonly_processlist_acl;
 
 
 /** Position of a cursor, for simple iterations. */
