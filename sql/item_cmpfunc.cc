@@ -5148,11 +5148,22 @@ bool Item_func_in::resolve_type(THD *thd) {
         Item_field *field_item = (Item_field *)(args[0]->real_item());
         if (field_item->field->can_be_compared_as_longlong()) {
           bool all_converted = true;
+
+          if (field_item->is_temporal()) {
+            all_converted = false;
+          }
+
           for (Item **arg = args + 1; arg != arg_end; arg++) {
             bool converted;
             if (convert_constant_item(thd, field_item, &arg[0], &converted))
               return true;
-            all_converted &= converted;
+            
+            if (field_item->is_temporal()) {
+              all_converted |= converted;
+            } else {
+              all_converted &= converted;
+            }
+            
           }
           if (all_converted) {
             cmp_type = INT_RESULT;
