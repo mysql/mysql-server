@@ -5591,6 +5591,13 @@ bool is_null_on_empty_table(THD *thd, Item_field *i) {
     Notice that compared to Item_ref::fix_fields, here we first search the FROM
     clause, and then we search the SELECT and GROUP BY clauses.
 
+  For the case where a table reference is already set for the field,
+  we just need to make a call to set_field(). This is true for a cloned
+  field used during condition pushdown to derived tables. A cloned field
+  inherits table reference, depended_from, cached_table, context and field
+  from the original field. set_field() ensures all other members are set
+  correctly.
+
   @param[in]     thd        current thread
   @param[in,out] reference  view column if this item was resolved to a
     view column
@@ -5609,6 +5616,21 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
   Internal_error_handler_holder<View_error_handler, TABLE_LIST> view_handler(
       thd, context->view_error_handler, context->view_error_handler_arg);
 
+  if (table_ref) {
+    // This is a cloned field (used during condition pushdown to derived
+    // tables). It has table reference and the field too. Make a call to
+    // set_field() to ensure everything else gets set correctly.
+    TABLE_LIST *orig_table_ref = table_ref;
+    set_field(field);
+    // Note that the call to set_field() above would have set the "table_ref"
+    // derived from field's table which in most cases is same as the already
+    // set "table_ref". However, in case of update statements, while setting
+    // up update_tables, table references are changed. Since condition pushdown
+    // happens after this setup, we must make sure we set the original table
+    // reference for the field.
+    table_ref = orig_table_ref;
+    return false;
+  }
   if (!field)  // If field is not checked
   {
     /*

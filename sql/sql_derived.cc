@@ -473,48 +473,60 @@ static void swap_column_names_of_unit_and_tmp_table(
 }
 
 /**
-  Copy contexts of all the fields from the original expression to
-  the cloned expression.
+  Copy field information like table_ref, context etc of all the fields
+  from the original expression to the cloned expression.
   @param thd          current thread
   @param orig_expr    original expression
   @param cloned_expr  cloned expression
 
   @returns true on error, false otherwise
 */
-bool copy_contexts(THD *thd, Item *orig_expr, Item *cloned_expr) {
-  mem_root_deque<Name_resolution_context *> field_contexts(thd->mem_root);
-  class Collect_field_contexts : public Item_tree_walker {
+bool copy_field_info(THD *thd, Item *orig_expr, Item *cloned_expr) {
+  class Field_info {
    public:
-    using Item_tree_walker::is_stopped;
-    using Item_tree_walker::stop_at;
+    Name_resolution_context *m_field_context{nullptr};
+    TABLE_LIST *m_table_ref{nullptr};
+    Query_block *m_depended_from{nullptr};
+    TABLE_LIST *m_cached_table{nullptr};
+    Field *m_field{nullptr};
+    Field_info(Name_resolution_context *field_context, TABLE_LIST *table_ref,
+               Query_block *depended_from, TABLE_LIST *cached_table,
+               Field *field)
+        : m_field_context(field_context),
+          m_table_ref(table_ref),
+          m_depended_from(depended_from),
+          m_cached_table(cached_table),
+          m_field(field) {}
   };
-  Collect_field_contexts info;
-  // Collect the contexts for fields and view references.
-  if (WalkItem(orig_expr, enum_walk::PREFIX | enum_walk::POSTFIX,
-               [&info, &field_contexts](Item *inner_item) {
-                 if (info.is_stopped(inner_item)) {
-                   return false;
-                 } else if (inner_item->type() == Item::FIELD_ITEM) {
-                   if (field_contexts.push_back(
-                           down_cast<Item_field *>(inner_item)->context))
-                     return true;
-                   info.stop_at(inner_item);
-                   return false;
-                 }
-                 return false;
-               }))
+  mem_root_deque<Field_info> field_info(thd->mem_root);
+
+  // Collect information for fields from the original expression
+  if (WalkItem(orig_expr, enum_walk::POSTFIX, [&field_info](Item *inner_item) {
+        if (inner_item->type() == Item::FIELD_ITEM) {
+          Item_field *field = down_cast<Item_field *>(inner_item);
+          if (field_info.push_back(Field_info(
+                  field->context, field->table_ref, field->depended_from,
+                  field->cached_table, field->field)))
+            return true;
+        }
+        return false;
+      }))
     return true;
-  // Set contexts for fields in the cloned expression.
-  WalkItem(cloned_expr, enum_walk::POSTFIX,
-           [&field_contexts](Item *inner_item) {
-             if (inner_item->type() == Item::FIELD_ITEM) {
-               assert(!field_contexts.empty());
-               down_cast<Item_field *>(inner_item)->context = field_contexts[0];
-               field_contexts.pop_front();
-             }
-             return false;
-           });
-  assert(field_contexts.empty());
+  // Copy the information to the fields in the cloned expression.
+  WalkItem(cloned_expr, enum_walk::POSTFIX, [&field_info](Item *inner_item) {
+    if (inner_item->type() == Item::FIELD_ITEM) {
+      assert(!field_info.empty());
+      Item_field *field = down_cast<Item_field *>(inner_item);
+      field->context = field_info[0].m_field_context;
+      field->table_ref = field_info[0].m_table_ref;
+      field->depended_from = field_info[0].m_depended_from;
+      field->cached_table = field_info[0].m_cached_table;
+      field->field = field_info[0].m_field;
+      field_info.pop_front();
+    }
+    return false;
+  });
+  assert(field_info.empty());
   return false;
 }
 
@@ -606,9 +618,10 @@ static Item *parse_expression(THD *thd, Item *item, Query_block *query_block,
 
 /**
   Resolves the expression given. Used with parse_expression()
-  to clone an item during condition pushdown. Presumes the
-  expression has the correct contexts set for all the fields
-  that are part of it.
+  to clone an item during condition pushdown. For all the
+  column references in the expression, information like table
+  reference, field, context etc is expected to be correctly set.
+  This will just do a short cut fix_fields() for Item_field.
 
   @param thd         Current thread.
   @param item        Item to resolve.
@@ -706,10 +719,10 @@ Item *Query_block::clone_expression(THD *thd, Item *item, bool is_system_view) {
   if (item->item_name.is_set())
     cloned_item->item_name.set(item->item_name.ptr(), item->item_name.length());
 
-  // Collect contexts for all the fields in the original expression.
-  // Assign the contexts for the corresponding fields in the cloned
-  // expression. We use the same contexts for resolving the expression.
-  if (copy_contexts(thd, item, cloned_item)) return nullptr;
+  // Collect details like table reference, field etc from the fields in the
+  // original expression. Assign it to the corresponding field in the cloned
+  // expression.
+  if (copy_field_info(thd, item, cloned_item)) return nullptr;
   return resolve_expression(thd, cloned_item, this);
 }
 
