@@ -155,7 +155,7 @@ Table_ident::Table_ident(Protocol *protocol, const LEX_CSTRING &db_arg,
     db = db_arg;
 }
 
-bool lex_init(void) {
+bool lex_init() {
   DBUG_TRACE;
 
   for (CHARSET_INFO **cs = all_charsets;
@@ -168,7 +168,7 @@ bool lex_init(void) {
   return false;
 }
 
-void lex_free(void) {  // Call this when daemon ends
+void lex_free() {  // Call this when daemon ends
   DBUG_TRACE;
 }
 
@@ -853,9 +853,8 @@ static bool consume_optimizer_hints(Lex_input_stream *lip) {
                               lip->m_digest);
     PT_hint_list *hint_list = nullptr;
     int rc = HINT_PARSER_parse(lip->m_thd, &hint_scanner, &hint_list);
-    if (rc == 2)
-      return true;  // Bison's internal OOM error
-    else if (rc == 1) {
+    if (rc == 2) return true;  // Bison's internal OOM error
+    if (rc == 1) {
       /*
         This branch is for 2 cases:
         1. YYABORT in the hint parser grammar (we use it to process OOM errors),
@@ -863,14 +862,12 @@ static bool consume_optimizer_hints(Lex_input_stream *lip) {
       */
       lip->start_token();  // adjust error message text pointer to "/*+"
       return true;
-    } else {
-      lip->yylineno = hint_scanner.get_lineno();
-      lip->yySkipn(hint_scanner.get_ptr() - lip->get_ptr());
-      lip->yylval->optimizer_hints = hint_list;  // NULL in case of syntax error
-      lip->m_digest =
-          hint_scanner.get_digest();  // NULL is digest buf. is full.
-      return false;
     }
+    lip->yylineno = hint_scanner.get_lineno();
+    lip->yySkipn(hint_scanner.get_ptr() - lip->get_ptr());
+    lip->yylval->optimizer_hints = hint_list;   // NULL in case of syntax error
+    lip->m_digest = hint_scanner.get_digest();  // NULL is digest buf. is full.
+    return false;
   } else
     return false;
 }
@@ -3410,8 +3407,7 @@ bool accept_for_join(mem_root_deque<TABLE_LIST *> *tables,
 bool accept_table(TABLE_LIST *t, Select_lex_visitor *visitor) {
   if (t->nested_join && accept_for_join(&t->nested_join->join_list, visitor))
     return true;
-  else if (t->is_derived())
-    t->derived_query_expression()->accept(visitor);
+  if (t->is_derived()) t->derived_query_expression()->accept(visitor);
   if (walk_item(t->join_cond(), visitor)) return true;
   return false;
 }

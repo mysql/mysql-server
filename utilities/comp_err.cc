@@ -216,7 +216,7 @@ static struct my_option my_long_options[] = {
      0, nullptr, 0, nullptr}};
 
 static struct languages *parse_charset_string(char *str);
-static struct errors *parse_error_string(char *ptr, int er_count,
+static struct errors *parse_error_string(char *str, int er_count,
                                          PFS_error_stat error_stat);
 static struct message *parse_message_string(struct message *new_message,
                                             char *str);
@@ -229,7 +229,7 @@ static int parse_input_file(const char *file_name, struct errors ***last_error,
                             struct languages **top_language,
                             int base_error_code, PFS_error_stat error_stat);
 static int get_options(int *argc, char ***argv);
-static void usage(void);
+static void usage();
 static bool get_one_option(int optid, const struct my_option *opt,
                            char *argument);
 static char *parse_text_line(char *pos);
@@ -684,7 +684,7 @@ static int parse_input_file(const char *file_name, struct errors ***last_error,
   char *str, buff[1000];
   const char *fail = nullptr;
   struct errors *current_error = nullptr, **tail_error = *last_error;
-  struct message current_message;
+  struct message current_message {};
   int rcount = 0; /* Number of error codes in current section. */
   int ecount = 0; /* Number of error codes in total. */
   DBUG_TRACE;
@@ -939,9 +939,7 @@ static bool parse_reserved_error_section(char *str) {
   }
 
   auto ret = reserved_sections.insert(err_range(sec_start, sec_end));
-  if (!ret.second) return true;
-
-  return false;
+  return (!ret.second);
 }
 
 /* Parsing of the default language line. e.g. "default-language eng" */
@@ -1392,7 +1390,7 @@ static bool get_one_option(int optid,
   return false;
 }
 
-static void usage(void) {
+static void usage() {
   DBUG_TRACE;
   print_version();
   printf(

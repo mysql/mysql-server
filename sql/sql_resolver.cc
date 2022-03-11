@@ -3686,7 +3686,8 @@ static bool replace_subcondition(THD *thd, Item **tree, Item *old_cond,
     if (do_fix_fields && new_cond->fix_fields(thd, tree)) return true;
     if (found_ptr != nullptr) *found_ptr = true;  // inform upper call
     return false;
-  } else if ((*tree)->type() == Item::COND_ITEM) {
+  }
+  if ((*tree)->type() == Item::COND_ITEM) {
     List_iterator<Item> li(*((Item_cond *)(*tree))->argument_list());
     Item *item;
     bool found_local = false;
@@ -3701,8 +3702,8 @@ static bool replace_subcondition(THD *thd, Item **tree, Item *old_cond,
     }
   }
   // item not found
-  if (found_ptr == nullptr) return true;  // if it is the top call: error,
-  return false;                           // else: no error.
+  // if it is the top call: error, else: no error.
+  return (found_ptr == nullptr);
 }
 
 /**
@@ -4363,21 +4364,20 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
       if (resolution == RESOLVED_AGAINST_ALIAS && from_field == not_found_field)
         order->used_alias = true;
       return false;
-    } else {
-      /*
-        There is a field with the same name in the FROM clause. This
-        is the field that will be chosen. In this case we issue a
-        warning so the user knows that the field from the FROM clause
-        overshadows the column reference from the SELECT list.
-        For window functions we do not need to issue this warning
-        (field should resolve to a unique column in the FROM derived
-        table expression, cf. SQL 2016 section 7.15 SR 4)
-      */
-      if (!is_window_order) {
-        push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NON_UNIQ_ERROR,
-                            ER_THD(thd, ER_NON_UNIQ_ERROR),
-                            ((Item_ident *)order_item)->field_name, thd->where);
-      }
+    }
+    /*
+      There is a field with the same name in the FROM clause. This
+      is the field that will be chosen. In this case we issue a
+      warning so the user knows that the field from the FROM clause
+      overshadows the column reference from the SELECT list.
+      For window functions we do not need to issue this warning
+      (field should resolve to a unique column in the FROM derived
+      table expression, cf. SQL 2016 section 7.15 SR 4)
+    */
+    if (!is_window_order) {
+      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NON_UNIQ_ERROR,
+                          ER_THD(thd, ER_NON_UNIQ_ERROR),
+                          ((Item_ident *)order_item)->field_name, thd->where);
     }
   }
 

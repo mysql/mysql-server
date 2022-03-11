@@ -220,8 +220,8 @@ bool servers_init(THD *thd) {
     return_val = servers_reload(thd);
     delete thd;
     return return_val;
-  } else
-    return (servers_reload(thd));
+  }
+  return servers_reload(thd);
 }
 
 /*

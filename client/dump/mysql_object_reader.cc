@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -86,7 +86,6 @@ void Mysql_object_reader::read_table_rows_task(
   Table *table = table_rows_dump_task->get_related_table();
 
   std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row *> columns;
-  std::vector<std::string> field_names;
 
   runner->run_query_store(
       "SELECT `COLUMN_NAME`, `EXTRA` FROM " +

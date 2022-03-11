@@ -275,11 +275,8 @@ const std::string &Command_names::str_global(enum_server_command cmd) {
 const std::string Command_names::m_replace_str{"Register Slave"};
 
 bool command_satisfy_acl_cache_requirement(unsigned command) {
-  if ((sql_command_flags[command] & CF_REQUIRE_ACL_CACHE) > 0 &&
-      skip_grant_tables() == true)
-    return false;
-  else
-    return true;
+  return !((sql_command_flags[command] & CF_REQUIRE_ACL_CACHE) > 0 &&
+           skip_grant_tables());
 }
 
 /**
@@ -426,7 +423,7 @@ bool stmt_causes_implicit_commit(const THD *thd, uint mask) {
 uint sql_command_flags[SQLCOM_END + 1];
 uint server_command_flags[COM_END + 1];
 
-void init_sql_command_flags(void) {
+void init_sql_command_flags() {
   /* Initialize the server command flags array. */
   memset(server_command_flags, 0, sizeof(server_command_flags));
 

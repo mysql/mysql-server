@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -932,9 +932,8 @@ bool tablespace_creator::create() {
                        " root page numbers couldn't"
                        " be determined";
         return true;
-      } else {
-        m_tablespace->add_sdi(root);
       }
+      m_tablespace->add_sdi(root);
 
     } else {
       /* We found next file of system tablespace. */
@@ -1141,12 +1140,11 @@ bool tablespace_creator::determine_page_size(File file_in,
 
   if (min_corruption_ratio == 1.0) {
     ib::error() << "Page size couldn't be determined";
-    return (false);
-  } else {
-    ib::info() << "Page size determined is : " << final_page_size;
-    page_size.copy_from(final_page_size);
-    return (true);
+    return false;
   }
+  ib::info() << "Page size determined is : " << final_page_size;
+  page_size.copy_from(final_page_size);
+  return true;
 }
 
 /** Verify checksum of the page and return corruption ratio
@@ -1541,9 +1539,8 @@ uint64_t ibd2sdi::read_page_and_return_level(ib_tablespace *ts,
   if (fetch_page(ts, page_num, buf_len, buf) == IB_ERROR) {
     ib::error() << "Couldn't read page " << page_num;
     return UINT64_MAX;
-  } else {
-    ib::dbug() << "Read page number: " << page_num;
   }
+  ib::dbug() << "Read page number: " << page_num;
 
   ulint page_type = fil_page_get_type(buf);
 
@@ -1788,9 +1785,8 @@ err_t ibd2sdi::reach_to_leftmost_leaf_level(ib_tablespace *ts, uint32_t buf_len,
     if (rec_type != REC_STATUS_INFIMUM) {
       ib::error() << "INFIMUM not found on index page " << cur_page_num;
       break;
-    } else {
-      ib::dbug() << "INFIMUM found";
     }
+    ib::dbug() << "INFIMUM found";
 
     ulint next_rec_off_t =
         mach_read_from_2(buf + PAGE_NEW_INFIMUM - REC_OFF_NEXT);
@@ -1822,10 +1818,9 @@ err_t ibd2sdi::reach_to_leftmost_leaf_level(ib_tablespace *ts, uint32_t buf_len,
     ib::error() << "Leftmost leaf level page not found"
                 << " or invalid";
     return FALIURE;
-  } else {
-    ib::dbug() << "Reached leaf level";
-    return SUCCESS;
   }
+  ib::dbug() << "Reached leaf level";
+  return SUCCESS;
 }
 
 /** Extract SDI record fields
@@ -2016,9 +2011,8 @@ byte *ibd2sdi::get_next_rec(ib_tablespace *ts, byte *current_rec_arg,
       ib::error() << "Couldn't read next page " << next_page_num;
       *corrupt = true;
       return nullptr;
-    } else {
-      ib::dbug() << "Read page number: " << next_page_num;
     }
+    ib::dbug() << "Read page number: " << next_page_num;
 
     ulint page_type = fil_page_get_type(buf);
 
@@ -2306,9 +2300,8 @@ int main(int argc, char **argv) {
                     << " temporary file " << tmp_filename_buf
                     << " and delete it manually";
         return 1;
-      } else {
-        try_delete_temporary_filename(tmp_filename_buf);
       }
+      try_delete_temporary_filename(tmp_filename_buf);
     }
   } else if (opts.is_dump_file) {
     try_delete_temporary_filename(tmp_filename_buf);

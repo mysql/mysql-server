@@ -101,36 +101,36 @@ static inline int set_client_ssl_options(MYSQL *mysql) {
     if (!fi) {
       fprintf(stderr, "Error: Can't open the ssl session data file.\n");
       return 1;
-    } else {
-      long file_length = sizeof(buff) - 1;
-      if (0 == fseek(fi, 0, SEEK_END)) {
-        file_length = ftell(fi);
-        if (file_length > 0)
-          file_length = std::min(file_length, 65536L);
-        else
-          file_length = sizeof(buff) - 1;
-        fseek(fi, 0, SEEK_SET);
-      }
-      if (file_length > (long)(sizeof(buff) - 1)) {
-        bufptr = (char *)malloc(file_length + 1);
-        if (bufptr)
-          bufptr[file_length] = 0;
-        else {
-          bufptr = &buff[0];
-          file_length = sizeof(buff) - 1;
-        }
-      }
-      read = fread(bufptr, 1, file_length, fi);
-      if (!read) {
-        fprintf(stderr, "Error: Can't read the ssl session data file.\n");
-        fclose(fi);
-        if (bufptr != &buff[0]) free(bufptr);
-        return 1;
-      }
-      assert(read <= (size_t)file_length);
-      bufptr[read] = 0;
-      fclose(fi);
     }
+    long file_length = sizeof(buff) - 1;
+    if (0 == fseek(fi, 0, SEEK_END)) {
+      file_length = ftell(fi);
+      if (file_length > 0)
+        file_length = std::min(file_length, 65536L);
+      else
+        file_length = sizeof(buff) - 1;
+      fseek(fi, 0, SEEK_SET);
+    }
+    if (file_length > (long)(sizeof(buff) - 1)) {
+      bufptr = (char *)malloc(file_length + 1);
+      if (bufptr)
+        bufptr[file_length] = 0;
+      else {
+        bufptr = &buff[0];
+        file_length = sizeof(buff) - 1;
+      }
+    }
+    read = fread(bufptr, 1, file_length, fi);
+    if (!read) {
+      fprintf(stderr, "Error: Can't read the ssl session data file.\n");
+      fclose(fi);
+      if (bufptr != &buff[0]) free(bufptr);
+      return 1;
+    }
+    assert(read <= (size_t)file_length);
+    bufptr[read] = 0;
+    fclose(fi);
+
     int ret = 0;
     if (read) ret = mysql_options(mysql, MYSQL_OPT_SSL_SESSION_DATA, buff);
     if (bufptr != &buff[0]) free(bufptr);
@@ -146,8 +146,8 @@ inline static bool ssl_client_check_post_connect_ssl_setup(
     report_error(
         "--ssl-session-data specified but the session was not reused.");
     return true;
-  } else
-    return false;
+  }
+  return false;
 }
 
 #define SSL_SET_OPTIONS(mysql) set_client_ssl_options(mysql)

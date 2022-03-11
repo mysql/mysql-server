@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -772,10 +772,9 @@ static bool handle_list_of_fields(List_iterator<char> it, TABLE *table,
           array for partitioning fields.
         */
         return false;
-      } else {
-        my_error(ER_FIELD_NOT_FOUND_PART_ERROR, MYF(0));
-        return true;
       }
+      my_error(ER_FIELD_NOT_FOUND_PART_ERROR, MYF(0));
+      return true;
     }
   }
   result = set_up_field_array(table, is_sub_part);
@@ -1626,10 +1625,8 @@ static int add_write(File fptr, const char *buf, size_t len) {
   size_t ret_code =
       mysql_file_write(fptr, (const uchar *)buf, len, MYF(MY_FNABP));
 
-  if (likely(ret_code == 0))
-    return 0;
-  else
-    return 1;
+  if (likely(ret_code == 0)) return 0;
+  return 1;
 }
 
 static int add_string_object(File fptr, String *string) {
@@ -2499,10 +2496,8 @@ bool partition_key_modified(TABLE *table, const MY_BITMAP *fields) {
 static inline int part_val_int(Item *item_expr, longlong *result) {
   *result = item_expr->val_int();
   if (item_expr->null_value) {
-    if (current_thd->is_error())
-      return true;
-    else
-      *result = LLONG_MIN;
+    if (current_thd->is_error()) return true;
+    *result = LLONG_MIN;
   }
   return false;
 }
@@ -2692,7 +2687,6 @@ static void copy_to_part_field_buffers(Field **ptr, uchar **field_bufs,
     }
     field_bufs++;
   }
-  return;
 }
 
 /*
@@ -2711,7 +2705,6 @@ static void restore_part_field_pointers(Field **ptr, uchar **restore_ptr) {
     field->set_field_ptr(*restore_ptr);
     restore_ptr++;
   }
-  return;
 }
 
 /*
@@ -3597,8 +3590,7 @@ bool verify_data_with_partition(TABLE *table, TABLE *part_table,
 err:
   set_field_ptr(part_info->full_part_field_array, old_rec, table->record[0]);
   part_table->record[0] = old_rec;
-  if (error) return true;
-  return false;
+  return error != 0;
 }
 
 /*
@@ -3711,7 +3703,8 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
         */
         prune_partition_set(table, part_spec);
         return;
-      } else if (part_info->is_sub_partitioned()) {
+      }
+      if (part_info->is_sub_partitioned()) {
         if (part_info->all_fields_in_SPF.is_set(index)) {
           if (get_sub_part_id_from_key(table, buf, key_info, key_spec,
                                        &sub_part)) {
@@ -3753,7 +3746,8 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
           */
           prune_partition_set(table, part_spec);
           return;
-        } else if (part_info->is_sub_partitioned()) {
+        }
+        if (part_info->is_sub_partitioned()) {
           if (check_part_func_bound(part_info->subpart_field_array)) {
             if (get_sub_part_id_from_key(table, buf, key_info, key_spec,
                                          &sub_part)) {
@@ -4369,7 +4363,8 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
 
         thd->work_part_info = tab_part_info;
         return false;
-      } else if (new_part_no > curr_part_no) {
+      }
+      if (new_part_no > curr_part_no) {
         /*
           We will add more partitions, we use the ADD PARTITION without
           setting the flag for no default number of partitions

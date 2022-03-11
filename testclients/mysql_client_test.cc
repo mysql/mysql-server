@@ -1087,12 +1087,12 @@ static void test_wl4435_3() {
 
   WL4435_TEST("INT", "2147483647", MYSQL_TYPE_LONG, MYSQL_TYPE_LONG, int, ,
               ("  - INT / int / MYSQL_TYPE_LONG:\t\t\t %d", pspv),
-              pspv == 2147483647l);
+              pspv == 2147483647L);
 
   WL4435_TEST("BIGINT", "9223372036854775807", MYSQL_TYPE_LONGLONG,
               MYSQL_TYPE_LONGLONG, long long, ,
               ("  - BIGINT / long long / MYSQL_TYPE_LONGLONG:\t\t %lld", pspv),
-              pspv == 9223372036854775807ll);
+              pspv == 9223372036854775807LL);
 
   WL4435_TEST("TIMESTAMP", "'2007-11-18 15:01:02'", MYSQL_TYPE_TIMESTAMP,
               MYSQL_TYPE_TIMESTAMP, MYSQL_TIME, ,
@@ -11358,8 +11358,8 @@ static void test_bug5194() {
             "(as expected).\n",
             nrows * COLUMN_COUNT);
       break;
-    } else
-      check_execute(stmt, rc);
+    }
+    check_execute(stmt, rc);
 
     if (!opt_silent)
       printf("Insert: query length= %d, row count= %d, param count= %lu\n",
@@ -12168,7 +12168,7 @@ static void test_conversion() {
   myquery(rc);
 }
 
-static void test_rewind(void) {
+static void test_rewind() {
   MYSQL_STMT *stmt;
   MYSQL_BIND my_bind;
   int rc = 0;
@@ -12529,7 +12529,7 @@ static void test_truncation_option() {
 
 /* Bug#6761 - mysql_list_fields doesn't work */
 
-static void test_bug6761(void) {
+static void test_bug6761() {
   const char *stmt_text;
   MYSQL_RES *res;
   int rc;
@@ -15415,8 +15415,7 @@ static void test_bug21206() {
                                 "INSERT INTO t1 VALUES (1), (2), (3)"};
   const char *query = "SELECT * FROM t1";
 
-  Stmt_fetch *fetch_array =
-      (Stmt_fetch *)calloc(cursor_count, sizeof(Stmt_fetch));
+  auto *fetch_array = (Stmt_fetch *)calloc(cursor_count, sizeof(Stmt_fetch));
 
   Stmt_fetch *fetch;
 
@@ -17339,7 +17338,7 @@ static void test_wl4284_1() {
   myquery(rc);
 }
 
-static void test_bug38486(void) {
+static void test_bug38486() {
   MYSQL_STMT *stmt;
   const char *stmt_text;
   unsigned long type = CURSOR_TYPE_READ_ONLY;
@@ -17367,7 +17366,7 @@ static void test_bug38486(void) {
      given an already connected MYSQL handle.
 */
 
-static void test_bug33831(void) {
+static void test_bug33831() {
   MYSQL *l_mysql;
 
   DBUG_TRACE;
@@ -17391,7 +17390,7 @@ static void test_bug33831(void) {
   mysql_close(l_mysql);
 }
 
-static void test_bug40365(void) {
+static void test_bug40365() {
   uint rc, i;
   MYSQL_STMT *stmt = nullptr;
   MYSQL_BIND my_bind[2];
@@ -17479,7 +17478,7 @@ static void test_bug40365(void) {
   the server. Verifies that it is connected to a debug server before proceeding
   with the test.
  */
-static void test_bug43560(void) {
+static void test_bug43560() {
   MYSQL *conn;
   uint rc;
   MYSQL_STMT *stmt = nullptr;
@@ -17612,7 +17611,7 @@ static void test_bug36326() {
              string value.
 */
 
-static void test_bug41078(void) {
+static void test_bug41078() {
   uint rc;
   MYSQL_STMT *stmt = nullptr;
   MYSQL_BIND param, result;

@@ -926,8 +926,6 @@ static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables) {
   for (TABLE_LIST *tbl : *tables->view_tables) {
     prepare_for_positional_update(tbl->table, tbl);
   }
-
-  return;
 }
 
 static bool allocate_column_bitmap(THD *thd, TABLE *table, MY_BITMAP **bitmap) {

@@ -2233,9 +2233,10 @@ static bool rm_table_eval_gtid_and_table_groups_state(
         my_error(ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_ASSIGNED_GTID,
                  MYF(0));
         return true;
-      } else if (drop_ctx->base_non_atomic_tables.size() == 1 &&
-                 !drop_ctx->has_base_atomic_tables() &&
-                 !drop_ctx->has_base_nonexistent_tables()) {
+      }
+      if (drop_ctx->base_non_atomic_tables.size() == 1 &&
+          !drop_ctx->has_base_atomic_tables() &&
+          !drop_ctx->has_base_nonexistent_tables()) {
         /*
           Normal case. Single base table in SE which don't support atomic DDL
           so it will be logged as a single-table DROP TABLES statement.
@@ -8816,7 +8817,8 @@ static bool create_table_impl(
       */
       my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "native partitioning");
       return true;
-    } else if (create_info->db_type != engine_type) {
+    }
+    if (create_info->db_type != engine_type) {
       /*
         We come here when we don't use a partitioned handler.
         Since we use a partitioned table it must be "native partitioned".
@@ -17070,8 +17072,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       Disallow moving encrypted table (using general or file-per-table
       tablespace) to a unencrypted general tablespace.
     */
-    if (source_encrytion_type == true && destination_is_general_tablespace &&
-        destination_encrytion_type == false) {
+    if (source_encrytion_type && destination_is_general_tablespace &&
+        !destination_encrytion_type) {
       my_error(ER_TARGET_TABLESPACE_UNENCRYPTED, MYF(0));
       goto err_new_table_cleanup;
     }

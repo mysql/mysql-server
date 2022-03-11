@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -180,7 +180,7 @@ static unsigned char dh2048_g[] = {
     0x05,
 };
 
-static DH *get_dh2048(void) {
+static DH *get_dh2048() {
   DH *dh;
   if ((dh = DH_new())) {
     BIGNUM *p = BN_bin2bn(dh2048_p, sizeof(dh2048_p), nullptr);
@@ -581,10 +581,8 @@ long process_tls_version(const char *tls_version) {
     token = my_strtok_r(nullptr, separator, &lasts);
   }
 
-  if (!tls_found)
-    return -1;
-  else
-    return tls_ctx_flag;
+  if (!tls_found) return -1;
+  return tls_ctx_flag;
 }
 
 /************************ VioSSLFd **********************************/

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,10 +45,10 @@ void fatal_error(const char *r) {
 int main(int argc [[maybe_unused]], char **argv) {
   char client_key[] = "../SSL/client-key.pem",
        client_cert[] = "../SSL/client-cert.pem";
-  char ca_file[] = "../SSL/cacert.pem", *ca_path = 0, *cipher = 0;
-  struct st_VioSSLFd *ssl_connector = 0;
-  struct sockaddr_in sa;
-  Vio *client_vio = 0;
+  char ca_file[] = "../SSL/cacert.pem", *ca_path = nullptr, *cipher = nullptr;
+  struct st_VioSSLFd *ssl_connector = nullptr;
+  struct sockaddr_in sa {};
+  Vio *client_vio = nullptr;
   int err;
   char xbuf[100] = "Ohohhhhoh1234";
   enum enum_ssl_init_error ssl_init_error;
@@ -59,8 +59,8 @@ int main(int argc [[maybe_unused]], char **argv) {
   DBUG_PUSH(default_dbug_option);
 
   printf("Client key/cert : %s/%s\n", client_key, client_cert);
-  if (ca_file != 0) printf("CAfile          : %s\n", ca_file);
-  if (ca_path != 0) printf("CApath          : %s\n", ca_path);
+  if (ca_file != nullptr) printf("CAfile          : %s\n", ca_file);
+  if (ca_path != nullptr) printf("CApath          : %s\n", ca_path);
 
   ssl_connector = new_VioSSLConnectorFd(client_key, client_cert, ca_file,
                                         ca_path, cipher, &ssl_init_error);

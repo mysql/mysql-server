@@ -745,15 +745,15 @@ static bool ContainsAnyMRRPaths(AccessPath *path) {
 Item *CreateConjunction(List<Item> *items) {
   if (items->size() == 0) {
     return nullptr;
-  } else if (items->size() == 1) {
-    return items->head();
-  } else {
-    Item *condition = new Item_cond_and(*items);
-    condition->quick_fix_field();
-    condition->update_used_tables();
-    condition->apply_is_true();
-    return condition;
   }
+  if (items->size() == 1) {
+    return items->head();
+  }
+  Item *condition = new Item_cond_and(*items);
+  condition->quick_fix_field();
+  condition->update_used_tables();
+  condition->apply_is_true();
+  return condition;
 }
 
 /**
@@ -1366,16 +1366,17 @@ static Substructure FindSubstructure(
   if (is_semijoin) {
     *substructure_end = semijoin_end;
     return Substructure::SEMIJOIN;
-  } else if (is_outer_join) {
+  }
+  if (is_outer_join) {
     *substructure_end = outer_join_end;
     return Substructure::OUTER_JOIN;
-  } else if (is_weedout) {
+  }
+  if (is_weedout) {
     *substructure_end = weedout_end;
     return Substructure::WEEDOUT;
-  } else {
-    *substructure_end = NO_PLAN_IDX;  // Not used.
-    return Substructure::NONE;
   }
+  *substructure_end = NO_PLAN_IDX;  // Not used.
+  return Substructure::NONE;
 }
 
 /// @cond Doxygen_is_confused
@@ -3234,12 +3235,9 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl) {
   DBUG_TRACE;
 
   if (sjtbl->is_confluent) {
-    if (sjtbl->have_confluent_row)
-      return 1;
-    else {
-      sjtbl->have_confluent_row = true;
-      return 0;
-    }
+    if (sjtbl->have_confluent_row) return 1;
+    sjtbl->have_confluent_row = true;
+    return 0;
   }
 
   uchar *ptr = sjtbl->tmp_table->visible_field_ptr()[0]->field_ptr();

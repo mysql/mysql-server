@@ -3685,27 +3685,26 @@ bool check_field_is_const(Item *cond, const Item *order_item,
         return false;
     }
     return !and_level;
-  } else {
-    if (cond->type() != Item::FUNC_ITEM) return false;
-    Item_func *const func = down_cast<Item_func *>(cond);
-    if (func->functype() != Item_func::EQUAL_FUNC &&
-        func->functype() != Item_func::EQ_FUNC)
-      return false;
-    Item_func_comparison *comp = down_cast<Item_func_comparison *>(func);
-    Item *left = comp->arguments()[0];
-    Item *right = comp->arguments()[1];
-    if (equal(left, order_item, order_field)) {
-      if (equality_determines_uniqueness(comp, left, right)) {
-        if (*const_item != nullptr) return right->eq(*const_item, true);
-        *const_item = right;
-        return true;
-      }
-    } else if (equal(right, order_item, order_field)) {
-      if (equality_determines_uniqueness(comp, right, left)) {
-        if (*const_item != nullptr) return left->eq(*const_item, true);
-        *const_item = left;
-        return true;
-      }
+  }
+  if (cond->type() != Item::FUNC_ITEM) return false;
+  Item_func *const func = down_cast<Item_func *>(cond);
+  if (func->functype() != Item_func::EQUAL_FUNC &&
+      func->functype() != Item_func::EQ_FUNC)
+    return false;
+  Item_func_comparison *comp = down_cast<Item_func_comparison *>(func);
+  Item *left = comp->arguments()[0];
+  Item *right = comp->arguments()[1];
+  if (equal(left, order_item, order_field)) {
+    if (equality_determines_uniqueness(comp, left, right)) {
+      if (*const_item != nullptr) return right->eq(*const_item, true);
+      *const_item = right;
+      return true;
+    }
+  } else if (equal(right, order_item, order_field)) {
+    if (equality_determines_uniqueness(comp, right, left)) {
+      if (*const_item != nullptr) return left->eq(*const_item, true);
+      *const_item = left;
+      return true;
     }
   }
   return false;
@@ -3807,10 +3806,8 @@ bool test_if_subpart(ORDER *a, ORDER *b) {
   // If the second argument is not subpart of the first return false
   if (second) return false;
   // Else assign the direction of the second argument to the first
-  else {
-    for (; a && b; a = a->next, b = b->next) a->direction = b->direction;
-    return true;
-  }
+  for (; a && b; a = a->next, b = b->next) a->direction = b->direction;
+  return true;
 }
 
 /**

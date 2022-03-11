@@ -353,13 +353,12 @@ static table_map get_other_dep(opt_hints_enum type, table_map hint_tab_map,
     case JOIN_PREFIX_HINT_ENUM:
       if (hint_tab_map & table_map)  // Hint table: No additional dependencies
         return 0;
-      else  // Other tables: depend on all hint tables
-        return hint_tab_map;
+      // Other tables: depend on all hint tables
+      return hint_tab_map;
     case JOIN_SUFFIX_HINT_ENUM:
       if (hint_tab_map & table_map)  // Hint table: depends on all other tables
         return ~hint_tab_map;
-      else
-        return 0;
+      return 0;
     case JOIN_ORDER_HINT_ENUM:
       return 0;  // No additional dependencies
     default:
@@ -866,8 +865,9 @@ static bool get_hint_state(Opt_hints *hint, Opt_hints *parent_hint,
     if (hint && hint->is_specified(type_arg)) {
       *ret_val = hint->get_switch(type_arg);
       return true;
-    } else if (opt_hint_info[type_arg].check_upper_lvl &&
-               parent_hint->is_specified(type_arg)) {
+    }
+    if (opt_hint_info[type_arg].check_upper_lvl &&
+        parent_hint->is_specified(type_arg)) {
       *ret_val = parent_hint->get_switch(type_arg);
       return true;
     }

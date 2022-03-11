@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2001, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -564,13 +564,13 @@ static void vio_get_normalized_ip(const struct sockaddr *src, size_t src_length,
       break;
 
     case AF_INET6: {
-      const struct sockaddr_in6 *src_addr6 = (const struct sockaddr_in6 *)src;
+      const auto *src_addr6 = (const struct sockaddr_in6 *)src;
       const struct in6_addr *src_ip6 = &(src_addr6->sin6_addr);
       const uint32 *src_ip6_int32 =
           pointer_cast<const uint32 *>(src_ip6->s6_addr);
 
       if (IN6_IS_ADDR_V4MAPPED(src_ip6) || IN6_IS_ADDR_V4COMPAT(src_ip6)) {
-        struct sockaddr_in *dst_ip4 = (struct sockaddr_in *)dst;
+        auto *dst_ip4 = (struct sockaddr_in *)dst;
 
         /*
           This is an IPv4-mapped or IPv4-compatible IPv6 address. It should
@@ -625,8 +625,8 @@ static void vio_get_normalized_ip(const struct sockaddr *src, size_t src_length,
 bool vio_get_normalized_ip_string(const struct sockaddr *addr,
                                   size_t addr_length, char *ip_string,
                                   size_t ip_string_size) {
-  struct sockaddr_storage norm_addr_storage;
-  struct sockaddr *norm_addr = (struct sockaddr *)&norm_addr_storage;
+  struct sockaddr_storage norm_addr_storage {};
+  auto *norm_addr = (struct sockaddr *)&norm_addr_storage;
   size_t norm_addr_length;
   int err_code;
 
@@ -678,8 +678,8 @@ bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
     int err_code;
     char port_buffer[NI_MAXSERV];
 
-    struct sockaddr_storage addr_storage;
-    struct sockaddr *addr = (struct sockaddr *)&addr_storage;
+    struct sockaddr_storage addr_storage {};
+    auto *addr = (struct sockaddr *)&addr_storage;
     socket_len_t addr_length = sizeof(addr_storage);
 
     /* Get sockaddr by socked fd. */
@@ -1123,9 +1123,8 @@ bool vio_socket_connect(Vio *vio, struct sockaddr *addr, socklen_t len,
   if (nonblocking && wait) {
     if (connect_done) *connect_done = false;
     return false;
-  } else {
-    return (ret != 0);
   }
+  return (ret != 0);
 }
 
 /**
@@ -1168,7 +1167,7 @@ bool vio_is_connected(Vio *vio) {
   if (!bytes && vio->type == VIO_TYPE_SSL)
     bytes = SSL_pending((SSL *)vio->ssl_arg);
 
-  return bytes ? true : false;
+  return bytes != 0;
 }
 
 #ifndef NDEBUG

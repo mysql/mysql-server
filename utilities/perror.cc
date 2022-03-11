@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,7 @@ static struct my_option my_long_options[] = {
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
 
-static void usage(void) {
+static void usage() {
   print_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   printf(
@@ -220,7 +220,7 @@ void my_handler_error_register() {
                     HA_ERR_FIRST + array_elements(handler_error_messages) - 1);
 }
 
-void my_handler_error_unregister(void) {
+void my_handler_error_unregister() {
   my_error_unregister(
       HA_ERR_FIRST, HA_ERR_FIRST + array_elements(handler_error_messages) - 1);
 }

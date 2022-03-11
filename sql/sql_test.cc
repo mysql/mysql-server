@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -289,10 +289,8 @@ static inline int dl_compare(const TABLE_LOCK_INFO *a,
                              const TABLE_LOCK_INFO *b) {
   if (a->thread_id > b->thread_id) return 1;
   if (a->thread_id < b->thread_id) return -1;
-  if (a->waiting == b->waiting)
-    return 0;
-  else if (a->waiting)
-    return -1;
+  if (a->waiting == b->waiting) return 0;
+  if (a->waiting) return -1;
   return 1;
 }
 

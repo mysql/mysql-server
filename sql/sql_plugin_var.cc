@@ -609,7 +609,7 @@ int check_func_bool(THD *, SYS_VAR *, void *save, st_mysql_value *value) {
     if (tmp > 1 || tmp < 0) goto err;
     result = (int)tmp;
   }
-  *(bool *)save = result ? true : false;
+  *(bool *)save = (result != 0);
   return 0;
 err:
   return 1;
@@ -816,10 +816,8 @@ st_bookmark *find_bookmark(const char *plugin, const char *name, int flags) {
   varname[0] = flags & PLUGIN_VAR_TYPEMASK;
 
   const auto it = get_bookmark_hash()->find(std::string(varname, length - 1));
-  if (it == get_bookmark_hash()->end())
-    return nullptr;
-  else
-    return it->second;
+  if (it == get_bookmark_hash()->end()) return nullptr;
+  return it->second;
 }
 
 void plugin_opt_set_limits(struct my_option *options, const SYS_VAR *opt) {

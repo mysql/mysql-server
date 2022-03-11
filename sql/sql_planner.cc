@@ -146,18 +146,20 @@ double find_cost_for_ref(const THD *thd, TABLE *table, unsigned keyno,
   //  The costs can be calculated only if the table is materialized.
   if (table->pos_in_table_list->is_derived_unfinished_materialization()) {
     return worst_seeks;
-  } else if (table->covering_keys.is_set(keyno)) {
+  }
+  if (table->covering_keys.is_set(keyno)) {
     // We can use only index tree
     const Cost_estimate index_read_cost =
         table->file->index_scan_cost(keyno, 1, num_rows);
     return index_read_cost.total_cost();
-  } else if (keyno == table->s->primary_key &&
-             table->file->primary_key_is_clustered()) {
+  }
+  if (keyno == table->s->primary_key &&
+      table->file->primary_key_is_clustered()) {
     const Cost_estimate table_read_cost =
         table->file->read_cost(keyno, 1, num_rows);
     return table_read_cost.total_cost();
-  } else
-    return min(table->file->page_read_cost(keyno, num_rows), worst_seeks);
+  }
+  return min(table->file->page_read_cost(keyno, num_rows), worst_seeks);
 }
 
 /**
@@ -1483,7 +1485,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
           effects on DBT-3 was observed when removing it, so keeping
           it for now.
   */
-  if ((filter * fanout) < 0.05f) filter = 0.05f / static_cast<float>(fanout);
+  if ((filter * fanout) < 0.05F) filter = 0.05F / static_cast<float>(fanout);
 
 cleanup:
   filtering_effect_trace.end();
@@ -1491,7 +1493,7 @@ cleanup:
 
   // Clear tmp_set so it can be used elsewhere
   bitmap_clear_all(&table->tmp_set);
-  assert(filter >= 0.0f && filter <= 1.0f);
+  assert(filter >= 0.0F && filter <= 1.0F);
   return filter;
 }
 
@@ -2949,10 +2951,8 @@ done:
 
 static inline bool almost_equal(double left, double right) {
   const double boundary = 0.1;  // 10 percent limit
-  if ((left >= right * (1.0 - boundary)) && (left <= right * (1.0 + boundary)))
-    return true;
-  else
-    return false;
+  return ((left >= right * (1.0 - boundary)) &&
+          (left <= right * (1.0 + boundary)));
 }
 
 /**

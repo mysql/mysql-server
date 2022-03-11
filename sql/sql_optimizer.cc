@@ -2186,8 +2186,8 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
         and there is no WHERE condition since a condition may potentially
         require more rows to be fetch from FT index.
       */
-      else if (!tab->condition() && select_limit != HA_POS_ERROR &&
-               select_limit <= ft_func->get_count()) {
+      if (!tab->condition() && select_limit != HA_POS_ERROR &&
+          select_limit <= ft_func->get_count()) {
         /* test_if_ft_index_order() always returns master MATCH function. */
         assert(!ft_func->master);
         /* ref is not set since there is no WHERE condition */
@@ -2831,12 +2831,11 @@ static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab,
             destroy(tab->range_scan());
             tab->set_range_scan(range_scan);
             return true;
-          } else {
-            Opt_trace_object(trace, "access_type_unchanged")
-                .add("ref_key_length", length)
-                .add("range_key_length", get_max_used_key_length(range_scan));
-            destroy(range_scan);
           }
+          Opt_trace_object(trace, "access_type_unchanged")
+              .add("ref_key_length", length)
+              .add("range_key_length", get_max_used_key_length(range_scan));
+          destroy(range_scan);
         }
       } else
         return length < get_max_used_key_length(tab->range_scan());  // 5)

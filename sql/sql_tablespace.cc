@@ -839,7 +839,7 @@ static bool set_table_encryption_type(THD *thd, const dd::Tablespace &ts,
     }
     // We throw warning only when creating a unencrypted table in a schema
     // which has default encryption enabled.
-    else if (is_request_to_encrypt == false)
+    if (is_request_to_encrypt == false)
       push_warning(thd, Sql_condition::SL_WARNING,
                    WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB,
                    ER_THD(thd, WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB));

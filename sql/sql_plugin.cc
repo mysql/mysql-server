@@ -485,7 +485,7 @@ static void plugin_var_memalloc_free(struct System_variables *vars);
 static void restore_pluginvar_names(sys_var *first);
 #define my_intern_plugin_lock(A, B) intern_plugin_lock(A, B)
 #define my_intern_plugin_lock_ci(A, B) intern_plugin_lock(A, B)
-static void reap_plugins(void);
+static void reap_plugins();
 
 // mysql.plugin table definition.
 static const int MYSQL_PLUGIN_TABLE_FIELD_COUNT = 2;
@@ -500,7 +500,7 @@ static const TABLE_FIELD_TYPE
 static const TABLE_FIELD_DEF mysql_plugin_table_def = {
     MYSQL_PLUGIN_TABLE_FIELD_COUNT, mysql_plugin_table_fields};
 
-malloc_unordered_map<std::string, st_bookmark *> *get_bookmark_hash(void) {
+malloc_unordered_map<std::string, st_bookmark *> *get_bookmark_hash() {
   return bookmark_hash;
 }
 
@@ -1163,7 +1163,7 @@ static void plugin_del(st_plugin_int *plugin) {
   plugin->mem_root.Clear();
 }
 
-static void reap_plugins(void) {
+static void reap_plugins() {
   st_plugin_int *plugin, **reap, **list;
 
   mysql_mutex_assert_owner(&LOCK_plugin);
@@ -2036,7 +2036,7 @@ error:
 /*
   Shutdown memcached plugin before binlog shuts down
 */
-void memcached_shutdown(void) {
+void memcached_shutdown() {
   if (initialized) {
     for (st_plugin_int **it = plugin_array->begin(); it != plugin_array->end();
          ++it) {
@@ -2065,7 +2065,7 @@ void memcached_shutdown(void) {
         are not unloaded in order to keep the call stack
         of the leaked objects.
 */
-void plugin_shutdown(void) {
+void plugin_shutdown() {
   size_t i;
   st_plugin_int **plugins, *plugin;
   st_plugin_dl **dl;
@@ -2233,10 +2233,8 @@ bool plugin_early_load_one(int *argc, char **argv, const char *plugin) {
 
   /* Make sure the internals are initialized */
   if (!initialized) {
-    if ((retval = plugin_init_internals()))
-      return retval;
-    else
-      initialized = true;
+    if ((retval = plugin_init_internals())) return retval;
+    initialized = true;
   }
   /* Allocate the temporary mem root, will be freed before returning */
   MEM_ROOT tmp_root(PSI_NOT_INSTRUMENTED, 4096);

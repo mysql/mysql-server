@@ -307,7 +307,6 @@ class Protocol_local final : public Protocol {
   bool store_column(const void *data, size_t length);
   void opt_add_row_to_rset();
 
- private:
   Ed_connection *m_connection;
   MEM_ROOT m_rset_root;
   List<Ed_row> *m_rset;
@@ -429,8 +428,6 @@ class Statement_backup {
 
     stmt->m_query_string = thd->query();
     thd->set_query(m_query_string);
-
-    return;
   }
 
   /**

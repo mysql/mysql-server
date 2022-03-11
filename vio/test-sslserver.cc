@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,13 +71,13 @@ static void do_ssl_stuff(TH_ARGS *args) {
 static void *client_thread(void *arg) {
   my_thread_init();
   do_ssl_stuff((TH_ARGS *)arg);
-  return 0;
+  return nullptr;
 }
 
 int main(int argc [[maybe_unused]], char **argv) {
   char server_key[] = "../SSL/server-key.pem",
        server_cert[] = "../SSL/server-cert.pem";
-  char ca_file[] = "../SSL/cacert.pem", *ca_path = 0, *cipher = 0;
+  char ca_file[] = "../SSL/cacert.pem", *ca_path = nullptr, *cipher = nullptr;
   struct st_VioSSLFd *ssl_acceptor;
   pthread_t th;
   TH_ARGS th_args;
@@ -94,8 +94,8 @@ int main(int argc [[maybe_unused]], char **argv) {
   DBUG_PUSH(default_dbug_option);
 
   printf("Server key/cert : %s/%s\n", server_key, server_cert);
-  if (ca_file != 0) printf("CAfile          : %s\n", ca_file);
-  if (ca_path != 0) printf("CApath          : %s\n", ca_path);
+  if (ca_file != nullptr) printf("CAfile          : %s\n", ca_file);
+  if (ca_path != nullptr) printf("CApath          : %s\n", ca_path);
 
   th_args.ssl_acceptor = ssl_acceptor =
       new_VioSSLAcceptorFd(server_key, server_cert, ca_file, ca_path, cipher);

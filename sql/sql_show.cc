@@ -2656,19 +2656,14 @@ static const char *thread_state_info(THD *invoking_thd, THD *inspected_thd) {
   if (inspected_thd->get_protocol()->get_rw_status()) {
     if (inspected_thd->get_protocol()->get_rw_status() == 2)
       return "Sending to client";
-    else if (inspected_thd->get_command() == COM_SLEEP)
-      return "";
-    else
-      return "Receiving from client";
+    if (inspected_thd->get_command() == COM_SLEEP) return "";
+    return "Receiving from client";
   } else {
     MUTEX_LOCK(lock, &inspected_thd->LOCK_current_cond);
     const char *proc_info = inspected_thd->proc_info_session(invoking_thd);
-    if (proc_info)
-      return proc_info;
-    else if (inspected_thd->current_cond.load())
-      return "Waiting on cond";
-    else
-      return nullptr;
+    if (proc_info) return proc_info;
+    if (inspected_thd->current_cond.load()) return "Waiting on cond";
+    return nullptr;
   }
 }
 
@@ -4250,7 +4245,7 @@ struct schema_table_ref {
 */
 static bool find_schema_table_in_plugin(THD *, plugin_ref plugin,
                                         void *p_table) {
-  schema_table_ref *p_schema_table = (schema_table_ref *)p_table;
+  auto *p_schema_table = (schema_table_ref *)p_table;
   const char *table_name = p_schema_table->table_name;
   ST_SCHEMA_TABLE *schema_table = plugin_data<ST_SCHEMA_TABLE *>(plugin);
   DBUG_TRACE;
@@ -4699,8 +4694,7 @@ struct run_hton_fill_schema_table_args {
 };
 
 static bool run_hton_fill_schema_table(THD *thd, plugin_ref plugin, void *arg) {
-  struct run_hton_fill_schema_table_args *args =
-      (run_hton_fill_schema_table_args *)arg;
+  auto *args = (run_hton_fill_schema_table_args *)arg;
   handlerton *hton = plugin_data<handlerton *>(plugin);
   if (hton->fill_is_table && hton->state == SHOW_OPTION_YES)
     hton->fill_is_table(hton, thd, args->tables, args->cond,
@@ -5336,7 +5330,6 @@ static void get_cs_converted_string_value(THD *thd, String *input_str,
       ptr++;
     }
   }
-  return;
 }
 
 /**
