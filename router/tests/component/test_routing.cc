@@ -65,6 +65,37 @@ using mysqlrouter::MySQLSession;
 
 class RouterRoutingTest : public RouterComponentTest {};
 
+using XProtocolSession = std::shared_ptr<xcl::XSession>;
+
+static xcl::XError make_x_connection(XProtocolSession &session,
+                                     const std::string &host,
+                                     const uint16_t port,
+                                     const std::string &username,
+                                     const std::string &password,
+                                     int64_t connect_timeout = 10000 /*10s*/) {
+  session = xcl::create_session();
+  xcl::XError err;
+
+  err = session->set_mysql_option(
+      xcl::XSession::Mysqlx_option::Authentication_method, "FROM_CAPABILITIES");
+  if (err) return err;
+
+  err = session->set_mysql_option(xcl::XSession::Mysqlx_option::Ssl_mode,
+                                  "PREFERRED");
+  if (err) return err;
+
+  err = session->set_mysql_option(
+      xcl::XSession::Mysqlx_option::Session_connect_timeout, connect_timeout);
+  if (err) return err;
+
+  err = session->set_mysql_option(xcl::XSession::Mysqlx_option::Connect_timeout,
+                                  connect_timeout);
+  if (err) return err;
+
+  return session->connect(host.c_str(), port, username.c_str(),
+                          password.c_str(), "");
+}
+
 TEST_F(RouterRoutingTest, RoutingOk) {
   const auto server_port = port_pool_.get_next_available();
   const auto router_port = port_pool_.get_next_available();
@@ -206,9 +237,8 @@ INSTANTIATE_TEST_SUITE_P(
  */
 TEST_F(RouterRoutingTest, ConnectTimeoutShutdownEarly) {
   const auto router_port = port_pool_.get_next_available();
-
-  const auto router_connect_timeout = 10s;
-  const auto client_connect_timeout = 1s;
+  // we use the same long timeout for client and endpoint side
+  const auto connect_timeout = 10s;
 
   // the test requires a address:port which is not responding to SYN packets:
   //
@@ -219,41 +249,115 @@ TEST_F(RouterRoutingTest, ConnectTimeoutShutdownEarly) {
   // if there is no DNS or no network, the test may fail.
 
   SCOPED_TRACE("// build router config with connect_timeout=" +
-               std::to_string(router_connect_timeout.count()));
+               std::to_string(connect_timeout.count()));
   const auto routing_section = mysql_harness::ConfigBuilder::build_section(
       "routing:timeout",
       {{"bind_port", std::to_string(router_port)},
        {"mode", "read-write"},
-       {"connect_timeout", std::to_string(router_connect_timeout.count())},
+       {"connect_timeout", std::to_string(connect_timeout.count())},
        {"destinations", "example.org:81"}});
 
   TempDirectory conf_dir("conf");
   std::string conf_file = create_config_file(conf_dir.name(), routing_section);
 
   // launch the router with simple static routing configuration
-  /*auto &router_static =*/launch_router({"-c", conf_file});
-
-  SCOPED_TRACE("// connect and trigger a timeout in the router");
-  mysqlrouter::MySQLSession sess;
-
+  auto &router = launch_router({"-c", conf_file});
   using clock_type = std::chrono::steady_clock;
 
+  // initiate a connection attempt in a separate thread
+  std::thread connect_thread([&]() {
+    try {
+      mysqlrouter::MySQLSession sess;
+      sess.connect("127.0.0.1", router_port, "user", "pass", "", "",
+                   connect_timeout.count());
+      FAIL() << "expected connect fail.";
+    } catch (const MySQLSession::Error &e) {
+      EXPECT_THAT(e.code(),
+                  ::testing::AnyOf(::testing::Eq(2003), ::testing::Eq(2013)));
+
+      EXPECT_THAT(e.what(),
+                  ::testing::AnyOf(::testing::HasSubstr("Lost connection"),
+                                   ::testing::HasSubstr(
+                                       "Error connecting to MySQL server")));
+    } catch (...) {
+      FAIL() << "expected connect fail with a mysql-error";
+    }
+  });
+
   const auto start = clock_type::now();
-  try {
-    sess.connect("127.0.0.1", router_port, "user", "pass", "", "",
-                 client_connect_timeout.count());
-    FAIL() << "expected connect fail.";
-  } catch (const MySQLSession::Error &e) {
-    EXPECT_EQ(e.code(), 2013) << e.what();
-    EXPECT_THAT(e.what(), ::testing::HasSubstr("Lost connection")) << e.what();
-  } catch (...) {
-    FAIL() << "expected connect fail with a mysql-error";
-  }
+  // give the connect thread chance to initate the connection, even if it
+  // sometimes does not it should be fine, we just test a different scenario
+  // then
+  std::this_thread::sleep_for(200ms);
+  // now force shutdown the router
+  const auto kill_res = router.kill();
+  EXPECT_EQ(0, kill_res);
+
   const auto end = clock_type::now();
 
-  // check the wait was long enough, but not too long.
-  EXPECT_GE(end - start, client_connect_timeout);
-  EXPECT_LT(end - start, client_connect_timeout + 5s);
+  // it should take much less time than connect_timeout which is 10s
+  EXPECT_LT(end - start, 5s);
+
+  connect_thread.join();
+}
+
+/**
+ * check connect-timeout doesn't block shutdown when using x-protocol
+ * connection.
+ */
+TEST_F(RouterRoutingTest, ConnectTimeoutShutdownEarlyXProtocol) {
+  const auto router_port = port_pool_.get_next_available();
+  // we use the same long timeout for client and endpoint side
+  const auto connect_timeout = 10s;
+
+  SCOPED_TRACE("// build router config with connect_timeout=" +
+               std::to_string(connect_timeout.count()));
+  const auto routing_section = mysql_harness::ConfigBuilder::build_section(
+      "routing:timeout",
+      {{"bind_port", std::to_string(router_port)},
+       {"mode", "read-write"},
+       {"connect_timeout", std::to_string(connect_timeout.count())},
+       {"protocol", "x"},
+       {"destinations", "example.org:81"}});
+
+  TempDirectory conf_dir("conf");
+  std::string conf_file = create_config_file(conf_dir.name(), routing_section);
+
+  // launch the router with simple static routing configuration
+  auto &router = launch_router({"-c", conf_file});
+  using clock_type = std::chrono::steady_clock;
+
+  // initiate a connection attempt in a separate thread
+  std::thread connect_thread([&]() {
+    XProtocolSession x_session;
+
+    const auto res =
+        make_x_connection(x_session, "127.0.0.1", router_port, "user", "pass",
+                          connect_timeout.count() * 1000);
+
+    EXPECT_THAT(res.error(),
+                ::testing::AnyOf(::testing::Eq(2006), ::testing::Eq(2002)));
+    EXPECT_THAT(res.what(),
+                ::testing::AnyOf(
+                    ::testing::HasSubstr("MySQL server has gone away"),
+                    ::testing::HasSubstr("Connection refused connecting to")));
+  });
+
+  const auto start = clock_type::now();
+  // give the connect thread chance to initate the connection, even if it
+  // sometimes does not it should be fine, we just test a different scenario
+  // then
+  std::this_thread::sleep_for(200ms);
+  // now force shutdown the router
+  const auto kill_res = router.kill();
+  EXPECT_EQ(0, kill_res);
+
+  const auto end = clock_type::now();
+
+  // it should take much less time than connect_timeout which is 10s
+  EXPECT_LT(end - start, 5s);
+
+  connect_thread.join();
 }
 
 /**
@@ -527,37 +631,6 @@ TEST_F(RouterMaxConnectionsTest, RoutingTotalMaxConnectionsExceeded) {
   // disconnect the first client, now we should be able to connect again
   client1.disconnect();
   EXPECT_TRUE(make_new_connection(router_portA));
-}
-
-using XProtocolSession = std::shared_ptr<xcl::XSession>;
-
-static xcl::XError make_x_connection(XProtocolSession &session,
-                                     const std::string &host,
-                                     const uint16_t port,
-                                     const std::string &username,
-                                     const std::string &password) {
-  session = xcl::create_session();
-  xcl::XError err;
-  const auto kConnTimeout = int64_t{10000};  // 10s
-
-  err = session->set_mysql_option(
-      xcl::XSession::Mysqlx_option::Authentication_method, "FROM_CAPABILITIES");
-  if (err) return err;
-
-  err = session->set_mysql_option(xcl::XSession::Mysqlx_option::Ssl_mode,
-                                  "PREFERRED");
-  if (err) return err;
-
-  err = session->set_mysql_option(
-      xcl::XSession::Mysqlx_option::Session_connect_timeout, kConnTimeout);
-  if (err) return err;
-
-  err = session->set_mysql_option(xcl::XSession::Mysqlx_option::Connect_timeout,
-                                  kConnTimeout);
-  if (err) return err;
-
-  return session->connect(host.c_str(), port, username.c_str(),
-                          password.c_str(), "");
 }
 
 /**

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -100,8 +100,6 @@ class IoPluginConfig : public mysql_harness::BasePluginConfig {
     return false;
   }
 };
-
-static std::unique_ptr<net::io_context> io_ctx;
 
 static void init(mysql_harness::PluginFuncEnv *env) {
   const mysql_harness::AppInfo *info = get_app_info(env);
