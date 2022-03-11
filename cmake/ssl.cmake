@@ -348,8 +348,14 @@ MACRO (MYSQL_CHECK_SSL)
        OPENSSL_MAJOR_VERSION STREQUAL "1"
       )
       SET(OPENSSL_FOUND TRUE)
-      FIND_PROGRAM(OPENSSL_EXECUTABLE openssl
-        DOC "path to the openssl executable")
+      IF(WITH_SSL_PATH)
+        FIND_PROGRAM(OPENSSL_EXECUTABLE openssl
+          NO_DEFAULT_PATH
+          PATHS "${WITH_SSL_PATH}/bin"
+          DOC "path to the openssl executable")
+      ELSE()
+        FIND_PROGRAM(OPENSSL_EXECUTABLE openssl)
+      ENDIF()
       IF(OPENSSL_EXECUTABLE)
         SET(OPENSSL_EXECUTABLE_HAS_ZLIB 0)
         EXECUTE_PROCESS(
@@ -481,7 +487,10 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
       ADD_CUSTOM_TARGET(copy_openssl_dlls
         DEPENDS ${crypto_target} ${openssl_target})
 
-    ENDIF()
+      COPY_OPENSSL_BINARY(${OPENSSL_EXECUTABLE} "" "" openssl_exe_target)
+      ADD_DEPENDENCIES(${openssl_exe_target} copy_openssl_dlls)
+
+    ENDIF(LINUX AND HAVE_CRYPTO_SO AND HAVE_OPENSSL_SO)
 
     IF(APPLE)
       GET_FILENAME_COMPONENT(CRYPTO_EXT "${CRYPTO_LIBRARY}" EXT)
@@ -560,6 +569,11 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
         WORKING_DIRECTORY
         "${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}"
         )
+
+      COPY_OPENSSL_BINARY(${OPENSSL_EXECUTABLE}
+        ${CRYPTO_VERSION} ${OPENSSL_VERSION}
+        openssl_exe_target)
+      ADD_DEPENDENCIES(${openssl_exe_target} copy_openssl_dlls)
 
       # Create symlinks for plugins, see MYSQL_ADD_PLUGIN/install_name_tool
       ADD_CUSTOM_TARGET(link_openssl_dlls ALL
@@ -692,6 +706,8 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
           "${HAVE_CRYPTO_DLL}"
           "${HAVE_OPENSSL_DLL}"
           DESTINATION "${INSTALL_BINDIR}" COMPONENT SharedLibraries)
+        COPY_OPENSSL_BINARY(${OPENSSL_EXECUTABLE} "" "" openssl_exe_target)
+        ADD_DEPENDENCIES(${openssl_exe_target} copy_openssl_dlls)
       ELSE()
         MESSAGE(STATUS "Cannot find SSL dynamic libraries")
         IF(OPENSSL_MINOR_VERSION VERSION_EQUAL 1)

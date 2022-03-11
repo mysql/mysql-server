@@ -602,6 +602,89 @@ FUNCTION(SET_PATH_TO_CUSTOM_SSL_FOR_APPLE target)
   ENDIF()
 ENDFUNCTION()
 
+# For custom SSL, copy the openssl executable to the build directory,
+# and INSTALL it at part of the Test COMPONENT.
+#
+# We update the RUNPATH of the executable to
+# $ORIGIN/../lib:$ORIGIN/lib/private for Linux
+# @loader_path/../lib for macOS.
+#
+# executable_full_filename is ${WITH_SSL_PATH}/bin/openssl.
+# Arguments CRYPTO_VERSION OPENSSL_VERSION are used for macOS only.
+# Set ${OUTPUT_TARGET_NAME} to the name of a target which will do the copying.
+#
+# We cannot install 'openssl' in a public bin/ directory,
+# so we rename it to 'my_openssl'.
+FUNCTION(COPY_OPENSSL_BINARY executable_full_filename
+    CRYPTO_VERSION OPENSSL_VERSION
+    OUTPUT_TARGET_NAME)
+  GET_FILENAME_COMPONENT(executable_name "${executable_full_filename}" NAME)
+  GET_FILENAME_COMPONENT(exe_name_we "${executable_full_filename}" NAME_WE)
+
+  SET(COPY_TARGET_NAME "copy_${exe_name_we}")
+  SET(${OUTPUT_TARGET_NAME} "${COPY_TARGET_NAME}" PARENT_SCOPE)
+
+  # Get rid of Warning MSB8065: File not created
+  # MY_ADD_CUSTOM_TARGET fails in mysterious ways, so we touch here instead.
+  IF(CMAKE_GENERATOR MATCHES "Visual Studio")
+    EXECUTE_PROCESS(
+      COMMAND ${CMAKE_COMMAND} -E touch
+      "${CMAKE_BINARY_DIR}/cmakefiles/${COPY_TARGET_NAME}"
+      )
+  ENDIF()
+
+  # Do copying and patching in a sub-process, so that we can skip it if
+  # already done.
+  ADD_CUSTOM_TARGET(${COPY_TARGET_NAME} ALL
+    COMMAND ${CMAKE_COMMAND}
+    -Dexecutable_full_filename="${executable_full_filename}"
+    -Dexecutable_name="my_${executable_name}"
+    -DCWD="${CMAKE_BINARY_DIR}/runtime_output_directory"
+    -DAPPLE=${APPLE}
+    -DLINUX=${LINUX}
+    -DWIN32=${WIN32}
+    -DCRYPTO_VERSION="${CRYPTO_VERSION}"
+    -DOPENSSL_VERSION="${OPENSSL_VERSION}"
+    -DINSTALL_PRIV_LIBDIR="${INSTALL_PRIV_LIBDIR}"
+    -DPATCHELF_EXECUTABLE="${PATCHELF_EXECUTABLE}"
+    -DCPU_PAGE_SIZE="${CPU_PAGE_SIZE}"
+    -DBUILD_IS_SINGLE_CONFIG="${BUILD_IS_SINGLE_CONFIG}"
+    -DCMAKE_GENERATOR="${CMAKE_GENERATOR}"
+    -DCMAKE_SYSTEM_PROCESSOR="${CMAKE_SYSTEM_PROCESSOR}"
+    -DCMAKE_CFG_INTDIR="${CMAKE_CFG_INTDIR}"
+    -P ${CMAKE_SOURCE_DIR}/cmake/copy_openssl_binary.cmake
+    WORKING_DIRECTORY
+    "${CMAKE_BINARY_DIR}/runtime_output_directory"
+    )
+
+  SET(PERMISSIONS_EXECUTABLE
+    PERMISSIONS
+    OWNER_READ OWNER_WRITE OWNER_EXECUTE
+    GROUP_READ GROUP_EXECUTE
+    WORLD_READ WORLD_EXECUTE
+    )
+
+  MESSAGE(STATUS "INSTALL ${executable_name} TO ${INSTALL_BINDIR}")
+  IF(BUILD_IS_SINGLE_CONFIG)
+    INSTALL(FILES
+      "${CMAKE_BINARY_DIR}/runtime_output_directory/my_${executable_name}"
+      DESTINATION "${INSTALL_BINDIR}"
+      COMPONENT Test
+      ${PERMISSIONS_EXECUTABLE}
+      )
+  ELSE()
+    FOREACH(cfg Debug Release RelWithDebInfo MinSizeRel)
+      INSTALL(FILES
+     "${CMAKE_BINARY_DIR}/runtime_output_directory/${cfg}/my_${executable_name}"
+        DESTINATION "${INSTALL_BINDIR}"
+        CONFIGURATIONS ${cfg}
+        COMPONENT Test
+        ${PERMISSIONS_EXECUTABLE}
+        )
+    ENDFOREACH()
+  ENDIF()
+ENDFUNCTION(COPY_OPENSSL_BINARY)
+
 
 # For standalone Linux build and -DWITH_LDAP -DWITH_SASL -DWITH_SSL and
 # -DWITH_KERBEROS set to custom path.

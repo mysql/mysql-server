@@ -10,14 +10,14 @@ let OPENSSL_CONFIG_INC= $MYSQLTEST_VARDIR/log/openssl_binary_config.inc;
 --remove_file $OPENSSL_CONFIG_INC
 
 --error 0,1, 127
---exec openssl version > $OPENSSL_VERSION_INFO
+--exec $OPENSSL_EXECUTABLE version > $OPENSSL_VERSION_INFO
 
 perl;
  use strict;
  my $search_file= $ENV{'OPENSSL_VERSION_INFO'};
- my $search_pattern_1= "0.9.*";
- my $search_pattern_2= "1.0.0.*";
- my $search_pattern_3= "1.0.1.*";
+ my $search_pattern_1= "0\\.9.*";
+ my $search_pattern_2= "1\\.0\\.0.*";
+ my $search_pattern_3= "1\\.0\\.1.*";
  my $content= "";
  my $dir= $ENV{'MYSQLTEST_VARDIR'};
  open(CONFIG_INC, ">$dir/log/openssl_binary_config.inc");

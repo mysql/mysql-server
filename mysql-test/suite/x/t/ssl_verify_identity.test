@@ -12,7 +12,6 @@
 # be 1.0.2+. For older versions of openssl, the test will be skipped.
 
 --source include/allowed_ciphers.inc
---source include/have_openssl_binary.inc
 --source include/check_openssl_version.inc
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc

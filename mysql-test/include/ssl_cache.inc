@@ -1,7 +1,6 @@
 --echo #
 --echo # WL#13075: Support TLS session reuse in the C API version independent part
 --echo #
---source include/have_openssl_binary.inc
 
 # ==== Purpose ====
 #
@@ -102,7 +101,7 @@ exec $MYSQL --tls-version=$tls_version --ssl-mode=required -e "ssl_session_data_
 source include/assert_grep.inc;
 
 --echo # openssl sess_id should be able to parse the file
-exec openssl sess_id -in $session_file -inform PEM -noout -text > $out_file 2>&1;
+exec $OPENSSL_EXECUTABLE sess_id -in $session_file -inform PEM -noout -text > $out_file 2>&1;
 --let $assert_file=$out_file
 --let $assert_text=Checking if session file is PEM format
 --let $assert_select=Protocol[\ \t]*\:[\ \t]*TLSv1\.

@@ -1438,6 +1438,7 @@ fi
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/libmysqlclient.so.21*
 %if 0%{?ssl_bundled}
+%attr(755, root, root) %{_bindir}/my_openssl
 %attr(755, root, root) %{_libdir}/mysql/private/libssl.so
 %attr(755, root, root) %{_libdir}/mysql/private/libssl.so.1.1
 %attr(755, root, root) %{_libdir}/mysql/private/libcrypto.so

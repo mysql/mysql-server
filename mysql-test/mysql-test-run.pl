@@ -327,6 +327,7 @@ our $exe_mysql_migrate_keyring;
 our $exe_mysql_keyring_encryption_test;
 our $exe_mysqladmin;
 our $exe_mysqltest;
+our $exe_openssl;
 our $glob_mysql_test_dir;
 our $mysql_version_extra;
 our $mysql_version_id;
@@ -2674,6 +2675,31 @@ sub executable_setup () {
                 [ "runtime_output_directory", "libexec", "sbin", "bin" ],
                 "mysql_keyring_encryption_test");
 
+  # For custom OpenSSL builds, look for the my_openssl executable.
+  $exe_openssl =
+    my_find_bin($bindir,
+                [ "runtime_output_directory", "bin" ],
+                "my_openssl", NOT_REQUIRED);
+  # For system OpenSSL builds, use openssl found in PATH:
+  if (!$exe_openssl) {
+    if (IS_MAC) {
+      # We use homebrew, rather than macOS SSL.
+      # TODO(tdidriks) add an option to mysqltest to see whether we are using
+      # openssl@1.1 or openssl@3
+      my $machine_hw_name = `uname -m`;
+      if ($machine_hw_name =~ "arm64") {
+	$exe_openssl = "/opt/homebrew/opt/" . "openssl\@1.1" . "/bin/openssl";
+      } else {
+	$exe_openssl = "/usr/local/opt/" . "openssl\@1.1" . "/bin/openssl";
+      }
+    } else {
+      # We could use File::Which('openssl'),
+      # but we don't need to know the actual path.
+      $exe_openssl = 'openssl';
+    }
+  }
+  mtr_verbose("openssl is $exe_openssl");
+
   if ($ndbcluster_enabled) {
     # Look for single threaded NDB
     $exe_ndbd =
@@ -3207,6 +3233,7 @@ sub environment_setup {
     client_arguments_no_grp_suffix("mysql_config_editor");
   $ENV{'MYSQL_SECURE_INSTALLATION'} =
     "$path_client_bindir/mysql_secure_installation";
+  $ENV{'OPENSSL_EXECUTABLE'} = $exe_openssl;
 
   my $exe_mysqld = find_mysqld($basedir);
   $ENV{'MYSQLD'} = $exe_mysqld;

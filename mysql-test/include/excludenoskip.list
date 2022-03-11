@@ -106,7 +106,6 @@ fix_priv_tables.test
 federated_bug_25714.test
 
 # 4.4
-have_openssl_binary.inc
 check_openssl_version.inc
 have_tlsv13.inc
 not_have_tlsv13.inc
