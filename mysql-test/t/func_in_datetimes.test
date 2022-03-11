@@ -1,0 +1,19 @@
+# Bug#XXXXXX: It return the incorrect result by using function Item_func_in, 
+# when the type of field is datetime 
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 ( pk INTEGER PRIMARY KEY, col_date date DEFAULT NULL,col_datetime datetime DEFAULT NULL, col_varchar VARCHAR(1) DEFAULT NULL, KEY (col_varchar));
+
+INSERT INTO t1 VALUES(5, '2022-02-25', '2022-02-25 11:01:14', 'I');
+INSERT INTO t1 VALUES(6, '2022-02-26', '2022-02-26 21:11:24', 'J');
+
+# 0 rows in result
+SELECT * FROM t1 wHERE pk = 5 AND (col_datetime, col_varchar) IN (('2022-02-25 11:01:14', 'Y'), (92, 'W'));
+SELECT * FROM t1 wHERE pk = 5 AND (col_varchar, col_datetime) IN (('Y', '2022-02-25 11:01:14'), ('W', 92));
+# 1 rows in result
+SELECT * FROM t1 wHERE pk = 5 AND (col_datetime, col_varchar) IN (('2022-02-25 11:01:14', 'I'), (92, 'W'));
+SELECT * FROM t1 wHERE pk = 5 AND (col_varchar, col_datetime) IN (('I', '2022-02-25 11:01:14'), ('W', 92));
+
+DROP TABLE t1; 

@@ -1,0 +1,23 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( pk INTEGER PRIMARY KEY, col_date date DEFAULT NULL,col_datetime datetime DEFAULT NULL, col_varchar VARCHAR(1) DEFAULT NULL, KEY (col_varchar));
+INSERT INTO t1 VALUES(5, '2022-02-25', '2022-02-25 11:01:14', 'I');
+INSERT INTO t1 VALUES(6, '2022-02-26', '2022-02-26 21:11:24', 'J');
+SELECT * FROM t1 wHERE pk = 5 AND (col_datetime, col_varchar) IN (('2022-02-25 11:01:14', 'Y'), (92, 'W'));
+pk	col_date	col_datetime	col_varchar
+Warnings:
+Warning	1292	Incorrect datetime value: '92' for column 'col_datetime' at row 1
+SELECT * FROM t1 wHERE pk = 5 AND (col_varchar, col_datetime) IN (('Y', '2022-02-25 11:01:14'), ('W', 92));
+pk	col_date	col_datetime	col_varchar
+Warnings:
+Warning	1292	Incorrect datetime value: '92' for column 'col_datetime' at row 1
+SELECT * FROM t1 wHERE pk = 5 AND (col_datetime, col_varchar) IN (('2022-02-25 11:01:14', 'I'), (92, 'W'));
+pk	col_date	col_datetime	col_varchar
+5	2022-02-25	2022-02-25 11:01:14	I
+Warnings:
+Warning	1292	Incorrect datetime value: '92' for column 'col_datetime' at row 1
+SELECT * FROM t1 wHERE pk = 5 AND (col_varchar, col_datetime) IN (('I', '2022-02-25 11:01:14'), ('W', 92));
+pk	col_date	col_datetime	col_varchar
+5	2022-02-25	2022-02-25 11:01:14	I
+Warnings:
+Warning	1292	Incorrect datetime value: '92' for column 'col_datetime' at row 1
+DROP TABLE t1;
