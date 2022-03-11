@@ -107,6 +107,9 @@ struct OSTrackMutex {
     ut_d(m_locked = true);
   }
 
+  void lock() { enter(); }
+  void unlock() { exit(); }
+
   /** @return true if locking succeeded */
   bool try_lock() UNIV_NOTHROW {
     ut_ad(innodb_calling_exit || !m_freed);
