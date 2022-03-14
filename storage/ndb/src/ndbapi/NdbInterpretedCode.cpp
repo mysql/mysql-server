@@ -392,23 +392,20 @@ NdbInterpretedCode::def_label(int LabelNum)
   return addMeta(info);
 }
 
-int 
-NdbInterpretedCode::add_branch(Uint32 instruction, Uint32 Label)
+int NdbInterpretedCode::add_branch(Uint32 instruction, Uint32 label)
 {
   /* We store the instruction with the label as the offset
    * rather than the correct offset.
    * This is corrected at finalise() time when we know
    * the correct offset for the code
    */
-  if (unlikely(Label > 0xffff))
-    return error(BranchToBadLabel);
-  return add1(instruction | Label << 16);
+  if (unlikely(label > 0xffff)) return error(BranchToBadLabel);
+  return add1(instruction | label << 16);
 }
 
-int
-NdbInterpretedCode::branch_label(Uint32 Label)
+int NdbInterpretedCode::branch_label(Uint32 label)
 {
-  return add_branch(Interpreter::BRANCH, Label);
+  return add_branch(Interpreter::BRANCH, label);
 }
 
 /* For the following inequalities, the order of the 
@@ -417,76 +414,73 @@ NdbInterpretedCode::branch_label(Uint32 Label)
  * This ensures that the comparison is Lvalue <cond> Rvalue,
  * not Rvalue <cond> Lvalue.
  */
-int
-NdbInterpretedCode::branch_ge(Uint32 RegLvalue, Uint32 RegRvalue,
-                              Uint32 Label)
+int NdbInterpretedCode::branch_ge(Uint32 RegLvalue,
+                                  Uint32 RegRvalue,
+                                  Uint32 label)
 {
   Uint32 instr = Interpreter::Branch(Interpreter::BRANCH_GE_REG_REG,
                                      RegRvalue, RegLvalue);
-  return add_branch(instr, Label);
+  return add_branch(instr, label);
 }
 
-int
-NdbInterpretedCode::branch_gt(Uint32 RegLvalue, Uint32 RegRvalue,
-                              Uint32 Label)
+int NdbInterpretedCode::branch_gt(Uint32 RegLvalue,
+                                  Uint32 RegRvalue,
+                                  Uint32 label)
 {
   Uint32 instr = Interpreter::Branch(Interpreter::BRANCH_GT_REG_REG,
                                      RegRvalue, RegLvalue);
-  return add_branch(instr, Label);
+  return add_branch(instr, label);
 }
 
-int
-NdbInterpretedCode::branch_le(Uint32 RegLvalue, Uint32 RegRvalue,
-                              Uint32 Label)
+int NdbInterpretedCode::branch_le(Uint32 RegLvalue,
+                                  Uint32 RegRvalue,
+                                  Uint32 label)
 {
   Uint32 instr = Interpreter::Branch(Interpreter::BRANCH_LE_REG_REG,
                                      RegRvalue, RegLvalue);
-  return add_branch(instr, Label);
+  return add_branch(instr, label);
 }
 
-int
-NdbInterpretedCode::branch_lt(Uint32 RegLvalue, Uint32 RegRvalue,
-                              Uint32 Label)
+int NdbInterpretedCode::branch_lt(Uint32 RegLvalue,
+                                  Uint32 RegRvalue,
+                                  Uint32 label)
 {
   Uint32 instr = Interpreter::Branch(Interpreter::BRANCH_LT_REG_REG,
                                      RegRvalue, RegLvalue);
-  return add_branch(instr, Label);
+  return add_branch(instr, label);
 }
 
-int
-NdbInterpretedCode::branch_eq(Uint32 RegLvalue, Uint32 RegRvalue,
-                              Uint32 Label)
+int NdbInterpretedCode::branch_eq(Uint32 RegLvalue,
+                                  Uint32 RegRvalue,
+                                  Uint32 label)
 {
   Uint32 instr = Interpreter::Branch(Interpreter::BRANCH_EQ_REG_REG,
                                      RegLvalue, RegRvalue);
-  return add_branch(instr, Label);
+  return add_branch(instr, label);
 }
 
-int
-NdbInterpretedCode::branch_ne(Uint32 RegLvalue, Uint32 RegRvalue,
-                              Uint32 Label)
+int NdbInterpretedCode::branch_ne(Uint32 RegLvalue,
+                                  Uint32 RegRvalue,
+                                  Uint32 label)
 {
   Uint32 instr = Interpreter::Branch(Interpreter::BRANCH_NE_REG_REG,
                                      RegLvalue, RegRvalue);
-  return add_branch(instr, Label);
+  return add_branch(instr, label);
 }
 
-int
-NdbInterpretedCode::branch_ne_null(Uint32 RegLvalue, Uint32 Label)
+int NdbInterpretedCode::branch_ne_null(Uint32 RegLvalue, Uint32 label)
 {
-  return add_branch
-    (((RegLvalue % MaxReg) << 6) | Interpreter::BRANCH_REG_NE_NULL, Label);
+  return add_branch(
+      ((RegLvalue % MaxReg) << 6) | Interpreter::BRANCH_REG_NE_NULL, label);
 }
 
-int
-NdbInterpretedCode::branch_eq_null(Uint32 RegLvalue, Uint32 Label)
+int NdbInterpretedCode::branch_eq_null(Uint32 RegLvalue, Uint32 label)
 {
-  return add_branch
-    (((RegLvalue % MaxReg) << 6) | Interpreter::BRANCH_REG_EQ_NULL, Label);
+  return add_branch(
+      ((RegLvalue % MaxReg) << 6) | Interpreter::BRANCH_REG_EQ_NULL, label);
 }
 
-int
-NdbInterpretedCode::branch_col_eq_null(Uint32 attrId, Uint32 Label)
+int NdbInterpretedCode::branch_col_eq_null(Uint32 attrId, Uint32 label)
 {
   int res= 0;
 
@@ -502,15 +496,14 @@ NdbInterpretedCode::branch_col_eq_null(Uint32 attrId, Uint32 Label)
     m_flags|= UsesDisk;
   
   /* Add instruction and branch label */
-  if ((res= add_branch(Interpreter::BRANCH_ATTR_EQ_NULL, Label)) !=0)
+  if ((res = add_branch(Interpreter::BRANCH_ATTR_EQ_NULL, label)) != 0)
     return res;
 
   /* Add attrId with no length */
   return add1(Interpreter::BranchCol_2(attrId));
 }
 
-int
-NdbInterpretedCode::branch_col_ne_null(Uint32 attrId, Uint32 Label)
+int NdbInterpretedCode::branch_col_ne_null(Uint32 attrId, Uint32 label)
 {
   int res= 0;
 
@@ -526,7 +519,7 @@ NdbInterpretedCode::branch_col_ne_null(Uint32 attrId, Uint32 Label)
     m_flags|= UsesDisk;
 
   /* Add instruction and branch label */
-  if ((res= add_branch(Interpreter::BRANCH_ATTR_NE_NULL, Label)) !=0)
+  if ((res = add_branch(Interpreter::BRANCH_ATTR_NE_NULL, label)) != 0)
     return res;
 
   /* Add attrId with no length */
@@ -731,82 +724,92 @@ NdbInterpretedCode::branch_col_param(Uint32 branch_type,
   DBUG_RETURN(0);
 }
 
-int NdbInterpretedCode::branch_col_eq(const void *val, Uint32, Uint32 attrId,
-                                      Uint32 Label)
+int NdbInterpretedCode::branch_col_eq(const void *val,
+                                      Uint32,
+                                      Uint32 attrId,
+                                      Uint32 label)
 {
-  return branch_col_val(Interpreter::EQ, attrId, val, 0, Label);
+  return branch_col_val(Interpreter::EQ, attrId, val, 0, label);
 }
 
-int NdbInterpretedCode::branch_col_ne(const void *val, Uint32, Uint32 attrId,
-                                      Uint32 Label)
+int NdbInterpretedCode::branch_col_ne(const void *val,
+                                      Uint32,
+                                      Uint32 attrId,
+                                      Uint32 label)
 {
-  return branch_col_val(Interpreter::NE, attrId, val, 0, Label);
+  return branch_col_val(Interpreter::NE, attrId, val, 0, label);
 }
 
-int NdbInterpretedCode::branch_col_lt(const void *val, Uint32, Uint32 attrId,
-                                      Uint32 Label)
+int NdbInterpretedCode::branch_col_lt(const void *val,
+                                      Uint32,
+                                      Uint32 attrId,
+                                      Uint32 label)
 {
-  return branch_col_val(Interpreter::LT, attrId, val, 0, Label);
+  return branch_col_val(Interpreter::LT, attrId, val, 0, label);
 }
 
-int NdbInterpretedCode::branch_col_le(const void *val, Uint32, Uint32 attrId,
-                                      Uint32 Label)
+int NdbInterpretedCode::branch_col_le(const void *val,
+                                      Uint32,
+                                      Uint32 attrId,
+                                      Uint32 label)
 {
-  return branch_col_val(Interpreter::LE, attrId, val, 0, Label);
+  return branch_col_val(Interpreter::LE, attrId, val, 0, label);
 }
 
-int NdbInterpretedCode::branch_col_gt(const void *val, Uint32, Uint32 attrId,
-                                      Uint32 Label)
+int NdbInterpretedCode::branch_col_gt(const void *val,
+                                      Uint32,
+                                      Uint32 attrId,
+                                      Uint32 label)
 {
-  return branch_col_val(Interpreter::GT, attrId, val, 0, Label);
+  return branch_col_val(Interpreter::GT, attrId, val, 0, label);
 }
 
-int NdbInterpretedCode::branch_col_ge(const void *val, Uint32, Uint32 attrId,
-                                      Uint32 Label)
+int NdbInterpretedCode::branch_col_ge(const void *val,
+                                      Uint32,
+                                      Uint32 attrId,
+                                      Uint32 label)
 {
-  return branch_col_val(Interpreter::GE, attrId, val, 0, Label);
+  return branch_col_val(Interpreter::GE, attrId, val, 0, label);
 }
 
-int 
-NdbInterpretedCode::branch_col_like(const void * val, 
-                                    Uint32 len,
-                                    Uint32 attrId,
-                                    Uint32 Label)
+int NdbInterpretedCode::branch_col_like(const void *val,
+                                        Uint32 len,
+                                        Uint32 attrId,
+                                        Uint32 label)
 {
-  return branch_col_val(Interpreter::LIKE, attrId, val, len, Label);
+  return branch_col_val(Interpreter::LIKE, attrId, val, len, label);
 }
 
-int 
-NdbInterpretedCode::branch_col_notlike(const void * val, 
-                                       Uint32 len,
-                                       Uint32 attrId,
-                                       Uint32 Label)
+int NdbInterpretedCode::branch_col_notlike(const void *val,
+                                           Uint32 len,
+                                           Uint32 attrId,
+                                           Uint32 label)
 {
-  return branch_col_val(Interpreter::NOT_LIKE, attrId, val, len, Label);
+  return branch_col_val(Interpreter::NOT_LIKE, attrId, val, len, label);
 }
 
 int NdbInterpretedCode::branch_col_and_mask_eq_mask(const void *mask, Uint32,
                                                     Uint32 attrId, Uint32 label)
 {
-  return branch_col_val(Interpreter::AND_EQ_MASK, attrId, mask, 0, Label);
+  return branch_col_val(Interpreter::AND_EQ_MASK, attrId, mask, 0, label);
 }
 
 int NdbInterpretedCode::branch_col_and_mask_ne_mask(const void *mask, Uint32,
                                                     Uint32 attrId, Uint32 label)
 {
-  return branch_col_val(Interpreter::AND_NE_MASK, attrId, mask, 0, Label);
+  return branch_col_val(Interpreter::AND_NE_MASK, attrId, mask, 0, label);
 }
 
 int NdbInterpretedCode::branch_col_and_mask_eq_zero(const void *mask, Uint32,
                                                     Uint32 attrId, Uint32 label)
 {
-  return branch_col_val(Interpreter::AND_EQ_ZERO, attrId, mask, 0, Label);
+  return branch_col_val(Interpreter::AND_EQ_ZERO, attrId, mask, 0, label);
 }
 
 int NdbInterpretedCode::branch_col_and_mask_ne_zero(const void *mask, Uint32,
                                                     Uint32 attrId, Uint32 label)
 {
-  return branch_col_val(Interpreter::AND_NE_ZERO, attrId, mask, 0, Label);
+  return branch_col_val(Interpreter::AND_NE_ZERO, attrId, mask, 0, label);
 }
 
 /**

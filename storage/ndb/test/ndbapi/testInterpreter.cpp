@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@
 #include <Vector.hpp>
 #include <random.h>
 #include <NdbTick.h>
-
+#include "util/require.h"
 
 #define CHECK(b) if (!(b)) { \
   ndbout << "ERR: "<< step->getName() \
@@ -541,6 +541,174 @@ runInterpretedUKLookup(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int runTestBranchNonZeroLabel(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  Ndb* pNdb = GETNDB(step);
+
+  // Find first find Bit column
+  bool found = false;
+  int colId = 0;
+  while (colId < pTab->getNoOfColumns())
+  {
+    const NdbDictionary::Column* col = pTab->getColumn(colId);
+    if (col->getType() == NdbDictionary::Column::Bit)
+    {
+      ndbout << "Found first Bit column " << colId << " " << col->getName()
+             << endl;
+      found = true;
+      break;
+    }
+    colId++;
+  }
+  if (!found)
+  {
+    ndbout << "Test skipped since no Bit column found in table "
+           << pTab->getName() << endl;
+    return NDBT_SKIPPED;
+  }
+
+  NdbConnection* pTrans = pNdb->startTransaction();
+  if (pTrans == NULL)
+  {
+    NDB_ERR(pNdb->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  const Uint32 numWords = 64;
+  Uint32 space[numWords];
+  NdbInterpretedCode stackCode(pTab, &space[0], numWords);
+
+  NdbInterpretedCode* code = &stackCode;
+
+  constexpr int label_0 = 0;
+  constexpr int label_1 = 1;
+  constexpr int label_2 = 2;
+  const Uint32 mask = myRandom48(UINT32_MAX);
+  const Uint32 op = myRandom48(4);
+
+  /*
+   * This test only verifies that label argument to branch_col_and_mask_eq_mask
+   * is looked at, if not an internal loop will result
+   */
+  if (code->def_label(label_0) == -1)
+  {
+    NDB_ERR(pTrans->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+
+  ndbout << "Operation " << op << " mask " << hex << mask << endl;
+  int ret;
+  switch (op)
+  {
+    case 0:
+      ret = code->branch_col_and_mask_eq_mask(
+          &mask, sizeof(mask), colId, label_2);
+      break;
+    case 1:
+      ret = code->branch_col_and_mask_ne_mask(
+          &mask, sizeof(mask), colId, label_2);
+      break;
+    case 2:
+      ret = code->branch_col_and_mask_eq_zero(
+          &mask, sizeof(mask), colId, label_2);
+      break;
+    case 3:
+      ret = code->branch_col_and_mask_ne_zero(
+          &mask, sizeof(mask), colId, label_2);
+      break;
+    default:
+      abort();
+  }
+  if (ret == -1)
+  {
+    NDB_ERR(pTrans->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+
+  if (code->def_label(label_1) == -1)
+  {
+    NDB_ERR(pTrans->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+
+  if (code->interpret_exit_nok() == -1)
+  {
+    NDB_ERR(pTrans->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+
+  if (code->def_label(label_2) == -1)
+  {
+    NDB_ERR(pTrans->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+
+  if (code->interpret_exit_ok() == -1)
+  {
+    NDB_ERR(pTrans->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+
+  if (code->finalise() == -1)
+  {
+    NDB_ERR(pTrans->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+
+  NdbScanOperation* pOp = pTrans->getNdbScanOperation(pTab->getName());
+  if (pOp == NULL)
+  {
+    NDB_ERR(pTrans->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+
+  if (pOp->readTuples() == -1)
+  {
+    NDB_ERR(pOp->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+
+  if (pOp->setInterpretedCode(code) == -1)
+  {
+    NDB_ERR(pOp->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+
+  if (pTrans->execute(NoCommit) == -1)
+  {
+    NDB_ERR(pTrans->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+
+  size_t rows = 0;
+  while ((ret = pOp->nextResult()) == 0) rows++;
+  g_info << "rows=" << rows << " ret=" << ret
+         << " err=" << pOp->getNdbError().code << endl;
+
+  if (ret != 1)
+  {
+    NDB_ERR(pTrans->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+
+  pNdb->closeTransaction(pTrans);
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testInterpreter);
 TESTCASE("IncValue32", 
 	 "Test incValue for 32 bit integer\n"){ 
@@ -564,6 +732,12 @@ TESTCASE("Bug34107",
          "Test too big scan filter (error 874)\n"){
   INITIALIZER(runLoadTable);
   INITIALIZER(runTestBug34107);
+  FINALIZER(runClearTable);
+}
+TESTCASE("BranchNonZeroLabel", "Test branch labels with and_mask op\n")
+{
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runTestBranchNonZeroLabel);
   FINALIZER(runClearTable);
 }
 #if 0
