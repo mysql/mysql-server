@@ -743,18 +743,46 @@ void MysqlRoutingXConnection::connect() {
   if (!connect_res) {
     const auto ec = connect_res.error();
 
-    if (ec == make_error_condition(std::errc::operation_in_progress) ||
-        ec == make_error_condition(std::errc::operation_would_block)) {
-      connector.socket().async_wait(net::socket_base::wait_write,
-                                    [this](std::error_code ec) {
-                                      if (ec) {
-                                        return;
-                                      }
-                                      call_next_function(Function::kConnect);
-                                    });
+    // We need to keep the disconnect_mtx_ while the async handlers are being
+    // set up in order not to miss the disconnect request. Otherwise we could
+    // end up blocking for the whole 'destination_connect_timeout' duration
+    // before giving up the connection.
+    std::lock_guard<std::mutex> lk(disconnect_mtx_);
+    if ((!disconnect_) &&
+        (ec == make_error_condition(std::errc::operation_in_progress) ||
+         ec == make_error_condition(std::errc::operation_would_block))) {
+      auto &t = connector.timer();
+      t.expires_after(context().get_destination_connect_timeout());
+
+      t.async_wait([this](std::error_code ec) {
+        if (ec) {
+          return;
+        }
+
+        this->connector().connect_timed_out(true);
+        this->connector().socket().cancel();
+      });
+
+      connector.socket().async_wait(
+          net::socket_base::wait_write, [this](std::error_code ec) {
+            if (ec) {
+              if (this->connector().connect_timed_out()) {
+                // the connector will handle this.
+                return call_next_function(Function::kConnect);
+              } else {
+                return call_next_function(Function::kFinish);
+              }
+            }
+            this->connector().timer().cancel();
+
+            return call_next_function(Function::kConnect);
+          });
 
       return;
     }
+
+    // close the server side.
+    this->connector().socket().close();
 
     log_fatal_error_code("connecting to backend failed", ec);
 

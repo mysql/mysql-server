@@ -1568,8 +1568,14 @@ void MysqlRoutingClassicConnection::connect() {
   if (!connect_res) {
     const auto ec = connect_res.error();
 
-    if (ec == make_error_condition(std::errc::operation_in_progress) ||
-        ec == make_error_condition(std::errc::operation_would_block)) {
+    // We need to keep the disconnect_mtx_ while the async handlers are being
+    // set up in order not to miss the disconnect request. Otherwise we could
+    // end up blocking for the whole 'destination_connect_timeout' duration
+    // before giving up the connection.
+    std::lock_guard<std::mutex> lk(disconnect_mtx_);
+    if ((!disconnect_) &&
+        (ec == make_error_condition(std::errc::operation_in_progress) ||
+         ec == make_error_condition(std::errc::operation_would_block))) {
       auto &t = connector.timer();
 
       t.expires_after(context().get_destination_connect_timeout());

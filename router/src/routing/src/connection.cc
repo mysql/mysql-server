@@ -30,6 +30,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
+#include "mysqlrouter/utils.h"  // to_string
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -102,9 +103,7 @@ stdx::expected<void, std::error_code> ConnectorBase::connect_init() {
 stdx::expected<void, std::error_code> ConnectorBase::try_connect() {
 #if 0
   if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
-    log_debug("fd=%d: trying %s:%s (%s)", client_sock_.native_handle(),
-              endpoint.host_name().c_str(), endpoint.service_name().c_str(),
-              mysqlrouter::to_string(endpoint.endpoint()).c_str());
+    log_debug("trying %s", mysqlrouter::to_string(server_endpoint_).c_str());
   }
 #endif
 
