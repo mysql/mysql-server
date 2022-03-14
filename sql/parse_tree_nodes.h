@@ -70,6 +70,8 @@
 #include "sql/window_lex.h"
 #include "thr_lock.h"
 
+using namespace std;
+
 class Item;
 class Item_cache;
 class Json_table_column;
@@ -2876,6 +2878,25 @@ class PT_create_role final : public Parse_tree_root {
  public:
   PT_create_role(bool if_not_exists, const List<LEX_USER> *roles)
       : sql_cmd(if_not_exists, roles) {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+};
+
+class PT_create_rule final : public Parse_tree_root {
+  Sql_cmd_create_rule sql_cmd;
+  public:
+  PT_create_rule(string rule_name, int privs, 
+      attribute_value_list user_attributes, 
+          attribute_value_list object_attributes) : sql_cmd(rule_name, privs,
+              user_attributes, object_attributes) {}
+  
+  Sql_cmd *make_cmd(THD *thd) override;
+};
+
+class PT_delete_rule final : public Parse_tree_root {
+  Sql_cmd_delete_rule sql_cmd;
+  public:
+  PT_delete_rule(string rule_name) : sql_cmd(rule_name) {}
 
   Sql_cmd *make_cmd(THD *thd) override;
 };

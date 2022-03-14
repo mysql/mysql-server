@@ -2153,3 +2153,13 @@ bool Sql_cmd_alter_user_default_role::execute(THD *thd) {
 
   return ret;
 }
+
+bool Sql_cmd_create_rule::execute(THD *thd) {
+  DBUG_TRACE;
+  return mysql_create_rule(thd, rule_name, privs, user_attrib_map, object_attrib_map);
+}
+
+bool Sql_cmd_delete_rule::execute(THD *thd) {
+  DBUG_TRACE;
+  return mysql_delete_rule(thd, rule_name);
+}

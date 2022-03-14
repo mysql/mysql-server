@@ -606,6 +606,7 @@ static const SYMBOL symbols[] = {
     {SYM("RIGHT", RIGHT)},
     {SYM("RLIKE", REGEXP)}, /* Like in mSQL2 */
     {SYM("ROLE", ROLE_SYM)},
+    {SYM("RULE", RULE_SYM)},
     {SYM("ROLLBACK", ROLLBACK_SYM)},
     {SYM("ROLLUP", ROLLUP_SYM)},
     {SYM("ROUTINE", ROUTINE_SYM)},

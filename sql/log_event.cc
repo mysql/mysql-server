@@ -3783,6 +3783,8 @@ bool is_atomic_ddl(THD *thd, bool using_trans_arg) {
     case SQLCOM_REVOKE_ROLE:
     case SQLCOM_DROP_ROLE:
     case SQLCOM_CREATE_ROLE:
+    case SQLCOM_CREATE_RULE:
+    case SQLCOM_DELETE_RULE:
     case SQLCOM_SET_PASSWORD:
     case SQLCOM_CREATE_TRIGGER:
     case SQLCOM_DROP_TRIGGER:

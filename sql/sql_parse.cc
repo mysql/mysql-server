@@ -631,6 +631,11 @@ void init_sql_command_flags(void) {
   sql_command_flags[SQLCOM_CREATE_ROLE] =
       CF_CHANGES_DATA | CF_NEEDS_AUTOCOMMIT_OFF | CF_POTENTIAL_ATOMIC_DDL;
 
+  sql_command_flags[SQLCOM_CREATE_RULE] =
+      CF_CHANGES_DATA | CF_NEEDS_AUTOCOMMIT_OFF | CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_DELETE_RULE] =
+      CF_CHANGES_DATA | CF_NEEDS_AUTOCOMMIT_OFF | CF_POTENTIAL_ATOMIC_DDL;
+
   sql_command_flags[SQLCOM_OPTIMIZE] = CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_ALTER_INSTANCE] = CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_FUNCTION] =
@@ -694,6 +699,8 @@ void init_sql_command_flags(void) {
 
   sql_command_flags[SQLCOM_CREATE_USER] |= CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_ROLE] |= CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_CREATE_RULE] |= CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_DELETE_RULE] |= CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_USER] |= CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_ROLE] |= CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_RENAME_USER] |= CF_AUTO_COMMIT_TRANS;
@@ -802,6 +809,8 @@ void init_sql_command_flags(void) {
   sql_command_flags[SQLCOM_DROP_EVENT] |= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_USER] |= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_ROLE] |= CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_CREATE_RULE] |= CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_DELETE_RULE] |= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_RENAME_USER] |= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_ALTER_USER] |= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_DROP_USER] |= CF_DISALLOW_IN_RO_TRANS;
@@ -976,6 +985,8 @@ void init_sql_command_flags(void) {
   sql_command_flags[SQLCOM_SET_PASSWORD] |= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_DROP_ROLE] |= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_CREATE_ROLE] |= CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_CREATE_RULE] |= CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_DELETE_RULE] |= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_SET_ROLE] |= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_GRANT_ROLE] |= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_REVOKE_ROLE] |= CF_ALLOW_PROTOCOL_PLUGIN;
@@ -1073,6 +1084,8 @@ void init_sql_command_flags(void) {
   sql_command_flags[SQLCOM_SET_ROLE] |= CF_REQUIRE_ACL_CACHE;
   sql_command_flags[SQLCOM_ALTER_USER_DEFAULT_ROLE] |= CF_REQUIRE_ACL_CACHE;
   sql_command_flags[SQLCOM_CREATE_ROLE] |= CF_REQUIRE_ACL_CACHE;
+  sql_command_flags[SQLCOM_CREATE_RULE] |= CF_REQUIRE_ACL_CACHE;
+  sql_command_flags[SQLCOM_DELETE_RULE] |= CF_REQUIRE_ACL_CACHE;
   sql_command_flags[SQLCOM_DROP_ROLE] |= CF_REQUIRE_ACL_CACHE;
   sql_command_flags[SQLCOM_GRANT_ROLE] |= CF_REQUIRE_ACL_CACHE;
   sql_command_flags[SQLCOM_ALTER_USER] |= CF_REQUIRE_ACL_CACHE;
@@ -4446,6 +4459,8 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_DO:
     case SQLCOM_CALL:
     case SQLCOM_CREATE_ROLE:
+    case SQLCOM_CREATE_RULE:
+    case SQLCOM_DELETE_RULE:
     case SQLCOM_DROP_ROLE:
     case SQLCOM_SET_ROLE:
     case SQLCOM_GRANT_ROLE:

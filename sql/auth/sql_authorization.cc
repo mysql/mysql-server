@@ -92,6 +92,7 @@
 #include "sql/auth/sql_auth_cache.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/auth/sql_user_table.h"
+#include "sql/auth/abac_tables.h"
 #include "sql/current_thd.h"
 #include "sql/dd/dd_table.h"  // dd::table_exists
 #include "sql/debug_sync.h"
@@ -7563,3 +7564,169 @@ bool check_system_user_privilege(THD *thd, List<LEX_USER> list) {
 //   }
 //   return found;
 // }
+
+bool mysql_create_rule(THD *thd, std::string rule_name, int privs, 
+      attribute_value_list user_attributes, 
+          attribute_value_list object_attributes) {
+  DBUG_TRACE;
+  int ret;
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
+  bool transactional_tables;
+  TABLE *table = nullptr;
+  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  bool errors  =false;
+  
+  if ((ret = open_grant_tables(thd, tables, &transactional_tables))) 
+    return ret != 1;
+  
+  { /* Critical section */
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+
+    if (!acl_cache_lock.lock()) {
+      commit_and_close_mysql_tables(thd);
+      return true;
+    }
+    
+    // Check if rule having same name already exists
+    if (abac_rule_hash->count(rule_name)) {
+      std::cout<<"Rule with same name already exists\n";
+      errors = true;
+      goto end;
+    }
+
+    // Checking if user attributes are valid or not
+    for (auto it = user_attributes.attributes->begin(); it != user_attributes.attributes->end(); it++) {
+      if (!user_attribute_set->count(std::string(it->str))) {
+        std::cout<<"Cannot identify user attribute\n";
+        errors = true;
+        goto end;
+      }
+    }
+
+    // Checking if object attributes are valid or not
+    for (auto it = object_attributes.attributes->begin(); it != object_attributes.attributes->end(); it++) {
+      if (!object_attribute_set->count(std::string(it->str))) {
+        std::cout<<"Cannot identify object attribute\n";
+        errors = true;
+        goto end;
+      }
+    }
+
+    table = tables[ACL_TABLES::TABLE_POLICY].table;
+    // Insert new rule entry into policy table
+    ret |= modify_rule_in_table(thd, table, rule_name, privs, false);
+    if (ret) {
+      errors = true;
+      std::cout<<"Failed to add rule to policy table\n";
+      goto end;
+    }
+    table = tables[ACL_TABLES::TABLE_POLICY_USER_AVAL].table;
+    // Insert entries into policy_user_aval table
+    List<LEX_STRING>::iterator it1, it2;
+    for (it1 = user_attributes.attributes->begin(), 
+            it2 = user_attributes.values->begin(); 
+                  it1 != user_attributes.attributes->end(); it1++, it2++) {
+      ret |= modify_policy_user_aval_in_table(thd, table, rule_name, 
+                std::string(it1->str), std::string(it2->str), false);
+    }
+    if (ret) {
+      errors = true;
+      std::cout<<"Failed to add attribute value pairs to policy_user_aval\n";
+      goto end;
+    }
+
+    table = tables[ACL_TABLES::TABLE_POLICY_OBJECT_AVAL].table;
+    // Insert entries into policy_object_aval table
+    for (it1 = object_attributes.attributes->begin(), it2 = object_attributes.values->begin(); 
+        it1 != object_attributes.attributes->end(); it1++, it2++) {
+      ret |= modify_policy_object_aval_in_table(thd, table, rule_name, 
+              std::string(it1->str), std::string(it2->str), false);
+    }
+    if (ret) {
+      errors = true;
+      std::cout<<"Failed to add attribute value pairs to policy_object_aval\n";
+    }
+    end:
+      // assert(!errors || thd->is_error()); TODO(): Add error messages
+      errors = log_and_commit_acl_ddl(thd, transactional_tables);
+      get_global_acl_cache()->increase_version();
+  } /* Critical section */
+
+  if (!errors) {
+    my_ok(thd);
+    /* Notify storage engines */
+  }
+
+  return errors;
+}
+
+bool mysql_delete_rule(THD *thd, std::string rule_name) {
+  DBUG_TRACE;
+  int ret;
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
+  bool transactional_tables;
+  TABLE *table = nullptr;
+  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  bool errors  =false;
+  ABAC_RULE *rule = nullptr;
+  
+  if ((ret = open_grant_tables(thd, tables, &transactional_tables))) 
+    return ret != 1;
+  
+  { /* Critical section */
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+
+    if (!acl_cache_lock.lock()) {
+      commit_and_close_mysql_tables(thd);
+      return true;
+    }
+    
+    // Check if rule having same name already exists
+    if (!abac_rule_hash->count(rule_name)) {
+      std::cout<<"Invalid rule name\n";
+      errors = true;
+      goto end;
+    }
+    
+    rule = (*abac_rule_hash)[rule_name];
+
+    table = tables[ACL_TABLES::TABLE_POLICY_USER_AVAL].table;
+    // Delete entries from policy_user_aval table
+    for (auto it = rule->user_attrib_map.begin(); it != rule->user_attrib_map.end(); it++) {
+      ret |= modify_policy_user_aval_in_table(thd, table, rule_name, it->first, it->second, true);
+      if (ret) {
+        errors = true;
+        goto end;
+      }
+    }
+
+    table = tables[ACL_TABLES::TABLE_POLICY_OBJECT_AVAL].table;
+    // Delete entries from policy_object_aval table
+    for (auto it = rule->object_attrib_map.begin(); it != rule->object_attrib_map.end(); it++) {
+      ret |= modify_policy_object_aval_in_table(thd, table, rule_name, it->first, it->second, true);
+      if (ret) {
+        errors = true;
+        goto end;
+      }
+    }
+
+    table = tables[ACL_TABLES::TABLE_POLICY].table;
+    // Delete rule from policy table
+    ret |= modify_rule_in_table(thd, table, rule_name, rule->access, true);
+    if (ret) {
+      errors = true;
+      goto end;
+    }
+    end:
+      // assert(!errors || thd->is_error()); TODO(): Add error messages
+      errors = log_and_commit_acl_ddl(thd, transactional_tables);
+      get_global_acl_cache()->increase_version();    
+  } /* Critical section */
+
+  if (!errors) {
+    my_ok(thd);
+    /* Notify storage engines */
+  }
+  
+  return errors;
+} 

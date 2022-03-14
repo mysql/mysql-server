@@ -4077,6 +4077,15 @@ Sql_cmd *PT_restart_server::make_cmd(THD *thd) {
   return &sql_cmd;
 }
 
+Sql_cmd *PT_create_rule::make_cmd(THD *thd) {
+  thd->lex->sql_command = SQLCOM_CREATE_RULE;
+  return &sql_cmd;
+}
+
+Sql_cmd *PT_delete_rule::make_cmd(THD *thd) {
+  thd->lex->sql_command = SQLCOM_DELETE_RULE;
+  return &sql_cmd;
+}
 /**
    Generic attribute node that can be used with different base types
    and corrsponding parse contexts. CFP (Contextualizer Function

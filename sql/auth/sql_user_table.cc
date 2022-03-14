@@ -527,8 +527,8 @@ static const TABLE_FIELD_TYPE
 
 static const TABLE_FIELD_TYPE
     mysql_policy_table_fields[MYSQL_POLICY_FIELD_COUNT] = {
-        {{STRING_WITH_LEN("Rule_id")},
-         {STRING_WITH_LEN("int")},
+        {{STRING_WITH_LEN("Rule_name")},
+         {STRING_WITH_LEN("varchar(20)")},
          {nullptr, 0}},
         {{STRING_WITH_LEN("Select_priv")},
          {STRING_WITH_LEN("enum('N','Y')")},
@@ -546,8 +546,8 @@ static const TABLE_FIELD_TYPE
 
 static const TABLE_FIELD_TYPE 
     mysql_policy_user_aval_table_fields[MYSQL_POLICY_USER_AVAL_FIELD_COUNT] = {
-        {{STRING_WITH_LEN("Rule_id")},
-          {STRING_WITH_LEN("int")},
+        {{STRING_WITH_LEN("Rule_name")},
+          {STRING_WITH_LEN("varchar(20)")},
           {nullptr, 0}},
         {{STRING_WITH_LEN("User_attrib_name")},
           {STRING_WITH_LEN("varchar(20)")},
@@ -559,8 +559,8 @@ static const TABLE_FIELD_TYPE
 
 static const TABLE_FIELD_TYPE 
     mysql_policy_object_aval_table_fields[MYSQL_POLICY_OBJECT_AVAL_FIELD_COUNT] = {
-        {{STRING_WITH_LEN("Rule_id")},
-          {STRING_WITH_LEN("int")},
+        {{STRING_WITH_LEN("Rule_name")},
+          {STRING_WITH_LEN("varchar(20)")},
           {nullptr, 0}},
         {{STRING_WITH_LEN("Object_attrib_name")},
           {STRING_WITH_LEN("varchar(20)")},

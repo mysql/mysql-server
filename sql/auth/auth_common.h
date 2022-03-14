@@ -41,6 +41,8 @@
 #include "my_inttypes.h"
 #include "mysql_com.h"  // USERNAME_LENGTH
 #include "template_utils.h"
+#include "include/map_helpers.h"
+#include "sql/sql_admin.h"
 
 /* Forward Declarations */
 class Alter_info;
@@ -382,7 +384,7 @@ enum mysql_object_attrib_val_table_field {
 };
 
 enum mysql_policy {
-  MYSQL_POLICY_RULE_ID = 0,
+  MYSQL_POLICY_RULE_NAME = 0,
   MYSQL_POLICY_SELECT_PRIV,
   MYSQL_POLICY_INSERT_PRIV,
   MYSQL_POLICY_UPDATE_PRIV,
@@ -391,14 +393,14 @@ enum mysql_policy {
 };
 
 enum mysql_policy_user_aval_table_field {
-  MYSQL_POLICY_USER_AVAL_RULE_ID = 0,
+  MYSQL_POLICY_USER_AVAL_RULE_NAME = 0,
   MYSQL_POLICY_USER_AVAL_USER_ATTRIB_NAME,
   MYSQL_POLICY_USER_AVAL_USER_ATTRIB_VAL,
   MYSQL_POLICY_USER_AVAL_FIELD_COUNT
 };
 
 enum mysql_policy_object_aval_table_field {
-  MYSQL_POLICY_OBJECT_AVAL_RULE_ID = 0,
+  MYSQL_POLICY_OBJECT_AVAL_RULE_NAME = 0,
   MYSQL_POLICY_OBJECT_AVAL_OBJECT_ATTRIB_NAME,
   MYSQL_POLICY_OBJECT_AVAL_OBJECT_ATTRIB_VAL,
   MYSQL_POLICY_OBJECT_AVAL_FIELD_COUNT
@@ -904,6 +906,10 @@ bool mysql_grant_role(THD *thd, const List<LEX_USER> *users,
                       const List<LEX_USER> *roles, bool with_admin_opt);
 bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,
                        const List<LEX_USER> *roles);
+bool mysql_create_rule(THD *thd, std::string rule_name, int privs, 
+      attribute_value_list user_attributes, 
+          attribute_value_list object_attributes);
+bool mysql_delete_rule(THD *thd, std::string rule_name);
 void get_default_roles(const Auth_id_ref &user, List_of_auth_id_refs &list);
 
 bool is_granted_table_access(THD *thd, ulong required_acl, TABLE_LIST *table);

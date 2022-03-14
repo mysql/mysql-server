@@ -168,6 +168,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql_string.h"
 #include "thr_lock.h"
 #include "violite.h"
+#include <bits/stdc++.h>
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -177,6 +178,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 
 using std::min;
 using std::max;
+using namespace std;
 
 /// The maximum number of histogram buckets.
 static const int MAX_NUMBER_OF_HISTOGRAM_BUCKETS= 1024;
@@ -568,7 +570,7 @@ void warn_about_deprecated_binary(THD *thd)
 %token  ALL 268                           /* SQL-2003-R */
 %token  ALTER 269                         /* SQL-2003-R */
 %token<lexer.keyword> ALWAYS_SYM 270
-%token  OBSOLETE_TOKEN_271 271            /* was: ANALYSE_SYM */
+%token<lexer.keyword> RULE_SYM 271            /* was: ANALYSE_SYM */
 %token  ANALYZE_SYM 272
 %token  AND_AND_SYM 273                   /* OPERATOR */
 %token  AND_SYM 274                       /* SQL-2003-R */
@@ -1368,6 +1370,7 @@ void warn_about_deprecated_binary(THD *thd)
 
 %token<lexer.keyword> GTID_ONLY_SYM 1199                       /* MYSQL */
 
+
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
   in the case e.g.:
@@ -1837,9 +1840,11 @@ void warn_about_deprecated_binary(THD *thd)
         create_index_stmt
         create_resource_group_stmt
         create_role_stmt
+        create_rule_stmt
         create_srs_stmt
         create_table_stmt
         delete_stmt
+        delete_rule_stmt
         describe_stmt
         do_stmt
         drop_index_stmt
@@ -2150,6 +2155,13 @@ void warn_about_deprecated_binary(THD *thd)
 
 %type <query_id> opt_for_query
 
+/* Types for ABAC */
+%type <num> privilege privilege_list
+
+%type <attribute_map> user_attribute_list object_attribute_list
+
+%type <attrib_val_pair> attrib_val_pair
+
 %%
 
 /*
@@ -2301,10 +2313,12 @@ simple_statement:
         | create_index_stmt
         | create_resource_group_stmt
         | create_role_stmt
+        | create_rule_stmt
         | create_srs_stmt
         | create_table_stmt
         | deallocate                    { $$= nullptr; }
         | delete_stmt
+        | delete_rule_stmt
         | describe_stmt
         | do_stmt
         | drop_database_stmt            { $$= nullptr; }
@@ -3390,6 +3404,61 @@ create_resource_group_stmt:
                                                  $10.value);
           }
         ;
+
+create_rule_stmt:
+          CREATE RULE_SYM ident FOR_SYM privilege_list
+          OF_SYM USER ATTRIBUTE_SYM '(' user_attribute_list ')' AND_SYM 
+          RESOURCE_SYM ATTRIBUTE_SYM '(' object_attribute_list ')' 
+          {
+            $$ = NEW_PTN PT_create_rule(string($3.str), $5, $10, $16);
+          }
+        ;
+
+user_attribute_list:
+          attrib_val_pair
+          {
+            $$.attributes = NEW_PTN List<LEX_STRING>;
+            $$.values = NEW_PTN List<LEX_STRING>;
+            $$.attributes->push_back(&($1->first));
+            $$.values->push_back(&($1->second));
+          }
+          | user_attribute_list ',' attrib_val_pair
+          {
+            $$ = $1;
+            $$.attributes->push_back(&($3->first));
+            $$.values->push_back(&($3->second));
+          }
+          ;
+
+object_attribute_list:
+          attrib_val_pair
+          {
+            $$.attributes = NEW_PTN List<LEX_STRING>;
+            $$.values = NEW_PTN List<LEX_STRING>;
+            $$.attributes->push_back(&($1->first));
+            $$.values->push_back(&($1->second));
+          }
+          | object_attribute_list ',' attrib_val_pair
+          {
+            $$ = $1;
+            $$.attributes->push_back(&($3->first));
+            $$.values->push_back(&($3->second));
+          }
+          ;
+
+attrib_val_pair:
+          ident ':' ident 
+          {
+            $$ = new pair<LEX_STRING, LEX_STRING>($1, $3);
+          }
+          ;
+
+delete_rule_stmt:
+          DROP RULE_SYM ident
+          {
+            $$ = NEW_PTN PT_delete_rule(string($3.str));
+          }
+          ;
 
 create:
           CREATE DATABASE opt_if_not_exists ident
@@ -16616,6 +16685,36 @@ role_list:
             $$= $1;
             if ($$->push_back($3))
               MYSQL_YYABORT;
+          }
+        ;
+
+privilege_list:
+          privilege
+          {
+            $$ = $1;
+          }
+          | privilege_list ',' privilege 
+          {
+            $$ = $1 | $3;
+          }
+        ;
+
+privilege:
+          SELECT_SYM 
+          {
+            $$ = SELECT_ACL;
+          }
+          | INSERT_SYM
+          {
+            $$ = INSERT_ACL;
+          }
+          | UPDATE_SYM
+          {
+            $$ = UPDATE_ACL;
+          }
+          | DELETE_SYM
+          {
+            $$ = DELETE_ACL;
           }
         ;
 

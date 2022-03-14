@@ -47,6 +47,11 @@ class List;
 struct KEY_CACHE;
 struct LEX_USER;
 
+typedef struct attribute_value_list {
+  List<LEX_STRING> *attributes;
+  List<LEX_STRING> *values;
+} attribute_value_list;
+
 struct Column_name_comparator {
   bool operator()(const String *lhs, const String *rhs) const;
 };
@@ -350,6 +355,36 @@ class Sql_cmd_alter_user_default_role : public Sql_cmd {
   enum_sql_command sql_command_code() const override {
     return SQLCOM_ALTER_USER_DEFAULT_ROLE;
   }
+};
+
+class Sql_cmd_create_rule : public Sql_cmd {
+  std::string rule_name;
+  int privs;
+  attribute_value_list user_attrib_map;
+  attribute_value_list object_attrib_map;
+  public:
+    explicit Sql_cmd_create_rule(std::string rule_name_arg,int privs_arg,
+                                attribute_value_list user_attrib_map_arg,
+                                attribute_value_list object_attrib_map_arg) 
+        : rule_name(rule_name_arg),
+          privs(privs_arg),
+          user_attrib_map(user_attrib_map_arg),
+          object_attrib_map(object_attrib_map_arg) {}
+
+    bool execute(THD *thd) override;
+    enum_sql_command sql_command_code() const override {
+      return SQLCOM_CREATE_RULE;
+    }
+};
+
+class Sql_cmd_delete_rule : public Sql_cmd {
+  std::string rule_name;
+  public:
+    explicit Sql_cmd_delete_rule(std::string rule_name_arg) : rule_name(rule_name_arg) {}
+    bool execute(THD *thd) override;
+    enum_sql_command sql_command_code() const override {
+      return SQLCOM_DELETE_RULE;
+    }
 };
 
 enum alter_instance_action_enum {

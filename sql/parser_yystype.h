@@ -152,6 +152,7 @@ struct CHARSET_INFO;
 struct LEX;
 struct Sql_cmd_srs_attributes;
 struct udf_func;
+struct attribute_value_list;
 
 template <class T>
 class List;
@@ -697,6 +698,8 @@ union YYSTYPE {
     Create_col_name_list *column_list;
   } insert_update_values_reference;
   my_thread_id query_id;
+  attribute_value_list attribute_map;
+  std::pair<LEX_STRING, LEX_STRING> *attrib_val_pair;
 };
 
 static_assert(sizeof(YYSTYPE) <= 32, "YYSTYPE is too big");

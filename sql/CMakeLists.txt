@@ -366,6 +366,7 @@ SET(SQL_SHARED_SOURCES
   keyring_service.cc
   auth/roles.cc
   auth/role_tables.cc
+  auth/abac_tables.cc
   auth/sha2_password_common.cc
   auth/sha2_password.cc
   ssl_wrapper_service.cc

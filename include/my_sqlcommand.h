@@ -202,6 +202,8 @@ enum enum_sql_command {
   SQLCOM_RESTART_SERVER,
   SQLCOM_CREATE_SRS,
   SQLCOM_DROP_SRS,
+  SQLCOM_CREATE_RULE,
+  SQLCOM_DELETE_RULE,
   /* This should be the last !!! */
   SQLCOM_END
 };

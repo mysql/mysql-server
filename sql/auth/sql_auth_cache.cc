@@ -134,8 +134,10 @@ Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts = nullptr;
 // Prealloced_array<ABAC_OBJECT, ACL_PREALLOC_SIZE> *abac_objects = nullptr;
 malloc_unordered_map<string, ACL_USER_ABAC*> *acl_user_abac_hash;
 malloc_unordered_map<string, ABAC_OBJECT*> *abac_object_hash;
-malloc_unordered_map<int, ABAC_RULE*> *abac_rule_hash;
+malloc_unordered_map<string, ABAC_RULE*> *abac_rule_hash;
 malloc_unordered_map<string, ABAC_TABLE_GRANT*> *abac_table_priv_hash;
+malloc_unordered_set<std::string> *user_attribute_set = nullptr;
+malloc_unordered_set<std::string> *object_attribute_set = nullptr;
 Db_access_map acl_db_map;
 Default_roles *g_default_roles = nullptr;
 std::vector<Role_id> *g_mandatory_roles = nullptr;
@@ -719,8 +721,8 @@ std::string ABAC_OBJECT::get_attribute_value(std::string attrib_arg) {
   return attrib_map[attrib_arg];
 }
 
-void ABAC_RULE::set_id(int id_arg) {
-  id = id_arg;
+void ABAC_RULE::set_rule_name(string name_arg) {
+  rule_name = name_arg;
 }
 
 void ABAC_RULE::set_access(int access_arg) {
@@ -3859,9 +3861,35 @@ bool abac_load(THD *thd, TABLE_LIST *tables) {
   thd->variables.sql_mode &= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
   int read_rec_errcode;
 
-  /* Processing user_attrib_val table */
+  /* Processing user_attributes table */
   if (tables[0].table) {
     iterator = init_table_iterator(thd, table = tables[0].table, false, false);
+    if (iterator == nullptr) goto end;
+    table->use_all_columns();
+    while (!(read_rec_errcode = iterator->Read())) {
+      string attrib_name = string(get_field(&global_acl_memory, table->field[MYSQL_USER_ATTRIBUTES_ATTRIB_NAME]));
+      user_attribute_set->insert(attrib_name);
+    } 
+    iterator.reset();
+    if (read_rec_errcode > 0) goto end;
+  }
+
+  /* Processing object_attributes table */
+  if (tables[1].table) {
+    iterator = init_table_iterator(thd, table = tables[1].table, false, false);
+    if (iterator == nullptr) goto end;
+    table->use_all_columns();
+    while (!(read_rec_errcode = iterator->Read())) {
+      string attrib_name = string(get_field(&global_acl_memory, table->field[MYSQL_OBJECT_ATTRIBUTES_ATTRIB_NAME]));
+      object_attribute_set->insert(attrib_name);
+    }
+    iterator.reset();
+    if (read_rec_errcode > 0) goto end;
+  }
+
+  /* Processing user_attrib_val table */
+  if (tables[2].table) {
+    iterator = init_table_iterator(thd, table = tables[2].table, false, false);
     if (iterator == nullptr) goto end;
     table->use_all_columns();
     while (!(read_rec_errcode = iterator->Read())) {
@@ -3888,8 +3916,8 @@ bool abac_load(THD *thd, TABLE_LIST *tables) {
   }
 
   /* Processing object_attrib_val table */
-  if (tables[1].table) {
-    iterator = init_table_iterator(thd, table = tables[1].table, false, false);
+  if (tables[3].table) {
+    iterator = init_table_iterator(thd, table = tables[3].table, false, false);
     if (iterator == nullptr) goto end;
     table->use_all_columns();
     while (!(read_rec_errcode = iterator->Read())) {
@@ -3916,14 +3944,14 @@ bool abac_load(THD *thd, TABLE_LIST *tables) {
   }
 
   /* Processing policy table */
-  if (tables[2].table) {
-    iterator = init_table_iterator(thd, table = tables[2].table, false, false);
+  if (tables[4].table) {
+    iterator = init_table_iterator(thd, table = tables[4].table, false, false);
     if (iterator == nullptr) goto end;
     table->use_all_columns();
     while (!(read_rec_errcode = iterator->Read())) {
-      int rule_id = atoi(get_field(&global_acl_memory, table->field[MYSQL_POLICY_RULE_ID]));
+      string rule_name = string(get_field(&global_acl_memory, table->field[MYSQL_POLICY_RULE_NAME]));
       ABAC_RULE *abac_rule = new ABAC_RULE();
-      abac_rule->set_id(rule_id);
+      abac_rule->set_rule_name(rule_name);
       ulong access = 0ll;
       char *select_priv = get_field(&global_acl_memory, table->field[MYSQL_POLICY_SELECT_PRIV]);
       char *insert_priv = get_field(&global_acl_memory, table->field[MYSQL_POLICY_INSERT_PRIV]);
@@ -3934,41 +3962,41 @@ bool abac_load(THD *thd, TABLE_LIST *tables) {
       if (delete_priv[0] == 'Y') access |= DELETE_ACL;
       if (update_priv[0] == 'Y') access |= UPDATE_ACL;
       abac_rule->set_access(access);
-      abac_rule_hash->emplace(rule_id, abac_rule);
+      abac_rule_hash->emplace(rule_name, abac_rule);
     }
     iterator.reset();
     if (read_rec_errcode > 0) goto end;
   }
 
   /* Processing policy_user_aval table */
-  if (tables[3].table) {
-    iterator = init_table_iterator(thd, table = tables[3].table, false, false);
+  if (tables[5].table) {
+    iterator = init_table_iterator(thd, table = tables[5].table, false, false);
     if (iterator == nullptr) goto end;
     table->use_all_columns();
     while (!(read_rec_errcode = iterator->Read())) {
-      int rule_id = atoi(get_field(&global_acl_memory, table->field[MYSQL_POLICY_USER_AVAL_RULE_ID]));
+      string rule_name = string(get_field(&global_acl_memory, table->field[MYSQL_POLICY_USER_AVAL_RULE_NAME]));
       string attrib_name = string(get_field(&global_acl_memory, 
           table->field[MYSQL_POLICY_USER_AVAL_USER_ATTRIB_NAME]));
       string attrib_val = string(get_field(&global_acl_memory, 
           table->field[MYSQL_POLICY_USER_AVAL_USER_ATTRIB_VAL]));
-      (*abac_rule_hash)[rule_id]->set_user_attribute(attrib_name, attrib_val);
+      (*abac_rule_hash)[rule_name]->set_user_attribute(attrib_name, attrib_val);
     }
     iterator.reset();
     if (read_rec_errcode > 0) goto end;
   }
 
   /* Processing policy_object_aval table */
-  if (tables[4].table) {
-    iterator = init_table_iterator(thd, table = tables[4].table, false, false);
+  if (tables[6].table) {
+    iterator = init_table_iterator(thd, table = tables[6].table, false, false);
     if (iterator == nullptr) goto end;
     table->use_all_columns();
     while (!(read_rec_errcode = iterator->Read())) {
-      int rule_id = atoi(get_field(&global_acl_memory, table->field[MYSQL_POLICY_OBJECT_AVAL_RULE_ID]));
+      string rule_name = string(get_field(&global_acl_memory, table->field[MYSQL_POLICY_OBJECT_AVAL_RULE_NAME]));
       string attrib_name = string(get_field(&global_acl_memory, 
           table->field[MYSQL_POLICY_OBJECT_AVAL_OBJECT_ATTRIB_NAME]));
       string attrib_val = string(get_field(&global_acl_memory, 
           table->field[MYSQL_POLICY_OBJECT_AVAL_OBJECT_ATTRIB_VAL]));
-      (*abac_rule_hash)[rule_id]->set_object_attribute(attrib_name, attrib_val);
+      (*abac_rule_hash)[rule_name]->set_object_attribute(attrib_name, attrib_val);
     }
     iterator.reset();
     if (read_rec_errcode > 0) goto end;
@@ -4038,6 +4066,10 @@ void abac_free() {
   acl_user_abac_hash = nullptr;
   delete abac_rule_hash;
   abac_rule_hash = nullptr;
+  delete user_attribute_set;
+  user_attribute_set = nullptr;
+  delete object_attribute_set;
+  object_attribute_set = nullptr;
 }
 bool abac_init(bool skip_abac_tables = false) {
   THD *thd;
@@ -4074,19 +4106,25 @@ bool abac_reload(THD *thd, bool mdl_locked) {
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
   malloc_unordered_map<string, ACL_USER_ABAC*> *old_acl_user_abac_hash = nullptr;
   malloc_unordered_map<string, ABAC_OBJECT*> *old_abac_object_hash = nullptr;
-  malloc_unordered_map<int, ABAC_RULE*> *old_abac_rule_hash = nullptr;
+  malloc_unordered_map<string, ABAC_RULE*> *old_abac_rule_hash = nullptr;
   malloc_unordered_map<string, ABAC_TABLE_GRANT*> *old_abac_table_priv_hash = nullptr;
+  malloc_unordered_set<string> *old_user_attribute_set = nullptr;
+  malloc_unordered_set<string> *old_object_attribute_set = nullptr;
   DBUG_TRACE;
 
   /* Don't do anything if running with --skip-grant-tables */
   if (!initialized) return false;
 
-  TABLE_LIST tables[5] = {
+  TABLE_LIST tables[7] = {
 
       /*
         Acquiring strong MDL lock allows to avoid deadlock and timeout errors
         from SE level.
       */
+      TABLE_LIST("mysql", "user_attributes", TL_READ, MDL_SHARED_READ_ONLY),
+
+      TABLE_LIST("mysql", "object_attributes", TL_READ, MDL_SHARED_READ_ONLY),
+
       TABLE_LIST("mysql", "user_attrib_val", TL_READ, MDL_SHARED_READ_ONLY),
 
       TABLE_LIST("mysql", "object_attrib_val", TL_READ, MDL_SHARED_READ_ONLY),
@@ -4101,12 +4139,16 @@ bool abac_reload(THD *thd, bool mdl_locked) {
   tables[1].next_local = tables[1].next_global = tables + 2;
   tables[2].next_local = tables[2].next_global = tables + 3;
   tables[3].next_local = tables[3].next_global = tables + 4;
+  tables[4].next_local = tables[4].next_global = tables + 5;
+  tables[5].next_local = tables[5].next_global = tables + 6;
   tables[0].open_type = tables[1].open_type = tables[2].open_type =
       tables[3].open_type = tables[4].open_type = 
-          OT_BASE_ONLY;
+          tables[5].open_type = tables[6].open_type =
+            OT_BASE_ONLY;
   tables[0].open_strategy = tables[1].open_strategy = tables[2].open_strategy =
       tables[3].open_strategy = tables[4].open_strategy = 
-          TABLE_LIST::OPEN_IF_EXISTS;
+          tables[5].open_strategy = tables[6].open_strategy = 
+              TABLE_LIST::OPEN_IF_EXISTS;
 
   if (open_and_lock_tables(thd, tables, flags)) {
     if (!is_expected_or_transient_error(thd)) {
@@ -4122,11 +4164,15 @@ bool abac_reload(THD *thd, bool mdl_locked) {
   old_abac_rule_hash = abac_rule_hash;
   old_acl_user_abac_hash = acl_user_abac_hash;
   old_abac_table_priv_hash = abac_table_priv_hash;
+  old_user_attribute_set  = user_attribute_set;
+  old_object_attribute_set = object_attribute_set;
 
   abac_object_hash = new malloc_unordered_map<string, ABAC_OBJECT*>(key_memory_acl_memex);
-  abac_rule_hash = new malloc_unordered_map<int, ABAC_RULE*>(key_memory_acl_memex);
+  abac_rule_hash = new malloc_unordered_map<string, ABAC_RULE*>(key_memory_acl_memex);
   abac_table_priv_hash = new malloc_unordered_map<string, ABAC_TABLE_GRANT*>(key_memory_acl_memex);
   acl_user_abac_hash = new malloc_unordered_map<string, ACL_USER_ABAC*>(key_memory_acl_memex);
+  user_attribute_set = new malloc_unordered_set<string>(key_memory_acl_memex);
+  object_attribute_set = new malloc_unordered_set<string>(key_memory_acl_memex);
 
   if ((return_val = abac_load(thd, tables))) {
     abac_free();
@@ -4134,11 +4180,15 @@ bool abac_reload(THD *thd, bool mdl_locked) {
     abac_rule_hash = old_abac_rule_hash;
     abac_table_priv_hash = old_abac_table_priv_hash;
     acl_user_abac_hash = old_acl_user_abac_hash;
+    user_attribute_set = old_user_attribute_set;
+    object_attribute_set = old_object_attribute_set;
   } else {
     delete old_abac_object_hash;
     delete old_abac_rule_hash;
     delete old_abac_table_priv_hash;
     delete old_acl_user_abac_hash;
+    delete old_user_attribute_set;
+    delete old_object_attribute_set;
   }
 
   end:

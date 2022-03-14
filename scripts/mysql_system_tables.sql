@@ -235,7 +235,7 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 SET @cmd = "CREATE TABLE IF NOT EXISTS policy ( 
-	Rule_id int PRIMARY KEY AUTO_INCREMENT, 
+	Rule_name varchar(20) PRIMARY KEY, 
 	Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
 	Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
@@ -247,11 +247,11 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 SET @cmd = "CREATE TABLE IF NOT EXISTS policy_user_aval ( 
-	Rule_id int, 
+	Rule_name varchar(20), 
   User_attrib_name varchar(20) CHARACTER SET ASCII NOT NULL, 
   User_attrib_val varchar(10) CHARACTER SET ASCII NOT NULL,
-	PRIMARY KEY (Rule_id, User_attrib_name),
-	FOREIGN KEY (Rule_id) REFERENCES policy(Rule_id),
+	PRIMARY KEY (Rule_name, User_attrib_name),
+	FOREIGN KEY (Rule_name) REFERENCES policy(Rule_name) ON DELETE CASCADE,
 	FOREIGN KEY (User_attrib_name) REFERENCES user_attributes(Attrib_name)
 ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Policy definitions for user attributes' ROW_FORMAT=DYNAMIC TABLESPACE=mysql";
 SET @str = CONCAT(@cmd, " ENCRYPTION='", @is_mysql_encrypted, "'");
@@ -260,11 +260,11 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 SET @cmd = "CREATE TABLE IF NOT EXISTS policy_object_aval ( 
-	Rule_id int, 
+	Rule_name varchar(20), 
   Object_attrib_name varchar(20) CHARACTER SET ASCII NOT NULL, 
   Object_attrib_val varchar(10) CHARACTER SET ASCII NOT NULL,
-	PRIMARY KEY (Rule_id, Object_attrib_name),
-	FOREIGN KEY (Rule_id) REFERENCES policy(Rule_id),
+	PRIMARY KEY (Rule_name, Object_attrib_name),
+	FOREIGN KEY (Rule_name) REFERENCES policy(Rule_name) ON DELETE CASCADE,
 	FOREIGN KEY (Object_attrib_name) REFERENCES object_attributes(Attrib_name)
 ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Policy definitions for object attributes' ROW_FORMAT=DYNAMIC TABLESPACE=mysql";
 SET @str = CONCAT(@cmd, " ENCRYPTION='", @is_mysql_encrypted, "'");
