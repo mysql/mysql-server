@@ -10,7 +10,7 @@
 # the create / alter table stmt.
 #
 PartitionsPerNode=1
-ThreadConfig=ldm={count=1}
+ThreadConfig=main,rep,recv,ldm={count=1}
 
 [cluster_config.1]
 NoOfReplicas=                  2
