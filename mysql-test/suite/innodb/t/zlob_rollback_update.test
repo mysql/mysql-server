@@ -1,3 +1,4 @@
+--source include/have_innodb_max_16k.inc
 --source include/have_debug.inc
 --source include/count_sessions.inc
 
