@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1583,6 +1583,7 @@ Lgman::execFSOPENREF(Signal* signal)
 void
 Lgman::execFSOPENCONF(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   Ptr<Undofile> ptr;  
 
