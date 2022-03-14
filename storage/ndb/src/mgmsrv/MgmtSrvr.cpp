@@ -3730,8 +3730,8 @@ MgmtSrvr::clear_connect_address_cache(NodeId nodeid)
  ***************************************************************************/
 
 MgmtSrvr::NodeIdReservations::NodeIdReservations()
+    : m_reservations()  // zero fill using value initialization
 {
-  std::memset(m_reservations, 0, sizeof(m_reservations));
 }
 
 
