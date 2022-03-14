@@ -23,6 +23,9 @@
 %global mysql_vendor    Oracle and/or its affiliates
 %global mysqldatadir    /var/lib/mysql
 
+# Pass --define 'with_cluster 1' to build with cluster support
+%{?with_cluster: %global cluster 1}
+
 %if 0%{?cluster}
 %global with_meb    0
 %global with_router 0
@@ -34,9 +37,6 @@
 %endif
 %global with_router 1
 %endif
-
-# Pass --define 'with_cluster 1' to build with cluster support
-%{?with_cluster: %global cluster 1}
 
 # Pass path to mecab lib
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
