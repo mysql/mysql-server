@@ -58,22 +58,20 @@
 #include "sql/uniques.h"           // Unique
 #include "sql/window.h"
 
-a_star_ting::a_star_ting(
+Item_sum_shortest_dir_path::Item_sum_shortest_dir_path(
     THD *thd, Item_sum *item, unique_ptr_destroy_only<Json_wrapper> wrapper,
     unique_ptr_destroy_only<Json_object> object)
     : Item_sum_json(std::move(wrapper), thd, item),
       m_json_object(std::move(object)) {}
 
-a_star_ting::a_star_ting(
-    const POS &pos, Item *a, Item *b, PT_window *w,
+Item_sum_shortest_dir_path::Item_sum_shortest_dir_path(
+    const POS &pos, PT_item_list *args, PT_window *w,
     unique_ptr_destroy_only<Json_wrapper> wrapper,
     unique_ptr_destroy_only<Json_object> object)
-    : Item_sum_json(std::move(wrapper), pos, a, b, w),
+    : Item_sum_json(std::move(wrapper), pos, args, w),
       m_json_object(std::move(object)) {}
 
-a_star_ting::~a_star_ting() = default;
-
-void a_star_ting::clear() {
+void Item_sum_shortest_dir_path::clear() {
   null_value = true;
   m_json_object->clear();
 
@@ -83,9 +81,9 @@ void a_star_ting::clear() {
   m_key_map.clear();
 }
 
-bool a_star_ting::add() {
-  assert(fixed == 1);
-  assert(arg_count == 2);
+bool Item_sum_shortest_dir_path::add() {
+  assert(fixed);
+  assert(arg_count == 6);
 
   const THD *thd = base_query_block->parent_lex->thd;
   /*
@@ -178,7 +176,7 @@ bool a_star_ting::add() {
   return false;
 }
 
-Item *a_star_ting::copy_or_same(THD *thd) {
+Item *Item_sum_shortest_dir_path::copy_or_same(THD *thd) {
   if (m_is_window_function) return this;
 
   auto wrapper = make_unique_destroy_only<Json_wrapper>(thd->mem_root);
@@ -189,10 +187,10 @@ Item *a_star_ting::copy_or_same(THD *thd) {
   if (object == nullptr) return nullptr;
 
   return new (thd->mem_root)
-      a_star_ting(thd, this, std::move(wrapper), std::move(object));
+      Item_sum_shortest_dir_path(thd, this, std::move(wrapper), std::move(object));
 }
 
-bool a_star_ting::check_wf_semantics1(THD *thd, Query_block *select,
+bool Item_sum_shortest_dir_path::check_wf_semantics1(THD *thd, Query_block *select,
                                         Window_evaluation_requirements *reqs) {
   return Item_sum::check_wf_semantics1(thd, select, reqs);
 }

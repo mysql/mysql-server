@@ -461,7 +461,8 @@ class Item_sum : public Item_func {
     FIRST_LAST_VALUE_FUNC,
     NTH_VALUE_FUNC,
     ROLLUP_SUM_SWITCHER_FUNC,
-    GEOMETRY_AGGREGATE_FUNC
+    GEOMETRY_AGGREGATE_FUNC,
+    SHORTEST_DIR_PATH_FUNC
   };
 
   /**
@@ -1210,7 +1211,10 @@ class Item_sum_json : public Item_sum {
   */
   template <typename... Args>
   explicit Item_sum_json(unique_ptr_destroy_only<Json_wrapper> wrapper,
-                         Args &&... parent_args);
+                         Args &&... parent_args)
+    : Item_sum(std::forward<Args>(parent_args)...),
+      m_wrapper(std::move(wrapper)) { set_data_type_json(); }
+
 
  public:
   ~Item_sum_json() override;

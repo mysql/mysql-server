@@ -5635,13 +5635,6 @@ bool Item_lead_lag::compute() {
   return null_value || current_thd->is_error();
 }
 
-template <typename... Args>
-Item_sum_json::Item_sum_json(unique_ptr_destroy_only<Json_wrapper> wrapper,
-                             Args &&... parent_args)
-    : Item_sum(std::forward<Args>(parent_args)...),
-      m_wrapper(std::move(wrapper)) {
-  set_data_type_json();
-}
 
 Item_sum_json::~Item_sum_json() = default;
 
@@ -6573,3 +6566,4 @@ void Item_sum_collect::reset_field() {
   add();
   store_result_field();
 }
+
