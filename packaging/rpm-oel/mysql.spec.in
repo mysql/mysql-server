@@ -264,12 +264,18 @@ Provides:       MySQL-server-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-server-advanced < %{version}-%{release}
 Obsoletes:      MySQL-embedded-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-server < %{version}-%{release}
+%if 0%{?without_debuginfo}
+Obsoletes:      mysql-community-server-debug < %{version}-%{release}
+%endif
 %if 0%{?cluster}
 Provides:       MySQL-Cluster-server-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-Cluster-server-advanced < %{version}-%{release}
 Obsoletes:      MySQL-Cluster-embedded-advanced < %{version}-%{release}
 Obsoletes:      mysql-commercial-server < %{version}-%{release}
 Obsoletes:      mysql-cluster-community-server < %{version}-%{release}
+%if 0%{?without_debuginfo}
+Obsoletes:      mysql-cluster-community-server-debug < %{version}-%{release}
+%endif
 Obsoletes:      mysql-cluster-commercial-embedded < 8.0.1
 Obsoletes:      mysql-cluster-commercial-embedded-devel < 8.0.1
 %endif
