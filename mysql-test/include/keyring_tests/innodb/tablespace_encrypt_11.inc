@@ -111,7 +111,7 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 
 --echo # INJECT error TOO_MANY_CONCURRENT_TXNS in startup location $location.
 --echo # It will cause FATAL error and server abort.
---error 0,2
+--error 0,2,-2147483645
 --exec $MYSQLD_CMD $PLUGIN_DIR_OPT --log-error=$MYSQLTEST_VARDIR/log/my_restart.err --debug=+d,$location
 
 --echo # Search the failure pattern in error log
