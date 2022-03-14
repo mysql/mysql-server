@@ -3370,7 +3370,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
           }
         }
         // link blob event under main event
-        add_blob_data(bucket, main_data, data);
+        add_blob_data(main_data, data);
       }
       if (use_hash)
       {
@@ -4123,10 +4123,8 @@ NdbEventBuffer::get_main_data(Gci_container* bucket,
   DBUG_RETURN_EVENT(1);
 }
 
-void
-NdbEventBuffer::add_blob_data(Gci_container* bucket,
-                              EventBufDataHead* main_data,
-                              EventBufData* blob_data)
+void NdbEventBuffer::add_blob_data(EventBufDataHead* main_data,
+                                   EventBufData* blob_data)
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::add_blob_data");
   DBUG_PRINT_EVENT("info", ("main_data=%p blob_data=%p 0x%x %s",
@@ -4633,8 +4631,9 @@ EventBufAllocator<T>::allocate(std::size_t n) {
 
 // We do not deallocate in the EventBuffer, it is eventually garbage collected
 template <class T>
-void
-EventBufAllocator<T>::deallocate(T* p, std::size_t n) noexcept {}
+void EventBufAllocator<T>::deallocate(T* /*p*/, std::size_t /*n*/) noexcept
+{
+}
 
 //////////////////
 

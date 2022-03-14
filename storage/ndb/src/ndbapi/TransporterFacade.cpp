@@ -159,8 +159,9 @@ TransporterFacade::reportConnect(NodeId nodeId)
 /**
  * Report connection broken
  */
-void
-TransporterFacade::reportDisconnect(NodeId nodeId, Uint32 error){
+void TransporterFacade::reportDisconnect(NodeId nodeId,
+                                         Uint32 error [[maybe_unused]])
+{
   DEBUG_FPRINTF((stderr, "(%u)FAC:reportDisconnect(%u, %u)\n",
                          ownId(), nodeId, error));
 #ifdef REPORT_TRANSPORTER
@@ -246,12 +247,10 @@ TRACE_GSN(Uint32 gsn)
 /**
  * The execute function : Handle received signal
  */
-bool
-TransporterFacade::deliver_signal(SignalHeader * const header,
-                                  Uint8 prio,
-                                  TransporterError &error_code,
-                                  Uint32 * const theData,
-                                  LinearSectionPtr ptr[3])
+bool TransporterFacade::deliver_signal(SignalHeader* const header, Uint8 prio,
+                                       TransporterError& /*error_code*/,
+                                       Uint32* const theData,
+                                       LinearSectionPtr ptr[3])
 {
   Uint32 tRecBlockNo = header->theReceiversBlockNumber;
 
@@ -475,16 +474,16 @@ TransporterFacade::handleMissingClnt(const SignalHeader * header,
 }
 
 // These symbols are needed, but not used in the API
-void 
-SignalLoggerManager::printSegmentedSection(FILE *, const SignalHeader &,
-					   const SegmentedSectionPtr ptr[3],
-					   unsigned i){
+void SignalLoggerManager::printSegmentedSection(
+    FILE*, const SignalHeader&, const SegmentedSectionPtr /*ptr*/[3],
+    unsigned /*i*/)
+{
   abort();
 }
 
-void 
-copy(Uint32 * & insertPtr, 
-     class SectionSegmentPool & thePool, const SegmentedSectionPtr & _ptr){
+void copy(Uint32*& /*insertPtr*/, class SectionSegmentPool& /*thePool*/,
+          const SegmentedSectionPtr& /*_ptr*/)
+{
   abort();
 }
 
@@ -1263,9 +1262,8 @@ ReceiveThreadClient::~ReceiveThreadClient()
   DBUG_VOID_RETURN;
 }
 
-void
-ReceiveThreadClient::trp_deliver_signal(const NdbApiSignal *signal,
-                                        const LinearSectionPtr ptr[3])
+void ReceiveThreadClient::trp_deliver_signal(const NdbApiSignal* signal,
+                                             const LinearSectionPtr /*ptr*/[3])
 {
   DBUG_ENTER("ReceiveThreadClient::trp_deliver_signal");
   switch (signal->theVerId_signalNumber)

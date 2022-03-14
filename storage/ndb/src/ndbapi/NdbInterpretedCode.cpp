@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -731,56 +731,38 @@ NdbInterpretedCode::branch_col_param(Uint32 branch_type,
   DBUG_RETURN(0);
 }
 
-int 
-NdbInterpretedCode::branch_col_eq(const void * val, 
-                                  Uint32 len,
-                                  Uint32 attrId,
-                                  Uint32 Label)
+int NdbInterpretedCode::branch_col_eq(const void *val, Uint32, Uint32 attrId,
+                                      Uint32 Label)
 {
   return branch_col_val(Interpreter::EQ, attrId, val, 0, Label);
 }
 
-int 
-NdbInterpretedCode::branch_col_ne(const void * val, 
-                                  Uint32 len,
-                                  Uint32 attrId,
-                                  Uint32 Label)
+int NdbInterpretedCode::branch_col_ne(const void *val, Uint32, Uint32 attrId,
+                                      Uint32 Label)
 {
   return branch_col_val(Interpreter::NE, attrId, val, 0, Label);
 }
 
-int 
-NdbInterpretedCode::branch_col_lt(const void * val, 
-                                  Uint32 len,
-                                  Uint32 attrId,
-                                  Uint32 Label)
+int NdbInterpretedCode::branch_col_lt(const void *val, Uint32, Uint32 attrId,
+                                      Uint32 Label)
 {
   return branch_col_val(Interpreter::LT, attrId, val, 0, Label);
 }
 
-int 
-NdbInterpretedCode::branch_col_le(const void * val, 
-                                  Uint32 len,
-                                  Uint32 attrId,
-                                  Uint32 Label)
+int NdbInterpretedCode::branch_col_le(const void *val, Uint32, Uint32 attrId,
+                                      Uint32 Label)
 {
   return branch_col_val(Interpreter::LE, attrId, val, 0, Label);
 }
 
-int 
-NdbInterpretedCode::branch_col_gt(const void * val, 
-                                  Uint32 len,
-                                  Uint32 attrId,
-                                  Uint32 Label)
+int NdbInterpretedCode::branch_col_gt(const void *val, Uint32, Uint32 attrId,
+                                      Uint32 Label)
 {
   return branch_col_val(Interpreter::GT, attrId, val, 0, Label);
 }
 
-int 
-NdbInterpretedCode::branch_col_ge(const void * val, 
-                                  Uint32 len,
-                                  Uint32 attrId,
-                                  Uint32 Label)
+int NdbInterpretedCode::branch_col_ge(const void *val, Uint32, Uint32 attrId,
+                                      Uint32 Label)
 {
   return branch_col_val(Interpreter::GE, attrId, val, 0, Label);
 }
@@ -803,38 +785,26 @@ NdbInterpretedCode::branch_col_notlike(const void * val,
   return branch_col_val(Interpreter::NOT_LIKE, attrId, val, len, Label);
 }
 
-int
-NdbInterpretedCode::branch_col_and_mask_eq_mask(const void * mask,
-                                                Uint32 len,
-                                                Uint32 attrId,
-                                                Uint32 label)
+int NdbInterpretedCode::branch_col_and_mask_eq_mask(const void *mask, Uint32,
+                                                    Uint32 attrId, Uint32 label)
 {
   return branch_col_val(Interpreter::AND_EQ_MASK, attrId, mask, 0, Label);
 }
 
-int
-NdbInterpretedCode::branch_col_and_mask_ne_mask(const void * mask,
-                                                Uint32 len,
-                                                Uint32 attrId,
-                                                Uint32 label)
+int NdbInterpretedCode::branch_col_and_mask_ne_mask(const void *mask, Uint32,
+                                                    Uint32 attrId, Uint32 label)
 {
   return branch_col_val(Interpreter::AND_NE_MASK, attrId, mask, 0, Label);
 }
 
-int
-NdbInterpretedCode::branch_col_and_mask_eq_zero(const void * mask,
-                                                Uint32 len,
-                                                Uint32 attrId,
-                                                Uint32 label)
+int NdbInterpretedCode::branch_col_and_mask_eq_zero(const void *mask, Uint32,
+                                                    Uint32 attrId, Uint32 label)
 {
   return branch_col_val(Interpreter::AND_EQ_ZERO, attrId, mask, 0, Label);
 }
 
-int
-NdbInterpretedCode::branch_col_and_mask_ne_zero(const void * mask,
-                                                Uint32 len,
-                                                Uint32 attrId,
-                                                Uint32 label)
+int NdbInterpretedCode::branch_col_and_mask_ne_zero(const void *mask, Uint32,
+                                                    Uint32 attrId, Uint32 label)
 {
   return branch_col_val(Interpreter::AND_NE_ZERO, attrId, mask, 0, Label);
 }

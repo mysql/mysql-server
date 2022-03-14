@@ -507,8 +507,7 @@ setOperationErrorCodeAbort(int error);
 Remark:        Sets an error code on the connection object from an 
                operation object. 
 *****************************************************************************/
-void
-NdbTransaction::setOperationErrorCodeAbort(int error, int abortOption)
+void NdbTransaction::setOperationErrorCodeAbort(int error)
 {
   DBUG_ENTER("NdbTransaction::setOperationErrorCodeAbort");
   if (theTransactionIsStarted == false) {
@@ -2596,8 +2595,7 @@ Return Value:  Return 0 : receiveTCRELEASECONF was successful.
 Parameters:    aSignal: The signal object pointer.
 Remark:         DisConnect TC Connect pointer to NDBAPI. 
 *******************************************************************************/
-int			
-NdbTransaction::receiveTCRELEASECONF(const NdbApiSignal* aSignal)
+int NdbTransaction::receiveTCRELEASECONF(const NdbApiSignal* /*aSignal*/)
 {
   if (theStatus != DisConnecting)
   {
@@ -3715,7 +3713,7 @@ NdbTransaction::report_node_failure(Uint32 id){
 NdbQuery*
 NdbTransaction::createQuery(const NdbQueryDef* def,
                             const NdbQueryParamValue paramValues[],
-                            NdbOperation::LockMode lock_mode)
+                            NdbOperation::LockMode)
 {
   NdbQueryImpl* query = NdbQueryImpl::buildQuery(*this, def->getImpl());
   if (unlikely(query == NULL)) {

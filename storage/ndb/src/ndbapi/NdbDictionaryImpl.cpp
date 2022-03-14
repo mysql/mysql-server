@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -10639,8 +10639,8 @@ NdbDictInterface::execSCHEMA_TRANS_BEGIN_REF(const NdbApiSignal * signal)
   DBUG_VOID_RETURN;
 }
 
-void
-NdbDictInterface::execSCHEMA_TRANS_END_CONF(const NdbApiSignal * signal)
+void NdbDictInterface::execSCHEMA_TRANS_END_CONF(const NdbApiSignal* signal
+                                                 [[maybe_unused]])
 {
   DBUG_ENTER("NdbDictInterface::execSCHEMA_TRANS_END_CONF");
 #ifndef NDEBUG

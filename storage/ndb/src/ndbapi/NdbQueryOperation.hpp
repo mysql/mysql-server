@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -134,10 +134,6 @@ public:
   NdbQueryOperation* getQueryOperation(const char* ident) const;
   NdbQueryOperation* getQueryOperation(Uint32 index) const;
 //NdbQueryOperation* getQueryOperation(const NdbQueryOperationDef* def) const;
-
-  Uint32 getNoOfParameters() const;
-  const NdbParamOperand* getParameter(const char* name) const;
-  const NdbParamOperand* getParameter(Uint32 num) const;
 
   int setBound(const NdbRecord *keyRecord,
                const struct NdbIndexScanOperation::IndexBound *bound);
@@ -446,10 +442,6 @@ public:
 
   // Result handling for this NdbQueryOperation
   bool isRowNULL() const;    // Row associated with Operation is NULL value?
-
-  bool isRowChanged() const; // Prev ::nextResult() on NdbQuery retrived a new
-                             // value for this NdbQueryOperation
-
 
 private:
   // Opaque implementation class instance.
