@@ -40,6 +40,8 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/tls_error.h"
 #include "mysqlrouter/classic_protocol_wire.h"
+#include "mysqlrouter/connection_pool_component.h"
+#include "mysqlrouter/routing_component.h"
 #include "router/src/routing/src/ssl_mode.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -783,6 +785,20 @@ void MysqlRoutingXConnection::connect() {
 
     // close the server side.
     this->connector().socket().close();
+
+    if (ec == std::errc::no_such_file_or_directory) {
+      MySQLRoutingComponent::get_instance()
+          .api(context().get_id())
+          .stop_socket_acceptors();
+    } else if (ec == make_error_condition(std::errc::too_many_files_open) ||
+               ec == make_error_condition(
+                         std::errc::too_many_files_open_in_system)) {
+      // release file-descriptors on the connection pool when out-of-fds is
+      // noticed.
+      //
+      // don't retry as router may run into an infinite loop.
+      ConnectionPoolComponent::get_instance().clear();
+    }
 
     log_fatal_error_code("connecting to backend failed", ec);
 
