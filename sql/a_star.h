@@ -20,7 +20,7 @@ public:
 };
 
 class Item_sum_shortest_dir_path final : public Item_sum_json {
-  std::unordered_multimap<int, Edge> edge_map;
+  std::unordered_multimap<int, Edge> m_edge_map;
   /// Accumulates the final value.
   unique_ptr_destroy_only<Json_object> m_json_object;
   /// Buffer used to get the value of the key.

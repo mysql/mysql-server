@@ -77,10 +77,17 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
   return Item_sum_json::val_json(wr);
 }
 String *Item_sum_shortest_dir_path::val_str(String *str) {
-  //const THD *thd = base_query_block->parent_lex->thd;
+  const THD *thd = base_query_block->parent_lex->thd;
+  Json_object *object = down_cast<Json_object *>(m_wrapper->to_dom(thd));
+
+  for (auto& edge_pair : m_edge_map) {
+    Json_double *num = new (std::nothrow) Json_double(edge_pair.second.cost);
+    if (object->add_alias(std::to_string(edge_pair.first), (Json_dom*)num))
+      return error_str();
+  }
 
   str->length(0);
-  str->append("mip mop");
+  if (m_wrapper->to_string(str, true, func_name())) return error_str();
 
   return str; //Item_sum_json::val_str(str);
 }
@@ -107,7 +114,17 @@ bool Item_sum_shortest_dir_path::add() {
    */
   if (thd->is_error()) return error_json();
   
-  
+  int id, from_id, to_id;
+  double cost;
+  id = args[0]->val_real();
+  from_id = args[1]->val_real();
+  to_id = args[2]->val_real();
+  cost = args[3]->val_real();
+  if (thd->is_error()) return true;
+  for (int i = 0; i < 4; i++) if (args[i]->null_value) return true;
+
+  m_edge_map.insert(std::pair<int, Edge>(id, Edge{id, from_id, to_id, cost}));
+
 
   return false;
 }
