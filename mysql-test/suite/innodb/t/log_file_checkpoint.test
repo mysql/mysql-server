@@ -6,10 +6,13 @@
 # The log_file_get_checkpoint_lsn(), which is used in this test, uses unpack('Q>').
 --source include/have_perl_64bit_int.inc
 
+let $MYSQLD_SOCKET= `SELECT @@socket`;
+--source include/stop_mysqld.inc
+
 let $tmp_dir = $MYSQLTEST_VARDIR/tmp;
 let MYSQLD_DATADIR = $tmp_dir/log_invalid_file;
 let MYSQLD_ERROR_LOG = $tmp_dir/my_restart.err;
-let MYSQLD_EXTRA_ARGS = ;
+let MYSQLD_EXTRA_ARGS = --socket=$MYSQLD_SOCKET;
 let SEARCH_FILE = $MYSQLD_ERROR_LOG;
 
 --echo # Initialize new data directory...
@@ -50,3 +53,5 @@ let MYSQLD_ARGS=;
 let MYSQLD_EXTRA_ARGS=;
 let MYSQLD_DATADIR=;
 let MYSQLD_ERROR_LOG=;
+
+--source include/start_mysqld.inc
