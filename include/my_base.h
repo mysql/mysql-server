@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -246,7 +246,7 @@ enum ha_extra_function {
     Only used by MyISAM, called from MyISAM handler but never from server
     code on top of the handler.
     Sets lock_wait on/off:
-      Wait until file is avalable (def).
+      Wait until file is available (def).
       If file is locked, return quickly.
   */
   HA_EXTRA_WAIT_LOCK = 12,
@@ -294,7 +294,7 @@ enum ha_extra_function {
        function after completing a query.
     3) It is called when deleting the IndexRangeScanIterator object if the
        IndexRangeScanIterator object had its own handler object. It is called
-       immediatley before close of this local handler object.
+       immediately before close of this local handler object.
 
     If there is a READ CACHE it is reinit'ed. A cache is reinit'ed to
     restart reading or to change type of cache between READ CACHE and
@@ -313,7 +313,7 @@ enum ha_extra_function {
   HA_EXTRA_RESET_STATE,
   /*
     Informs the handler that we will not stop the transaction if we get
-    duplicate key errors during insert/upate.
+    duplicate key errors during insert/update.
     Always called in pair, triggered by INSERT IGNORE and other similar
     SQL constructs.
     Not used by MyISAM.
@@ -582,8 +582,8 @@ constexpr const ulong HA_INDEX_USES_SECONDARY_ENGINE_ATTRIBUTE{1UL << 21};
         are basically the same bitmap at the time of table creation and
         at the time of table opening/usage correspondingly.
   @note TABLE_SHARE::db_options_in_use is normally copy of db_create_options
-        but can be overriden by SE. E.g. MyISAM does this at handler::open()
-        and hander::info() time.
+        but can be overridden by SE. E.g. MyISAM does this at handler::open()
+        and handler::info() time.
 
   Also used for similar bitmaps in MyISAM (MYISAM_SHARE::options,
   MI_ISAMINFO::options).
@@ -817,7 +817,7 @@ is the global server default. */
 #define HA_ERR_FIRST 120
 /** Didn't find key on read or update */
 #define HA_ERR_KEY_NOT_FOUND 120
-/** Dupplicate key on write */
+/** Duplicate key on write */
 #define HA_ERR_FOUND_DUPP_KEY 121
 /** Internal error */
 #define HA_ERR_INTERNAL_ERROR 122
@@ -855,7 +855,7 @@ is the global server default. */
 #define HA_ERR_TOO_BIG_ROW 139
 /** Wrong create option */
 #define HA_WRONG_CREATE_OPTION 140
-/** Dupplicate unique on write */
+/** Duplicate unique on write */
 #define HA_ERR_FOUND_DUPP_UNIQUE 141
 /** Can't open charset */
 #define HA_ERR_UNKNOWN_CHARSET 142
@@ -917,7 +917,7 @@ in some other table. */
 #define HA_ERR_CORRUPT_EVENT 171
 /** New file format */
 #define HA_ERR_NEW_FILE 172
-/** The event could not be processed no other hanlder error happened */
+/** The event could not be processed no other handler error happened */
 #define HA_ERR_ROWS_EVENT_APPLY 173
 /** Error during initialization */
 #define HA_ERR_INITIALIZATION 174
@@ -1046,7 +1046,7 @@ typedef ulong key_part_map;
 #define HA_STATE_KEY_CHANGED 128
 #define HA_STATE_WRITE_AT_END 256 /* set in _ps_find_writepos */
 #define HA_STATE_BUFF_SAVED 512   /* If current keybuff is info->buff */
-#define HA_STATE_ROW_CHANGED 1024 /* To invalide ROW cache */
+#define HA_STATE_ROW_CHANGED 1024 /* To invalidate ROW cache */
 #define HA_STATE_EXTEND_BLOCK 2048
 
 /* myisampack expects no more than 32 field types. */

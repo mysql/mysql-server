@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -134,10 +134,10 @@ inline const char *bapi_strndup(const char *destination, size_t n) {
 
 /**
   This is a wrapper function, and returns a pointer to a new memory with the
-  contents copied from the input memory pointer, upto a given length
+  contents copied from the input memory pointer, up to a given length
 
   @param source Pointer to the buffer from which data is to be copied
-  @param len Length upto which the source should be copied
+  @param len Length up to which the source should be copied
 
   @return dest pointer to a new memory if allocation was successful
           NULL otherwise

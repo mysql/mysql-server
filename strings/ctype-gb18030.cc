@@ -20058,7 +20058,7 @@ static int my_strnncollsp_gb18030(const CHARSET_INFO *cs, const uchar *s,
 
 /**
   Make a sort key suitable for memcmp() corresponding to gb18030
-  Sort accroding to UPPER() for non-Chinese chars, and PINYIN
+  Sort according to UPPER() for non-Chinese chars, and PINYIN
   for Chinese chars
 
   @param[in]  cs       charset

@@ -2285,7 +2285,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       and NEXT_ID > 1 (the default).  We must not print the clause
       for engines that do not support this as it would break the
       import of dumps, but as of this writing, the test for whether
-      AUTO_INCREMENT columns are allowed and wether AUTO_INCREMENT=...
+      AUTO_INCREMENT columns are allowed and whether AUTO_INCREMENT=...
       is supported is identical, !(file->table_flags() & HA_NO_AUTO_INCREMENT))
       Because of that, we do not explicitly test for the feature,
       but may extrapolate its existence from that of an AUTO_INCREMENT column.
@@ -2354,7 +2354,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       end = longlong10_to_str(share->stats_sample_pages, buff, 10);
       packet->append(buff, (uint)(end - buff));
     }
-    /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
+    /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compatibility */
     if (share->db_create_options & HA_OPTION_CHECKSUM)
       packet->append(STRING_WITH_LEN(" CHECKSUM=1"));
     if (share->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
@@ -2403,7 +2403,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                          share->encrypt_type.length);
       } else {
         /*
-          We print ENCRYPTION='N' only incase user did not explicitly
+          We print ENCRYPTION='N' only in case user did not explicitly
           provide ENCRYPTION clause and schema has default_encryption 'Y'.
           In other words, if there is no ENCRYPTION clause supplied, then
           it is always unencrypted table. Server always maintains
@@ -4232,7 +4232,7 @@ struct schema_table_ref {
 };
 
 /*
-  Find schema_tables elment by name
+  Find schema_tables element by name
 
   SYNOPSIS
     find_schema_table_in_plugin()
@@ -4260,7 +4260,7 @@ static bool find_schema_table_in_plugin(THD *, plugin_ref plugin,
 }
 
 /*
-  Find schema_tables elment by name
+  Find schema_tables element by name
 
   SYNOPSIS
     find_schema_table()
@@ -4756,7 +4756,7 @@ ST_FIELD_INFO tmp_table_keys_fields_info[] = {
 
 /**
   Grantee is of form 'user'@'hostname', so add +1 for '@' and +4 for the
-  single qoutes.
+  single quotes.
 */
 static const int GRANTEE_MAX_CHAR_LENGTH =
     USERNAME_CHAR_LENGTH + 1 + HOSTNAME_LENGTH + 4;

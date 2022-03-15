@@ -29,7 +29,7 @@
   Note that we can't have assertion on file descriptors;  The reason for
   this is that during mysql shutdown, another thread can close a file
   we are working on.  In this case we should just return read errors from
-  the file descriptior.
+  the file descriptor.
 */
 
 #include <sys/types.h>

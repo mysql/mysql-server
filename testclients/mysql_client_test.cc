@@ -1475,7 +1475,7 @@ static void test_prepare() {
   mysql_stmt_close(stmt);
 }
 
-/* Test double comparision */
+/* Test double comparison */
 
 static void test_double_compare() {
   MYSQL_STMT *stmt;
@@ -6286,7 +6286,7 @@ static void test_temporal_param() {
   my_bind[0].buffer_type = my_bind[1].buffer_type = my_bind[2].buffer_type =
       MYSQL_TYPE_TIME;
 
-  /* Prepare and bind intput and output parameters */
+  /* Prepare and bind input and output parameters */
   stmt = mysql_simple_prepare(mysql, "SELECT CAST(? AS SIGNED), ?+0e0, ?+0.0");
   check_stmt(stmt);
   verify_param_count(stmt, N_PARAMS);
@@ -10015,7 +10015,7 @@ static void test_bug1664() {
 
   /*
     Now we are sending other long data. It should not be
-    concatened to previous.
+    concatenated to previous.
   */
 
   data = "SomeOtherData";
@@ -11751,7 +11751,7 @@ static void test_cursor_for_show() {
 }
 
 /*
-  Altough mysql_create_db(), mysql_rm_db() are deprecated since 4.0 they
+  Although mysql_create_db(), mysql_rm_db() are deprecated since 4.0 they
   should not crash server and should not hang in case of errors.
 
   Since those functions can't be seen in modern API we use simple_command()
@@ -12207,7 +12207,7 @@ static void test_rewind() {
   rc = mysql_stmt_bind_result(stmt, &my_bind);
   DIE_UNLESS(rc == 0);
 
-  /* retreive all result sets till we are at the end */
+  /* retrieve all result sets till we are at the end */
   while (!mysql_stmt_fetch(stmt))
     if (!opt_silent) printf("fetched result:%ld\n", Data);
 
@@ -12561,7 +12561,7 @@ static void test_bug8330() {
   myheader("test_bug8330");
 
   stmt_text = "drop table if exists t1";
-  /* in case some previos test failed */
+  /* in case some previous test failed */
   rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
   stmt_text = "create table t1 (a int, b int)";
@@ -12649,7 +12649,7 @@ static void test_bug15518() {
 
   /*
     Use the same stmt and reprepare with another query that
-    suceeds
+    succeeds
   */
   rc = mysql_stmt_prepare(stmt, "SHOW STATUS", 12);
   if (!opt_silent)
@@ -12676,7 +12676,7 @@ static void test_bug15518() {
 
   /*
     Use the same stmt and reprepare with another query that
-    suceeds. The prepare should fail with error 2013 since
+    succeeds. The prepare should fail with error 2013 since
     connection to server has been closed.
   */
   rc = mysql_stmt_prepare(stmt, "SHOW STATUS", 12);
@@ -13220,7 +13220,7 @@ static void test_bug11111() {
 
 /*
   Check that proper cleanups are done for prepared statement when
-  fetching thorugh a cursor.
+  fetching through a cursor.
 */
 
 static void test_bug10729() {
@@ -14939,7 +14939,7 @@ static void test_bug17667() {
     char line_buffer[MAX_TEST_QUERY_LENGTH * 2];
     /* more than enough room for the query and some marginalia. */
 
-    /* Prepared statments always occurs twice in log */
+    /* Prepared statements always occurs twice in log */
     if (statement_cursor->qt == QT_PREPARED) expected_hits++;
 
     /* Loop until we found expected number of log entries */
@@ -21647,12 +21647,12 @@ static void test_wl13168() {
 static void test_wl13510() {
   DBUG_TRACE;
   /*
-    Lambda to tests the following in various combinations of arguments
+    Lambda to test the following in various combinations of arguments
     1. Send a SELECT 'XXXXXXX....<packet_size>'; to server.
-    2. Recieve the response from the server which must be same as sent by the
+    2. Receive the response from the server which must be same as sent by the
        client.
     3. To verify the veracity of the string:
-       (a) Calculate the MD5 digest of the recieved the string
+       (a) Calculate the MD5 digest of the received the string
        (b) Get the digest from the server directly for the similar length string
        (c) Test fails if the digests mismatch
   */
@@ -21694,7 +21694,7 @@ static void test_wl13510() {
 
     mysql_autocommit(mysql_local, true);
 
-    /*  Send and Recieve the packet using nonblocking client APIs */
+    /*  Send and Receive the packet using nonblocking client APIs */
     std::string query("SELECT (\"");
     for (size_t i = 0; i < packet_size; i++) {
       query += "X";
@@ -21724,7 +21724,7 @@ static void test_wl13510() {
 
     DIE_IF(!select_row[0]);
 
-    /* Determine the digest of the string client has receieved. */
+    /* Determine the digest of the string client has received. */
     query.assign("SELECT MD5('");
     query.append(select_row[0]);
     query.append("')");

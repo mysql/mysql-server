@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -115,7 +115,7 @@ enum enum_used_fields {
 
   RETURN VALUES
     0           all ok
-    1           one of the fileds was not found
+    1           one of the fields was not found
 */
 
 static bool init_fields(THD *thd, TABLE_LIST *tables,
@@ -151,7 +151,7 @@ static bool init_fields(THD *thd, TABLE_LIST *tables,
     memorize_variant_topic()
 
     thd           Thread handler
-    count         number of alredy found topics
+    count         number of already found topics
     find_fields   Filled array of information for work with fields
 
   RETURN VALUES
@@ -585,7 +585,7 @@ static unique_ptr_destroy_only<RowIterator> prepare_select_for_name(
 
   RETURN VALUES
     false Success
-    true  Error and send_error already commited
+    true  Error and send_error already committed
 */
 
 bool mysqld_help(THD *thd, const char *mask) {

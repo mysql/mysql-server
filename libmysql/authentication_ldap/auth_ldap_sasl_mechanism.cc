@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ bool Sasl_mechanism_kerberos::pre_authentication() {
       new Kerberos(m_user.c_str(), m_password.c_str()));
   /**
      Both user name and password are empty.
-     Exisiting TGT will be used for authentication.
+     Existing TGT will be used for authentication.
      Main user case.
   */
   if (m_user.empty() && m_password.empty()) {

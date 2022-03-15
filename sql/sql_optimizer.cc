@@ -1751,7 +1751,7 @@ int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
   int reverse = 0;
   uint key_parts;
   bool on_pk_suffix = false;
-  // Whether [extented] key has key parts with mixed ASC/DESC order
+  // Whether [extended] key has key parts with mixed ASC/DESC order
   bool mixed_order = false;
   // Order direction of the first key part
   bool reverse_sorted = (bool)(key_part->key_part_flag & HA_REVERSE_SORT);
@@ -2294,7 +2294,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
             The range optimizer constructed QUICK_RANGE for ref_key, and
             we want to use instead new_ref_key as the index. We can't
             just change the index of the quick select, because this may
-            result in an incosistent RowIterator object. Below we
+            result in an inconsistent RowIterator object. Below we
             create a new RowIterator from scratch so that all its
             parameres are set correctly by the range optimizer.
 
@@ -4023,7 +4023,7 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
     thd->lex->current_query_block()->max_equal_elems.
 
   @note
-    Multiple equality predicate =(f1,..fn) is equivalent to the conjuction of
+    Multiple equality predicate =(f1,..fn) is equivalent to the conjunction of
     f1=f2, .., fn-1=fn. It substitutes any inference from these
     equality predicates that is equivalent to the conjunction.
     Thus, =(a1,a2,a3) can substitute for ((a1=a3) AND (a2=a3) AND (a2=a1)) as
@@ -4046,8 +4046,8 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
     The Item_equal items built at the level are attached to other
     non-equality conjuncts as a sublist. The pointer to the inherited
     multiple equalities is saved in the and condition object (Item_cond_and).
-    This chain allows us for any field reference occurence to easily find a
-    multiple equality that must be held for this occurence.
+    This chain allows us for any field reference occurrence to easily find a
+    multiple equality that must be held for this occurrence.
     For each AND level we do the following:
     - scan it for all equality predicate (=) items
     - join them into disjoint Item_equal() groups
@@ -4307,7 +4307,7 @@ bool build_equal_items(THD *thd, Item *cond, Item **retcond,
     if (build_equal_items_for_cond(thd, cond, &cond, inherited, do_inherit))
       return true;
     cond->update_used_tables();
-    // update_used_tables() returns void but can stil fail.
+    // update_used_tables() returns void but can still fail.
     if (thd->is_error()) return true;
 
     const enum Item::Type cond_type = cond->type();
@@ -5396,7 +5396,7 @@ bool JOIN::init_planner_arrays() {
   This will speed up the plan search for many cases with outer joins,
   as well as allow us to catch illegal cross references.
   Warshall's algorithm is used to build the transitive closure.
-  As we may restart the outer loop upto 'table_count' times, the
+  As we may restart the outer loop up to 'table_count' times, the
   complexity of the algorithm is O((number of tables)^3).
   However, most of the iterations will be shortcircuited when
   there are no dependencies to propagate.
@@ -6153,10 +6153,10 @@ static void trace_table_dependencies(Opt_trace_context *trace,
 
     Description of the optimization:
 
-      We look through equalities choosen to perform ref/eq_ref access,
+      We look through equalities chosen to perform ref/eq_ref access,
       pick equalities that have form "tbl.part_of_key = othertbl.field"
       (where othertbl is a non-const table and othertbl.field may be NULL)
-      and add them to conditions on correspoding tables (othertbl in this
+      and add them to conditions on corresponding tables (othertbl in this
       example).
 
       Exception from that is the case when referred_tab->join != join.
@@ -6187,7 +6187,7 @@ static void trace_table_dependencies(Opt_trace_context *trace,
       1.1 add_key_part saves these to Key_use.
       2. create_ref_for_key copies them to TABLE_REF.
       3. add_not_null_conds adds "x IS NOT NULL" to join_tab->m_condition of
-         appropiate JOIN_TAB members.
+         appropriate JOIN_TAB members.
 
   @returns false on success, true on error
 */
@@ -7080,7 +7080,7 @@ static bool add_key_field(THD *thd, Key_field **key_fields, uint and_level,
                            is incremented if key was stored in the array
     @param  and_level      And level, to be stored in Key_field
     @param  cond           Condition predicate
-    @param  field_item     Field used in comparision
+    @param  field_item     Field used in comparison
     @param  eq_func        True if we used =, <=> or IS NULL
     @param  val            Value used for comparison with field
                            Is NULL for BETWEEN and IN
@@ -8382,7 +8382,7 @@ void JOIN::make_outerjoin_info() {
       if (tab->first_inner() == NO_PLAN_IDX)
         tab->set_first_inner(nested_join->first_nested);
       /*
-        If including the sj-mat tmp table, this also implicitely
+        If including the sj-mat tmp table, this also implicitly
         includes the inner tables of the sj-nest.
       */
       nested_join->nj_counter +=
@@ -8768,7 +8768,7 @@ static bool test_if_ref(Item_field *left_item, Item *right_item) {
 
   @details
   A predicate of the form 'field = value' may be redundant if the
-  (ref-) access choosen for the table use an index containing 'field',
+  (ref-) access chosen for the table use an index containing 'field',
   where 'value' is specified as (part of) its ref-key. This method remove
   such redundant predicates, thus reducing the condition, possibly
   eliminating it entirely.
@@ -8831,7 +8831,7 @@ static Item *reduce_cond_for_table(Item *cond, table_map null_extended) {
         /*
           All inner-tables are possible null-extended when evaluating
           the 'FOUND_MATCH'. Thus, predicates embedded in this trig_cond,
-          refering these tables, should not be eliminated.
+          referring these tables, should not be eliminated.
           -> Add to null_extended map.
         */
         null_extended |= func_trig->get_inner_tables();
@@ -9664,7 +9664,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
               The logic below for assigning tab->use_quick is strange.
               It bases the decision of which access method to use
               (dynamic range, range, scan) based on seemingly
-              unrelated information like the presense of another index
+              unrelated information like the presence of another index
               with too bad selectivity to be used.
 
               Consider the following scenario:
@@ -9685,7 +9685,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
               scan is chosen instead.
 
               Thus, the choice of DYNAMIC RANGE vs SCAN depends on the
-              presense of an index that has so bad selectivity that it
+              presence of an index that has so bad selectivity that it
               will not be used anyway.
             */
             if (!tab->needed_reg.is_clear_all() &&

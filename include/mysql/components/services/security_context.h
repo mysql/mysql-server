@@ -34,7 +34,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   * mysql_account_database_security_context_lookup
   * mysql_security_context_options
 
-  These services allows creation, copying, filling in by user accout and
+  These services allows creation, copying, filling in by user account and
   destruction of security context objects. It also allows getting and setting
   the security context for a thread. And it also allows reading and setting
   security context properties.
@@ -135,7 +135,7 @@ END_SERVICE_DEFINITION(mysql_account_database_security_context_lookup)
 /* options */
 BEGIN_SERVICE_DEFINITION(mysql_security_context_options)
 /**
-  Reads a named security context attribute and retuns its value.
+  Reads a named security context attribute and returns its value.
   Currently defined names are:
 
   - user  MYSQL_LEX_CSTRING *  login user (a.k.a. the user's part of USER())

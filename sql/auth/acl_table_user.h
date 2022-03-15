@@ -61,11 +61,11 @@ enum class User_attribute_type {
 
 struct Password_lock {
   /**
-     read from the user config. The number of days to keep the accont locked
+     read from the user config. The number of days to keep the account locked
   */
   int password_lock_time_days;
   /**
-    read from the user config. The number of failed login attemps before the
+    read from the user config. The number of failed login attempts before the
     account is locked
   */
   uint failed_login_attempts;

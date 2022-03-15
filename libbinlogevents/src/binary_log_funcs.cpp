@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -235,7 +235,7 @@ uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
       else {
         /*
           We are reading the actual size from the master_data record
-          because this field has the actual lengh stored in the first
+          because this field has the actual length stored in the first
           one or two bytes.
         */
         length = max_display_length_for_field(MYSQL_TYPE_STRING, metadata) > 255

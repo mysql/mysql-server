@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2021, Oracle and/or its affiliates.
+   Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ class Options {
   static char *s_destination_keyring_configuration_dir;
 
   /*
-    Following paramters are needed if migration involves an active MySQL server
+    Following parameters are needed if migration involves an active MySQL server
   */
 
   /** Flag for online migration */

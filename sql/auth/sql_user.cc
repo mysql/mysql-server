@@ -186,7 +186,7 @@ bool check_change_password(THD *thd, const char *host, const char *user,
 }
 
 /**
-  Auxilary function for the CAN_ACCESS_USER internal function
+  Auxiliary function for the CAN_ACCESS_USER internal function
   used to check if a row from mysql.user can be accessed or not
   by the current user
 
@@ -198,7 +198,7 @@ bool check_change_password(THD *thd, const char *host, const char *user,
   @sa @ref Item_func_can_access_user, @ref dd::system_views::User_attributes
 */
 bool acl_can_access_user(THD *thd, LEX_USER *user_arg) {
-  /* if ACL is not initalized show everything */
+  /* if ACL is not initialized show everything */
   if (!initialized) return true;
 
   /* show everything if slave thread */
@@ -506,14 +506,14 @@ err:
 
   @param thd      The current thread
   @param user     The user account user to operate on
-  @param host     The user acount host to operate on
+  @param host     The user account host to operate on
   @param password_history The effective password history value
   @param password_reuse_interval The effective password reuse interval value
-  @param auth     auth plugin to use for verification
-  @param cleartext  the clear text password supplied
+  @param auth     Auth plugin to use for verification
+  @param cleartext  The clear text password supplied
   @param cleartext_length length of cleartext password
   @param cred_hash hash of the credential to be inserted into the history
-  @param cred_hash_length length of cred_hash
+  @param cred_hash_length Length of cred_hash
   @param history_table  The opened history table
   @param what_to_set   The mask of what to set
   @retval false   Password is OK
@@ -701,19 +701,19 @@ end:
 /**
   Updates the password history table for cases of deleting or renaming users
 
-  This function, unline the other "update" functions does not handle the
+  This function, unlike the other "update" functions does not handle the
   addition of new data. That's done by auth_verify_password_history().
   The function only handles renames and deletes of user accounts.
   It does not go via the normal non-mysql.user handle_grant_data() route
   since there is a (partial) key on user/host and hence no need to do a
   full table scan.
 
-  @param thd the execution context
-  @param tables the list of opened ACL tables
-  @param drop true if it's a drop operation
-  @param user_from the user to rename from or the user to drop
-  @param user_to the user to rename to or the user to add
-  @param[out] row_existed set to true if row matching user_from existed
+  @param thd The execution context
+  @param tables The list of opened ACL tables
+  @param drop True if it's a drop operation
+  @param user_from The user to rename from or the user to drop
+  @param user_to The user to rename to or the user to add
+  @param[out] row_existed Set to true if row matching user_from existed
   @retval true operation failed
   @retval false success
 */
@@ -862,7 +862,7 @@ static bool validate_password_require_current(THD *thd, LEX_USER *Str,
 
       /*
         Handle the validation of empty current password first as some of
-        authenication plugins do not like to check the empty passwords.
+        authentication plugins do not like to check the empty passwords.
       */
       if (acl_user->credentials[PRIMARY_CRED].m_auth_string.length == 0) {
         if (Str->current_auth.length > 0) {
@@ -989,7 +989,7 @@ bool send_password_result_set(
   @param thd       connection handle
   @param user      user account for which registration is completed
 
-  @retval false registration successfull
+  @retval false registration successful
   @retval true  error
 */
 bool turn_off_sandbox_mode(THD *thd, LEX_USER *user) {
@@ -3218,7 +3218,7 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
           populate_roles_caches(thd, (tables + ACL_TABLES::TABLE_ROLE_EDGES));
 
     /*
-      Restore the orignal security context temporarily because binlog must
+      Restore the original security context temporarily because binlog must
       write the original definer/invoker in the binlog in order for slave
       to work
     */

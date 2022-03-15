@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1343,13 +1343,13 @@ static void set_partition_options(partition_element *part_elem,
 /*
   Helper function to add partition column values.
 
-  @param      part_info          Parition info.
+  @param      part_info          Partition info.
   @param      list_value         List of partition element value.
   @param      list_index         Element index.
   @param      part_obj           DD partition object.
   @param      create_info        Create info.
   @param      create_fields      List of fields being created.
-  @param[out] part_desc_str Partiton description string.
+  @param[out] part_desc_str Partition description string.
 */
 static bool add_part_col_vals(partition_info *part_info,
                               part_elem_value *list_value, uint list_index,
@@ -1411,7 +1411,7 @@ static void collect_partition_expr(const THD *thd, List<char> &field_list,
   @param[in]     thd            Thread handle.
   @param[in,out] tab_obj        Table object where to store the info.
   @param[in]     create_info    Create info.
-  @param[in]     create_fields  List of fiels in the new table.
+  @param[in]     create_fields  List of fields in the new table.
   @param[in]     part_info      Partition info object.
 
   @return false on success, else true.
@@ -1909,7 +1909,7 @@ bool invalid_tablespace_usage(THD *thd, const dd::String_type &schema_name,
     additionally, a system thread can do what it likes.
     Tables in the 'mysql' schema, with temporary names, are
     also allowed to be in the DD tablespace, since mysql_upgrade
-    will ned to do ALTER TABLE.
+    will need to do ALTER TABLE.
   */
   if (dd::get_dictionary()->is_dd_table_name(schema_name, table_name) ||
       (type != nullptr && *type == System_tables::Types::SYSTEM) ||

@@ -678,7 +678,7 @@ static int check_connection(THD *thd) {
 }
 
 /*
-  Autenticate user, with error reporting
+  Authenticate user, with error reporting
 
   SYNOPSIS
    login_connection()

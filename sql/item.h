@@ -280,7 +280,7 @@ class Used_tables {
   This class must stay as small as possible as we often
   pass it into functions using call-by-value evaluation.
 
-  Don't add new members or virual methods into this class!
+  Don't add new members or virtual methods into this class!
 */
 class Name_string : public Simple_cstring {
  private:
@@ -378,7 +378,7 @@ class Item_name_string : public Name_string {
 };
 
 /*
-  Instances of Name_resolution_context store the information necesary for
+  Instances of Name_resolution_context store the information necessary for
   name resolution of Items and other context analysis of a query made in
   fix_fields().
 
@@ -492,7 +492,7 @@ struct Check_function_as_value_generator_parameters {
   int err_code;
   /*
     If it is a generated column, default expression or check constraint
-    expresion value generator.
+    expression value generator.
   */
   Value_generator_source source;
   /// the name of the function which is not allowed
@@ -1617,9 +1617,9 @@ class Item : public Parse_tree_node {
 
          x $CMP$ const
 
-      The value of const is supplied implicitly as the value this item's
+      The value of const is supplied implicitly as the value of this item's
       argument, the form of $CMP$ comparison is specified through the
-      function's arguments. The calle returns the result interval
+      function's arguments. The call returns the result interval
 
          F(x) $CMP2$ F(const)
 
@@ -3139,15 +3139,15 @@ class Item : public Parse_tree_node {
   void set_stored_program() { m_accum_properties |= PROP_STORED_PROGRAM; }
 
  public:
-  /// @return true if this item or any of its decendents contains a subquery.
+  /// @return true if this item or any of its descendants contains a subquery.
   bool has_subquery() const { return m_accum_properties & PROP_SUBQUERY; }
 
-  /// @return true if this item or any of its decendents refers a stored func.
+  /// @return true if this item or any of its descendants refers a stored func.
   bool has_stored_program() const {
     return m_accum_properties & PROP_STORED_PROGRAM;
   }
 
-  /// @return true if this item or any of its decendents is an aggregated func.
+  /// @return true if this item or any of its descendants is an aggregated func.
   bool has_aggregation() const { return m_accum_properties & PROP_AGGREGATION; }
 
   /// Set the "has aggregation" property
@@ -3156,14 +3156,14 @@ class Item : public Parse_tree_node {
   /// Reset the "has aggregation" property
   void reset_aggregation() { m_accum_properties &= ~PROP_AGGREGATION; }
 
-  /// @return true if this item or any of its decendents is a window func.
+  /// @return true if this item or any of its descendants is a window func.
   bool has_wf() const { return m_accum_properties & PROP_WINDOW_FUNCTION; }
 
   /// Set the "has window function" property
   void set_wf() { m_accum_properties |= PROP_WINDOW_FUNCTION; }
 
   /**
-    @return true if this item or any of its decendents within the same query
+    @return true if this item or any of its descendants within the same query
     has a reference to a ROLLUP expression
   */
   bool has_rollup_expr() const { return m_accum_properties & PROP_ROLLUP_EXPR; }
@@ -3438,7 +3438,7 @@ class Item : public Parse_tree_node {
   virtual bool returns_array() const { return false; }
 
   /**
-   A helper funciton to ensure proper usage of CAST(.. AS .. ARRAY)
+   A helper function to ensure proper usage of CAST(.. AS .. ARRAY)
   */
   virtual void allow_array_cast() {}
 };

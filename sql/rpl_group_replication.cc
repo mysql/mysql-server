@@ -166,7 +166,7 @@ int group_replication_start(char **error_message, THD *thd) {
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     /*
       is_running check is required below before storing credentials.
-      Check makes sure runing instance of START GR is not impacted by
+      Check makes sure running instance of START GR is not impacted by
       temporary storage of credentials or if storing credential failed
       message is meaningful.
       e.g. of credential conflict blocked by below check

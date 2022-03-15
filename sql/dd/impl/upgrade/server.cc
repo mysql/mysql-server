@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -319,7 +319,7 @@ class MySQL_check {
   }
 
   /**
-    Returns true if something went wrong while retreving the table list or
+    Returns true if something went wrong while retrieving the table list or
     executing CHECK TABLE statements.
   */
   bool check_tables(THD *thd, const char *schema) {

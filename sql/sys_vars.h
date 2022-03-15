@@ -553,7 +553,7 @@ class Sys_var_alias : public sys_var {
     file, and get rid of the warning, using RESET PERSIST
     OLD_VARIABLE_NAME.
 
-  - After downgrade from verson X+1 to version X, all persisted
+  - After downgrade from version X+1 to version X, all persisted
     variables retain their values.  User will not see deprecation
     warnings.  If user needs to further downgrade to version X-1, user
     needs to first run SET PERSIST for some variable in order to

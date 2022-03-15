@@ -150,7 +150,7 @@ bool prepare_tz_info(TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
   else
     cur_corr = 0;
 
-  /* Iterate trough t space */
+  /* Iterate through t space */
   while (sp->revcnt < TZ_MAX_REV_RANGES - 1) {
     cur_off_and_corr = cur_offset - cur_corr;
 

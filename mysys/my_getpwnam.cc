@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,7 @@ PasswdValue my_getpw_(GETPW_CLOS &&getpwfunc) {
 
    @retval PasswdValue representing user's passwd entry.
    PasswdValue::IsVoid() returns true if no such user exists or an error
-   occured. In the latter case errno is set.
+   occurred. In the latter case errno is set.
  */
 PasswdValue my_getpwnam(const char *name) {
   return my_getpw_(
@@ -97,7 +97,7 @@ PasswdValue my_getpwnam(const char *name) {
 
    @retval PasswdValue representing user's passwd entry.
    PasswdValue::IsVoid() returns true if no such user exists or an error
-   occured. In the latter case errno is set.
+   occurred. In the latter case errno is set.
  */
 PasswdValue my_getpwuid(uid_t uid) {
   return my_getpw_(

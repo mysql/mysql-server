@@ -699,7 +699,7 @@ bool Acl_table_user_writer::setup_table(int &error, bool &builtin_plugin) {
         */
         old_plugin.length = strlen(old_plugin.str);
 
-        /* Optimize for pointer comparision of built-in plugin name */
+        /* Optimize for pointer comparison of built-in plugin name */
         optimize_plugin_compare_by_pointer(&old_plugin);
         builtin_plugin = auth_plugin_is_built_in(old_plugin.str);
       }
@@ -1131,7 +1131,7 @@ bool Acl_table_user_writer::update_password_reuse() {
 }
 
 /**
-  Whether current password is required to update exisitng one
+  Whether current password is required to update existing one
 
   Raises error in DA if mysql.user table does not have
   password_require_current column.
@@ -1614,7 +1614,7 @@ void Acl_table_user_reader::read_user_resources(ACL_USER &user) {
   Read plugin information
 
   If it is old layout read accordingly. Also, validate authentication string
-  against expecte format for the plugin.
+  against expected format for the plugin.
 
   @param [out] user                           ACL_USER structure
   @param [out] super_users_with_empty_plugin  User has SUPER privilege or
@@ -1692,7 +1692,7 @@ bool Acl_table_user_reader::read_plugin_info(
     }
     /*
       By comparing the plugin with the built in plugins it is possible
-      to optimize the string allocation and comparision.
+      to optimize the string allocation and comparison.
     */
     optimize_plugin_compare_by_pointer(&user.plugin);
   }
@@ -1771,7 +1771,7 @@ void Acl_table_user_reader::read_password_locked(ACL_USER &user) {
 */
 void Acl_table_user_reader::read_password_last_changed(ACL_USER &user) {
   /*
-  Initalize the values of timestamp and expire after day
+  Initialize the values of timestamp and expire after day
   to error and true respectively.
   */
   user.password_last_changed.time_type = MYSQL_TIMESTAMP_ERROR;

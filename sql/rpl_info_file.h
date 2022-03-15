@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@
 class Server_ids;
 
 /**
-  Defines a file hander.
+  Defines a file handler.
 */
 class Rpl_info_file : public Rpl_info_handler {
   friend class Rpl_info_factory;

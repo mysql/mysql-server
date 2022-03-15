@@ -1205,7 +1205,7 @@ bool lock_db_routines(THD *thd, const dd::Schema &schema) {
   /*
     Ensure that we don't hold memory used by MDL_requests after locks have
     been acquired. This reduces memory usage in cases when we have DROP
-    DATABASE tha needs to drop lots of different objects.
+    DATABASE that needs to drop lots of different objects.
   */
   MEM_ROOT mdl_reqs_root(key_memory_rm_db_mdl_reqs_root, MEM_ROOT_BLOCK_SIZE);
 
@@ -1679,7 +1679,7 @@ bool sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc) {
 }
 
 /**
-  Auxilary function that adds new element to the set of stored routines
+  Auxiliary function that adds new element to the set of stored routines
   used by statement.
 
   The elements of Query_tables_list::sroutines set are accessed on prepared
@@ -1846,7 +1846,7 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
 
       /*
         Stored routine names are case and accent insensitive. So for the proper
-        hash key comparision, case and accent is stripped off by replacing the
+        hash key comparison, case and accent is stripped off by replacing the
         characters with their sort weight when preparing the Sroutine_hash_entry
         key.
       */
@@ -2050,7 +2050,7 @@ enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type,
           SP allows full NAME_LEN chars thus he have to allocate enough
           size in bytes. Otherwise there is stack overrun could happen
           if multibyte sequence is `name`. `db` is still safe because the
-          rest of the server checks agains NAME_LEN bytes and not chars.
+          rest of the server checks against NAME_LEN bytes and not chars.
           Hence, the overrun happens only if the name is in length > 32 and
           uses multibyte (cyrillic, greek, etc.)
         */
@@ -2229,7 +2229,7 @@ sp_head *sp_load_for_information_schema(THD *thd, LEX_CSTRING db_name,
 
   @param thd      Thread context.
   @param sp_type  The stored program type
-  @param sp_name  The stored progam name
+  @param sp_name  The stored program name
 
   @return properly initialized sp_head-instance in case of success, or NULL is
   case of out-of-memory error.

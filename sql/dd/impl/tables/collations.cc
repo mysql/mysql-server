@@ -136,7 +136,7 @@ bool Collations::populate(THD *thd) const {
           // Remove the id from the set of non-updated old ids.
           prev_coll_ids.erase(cl->number);
 
-          // Preapre the new collation object.
+          // Prepare the new collation object.
           new_collation->set_id(cl->number);
           new_collation->set_name(cl->m_coll_name);
 

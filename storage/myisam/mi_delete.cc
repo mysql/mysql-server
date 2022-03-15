@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -295,7 +295,7 @@ static int d_search(MI_INFO *info, MI_KEYDEF *keyinfo, uint comp_flag,
     if (!nod_flag) {
       DBUG_PRINT("error", ("Didn't find key"));
       mi_print_error(info->s, HA_ERR_CRASHED);
-      set_my_errno(HA_ERR_CRASHED); /* This should newer happend */
+      set_my_errno(HA_ERR_CRASHED); /* This should newer happen */
       goto err;
     }
     save_flag = 0;
@@ -458,7 +458,7 @@ err:
   return -1;
 } /* del */
 
-/* Balances adjacent pages if underflow occours */
+/* Balances adjacent pages if underflow occurs */
 
 static int underflow(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *anc_buff,
                      my_off_t leaf_page, /* Ancestor page and underflow page */

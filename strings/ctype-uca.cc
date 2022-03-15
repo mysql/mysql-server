@@ -138,13 +138,13 @@ static const char german2[] =
     "&UE << \\u00FC <<< \\u00DC ";
 
 /*
-  Some sources treat LETTER A WITH DIARESIS (00E4,00C4)
+  Some sources treat LETTER A WITH DIAERESIS (00E4,00C4)
   secondary greater than LETTER AE (00E6,00C6).
   http://www.evertype.com/alphabets/icelandic.pdf
   http://developer.mimer.com/collations/charts/icelandic.htm
 
   Other sources do not provide any special rules
-  for LETTER A WITH DIARESIS:
+  for LETTER A WITH DIAERESIS:
   http://www.omniglot.com/writing/icelandic.htm
   http://en.wikipedia.org/wiki/Icelandic_alphabet
   http://oss.software.ibm.com/icu/charts/collation/is.html
@@ -1344,7 +1344,7 @@ ALWAYS_INLINE int uca_scanner_any<Mb_wc>::next() {
     uint page = wc >> 8;
     uint code = wc & 0xFF;
 
-    /* If weight page for wc does not exist, then calculate algoritmically */
+    /* If weight page for wc does not exist, then calculate algorithmically */
     const uint16 *wpage = uca->weights[page];
     if (!wpage) return next_implicit(wc);
 
@@ -1545,7 +1545,7 @@ ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw() {
     uint page = wc >> 8;
     uint code = wc & 0xFF;
 
-    /* If weight page for wc does not exist, then calculate algoritmically */
+    /* If weight page for wc does not exist, then calculate algorithmically */
     const uint16 *wpage = uca->weights[page];
     if (!wpage) return next_implicit(wc);
 
@@ -2508,7 +2508,7 @@ struct MY_COLL_LEXEM {
 
   SYNOPSIS
     my_coll_lexem_init
-    lexem                Lex analizer to init
+    lexem                Lex analyzer to init
     str                  Const string to parse
     str_end               End of the string
   USAGE
@@ -2548,8 +2548,8 @@ static int lex_cmp(MY_COLL_LEXEM *lexem, const char *pattern,
 
   SYNOPSIS
     my_coll_lexem_print_error
-    lexem                Lex analizer to take context from
-    errstr               sting to write error to
+    lexem                Lex analyzer to take context from
+    errstr               string to write error to
     errsize              errstr size
     txt                  error message
     col_name             collation name
@@ -2599,7 +2599,7 @@ static int ch2x(int ch) {
 
   SYNOPSIS
     my_coll_lexem_next
-    lexem                Lex analizer, previously initialized by
+    lexem                Lex analyzer, previously initialized by
                          my_coll_lexem_init.
   USAGE
     Call this function in a loop
@@ -2927,7 +2927,7 @@ static int my_coll_parser_scan(MY_COLL_RULE_PARSER *p) {
 
   @param  p        Collation customization parser
   @param  rules    Where to store rules
-  @param  str      Beginning of a collation customization sting
+  @param  str      Beginning of a collation customization string
   @param  str_end  End of the collation customizations string
 */
 
@@ -2996,7 +2996,7 @@ static int my_coll_parser_scan_term(MY_COLL_RULE_PARSER *p,
 /*
   In the following code we have a few functions to parse
   various collation customization non-terminal symbols.
-  Unlike our usual coding convension, they return
+  Unlike our usual coding convention, they return
   - 0 on "error" (when the rule was not scanned) and
   - 1 on "success"(when the rule was scanned).
   This is done intentionally to make body of the functions look easier
@@ -3426,7 +3426,7 @@ static void spread_case_mask(uint16 *to, size_t to_stride,
 
 /*
  If the collation is marked as [caseFirst upper], move all of the weights
- around to accomodate that. Only tailored weights are changed; for non-tailored
+ around to accommodate that. Only tailored weights are changed; for non-tailored
  weights, we do it on-the-fly in uca_scanner_900::apply_case_first().
 
  [caseFirst upper] is a directive that says that case should override all
@@ -3922,7 +3922,7 @@ static bool apply_shift(MY_CHARSET_LOADER *loader, MY_COLL_RULES *rules,
             'a' must be sorted before 'A'.
 
             Note, there are no real collations in CLDR which shift
-            after and before two neighbourgh characters. We need this
+            after and before two neighbour characters. We need this
             just in case. Reserving 4096 (0x1000) weights for such
             cases is perfectly enough.
           */
@@ -4042,7 +4042,7 @@ static bool apply_one_rule(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
 
 /**
   Check if collation rules are valid,
-  i.e. characters are not outside of the collation suported range.
+  i.e. characters are not outside of the collation supported range.
 */
 static int check_rules(MY_CHARSET_LOADER *loader, const MY_COLL_RULES *rules,
                        const MY_UCA_INFO *dst, const MY_UCA_INFO *src) {
@@ -4237,7 +4237,7 @@ static bool init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
   memcpy(dst->weights, src->weights, npages * sizeof(uint16 *));
 
   /*
-    Calculate maximum lenghts for the pages which will be overwritten.
+    Calculate maximum lengths for the pages which will be overwritten.
     Mark pages that will be overwritten as NULL.
     We'll allocate their own memory.
   */
@@ -4699,7 +4699,7 @@ static void adjust_japanese_weight(CHARSET_INFO *cs, int rec_ind) {
   Prepare parametric tailoring, like reorder, etc.
   @param  cs     Character set info
   @param  rules  Collation rule list to add to.
-  @return false  Collation parameters applied sucessfully.
+  @return false  Collation parameters applied successfully.
           true   Error happened.
 */
 static bool my_prepare_coll_param(CHARSET_INFO *cs, MY_COLL_RULES *rules) {
@@ -6054,7 +6054,7 @@ MY_COLLATION_HANDLER my_collation_uca_900_handler = {
 
 /*
   We consider bytes with code more than 127 as a letter.
-  This garantees that word boundaries work fine with regular
+  This guarantees that word boundaries work fine with regular
   expressions. Note, there is no need to mark byte 255  as a
   letter, it is illegal byte in UTF8.
 */

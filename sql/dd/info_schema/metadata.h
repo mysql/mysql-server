@@ -303,7 +303,7 @@ bool remove_I_S_view_metadata(THD *thd, const dd::String_type &view_name);
 
   @param schema_name Schema name.
   @param view_name   I_S view name.
-  @param definition  [out] The CREATE VIEW command to create sytem view.
+  @param definition  [out] The CREATE VIEW command to create system view.
                            A pointer to a preallocated string should be
                            supplied.
 

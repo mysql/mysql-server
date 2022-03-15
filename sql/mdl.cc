@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2118,7 +2118,7 @@ const MDL_lock::MDL_lock_strategy MDL_lock::m_scoped_lock_strategy = {
       different lock types.
 
       Scoped locks only use the first array which represents the "default"
-      priority matrix. The remaing 3 matrices are not relevant for them.
+      priority matrix. The remaining 3 matrices are not relevant for them.
 
                  |    Pending      |
          Request |  scoped lock    |
@@ -2945,7 +2945,7 @@ retry:
     /*
       "Fast path".
 
-      Hurray! We are acquring "unobtrusive" type of lock and not forced
+      Hurray! We are acquiring "unobtrusive" type of lock and not forced
       to take "slow path" because of open HANDLERs.
 
       Let us do a few checks first to figure out if we really can acquire
@@ -2998,7 +2998,7 @@ retry:
         corresponds to type of our request (i.e. increment part this member
         which contains counter which corresponds to this type).
 
-        This needs to be done as atomical operation with the above checks,
+        This needs to be done as atomic operation with the above checks,
         which is achieved by using atomic compare-and-swap.
 
         @sa MDL_object_lock::m_unobtrusive_lock_increment for explanation
@@ -3163,7 +3163,7 @@ slow_path:
   vice versa -- when we COMMIT, we don't mistakenly
   release a ticket for an open HANDLER.
 
-  @retval true   An error occured.
+  @retval true   An error occurred.
   @retval false  Success.
 */
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -876,7 +876,7 @@ static char perform_full_authentication = '\4';
        if (Client: Connection check) then
          -[#red]-> [Priority#1:\nTCP with TLS OR Socket Or\nShared Memory connection:\nSend password to server] "Server: received password"
        else
-         if (Priorty#2:\nPublic key available) then
+         if (Priority#2:\nPublic key available) then
            -[#yellow]-> [yes] "Client: Public key available"
          else
            if (No\nPriority#3: Should client get\nserver's public key) then
@@ -1467,7 +1467,7 @@ mysql_declare_plugin(caching_sha2_password){
     0x0100,                                 /* version (1.0)                 */
     caching_sha2_password_status_variables, /* status variables              */
     caching_sha2_password_sysvars,          /* system variables              */
-    nullptr,                                /* reserverd                     */
+    nullptr,                                /* reserved                      */
     0,                                      /* flags                         */
 },
     {
@@ -1483,6 +1483,6 @@ mysql_declare_plugin(caching_sha2_password){
         0x0100,                            /* version (1.0)                 */
         nullptr,                           /* status variables              */
         nullptr,                           /* system variables              */
-        nullptr,                           /* reserverd                     */
+        nullptr,                           /* reserved                      */
         0                                  /* flags                         */
     } mysql_declare_plugin_end;

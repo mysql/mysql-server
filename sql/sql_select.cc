@@ -1962,7 +1962,7 @@ bool Query_block::check_privileges_for_subqueries(THD *thd) {
 *****************************************************************************/
 
 /**
-  Find how much space the prevous read not const tables takes in cache.
+  Find how much space the previous read not const tables takes in cache.
 */
 
 void calc_used_field_length(TABLE *table, bool needs_rowid,
@@ -3425,7 +3425,7 @@ bool QEP_shared_owner::and_with_condition(Item *add_cond) {
 
     For a join that is resolved using a temporary table, the first sweep is
     performed against actual tables and an intermediate result is inserted
-    into the temprorary table.
+    into the temporary table.
     The last sweep is performed against the temporary table. Therefore,
     the base tables and associated buffers used to fill the temporary table
     are no longer needed, and this function is called to free them.
@@ -3867,7 +3867,7 @@ void calc_group_buffer(JOIN *join, ORDER *group) {
           break;
         }
         default:
-          /* This case should never be choosen */
+          /* This case should never be chosen */
           assert(0);
           my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
       }
@@ -4760,7 +4760,7 @@ void JOIN::refresh_base_slice() {
     Item *item = (*fields)[i];
     size_t pos;
     // See change_to_use_tmp_fields_except_sums for an explanation of how
-    // the visible fields, hidden fields and additonal fields added by
+    // the visible fields, hidden fields and additional fields added by
     // transformations are organized in fields and ref_item_array.
     if (i < num_hidden_fields) {
       pos = fields->size() - i - 1 - query_block->m_added_non_hidden_fields;

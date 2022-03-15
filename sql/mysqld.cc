@@ -165,7 +165,7 @@
 
   See #my_open, #my_dir.
 
-  @section infra_server_blocks Server building blocs
+  @section infra_server_blocks Server building blocks
 
   @subsection infra_server_blocks_vio Virtual Input Output
 
@@ -1252,7 +1252,7 @@ uint opt_large_page_size = 0;
 uint default_password_lifetime = 0;
 bool password_require_current = false;
 std::atomic<bool> partial_revokes;
-bool opt_partial_revokes;  // Intialized through Sys_var
+bool opt_partial_revokes;  // Initialized through Sys_var
 
 mysql_mutex_t LOCK_default_password_lifetime;
 mysql_mutex_t LOCK_mandatory_roles;
@@ -1285,7 +1285,7 @@ is needed by GR to set some configurations right after clone. */
 bool clone_startup = false;
 
 /** True, if clone recovery has failed. For managed server we
-restart server again with old databse files. */
+restart server again with old database files. */
 bool clone_recovery_error = false;
 
 ulong binlog_row_event_max_size;
@@ -1438,7 +1438,7 @@ const double log_10[] = {
     1e297, 1e298, 1e299, 1e300, 1e301, 1e302, 1e303, 1e304, 1e305, 1e306, 1e307,
     1e308};
 
-/* Index extention. */
+/* Index extension. */
 const int index_ext_length = 6;
 const char *index_ext = ".index";
 const int relay_ext_length = 10;
@@ -1500,7 +1500,7 @@ ulong connection_errors_internal = 0;
 /** Number of errors when reading the peer address. */
 ulong connection_errors_peer_addr = 0;
 
-/* classes for comparation parsing/processing */
+/* classes for comparison parsing/processing */
 Eq_creator eq_creator;
 Ne_creator ne_creator;
 Equal_creator equal_creator;
@@ -1646,8 +1646,8 @@ bool replica_preserve_commit_order_supplied = false;
 char *opt_general_logname, *opt_slow_logname, *opt_bin_logname;
 
 /*
-  True if expire_logs_days and binlog_expire_logs_seconds is set
-  explictly.
+  True if expire_logs_days and binlog_expire_logs_seconds are set
+  explicitly.
 */
 bool expire_logs_days_supplied = false;
 bool binlog_expire_logs_seconds_supplied = false;
@@ -1700,7 +1700,7 @@ static char **remaining_argv;
     out of remaining_argv.
  6. A check is made if the remaining_argv is an empty list. If not the server
     exits.
- 7. At this point the server is marked as succesfully started.
+ 7. At this point the server is marked as successfully started.
  8. Subsequent argument processings happen when e.g. a plugin is loaded via
     @ref mysql_install_plugin or a component registers system variables via
     @ref mysql_component_sys_variable_imp::register_variable. However, since
@@ -2650,7 +2650,7 @@ static void clean_up(bool print_message) {
   component_infrastructure_deinit();
   /*
     component unregister_variable() api depends on system_variable_hash.
-    component_infrastructure_deinit() interns calls the deinit funtion
+    component_infrastructure_deinit() interns calls the deinit function
     of components which are loaded, and the deinit functions can have
     the component system unregister_ variable()  api's, hence we need
     to call the sys_var_end() after component_infrastructure_deinit()
@@ -3673,7 +3673,7 @@ extern "C" void *signal_hand(void *arg [[maybe_unused]]) {
               (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST | REFRESH_GRANT |
                REFRESH_THREADS | REFRESH_HOSTS),
               nullptr, &not_used);  // Flush logs
-          // Reenable query logs after the options were reloaded.
+          // Re-enable query logs after the options were reloaded.
           query_logger.set_handlers(log_output_options);
         }
         break;
@@ -3686,7 +3686,7 @@ extern "C" void *signal_hand(void *arg [[maybe_unused]]) {
                REFRESH_GENERAL_LOG | /**< Flush the general log */
                REFRESH_SLOW_LOG),    /**< Flush the slow query log */
               nullptr, &not_used);   // Flush logs
-          // Reenable query logs after the options were reloaded.
+          // Re-enable query logs after the options were reloaded.
           query_logger.set_handlers(log_output_options);
         }
         break;
@@ -4652,7 +4652,7 @@ error:
 bool update_authentication_policy() {
   std::vector<std::string> list;
   if (parse_authentication_policy(opt_authentication_policy, list)) return true;
-  /* update the actual policy list only after validation is successfull */
+  /* update the actual policy list only after validation is successful */
   authentication_policy_list = list;
   /* release plugin reference */
   for (auto p : authentication_policy_plugin_ref) plugin_unlock(nullptr, p);
@@ -4678,7 +4678,7 @@ static inline const char *rpl_make_log_name(PSI_memory_key key, const char *opt,
   char buff[FN_REFLEN];
   /*
     opt[0] needs to be checked to make sure opt name is not an empty
-    string, incase it is an empty string default name will be considered
+    string, in case it is an empty string default name will be considered
   */
   const char *base = (opt && opt[0]) ? opt : def;
   unsigned int options = MY_REPLACE_EXT | MY_UNPACK_FILENAME | MY_SAFE_PATH;
@@ -4794,7 +4794,7 @@ int init_common_variables() {
 
   /*
     The default-storage-engine entry in my_long_options should have a
-    non-null default value. It was earlier intialized as
+    non-null default value. It was earlier initialized as
     (longlong)"MyISAM" in my_long_options but this triggered a
     compiler error in the Sun Studio 12 compiler. As a work-around we
     set the def_value member to 0 in my_long_options and initialize it
@@ -5380,7 +5380,7 @@ static void end_ssl() {
 /**
   Generate a UUID and save it into server_uuid variable.
 
-  @return Retur 0 or 1 if an error occurred.
+  @return Return 0 or 1 if an error occurred.
  */
 static int generate_server_uuid() {
   THD *thd;
@@ -5639,7 +5639,7 @@ static void setup_error_log() {
     log_error_dest = errorlog_filename_buff;
 
 #ifndef _WIN32
-    // Create backup stream to stdout if deamonizing and connected to tty
+    // Create backup stream to stdout if daemonizing and connected to tty
     if (opt_daemonize && isatty(STDOUT_FILENO)) {
       nstdout = fdopen(dup(STDOUT_FILENO), "a");
       if (nstdout == nullptr) {
@@ -6089,7 +6089,7 @@ static int init_server_components() {
   if (opt_bin_log) {
     /*
       opt_bin_logname[0] needs to be checked to make sure opt binlog name is
-      not an empty string, incase it is an empty string default file
+      not an empty string, in case it is an empty string default file
       extension will be passed
      */
     if (log_bin_supplied) {
@@ -6127,7 +6127,7 @@ static int init_server_components() {
 
   /*
     opt_relay_logname[0] needs to be checked to make sure opt relaylog name is
-    not an empty string, incase it is an empty string default file
+    not an empty string, in case it is an empty string default file
     extension will be passed
    */
   relay_log_basename = rpl_make_log_name(
@@ -6660,7 +6660,7 @@ static int init_server_components() {
     Add prepared XA transactions into the cache of XA transactions and acquire
     mdl lock for every table involved in any of these prepared XA transactions.
     This step moved away from the function ha_recover() in order to avoid
-    possible suspending on acquiring EXLUSIVE mdl lock on tables inside the
+    possible suspending on acquiring EXCLUSIVE mdl lock on tables inside the
     function dd::reset_tables_and_tablespaces() when table cache being reset.
   */
   if (Recovered_xa_transactions::instance()
@@ -6683,7 +6683,7 @@ static int init_server_components() {
     /*
       Configures what object is used by the current log to store processed
       gtid(s). This is necessary in the MYSQL_BIN_LOG::MYSQL_BIN_LOG to
-      corretly compute the set of previous gtids.
+      correctly compute the set of previous gtids.
     */
     assert(!mysql_bin_log.is_relay_log);
     mysql_mutex_t *log_lock = mysql_bin_log.get_log_lock();
@@ -7516,7 +7516,7 @@ int mysqld_main(int argc, char **argv)
     if (pipe_write_fd < 0) {
       // This is the launching process and the daemon appears to have
       // started ok (Need to call unireg_abort with success here to
-      // clean up resources in the lauching process.
+      // clean up resources in the launching process.
       unireg_abort(MYSQLD_SUCCESS_EXIT);
     }
 
@@ -7747,7 +7747,7 @@ int mysqld_main(int argc, char **argv)
     /*
       Write the previous set of gtids at this point because during
       the creation of the binary log this is not done as we cannot
-      move the init_gtid_sets() to a place before openning the binary
+      move the init_gtid_sets() to a place before opening the binary
       log. This requires some investigation.
 
       /Alfranio
@@ -8065,7 +8065,7 @@ int mysqld_main(int argc, char **argv)
 
   if (opt_daemonize) {
     if (nstdout != nullptr) {
-      // Show the pid on stdout if deamonizing and connected to tty
+      // Show the pid on stdout if daemonizing and connected to tty
       fprintf(nstdout, "mysqld is running as pid %lu\n", current_pid);
       fclose(nstdout);
       nstdout = nullptr;
@@ -9877,7 +9877,7 @@ To see what values a running MySQL server is using, type\n\
     on some exotic platforms global variables are
     not set to 0 when a program starts.
 
-    We don't need to set variables refered to in my_long_options
+    We don't need to set variables referred to in my_long_options
     as these are initialized by my_getopt.
 */
 
@@ -10912,7 +10912,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
 
 /*
   Create version name for running mysqld version
-  We automaticly add suffixes -debug, -valgrind, -asan, -ubsan
+  We automatically add suffixes -debug, -valgrind, -asan, -ubsan
   to the version name to make the version more descriptive.
   (MYSQL_SERVER_SUFFIX is set by the compilation environment)
 */

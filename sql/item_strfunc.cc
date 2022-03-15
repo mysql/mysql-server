@@ -403,7 +403,7 @@ class iv_argument {
     @param thd         the current thread (for errors)
     @param [out] error_generated  set to true if error was generated.
 
-    @return a pointer to the retrived validated IV or NULL
+    @return a pointer to the retrieved validated IV or NULL
   */
   const unsigned char *retrieve_iv_ptr(enum my_aes_opmode aes_opmode,
                                        uint arg_count, Item **args,
@@ -803,7 +803,7 @@ class Parse_error_anonymizer : public Internal_error_handler {
   THD *m_thd;
   Item *m_arg;
 
-  /// This avoids infinte recursion through my_error().
+  /// This avoids infinite recursion through my_error().
   bool is_handling = false;
 };
 
@@ -1091,7 +1091,7 @@ bool Item_func_reverse::resolve_type(THD *thd) {
 }
 
 /**
-  Replace all occurences of string2 in string1 with string3.
+  Replace all occurrences of string2 in string1 with string3.
 */
 
 String *Item_func_replace::val_str(String *str) {
@@ -3683,7 +3683,7 @@ bool Item_func_quote::resolve_type(THD *thd) {
   using in a SQL statement.
 
   Adds a \\ before all characters that needs to be escaped in a SQL string.
-  We also escape '^Z' (END-OF-FILE in windows) to avoid probelms when
+  We also escape '^Z' (END-OF-FILE in windows) to avoid problems when
   running commands from a file in windows.
 
   This function is very useful when you want to generate SQL statements.
@@ -4548,7 +4548,7 @@ String *Item_func_internal_get_comment_or_error::val_str(String *str) {
   DBUG_TRACE;
   null_value = false;
 
-  // Read arguements
+  // Read arguments
   String schema;
   String view;
   String table_type;
@@ -5157,7 +5157,7 @@ String *Item_func_convert_interval_to_user_interval::val_str(String *str) {
 }
 
 /*
-  This function retrives the user name in 'user@host' authentication
+  This function retrieves the user name in 'user@host' authentication
   identifier.
 
   @param str pointer to String whose output is filled with user name.
@@ -5194,7 +5194,7 @@ String *Item_func_internal_get_username::val_str(String *str) {
 }
 
 /*
-  This function retrives the host name in 'user@host' authentication
+  This function retrieves the host name in 'user@host' authentication
   identifier.
 
   @param str pointer to String whose output is filled with user name.

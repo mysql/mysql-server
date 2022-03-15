@@ -1,6 +1,6 @@
 #ifndef DD_TABLE_SHARE_INCLUDED
 #define DD_TABLE_SHARE_INCLUDED
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ enum class enum_column_types;
   @note
     This function is called when the table definition is not cached in
     table_def_cache.
-    The data is returned in 'share', which is alloced by
+    The data is returned in 'share', which is allocated by
     alloc_table_share().. The code assumes that share is initialized.
 
   @returns

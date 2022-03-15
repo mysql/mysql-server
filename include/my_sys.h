@@ -116,8 +116,8 @@ struct MEM_ROOT;
 
 /* General bitmaps for my_func's */
 // 1 used to be MY_FFNF which has been removed
-#define MY_FNABP 2         /* Fatal if not all bytes read/writen */
-#define MY_NABP 4          /* Error if not all bytes read/writen */
+#define MY_FNABP 2         /* Fatal if not all bytes read/written */
+#define MY_NABP 4          /* Error if not all bytes read/written */
 #define MY_FAE 8           /* Fatal if any error */
 #define MY_WME 16          /* Write message on error */
 #define MY_WAIT_IF_FULL 32 /* Wait and try again if disk full error */
@@ -126,7 +126,7 @@ struct MEM_ROOT;
 #define MY_FULL_IO 512 /* For my_read - loop intil I/O is complete */
 #define MY_DONT_CHECK_FILESIZE 128  /* Option to init_io_cache() */
 #define MY_LINK_WARNING 32          /* my_redel() gives warning if links */
-#define MY_COPYTIME 64              /* my_redel() copys time */
+#define MY_COPYTIME 64              /* my_redel() copies time */
 #define MY_DELETE_OLD 256           /* my_create_with_symlink() */
 #define MY_RESOLVE_LINK 128         /* my_realpath(); Only resolve links */
 #define MY_HOLD_ORIGINAL_MODES 128  /* my_copy() holds to file modes */
@@ -336,7 +336,7 @@ struct IO_CACHE_SHARE {
   int error;           /* Last error. */
 };
 
-struct IO_CACHE /* Used when cacheing files */
+struct IO_CACHE /* Used when caching files */
 {
   /* Offset in file corresponding to the first byte of uchar* buffer. */
   my_off_t pos_in_file{0};
@@ -406,7 +406,7 @@ struct IO_CACHE /* Used when cacheing files */
   int (*write_function)(IO_CACHE *, const uchar *, size_t){nullptr};
   /*
     Specifies the type of the cache. Depending on the type of the cache
-    certain operations might not be available and yield unpredicatable
+    certain operations might not be available and yield unpredictable
     results. Details to be documented later
   */
   cache_type type{TYPE_NOT_SET};
@@ -434,7 +434,7 @@ struct IO_CACHE /* Used when cacheing files */
 
   /*
     seek_not_done is set by my_b_seek() to inform the upcoming read/write
-    operation that a seek needs to be preformed prior to the actual I/O
+    operation that a seek needs to be performed prior to the actual I/O
     error is 0 if the cache operation was successful, -1 if there was a
     "hard" error, and the actual number of I/O-ed bytes if the read/write was
     partial.

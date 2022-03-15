@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -607,7 +607,7 @@ int channel_stop_all(int threads_to_stop, long timeout,
                      std::string *error_message) {
   Master_info *mi = nullptr;
 
-  /* Error related varaiables */
+  /* Error related variables */
   int error = 0;
   std::stringstream err_msg_ss;
   err_msg_ss << "Error stopping channel(s): ";

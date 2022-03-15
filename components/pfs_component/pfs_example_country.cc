@@ -39,7 +39,7 @@ Country_record country_records_array[COUNTRY_MAX_ROWS] = {
 
 /**
   Check for duplicate value of Primary/Unique Key column(s).
-  A sequential search is being used here, but its upto plugin writer to
+  A sequential search is being used here, but it is up to the plugin writer to
   implement his/her own search to make sure duplicate values are not
   inserted/updated for Primary/Unique Key Column(s).
 

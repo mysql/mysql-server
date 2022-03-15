@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -112,7 +112,7 @@ enum {
 };
 
 /*
-  Please every time you add a new field to the mater info, update
+  Please every time you add a new field to the master info, update
   what follows. For now, this is just used to get the number of
   fields.
 */

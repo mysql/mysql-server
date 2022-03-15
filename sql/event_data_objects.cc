@@ -171,7 +171,7 @@ bool Event_creation_ctx::create_event_creation_ctx(
 /*************************************************************************/
 
 /*
-  Initiliazes dbname and name of an Event_queue_element_for_exec
+  Initializes dbname and name of an Event_queue_element_for_exec
   object
 
   SYNOPSIS

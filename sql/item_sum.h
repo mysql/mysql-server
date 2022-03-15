@@ -126,8 +126,8 @@ class Aggregator {
   virtual bool setup(THD *) = 0;
 
   /**
-    Called when we need to wipe out all the data from the aggregator :
-    all the values acumulated and all the state.
+    Called when we need to wipe out all the data from the aggregator:
+    all the values accumulated and all the state.
     Cleans up the internal structures and resets them to their initial state.
   */
   virtual void clear() = 0;

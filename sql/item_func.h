@@ -947,7 +947,7 @@ class Item_int_func : public Item_func {
   enum Item_result result_type() const override { return INT_RESULT; }
   /*
     Concerning PS-param types,
-    resolve_type(THD *) is not overidden here, as experience shows that for
+    resolve_type(THD *) is not overridden here, as experience shows that for
     most child classes of this class, VARCHAR is the best default
   */
 };
@@ -3132,7 +3132,7 @@ class user_var_entry {
     @param type           type of new value
     @param cs             charset info for new value
     @param dv             derivation for new value
-    @param unsigned_arg   indiates if a value of type INT_RESULT is unsigned
+    @param unsigned_arg   indicates if a value of type INT_RESULT is unsigned
 
     @note Sets error and fatal error if allocation fails.
 
@@ -3675,7 +3675,7 @@ class Item_func_match final : public Item_real_func {
   bool simple_expression;
   /**
      true if MATCH function is used in WHERE condition only.
-     Used to dermine what hints can be used for FT handler.
+     Used to determine what hints can be used for FT handler.
      Note that only master MATCH function has valid value.
      it's ok since only master function is involved in the hint processing.
   */
@@ -3983,10 +3983,10 @@ class Item_func_internal_is_enabled_role : public Item_int_func {
 
   @param suffix Name of the variable (if prefix is empty) or the right
                 hand side of the composite variable name, e.g.:
-                * name of the component-registered vairable
+                * name of the component-registered variable
                 * property name of MyISAM Multiple Key Cache variable.
 
-  @param unsafe_for_replication force writting this system variable to binlog
+  @param unsafe_for_replication force writing this system variable to binlog
                 (if not written yet)
 
   @returns new item on success, otherwise nullptr

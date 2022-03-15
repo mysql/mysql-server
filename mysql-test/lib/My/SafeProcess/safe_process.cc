@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,8 +37,8 @@
   once it has done that it will continue to monitor the child as well
   as the parent.
 
-  The safe_process then checks the follwing things:
-  1. Child exits, propagate the childs return code to the parent
+  The safe_process then checks the following things:
+  1. Child exits, propagate the child's return code to the parent
      by exiting with the same return code as the child.
 
   2. Parent dies, immediately kill the child and exit, thus the
@@ -247,7 +247,7 @@ int main(int argc, char *const argv[]) {
     signal(SIGABRT, SIG_DFL);
 
     // Make this process it's own process group to be able to kill
-    // it and any childs(that hasn't changed group themself)
+    // it and any children (that hasn't changed group themself)
     setpgid(0, 0);
 
     if (nocore) {

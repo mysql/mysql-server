@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -365,7 +365,7 @@ void Item_singlerow_subselect::cleanup() {
                       operator
 
   @param[in] col      The column number of the expression in the left operand
-                      to possibly mark as dependant of the outer select
+                      to possibly mark as dependent of the outer select
 
   @returns true if we should mark the injected left expression "outer"
                 relative to the subquery
@@ -963,7 +963,7 @@ bool Query_result_max_min_subquery::send_data(
           break;
         case ROW_RESULT:
         case INVALID_RESULT:
-          // This case should never be choosen
+          // This case should never be chosen
           assert(0);
           op = nullptr;
       }
@@ -982,7 +982,7 @@ bool Query_result_max_min_subquery::send_data(
   maximum/minimum number seen this far. If fmax==true, this is a
   comparison for MAX, otherwise it is a comparison for MIN.
 
-  val1 is the new numer to compare against the current
+  val1 is the new number to compare against the current
   maximum/minimum. val2 is the current maximum/minimum.
 
   ignore_nulls is used to control behavior when comparing with a NULL
@@ -1103,7 +1103,7 @@ void Item_singlerow_subselect::reset() {
 
 /**
   @todo
-  - We cant change name of Item_field or Item_ref, because it will
+  - We can't change name of Item_field or Item_ref, because it will
   prevent it's correct resolving, but we should save name of
   removed item => we do not make optimization if top item of
   list is field or reference.
@@ -1904,7 +1904,7 @@ Item_subselect::trans_res Item_in_subselect::single_value_transformer(
     @param select Query block of the subquery
     @param func   Subquery comparison creator
 
-    @retval RES_OK     Either subquery was transformed, or appopriate
+    @retval RES_OK     Either subquery was transformed, or appropriate
                        predicates where injected into it.
     @retval RES_REDUCE The subquery was reduced to non-subquery
     @retval RES_ERROR  Error
@@ -2180,7 +2180,7 @@ Item_subselect::trans_res Item_in_subselect::row_value_transformer(
 }
 
 /**
-  Tranform a (possibly non-correlated) IN subquery into a correlated EXISTS.
+  Transform a (possibly non-correlated) IN subquery into a correlated EXISTS.
 
   @todo
   The IF-ELSE below can be refactored so that there is no duplication of the
@@ -2293,7 +2293,7 @@ Item_subselect::trans_res Item_in_subselect::row_value_in_to_exists_transformer(
                                 is_not_null_test(v3))
       where is_not_null_test register NULLs values but reject rows
 
-      in case when we do not need correct NULL, we have simplier construction:
+      in case when we do not need correct NULL, we have a simpler construction:
       EXISTS (SELECT ... WHERE where and
                                (l1 = v1) and
                                (l2 = v2) and
@@ -2331,7 +2331,7 @@ Item_subselect::trans_res Item_in_subselect::row_value_in_to_exists_transformer(
         item->set_created_by_in2exists();
         /*
           TODO: why we create the above for cases where the right part
-                cant be NULL?
+                can't be NULL?
         */
         if (left_expr->element_index(i)->is_nullable()) {
           if (!(item = new Item_func_trig_cond(
@@ -2439,7 +2439,7 @@ Item_subselect::trans_res Item_in_subselect::select_in_like_transformer(
   /*
     In some optimisation cases we will not need this Item_in_optimizer
     object, but we can't know it here, but here we need address correct
-    reference on left expresion.
+    reference on left expression.
 
     //psergey: he means confluent cases like "... IN (SELECT 1)"
   */
@@ -2561,7 +2561,7 @@ bool Item_in_subselect::init_left_expr_cache(THD *thd) {
   /*
     Check if the left operand is a subquery that yields an empty set of rows.
     If so, skip initializing a cache; for an empty set the subquery
-    exec won't read any rows and so lead to uninitalized reads if attempted.
+    exec won't read any rows and so lead to uninitialized reads if attempted.
   */
   if (left_expr->type() == SUBSELECT_ITEM && left_expr->null_value) {
     return false;

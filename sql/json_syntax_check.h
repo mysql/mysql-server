@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,7 @@ class Syntax_check_handler : public rapidjson::BaseReaderHandler<> {
   @param[in] length The length of the text
   @param[out] error_offset If the text is not a valid JSON, this variable will
                            be set to the position in the input string where
-                           the error occured. Can be nullptr.
+                           the error occurred. Can be nullptr.
   @param[out] error_message If the text is not a valid JSON, this variable
                             will contain a readable error message. Can be
                             nullptr.

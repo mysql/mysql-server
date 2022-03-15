@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2001, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,7 @@ class Unique {
   ulong max_elements;
   /// Memory buffer size
   ulonglong max_in_memory_size;
-  /// Cache file for unique values retrieval fo table read AM in executor
+  /// Cache file for unique values retrieval of table read AM in executor
   IO_CACHE file;
   /// Tree to filter duplicates in memory
   TREE tree;

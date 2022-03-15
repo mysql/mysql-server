@@ -268,7 +268,7 @@ static const TRAN_TYPE_INFO *find_transition_type(my_time_t t,
 
   SYNOPSIS
     gmt_sec_to_TIME()
-      tmp          - pointer to structure for broken down represenatation
+      tmp          - pointer to structure for broken down representation
       sec_in_utc   - my_time_t value to be converted
       sp           - pointer to struct with time zone description
 
@@ -279,7 +279,7 @@ static const TRAN_TYPE_INFO *find_transition_type(my_time_t t,
     (60th and 61st second, look how we calculate them as "hit" in this
     function).
     Under realistic assumptions about frequency of transitions the same array
-    can be used fot MYSQL_TIME -> my_time_t conversion. For this we need to
+    can be used for MYSQL_TIME -> my_time_t conversion. For this we need to
     implement tweaked binary search which will take into account that some
     MYSQL_TIME has two matching my_time_t ranges and some of them have none.
 */
@@ -333,7 +333,7 @@ static void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t sec_in_utc,
 
 /*
   Converts local time in broken down representation to local
-  time zone analog of my_time_t represenation.
+  time zone analog of my_time_t representation.
 
   SYNOPSIS
     sec_since_epoch()
@@ -416,7 +416,7 @@ static my_time_t sec_since_epoch(const MYSQL_TIME &mt) {
     - By default it doesn't support un-normalized input. But if
       sec_since_epoch() function supports un-normalized dates
       then this function should handle un-normalized input right,
-      altough it won't normalize structure TIME.
+      although it won't normalize structure TIME.
 
     Traditional approach to problem of conversion from broken down
     representation to time_t is iterative. Both elsie's and glibc
@@ -432,7 +432,7 @@ static my_time_t sec_since_epoch(const MYSQL_TIME &mt) {
     and we have two possible answers).
 
     We use completely different approach. It is better since it is both
-    faster than iterative implementations and fully determenistic. If you
+    faster than iterative implementations and fully deterministic. If you
     look at my_time_t to MYSQL_TIME conversion then you'll find that it consist
     of two steps:
     The first is calculating shifted my_time_t value and the second - TIME
@@ -441,7 +441,7 @@ static my_time_t sec_since_epoch(const MYSQL_TIME &mt) {
     my_time_t conversion. It is piecewise linear function which is defined
     by combination of transition times as break points and times offset
     as changing function parameter. The possible inverse function for this
-    converison would be ambiguos but with MySQL's restrictions we can use
+    conversion would be ambiguous but with MySQL's restrictions we can use
     some function which is the same as inverse function on unambigiuos
     ranges and coincides with one of branches of inverse function in
     other ranges. Thus we just need to build table which will determine
@@ -639,7 +639,7 @@ bool convert_time_zone_displacement(const Time_zone *tz, MYSQL_TIME *mt) {
   were no explicit time zone specified. On the other hand because of this
   conversion methods provided by this class is significantly slower and
   possibly less multi-threaded-friendly than corresponding Time_zone_db
-  methods so the latter should be preffered there it is possible.
+  methods so the latter should be preferred there it is possible.
 */
 class Time_zone_system : public Time_zone {
  public:
@@ -788,7 +788,7 @@ my_time_t Time_zone_utc::TIME_to_gmt_sec(const MYSQL_TIME *mt,
       t   - my_time_t value to be converted
 
   NOTE
-    See note for apropriate Time_zone_system method.
+    See note for appropriate Time_zone_system method.
 */
 void Time_zone_utc::gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const {
   struct tm tmp_tm;
@@ -1064,7 +1064,7 @@ static mysql_mutex_t tz_LOCK;
 static bool tz_inited = false;
 
 /*
-  This two static variables are inteded for holding info about leap seconds
+  These two static variables are intended for holding info about leap seconds
   shared by all time zones.
 */
 static uint tz_leapcnt = 0;
@@ -1590,7 +1590,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
 
   /*
     We have to allow HA_ERR_KEY_NOT_FOUND because some time zones
-    for example UTC have no transitons.
+    for example UTC have no transitions.
   */
   if (res != HA_ERR_END_OF_FILE && res != HA_ERR_KEY_NOT_FOUND) {
     assert(res != HA_ERR_LOCK_WAIT_TIMEOUT && res != HA_ERR_LOCK_DEADLOCK);

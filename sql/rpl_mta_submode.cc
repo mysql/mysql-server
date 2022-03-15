@@ -453,7 +453,7 @@ Mts_submode_logical_clock::Mts_submode_logical_clock() {
    Formally, the undefined cached value of last_lwm_timestamp is also stale.
 
    @verbatim
-              the last time index containg lwm
+              the last time index containing lwm
                   +------+
                   | LWM  |
                   |  |   |
@@ -573,7 +573,7 @@ bool Mts_submode_logical_clock::wait_for_last_committed_trx(
   min_waited_timestamp.store(last_committed_arg);
   /*
     This transaction is a candidate for insertion into the waiting list.
-    That fact is descibed by incrementing waited_timestamp_cnt.
+    That fact is described by incrementing waited_timestamp_cnt.
     When the candidate won't make it the counter is decremented at once
     while the mutex is hold.
   */
@@ -672,9 +672,9 @@ int Mts_submode_logical_clock::schedule_next_event(Relay_log_info *rli,
       return ER_MTS_CANT_PARALLEL;
     }
     /*
-      Being scheduled transaction sequence may have gaps, even in
+      Transaction sequence as scheduled may have gaps, even in
       relay log. In such case a transaction that succeeds a gap will
-      wait for all ealier that were scheduled to finish. It's marked
+      wait for all earlier that were scheduled to finish. It's marked
       as gap successor now.
     */
     static_assert(SEQ_UNINIT == 0, "");
@@ -692,7 +692,7 @@ int Mts_submode_logical_clock::schedule_next_event(Relay_log_info *rli,
 
   /*
     The new group flag is practically the same as the force flag
-    when up to indicate syncronization with Workers.
+    when up to indicate synchronization with Workers.
   */
   is_new_group =
       (/* First event after a submode switch; */
@@ -922,7 +922,7 @@ Slave_worker *Mts_submode_logical_clock::get_least_occupied_worker(
        number of available workers then schedule the events to the consecutive
        workers
       -If the i-th transaction is being scheduled in this group where "i" >
-       number of available workers then schedule this to the forst worker that
+       number of available workers then schedule this to the first worker that
        becomes free.
    */
   if (rli->last_assigned_worker) {

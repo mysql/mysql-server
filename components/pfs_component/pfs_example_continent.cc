@@ -209,7 +209,7 @@ int continent_read_column_value(PSI_table_handle *handle, PSI_field *field,
   return 0;
 }
 
-/* As this is a readonly table, we can't use continent_write_row_values funcion,
+/* As this is a read-only table, we can't use continent_write_row_values function,
    so use this function to populate rows from component code.
 */
 int write_rows_from_component(Continent_Table_Handle *handle) {

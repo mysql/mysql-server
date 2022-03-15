@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2001, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -360,7 +360,7 @@ void bitmap_intersect(MY_BITMAP *to, const MY_BITMAP *from) {
   NOTE
     You can only set/clear full bytes.
     The function is meant for the situation that you copy a smaller bitmap
-    to a bigger bitmap. Bitmap lengths are always multiple of eigth (the
+    to a bigger bitmap. Bitmap lengths are always multiple of eight (the
     size of a byte). Using 'from_byte' saves multiplication and division
     by eight during parameter passing.
 

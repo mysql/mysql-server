@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -236,7 +236,7 @@ MYSQL_TIME my_time_set(uint y, uint m, uint d, uint h, uint mi, uint s,
   Return the number of significant second fraction decimals in ts, e.g.
   for ts->second_part == 120300, return 4.
 
-  @param ts the time value for which we wnat the number of decmals
+  @param ts the time value for which we want the number of decmals
   @return the number of decimals
 */
 uint actual_decimals(const MYSQL_TIME *ts);

@@ -1519,7 +1519,7 @@ int main(int argc, char **argv) {
 
     /* Testing for lock mechanism. The innochecksum
     acquire lock on given file. So other tools accessing the same
-    file for processsing must fail. */
+    file for processing must fail. */
 #ifdef _WIN32
     DBUG_EXECUTE_IF(
         "innochecksum_cause_mysqld_crash", ut_ad(page_dump_filename);

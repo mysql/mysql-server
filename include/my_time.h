@@ -480,7 +480,7 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
 /**
    Round the input argument to the specified precision by computing
    the remainder modulo log10 of the difference between max and
-   desired precison.
+   desired precision.
 
    @param nr number to round
    @param decimals desired precision

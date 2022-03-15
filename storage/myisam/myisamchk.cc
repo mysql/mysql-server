@@ -434,7 +434,7 @@ static void usage(void) {
   puts(
       "Check options (check is the default action for myisamchk):\n\
   -c, --check	      Check table for errors.\n\
-  -e, --extend-check  Check the table VERY throughly.  Only use this in\n\
+  -e, --extend-check  Check the table VERY thoroughly. Only use this in\n\
                       extreme cases as myisamchk should normally be able to\n\
                       find out if the table is ok even without this switch.\n\
   -F, --fast	      Check only tables that haven't been closed properly.\n\
@@ -478,7 +478,7 @@ static void usage(void) {
   -q, --quick         Faster repair by not modifying the data file.\n\
                       One can give a second '-q' to force myisamchk to\n\
 		      modify the original datafile in case of duplicate keys.\n\
-		      NOTE: Tables where the data file is currupted can't be\n\
+		      NOTE: Tables where the data file is corrupted can't be\n\
 		      fixed with this option.\n\
   -u, --unpack        Unpack file packed with myisampack.\n\
 ");
@@ -868,7 +868,7 @@ static int myisamchk(MI_CHECK *param, char *filename) {
     return 1;
   }
   share = info->s;
-  share->options &= ~HA_OPTION_READ_ONLY_DATA; /* We are modifing it */
+  share->options &= ~HA_OPTION_READ_ONLY_DATA; /* We are modifying it */
   share->tot_locks -= share->r_locks;
   share->r_locks = 0;
 
@@ -1464,7 +1464,7 @@ static int mi_sort_records(MI_CHECK *param, MI_INFO *info, char *name,
     if (filecopy(param, new_file, info->dfile, 0L, share->pack.header_length,
                  "datafile-header"))
       goto err;
-  info->rec_cache.file = new_file; /* Use this file for cacheing*/
+  info->rec_cache.file = new_file; /* Use this file for caching */
 
   for (key = 0; key < share->base.keys; key++)
     share->keyinfo[key].flag |= HA_SORT_ALLOWS_SAME;

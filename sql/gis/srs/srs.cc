@@ -1,4 +1,4 @@
-// Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -1806,7 +1806,7 @@ static bool create_geographic_srs(gis::srid_t srid,
   When creating a projected SRS object for a projection without an
   EPSG code, code 0 should be used.
 
-  If the EPSG code is 0 or unkown, an Unkown_projected_srs object is
+  If the EPSG code is 0 or unknown, an Unkown_projected_srs object is
   returned.
 
   @param epsg_code EPSG coordinate operation method (i.e. projection

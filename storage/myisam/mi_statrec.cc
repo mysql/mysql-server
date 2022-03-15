@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -197,7 +197,7 @@ int _mi_read_rnd_static_record(MI_INFO *info, uchar *buf, my_off_t filepos,
     if (filepos >= info->state->data_file_length) { /* Test if new records */
       if (_mi_readinfo(info, F_RDLCK, 0)) return my_errno();
       locked = 1;
-    } else { /* We don't nead new info */
+    } else { /* We don't need new info */
       if ((!cache_read || share->base.reclength > cache_length) &&
           share->tot_locks == 0) { /* record not in cache */
         if (my_lock(share->kfile, F_RDLCK,
@@ -218,7 +218,7 @@ int _mi_read_rnd_static_record(MI_INFO *info, uchar *buf, my_off_t filepos,
   info->lastpos = filepos;
   info->nextpos = filepos + share->base.pack_reclength;
 
-  if (!cache_read) /* No cacheing */
+  if (!cache_read) /* No caching */
   {
     if ((error = _mi_read_static_record(info, filepos, buf))) {
       if (error > 0) {

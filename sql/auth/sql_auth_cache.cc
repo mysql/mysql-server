@@ -800,7 +800,7 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str, const char *wildstr) {
 /*
   Return a number which, if sorted 'desc', puts strings in this order:
     no wildcards
-    strings containg wildcards and non-wildcard characters
+    strings containing wildcards and non-wildcard characters
     single muilt-wildcard character('%')
     empty string
 */
@@ -823,7 +823,7 @@ ulong get_sort(uint count, ...) {
         0                            if string is empty
         1                            if string is a single muilt-wildcard
                                      character('%')
-        first wildcard position + 1  if string containg wildcards and
+        first wildcard position + 1  if string containing wildcards and
                                      non-wildcard characters
     */
 
@@ -1380,8 +1380,8 @@ ulong acl_get(THD *thd, const char *host, const char *ip, const char *user,
     if (!acl_db->user || !strcmp(user, acl_db->user)) {
       if (acl_db->host.compare_hostname(host, ip)) {
         /*
-          Do the usual string comparision if partial_revokes is ON,
-          otherwise do the wildcard grant comparision
+          Do the usual string comparison if partial_revokes is ON,
+          otherwise do the wildcard grant comparison
         */
         if (!acl_db->db ||
             (db &&
@@ -1560,8 +1560,8 @@ bool acl_getroot(THD *thd, Security_context *sctx, const char *user,
         if (!acl_db->user || (user && user[0] && !strcmp(user, acl_db->user))) {
           if (acl_db->host.compare_hostname(host, ip)) {
             /*
-              Do the usual string comparision if partial_revokes is ON,
-              otherwise do the wildcard grant comparision
+              Do the usual string comparison if partial_revokes is ON,
+              otherwise do the wildcard grant comparison
             */
             if (!acl_db->db ||
                 (db && (mysqld_partial_revokes()
@@ -2221,7 +2221,7 @@ bool acl_reload(THD *thd, bool mdl_locked) {
       if a user error condition has been raised. Also do not print expected/
       transient errors about tables not being locked (occurs when user does
       FLUSH PRIVILEGES under LOCK TABLES) and MDL deadlocks. These errors
-      can't occurr at start-up and will be reported to user anyway.
+      can't occur at start-up and will be reported to user anyway.
     */
     if (!is_expected_or_transient_error(thd)) {
       LogErr(ERROR_LEVEL, ER_AUTHCACHE_CANT_OPEN_AND_LOCK_PRIVILEGE_TABLES,
@@ -2687,13 +2687,13 @@ bool grant_reload(THD *thd, bool mdl_locked) {
 
     /*
       Create a new memory pool but save the current memory pool to make an
-      undo opertion possible in case of failure.
+      undo operation possible in case of failure.
     */
     old_mem = move(memex);
     init_sql_alloc(key_memory_acl_memex, &memex, ACL_ALLOC_BLOCK_SIZE);
     /*
       tables[2].table i.e. procs_priv can be null if we are working with
-      pre 4.1 privilage tables
+      pre 4.1 privilege tables
     */
     if ((return_val = (grant_load(thd, tables) ||
                        grant_reload_procs_priv(

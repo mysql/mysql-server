@@ -113,7 +113,7 @@ static void die(const char *file, int line, const char *expr)
     MY_ATTRIBUTE((noreturn));
 
 /*
-Abort unless given experssion is non-zero.
+Abort unless given expression is non-zero.
 
 SYNOPSIS
 DIE_UNLESS(expr)

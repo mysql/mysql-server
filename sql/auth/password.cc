@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,11 +165,11 @@ static void hex2octet(uint8 *to, const char *str, uint len) {
 
 /*
     Encrypt/Decrypt function used for password encryption in authentication.
-    Simple XOR is used here but it is OK as we crypt random strings. Note,
+    Simple XOR is used here, but it is OK as we crypt random strings. Note
     that XOR(s1, XOR(s1, s2)) == s2, XOR(s1, s2) == XOR(s2, s1)
   SYNOPSIS
     my_crypt()
-    to      OUT buffer to hold crypted string; must be at least len bytes
+    to      OUT buffer to hold encrypted string; must be at least len bytes
                 long; to and s1 (or s2) may be the same.
     s1, s2  IN  input strings (of equal length)
     len     IN  length of s1 and s2

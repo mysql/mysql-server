@@ -337,13 +337,13 @@ class Thd_mem_cnt_conn : public Thd_mem_cnt {
 };
 
 /**
-  the struct aggregates two paramenters that identify an event
+  the struct aggregates two parameters that identify an event
   uniquely in scope of communication of a particular master and slave couple.
   I.e there can not be 2 events from the same staying connected master which
   have the same coordinates.
   @note
   Such identifier is not yet unique generally as the event originating master
-  is resetable. Also the crashed master can be replaced with some other.
+  is resettable. Also the crashed master can be replaced with some other.
 */
 typedef struct rpl_event_coordinates {
   char *file_name;  // binlog file name (directories stripped)
@@ -1029,7 +1029,7 @@ class THD : public MDL_context_owner,
     0. In other words, "db", "db_length" must either be NULL, or contain a
     valid database name.
 
-    @note this attribute is set and alloced by the slave SQL thread (for
+    @note this attribute is set and allocated by the slave SQL thread (for
     the THD of that thread); that thread is (and must remain, for now) the
     only responsible for freeing this member.
   */
@@ -1115,7 +1115,7 @@ class THD : public MDL_context_owner,
   */
   static const char *const DEFAULT_WHERE;
 
-  /** Aditional network instrumentation for the server only. */
+  /** Additional network instrumentation for the server only. */
   NET_SERVER m_net_server_extension;
   /**
     Hash for user variables.
@@ -1252,7 +1252,7 @@ class THD : public MDL_context_owner,
   /**
     @note
     Some members of THD (currently 'Statement::db',
-    'catalog' and 'query')  are set and alloced by the slave SQL thread
+    'catalog' and 'query')  are set and allocated by the slave SQL thread
     (for the THD of that thread); that thread is (and must remain, for now)
     the only responsible for freeing these 3 members. If you add members
     here, and you add code to set them in replication, don't forget to
@@ -2235,9 +2235,9 @@ class THD : public MDL_context_owner,
   /**
     Stores the result of ROW_COUNT() function.
 
-    ROW_COUNT() function is a MySQL extention, but we try to keep it
+    ROW_COUNT() function is a MySQL extension, but we try to keep it
     similar to ROW_COUNT member of the GET DIAGNOSTICS stack of the SQL
-    standard (see SQL99, part 2, search for ROW_COUNT). It's value is
+    standard (see SQL99, part 2, search for ROW_COUNT). Its value is
     implementation defined for anything except INSERT, DELETE, UPDATE.
 
     ROW_COUNT is assigned according to the following rules:
@@ -3786,7 +3786,7 @@ class THD : public MDL_context_owner,
   /*
     There are some statements (like OPTIMIZE TABLE, ANALYZE TABLE and
     REPAIR TABLE) that might call trans_rollback_stmt() and also will be
-    sucessfully executed and will have to go to the binary log.
+    successfully executed and will have to go to the binary log.
     For these statements, the skip_gtid_rollback flag must be set to avoid
     problems when the statement is executed with a GTID_NEXT set to
     ASSIGNED_GTID (like the SQL thread do when applying events from other
@@ -4284,7 +4284,7 @@ class THD : public MDL_context_owner,
   Diagnostics_area *m_stmt_da;
 
   /**
-    It will be set TURE if CURRENT_USER() is called in account management
+    It will be set TRUE if CURRENT_USER() is called in account management
     statements or default definer is set in CREATE/ALTER SP, SF, Event,
     TRIGGER or VIEW statements.
 
@@ -4442,7 +4442,7 @@ class THD : public MDL_context_owner,
   /**
     Claim all the memory used by the THD object.
     This method is to keep memory instrumentation statistics
-    updated, when an object is transfered across threads.
+    updated, when an object is transferred across threads.
   */
   void claim_memory_ownership(bool claim);
 

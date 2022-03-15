@@ -184,7 +184,7 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
     SA6. Clustered index can not be used by GROUP_MIN_MAX quick select
          for AGG_FUNC(DISTINCT ...) optimization because cursor position is
          never stored after a unique key lookup in the clustered index and
-         furhter index_next/prev calls can not be used. So loose index scan
+         further index_next/prev calls can not be used. So loose index scan
          optimization can not be used in this case.
     SA7. If Q has both AGG_FUNC(DISTINCT ...) and MIN/MAX() functions then this
          access method is not used.
@@ -598,7 +598,7 @@ AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
         key_part_nr = get_field_keypart(cur_index_info, item_field->field);
         /*
           Check if this attribute was already present in the select list.
-          If it was present, then its corresponding key part was alredy used.
+          If it was present, then its corresponding key part was already used.
         */
         if (used_key_parts_map.is_set(key_part_nr)) continue;
         if (key_part_nr < 1 ||
@@ -975,7 +975,7 @@ AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
       // are more keyparts to follow the ones we are using we must make the
       // condition on the key inclusive (because x < "ab" means
       // x[0] < 'a' OR (x[0] == 'a' AND x[1] < 'b').
-      // To achive the above we must turn off the NEAR_MIN/NEAR_MAX
+      // To achieve the above we must turn off the NEAR_MIN/NEAR_MAX
       uint prefix_max_length = 0;
       for (const QUICK_RANGE *range : prefix_ranges) {
         prefix_max_length =
@@ -1123,7 +1123,7 @@ static bool check_group_min_max_predicates(Item *cond,
 
     It's been suggested that it may be possible to use the access method
     for a sub-family of cases when we're aggregating constants or
-    outer references. For the moment, we bale out and we reject
+    outer references. For the moment, we bail out and we reject
     the access method for the query.
 
     It's hard to prove that there are no other cases where the
@@ -1214,7 +1214,7 @@ static bool check_group_min_max_predicates(Item *cond,
 
 /**
   Utility function used by min_max_inspect_cond_for_fields() for comparing
-  FILED item with given MIN/MAX item and setting appropriate out paramater.
+  FIELD item with given MIN/MAX item and setting appropriate out parameter.
 
 @param         item_field         Item field for comparison.
 @param         min_max_arg_item   The field referenced by the MIN/MAX
@@ -1344,7 +1344,7 @@ static bool min_max_inspect_cond_for_fields(Item *cond,
     first_non_group_part   [in]  First index part after group attribute parts
     min_max_arg_part       [in]  The keypart of the MIN/MAX argument if any
     last_part              [in]  Last keypart of the index
-    key_infix_len          [out] Lenghth of the infix
+    key_infix_len          [out] Length of the infix
     first_non_infix_part   [out] The first keypart after the infix (if any)
     infix_factor           [out] The number of combinations of infixes
                                  that can be possible.
@@ -1522,7 +1522,7 @@ static inline uint get_field_keypart(KEY *index, const Field *field) {
        This needs fixing.
      - When both min and max are present, LIS will make two reads per group
        instead of one. Similarly when min and max functions are not present,
-       rows retrived are different. Cost model should reflect what happens
+       rows retrieved are different. Cost model should reflect what happens
        in GroupIndexSkipScanIterator::Read()
 
   RETURN
@@ -1626,7 +1626,7 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
     as the sum of:
     1. Cost for evaluating the condition (similarly as for index scan).
     2. Cost for navigating the index structure (assuming a b-tree).
-       Note: We only add the cost for one comparision per block. For a
+       Note: We only add the cost for one comparison per block. For a
              b-tree the number of comparisons will be larger.
        TODO: This cost should be provided by the storage engine.
   */

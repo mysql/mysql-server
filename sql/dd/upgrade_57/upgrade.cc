@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -891,7 +891,7 @@ bool do_pre_checks_and_initialize_dd(THD *thd) {
     if (upgrade_status.create()) return true;
 
     /*
-      If mysql.idb does not exist and updgrade stage tracking file
+      If mysql.idb does not exist and upgrade stage tracking file
       does not exist, we are in upgrade mode.
     */
     LogErr(SYSTEM_LEVEL, ER_DD_UPGRADE_START);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -140,7 +140,7 @@ class Tablespace : virtual public Entity_object {
   virtual const Tablespace_file_collection &files() const = 0;
 
   /**
-    Allocate a new object graph and invoke the copy contructor for
+    Allocate a new object graph and invoke the copy constructor for
     each object.
 
     @return pointer to dynamically allocated copy

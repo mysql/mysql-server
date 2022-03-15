@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,7 +72,7 @@ class Gno_interval {
    * @note This operator does not perform any check about the other interval
    * being valid or not. It is up to the caller to verify that if needed.
    *
-   * @param other The object ot copy.
+   * @param other The object to copy.
    */
   Gno_interval(const Gno_interval &other);
 
@@ -142,7 +142,7 @@ class Gno_interval {
    *
    * Two intervals are contiguous if they do not intersect but there
    * are no gaps between them. No gaps means that the upper limit of
-   * interval A is the value immediatly preceeding the lower limit
+   * interval A is the value immediately preceding the lower limit
    * of interval B, under numeric natural ordering.
    *
    * @note This operator does not perform any check about the other interval

@@ -263,7 +263,7 @@ static bool servers_load(THD *thd, TABLE *table) {
 
 /*
   Forget current servers cache and read new servers
-  from the conneciton table.
+  from the connection table.
 
   SYNOPSIS
     servers_reload()

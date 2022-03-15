@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -217,7 +217,7 @@ class Security_context {
   /**
     Check if a an account has been assigned to the security context
 
-    The account assigment to the security context is always executed in the
+    The account assignment to the security context is always executed in the
     following order:
     1) assign user's name to the context
     2) assign user's hostname to the context

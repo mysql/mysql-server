@@ -1256,7 +1256,7 @@ bool TemptableAggregateIterator::Init() {
     if (error != 0) {
       /*
          If the error is HA_ERR_FOUND_DUPP_KEY and the grouping involves a
-         TIMESTAMP field, throw a meaningfull error to user with the actual
+         TIMESTAMP field, throw a meaningful error to user with the actual
          reason and the workaround. I.e, "Grouping on temporal is
          non-deterministic for timezones having DST. Please consider switching
          to UTC for this query". This is a temporary measure until we implement

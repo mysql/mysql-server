@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,8 +26,8 @@
   A row may be stored in one or more linked blocks.
   The block size is between MI_MIN_BLOCK_LENGTH and MI_MAX_BLOCK_LENGTH.
   Each block is aligned on MI_DYN_ALIGN_SIZE.
-  The reson for the max block size is to not have too many different types
-  of blocks.  For the differnet block types, look at _mi_get_block_info()
+  The reason for the max block size is to not have too many different types
+  of blocks. For the different block types, look at _mi_get_block_info()
 */
 
 #include "my_config.h"
@@ -781,7 +781,7 @@ static int update_dynamic_record(MI_INFO *info, my_off_t filepos, uchar *record,
             Check if next block is a deleted block
             Above we have MI_MIN_BLOCK_LENGTH to avoid the problem where
             the next block is so small it can't be splited which could
-            casue problems
+            cause problems
           */
 
           MI_BLOCK_INFO del_block;

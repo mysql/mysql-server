@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,7 @@ static void update_record(uchar *record);
 /*
   strappend(dest, len, fill) appends fill-characters to a string so that
   the result length == len. If the string is longer than len it's
-  trunked. The des+len character is allways set to NULL.
+  trunked. The des+len character is always set to NULL.
 */
 static inline void strappend(char *s, size_t len, char fill) {
   char *endpos;
@@ -581,7 +581,7 @@ static bool get_one_option(int optid,
       pack_seg |= HA_VAR_LENGTH_PART;
       create_flag |= HA_PACK_RECORD;
       break;
-    case 'K': /* Use key cacheing */
+    case 'K': /* Use key caching */
       key_cacheing = 1;
       break;
     case 'V':

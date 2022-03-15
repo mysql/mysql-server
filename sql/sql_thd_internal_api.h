@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@
 
 /*
   This file defines THD-related API calls that are meant for internal
-  usage (e.g. InnoDB, Thread Pool) only. There are therefore no stabilty
+  usage (e.g. InnoDB, Thread Pool) only. There are therefore no stability
   guarantees.
 */
 

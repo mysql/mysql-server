@@ -63,8 +63,8 @@ struct st_persist_var final {
   st_persist_var(const std::string key, const std::string value,
                  const ulonglong timestamp, const std::string user,
                  const std::string host, const bool is_null);
-  /* This is custom comparision function used to make the unordered_set
-     to work with the default std::hash for userdefined types. */
+  /* This is custom comparison function used to make the unordered_set
+     work with the default std::hash for user defined types. */
   bool operator==(const st_persist_var &persist_var) const {
     return key == persist_var.key;
   }

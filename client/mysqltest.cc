@@ -1477,7 +1477,7 @@ static void close_files() {
 }
 
 static void free_used_memory() {
-  // Delete the exptected errors pointer
+  // Delete the expected errors pointer
   delete expected_errors;
 
   // Delete disabled and enabled warning list
@@ -2253,7 +2253,7 @@ static int strip_surrounding(char *str, char c1, char c2) {
     /* Replace it with a space */
     *ptr = ' ';
 
-    /* Last non space charecter should be c2 */
+    /* Last non space character should be c2 */
     ptr = strend(str) - 1;
     while (*ptr && my_isspace(charset_info, *ptr)) ptr--;
     if (*ptr == c2) {
@@ -2395,7 +2395,7 @@ static VAR *var_obtain(const char *name, int len) {
 }
 
 /*
-  - if variable starts with a $ it is regarded as a local test varable
+  - if variable starts with a $ it is regarded as a local test variable
   - if not it is treated as a environment variable, and the corresponding
   environment variable will be updated
 */
@@ -3627,7 +3627,7 @@ static void do_remove_files_wildcard(struct st_command *command) {
                      sizeof(rm_args) / sizeof(struct command_arg), ' ');
   fn_format(dirname, ds_directory.str, "", "", MY_UNPACK_FILENAME);
 
-  // Check if the retry value is passed, and if it is an interger
+  // Check if the retry value is passed, and if it is an integer
   int retry = 0;
   if (ds_retry.length) {
     retry = get_int_val(ds_retry.str);
@@ -3713,7 +3713,7 @@ static void do_copy_file(struct st_command *command) {
   check_command_args(command, command->first_argument, copy_file_args,
                      sizeof(copy_file_args) / sizeof(struct command_arg), ' ');
 
-  // Check if the retry value is passed, and if it is an interger
+  // Check if the retry value is passed, and if it is an integer
   int retry = 0;
   if (ds_retry.length) {
     retry = get_int_val(ds_retry.str);
@@ -3752,9 +3752,9 @@ static void do_copy_file(struct st_command *command) {
   SYNOPSIS
   recursive_copy
   ds_source      - pointer to dynamic string containing source
-                   directory informtion
+                   directory information
   ds_destination - pointer to dynamic string containing destination
-                   directory informtion
+                   directory information
 
   DESCRIPTION
   Recursive copy of <ds_source> to <ds_destination>
@@ -3803,7 +3803,7 @@ static int recursive_copy(DYNAMIC_STRING *ds_source,
         name and destination directory name are not same.
 
         For example, if source is "abc" and destintion is "def",
-        check for the existance of directory "def/abc". If it exists
+        check for the existence of directory "def/abc". If it exists
         then, copy the files from source directory(i.e "abc") to
         destination directory(i.e "def/abc"), otherwise create a new
         directory "abc" under "def" and copy the files from source to
@@ -4111,7 +4111,7 @@ static void do_move_file(struct st_command *command) {
   check_command_args(command, command->first_argument, move_file_args,
                      sizeof(move_file_args) / sizeof(struct command_arg), ' ');
 
-  // Check if the retry value is passed, and if it is an interger
+  // Check if the retry value is passed, and if it is an integer
   int retry = 0;
   if (ds_retry.length) {
     retry = get_int_val(ds_retry.str);
@@ -4211,7 +4211,7 @@ static void do_file_exist(struct st_command *command) {
   check_command_args(command, command->first_argument, file_exist_args,
                      sizeof(file_exist_args) / sizeof(struct command_arg), ' ');
 
-  // Check if the retry value is passed, and if it is an interger
+  // Check if the retry value is passed, and if it is an integer
   int retry = 0;
   if (ds_retry.length) {
     retry = get_int_val(ds_retry.str);
@@ -4272,7 +4272,7 @@ static void do_mkdir(struct st_command *command) {
   SYNOPSIS
   do_force_rmdir
   command    - command handle
-  ds_dirname - pointer to dynamic string containing directory informtion
+  ds_dirname - pointer to dynamic string containing directory information
 
   DESCRIPTION
   force-rmdir <dir_name>
@@ -4325,7 +4325,7 @@ void do_force_rmdir(struct st_command *command, DYNAMIC_STRING *ds_dirname) {
   do_rmdir
   command	called command
   force         Recursively delete a directory if the value is set to true,
-                otherwise delete an empty direcory
+                otherwise delete an empty directory
 
   DESCRIPTION
   rmdir <dir_name>
@@ -6504,7 +6504,7 @@ static int connect_n_handle_errors(struct st_command *command, MYSQL *con,
     dynstr_append_mem(ds, delimiter, delimiter_length);
     dynstr_append_mem(ds, "\n", 1);
   }
-  /* Simlified logging if enabled */
+  /* Simplified logging if enabled */
   if (!disable_connect_log && !disable_query_log) {
     replace_dynstr_append(ds, command->query);
     dynstr_append_mem(ds, ";\n", 2);
@@ -6977,7 +6977,7 @@ static void do_block(enum block_cmd cmd, struct st_command *command) {
       cur_block->ok = false;
       cur_block->delim[0] = '\0';
     }
-    /* No need to evaulate the condition */
+    /* No need to evaluate the condition */
     return;
   }
 
@@ -7343,7 +7343,7 @@ static int read_line(char *buf, int size) {
                                 start_lineno));
           }
 
-          /* Skip all space at begining of line */
+          /* Skip all space at beginning of line */
           skip_char = 1;
         } else if (end_of_query(c)) {
           *p = 0;
@@ -7351,7 +7351,7 @@ static int read_line(char *buf, int size) {
                               cur_file->lineno));
           return 0;
         } else if (c == '}') {
-          /* A "}" need to be by itself in the begining of a line to terminate
+          /* A "}" need to be by itself in the beginning of a line to terminate
            */
           *p++ = c;
           *p = 0;
@@ -7931,7 +7931,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
   (A-Z, a-z, 0-9), dash ('-') or underscore ('_'), but should not
   start with dash or underscore.
 
-  Check if a file name conatins any other special characters. If yes,
+  Check if a file name contains any other special characters. If yes,
   throw an error and abort the test run.
 
   @param[in] file_name File name
@@ -8837,7 +8837,7 @@ end:
 /*
   Create a util connection if one does not already exists
   and use that to run the query
-  This is done to avoid implict commit when creating/dropping objects such
+  This is done to avoid implicit commit when creating/dropping objects such
   as view, sp etc.
 */
 
@@ -8871,7 +8871,7 @@ static int util_query(MYSQL *org_mysql, const char *query) {
   SYNPOSIS
     run_query()
      mysql	mysql handle
-     command	currrent command pointer
+     command	current command pointer
 
   flags control the phased/stages of query execution to be performed
   if QUERY_SEND_FLAG bit is on, the query will be sent. If QUERY_REAP_FLAG
@@ -9544,7 +9544,7 @@ int main(int argc, char **argv) {
 
   var_set_string("MYSQLTEST_FILE", cur_file->file_name);
 
-  /* Cursor protcol implies ps protocol */
+  /* Cursor protocol implies ps protocol */
   if (cursor_protocol) ps_protocol = true;
 
   ps_protocol_enabled = ps_protocol;
@@ -10247,7 +10247,7 @@ int main(int argc, char **argv) {
 
   verbose_msg("Test has succeeded!");
   timer_output();
-  /* Yes, if we got this far the test has suceeded! Sakila smiles */
+  /* Yes, if we got this far the test has succeeded! Sakila smiles */
   cleanup_and_exit(0);
   return 0; /* Keep compiler happy too */
 }
@@ -10753,7 +10753,7 @@ struct REP_SET {
   uint found_len;             /* Best match to date */
   int found_offset;
   uint table_offset;
-  uint size_of_bits; /* For convinience */
+  uint size_of_bits; /* For convenience */
 };
 
 struct REP_SETS {
@@ -10847,7 +10847,7 @@ REPLACE *init_replace(const char **from, const char **to, uint count,
     return nullptr;
   }
   (void)make_new_set(&sets);  /* Set starting set */
-  make_sets_invisible(&sets); /* Hide previus sets */
+  make_sets_invisible(&sets); /* Hide previous sets */
   used_sets = -1;
   word_states = make_new_set(&sets);  /* Start of new word */
   start_states = make_new_set(&sets); /* This is first state */
@@ -11046,7 +11046,7 @@ int init_sets(REP_SETS *sets, uint states) {
   return 0;
 }
 
-/* Make help sets invisible for nicer codeing */
+/* Make help sets invisible for nicer coding */
 
 void make_sets_invisible(REP_SETS *sets) {
   sets->invisible = sets->count;

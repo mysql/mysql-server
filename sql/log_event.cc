@@ -2617,14 +2617,14 @@ static bool schedule_next_event(Log_event *ev, Relay_log_info *rli) {
    The method maps the event to a Worker and return a pointer to it.
    Sending the event to the Worker is done by the caller.
 
-   Irrespective of the type of Group marking (DB partioned or BGC) the
+   Irrespective of the type of Group marking (DB partitioned or BGC) the
    following holds true:
 
    - recognize the beginning of a group to allocate the group descriptor
      and queue it;
    - associate an event with a Worker (which also handles possible conflicts
      detection and waiting for their termination);
-   - finalize the group assignement when the group closing event is met.
+   - finalize the group assignment when the group closing event is met.
 
    When parallelization mode is BGC-based the partitioning info in the event
    is simply ignored. Thereby association with a Worker does not require
@@ -2637,7 +2637,7 @@ static bool schedule_next_event(Log_event *ev, Relay_log_info *rli) {
    B - beginning of a group of events (BEGIN query_log_event)
    g - mini-group representative event containing the partition info
       (any Table_map, a Query_log_event)
-   p - a mini-group internal event that *p*receeding its g-parent
+   p - a mini-group internal event that *p*receding its g-parent
       (int_, rand_, user_ var:s)
    r - a mini-group internal "regular" event that follows its g-parent
       (Delete, Update, Write -rows)
@@ -2675,7 +2675,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
   Slave_committed_queue *gaq = rli->gaq;
   DBUG_TRACE;
 
-  /* checking partioning properties and perform corresponding actions */
+  /* checking partitioning properties and perform corresponding actions */
 
   // Beginning of a group designated explicitly with BEGIN or GTID
   if ((is_s_event = starts_group()) || is_gtid_event(this) ||
@@ -2821,7 +2821,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
     }
 #endif
 
-    // partioning info is found which drops the flag
+    // partitioning info is found which drops the flag
     rli->mts_end_group_sets_max_dbs = false;
     ret_worker = rli->last_assigned_worker;
     if (mts_dbs.num == OVER_MAX_DBS_IN_EVENT_MTS) {
@@ -2866,7 +2866,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
                 rli, &mts_assigned_partitions[i],
                 /*
                   todo: optimize it. Although pure
-                  rows- event load in insensetive to the flag value
+                  rows- event load in insensitive to the flag value
                 */
                 true, ret_worker))) {
         llstr(rli->get_event_relay_log_pos(), llbuff);
@@ -3165,7 +3165,7 @@ int Log_event::apply_event(Relay_log_info *rli) {
       if (actual_exec_mode != EVENT_EXEC_ASYNC) {
         /*
           this  event does not split the current group but is indeed
-          a separator beetwen two master's binlog therefore requiring
+          a separator between two masters' binlogs therefore requiring
           Workers to sync.
         */
         if (rli->curr_group_da.size() > 0 && is_mts_db_partitioned(rli) &&
@@ -3173,7 +3173,7 @@ int Log_event::apply_event(Relay_log_info *rli) {
           char llbuff[22];
           /*
              Possible reason is a old version binlog sequential event
-             wrappped with BEGIN/COMMIT or preceeded by User|Int|Random- var.
+             wrappped with BEGIN/COMMIT or preceded by User|Int|Random- var.
              MTS has to stop to suggest restart in the permanent sequential
              mode.
           */
@@ -3182,7 +3182,7 @@ int Log_event::apply_event(Relay_log_info *rli) {
                    rli->get_event_relay_log_name(), llbuff,
                    "possible malformed group of events from an old master");
 
-          /* Coordinator cant continue, it marks MTS group status accordingly */
+          /* Coordinator can't continue, it marks MTS group status accordingly */
           rli->mts_group_status = Relay_log_info::MTS_KILLED_GROUP;
 
           goto err;
@@ -3598,7 +3598,7 @@ bool Query_log_event::write(Basic_ostream *ostream) {
       List_iterator_fast<char> it(*thd->get_binlog_accessed_db_names());
       char *db_name = it++;
       /*
-         the single "" db in the acccessed db list corresponds to the same as
+         the single "" db in the accessed db list corresponds to the same as
          exceeds MAX_DBS_IN_EVENT_MTS case, so dbs is set to the over-max.
       */
       if (dbs == 1 && !strcmp(db_name, "")) dbs = OVER_MAX_DBS_IN_EVENT_MTS;
@@ -3956,7 +3956,7 @@ Query_log_event::Query_log_event(THD *thd_arg, const char *query_arg,
     on the current statement and the flag is_trans, which indicates if
     a transactional engine was updated.
 
-    Statements are classifed as row producers (i.e. can_generate_row_events())
+    Statements are classified as row producers (i.e. can_generate_row_events())
     or non-row producers. Non-row producers, DDL in general, are treated
     as the immediate flag was set and for convenience are written to the
     stmt-cache and immediately flushed to disk.
@@ -4039,11 +4039,11 @@ Query_log_event::Query_log_event(THD *thd_arg, const char *query_arg,
         break;
     }
   } else {
-    assert(!using_trans);  // immediate is imcompatible with using_trans
+    assert(!using_trans);  // immediate is incompatible with using_trans
   }
 
   /*
-    Drop the flag as sort of reset right before the being logged query
+    Drop the flag as sort of reset right before the query being logged
     gets classified as possibly not atomic DDL.
   */
   if (thd->rli_slave) thd->rli_slave->ddl_not_atomic = false;
@@ -4497,8 +4497,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
 
   /*
     Colleagues: please never free(thd->catalog) in MySQL. This would
-    lead to bugs as here thd->catalog is a part of an alloced block,
-    not an entire alloced block (see
+    lead to bugs as here thd->catalog is a part of an allocated block,
+    not an entire allocated block (see
     Query_log_event::do_apply_event()). Same for thd->db().str.  Thank
     you.
   */
@@ -5407,7 +5407,7 @@ bool Format_description_log_event::write(Basic_ostream *ostream) {
       create the FDE event on slave, which is being written here. In that case
       we might end up reading more bytes as
       post_header_len.size() < Binary_log_event::LOG_EVENT_TYPES;
-      casuing memory issues.
+      causing memory issues.
     */
     number_of_events = post_header_len_size;
 
@@ -5516,7 +5516,7 @@ int Format_description_log_event::do_update_pos(Relay_log_info *rli) {
       If we do not skip stepping the group log position (and the
       server id was changed when restarting the server), it might well
       be that we start executing at a position that is invalid, e.g.,
-      at a Rows_log_event or a Query_log_event preceeded by a
+      at a Rows_log_event or a Query_log_event preceded by a
       Intvar_log_event instead of starting at a Table_map_log_event or
       the Intvar_log_event respectively.
      */
@@ -6075,7 +6075,7 @@ void Xid_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
 
 #if defined(MYSQL_SERVER)
 /**
-   The methods combines few commit actions to make it useable
+   The methods combines few commit actions to make it usable
    as in the single- so multi- threaded case.
 
    @param  thd_arg a pointer to THD handle
@@ -6354,7 +6354,7 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli) {
     /*
       For transactional repository the positions are flushed ahead of commit.
       Where as for non transactional rli repository the positions are flushed
-      only on succesful commit.
+      only on successful commit.
      */
     if (!rli_ptr->is_transactional())
       rli_ptr->flush_info(Relay_log_info::RLI_FLUSH_NO_OPTION);
@@ -6736,7 +6736,7 @@ void User_var_log_event::print(FILE *,
         if (!hex_str) return;
         str_to_hex(hex_str, val, val_len);
         /*
-          For proper behaviour when mysqlbinlog|mysql, we need to explicitely
+          For proper behaviour when mysqlbinlog|mysql, we need to explicitly
           specify the variable's collation. It will however cause problems when
           people want to mysqlbinlog|mysql into another server not supporting
           the character set. But there's not much to do about this and it's
@@ -7560,7 +7560,7 @@ const String *Load_query_generator::generate(size_t *fn_start, size_t *fn_end) {
         item->print(thd, &str, QT_ORDINARY);
       str.append(", ");
     }
-    // remvoe the last ", "
+    // remove the last ", "
     str.length(str.length() - 2);
     str.append(')');
   }
@@ -7578,7 +7578,7 @@ const String *Load_query_generator::generate(size_t *fn_start, size_t *fn_end) {
       str.append(*s);
       str.append(", ");
     }
-    // remvoe the last ", "
+    // remove the last ", "
     str.length(str.length() - 2);
   }
 
@@ -7930,7 +7930,7 @@ int Rows_log_event::unpack_current_row(const Relay_log_info *const rli,
           this->m_table,
           [=](TABLE const *table, size_t column_index) -> bool {
             auto field = table->field[column_index];
-            if (field->is_field_for_functional_index())  // Always exlcude
+            if (field->is_field_for_functional_index())  // Always exclude
                                                          // functional indexes
               return true;
             if (!is_after_image &&  // Always exclude virtual generated columns
@@ -8132,7 +8132,7 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length) {
   @param cols the bitmap signaling columns available in
                  the BI.
 
-  @return true if BI contains usable colums for searching,
+  @return true if BI contains usable columns for searching,
           false otherwise.
 */
 static bool is_any_column_signaled_for_table(TABLE *table, MY_BITMAP *cols) {
@@ -8348,7 +8348,7 @@ TABLE_OR_INDEX_HASH_SCAN:
 
   /*
      NOTE: Engines like Blackhole cannot use HASH_SCAN, because
-           they do not syncronize reads .
+           they do not synchronize reads.
    */
   if (!(slave_rows_search_algorithms_options & SLAVE_ROWS_HASH_SCAN) ||
       (table->file->ha_table_flags() & HA_READ_OUT_OF_SYNC))
@@ -9888,7 +9888,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
           This behaviour is necessary due to an inconsistency, between storage
           engines, regarding the 'm_cols' bitset and generated columns: while
           non-NDB engines always include the generated columns for write-rows
-          events, NDB doesnot if not necessary. The previous execution order
+          events, NDB doesn't if not necessary. The previous execution order
           would set all generated columns bits to '1' in 'write_set', since
           'mark_generated_columns()' is expecting that every column is present
           in the log event. This would break replication of generated columns
@@ -9955,7 +9955,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
     /**
        If there are no columns marked in the read_set for this table,
        that means that we cannot lookup any row using the available BI
-       in the binarr log. Thence, we immediatly raise an error:
+       in the binary log. Thence, we immediately raise an error:
        HA_ERR_END_OF_FILE.
      */
 
@@ -10226,7 +10226,7 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD *thd) {
 /**
    The method either increments the relay log position or
    commits the current statement and increments the master group
-   possition if the event is STMT_END_F flagged and
+   position if the event is STMT_END_F flagged and
    the statement corresponds to the autocommit query (i.e replicated
    without wrapping in BEGIN/COMMIT)
 
@@ -14095,7 +14095,7 @@ Heartbeat_log_event_v2::Heartbeat_log_event_v2(
 #ifdef MYSQL_SERVER
 /*
   This is a utility function that adds a quoted identifier into the a buffer.
-  This also escapes any existance of the quote string inside the identifier.
+  This also escapes any existence of the quote string inside the identifier.
 
   SYNOPSIS
     my_strmov_quoted_identifier

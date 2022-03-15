@@ -81,7 +81,7 @@ int main(int argc [[maybe_unused]], char **argv) {
   err = connect(client_vio->sd, (struct sockaddr *)&sa, sizeof(sa));
 
   /* ----------------------------------------------- */
-  /* Now we have TCP conncetion. Start SSL negotiation. */
+  /* Now we have TCP connection. Start SSL negotiation. */
   read(client_vio->sd, xbuf, sizeof(xbuf));
   sslconnect(ssl_connector, client_vio, 60L, &ssl_error);
   err = vio_read(client_vio, xbuf, sizeof(xbuf));

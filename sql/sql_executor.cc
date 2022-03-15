@@ -3941,9 +3941,9 @@ bool make_group_fields(JOIN *main_join, JOIN *curr_join) {
 }
 
 /**
-  Get a list of buffers for saveing last group.
+  Get a list of buffers for saving last group.
 
-  Groups are saved in reverse order for easyer check loop.
+  Groups are saved in reverse order for easier check loop.
 */
 
 static bool alloc_group_fields(JOIN *join, ORDER *group) {

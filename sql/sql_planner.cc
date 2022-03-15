@@ -440,7 +440,7 @@ Key_use *Optimize_table_order::find_best_ref(
 
               If range optimizer was able to construct a "range"
               access on this index, then its condition "quick_cond" was
-              eqivalent to ref_const_cond (*), and we can re-use E(#rows)
+              equivalent to ref_const_cond (*), and we can re-use E(#rows)
               from the range optimizer.
 
               Proof of (*): By properties of range and ref optimizers
@@ -516,7 +516,7 @@ Key_use *Optimize_table_order::find_best_ref(
           Try re-using E(#rows) from "range" optimizer:
           We can do so if "range" optimizer used the same intervals as
           in (**). The intervals used by range optimizer may be not
-          available at this point (as "range" access might have choosen to
+          available at this point (as "range" access might have chosen to
           create quick select over another index), so we can't compare
           them to (**). We'll make indirect judgements instead.
           The sufficient conditions for re-use are:
@@ -1053,7 +1053,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
     We do not consider index/table scan or range access if:
 
     1a) The best 'ref' access produces fewer records than a table scan
-        (or index scan, or range acces), and
+        (or index scan, or range access), and
     1b) The best 'ref' executed for all partial row combinations, is
         cheaper than a single scan. The rationale for comparing
 
@@ -2246,7 +2246,7 @@ static int semijoin_order_allows_materialization(const JOIN *join,
     exhaustiveness. The search is performed in N = card(remaining_tables)
     steps. Each step evaluates how promising is each of the unoptimized tables,
     selects the most promising table, and extends the current partial QEP with
-    that table.  Currenly the most 'promising' table is the one with least
+    that table. Currently the most 'promising' table is the one with least
     expensive extension.\
 
     There are two extreme cases:
@@ -2254,11 +2254,11 @@ static int semijoin_order_allows_materialization(const JOIN *join,
     best complete continuation of the partial QEP. This continuation can be
     used directly as a result of the search.
     -# When (search_depth == 1) the 'best_extension_by_limited_search'
-    consideres the extension of the current QEP with each of the remaining
+    considers the extension of the current QEP with each of the remaining
     unoptimized tables.
 
     All other cases are in-between these two extremes. Thus the parameter
-    'search_depth' controlls the exhaustiveness of the search. The higher the
+    'search_depth' controls the exhaustiveness of the search. The higher the
     value, the longer the optimizaton time and possibly the better the
     resulting plan. The lower the value, the fewer alternative plans are
     estimated, but the more likely to get a bad QEP.
@@ -2963,7 +2963,7 @@ static inline bool almost_equal(double left, double right) {
   When a table is joined by an unique key there is a
   1::1 relation between the rows being joined. Assuming we
   have multiple such 1::1 (star-)joined relations in a
-  sequence, without other join types inbetween. Then all of
+  sequence, without other join types in between. Then all of
   these 'eq_ref-joins' will be estimated to return the exact
   same number of rows and having identical 'cost' (or 'read_time').
 
@@ -3573,7 +3573,7 @@ bool Optimize_table_order::fix_semijoin_strategies() {
            checking "!(remaining_tables & s->dependent)" before calling this
            function. X-bracket may have a pair in Y-bracket.
 
-         When "writing" we store/update this auxilary info about the current
+         When "writing" we store/update this auxiliary info about the current
          position:
           1. cur_embedding_map - bitmap of pairs of brackets (aka nested
              joins) we've opened but didn't close.

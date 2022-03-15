@@ -780,7 +780,7 @@ bool Persisted_variables_cache::write_persist_file_v2(String &dest,
 
   if (encryption_success == return_status::SUCCESS) {
     /*
-      If we succeded in writing sensitive variables in blob, clear them
+      If we succeeded in writing sensitive variables in blob, clear them
       before next write operation
     */
     clean_up = true;
@@ -812,7 +812,7 @@ bool Persisted_variables_cache::flush_to_file() {
     return ret;
   }
   /*
-    Always write to backup file. Once write is successfull, rename backup
+    Always write to backup file. Once write is successful, rename backup
     file to original file.
   */
   if (open_persist_backup_file(O_CREAT | O_WRONLY)) {
@@ -1965,7 +1965,7 @@ err:
   @param [in] argv                      Pointer to argv of original program
   @param [in] arg_separator_added       This flag tells whether arg separator
                                         has already been added or not
-  @param [in] plugin_options            This flag tells wether options are
+  @param [in] plugin_options            This flag tells whether options are
                                         handled during plugin install.
                                         If set to true options are handled
                                         as part of
@@ -2301,7 +2301,7 @@ bool Persisted_variables_cache::get_file_encryption_key(
     return retval;
   }
 
-  /* First retrieve mater key or create one if it's not available */
+  /* First retrieve master key or create one if it's not available */
   unsigned char *secret = nullptr;
   size_t secret_length = 0;
   char *secret_type = nullptr;
@@ -2424,7 +2424,7 @@ Persisted_variables_cache::encrypt_sensitive_variables() {
 
   return_status retval = return_status::ERROR;
   /*
-    Presense of blob/iv indicates that they could not be parsed at the
+    Presence of blob/iv indicates that they could not be parsed at the
     beginning.
   */
   if (m_sensitive_variables_blob.length() != 0 || m_iv.length() != 0)
@@ -2549,7 +2549,7 @@ Persisted_variables_cache::decrypt_sensitive_variables() {
 
 /**
   We cache keyring support status just after reading manifest file.
-  This is required because in the absense of a keyring component,
+  This is required because in the absence of a keyring component,
   keyring plugin may provide some of the services through
   daemon proxy keyring.
 

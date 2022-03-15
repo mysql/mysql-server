@@ -484,11 +484,11 @@ int main(int argc, char *argv[]) {
     }
   } else {
     /*
-      --count=0 aborts right here. Otherwise iff --sleep=t ("interval")
+      --count=0 aborts right here. Otherwise if --sleep=t ("interval")
       is given a t!=0, we get an endless loop, or n iterations if --count=n
       was given an n!=0. If --sleep wasn't given, we get one iteration.
 
-      To wit, --wait loops the connection-attempts, while --sleep loops
+      To wait, --wait loops the connection-attempts, while --sleep loops
       the command execution (endlessly if no --count is given).
     */
 
@@ -532,7 +532,7 @@ int main(int argc, char *argv[]) {
             */
           } else {
             /*
-              connexion broke, and we have no order to re-establish it. fail.
+              connection broke, and we have no order to re-establish it. fail.
             */
             if (!option_force) error = 1;
             break;

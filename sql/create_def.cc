@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -69,7 +69,7 @@
 #include <unordered_set>
 #include <vector>
 
-/** Prints an error message supplied and attaches GetLastError with formated
+/** Prints an error message supplied and attaches GetLastError with formatted
  * message. */
 void error(std::string message) {
   DWORD last_error = GetLastError();
@@ -129,7 +129,7 @@ class Process {
   double get_cpu_time() const;
 
  private:
-  /** Creates a big pipe that will receive and buffer data comming from the
+  /** Creates a big pipe that will receive and buffer data coming from the
    * child process. */
   void create_pipe(DWORD pipe_size);
   /** Runs the actual child process */

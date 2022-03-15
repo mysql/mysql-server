@@ -58,7 +58,7 @@ class Table_access;
  * assigned to each nest which describes how tables in the nest is joined
  * relative to tables in the upper nest(s). Join_nests are contained within
  * each other, which is represented with an 'upper_nest' reference, which is
- * the nest we are contained within (An inverse tree, refering the parents, not
+ * the nest we are contained within (An inverse tree, referring the parents, not
  * the children)
  *
  * JoinType::INNER is the default join type for a join nest. Note that there
@@ -66,7 +66,7 @@ class Table_access;
  * Wrt join semantics, such nested INNER joins are redundant, and are thus
  * ignored when we need to find the real boundary of the INNER join nest.
  * (See get_inner_nest(), get_first_inner(), get_last_inner()). However, these
- * extra INNER-Join_nest are usefull when representing the general structure
+ * extra INNER-Join_nest are useful when representing the general structure
  * of the AccessPath, and the scope of condition filters attached to a subset
  * of the tables.
  *
@@ -78,7 +78,7 @@ class Table_access;
  * and rows from within the nests are referred. The query executor will iterate
  * the tables being members of the 'nests' in a left deep streaming pattern,
  * using a nested-loop like algorithm, without any temporary buffering or reorg
- * of the intermediate result sets inbetween. (This property is important for
+ * of the intermediate result sets in between. (This property is important for
  * NDB pushed join, as it basically supports only a set of nested-loop-joined
  * tables.)
  *
@@ -158,10 +158,10 @@ class Join_nest {
  * 'upper' scopes.
  * (In NDB terms: 'refer' -> 'Be part of the same pushed join')
  *
- * In addition to being a Join_nest iself, the Join_scope object contains
+ * In addition to being a Join_nest itself, the Join_scope object contains
  * a bitmap representing all the tables in 'nests' being member of the scope,
  * as well as the sum of all tables in upper-scopes. Note that tables
- * in embedded sub-scopes are not considdered to be 'contained'
+ * in embedded sub-scopes are not considered to be 'contained'
  *
  * A new Join_scope is typically created when the AccessPath contains an
  * operation which will not be executed in a pure streaming fashion.
@@ -183,7 +183,7 @@ class Join_nest {
  *       Join_nest(t2) Join_scope(t3)
  *
  * - t2 may refer only t1.
- *   (t3 and t4 could have been refered if not in 'scope')
+ *   (t3 and t4 could have been referred if not in 'scope')
  * - t3 may refer (t1,t2) which are member of its upper scope.
  * - t1 can only refer whatever might be 'upper' to scope(t1,t2)
  * - t4 may refer (t1,t2) which are member of its upper scope.
@@ -212,7 +212,7 @@ class Join_scope : public Join_nest {
   // Get all tables in this Join_scope as well as in upper scopes.
   table_map get_all_tables_map() const { return m_table_map | m_all_upper_map; }
 
-  // Used only to provide usefull explain info
+  // Used only to provide useful explain info
   const char *m_descr{"query"};
 
   // Refers the Join_scope containing this 'nest'.
@@ -246,7 +246,7 @@ class Join_scope : public Join_nest {
  *
  *  - An agreggate sub-path, where all rows matching some outer references
  *    must be collected before finding a min/max
- *  - A materialized sub query, where all rows fullfilling the outer/upper
+ *  - A materialized sub query, where all rows fulfilling the outer/upper
  *    reference must be collected for the subquery to be complete.
  *
  * Note that the above 'fully evaluated' is not guaranteed if not enforced
@@ -266,7 +266,7 @@ class Join_scope : public Join_nest {
  * Wrt. NDB pushed joins it will be restricted to be entirely within
  * the Query_scope. However, (pushed-)conditions and keys used in the
  * pushed joins may still refer to table values from all upper-scopes,
- * even if the table itself cant be a member of the same pushed join.
+ * even if the table itself can't be a member of the same pushed join.
  *
  * Note that in its most common form, the Join_nest structure will
  * consist of single Query_scope, (which 'is a' Join_scope as well,)
@@ -348,7 +348,7 @@ Join_plan::Join_plan(THD *thd, AccessPath *path, const JOIN *join)
  * However, note that this ^^^^^ is only true when still inside the same
  * Join_nest. We construct new Join_scopes, and in particular Query_scopes.
  * when we encounter an AccessPath operation where such an 'always left deep'
- * access patern can not longer be guaranteed.
+ * access pattern can not longer be guaranteed.
  *
  * This becomes an important part of the Join_nest structures when we later
  * need to analyze which part of the Join_plan could be part of the same
@@ -356,7 +356,7 @@ Join_plan::Join_plan(THD *thd, AccessPath *path, const JOIN *join)
  */
 void Join_plan::construct(Join_nest *nest_ctx, AccessPath *path) {
   switch (path->type) {
-    // Basic access paths refering a table.
+    // Basic access paths referring a table.
     case AccessPath::TABLE_SCAN:
     case AccessPath::INDEX_SCAN:
     case AccessPath::REF:
@@ -374,7 +374,7 @@ void Join_plan::construct(Join_nest *nest_ctx, AccessPath *path) {
     case AccessPath::INDEX_MERGE: {
       m_table_accesses.push_back(
           Table_access(this, nest_ctx, path, nest_ctx->m_filter));
-      nest_ctx->m_filter = nullptr;  // Transfered to Table_access
+      nest_ctx->m_filter = nullptr;  // Transferred to Table_access
       break;
     }
     // Basic access paths that don't correspond to a specific table
@@ -476,7 +476,7 @@ void Join_plan::construct(Join_nest *nest_ctx, AccessPath *path) {
     case AccessPath::SORT: {
       // Even if we could possibly have allowed some SORT variants to refer
       // tables outside the sorted-scope, we are conservative and always
-      // embedd the sorted branch in its own Join_scope.
+      // embed the sorted branch in its own Join_scope.
       construct(new (m_thd->mem_root) Join_scope(nest_ctx, "sorted"),
                 path->sort().child);
       break;
@@ -489,7 +489,7 @@ void Join_plan::construct(Join_nest *nest_ctx, AccessPath *path) {
         // 'LIMIT 1' is often used as one (out of 5!) different ways of
         // implementation a 'confluent' semi-join.(See optimizer) We need to
         // recognize it as such and create a SEMI-join nest for it.
-        // Note that even of it orginated as a real 'LIMIT 1' clause, this
+        // Note that even of it originated as a real 'LIMIT 1' clause, this
         // should not hurt either.
         join_nest = new (m_thd->mem_root) Join_nest(nest_ctx, JoinType::SEMI);
       } else {
@@ -554,7 +554,7 @@ void Join_plan::construct(Join_nest *nest_ctx, AccessPath *path) {
         // MATERIALIZE are evaluated and stored in a temporary table.
         // They comes in different variants, where they may be 'const',
         // later scanned, or a temporary index created for later lookups.
-        // Generaly we need to handle them as completely separate queries,
+        // Generally we need to handle them as completely separate queries,
         // without any relation to an upper Join_scope -> 'Query_scope'
         if (query_block.join == m_join) {  // Within Query_block?
           construct(new (m_thd->mem_root) Query_scope(nest_ctx, "materialized"),
@@ -589,7 +589,7 @@ void Join_plan::construct(Join_nest *nest_ctx, AccessPath *path) {
      * join, with JoinType::SEMI specified.
      * In addition to that it might specify 'LIMIT 1' for the inner branch,
      * MATERIALIZE it, or use different duplicate elimination algorithms
-     * as handled below - All these may occure within a Join_nest where
+     * as handled below - All these may occur within a Join_nest where
      * JoinType is _not_ specified as SEMI.
      * For NDB being able to correctly produce pushed SEMI join results,
      * it need to be aware of when the JoinType is SEMI. (Avoiding duplicates
@@ -606,8 +606,8 @@ void Join_plan::construct(Join_nest *nest_ctx, AccessPath *path) {
       //
       // Thus, we can unfortunately not make a SEMI-nest of the weedout
       // branch. Instead we need to take the more restrictive approach
-      // of handling it as a seperate Query_scope. That is: The weedout branch
-      // is handled as a seperate query, where no tables outside the branch
+      // of handling it as a separate Query_scope. That is: The weedout branch
+      // is handled as a separate query, where no tables outside the branch
       // can be members of any pushed joins inside the branch.
       //
       construct(new (m_thd->mem_root)
@@ -659,7 +659,7 @@ void Join_plan::construct(Join_nest *nest_ctx, AccessPath *path) {
     }
     /////////////// Not fully supported yet ////////////////////////////
     // TODO: Some new Accesspath operations, how to handle these?
-    // Belive they are only some unexposed path types used as part of
+    // Believe they are only some unexposed path types used as part of
     // RANGE_SCAN. For now, just catch any use with an assert().
     case AccessPath::ROWID_INTERSECTION: {
       for (AccessPath *child : *path->rowid_intersection().children) {
@@ -990,7 +990,7 @@ void Table_access::compute_type_and_index() const {
       if (unlikely(key_info[m_index_no].algorithm == HA_KEY_ALG_HASH)) {
         /**
          * Note that there can still be NULL values in the key if
-         * it is constructed from Item_fields refering other tables.
+         * it is constructed from Item_fields referring other tables.
          * This is not known until execution time, so below we do
          * a best guess about no NULL values:
          */

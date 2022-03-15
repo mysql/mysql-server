@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1370,7 +1370,7 @@ ulonglong iso8601_timestamp_to_microseconds(const char *timestamp, size_t len) {
   @param[out]     e   end of the token
   @param[in,out]  d   delimiter (in: last used, \0 if none; out: detected here)
 
-  @retval         <0  an error occured
+  @retval         <0  an error occurred
   @retval        >=0  the length in bytes of the token
 */
 static ssize_t log_builtins_stack_get_service_from_var(const char **s,
@@ -1870,7 +1870,7 @@ log_error_stack_error log_builtins_error_stack(const char *conf,
       If neither branch was true, we're in set mode, but the set-up
       is invalid (i.e. we're trying to multi-open a singleton). As
       this should have been caught in the check phase, we don't
-      specfically handle it here; the invalid element is skipped and
+      specifically handle it here; the invalid element is skipped and
       not added to the instance list; that way, we'll get as close
       to a working configuration as possible in our attempt to fail
       somewhat gracefully.
@@ -2955,7 +2955,7 @@ log_service_error log_close_errstream(void **my_errstream) {
       If you continue to log to a log-file after closing it,
       you'll log to stderr instead. Since stderr is normally
       redirected to the "traditional" log-file, this will in
-      effect mix formats in that file. This is undesireable,
+      effect mix formats in that file. This is undesirable,
       but not as undesirable as losing error information.
       This happening likely indicates a bug, very possibly
       in a loadable log-sink, where we specifically asked for
@@ -3037,7 +3037,7 @@ DEFINE_METHOD(log_service_error, log_builtins_imp::reopen_errstream,
 
   /*
     Every write_errstream does this anyway,
-    but let's be explicity about our semantics.
+    but let's be explicit about our semantics.
   */
   fflush(old_les->file);
 

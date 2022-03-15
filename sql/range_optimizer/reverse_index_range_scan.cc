@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -170,7 +170,7 @@ int ReverseIndexRangeScanIterator::Read() {
       If we have pushed an index condition (ICP) and this quick select
       will use ha_index_prev() to read data, we need to let the
       handler know where to end the scan in order to avoid that the
-      ICP implemention continues to read past the range boundary.
+      ICP implementation continues to read past the range boundary.
     */
     if (table()->file->pushed_idx_cond) {
       if (!eqrange_all_keyparts) {

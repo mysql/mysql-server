@@ -424,7 +424,7 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
     - compare FULLTEXT keys;
     - compare SPATIAL keys;
     - compare FIELD_SKIP_ZERO which is converted to FIELD_NORMAL correctly
-      (should be corretly detected in table2myisam).
+      (should be correctly detected in table2myisam).
 */
 
 int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
@@ -1649,7 +1649,7 @@ int ha_myisam::info(uint flag) {
 
     /*
       Update share.
-      lock_shared_ha_data is slighly abused here, since there is no other
+      lock_shared_ha_data is slightly abused here, since there is no other
       way of locking the TABLE_SHARE.
     */
     lock_shared_ha_data();

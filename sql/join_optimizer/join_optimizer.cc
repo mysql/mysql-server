@@ -255,7 +255,7 @@ class CostingReceiver {
     Besides the access paths for a set of nodes (see m_access_paths),
     AccessPathSet contains information that is common between all access
     paths for that set. One would believe num_output_rows would be such
-    a member (a set of tables should produce the same number of ouptut
+    a member (a set of tables should produce the same number of output
     rows no matter the join order), but due to parameterized paths,
     different access paths could have different outputs. delayed_predicates
     is another, but currently, it's already efficiently hidden space-wise
@@ -3236,7 +3236,7 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
     b) It causes unneeded work by adding a redundant filter.
 
   b) would normally cause the path to be pruned out due to cost, except that
-  the artifically low row count due to a) could make the path attractive as a
+  the artificially low row count due to a) could make the path attractive as a
   subplan of a larger join. Thus, we simply reject these joins; we'll see a
   different alternative for this join at some point that is not redundant
   (e.g., in the given example, we'd see the t2=t3 join).

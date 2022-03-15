@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -221,7 +221,7 @@ bool Source_IO_monitor::launch_monitoring_process(PSI_thread_key thread_key) {
 
 void Source_IO_monitor::source_monitor_handler() {
   THD *thd{nullptr};  // needs to be first for thread_stack
-  thd = new THD;      // note that contructor of THD uses DBUG_ !
+  thd = new THD;      // note that constructor of THD uses DBUG_ !
   m_monitor_thd = thd;
   struct timespec waittime;
 
@@ -472,7 +472,7 @@ int Source_IO_monitor::connect_senders(THD *thd,
     }
 
     /*
-      3.4. Store gathered memebership details to
+      3.4. Store gathered membership details to
            replication_asynchronous_connection_failover table.
     */
     THD_STAGE_INFO(thd, stage_rpl_failover_updating_source_member_details);

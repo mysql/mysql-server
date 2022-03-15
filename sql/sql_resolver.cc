@@ -467,7 +467,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
     1. Set that the evaluation of this condition depends on rollup
     result.
     2. Add a reference to the condition so that result is stored
-    after evalution.
+    after evaluation.
   */
   if (m_having_cond && (m_having_cond->has_aggregation() ||
                         m_having_cond->has_grouping_func())) {
@@ -591,7 +591,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
 
   @returns false if success, true if error
 
-  Since this is called at the end after applying local tranformations,
+  Since this is called at the end after applying local transformations,
   call this function while traversing the query block hierarchy top-down.
 */
 bool Query_block::push_conditions_to_derived_tables(THD *thd) {
@@ -899,7 +899,7 @@ bool Query_block::resolve_limits(THD *thd) {
 /**
   Try to replace a const condition with a simple constant.
   A true condition is replaced with an empty item pointer if remove_cond
-  is true. Else it is replaced witha a constant TRUE.
+  is true. Else it is replaced with the constant TRUE.
   A false condition is replaced with the constant FALSE.
 
   @param thd            Thread handler
@@ -1073,7 +1073,7 @@ bool Item_in_subselect::subquery_allows_materialization(
 
 static TABLE_LIST **make_leaf_tables(TABLE_LIST **list, TABLE_LIST *tables) {
   for (TABLE_LIST *table = tables; table; table = table->next_local) {
-    // A mergable view is not allowed to have a table pointer.
+    // A mergeable view is not allowed to have a table pointer.
     assert(!(table->is_view() && table->is_merged() && table->table));
     if (table->merge_underlying_list) {
       assert(table->is_merged());
@@ -2468,10 +2468,10 @@ bool Query_block::build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
       if (cond_value) {
         /*
           Remove the expression from inner/outer expression list if the
-          const condition evalutes to true as Item_cond::fix_fields will
+          const condition evaluates to true as Item_cond::fix_fields will
           remove the condition later.
           Do the above if this is not the last expression in the list.
-          Semijoin processing expects atleast one inner/outer expression
+          Semijoin processing expects at least one inner/outer expression
           in the list if there is a sj_nest present.
         */
         if (nested_join->sj_inner_exprs.size() != 1) {
@@ -4411,7 +4411,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     'order_item' to a column from a table in the list 'tables', or to
     a column in some outer query. Exactly because of the second case
     we come to this point even if (select_item == not_found_item),
-    inspite of that fix_fields() calls find_item_in_list() one more
+    in spite of that fix_fields() calls find_item_in_list() one more
     time.
 
     We check order_item->fixed because Item_func_group_concat can put
@@ -5932,7 +5932,7 @@ static bool update_context_to_derived(Item *expr, Query_block *new_derived) {
   containing the grouping during transform_grouped_to_derived.
 
   @param[in]       select     the query block
-  @param[in, out]  aggregates the accumulator which wll contain the aggregates
+  @param[in, out]  aggregates the accumulator which will contain the aggregates
   @return true on error
 */
 static bool collect_aggregates(
@@ -6951,7 +6951,7 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
 bool Query_block::decorrelate_derived_scalar_subquery_post(
     THD *thd, TABLE_LIST *derived, Lifted_fields_map *lifted_fields,
     bool added_card_check) {
-  // We added referenced inner fields to select list, now replace occurences
+  // We added referenced inner fields to select list, now replace occurrences
   // of such fields in the join condition with derived.<Item_field-n>. Since
   // we have now set up materialization the derived table, we now know the
   // 'Field's to use for new 'Item_field's.

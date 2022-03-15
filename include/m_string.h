@@ -113,7 +113,7 @@ static inline const char *strcend(const char *s, char c) {
 
 /*
   strfill(dest, len, fill) makes a string of fill-characters. The result
-  string is of length == len. The des+len character is allways set to NULL.
+  string is of length == len. The des+len character is always set to NULL.
   strfill() returns pointer to dest+len;
 */
 static inline char *strfill(char *s, size_t len, char fill) {

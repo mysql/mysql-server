@@ -208,7 +208,7 @@ longlong Item_func_regexp_like::val_int() {
   }
 
   /*
-    REGEXP_LIKE() does not take position and occurence arguments, so we trust
+    REGEXP_LIKE() does not take position and occurrence arguments, so we trust
     that the calls to their accessors below will return the default values.
   */
   std::optional<bool> result =

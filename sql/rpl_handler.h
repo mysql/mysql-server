@@ -61,7 +61,7 @@ struct TABLE_LIST;
   `0`, again. While the value of the variable is `1`, we are also exchanging the
   `Delegate` class read-write lock by an atomic-based shared spin-lock.
 
-  This behaviour is usefull for increasing the throughtput of the master when a
+  This behaviour is useful for increasing the throughtput of the master when a
   large number of slaves is connected, by preventing the acquisition of the
   `LOCK_plugin` mutex and using a more read-friendly lock in the `Delegate`
   class, when invoking the observer's hooks.
@@ -252,7 +252,7 @@ class Delegate {
   };
 
   /**
-    Increases the `info->plugin` reference counting and stores that refernce
+    Increases the `info->plugin` reference counting and stores that reference
     internally.
    */
   void acquire_plugin_ref_count(Observer_info *info);

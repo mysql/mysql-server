@@ -1,7 +1,7 @@
 #ifndef ITEM_JSON_FUNC_INCLUDED
 #define ITEM_JSON_FUNC_INCLUDED
 
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1166,7 +1166,7 @@ class Item_func_json_value final : public Item_func {
 
 /**
   Turn a GEOMETRY value into a JSON value per the GeoJSON specification
-  revison 1.0. This method is implemented in item_geofunc.cc.
+  revision 1.0. This method is implemented in item_geofunc.cc.
 
   @param[in,out] wr The wrapper to be stuffed with the JSON value.
   @param[in]     swkb The source GEOMETRY value.

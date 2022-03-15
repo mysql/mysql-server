@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -359,7 +359,7 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
   return 0;
 }
 
-/* Returns ptr to block, and allocates block if neaded */
+/* Returns ptr to block, and allocates block if needed */
 
 static HASH_INFO *hp_find_free_hash(HP_SHARE *info, HP_BLOCK *block,
                                     ulong records) {

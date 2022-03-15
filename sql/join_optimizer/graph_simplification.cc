@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -454,7 +454,7 @@ struct JoinStatus {
 
   The paper generally uses merge join as the cost function heuristic,
   but since we don't have merge join, and nested-loop joins are heavily
-  depdendent on context such as available indexes, we use instead our standard
+  dependent on context such as available indexes, we use instead our standard
   hash join estimation here. When we get merge joins, we should probably
   have a look to see whether switching to its cost function here makes sense.
   (Of course, we don't know what join type we will _actually_ be using until

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -659,7 +659,7 @@ void GroupIndexSkipScanIterator::reset_group() {
   key part's order (ascending or descending) and if the
   range is on MIN function or a MAX function to get the
   right search mode.
-  For "MIN" functon:
+  For "MIN" function:
    - ASC keypart
    We need to
     1. Read the first key that matches the range
@@ -852,7 +852,7 @@ int GroupIndexSkipScanIterator::next_min_in_range() {
                             real_prefix_len + min_max_arg_len);
       /*
         The key is outside of the range if:
-        the interval is open and the key is equal to the maximum boundry
+        the interval is open and the key is equal to the maximum boundary
         or
         the key is greater than the maximum
       */
@@ -967,7 +967,7 @@ int GroupIndexSkipScanIterator::next_max_in_range() {
                             real_prefix_len + min_max_arg_len);
       /*
         The key is outside of the range if:
-        the interval is open and the key is equal to the minimum boundry
+        the interval is open and the key is equal to the minimum boundary
         or
         the key is less than the minimum
       */

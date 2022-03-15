@@ -63,7 +63,7 @@ class Cost_model_server {
   }
 
   /**
-    Desctructor for Cost_model_server objects.
+    Destructor for Cost_model_server objects.
 
     @note This is declared virtual in order to make it easier to implement
     stubs for this class for use in unit tests.
@@ -139,7 +139,7 @@ class Cost_model_server {
   }
 
   /**
-    Cost of storing or retriving a row using a disk based storage engine.
+    Cost of storing or retrieving a row using a disk based storage engine.
   */
 
   double disk_tmptable_row_cost() const {

@@ -147,7 +147,7 @@ bool Sql_cmd_update::precheck(THD *thd) {
           // Verify that lock has not yet been acquired for request.
           assert(tr->mdl_request.ticket == nullptr);
           // If there is no UPDATE privilege on this table we want to avoid
-          // acquring SHARED_WRITE MDL. It is safe to change lock type to
+          // acquiring SHARED_WRITE MDL. It is safe to change lock type to
           // SHARE_READ in such a case, since attempts to update column in
           // this table will be rejected by later column-level privilege
           // check.
@@ -231,7 +231,7 @@ bool records_are_comparable(const TABLE *table) {
 }
 
 /**
-   Compares the input and outbut record buffers of the table to see if a row
+   Compares the input and output record buffers of the table to see if a row
    has changed. The algorithm iterates over updated columns and if they are
    nullable compares NULL bits in the buffer before comparing actual
    data. Special care must be taken to compare only the relevant NULL bits and
@@ -683,7 +683,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       } else {
         /*
           We are doing a search on a key that is updated. In this case
-          we go trough the matching rows, save a pointer to them and
+          we go through the matching rows, save a pointer to them and
           update these in a separate loop based on the pointer. In the end,
           we get a result file that looks exactly like what filesort uses
           internally, which allows us to read from it
@@ -1063,7 +1063,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
     dup_key_found = 0;
     /*
-      Caching the killed status to pass as the arg to query event constuctor;
+      Caching the killed status to pass as the arg to query event constructor;
       The cached value can not change whereas the killed status can
       (externally) since this point and change of the latter won't affect
       binlogging.
@@ -1809,7 +1809,7 @@ bool Query_result_update::prepare(THD *thd, const mem_root_deque<Item *> &,
   }
 
   /*
-    Save tables beeing updated in update_tables
+    Save tables being updated in update_tables
     update_table->shared is position for table
   */
 

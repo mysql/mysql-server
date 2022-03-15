@@ -53,7 +53,7 @@ namespace binary_log {
   @class Rotate_event
 
   When a binary log file exceeds a size limit, a ROTATE_EVENT is written
-  at the end of the file that points to the next file in the squence.
+  at the end of the file that points to the next file in the sequence.
   This event is information for the slave to know the name of the next
   binary log it is going to receive.
 
@@ -266,7 +266,7 @@ class Format_description_event : public Binary_log_event {
   uint8_t common_header_len;
   /*
     The list of post-headers' lengths followed
-    by the checksum alg decription byte
+    by the checksum alg description byte
   */
   std::vector<uint8_t> post_header_len;
   unsigned char server_version_split[ST_SERVER_VER_SPLIT_LEN];
@@ -394,7 +394,7 @@ class Stop_event : public Binary_log_event {
 /**
   @class Incident_event
 
-   Class representing an incident, an occurance out of the ordinary,
+   Class representing an incident, an occurrence out of the ordinary,
    that happened on the master.
 
    The event is used to inform the slave that something out of the
@@ -539,7 +539,7 @@ class Xid_event : public Binary_log_event {
   @class XA_prepare_event
 
   An XA_prepare event is generated for a XA prepared transaction.
-  Like Xid_event it contans XID of the *prepared* transaction.
+  Like Xid_event it contains XID of the *prepared* transaction.
 
   @section XA_prepare_event_binary_format Binary Format
 
@@ -1346,7 +1346,7 @@ class Transaction_context_event : public Binary_log_event {
   <tr>
     <td>seq_number</td>
     <td>8 bytes integer</td>
-    <td>Variable to identify the next sequence number to be alloted to the
+    <td>Variable to identify the next sequence number to be allotted to the
   certified transaction.</td>
   </tr>
 
@@ -1362,7 +1362,7 @@ class Transaction_context_event : public Binary_log_event {
 class View_change_event : public Binary_log_event {
  public:
   /**
-    Decodes the view_change_log_event generated incase a server enters or
+    Decodes the view_change_log_event generated in case a server enters or
     leaves the group.
 
     <pre>

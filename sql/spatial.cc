@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -343,7 +343,7 @@ Geometry *Geometry::create_by_typeid(Geometry_buffer *buffer, int type_id) {
   string, which can come from table storage, or returned from other GIS
   function, or directly provided by user via client.
 
-  The WKB can be of either endianess --- when user directly pass WKB
+  The WKB can be of either endianness --- when user directly pass WKB
   byte string to us, he/she can pass big endian WKB, otherwise the WKB is
   always little endian. And we should reject big endian WKB because all the
   rest of the GIS code assumes the internal WKB data being always little endian.
@@ -352,7 +352,7 @@ Geometry *Geometry::create_by_typeid(Geometry_buffer *buffer, int type_id) {
   @param data is a byte string with an optional srid prepending a WKB format
   byte string, which is called a GEOMETRY byte string and which is the inner
   storage format of all geometries in MySQL.
-  @param data_len number of bytes of the byte string refered by data.
+  @param data_len number of bytes of the byte string referred by data.
   @param has_srid whether data argument starts with an srid or not.
   By default it's true, if false, data starts with WKB header, and caller
   is responsible to specify an srid to this object later.
@@ -376,9 +376,9 @@ Geometry *Geometry::construct(Geometry_buffer *buffer, const char *data,
     my_error(ER_GIS_DATA_WRONG_ENDIANESS, MYF(0));
     return nullptr;
     /*
-      Don't try to convert endianess but error out because we can't
-      replace the bytes refered by data, it can be from any source.
-      Users can call GeometryFromWKB to use WKB of either endianess
+      Don't try to convert endianness but error out because we can't
+      replace the bytes referred by data, it can be from any source.
+      Users can call GeometryFromWKB to use WKB of either endianness
       if they have to pass WKB/Geometry byte string from client to us.
      */
   }
@@ -926,14 +926,14 @@ const char *wkb_scanner(THD *thd, const char *wkb, uint32 *len, uint32 geotype,
 }
 
 /**
-  Read from 'wkb' (which contains WKB encoded in either endianess) the
-  geometry data, and write WKB of returned Geometry object in little endianess
+  Read from 'wkb' (which contains WKB encoded in either endianness) the
+  geometry data, and write WKB of returned Geometry object in little endianness
   into 'res', and also create geometry object on 'buffer' and return it.
   The returned Geometry object points to bytes (without WKB HEADER) in 'res'.
 
   @param thd Thread context.
   @param buffer the place to create the returned Geometry object at.
-  @param wkb the input WKB buffer which contains WKB of either endianess.
+  @param wkb the input WKB buffer which contains WKB of either endianness.
   @param len the number of bytes of WKB in 'wkb'.
   @param res the buffer to write little endian WKB into.
   @param init_stream Whether set WKB buffer pointer to returned Geometry
@@ -3730,7 +3730,7 @@ class Polygon_stepper : public Stepper_base {
 };
 
 /// Parsing operator. Note that the returned pointer may point past end of
-/// WKB string, and caller is responsible for stoping reading after last
+/// WKB string, and caller is responsible for stopping reading after last
 /// geometry is read, this is true for all parsing operator of all stepper
 /// classes.
 /// @param p points to the 1st byte of a point's wkb data, right after its
@@ -4252,7 +4252,7 @@ void Gis_wkb_vector<T>::reassemble() {
       if (i == 0) {
         if (m_ptr) {
           start = get_cptr();
-          end = start + sizeof(uint32) /* num geometrys*/;
+          end = start + sizeof(uint32) /* num geometries */;
         } else if (!is_inns) {
           start = reinterpret_cast<char *>(&none);
           end = start + sizeof(none);
@@ -4543,7 +4543,7 @@ Gis_wkb_vector<T> &Gis_wkb_vector<T>::operator=(const Gis_wkb_vector<T> &rhs) {
   }
 
   /*
-    If need less space than before, set remaining bytes to 0xFF as requred
+    If need less space than before, set remaining bytes to 0xFF as required
     by Gis_wkb_vector<>::get_nbytes_free.
    */
   if (get_nbytes() > rhs.get_nbytes())

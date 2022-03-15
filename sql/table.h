@@ -249,7 +249,7 @@ class Default_object_creation_ctx : public Object_creation_ctx {
     connection_cl stores the value of collation_connection session
     variable. Both character set and collation attributes are used.
 
-    Connection collation is included into query context, becase it defines
+    Connection collation is included into query context, because it defines
     the character set and collation of text literals in internal
     representation of query (item-objects).
   */
@@ -742,7 +742,7 @@ struct TABLE_SHARE {
   Field **field{nullptr};
   Field **found_next_number_field{nullptr};
   KEY *key_info{nullptr};    /* data of keys defined for the table */
-  uint *blob_field{nullptr}; /* Index to blobs in Field arrray*/
+  uint *blob_field{nullptr}; /* Index to blobs in Field array */
 
   uchar *default_values{nullptr};      /* row with default values */
   LEX_STRING comment{nullptr, 0};      /* Comment about table */
@@ -898,8 +898,8 @@ struct TABLE_SHARE {
     are in use by storage engine.
 
     @note db_options_in_use is normally copy of db_create_options but can
-          be overriden by SE. E.g. MyISAM does this at handler::open() and
-          hander::info() time.
+          be overridden by SE. E.g. MyISAM does this at handler::open() and
+          handler::info() time.
   */
   uint db_options_in_use{0};
   uint rowid_field_offset{0}; /* Field_nr +1 to rowid field */
@@ -1286,7 +1286,7 @@ class Blob_mem_storage {
     truncated_value = false;
   }
   /**
-     Fuction creates duplicate of 'from'
+     Function creates duplicate of 'from'
      string in 'storage' MEM_ROOT.
 
      @param from           string to copy
@@ -1449,7 +1449,7 @@ struct TABLE {
   Key_map covering_keys;
   Key_map quick_keys;
 
-  /* Merge keys are all keys that had a column reffered to in the query */
+  /* Merge keys are all keys that had a column referred to in the query */
   Key_map merge_keys;
 
   /*
@@ -1704,7 +1704,7 @@ struct TABLE {
     @note This member can be set only by thread that owns/has opened the
           table and while holding its THD::LOCK_thd_data lock.
           It can be read without locking by this owner thread, or by some other
-          thread concurrently after acquring owner's THD::LOCK_thd_data.
+          thread concurrently after acquiring owner's THD::LOCK_thd_data.
 
     @note The TABLE will not be reopened under LOCK TABLES in
           close_thread_tables().
@@ -1765,7 +1765,7 @@ struct TABLE {
   SortingIterator *duplicate_removal_iterator{nullptr};
 
   /**
-    The result of applying a unique opertion (by row ID) to the table, if done.
+    The result of applying a unique operation (by row ID) to the table, if done.
     In particular, this is done in some forms of index merge.
   */
   Sort_result unique_result;
@@ -2343,7 +2343,7 @@ struct ST_FIELD_INFO {
      combine them using the bitwise or operator @c |. Both flags are
      defined in table.h.
    */
-  uint field_flags;  // Field atributes(maybe_null, signed, unsigned etc.)
+  uint field_flags;  // Field attributes (maybe_null, signed, unsigned etc.)
   const char *old_name;
   uint open_method;  // Not used
 };
@@ -2353,7 +2353,7 @@ struct ST_SCHEMA_TABLE {
   ST_FIELD_INFO *fields_info;
   /* Fill table with data */
   int (*fill_table)(THD *thd, TABLE_LIST *tables, Item *cond);
-  /* Handle fileds for old SHOW */
+  /* Handle fields for old SHOW */
   int (*old_format)(THD *thd, ST_SCHEMA_TABLE *schema_table);
   int (*process_table)(THD *thd, TABLE_LIST *tables, TABLE *table, bool res,
                        LEX_CSTRING db_name, LEX_CSTRING table_name);
@@ -4005,7 +4005,7 @@ static inline void dbug_tmp_restore_column_map(MY_BITMAP *bitmap
 
 /*
   Variant of the above : handle both read and write sets.
-  Provide for the possiblity of the read set being the same as the write set
+  Provide for the possibility of the read set being the same as the write set
 */
 static inline void dbug_tmp_use_all_columns(
     TABLE *table [[maybe_unused]], my_bitmap_map **save [[maybe_unused]],
@@ -4033,7 +4033,7 @@ void init_mdl_requests(TABLE_LIST *table_list);
 /**
    Unpacks the definition of a value generator in all its forms: generated
    column, default expression or checked constraint.
-   The function parses the text defintion of this expression, resolves its
+   The function parses the text definition of this expression, resolves its
    items and runs validation and calculates the base_columns_map which is used
    for tracking the columns the expression depends on.
 

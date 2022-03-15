@@ -177,7 +177,7 @@ class Query_result {
 };
 
 /*
-  Base class for Query_result descendands which intercept and
+  Base class for Query_result descendants which intercept and
   transform result set rows. As the rows are not sent to the client,
   sending of result set metadata should be suppressed as well.
 */

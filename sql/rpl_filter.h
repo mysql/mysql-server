@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,7 @@ class Rpl_filter_statistics {
   /*
     Set all member variables. The caller just needs to pass argument
     for configured_by, since counter and active_since are set in the
-    funtion. We do that, since counter must be set to 0 and
+    function. We do that, since counter must be set to 0 and
     active_since must be set to current time for any case.
   */
   void set_all(enum_configured_by configured_by);
@@ -553,9 +553,9 @@ class Rpl_global_filter : public Rpl_filter {
   */
   Rpl_pfs_filter *get_filter_at_pos(uint pos);
   /**
-    This member function is called everytime the rules of the global
-    repliation filter are changed. Once that happens the PFS view of
-    global repliation filter is recreated.
+    This member function is called every time the rules of the global
+    replication filter are changed. Once that happens the PFS view of
+    global replication filter is recreated.
   */
   void reset_pfs_view();
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */

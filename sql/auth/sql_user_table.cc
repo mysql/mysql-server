@@ -665,7 +665,7 @@ static bool acl_end_trans_and_close_tables(THD *thd,
   Effect : In case of rollback, acl caches will be reloaded.
 
   @param thd                    Handle to THD object.
-                                Requried for query rewriting
+                                Required for query rewriting
   @param transactional_table    Nature of ACL tables
   @param extra_users            Users which were not processed
   @param rewrite_params         Information required for query rewrite
@@ -798,7 +798,7 @@ void acl_print_ha_error(int handler_error) {
 
   @param thd          Current thread execution context.
   @param table        Pointer to a TABLE object for opened mysql.db table.
-  @param db           Database name of table for which column priviliges are
+  @param db           Database name of table for which column privileges are
                       modified.
   @param combo        Pointer to a LEX_USER object containing info about a user
                       being processed.
@@ -1095,9 +1095,9 @@ table_error:
   @param combo        Pointer to a LEX_USER object containing info about a user
                       being processed
   @param columns      List of columns to give/revoke grant
-  @param db           Database name of table for which column priviliges are
+  @param db           Database name of table for which column privileges are
                       modified
-  @param table_name   Name of table for which column priviliges are modified
+  @param table_name   Name of table for which column privileges are modified
   @param rights       Table level grant
   @param revoke_grant Set to true if this is a REVOKE command
 
@@ -2194,7 +2194,7 @@ bool check_engine_type_for_acl_table(TABLE_LIST *tables, bool report_error) {
         my_error(ER_UNSUPPORTED_ENGINE, MYF(0),
                  ha_resolve_storage_engine_name(t->table->file->ht), t->db,
                  t->table_name);
-        // No need to check futher.
+        // No need to check further.
         break;
       } else {
         LogErr(WARNING_LEVEL, ER_SYSTEM_TABLES_NOT_SUPPORTED_BY_STORAGE_ENGINE,

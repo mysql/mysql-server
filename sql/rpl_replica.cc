@@ -539,9 +539,9 @@ err:
            when a slave start failed for other channels.
 
     @todo  The problem with the below code is if the slave is already
-           stared, we would multple warnings called
+           stared, we would have multiple warnings
            "Slave was already running" for each channel.
-           A nice warning message  would be to add
+           A nice warning message would be to add
            "Slave for channel '%s' was already running"
            but error messages are in different languages and cannot be tampered
            with so, we have to handle it case by case basis, whether
@@ -1030,7 +1030,7 @@ static void recover_relay_log(Master_info *mi) {
   relay logs will be purged by the normal purge mechanism.
 
   There can be a special case where rli->group_master_log_name and
-  rli->group_master_log_pos are not intialized, as the sql thread was never
+  rli->group_master_log_pos are not initialized, as the sql thread was never
   started at all. In those cases all the existing relay logs are parsed
   starting from the first one and the initial rotate event that was received
   from the master is identified. From the rotate event master_log_name and
@@ -1249,7 +1249,7 @@ int load_mi_and_rli_from_repositories(Master_info *mi, bool ignore_if_no_info,
           mi->update_flushed_relay_log_info();
         }
       } else {
-        // Even if we skip rli_init_info we must check if gaps exists to mantain
+        // Even if we skip rli_init_info we must check if gaps exist to maintain
         // the server behavior in commands like CHANGE REPLICATION SOURCE
         if (mi->rli->recovery_parallel_workers ? mts_recovery_groups(mi->rli)
                                                : 0)
@@ -1645,7 +1645,7 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
       THD_STAGE_INFO(current_thd, stage_flushing_relay_log_info_file);
 
     /*
-      Flushes the relay log info regardles of the sync_relay_log_info option.
+      Flushes the relay log info regardless of the sync_relay_log_info option.
     */
     if (mi->rli->flush_info(Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT)) {
       return ER_ERROR_DURING_FLUSH_LOGS;
@@ -1726,7 +1726,7 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
                      stage_flushing_relay_log_and_source_info_repository);
 
     /*
-      Flushes the master info regardles of the sync_source_info option and
+      Flushes the master info regardless of the sync_source_info option and
       GTID_ONLY = 0 for this channel
     */
     if (!mi->is_gtid_only_mode()) {
@@ -1739,7 +1739,7 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
       mysql_mutex_unlock(&mi->data_lock);
     }
     /*
-      Flushes the relay log regardles of the sync_relay_log option.
+      Flushes the relay log regardless of the sync_relay_log option.
     */
     if (mi->rli->relay_log.is_open() &&
         mi->rli->relay_log.flush_and_sync(true)) {
@@ -1856,7 +1856,7 @@ static int terminate_slave_thread(THD *thd, mysql_mutex_t *term_lock,
 
     /*
       There is a small chance that slave thread might miss the first
-      alarm. To protect againts it, resend the signal until it reacts
+      alarm. To protect against it, resend the signal until it reacts
     */
     struct timespec abstime;
     set_timespec(&abstime, 2);
@@ -2457,7 +2457,7 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi) {
                   { rpl_replica_debug_point(DBUG_RPL_S_SIMULATE_BUSY_IO); };);
 #ifndef NDEBUG
   DBUG_EXECUTE_IF("dbug.simulate_no_such_var_server_uuid", {
-    query_buf[strlen(query_buf) - 1] = '_';  // currupt the last char
+    query_buf[strlen(query_buf) - 1] = '_';  // corrupt the last char
   });
 #endif
   if (!mysql_real_query(mysql, STRING_WITH_LEN(query_buf)) &&
@@ -3786,7 +3786,7 @@ bool show_slave_status(THD *thd, Master_info *mi) {
 }
 
 /**
-  Entry point for SHOW REPLICA STATUS command. Function displayes
+  Entry point for SHOW REPLICA STATUS command. Function displays
   the slave status for all channels or for a single channel
   based on the FOR CHANNEL  clause.
 
@@ -4269,7 +4269,7 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli) {
     ev->update_pos(rli);
   @endcode
 
-  It also does the following maintainance:
+  It also does the following maintenance:
 
    - Initializes the thread's server_id and time; and the event's
      thread.
@@ -4594,9 +4594,9 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
                  rli->get_group_master_log_pos());
           /*
              Few tests wait for UNTIL_SQL_AFTER_MTS_GAPS completion.
-             Due to exisiting convention the status won't change
+             Due to existing convention the status won't change
              prior to slave restarts.
-             So making of UNTIL_SQL_AFTER_MTS_GAPS completion isdone here,
+             So making of UNTIL_SQL_AFTER_MTS_GAPS completion is done here,
              and only in the debug build to make the test to catch the change
              despite a faulty design of UNTIL checking before execution.
           */
@@ -4727,7 +4727,7 @@ static bool coord_handle_partial_binlogged_transaction(Relay_log_info *rli,
 
   This function may fail to apply the event for the following reasons:
 
-   - The position specfied by the UNTIL condition of the START SLAVE
+   - The position specified by the UNTIL condition of the START SLAVE
      command is reached.
 
    - It was not possible to read the event from the log.
@@ -4869,7 +4869,7 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
         The following failure injecion works in cooperation
         with tests setting @@global.debug= 'd,incomplete_group_in_relay_log'.
         Xid or Commit events are not executed to force the slave sql read
-        hanging if the realy log does not have any more events.
+        hanging if the relay log does not have any more events.
        */
       DBUG_EXECUTE_IF(
           "incomplete_group_in_relay_log",
@@ -4914,8 +4914,8 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
 
     /* For deferred events, the ptr_ev is set to NULL
         in Deferred_log_events::add() function.
-        Hence deferred events wont be deleted here.
-        They will be deleted in Deferred_log_events::rewind() funciton.
+        Hence deferred events won't be deleted here.
+        They will be deleted in Deferred_log_events::rewind() function.
     */
     if (*ptr_ev) {
       assert(*ptr_ev == ev);  // event remains to belong to Coordinator
@@ -5225,7 +5225,7 @@ extern "C" void *handle_slave_io(void *arg) {
     mi->events_until_exit = disconnect_slave_event_count;
 #endif
 
-    thd = new THD;  // note that contructor of THD uses DBUG_ !
+    thd = new THD;  // note that constructor of THD uses DBUG_ !
     THD_CHECK_SENTRY(thd);
     mi->info_thd = thd;
 
@@ -6549,7 +6549,7 @@ err:
    Ending Worker threads.
 
    Not in case Coordinator is killed itself, it first waits for
-   Workers have finished their assignements, and then updates checkpoint.
+   Workers have finished their assignments, and then updates checkpoint.
    Workers are notified with setting KILLED status
    and waited for their acknowledgment as specified by
    worker's running_status.
@@ -6799,7 +6799,7 @@ extern "C" void *handle_slave_sql(void *arg) {
     rli->events_until_exit = abort_slave_event_count;
 #endif
 
-    thd = new THD;  // note that contructor of THD uses DBUG_ !
+    thd = new THD;  // note that constructor of THD uses DBUG_ !
     thd->thread_stack = (char *)&thd;  // remember where our stack is
     mysql_mutex_lock(&rli->info_thd_lock);
     rli->info_thd = thd;
@@ -7190,7 +7190,7 @@ extern "C" void *handle_slave_sql(void *arg) {
       to avoid unneeded position re-init
     */
     thd->temporary_tables =
-        nullptr;  // remove tempation from destructor to close them
+        nullptr;  // remove temptation from destructor to close them
     // destructor will not free it, because we are weird
     thd->get_protocol_classic()->end_net();
     assert(rli->info_thd == thd);
@@ -7312,9 +7312,9 @@ int heartbeat_queue_event(bool is_valid, Master_info *&mi,
   /*
     compare local and event's versions of log_file, log_pos.
 
-    Heartbeat is sent only after an event corresponding to the corrdinates
+    Heartbeat is sent only after an event corresponding to the coordinates
     the heartbeat carries.
-    Slave can not have a difference in coordinates except in the only
+    Slave can not have a difference in coordinates except in the
     special case when mi->get_master_log_name(), mi->get_master_log_pos()
     have never been updated by Rotate event i.e when slave does not have
     any history with the master (and thereafter mi->get_master_log_pos() is
@@ -8748,7 +8748,7 @@ bool start_slave(THD *thd, LEX_SLAVE_CONNECTION *connection_param,
   /*
     Below we will start all stopped threads.  But if the user wants to
     start only one thread, do as if the other thread was running (as we
-    don't wan't to touch the other thread), so set the bit to 0 for the
+    don't want to touch the other thread), so set the bit to 0 for the
     other thread
   */
   if (thread_mask_input) {
@@ -8924,7 +8924,7 @@ int stop_slave(THD *thd, Master_info *mi, bool net_report, bool for_one_channel,
   /*
     Below we will stop all running threads.
     But if the user wants to stop only one thread, do as if the other thread
-    was stopped (as we don't wan't to touch the other thread), so set the
+    was stopped (as we don't want to touch the other thread), so set the
     bit to 0 for the other thread
   */
   if (thd->lex->slave_thd_opt) {
@@ -9298,7 +9298,7 @@ static bool have_change_replication_source_receive_option(
 
   @param[out] need_relay_log_purge
               - If relay_log_file/relay_log_pos options are used,
-                we wont delete relaylogs. We set this boolean flag to false.
+                we won't delete relaylogs. We set this boolean flag to false.
               - If relay_log_file/relay_log_pos options are NOT used,
                 we return the boolean flag UNCHANGED.
               - Used in change_receive_options() and change_master().
@@ -10267,7 +10267,7 @@ static std::pair<bool, bool> validate_change_replication_source_options(
                  ER_THD(thd, ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO));
 
   /**
-    Altough this check is redone when the user is set, we do an early
+    Although this check is redone when the user is set, we do an early
     check here to avoid failures in the middle of configuration
   */
   Relay_log_info::enum_priv_checks_status priv_check_error;
@@ -10449,7 +10449,7 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
   /* Check if at least one execute option is given on change master */
   have_execute_option = have_change_replication_source_execute_option(
       lex_mi, &need_relay_log_purge);
-  /* Check if at least one execute option affects bothe the applier and receiver
+  /* Check if at least one execute option affects both the applier and receiver
    */
   have_both_receive_execute_option =
       have_change_replication_source_applier_and_receive_option(lex_mi);

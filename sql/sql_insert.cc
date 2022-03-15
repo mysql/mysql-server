@@ -2475,7 +2475,7 @@ bool Query_result_insert::send_eof(THD *thd) {
          thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
 
   /*
-    Write to binlog before commiting transaction.  No statement will
+    Write to binlog before committing transaction.  No statement will
     be written by the binlog_query() below in RBR mode.  All the
     events are in the transaction cache and will be written when
     ha_autocommit_or_rollback() is issued below.
@@ -2860,7 +2860,7 @@ bool Query_result_create::create_table_for_query_block(THD *thd) {
     if ((*f)->gcol_info && !(*f)->is_field_for_functional_index()) {
       /*
         Generated columns are not allowed to be given a value for CREATE TABLE
-        .. SELECT statment.
+        .. SELECT statement.
       */
       my_error(ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN, MYF(0),
                (*f)->field_name, (*f)->table->s->table_name.str);

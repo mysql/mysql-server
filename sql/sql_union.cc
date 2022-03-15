@@ -1443,7 +1443,7 @@ void Query_expression::assert_not_fully_clean() {
 
 /**
   Change the query result object used to return the final result of
-  the unit, replacing occurences of old_result with new_result.
+  the unit, replacing occurrences of old_result with new_result.
 
   @param thd        Thread handle
   @param new_result New query result object

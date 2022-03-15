@@ -21,7 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
-  Creates a index for a database by reading keys, sorting them and outputing
+  Creates a index for a database by reading keys, sorting them and outputting
   them in sorted order through SORT_INFO functions.
 */
 
@@ -437,7 +437,7 @@ cleanup:
     buffpek		Where to read from
     sort_length		max length to read
   RESULT
-    > 0	Ammount of bytes read
+    > 0	Number of bytes read
     -1	Error
 */
 

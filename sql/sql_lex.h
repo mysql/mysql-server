@@ -1210,7 +1210,7 @@ class Query_block {
   */
   bool is_straight_join() {
     bool straight_join = true;
-    /// false for exmaple in t1 STRAIGHT_JOIN t2 JOIN t3.
+    /// false for example in t1 STRAIGHT_JOIN t2 JOIN t3.
     for (TABLE_LIST *tbl = leaf_tables->next_leaf; tbl; tbl = tbl->next_leaf)
       straight_join &= tbl->straight;
     return straight_join || (active_options() & SELECT_STRAIGHT_JOIN);
@@ -3464,7 +3464,7 @@ class Lex_input_stream {
   /** End of the query text in the input stream, in the raw buffer. */
   const char *m_end_of_query;
 
-  /** Begining of the query text in the input stream, in the raw buffer. */
+  /** Beginning of the query text in the input stream, in the raw buffer. */
   const char *m_buf;
 
   /** Length of the raw buffer. */

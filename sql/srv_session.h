@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/*  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -308,7 +308,7 @@ class Srv_session {
       Uses RAII.
 
       @param sess Session to backup
-      @param is_in_close_session Wheather session needs to be closed.
+      @param is_in_close_session Whether session needs to be closed.
     */
     Session_backup_and_attach(Srv_session *sess, bool is_in_close_session);
 

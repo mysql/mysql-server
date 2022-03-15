@@ -188,7 +188,7 @@ void Query_result_to_file::cleanup(THD *) {
     create_file()
     thd			Thread handle
     path		File name
-    exchange		Excange class
+    exchange		Exchange class
     cache		IO cache
 
   RETURN

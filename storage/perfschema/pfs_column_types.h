@@ -335,7 +335,7 @@ enum enum_isolation_level {
 #define COUNT_TRANS_LEVEL (LAST_TRANS_LEVEL - FIRST_TRANS_LEVEL + 1)
 
 /**
-  Enum values for transaction acces mode columns.
+  Enum values for transaction access mode columns.
 */
 enum enum_transaction_mode {
   TRANS_MODE_READ_ONLY = 1,

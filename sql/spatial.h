@@ -870,7 +870,7 @@ class Geometry {
     @param from String to check
     @param length Length of string
     @param type Expected type of geometry, or
-           Geoemtry::wkb_invalid_type if any type is allowed
+           Geometry::wkb_invalid_type if any type is allowed
 
     @param bo byte order
     @return True if the string is a well-formed GEOMETRY string,
@@ -1322,7 +1322,7 @@ class Gis_wkb_vector_const_iterator {
   /// This is the return type for operator[].
   typedef value_type &reference;
   typedef value_type *pointer;
-  // Use the STL tag, to ensure compatability with interal STL functions.
+  // Use the STL tag, to ensure compatibility with internal STL functions.
   //
   typedef std::random_access_iterator_tag iterator_category;
   ////////////////////////////////////////////////////////////////////
@@ -1330,7 +1330,7 @@ class Gis_wkb_vector_const_iterator {
   ////////////////////////////////////////////////////////////////////
   // Begin public constructors and destructor.
   /// @name Constructors and destroctor
-  /// Do not construct iterators explictily using these constructors,
+  /// Do not construct iterators explicitly using these constructors,
   /// but call Gis_wkb_vector::begin() const to get an valid iterator.
   /// @sa Gis_wkb_vector::begin() const
   //@{
@@ -1536,7 +1536,7 @@ class Gis_wkb_vector_const_iterator {
   /// Return the index difference of this iterator and itr, so if this
   /// iterator sits on an element with a smaller index, this call will
   /// return a negative number.
-  /// @param itr The other iterator to substract. itr can be the invalid
+  /// @param itr The other iterator to subtract. itr can be the invalid
   /// iterator after last element or before first element, their index
   /// will be regarded as last element's index + 1 and -1 respectively.
   /// @return The index difference.
@@ -1640,15 +1640,15 @@ class Gis_wkb_vector_iterator : public Gis_wkb_vector_const_iterator<T> {
   typedef difference_type distance_type;
   typedef value_type &reference;
   typedef value_type *pointer;
-  // Use the STL tag, to ensure compatability with interal STL functions.
+  // Use the STL tag, to ensure compatibility with internal STL functions.
   typedef std::random_access_iterator_tag iterator_category;
 
   ////////////////////////////////////////////////////////////////////
   /// Begin public constructors and destructor.
   //
   /// @name Constructors and destructor
-  /// Do not construct iterators explictily using these constructors,
-  /// but call Gis_wkb_vector::begin to get an valid iterator.
+  /// Do not construct iterators explicitly using these constructors,
+  /// but call Gis_wkb_vector::begin to get a valid iterator.
   /// @sa Gis_wkb_vector::begin
   //@{
   Gis_wkb_vector_iterator(const self &vi) : base(vi) {}
@@ -1780,7 +1780,7 @@ class Gis_wkb_vector_iterator : public Gis_wkb_vector_const_iterator<T> {
   /// Return the index difference of this iterator and itr, so if this
   /// iterator sits on an element with a smaller index, this call will
   /// return a negative number.
-  /// @param itr The other iterator to substract. itr can be the invalid
+  /// @param itr The other iterator to subtract. itr can be the invalid
   /// iterator after last element or before first element, their index
   /// will be regarded as last element's index + 1 and -1 respectively.
   /// @return The index difference.
@@ -2014,7 +2014,7 @@ class Gis_wkb_vector : public Geometry {
       Note that although ~Inplace_vector() calls std::vector member functions,
       all of them have no-throw guarantees, so this function won't throw any
       exception now. We do so nonetheless for potential mis-use of exceptions
-      in futher code.
+      in further code.
     */
 #if !defined(NDEBUG)
     try {

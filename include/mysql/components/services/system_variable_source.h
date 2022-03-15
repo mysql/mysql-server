@@ -37,8 +37,8 @@ BEGIN_SERVICE_DEFINITION(system_variable_source)
 /**
   Get source information of given system variable.
 
-  @param [in]  name Name of sytem variable in system charset
-  @param [in]  length Name length of sytem variable
+  @param [in]  name Name of system variable in system charset
+  @param [in]  length Name length of system variable
   @param [out]  source Source of system variable
   @return Status of performance operation
   @retval false Success

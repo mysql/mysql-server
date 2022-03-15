@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@
 
 
 /**
- * This signal is used for transfering the 
+ * This signal is used for transferring the 
  *   ISP_X Data
  *
  * I.e. Configuration data which is sent in a specific start phase

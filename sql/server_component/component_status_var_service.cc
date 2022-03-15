@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ struct SHOW_VAR;
   @retval true failure
 
   Note: Please see the components/test/test_status_var_service.cc file,
-  to know how to construct status varables for different variable types.
+  to know how to construct status variables for different variable types.
 */
 DEFINE_BOOL_METHOD(mysql_status_variable_registration_imp::register_variable,
                    (SHOW_VAR * status_var)) {

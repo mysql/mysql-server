@@ -39,7 +39,7 @@
   which is often referred to as column lists in the code variables. This
   enables a user to specify a set of columns and their concatenated value
   as the partition value. By comparing the concatenation of these values
-  the proper partition can be choosen.
+  the proper partition can be chosen.
 */
 
 #include "sql/sql_partition.h"
@@ -1461,7 +1461,7 @@ bool check_part_func_fields(Field **ptr, bool ok_with_charsets) {
 NOTES
     This function is called as part of opening the table by opening the .frm
     file. It is a part of CREATE TABLE to do this so it is quite permissible
-    that errors due to erroneus syntax isn't found until we come here.
+    that errors due to erroneous syntax isn't found until we come here.
     If the user has used a non-existing field in the table is one such example
     of an error that is not discovered until here.
 */
@@ -2934,7 +2934,7 @@ static uint32 get_partition_id_cols_list_for_endpoint(partition_info *part_info,
   @param include_endpoint  true iff the interval includes the endpoint
 
   This function finds the sub-array of part_info->list_array where values of
-  list_array[idx].list_value are contained within the specifed interval.
+  list_array[idx].list_value are contained within the specified interval.
   list_array is ordered by list_value, so
   1. For [a; +inf) or (a; +inf)-type intervals (left_endpoint==true), the
      sought sub-array starts at some index idx and continues till array end.
@@ -3852,7 +3852,7 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
 
    RETURN VALUE
      true                          Error
-     false                         Sucess
+     false                         Success
 
    DESCRIPTION
      Read the partition syntax from the current position in the frm file.
@@ -4191,14 +4191,14 @@ bool set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
 }
 
 /**
-  @brief Check if partition is exchangable with table by checking table options
+  @brief Check if partition is exchangeable with table by checking table options
 
   @param table_create_info Table options from table.
   @param part_elem         All the info of the partition.
 
   @retval false if they are equal, otherwise true.
 
-  @note Any differens that would cause a change in the frm file is prohibited.
+  @note Any difference that would cause a change in the frm file is prohibited.
   Such options as data_file_name, index_file_name, min_rows, max_rows etc. are
   not allowed to differ. But comment is allowed to differ.
 */
@@ -5143,7 +5143,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       }
       /*
         Set up partition default_engine_type either from the create_info
-        or from the previus table
+        or from the previous table
       */
       if (create_info->used_fields & HA_CREATE_USED_ENGINE)
         part_info->default_engine_type = create_info->db_type;
@@ -5351,7 +5351,7 @@ bool make_used_partitions_str(partition_info *part_info,
     If both (1) and (3) are applicable, (1) is preferred over (3).
 
     This function sets part_info::get_part_iter_for_interval according to
-    this criteria, and also sets some auxilary fields that the function
+    this criteria, and also sets some auxiliary fields that the function
     uses.
 */
 static void set_up_range_analysis_info(partition_info *part_info) {
@@ -5692,7 +5692,7 @@ static int get_part_iter_for_interval_cols_via_map(
 
   @return Status of iterator
     @retval 0   No matching partitions (iterator not initialized)
-    @retval 1   Ok, iterator intialized for traversal of matching partitions.
+    @retval 1   Ok, iterator initialized for traversal of matching partitions.
     @retval -1  All partitions would match (iterator not initialized)
 */
 
@@ -5882,7 +5882,7 @@ static int get_part_iter_for_interval_via_mapping(
 
   RETURN
     0 - No matching partitions, iterator not initialized
-    1 - Some partitions would match, iterator intialized for traversing them
+    1 - Some partitions would match, iterator initialized for traversing them
    -1 - All partitions would match, iterator not initialized
 */
 

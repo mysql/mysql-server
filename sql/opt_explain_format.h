@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -284,7 +284,7 @@ class qep_row {
     object will be pushed into "items" list instead.
   */
   column<uint>
-      col_id;  ///< "id" column: seq. number of SELECT withing the query
+      col_id;  ///< "id" column: seq. number of SELECT within the query
   column<enum_explain_type> col_select_type;  ///< "select_type" column
   mem_root_str col_table_name;  ///< "table" to which the row of output refers
   List<const char> col_partitions;  ///< "partitions" column

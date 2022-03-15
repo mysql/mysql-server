@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -220,7 +220,7 @@ struct mysql_event_parse {
   /** input: the original query text */
   MYSQL_LEX_CSTRING query;
 
-  /** output: returns the null-terminated rewriten query allocated by
+  /** output: returns the null-terminated rewritten query allocated by
    * my_malloc() */
   MYSQL_LEX_CSTRING *rewritten_query;
 };

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,7 +86,7 @@ class Rpl_async_conn_failover_delete_managed : public Udf_service_impl {
                                   char *message);
 
   /**
-    Deinitialize variables initalized during init function.
+    Deinitialize variables initialized during init function.
 
     @param[in] init_id     UDF_INIT structure
   */

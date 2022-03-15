@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1724,7 +1724,7 @@ TABLE *GetBasicTable(const AccessPath *path);
 
 /**
   Returns a map of all tables read when `path` or any of its children are
-  exectued. Only iterators that are part of the same query block as `path`
+  executed. Only iterators that are part of the same query block as `path`
   are considered.
 
   If a table is read that doesn't have a map, specifically the temporary

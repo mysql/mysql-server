@@ -325,7 +325,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
     }
     bitmap_set_all(table->write_set);
     /*
-      Let us also prepare SET clause, altough it is probably empty
+      Let us also prepare SET clause, although it is probably empty
       in this case.
     */
     if (setup_fields(thd, /*want_privilege=*/INSERT_ACL,
@@ -1325,7 +1325,7 @@ char READ_INFO::unescape(char chr) {
 
 /*
   Read a line using buffering
-  If last line is empty (in line mode) then it isn't outputed
+  If last line is empty (in line mode) then it isn't outputted
 */
 
 READ_INFO::READ_INFO(File file_par, size_t tot_length, const CHARSET_INFO *cs,
@@ -1545,7 +1545,7 @@ bool READ_INFO::read_field() {
         }
       }
       if (chr == found_enclosed_char) {
-        if ((chr = GET) == found_enclosed_char) {  // Remove dupplicated
+        if ((chr = GET) == found_enclosed_char) {  // Remove duplicated
           *to++ = (uchar)chr;
           continue;
         }

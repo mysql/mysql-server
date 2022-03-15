@@ -27,7 +27,7 @@
 
 /*
   Support for Chinese(BIG5) characters.
-  This file is basicly usa7 character sets with some extra functions
+  This file is basically usa7 character sets with some extra functions
   for big5 handling
  */
 

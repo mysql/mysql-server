@@ -256,7 +256,7 @@ class Value_map_base {
   Value_map class.
 
   This class works as a map. It is a collection of [key, count], where "count"
-  is the number of occurances of "key". The class abstracts away things like
+  is the number of occurrences of "key". The class abstracts away things like
   duplicate checking and the underlying container.
 */
 template <class T>

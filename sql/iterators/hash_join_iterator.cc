@@ -719,7 +719,7 @@ bool HashJoinIterator::ReadRowFromProbeIterator() {
     // read/processed again. We must swap the probe row saving writing and probe
     // row saving reading file _before_ calling BuildHashTable, since
     // BuildHashTable may initialize (and thus clear) the probe row saving write
-    // file, loosing any rows written to said file.
+    // file, losing any rows written to said file.
     if (InitReadingFromProbeRowSavingFile()) {
       assert(thd()->is_error());  // my_error should have been called.
       return true;
@@ -994,7 +994,7 @@ int HashJoinIterator::ReadNextJoinedRowFromHashTable() {
 
   if (res == -1) {
     // If we did not find a matching row in the hash table, antijoin and outer
-    // join should ouput the last row read from the probe input together with a
+    // join should output the last row read from the probe input together with a
     // NULL-complemented row from the build input. However, in case of on-disk
     // antijoin, a row from the probe input can match a row from the build input
     // that has already been written out to disk. So for on-disk antijoin, we
@@ -1096,7 +1096,7 @@ int HashJoinIterator::Read() {
           continue;
         }
 
-        // An error occured, so abort the join.
+        // An error occurred, so abort the join.
         assert(res == 1);
         return res;
       }

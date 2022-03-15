@@ -625,10 +625,10 @@ bool drop_role(THD *thd, TABLE *edge_table, TABLE *defaults_table,
     Auth_id_ref source_user = create_authid_from(&source_acl_user);
 
     /*
-      Lambda function that drops all adjacent edges(if exists) from the
+      Lambda function that drops all adjacent edges (if exists) from the
       source_user present in the role_edges table and, keep track of
       target acl user.
-      It assumes all the paramaters and captures, are valid and sane.
+      It assumes all the parameters and captures are valid and sane.
     */
     auto modify_role_edges = [&thd, &edge_table, &error,
                               &source_user](const ACL_USER &target_acl_user) {
@@ -2813,7 +2813,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
                                             column->column.length());
           if (grant_column) grant_column->rights &= ~(column->rights | rights);
         }
-        /* scan trough all columns to get new column grant */
+        /* scan through all columns to get new column grant */
         column_priv = 0;
         for (const auto &key_and_value : grant_table->hash_columns) {
           grant_column = key_and_value.second.get();
@@ -3637,13 +3637,13 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
 
     {
       /*
-        We want to add AS ... clause while rewritting GRANT statement in
+        We want to add AS ... clause while rewriting GRANT statement in
         following cases:
 
         1. The GRANT statement being executed contains AS clause.
            In this case we retain it as it is except rewriting
            CURRENT_USER() and use current session's user/host part.
-        2. If all of the following condtions are met:
+        2. If all of the following conditions are met:
            - --partial_revokes is ON
            - Statement is a GRANT at global level (*.*)
            This is required because, current user may have restriction
@@ -3731,7 +3731,7 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
   Specifically if this function returns false the user has some kind of
   privilege on a combination of columns in each table.
 
-  This function is usually preceeded by check_access which establish the
+  This function is usually preceded by check_access which establish the
   User-, Db- and Host access rights.
 
   @see check_access
@@ -4084,7 +4084,7 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST *table_ref,
   @param  fields an iterator over the fields of a table reference.
   @return Operation status
     @retval 0 Success
-    @retval 1 Falure
+    @retval 1 Failure
   @details This function walks over the columns of a table reference
    The columns may originate from different tables, depending on the kind of
    table reference, e.g. join, view.
@@ -4420,7 +4420,7 @@ ulong get_table_grant(THD *thd, TABLE_LIST *table) {
 }
 
 /*
-  Determine the access priviliges for a field.
+  Determine the access privileges for a field.
 
   SYNOPSIS
     get_column_grant()
@@ -4434,7 +4434,7 @@ ulong get_table_grant(THD *thd, TABLE_LIST *table) {
     The procedure may also modify: grant->grant_table and grant->version.
 
   RETURN
-    The access priviliges for the field db_name.table_name.field_name
+    The access privileges for the field db_name.table_name.field_name
 */
 
 ulong get_column_grant(THD *thd, GRANT_INFO *grant, const char *db_name,
@@ -4781,14 +4781,14 @@ bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
 
   /*
     For a SHOW GRANTS USING one needs to check if the session has access to
-    the roles specied in the USING clause.
+    the roles specified in the USING clause.
     But if there's no USING clause the list of active session roles is used
-    insetad. But since this list is a copy into the thread's security context
+    instead. But since this list is a copy into the thread's security context
     the active roles might have stopped being granted into the global
     structure.
     Thus a check if these are still granted might fail.
-    So we skip the check if there's no explict USING knowing that the check
-    has already been perfromed for these when they were set.
+    So we skip the check if there's no explicit USING knowing that the check
+    has already been performed for these when they were set.
   */
   if (have_using_clause) {
     std::vector<Role_id> mandatory_roles;
@@ -5575,7 +5575,7 @@ bool acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
 
 /**
   Grantee is of form 'user'@'hostname', so add +1 for '@' and +4 for the
-  single qoutes. And +1 for null byte too.
+  single quotes. And +1 for null byte too.
 
   Note that we use USERNAME_LENGTH and not USERNAME_CHAR_LENGTH here
   because the username can be utf8.
@@ -6157,7 +6157,7 @@ void get_granted_roles(Role_vertex_descriptor &v,
   Activates all roles granted to the auth_id.
 
   @param  [in]  acl_user ACL_USER for which all granted roles to be activated.
-  @param  [in]  sctx     Push the activated role to secruity context
+  @param  [in]  sctx     Push the activated role to security context
 */
 void activate_all_granted_roles(const ACL_USER *acl_user,
                                 Security_context *sctx) {
@@ -6175,7 +6175,7 @@ void activate_all_granted_roles(const ACL_USER *acl_user,
 /**
   Activates all the mandatory roles for the current user
 
-  @param  [in]  sctx     Push the activated role to secruity context
+  @param  [in]  sctx     Push the activated role to security context
 */
 void activate_all_mandatory_roles(Security_context *sctx) {
   assert(assert_acl_cache_read_lock(current_thd));

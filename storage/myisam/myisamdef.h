@@ -207,7 +207,7 @@ struct MYISAM_SHARE { /* Shared between opens */
   ulong last_process;    /* For table-change-check */
   ulong last_version;    /* Version on start */
   ulong options;         /* Options used */
-  ulong min_pack_length; /* Theese are used by packed data */
+  ulong min_pack_length; /* These are used by packed data */
   ulong max_pack_length;
   ulong state_diff_length;
   uint rec_reflength; /* rec_reflength in use now */
@@ -284,7 +284,7 @@ struct MI_INFO {
   my_off_t last_search_keypage; /* Last keypage when searching */
   my_off_t dupp_key_pos;
   ha_checksum checksum; /* Temp storage for row checksum */
-  /* QQ: the folloing two xxx_length fields should be removed,
+  /* QQ: the following two xxx_length fields should be removed,
      as they are not compatible with parallel repair */
   ulong packed_length, blob_length;    /* Length of found, packed record */
   int dfile;                           /* The datafile */
@@ -304,7 +304,7 @@ struct MI_INFO {
   uint save_update;        /* When using KEY_READ */
   int save_lastinx;
   LIST open_list;
-  IO_CACHE rec_cache;        /* When cacheing records */
+  IO_CACHE rec_cache;        /* When caching records */
   uint preload_buff_size;    /* When preloading indexes */
   myf lock_wait;             /* is 0 or MY_DONT_WAIT */
   bool was_locked;           /* Was locked in panic */
@@ -693,7 +693,7 @@ struct MI_BLOCK_INFO { /* Parameter to _mi_get_block_info */
 #define BLOCK_SYNC_ERROR 16  /* Right data at wrong place */
 #define BLOCK_FATAL_ERROR 32 /* hardware-error */
 
-#define NEED_MEM ((uint)10 * 4 * (IO_SIZE + 32) + 32) /* Nead for recursion */
+#define NEED_MEM ((uint)10 * 4 * (IO_SIZE + 32) + 32) /* Needed for recursion */
 #define MAXERR 20
 #define BUFFERS_WHEN_SORTING 16    /* Alloc for sort-key-tree */
 #define MY_HOW_OFTEN_TO_WRITE 1000 /* How often we want info on screen */

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -614,7 +614,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
 
   /*
     Commit the statement locally instead of relying on caller,
-    in order to be sure that it is  successfull, before changing
+    in order to be sure that it is successful, before changing
     options of current database.
   */
   if (trans_commit_stmt(thd) || trans_commit(thd)) return true;
@@ -963,7 +963,7 @@ static bool find_unknown_and_remove_deletable_files(THD *thd, MY_DIR *dirp,
     char *extension;
     DBUG_PRINT("info", ("Examining: %s", file->name));
 
-    /* skiping . and .. */
+    /* skipping . and .. */
     if (file->name[0] == '.' &&
         (!file->name[1] || (file->name[1] == '.' && !file->name[2])))
       continue;
@@ -1144,7 +1144,7 @@ long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path) {
     char *extension, *revision;
     DBUG_PRINT("info", ("Examining: %s", file->name));
 
-    /* skiping . and .. */
+    /* skipping . and .. */
     if (file->name[0] == '.' &&
         (!file->name[1] || (file->name[1] == '.' && !file->name[2])))
       continue;
@@ -1532,7 +1532,7 @@ done:
   forced @see mysql_change_db()
   @param[out]     cur_db_changed  out-flag to indicate whether the current
                                   database has been changed (valid only if
-                                  the function suceeded)
+                                  the function succeeded)
 */
 
 bool mysql_opt_change_db(THD *thd, const LEX_CSTRING &new_db_name,

@@ -520,8 +520,8 @@ bool Item_sum::clean_up_after_removal(uchar *arg [[maybe_unused]]) {
     Don't do anything if
     1) this is an unresolved item (This may happen if an
        expression occurs twice in the same query. In that case, the
-       whole item tree for the second occurence is replaced by the
-       item tree for the first occurence, without calling fix_fields()
+       whole item tree for the second occurrence is replaced by the
+       item tree for the first occurrence, without calling fix_fields()
        on the second tree. Therefore there's nothing to clean up.), or
     If it is a grouped aggregate,
     2) there is no inner_sum_func_list, or
@@ -677,7 +677,7 @@ Field *Item_sum::create_tmp_field(bool, TABLE *table) {
       break;
     case ROW_RESULT:
     default:
-      // This case should never be choosen
+      // This case should never be chosen
       assert(0);
       return nullptr;
   }
@@ -983,7 +983,7 @@ static enum enum_field_types calc_tmp_field_type(
 
 /***************************************************************************/
 
-/* Declarations for auxilary C-callbacks */
+/* Declarations for auxiliary C-callbacks */
 
 static int simple_raw_key_cmp(const void *arg, const void *key1,
                               const void *key2) {
@@ -1002,7 +1002,7 @@ static int item_sum_distinct_walk(void *element, element_count, void *item) {
   @param thd Thread descriptor
   @return status
     @retval false success
-    @retval true  faliure
+    @retval true  failure
 
     Prepares Aggregator_distinct to process the incoming stream.
     Creates the temporary table and the Unique class if needed.
@@ -1734,7 +1734,7 @@ bool Item_sum_hybrid::fix_fields(THD *thd, Item **ref) {
   hybrid_type = item->result_type();
 
   if (setup_hybrid(args[0], nullptr)) return true;
-  /* MIN/MAX can return NULL for empty set indepedent of the used column */
+  /* MIN/MAX can return NULL for empty set independent of the used column */
   set_nullable(true);
   result_field = nullptr;
   null_value = true;
@@ -2401,7 +2401,7 @@ Item *Item_sum_std::copy_or_same(THD *thd) {
 
 /*
   Variance function has two implementations:
-  The first implementation (Algorthm I - see Item_sum_variance) is based
+  The first implementation (Algorithm I - see Item_sum_variance) is based
   on Knuth's _TAoCP_, 3rd ed, volume 2, pg232. This alters the value at
   m, s, and increments count.
   The second implementation (Algorithm II - See Item_sum_variance)
@@ -2415,7 +2415,7 @@ Item *Item_sum_std::copy_or_same(THD *thd) {
   variance_fp_recurrence_next calculates the recurrence values m,s used in
   algorithm I.
   add_sample/remove_sample calculates the recurrence values m,s,s2 used in
-  algorthm II.
+  algorithm II.
 */
 
 /**
@@ -2506,17 +2506,17 @@ static void variance_fp_recurrence_next(double *m, double *s, double *s2,
   Calculates variance using one of the two algorithms
   (See Item_sum_variance) as specified.
 
-  @param[in] s                  recurrence value
+  @param[in] s                  Recurrence value
   @param[in] s2                 Square of the recurrence value. Used
                                 only by Algorithm II
   @param[in] count              Number of rows for which variance needs
                                 to be calculated.
-  @param[in] is_sample_variance true if calculating sample variance and
+  @param[in] is_sample_variance True if calculating sample variance and
                                 false if population variance.
-  @param[in] optimize           true if algorthm II is used to calculate
+  @param[in] optimize           True if algorithm II is used to calculate
                                 variance.
 
-  @retval                       returns calculated variance value
+  @retval                       Returns calculated variance value
 
 */
 static double variance_fp_recurrence_result(double s, double s2,
@@ -2580,7 +2580,7 @@ bool Item_sum_variance::resolve_type(THD *thd) {
   /*
     According to the SQL2003 standard (Part 2, Foundations; sec 10.9,
     aggregate function; paragraph 7h of Syntax Rules), "the declared
-    type of the result is an implementation-defined aproximate numeric
+    type of the result is an implementation-defined approximate numeric
     type.
   */
   set_data_type_double();
@@ -2654,7 +2654,7 @@ double Item_sum_variance::val_real() {
     is one or zero.  If it's zero, i.e. a population variance, then we only
     set nullness when the count is zero.
 
-    Another way to read it is that 'sample' is the numerical threshhold, at and
+    Another way to read it is that 'sample' is the numerical threshold, at and
     below which a 'count' number of items is called NULL.
   */
   assert((sample == 0) || (sample == 1));
@@ -4508,7 +4508,7 @@ bool Item_func_group_concat::setup(THD *thd) {
   if (order_or_distinct) {
     /*
       Force the create_tmp_table() to convert BIT columns to INT
-      as we cannot compare two table records containg BIT fields
+      as we cannot compare two table records containing BIT fields
       stored in the the tree used for distinct/order by.
       Moreover we don't even save in the tree record null bits
       where BIT fields store parts of their data.
@@ -6115,7 +6115,7 @@ bool Item_func_grouping::fix_fields(THD *thd, Item **ref) {
 
   /*
     More than 64 args cannot be supported as the bitmask which is
-    used to represent the result cannot accomodate.
+    used to represent the result cannot accommodate.
   */
   if (arg_count > 64) {
     my_error(ER_INVALID_NO_OF_ARGS, MYF(0), "GROUPING", arg_count, "64");
@@ -6148,7 +6148,7 @@ bool Item_func_grouping::fix_fields(THD *thd, Item **ref) {
 
   @return
   integer bit mask having 1's for the arguments which have a
-  NULL in their result becuase of ROLLUP operation.
+  NULL in their result because of ROLLUP operation.
 */
 longlong Item_func_grouping::val_int() {
   longlong result = 0;

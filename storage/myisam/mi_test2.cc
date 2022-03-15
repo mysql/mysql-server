@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -763,11 +763,11 @@ static void get_options(int argc, char **argv) {
       case 'b':
         use_blob = 1;
         break;
-      case 'K': /* Use key cacheing */
+      case 'K': /* Use key caching */
         key_cacheing = 1;
         if (*++pos) key_cache_size = atol(pos);
         break;
-      case 'W': /* Use write cacheing */
+      case 'W': /* Use write caching */
         // Now ignored, but accept the option for copmatibility.
         if (*++pos) my_default_record_cache_size = atoi(pos);
         break;

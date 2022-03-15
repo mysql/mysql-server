@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -282,7 +282,7 @@ int str2my_decimal(uint mask, const char *from, size_t length,
 
   @param       lld  The lldiv_t variable to convert from.
   @param       neg  Sign flag (negative, 0 positive).
-  @param [out] dec  Decimal numbert to convert to.
+  @param [out] dec  Decimal number to convert to.
 */
 static my_decimal *lldiv_t2my_decimal(const lldiv_t *lld, bool neg,
                                       my_decimal *dec) {

@@ -1,7 +1,7 @@
 #ifndef SQL_ITERATORS_HASH_JOIN_BUFFER_H_
 #define SQL_ITERATORS_HASH_JOIN_BUFFER_H_
 
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -183,8 +183,8 @@ class HashJoinRowBuffer {
   ///
   /// @retval ROW_STORED the row was stored.
   /// @retval BUFFER_FULL the row was stored, and the buffer is full.
-  /// @retval FATAL_ERROR an unrecoverable error occured (most likely,
-  ///         malloc failed). It is the callers responsibility to call
+  /// @retval FATAL_ERROR an unrecoverable error occurred (most likely,
+  ///         malloc failed). It is the caller's responsibility to call
   ///         my_error().
   StoreRowResult StoreRow(THD *thd, bool reject_duplicate_keys,
                           bool store_rows_with_null_in_condition);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -209,7 +209,7 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
       /*
         An arbitrary limitation based on the assumption that passwords
         larger than e.g. 15 symbols don't contribute to security.
-        Note also that it's furter restricted to RSA_size() - 41 down
+        Note also that it's further restricted to RSA_size() - 41 down
         below, so this leaves 471 bytes of possible RSA key sizes which
         should be reasonably future-proof.
         We avoid heap allocation for speed reasons.

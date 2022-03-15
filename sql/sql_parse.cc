@@ -369,7 +369,7 @@ bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables) {
 
 /**
   Returns whether the command in thd->lex->sql_command should cause an
-  implicit commit. An active transaction should be implicitly commited if the
+  implicit commit. An active transaction should be implicitly committed if the
   statement requires so.
 
   @param thd    Thread handle.
@@ -1551,7 +1551,7 @@ void call_gr_incoming_connection_cb(THD *thd, int fd, SSL *ssl_ctx) {
   copied by and into Item_param. So we don't want to duplicate this.
   @sa @ref Item_param
 
-  @param thd the thread to copy the parmeters to.
+  @param thd the thread to copy the parameters to.
   @param parameters the values to copy
   @param count the number of parameters to copy
 */
@@ -2368,7 +2368,7 @@ done:
       cn.c_str(), cn.length());
 
   /* command_end is informational only. The plugin cannot abort
-     execution of the command at thie point. */
+     execution of the command at this point. */
   mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_COMMAND_END), command,
                      cn.c_str());
 
@@ -2588,7 +2588,7 @@ static bool sp_process_definer(THD *thd) {
         case, we should assign CURRENT_USER as definer.
 
       - Our slave received an updated from the master, that does not
-        replicate definer for stored rountines. We should also assign
+        replicate definer for stored routines. We should also assign
         CURRENT_USER as definer here, but also we should mark this routine
         as NON-SUID. This is essential for the sake of backward
         compatibility.
@@ -2709,7 +2709,7 @@ retry:
         if (deadlock_handler.need_reopen()) {
           /*
             Deadlock occurred during upgrade of metadata lock.
-            Let us restart acquring and opening tables for LOCK TABLES.
+            Let us restart acquiring and opening tables for LOCK TABLES.
           */
           thd->pop_internal_handler();
           close_tables_for_reopen(thd, &tables, mdl_savepoint);
@@ -3677,7 +3677,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_UNLOCK_TABLES:
       /*
         It is critical for mysqldump --single-transaction --source-data that
-        UNLOCK TABLES does not implicitely commit a connection which has only
+        UNLOCK TABLES does not implicitly commit a connection which has only
         done FLUSH TABLES WITH READ LOCK + BEGIN. If this assumption becomes
         false, mysqldump will not work.
       */
@@ -4270,7 +4270,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
           /*
             We're going to issue an implicit GRANT statement so we close all
             open tables. We have to keep metadata locks as this ensures that
-            this statement is atomic against concurent FLUSH TABLES WITH READ
+            this statement is atomic against concurrent FLUSH TABLES WITH READ
             LOCK. Deadlocks which can arise due to fact that this implicit
             statement takes metadata locks should be detected by a deadlock
             detector in MDL subsystem and reported as errors.
@@ -4423,7 +4423,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
       /*
         We're going to issue an implicit REVOKE statement so we close all
         open tables. We have to keep metadata locks as this ensures that
-        this statement is atomic against concurent FLUSH TABLES WITH READ
+        this statement is atomic against concurrent FLUSH TABLES WITH READ
         LOCK. Deadlocks which can arise due to fact that this implicit
         statement takes metadata locks should be detected by a deadlock
         detector in MDL subsystem and reported as errors.
@@ -5487,7 +5487,7 @@ bool Alter_info::add_field(
     }
     /*
       Move column check constraint specifications to table check constraints
-      specfications list.
+      specifications list.
     */
     std::move(col_check_const_spec_list->begin(),
               col_check_const_spec_list->end(),
@@ -6279,7 +6279,7 @@ bool Query_expression::add_fake_query_block(THD *thd) {
 
   @param pc        current parse context
   @param left_op   left  operand of the JOIN
-  @param right_op  rigth operand of the JOIN
+  @param right_op  right operand of the JOIN
 
   @retval
     false  if all is OK
@@ -6713,7 +6713,7 @@ LEX_USER *create_default_definer(THD *thd) {
 }
 
 /**
-  Retuns information about user or current user.
+  Returns information about user or current user.
 
   @param[in] thd          thread handler
   @param[in] user         user

@@ -409,7 +409,7 @@ static int lock_table(MYSQL *mysql, int tablecount, char **raw_tablename) {
     dynstr_append(&query, " WRITE,");
   }
   if (mysql_real_query(mysql, query.str, (ulong)(query.length - 1)))
-    return db_error(mysql); /* We shall countinue here, if --force was given */
+    return db_error(mysql); /* We shall continue here, if --force was given */
   return 0;
 }
 
@@ -544,7 +544,7 @@ static char *field_escape(char *to, const char *from, uint length) {
       end_backslashes ^= 1; /* find odd number of backslashes */
     else {
       if (*from == '\'' && !end_backslashes)
-        *to++ = *from; /* We want a dublicate of "'" for MySQL */
+        *to++ = *from; /* We want a duplicate of "'" for MySQL */
       end_backslashes = 0;
     }
   }
@@ -571,7 +571,7 @@ static void *worker_thread(void *arg) {
   if (mysql_query(mysql, "/*!40101 set @@character_set_database=binary */;") &&
       (error = db_error(mysql))) {
     if (exitcode == 0) exitcode = error;
-    /* We shall countinue here, if --force was given */
+    /* We shall continue here, if --force was given */
     goto error;
   }
 
@@ -691,7 +691,7 @@ int main(int argc, char **argv) {
                     "/*!40101 set @@character_set_database=binary */;") &&
         (error = db_error(mysql))) {
       if (exitcode == 0) exitcode = error;
-      /* We shall countinue here, if --force was given */
+      /* We shall continue here, if --force was given */
       goto end;
     }
 

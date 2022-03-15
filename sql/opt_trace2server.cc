@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -328,7 +328,7 @@ void opt_trace_disable_if_no_security_context_access(THD *thd) {
   }
   /*
     Note that thd->m_main_security_ctx.master_access is probably invariant
-    accross the life of THD: GRANT/REVOKE don't affect global privileges of an
+    across the life of THD: GRANT/REVOKE don't affect global privileges of an
     existing connection, per the manual.
   */
   if (!(thd->m_main_security_ctx.check_access(GLOBAL_ACLS & ~GRANT_ACL)) &&

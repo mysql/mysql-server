@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -610,7 +610,7 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
     a list to begin with, or we just emptied the local version.
     Since we also emptied the global version at the top, whatever's
     in there now (still empty, or new events attached while we were
-    processing) is now authoritive, and no change is needed here.
+    processing) is now authoritative, and no change is needed here.
 
     If local_head is non-NULL, we started with a non-empty local list
     and mode was KEEP. In that case, we merge the local list back into

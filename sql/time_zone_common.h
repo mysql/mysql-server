@@ -1,6 +1,6 @@
 #ifndef TIME_ZONE_COMMON_H
 #define TIME_ZONE_COMMON_H
-/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -131,7 +131,7 @@ struct TIME_ZONE_INFO {
     Note: See description of TIME_to_gmt_sec() function first.
     In order to perform MYSQL_TIME -> my_time_t conversion we need to build
   table which defines "shifted by tz offset and leap seconds my_time_t" ->
-    my_time_t function wich is almost the same (except ranges of ambiguity)
+    my_time_t function which is almost the same (except ranges of ambiguity)
     as reverse function to piecewise linear function used for my_time_t ->
     "shifted my_time_t" conversion and which is also specified as table in
     zoneinfo file or in our db (It is specified as start of time type ranges

@@ -32,14 +32,14 @@
   The differences for the two cases are:
 
   - Things that only works for the client:
-  - Trying to automaticly determinate user name if not supplied to
+  - Trying to automatically determine user name if not supplied to
     mysql_real_connect()
   - Support for reading local file with LOAD DATA LOCAL
   - SHARED memory handling
   - Prepared statements
   - Things that only works for the server
 
-  In all other cases, the code should be idential for the client and
+  In all other cases, code should be identical for the client and
   server.
 */
 
@@ -755,7 +755,7 @@ inline bool buffer_check_remaining(MYSQL *mysql, uchar *packet,
 
 /*
   Helper function to safely read a variable size from a buffer.
-  If the buffer is too small it raises CR_MALFORMED_PACKET_ERROR
+  If the buffer is too small, it raises CR_MALFORMED_PACKET_ERROR
   and sets is_error to true.
   Otherwise it sets is_error to false and calls @ref inet_field_length_ll.
 
@@ -763,7 +763,7 @@ inline bool buffer_check_remaining(MYSQL *mysql, uchar *packet,
 
   @param mysql the handle to return an error in
   @param [in,out] packet pointer to the buffer to read the length from
-  @param packet_length  remining bytes in packet
+  @param packet_length  remaining bytes in packet
   @param [out] is_error set to true if the buffer contains no room for a
   full length, false otherwise.
   @return the size read.
@@ -1099,7 +1099,7 @@ static ulong cli_safe_read_with_ok_complete(MYSQL *mysql, bool parse_ok,
 
 /**
   Read a packet from server in asynchronous way. This function can return
-  without completly reading the packet, in such a case call this function
+  without completely reading the packet, in such a case call this function
   again until complete packet is read.
 
   @param[in]  mysql           connection handle
@@ -1612,9 +1612,9 @@ void free_old_query(MYSQL *mysql) {
 
 /**
   Finish reading of a partial result set from the server in asynchronous
-  way. This function can return without completly flushing the result set,
+  way. This function can return without completely flushing the result set,
   in such a case call this function again until result set in flushed.
-  Read OK packet incase result set is not a data packet.
+  Read OK packet in case result set is not a data packet.
 
   @param[in]  mysql           connection handle
   @param[out] res             true in case of protocol error, false otherwise
@@ -2776,7 +2776,7 @@ static int read_com_query_metadata(MYSQL *mysql, uchar *pos,
   @param[in]    pos             Position in the packet where the metadata
                                 starts.
   @param[in]    field_count     Number of columns in the field descriptor.
-  @param[out]   res             set to false incase of success and true for
+  @param[out]   res             set to false in case of success and true for
   error.
 
   @retval     NET_ASYNC_NOT_READY  metadata resultset not read completely
@@ -3249,12 +3249,12 @@ MYSQL *STDCALL mysql_init(MYSQL *mysql) {
     mysql_reconnect()).
     This is a change: < 5.0.3 mysql->reconnect was set to 1 by default.
     How this change impacts existing apps:
-    - existing apps which relyed on the default will see a behaviour change;
+    - existing apps which relied on the default will see a behaviour change;
     they will have to set reconnect=1 after mysql_real_connect().
-    - existing apps which explicitely asked for reconnection (the only way they
+    - existing apps which explicitly asked for reconnection (the only way they
     could do it was by setting mysql.reconnect to 1 after mysql_real_connect())
     will not see a behaviour change.
-    - existing apps which explicitely asked for no reconnection
+    - existing apps which explicitly asked for no reconnection
     (mysql.reconnect=0) will not see a behaviour change.
   */
   mysql->reconnect = false;
@@ -3413,7 +3413,7 @@ static void mysql_ssl_free(MYSQL *mysql) {
   Return the SSL cipher (if any) used for current
   connection to the server.
 
-  SYNOPSYS
+  SYNOPSIS
     mysql_get_ssl_cipher()
       mysql pointer to the mysql connection
 
@@ -4128,7 +4128,7 @@ static size_t get_length_store_length(size_t length) {
 }
 
 /*
-  Write 1-8 bytes of string length header infromation to dest depending on
+  Write 1-8 bytes of string length header information to dest depending on
   value of src_len, then copy src_len bytes from src to dest.
 
  @param dest Destination buffer of size src_len+8
@@ -4307,7 +4307,7 @@ static char *mysql_fill_packet_header(MYSQL *mysql, char *buff,
 }
 
 /**
-  Calcualtes client capabilities in effect (mysql->client_flag)
+  Calculates client capabilities in effect (mysql->client_flag)
 
   Needs to be called immediately after receiving the server handshake packet.
 
@@ -4498,7 +4498,7 @@ error:
   ssl connection is established state is changed to SSL_COMPLETE.
 
   @param[in]    mysql           Client connection handle.
-  @param[out]   res             set to false incase of success and true for
+  @param[out]   res             set to false in case of success and true for
   error.
 
   @retval     NET_ASYNC_NOT_READY  ssl connection not yet established
@@ -4716,7 +4716,7 @@ static mysql_state_machine_status authsm_handle_multi_auth_response(
   4. Parse the handshake from the server
   5. Establish SSL connection if needed
   6. Invoke the plugin to send the authentication data to the server
-  7. Authenticated, set intial database if specified
+  7. Authenticated, set initial database if specified
   8. Send COM_INIT_DB.
   9. Prepare to send a sequence of init commands.
   10.Send an init command.
@@ -4784,7 +4784,7 @@ int mysql_get_socket_descriptor(MYSQL *mysql) {
           Authentication Method indicated by the plugin name field.</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
       <td>database</td>
-      <td>initail database for the connection.
+      <td>initial database for the connection.
       This string should be interpreted using the character set indicated by
       character set field.</td></tr>
   <tr><td colspan="3">} else {</td></tr>
@@ -4852,7 +4852,7 @@ int mysql_get_socket_descriptor(MYSQL *mysql) {
   <tr><td colspan="3">if capabilities @& ::CLIENT_CONNECT_WITH_DB {</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
       <td>database</td>
-      <td>initail database for the connection.
+      <td>initial database for the connection.
       This string should be interpreted using the character set indicated by
       character set field.</td></tr>
   <tr><td colspan="3">}</td></tr>
@@ -5497,7 +5497,7 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
   ctx.data_plugin = data_plugin;
   ctx.db = db;
   ctx.non_blocking = false;
-  /* set intial auth factor to be first factor */
+  /* set initial auth factor to be first factor */
   ctx.current_factor_index = 0;
   ctx.state_function = authsm_begin_plugin_auth;
 
@@ -5511,8 +5511,8 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
 
 /**
   This functions drives the authentication on client side in a nonblocking
-  way. This function will call differnt modules in a sequence where each
-  module is responsible to acheive a particular part in entire authentication
+  way. This function will call different modules in a sequence where each
+  module is responsible to achieve a particular part in entire authentication
   phase.
 
   @note this is used by both the mysql_real_connect_nonblocking
@@ -6096,7 +6096,7 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
   DBUG_PRINT("error", ("message: %u/%s (%s)", mysql->net.last_errno,
                        mysql->net.sqlstate, mysql->net.last_error));
   {
-    /* Free alloced memory */
+    /* Free allocated memory */
     end_server(mysql);
     mysql_close_free(mysql);
     if (!(ctx.client_flag & CLIENT_REMEMBER_OPTIONS))
@@ -6177,7 +6177,7 @@ net_async_status STDCALL mysql_real_connect_nonblocking(
   if (status == STATE_MACHINE_FAILED) {
     DBUG_PRINT("error", ("message: %u/%s (%s)", mysql->net.last_errno,
                          mysql->net.sqlstate, mysql->net.last_error));
-    /* Free alloced memory */
+    /* Free allocated memory */
     end_server(mysql);
     mysql_close_free(mysql);
     if (!(mysql->options.client_flag & CLIENT_REMEMBER_OPTIONS))
@@ -6937,7 +6937,7 @@ static mysql_state_machine_status csm_authenticate(mysql_async_connect *ctx) {
 }
 
 /**
-  Authenticated, set intial database if specified
+  Authenticated, set initial database if specified
 */
 static mysql_state_machine_status csm_prep_select_database(
     mysql_async_connect *ctx) {
@@ -7327,7 +7327,7 @@ int STDCALL mysql_select_db(MYSQL *mysql, const char *db) {
 
 /*************************************************************************
   Send a QUIT to the server and close the connection
-  If handle is alloced by mysql connect free it.
+  If handle is allocated by mysql connect free it.
 *************************************************************************/
 
 void mysql_close_free_options(MYSQL *mysql) {
@@ -7438,7 +7438,7 @@ static void mysql_prune_stmt_list(MYSQL *mysql) {
   to give error on attempt to use a prepared statement of closed
   connection.
 
-  SYNOPSYS
+  SYNOPSIS
     mysql_detach_stmt_list()
       stmt_list  pointer to mysql->stmts
       func_name  name of calling function
@@ -8356,7 +8356,7 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
       mysql->options.compress = true; /* Remember for connect */
       mysql->options.client_flag |= CLIENT_COMPRESS;
       break;
-    case MYSQL_OPT_NAMED_PIPE: /* This option is depricated */
+    case MYSQL_OPT_NAMED_PIPE: /* This option is deprecated */
       mysql->options.protocol = MYSQL_PROTOCOL_PIPE; /* Force named pipe */
       break;
     case MYSQL_OPT_LOCAL_INFILE: /* Allow LOAD DATA LOCAL ?*/

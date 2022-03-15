@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ char *strmake(char *dst, const char *src, size_t length) {
 #ifdef EXTRA_DEBUG
   /*
     'length' is the maximum length of the string; the buffer needs
-    to be one character larger to accomodate the terminating '\0'.
+    to be one character larger to accommodate the terminating '\0'.
     This is easy to get wrong, so we make sure we write to the
     entire length of the buffer to identify incorrect buffer-sizes.
     We only initialise the "unused" part of the buffer here, a) for

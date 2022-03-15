@@ -185,7 +185,7 @@ bool Gtid_table_access_context::deinit(THD *thd, TABLE *table, bool error,
   /*
     If Gtid is inserted through Attachable_trx_rw its has been done
     in the above close_table() through ha_commit_trans().
-    It does not have any side effect to the global transaction state
+    It does not have any side effect on the global transaction state
     as the only vulnerable part there relates to gtid (and is blocked
     from recursive invocation).
   */
@@ -193,7 +193,7 @@ bool Gtid_table_access_context::deinit(THD *thd, TABLE *table, bool error,
     thd->end_attachable_transaction();
 
   thd->is_operating_gtid_table_implicitly = false;
-  /* Reenable binlog */
+  /* Re-enable binlog */
   if (m_is_write)
     thd->variables.option_bits = m_tmp_disable_binlog__save_options;
   if (this->m_skip_readonly_set) {
@@ -609,7 +609,7 @@ int Gtid_table_persistor::reset(THD *thd) {
     error = 1;
     goto end;
   }
-  /* Reseting the counter as gtid_executed table will also
+  /* Resetting the counter as gtid_executed table will also
      be emptied.
   */
   m_atomic_count = 0;

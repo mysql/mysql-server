@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,7 +98,7 @@ Sql_string_t ext_files[] = {create_string("cav3.ext"),
 #define MAX_PATH_LEN \
   (FN_REFLEN - strlen(FN_DIRSEP) - cert_files[SERVER_CERT].length() - 1)
 /*
-  Higest number of fixed characters in subject line is 47:
+  Highest number of fixed characters in subject line is 47:
   MySQL_SERVER_<suffix>_Auto_Generated_Server_Certificate
   Maximum size of subject is 64. So suffix can't be longer
   than 17 characters.

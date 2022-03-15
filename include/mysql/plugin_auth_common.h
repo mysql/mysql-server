@@ -1,5 +1,5 @@
 #ifndef MYSQL_PLUGIN_AUTH_COMMON_INCLUDED
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -176,7 +176,7 @@ typedef struct MYSQL_PLUGIN_VIO {
                                                    int *result);
   /**
     Non blocking version of write_packet. Sends data available in pkt of length
-    pkt_len to server in asynchrnous way.
+    pkt_len to server in asynchronous way.
   */
   enum net_async_status (*write_packet_nonblocking)(
       struct MYSQL_PLUGIN_VIO *vio, const unsigned char *pkt, int pkt_len,

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ namespace Base {
 namespace Options {
 
 /**
-  Disabled option. This option is used to mark existance of options
+  Disabled option. This option is used to mark existence of options
   inavailable due to distribution configuration.
  */
 class Disabled_option : public Abstract_option<Disabled_option> {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ class Binlog_sender {
   ~Binlog_sender() = default;
 
   /**
-    It checks the dump reqest and sends events to the client until it finish
+    It checks the dump request and sends events to the client until it finish
     all events(for mysqlbinlog) or encounters an error.
   */
   void run();
@@ -124,7 +124,7 @@ class Binlog_sender {
 
   /*
    * The size of the buffer next time we shrink it.
-   * This variable is updated once everytime we shrink or grow the buffer.
+   * This variable is updated once every time we shrink or grow the buffer.
    */
   size_t m_new_shrink_size;
 
@@ -357,7 +357,7 @@ class Binlog_sender {
     DDL statement
 
     @param[in] event_ptr  Buffer of the event
-    @param[in] in_exclude_group  If it is in a execude group
+    @param[in] in_exclude_group  If it is in a exclude group
 
     @return It returns true if it should be skipped, otherwise false is turned.
   */

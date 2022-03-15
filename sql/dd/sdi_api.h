@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,7 +72,7 @@ class Import_target {
     Creates an instance to handle the import of a single sdi file.
     @param path full path to an sdi file to import
     @param in_datadir true if the file is located somewhere under the
-           server's data directrory.
+           server's data directory.
    */
   Import_target(String_type &&path, bool in_datadir);
 
@@ -146,7 +146,7 @@ class Import_target {
   TABLE_LIST make_table_list() const;
 
   /**
-    Upadate the schema reference in the Table object and store
+    Update the schema reference in the Table object and store
     it in the DD so that it becomes visible. Precondition: The
     Import_target must be loaded and privileges checked before this
     member function is called.

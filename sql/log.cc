@@ -414,7 +414,7 @@ bool is_valid_log_name(const char *name, size_t len) {
 
   On other platforms, we use realpath() to get the path with symbolic links
   expanded. Then, we close the file, and reopen the real path using the
-  O_NOFOLLOW flag. This will reject folowing symbolic links.
+  O_NOFOLLOW flag. This will reject following symbolic links.
 
   @param          file                  File descriptor.
   @param          log_file_key          Key for P_S instrumentation.
@@ -1604,7 +1604,7 @@ bool log_slow_applicable(THD *thd) {
 
   /*
     The following should never be true with our current code base,
-    but better to keep this here so we don't accidently try to log a
+    but better to keep this here so we don't accidentally try to log a
     statement in a trigger or stored function
   */
   if (unlikely(thd->in_sub_stmt)) return false;  // Don't set time for sub stmt
@@ -2052,7 +2052,7 @@ my_thread_id log_get_thread_id(THD *thd) { return thd->thread_id(); }
   LOG_ITEM_LOG_LOOKUP, ER_CANT_SET_DATA_DIR, filename, errno, strerror(errno)
 
   If no message is to be included (this should never be the case for the
-  erorr log), LOG_ITEM_END may be used instead to terminate the list.
+  error log), LOG_ITEM_END may be used instead to terminate the list.
 
   @param           log_type             what log should this go to?
   @param           fili                 field list:

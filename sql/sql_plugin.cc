@@ -260,7 +260,7 @@
 
   When that is filled in the plugin can use the newly set server structure
   through its local pointer to call into the service method pointers that point
-  to the server implementaiton functions.
+  to the server implementation functions.
 
   Once set to the server's structure, the plugin's service pointer value is
   never reset back to service version.
@@ -441,7 +441,7 @@ mysql_mutex_t LOCK_plugin_delete;
 
   LOCK_plugin must be acquired before accessing
   plugin_dl_array, plugin_array and plugin_hash.
-  We are always manipulating ref count, so a rwlock here is unneccessary.
+  We are always manipulating ref count, so a rwlock here is unnecessary.
   If it must be taken together with the LOCK_system_variables_hash then
   LOCK_plugin must be taken after LOCK_system_variables_hash.
 */
@@ -2739,7 +2739,7 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs, int type,
 
   for (; *funcs != nullptr; ++funcs) {
     /* Call binlog engine function first. This is required as GTID is generated
-    by binlog to be used by othe SE. */
+    by binlog to be used by other SE. */
     if (found_binlog) {
       assert(type == MYSQL_STORAGE_ENGINE_PLUGIN);
       plugin = plugins[binlog_index];
@@ -2778,7 +2778,7 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func, int type,
 ****************************************************************************/
 
 /*
-  returns a bookmark for thd-local variables, creating if neccessary.
+  returns a bookmark for thd-local variables, creating if necessary.
   returns null for non thd-local variables.
   Requires that a write lock is obtained on LOCK_system_variables_hash
 */
@@ -3193,7 +3193,7 @@ bool get_one_plugin_option(int, const struct my_option *, char *) {
 
   The set is stored in the pre-allocated static array supplied to the function.
   The size of the array is calculated as (number_of_plugin_varaibles*2+3). The
-  reason is that each option can have a prefix '--plugin-' in addtion to the
+  reason is that each option can have a prefix '--plugin-' in addition to the
   shorter form '--&lt;plugin-name&gt;'. There is also space allocated for
   terminating NULL pointers.
 

@@ -90,7 +90,7 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
       common_header_len = LOG_EVENT_HEADER_LEN;
       number_of_event_types = LOG_EVENT_TYPES;
       /**
-        This will be used to initialze the post_header_len,
+        This will be used to initialize the post_header_len,
         for binlog version 4.
       */
       static uint8_t server_event_header_length[] = {

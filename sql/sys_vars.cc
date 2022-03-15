@@ -1019,7 +1019,7 @@ static Sys_var_charptr Sys_basedir(
     CMD_LINE(REQUIRED_ARG, 'b'), IN_FS_CHARSET, DEFAULT(nullptr));
 
 /*
-  --authentication_policy will take precendence over this variable
+  --authentication_policy will take precedence over this variable
   except in case where plugin name for first factor is not a concrete
   value. Please refer authentication_policy variable.
 */
@@ -1909,7 +1909,7 @@ static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_database(
 static bool check_cs_client(sys_var *self, THD *thd, set_var *var) {
   if (check_charset_not_null(self, thd, var)) return true;
 
-  // We don't currently support any variable-width character set with a minumum
+  // We don't currently support any variable-width character set with a minimum
   // length greater than 1. If we ever do, we have to revisit
   // is_supported_parser_charset(). See Item_func_statement_digest::val_str()
   // and Item_func_statement_digest_text::val_str().
@@ -2144,7 +2144,7 @@ static bool event_scheduler_update(sys_var *, THD *, enum_var_type) {
     start/stop, there is a possibility that the server variable
     can become out of sync with the real event scheduler state.
 
-    This can happen with two concurrent statments if the first gets
+    This can happen with two concurrent statements if the first gets
     interrupted after start/stop but before retaking
     LOCK_global_system_variables. However, this problem should be quite
     rare and it's difficult to avoid it without opening up possibilities
@@ -6842,7 +6842,7 @@ static bool handle_offline_mode(sys_var *, THD *thd, enum_var_type) {
   DEBUG_SYNC(thd, "after_lock_offline_mode_acquire");
 
   if (mysqld_offline_mode()) {
-    // Unlock the global system varaible lock as kill holds LOCK_thd_data.
+    // Unlock the global system variable lock as kill holds LOCK_thd_data.
     mysql_mutex_unlock(&LOCK_global_system_variables);
     killall_non_super_threads(thd);
     mysql_mutex_lock(&LOCK_global_system_variables);

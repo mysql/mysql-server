@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ std::false_type test_for_allocate(...);
 
 }  // namespace traits
 /**
- Struct that allows for checking if `T` fullfils the Allocator named
+ Struct that allows for checking if `T` fulfills the Allocator named
  requirements.
  */
 template <class T>
@@ -155,14 +155,14 @@ class Unique_ptr {
   using reference = type &;
 
   /**
-    Default class constuctor, only to be used with no specific allocator.
+    Default class constructor, only to be used with no specific allocator.
    */
   template <
       typename D = T, typename B = A,
       std::enable_if_t<std::is_same<B, std::nullptr_t>::value> * = nullptr>
   Unique_ptr();
   /**
-    Class constuctor, to be used with specific allocators, passing the allocator
+    Class constructor, to be used with specific allocators, passing the allocator
     object to be used.
 
     @param alloc The allocator instance to be used.
@@ -172,7 +172,7 @@ class Unique_ptr {
       std::enable_if_t<!std::is_same<B, std::nullptr_t>::value> * = nullptr>
   Unique_ptr(A &alloc);
   /**
-    Class constuctor, to be used with specific allocators and when `T` is an
+    Class constructor, to be used with specific allocators and when `T` is an
     array type, passing the allocator object to be used and the size of the
     array.
 
@@ -184,7 +184,7 @@ class Unique_ptr {
                              std::is_array<D>::value> * = nullptr>
   Unique_ptr(A &alloc, size_t size);
   /**
-    Class constuctor, to be used with no specific allocators and when `T` is an
+    Class constructor, to be used with no specific allocators and when `T` is an
     array type, passing the allocator object to be used and the size of the
     array.
 
@@ -195,9 +195,9 @@ class Unique_ptr {
                              std::is_array<D>::value> * = nullptr>
   Unique_ptr(size_t size);
   /**
-    Class constuctor, to be used with specific allocators and when `T` is not an
+    Class constructor, to be used with specific allocators and when `T` is not an
     array type, passing the allocator object to be used and the parameters to be
-    used with `T` object contructor.
+    used with `T` object constructor.
 
     @param alloc The allocator instance to be used.
     @param args The parameters to be used with `T` object constructor.
@@ -207,8 +207,8 @@ class Unique_ptr {
                              !std::is_array<D>::value> * = nullptr>
   Unique_ptr(A &alloc, Args &&... args);
   /**
-    Class constuctor, to be used with no specific allocators and when `T` is not
-    an array type, passing the parameters to be used with `T` object contructor.
+    Class constructor, to be used with no specific allocators and when `T` is not
+    an array type, passing the parameters to be used with `T` object constructor.
 
     @param args The parameters to be used with `T` object constructor.
    */
@@ -216,7 +216,7 @@ class Unique_ptr {
             std::enable_if_t<std::is_same<B, std::nullptr_t>::value &&
                              !std::is_array<D>::value> * = nullptr>
   Unique_ptr(Args &&... args);
-  // Deleted copy constuctor
+  // Deleted copy constructor
   Unique_ptr(Unique_ptr<T, A> const &rhs) = delete;
   /**
     Move constructor.
@@ -225,7 +225,7 @@ class Unique_ptr {
    */
   Unique_ptr(Unique_ptr<T, A> &&rhs);
   /**
-    Destructor fot the class.
+    Destructor for the class.
    */
   virtual ~Unique_ptr();
   // Deleted copy operator
@@ -247,7 +247,7 @@ class Unique_ptr {
   /**
     Star operator to access the underlying object of type `T`.
 
-    @return A refernce to the underlying object of type `T`.
+    @return A reference to the underlying object of type `T`.
    */
   reference operator*() const;
   /**
@@ -303,7 +303,7 @@ class Unique_ptr {
   /**
     Will resize the allocated memory to `new_size`. If the configure allocator
     supports this operation, the allocator is used. If not, a new memory chunk
-    is allocted and the memory is copied.
+    is allocated and the memory is copied.
 
     @param new_size The new desired size for the memory.
 
@@ -317,7 +317,7 @@ class Unique_ptr {
   /**
     Will resize the allocated memory to `new_size`. If the configure allocator
     supports this operation, the allocator is used. If not, a new memory chunk
-    is allocted and the memory is copied.
+    is allocated and the memory is copied.
 
     @param new_size The new desired size for the memory.
 
@@ -407,7 +407,7 @@ Unique_ptr<T, std::nullptr_t> make_unique(size_t size);
   In-place constructs a new unique pointer with a specific allocator and with
   array type `T`.
 
-  @param alloc A referenc to the allocator object ot use.
+  @param alloc A reference to the allocator object to use.
   @param size The size of the array to allocate.
 
   @return A new instance of unique pointer.
@@ -419,7 +419,7 @@ Unique_ptr<T, A> make_unique(A &alloc, size_t size);
   In-place constructs a new unique pointer with a specific allocator and with
   non-array type `T`.
 
-  @param alloc A referenc to the allocator object ot use.
+  @param alloc A reference to the allocator object to use.
   @param args The parameters to be used in constructing the instance of `T`.
 
   @return A new instance of unique pointer.

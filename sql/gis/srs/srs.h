@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_SRS_SRS_H_INCLUDED
 #define SQL_GIS_SRS_SRS_H_INCLUDED
 
-// Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -100,7 +100,7 @@ class Spatial_reference_system {
   virtual ~Spatial_reference_system() = default;
 
   /**
-    Get the type of spatial refrence system: projected, geometric,
+    Get the type of spatial reference system: projected, geometric,
     etc.
 
     @return SRS type
@@ -358,7 +358,7 @@ class Projected_srs : public Spatial_reference_system {
 /// A projected SRS of an unknown projection type.
 ///
 /// This SRS can be used as any other projected SRS, but since the
-/// projection type is unkown, geometries in this SRS can't be
+/// projection type is unknown, geometries in this SRS can't be
 /// transformed to other SRSs.
 class Unknown_projected_srs : public Projected_srs {
  public:

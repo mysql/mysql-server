@@ -499,7 +499,7 @@ err : {
 }
 
 /**
-  Create a formated date/time value in a string.
+  Create a formatted date/time value in a string.
 */
 
 bool make_date_time(Date_time_format *format, MYSQL_TIME *l_time,
@@ -1395,7 +1395,7 @@ bool Item_func_week::resolve_type(THD *thd) {
         a date at start of january) In this case one can get 53 for the
         first week of next year.  This flag ensures that the week is
         relevant for the given year. Note that this flag is only
-        releveant if WEEK_JANUARY is not set.
+        relevant if WEEK_JANUARY is not set.
 
                           If set	 Week is in range 1-53.
 
@@ -2129,7 +2129,7 @@ type_conversion_status Item_func_now::save_in_field_inner(Field *to, bool) {
 }
 
 /**
-    Converts current time in my_time_t to MYSQL_TIME represenatation for local
+    Converts current time in my_time_t to MYSQL_TIME representation for local
     time zone. Defines time zone (local) used for whole SYSDATE function.
 */
 bool Item_func_sysdate_local::get_date(MYSQL_TIME *now_time,
@@ -2422,7 +2422,7 @@ bool Item_func_convert_tz::get_date(MYSQL_TIME *ltime,
     bool not_used;
     uint second_part = ltime->second_part;
     my_time_tmp = from_tz->TIME_to_gmt_sec(ltime, &not_used);
-    /* my_time_tmp is guranteed to be in the allowed range */
+    /* my_time_tmp is guaranteed to be in the allowed range */
     if (my_time_tmp) {
       to_tz->gmt_sec_to_TIME(ltime, my_time_tmp);
       ltime->second_part = second_part;
@@ -3130,7 +3130,7 @@ void Item_func_add_time::print(const THD *thd, String *str,
   t and s: time_or_datetime_expression
   @param[out]  l_time3   Result is stored here.
 
-  @retval   false  On succes
+  @retval   false  On success
   @retval   true   On error
 */
 

@@ -157,7 +157,7 @@ class JOIN {
   /// mapping between table indexes and JOIN_TABs
   JOIN_TAB **map2table{nullptr};
   /*
-    The table which has an index that allows to produce the requried ordering.
+    The table which has an index that allows to produce the required ordering.
     A special value of 0x1 means that the ordering will be produced by
     passing 1st non-const table to filesort(). NULL means no such table exists.
   */
@@ -859,7 +859,7 @@ class JOIN {
     Initialize key dependencies for join tables.
 
     TODO figure out necessity of this method. Current test
-         suite passed without this intialization.
+         suite passed without this initialization.
   */
   void init_key_dependencies() {
     JOIN_TAB *const tab_end = join_tab + tables;

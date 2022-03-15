@@ -470,7 +470,7 @@ typedef void (*execute_prepared_stmt_v1_t)(PSI_statement_locker *locker,
                                            PSI_prepared_stmt *prepared_stmt);
 
 /**
-  Set the statement text for a prepared statment event.
+  Set the statement text for a prepared statement event.
   @param prepared_stmt prepared statement.
   @param text the prepared statement text
   @param text_len the prepared statement text length

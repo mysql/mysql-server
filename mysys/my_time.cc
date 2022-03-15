@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -306,7 +306,7 @@ bool time_zone_displacement_to_seconds(const char *str, size_t length,
    Convert a timestamp string to a MYSQL_TIME value.
 
    DESCRIPTION
-      At least the following formats are recogniced (based on number of digits)
+      At least the following formats are recognized (based on number of digits)
       YYMMDD, YYYYMMDD, YYMMDDHHMMSS, YYYYMMDDHHMMSS
       YY-MM-DD, YYYY-MM-DD, YY-MM-DD HH.MM.SS
       YYYYMMDDTHHMMSS  where T is a the character T (ISO8601)
@@ -343,7 +343,7 @@ bool time_zone_displacement_to_seconds(const char *str, size_t length,
       MYSQL_TIMESTAMP_ERROR       Timestamp with wrong values.
                                   All elements in l_time is set to 0
 
-      flags is a bit field with the follwing possible values:
+      flags is a bit field with the following possible values:
        TIME_FUZZY_DATE
        TIME_DATETIME_ONLY
        TIME_NO_ZERO_IN_DATE
@@ -1058,7 +1058,7 @@ long calc_daynr(uint year, uint month, uint day) {
 
 /**
   Convert time in MYSQL_TIME representation in system time zone to its
-  my_time_t form (number of seconds in UTC since begginning of Unix Epoch).
+  my_time_t form (number of seconds in UTC since beginning of Unix Epoch).
 
   @param my_time         - time value to be converted
   @param my_timezone     - pointer to a my_time_t where offset of system time
@@ -1115,7 +1115,7 @@ my_time_t my_system_gmt_sec(const MYSQL_TIME &my_time, my_time_t *my_timezone,
     earlier, and then add these days to the final value.
 
     The same trick is done for the values close to 0 in time_t
-    representation for platfroms with unsigned time_t (QNX).
+    representation for platforms with unsigned time_t (QNX).
 
     To be more verbose, here is a sample (extracted from the code below):
     (calc_daynr(2038, 1, 19) - (long) days_at_timestart)*86400L + 4*3600L
@@ -1127,7 +1127,7 @@ my_time_t my_system_gmt_sec(const MYSQL_TIME &my_time, my_time_t *my_timezone,
     will give -3600.
 
     On some platforms, (E.g. on QNX) time_t is unsigned and localtime(-3600)
-    wil give us a date around 2106 year. Which is no good.
+    will give us a date around 2106 year. Which is no good.
 
     Theoretically, there could be problems with the latter conversion:
     there are at least two timezones, which had time switches near 1 Jan
@@ -1934,7 +1934,7 @@ void TIME_from_longlong_date_packed(MYSQL_TIME *ltime, longlong tmp) {
 
 /**
   On disk we store as unsigned number with DATETIMEF_INT_OFS offset,
-  for HA_KETYPE_BINARY compatibilty purposes.
+  for HA_KETYPE_BINARY compatibility purposes.
 */
 #define DATETIMEF_INT_OFS 0x8000000000LL
 
@@ -2130,7 +2130,7 @@ void get_date_from_daynr(int64_t daynr, uint *ret_year, uint *ret_month,
     if (days_in_year == 366) {
       if (day_of_year > 31 + 28) {
         day_of_year--;
-        if (day_of_year == 31 + 28) leap_day = 1; /* Handle leapyears leapday */
+        if (day_of_year == 31 + 28) leap_day = 1; /* Handle leap years leapday */
       }
     }
     *ret_month = 1;
@@ -2165,7 +2165,7 @@ int calc_weekday(long daynr, bool sunday_first_day_of_week) {
         a date at start of january) In this case one can get 53 for the
         first week of next year.  This flag ensures that the week is
         relevant for the given year. Note that this flag is only
-        releveant if WEEK_JANUARY is not set.
+        relevant if WEEK_JANUARY is not set.
 
                           If set	 Week is in range 1-53.
 
@@ -2186,7 +2186,7 @@ int calc_weekday(long daynr, bool sunday_first_day_of_week) {
    @param my_time         Source time value
    @param week_behaviour  Parameter controlling how weeks are counted
    @param[out] year       The year of the week number (which may be different
-                          from my_time.year as descibed above)
+                          from my_time.year as described above)
 
    @return week number
 */
@@ -2704,16 +2704,16 @@ void calc_time_from_sec(MYSQL_TIME *to, longlong seconds, long microseconds) {
 
   @param my_time1         - TIME/DATE/DATETIME value
   @param my_time2         - TIME/DATE/DATETIME value
-  @param l_sign           - 1 absolute values are substracted, -1 absolute
+  @param l_sign           - 1 absolute values are subtracted, -1 absolute
   values are added.
   @param[out] seconds_out - where difference between my_time1 and my_time2
                             in seconds is stored.
   @param[out] microseconds_out - where microsecond part of difference between
                                  my_time1 and my_time2 is stored.
 
-  @note This function calculates difference between my_time1 and
+  @note This function calculates the difference between my_time1 and
     my_time2 absolute values. So one should set l_sign and correct
-    result if he want to take signs into account (i.e. for MYSQL_TIME
+    the result if signs are to be taken into account (i.e. for MYSQL_TIME
     values).
 
   @returns Sign of difference.

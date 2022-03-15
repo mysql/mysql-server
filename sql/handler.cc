@@ -1507,7 +1507,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock) {
   /*
     "real" is a nick name for a transaction for which a commit will
     make persistent changes. E.g. a 'stmt' transaction inside a 'all'
-    transation is not 'real': even though it's possible to commit it,
+    transaction is not 'real': even though it's possible to commit it,
     the changes are not durable as they might be rolled back if the
     enclosing 'all' transaction is rolled back.
   */
@@ -1800,8 +1800,8 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
       - Statements such as ANALYZE/OPTIMIZE/REPAIR TABLE will call
         ha_commit_low multiple times with all=true from within
         mysql_admin_table, mysql_recreate_table, and
-        handle_histogram_command. After returing to
-        mysql_execute_command, it will call ha_commit_low a final
+        handle_histogram_command. After returning to
+        mysql_execute_command, it will call ha_commit_low one last
         time.  It is only in this final call that we should preserve
         the commit order. Therefore, we set the flag
         thd->is_operating_substatement_implicitly while executing
@@ -2088,7 +2088,7 @@ int ha_commit_attachable(THD *thd) {
   }
 
   /*
-    Mark transaction as commited in PSI.
+    Mark transaction as committed in PSI.
   */
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   if (thd->m_transaction_psi != nullptr) {
@@ -2582,7 +2582,7 @@ handler *handler::clone(const char *name, MEM_ROOT *mem_root) {
     goto err;
   /*
     TODO: Implement a more efficient way to have more than one index open for
-    the same table instance. The ha_open call is not cachable for clone.
+    the same table instance. The ha_open call is not cacheable for clone.
   */
   if (new_handler->ha_open(table, name, table->db_stat,
                            HA_OPEN_IGNORE_IF_LOCKED, nullptr))
@@ -3826,7 +3826,7 @@ int handler::update_auto_increment() {
     index_init() or rnd_init() and in any column_bitmaps_signal() call after
     this.
 
-    The handler is allowd to do changes to the bitmap after a index_init or
+    The handler is allowed to do changes to the bitmap after an index_init or
     rnd_init() call is made as after this, MySQL will not use the bitmap
     for any program logic checking.
 */
@@ -3876,7 +3876,7 @@ void handler::get_auto_increment(ulonglong offset [[maybe_unused]],
   if (table->s->next_number_keypart == 0) {  // Autoincrement at key-start
     error = ha_index_last(table->record[1]);
     /*
-      MySQL implicitely assumes such method does locking (as MySQL decides to
+      MySQL implicitly assumes such method does locking (as MySQL decides to
       use nr+increment without checking again with the handler, in
       handler::update_auto_increment()), so reserves to infinite.
     */
@@ -5535,7 +5535,7 @@ static bool discover_handlerton(THD *thd, plugin_ref plugin, void *arg) {
   @param[in]      thd     Thread context.
   @param[in]      db      Schema of table
   @param[in]      name    Name of table
-  @param[out]     frmblob Pointer to blob with table defintion.
+  @param[out]     frmblob Pointer to blob with table definition.
   @param[out]     frmlen  Length of the returned table definition blob
 
   @retval
@@ -5572,7 +5572,7 @@ static int ha_discover(THD *thd, const char *db, const char *name,
 }
 
 /**
-  Call this function in order to give the handler the possiblity
+  Call this function in order to give the handler the possibility
   to ask engine if there are any new tables that should be written to disk
   or any dropped tables that need to be removed from disk
 */
@@ -5784,7 +5784,7 @@ void ha_acl_notify(THD *thd, class Acl_change_notification *data) {
   @param records  Estimated number of records to be retrieved
 
   @note
-    It is assumed that we will read trough the whole key range and that all
+    It is assumed that we will read through the whole key range and that all
     key blocks are half full (normally things are much better). It is also
     assumed that each time we read the next key from the index, the handler
     performs a random seek, thus the cost is proportional to the number of
@@ -5869,7 +5869,7 @@ double handler::estimate_in_memory_buffer(ulonglong table_index_size) const {
   /*
     If the storage engine has information about the size of its
     memory buffer, then use this. Otherwise, assume that at least 100 MB
-    of data can be chached in memory.
+    of data can be cached in memory.
   */
   longlong memory_buf_size = get_memory_buffer_size();
   if (memory_buf_size <= 0) memory_buf_size = 100 * 1024 * 1024;  // 100 MB
@@ -6103,7 +6103,7 @@ ha_rows handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
            assumed. Note that it is possible that the correct number
            is actually 0, so the row estimate may be too high in this
            case. Also note: ranges of the form "x IS NULL" may have more
-           than 1 mathing row so records_in_range() is called for these.
+           than 1 matching row so records_in_range() is called for these.
         2) SKIP_RECORDS_IN_RANGE will be set when skip_records_in_range or
            use_index_statistics are true.
            Ranges of the form "x IS NULL" will not use index statistics
@@ -6427,7 +6427,7 @@ int DsMrr_impl::dsmrr_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
     primary key index and then "change our mind" and use a different
     index for retrieving data with MRR. One of the following criteria
     must be true:
-      1. We have not pushed an index conditon on this handler.
+      1. We have not pushed an index condition on this handler.
       2. We have pushed an index condition and this is on the currently used
          index.
       3. We have pushed an index condition but this is not for the primary key.
@@ -6737,7 +6737,7 @@ ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
 
   if ((*flags & HA_MRR_USE_DEFAULT_IMPL) ||
       choose_mrr_impl(keyno, rows, flags, bufsz, cost)) {
-    /* Default implementation is choosen */
+    /* Default implementation is chosen */
     DBUG_PRINT("info", ("Default MRR implementation choosen"));
     *flags = def_flags;
     *bufsz = def_bufsz;
@@ -6798,12 +6798,12 @@ ha_rows DsMrr_impl::dsmrr_info_const(uint keyno, RANGE_SEQ_IF *seq,
   @param keyno       Index number
   @param rows        E(full rows to be retrieved)
   @param flags  IN   MRR flags provided by the MRR user
-                OUT  If DS-MRR is choosen, flags of DS-MRR implementation
+                OUT  If DS-MRR is chosen, flags of DS-MRR implementation
                      else the value is not modified
-  @param bufsz  IN   If DS-MRR is choosen, buffer use of DS-MRR implementation
+  @param bufsz  IN   If DS-MRR is chosen, buffer use of DS-MRR implementation
                      else the value is not modified
   @param cost   IN   Cost of default MRR implementation
-                OUT  If DS-MRR is choosen, cost of DS-MRR scan
+                OUT  If DS-MRR is chosen, cost of DS-MRR scan
                      else the value is not modified
 
   @retval true   Default MRR implementation should be used
@@ -6937,7 +6937,7 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
   } else {
     /*
       Adjust buffer size since only parts of the buffer will be used:
-      1. Adjust record estimate for the last scan to reduce likelyhood
+      1. Adjust record estimate for the last scan to reduce likelihood
          of needing more than one scan by adding 20 percent to the
          record estimate and by ensuring this is at least 100 records.
       2. If the estimated needed buffer size is lower than suggested by
@@ -8099,7 +8099,7 @@ static void copy_blob_data(const TABLE *table, const MY_BITMAP *const fields,
   handler::my_eval_gcolumn_expr().
 
   @param thd        pointer of THD
-  @param table      The pointer of table where evaluted generated
+  @param table      The pointer of table where evaluated generated
                     columns are in
   @param fields     bitmap of field index of evaluated generated column
   @param[in,out] record record buff of base columns generated column depends.

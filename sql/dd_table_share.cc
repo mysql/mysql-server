@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -234,7 +234,7 @@ bool is_suitable_for_primary_key(KEY_PART_INFO *key_part, Field *table_field) {
 
   /*
     If the key column is of NOT NULL BLOB type, then it
-    will definitly have key prefix. And if key part prefix size
+    will definitely have key prefix. And if key part prefix size
     is equal to the BLOB column max size, then we can promote
     it to primary key.
    */
@@ -1536,8 +1536,8 @@ static bool fill_indexes_from_dd(THD *thd, TABLE_SHARE *share,
     share->keynames.count = share->keys;
 
     // In first iteration get all the index_obj, so that we get all
-    // user_defined_key_parts for each key. This is required to propertly
-    // allocation key_part memory for keys.
+    // user_defined_key_parts for each key. This is required to properly
+    // allocate key_part memory for keys.
     const dd::Index *index_at_pos[MAX_INDEXES];
     uint key_nr = 0;
     for (const dd::Index *idx_obj : tab_obj->indexes()) {

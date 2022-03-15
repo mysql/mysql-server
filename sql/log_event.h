@@ -272,7 +272,7 @@ int ignored_error_code(int err_code);
 /**
    @def LOG_EVENT_ARTIFICIAL_F
 
-   Artificial events are created arbitarily and not written to binary
+   Artificial events are created arbitrarily and not written to binary
    log
 
    These events should not update the master log position when slave
@@ -472,7 +472,7 @@ struct PRINT_EVENT_INFO {
      These three caches are used by the row-based replication events to
      collect the header information and the main body of the events
      making up a statement and in footer section any verbose related details
-     or comments related to the statment.
+     or comments related to the statement.
    */
   IO_CACHE head_cache;
   IO_CACHE body_cache;
@@ -719,7 +719,7 @@ class Log_event {
     */
     EVENT_NORMAL_LOGGING,
     /*
-      The event must be written to an empty cache and immediatly written
+      The event must be written to an empty cache and immediately written
       to the binary log without waiting for any other event.
     */
     EVENT_IMMEDIATE_LOGGING,
@@ -999,7 +999,7 @@ class Log_event {
      Is called from get_mts_execution_mode() to
 
      @return true  if the event needs applying with synchronization
-                   agaist Workers, otherwise
+                   against Workers, otherwise
              false
 
      @note There are incompatile combinations such as referred further events
@@ -1151,7 +1151,7 @@ class Log_event {
                      of filled instances.
      @param rpl_filter pointer to a replication filter.
 
-     @return     number of the filled intances indicating how many
+     @return     number of the filled instances indicating how many
                  databases the event accesses.
   */
   virtual uint8 get_mts_dbs(Mts_db_names *arg,
@@ -1553,7 +1553,7 @@ class Query_log_event : public virtual binary_log::Query_event,
   /**
      Notice, DDL queries are logged without BEGIN/COMMIT parentheses
      and identification of such single-query group
-     occures within logics of @c get_slave_worker().
+     occurs within logics of @c get_slave_worker().
   */
 
   bool starts_group() const override {
@@ -1957,7 +1957,7 @@ class User_var_log_event : public binary_log::User_var_event, public Log_event {
   */
   bool is_deferred() { return deferred; }
   /*
-    In case of the deffered applying the variable instance is flagged
+    In case of the deferred applying the variable instance is flagged
     and the parsing time query id is stored to be used at applying time.
   */
   void set_deferred(query_id_t qid) {
@@ -3116,7 +3116,7 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
   }
 
   /**
-    Initializes scanning of rows. Opens an index and initailizes an iterator
+    Initializes scanning of rows. Opens an index and initializes an iterator
     over a list of distinct keys (m_distinct_keys) if it is a HASH_SCAN
     over an index or the table if its a HASH_SCAN over the table.
   */
@@ -3181,7 +3181,7 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
     This bitmap is used as a backup for the write set while we calculate
     the values for any hidden generated columns (functional indexes). In order
     to calculate the values, the columns must be marked in the write set. After
-    the values are caluclated, we set the write set back to it's original value.
+    the values are calculated, we set the write set back to its original value.
   */
   MY_BITMAP write_set_backup;
 };
@@ -3473,13 +3473,14 @@ class Delete_rows_log_event : public Rows_log_event,
 /**
   @class Incident_log_event
 
-   Class representing an incident, an occurance out of the ordinary,
+   Class representing an incident, an occurrence out of the ordinary,
    that happened on the master.
 
    The event is used to inform the slave that something out of the
    ordinary happened on the master that might cause the database to be
    in an inconsistent state.
-   Its the derived class of Incident_event
+
+   It's the derived class of Incident_event
 
    @internal
    The inheritance structure is as follows
@@ -4402,7 +4403,7 @@ inline bool is_atomic_ddl_event(Log_event const *evt) {
 
   @param  thd    an Query-log-event creator thread handle
   @param  using_trans
-                 The caller must specify the value accoding to the following
+                 The caller must specify the value according to the following
                  rules:
                  @c true when
                   - on master the current statement is not processing
@@ -4428,7 +4429,7 @@ bool binary_event_serialize(EVENT *ev, Basic_ostream *ostream) {
 
 /*
   This is an utility function that adds a quoted identifier into the a buffer.
-  This also escapes any existance of the quote string inside the identifier.
+  This also escapes any existence of the quote string inside the identifier.
  */
 size_t my_strmov_quoted_identifier(THD *thd, char *buffer,
                                    const char *identifier, size_t length);

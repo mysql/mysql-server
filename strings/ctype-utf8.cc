@@ -5180,7 +5180,7 @@ size_t my_strnxfrmlen_unicode_full_bin(const CHARSET_INFO *cs, size_t len) {
 
 /*
   We consider bytes with code more than 127 as a letter.
-  This garantees that word boundaries work fine with regular
+  This guarantees that word boundaries work fine with regular
   expressions. Note, there is no need to mark byte 255  as a
   letter, it is illegal byte in UTF8.
 */
@@ -7123,7 +7123,7 @@ int main() {
 
 /*
   We consider bytes with code more than 127 as a letter.
-  This garantees that word boundaries work fine with regular
+  This guarantees that word boundaries work fine with regular
   expressions. Note, there is no need to mark byte 255  as a
   letter, it is illegal byte in UTF8.
 */

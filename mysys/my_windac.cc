@@ -35,7 +35,7 @@
 /* Windows NT/2000 discretionary access control utility functions. */
 
 /*
-  Auxilary structure to store pointers to the data which we need to keep
+  Auxiliary structure to store pointers to data which we need to keep
   around while SECURITY_ATTRIBUTES is in use.
 */
 

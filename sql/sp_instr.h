@@ -950,7 +950,7 @@ class sp_instr_set_case_expr : public sp_lex_branch_instr {
   /////////////////////////////////////////////////////////////////////////
 
   /*
-    NOTE: set_destination() and backpatch() are overriden here just because the
+    NOTE: set_destination() and backpatch() are overridden here just because the
     m_dest attribute is not used by this class, so there is no need to do
     anything about it.
 

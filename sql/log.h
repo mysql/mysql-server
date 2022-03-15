@@ -537,7 +537,7 @@ class Log_throttle {
 
     @param rate  Limit on records to be logged during the throttling window.
 
-    @retval true -  log rate limit is exceeded, so record should be supressed.
+    @retval true -  log rate limit is exceeded, so record should be suppressed.
     @retval false - log rate limit is not exceeded, record should be logged.
   */
   bool inc_log_count(ulong rate) { return (++count > rate); }
@@ -658,8 +658,8 @@ class Slow_log_throttle : public Log_throttle {
     locking/unlocking.
 
     @param thd                 The THD that tries to log the statement.
-    @retval false              Logging was not supressed, no summary needed.
-    @retval true               Logging was supressed; a summary was printed.
+    @retval false              Logging was not suppressed, no summary needed.
+    @retval true               Logging was suppressed; a summary was printed.
   */
   bool flush(THD *thd);
 
@@ -667,8 +667,8 @@ class Slow_log_throttle : public Log_throttle {
     Top-level function.
     @param thd                 The THD that tries to log the statement.
     @param eligible            Is the statement of the type we might suppress?
-    @retval true               Logging should be supressed.
-    @retval false              Logging should not be supressed.
+    @retval true               Logging should be suppressed.
+    @retval false              Logging should not be suppressed.
   */
   bool log(THD *thd, bool eligible);
 };

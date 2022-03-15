@@ -29,7 +29,7 @@
   Note that we can't have assertion on file descriptors;  The reason for
   this is that during mysql shutdown, another thread can close a file
   we are working on.  In this case we should just return read errors from
-  the file descriptior.
+  the file descriptor.
 */
 
 #include <errno.h>
@@ -58,7 +58,7 @@
   after the data is compressed right before the data is written to
   the network layer.
 
-  The TLS suppport is announced in
+  The TLS support is announced in
   @ref page_protocol_connection_phase_packets_protocol_handshake sent by the
   server via ::CLIENT_SSL and is enabled if the client returns the same
   capability.
@@ -350,7 +350,7 @@ int vio_ssl_shutdown(Vio *vio) {
     alert on socket shutdown to avoid truncation attacks. However, this can
     cause problems since we often hold a lock during shutdown and this IO can
     take an unbounded amount of time to complete. Since our packets are self
-    describing with length, we aren't vunerable to these attacks. Therefore,
+    describing with length, we aren't vulnerable to these attacks. Therefore,
     we just shutdown by closing the socket (quiet shutdown).
     */
     SSL_set_quiet_shutdown(ssl, 1);

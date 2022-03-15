@@ -716,7 +716,7 @@ bool acl_check_host(THD *thd, const char *host, const char *ip);
 
 /*
   User Attributes are the once which are defined during CREATE/ALTER/GRANT
-  statement. These attributes are divided into following catagories.
+  statement. These attributes are divided into following categories.
 */
 
 #define NONE_ATTR 0L
@@ -1006,7 +1006,7 @@ class Default_local_authid : public Create_authid<Default_local_authid> {
 };
 
 /**
-  Grant the privilege temporarily to the in-memory global privleges map.
+  Grant the privilege temporarily to the in-memory global privileges map.
   This class is not thread safe.
  */
 class Grant_temporary_dynamic_privileges

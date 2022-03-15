@@ -39,7 +39,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   construct the list of service provided by the component.
   This macro allows one to use @ref BEGIN_SERVICE_IMPLEMENTATION ,
   @ref DEFINE_METHOD and @ref END_SERVICE_IMPLEMENTATION macros to build
-  a service defintion structure and variable to be used outside of the
+  a service definition structure and variable to be used outside of the
   component definition context.
 
   @param component Name of the implementation of the service.

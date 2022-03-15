@@ -2236,7 +2236,7 @@ void Query_expression::exclude_level() {
     if (next) next->prev = units_last;
     units->prev = prev;
   } else {
-    // exclude currect unit from list of nodes
+    // exclude current unit from list of nodes
     if (prev) (*prev) = next;
     if (next) next->prev = prev;
   }
@@ -2275,7 +2275,7 @@ void Query_expression::exclude_tree(THD *thd) {
   // Remove the internal objects for this query expression.
   cleanup(thd, true);
   destroy();
-  // exclude currect unit from list of nodes
+  // exclude current unit from list of nodes
   if (prev) (*prev) = next;
   if (next) next->prev = prev;
 
@@ -3077,7 +3077,7 @@ bool Query_block::print_error(const THD *thd, String *str) {
   if (thd->is_error()) {
     /*
       It is possible that this query block had an optimization error, but the
-      caller didn't notice (caller evaluted this as a subquery and Item::val*()
+      caller didn't notice (caller evaluated this as a subquery and Item::val*()
       don't have an error status). In this case the query block may be broken
       and printing it may crash.
     */
@@ -3156,7 +3156,7 @@ void Query_block::print_table_references(const THD *thd, String *str,
 
       /*
         Query Rewrite Plugin will not have is_view() set even for a view. This
-        is because operations like open_table haven't happend yet. So the
+        is because operations like open_table haven't happened yet. So the
         underlying target tables will not be added, only the original
         table/view list will be reproduced. Ideally, it would be better if
         TABLE_LIST::updatable_base_table() were used here, but that isn't
@@ -3920,7 +3920,7 @@ void LEX::set_trg_event_type_for_tables() {
     case SQLCOM_INSERT:
     case SQLCOM_INSERT_SELECT:
       /*
-        Basic INSERT. If there is an additional ON DUPLIATE KEY
+        Basic INSERT. If there is an additional ON DUPLICATE KEY
         UPDATE clause, it will be handled later in this method.
        */
     case SQLCOM_LOAD:
@@ -4054,7 +4054,7 @@ TABLE_LIST *LEX::unlink_first_table(bool *link_to_local) {
   Bring first local table of first most outer select to first place in global
   table list
 
-  SYNOPSYS
+  SYNOPSIS
      LEX::first_lists_tables_same()
 
   NOTES
@@ -4861,7 +4861,7 @@ uint binlog_unsafe_map[256];
   Sets the combination given by "a" and "b" and automatically combinations
   given by other types of access, i.e. 2^(8 - 2), as unsafe.
 
-  It may happen a colision when automatically defining a combination as unsafe.
+  It may happen a collision when automatically defining a combination as unsafe.
   For that reason, a combination has its unsafe condition redefined only when
   the new_condition is greater then the old. For instance,
 
@@ -4932,7 +4932,7 @@ bool LEX::set_channel_name(LEX_CSTRING name) {
   which means that both conditions need to be satisfied or any of them is
   enough. For example,
 
-    . BINLOG_DIRECT_ON & TRX_CACHE_NOT_EMPTY means that the statment is
+    . BINLOG_DIRECT_ON & TRX_CACHE_NOT_EMPTY means that the statement is
     unsafe when the option is on and trx-cache is not empty;
 
     . BINLOG_DIRECT_ON | BINLOG_DIRECT_OFF means the statement is unsafe

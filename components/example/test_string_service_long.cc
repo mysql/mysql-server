@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -89,7 +89,7 @@ mysql_service_status_t test_string_service_init() {
       WRITE_LOG("%s\n",
                 "Length too high for buffer in convert from buffer: passed.");
     }
-    // Lenght is zero for buffer in convert from buffer
+    // Length is zero for buffer in convert from buffer
     if (mysql_service_mysql_string_converter->convert_from_buffer(
             &out_string,
             test_text,  // its a input buffer

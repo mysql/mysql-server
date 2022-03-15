@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -136,7 +136,7 @@ int mysqld::runtime::mysqld_daemonize() {
   @param status status of the initialization done by grand child.
                 1 means initialization complete and the server
                   is ready to accept client connections.
-                0 means intialization aborted due to some failure.
+                0 means initialization aborted due to some failure.
 
   @note This function writes the status to write end of pipe.
   This notifies the parent which is block on read end of pipe.

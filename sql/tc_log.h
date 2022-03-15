@@ -164,7 +164,7 @@ class TC_LOG {
 
     @param opt_name  Name of logfile.
 
-    @retval 0  sucess
+    @retval 0  success
     @retval 1  failed
   */
   virtual int open(const char *opt_name) = 0;

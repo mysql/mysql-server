@@ -227,17 +227,17 @@ class Query_fetch_protocol_binary final : public Query_result_send {
 
   At the start of every result set, start_result_metadata allocates m_rset to
   prepare for the results. The metadata is stored on m_current_row which will
-  be transfered to m_fields in end_result_metadata. The memory for the
+  be transferred to m_fields in end_result_metadata. The memory for the
   metadata is allocated on m_rset_root.
 
-  Then, for every row of the result recieved, each of the fields is stored in
+  Then, for every row of the result received, each of the fields is stored in
   m_current_row. Then the row is moved to m_rset and m_current_row is cleared
-  to recieve the next row. The memory for all the results are also stored in
+  to receive the next row. The memory for all the results are also stored in
   m_rset_root.
 
   Finally, at the end of the result set, a new instance of Ed_result_set is
   created on m_rset_root and the result set (m_rset and m_fields) is moved into
-  this instance. The ownership of MEM_ROOT m_rset_root is also transfered to
+  this instance. The ownership of MEM_ROOT m_rset_root is also transferred to
   this instance. So, at the end we have a fresh MEM_ROOT, cleared m_rset and
   m_fields to accept the next result set.
 */
@@ -2849,7 +2849,7 @@ bool Prepared_statement::check_parameter_types() {
       case MYSQL_TYPE_NEWDECIMAL:
         /*
           Parameters of type DECIMAL have large precisions, so they can
-          also accomodate any integer values, both signed and unsigned.
+          also accommodate any integer values, both signed and unsigned.
         */
         assert(item->decimal_precision() - item->decimals >= 20);
         if (item->data_type_actual() != MYSQL_TYPE_LONGLONG &&
@@ -2962,7 +2962,7 @@ bool Prepared_statement::check_parameter_types() {
   is retried for a maximum number of times then we give up.
 
   @param expanded_query   Query string.
-  @param open_cursor      Flag to specift if a cursor should be used.
+  @param open_cursor      Flag to specify if a cursor should be used.
 
   @return  a bool value representing the function execution status.
   @retval  true    error: either statement execution is retried for
@@ -3116,7 +3116,7 @@ reexecute:
   }
   reset_stmt_parameters(this);
 
-  // Reenable the general log if it was temporarily disabled while repreparing
+  // Re-enable the general log if it was temporarily disabled while repreparing
   // and executing a statement for a secondary engine.
   if (general_log_temporarily_disabled)
     thd->variables.option_bits &= ~OPTION_LOG_OFF;
@@ -3344,7 +3344,7 @@ void Prepared_statement::swap_prepared_statement(Prepared_statement *copy) {
   @param expanded_query     A query for binlogging which has all parameter
                             markers ('?') replaced with their actual values.
   @param open_cursor        True if an attempt to open a cursor should be made.
-                            Currenlty used only in the binary protocol.
+                            Currently used only in the binary protocol.
 
   @note
     Preconditions, postconditions.

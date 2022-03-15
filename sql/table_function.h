@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ class Table_function {
  protected:
   /// Table function's result table
   TABLE *table;
-  /// Whether the table funciton was already initialized
+  /// Whether the table function was already initialized
   bool inited;
 
  public:

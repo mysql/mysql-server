@@ -190,8 +190,8 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   /*
     Check if this is a table type that stores index and data separately,
     like ISAM or MyISAM. We assume fixed order of engine file name
-    extentions array. First element of engine file name extentions array
-    is meta/index file extention. Second element - data file extention.
+    extensions array. First element of engine file name extensions array
+    is meta/index file extension. Second element - data file extension.
   */
   ext = table->file->ht->file_extensions;
   if (!ext || !ext[0] || !ext[1]) goto end;  // No data file
@@ -390,7 +390,7 @@ bool Sql_cmd_analyze_table::send_histogram_results(
         message.append(pair.first);
         message.append("'.");
         break;
-      // Errror messages
+      // Error messages
       case histograms::Message::FIELD_NOT_FOUND:
         message_type.assign("Error");
         message.assign("The column '");
@@ -1536,7 +1536,7 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
         /*
           If a histogram was added, updated or removed, we will request the old
           TABLE_SHARE to go away from the table definition cache. This is
-          beacuse histogram data is cached in the TABLE_SHARE, so we want new
+          because histogram data is cached in the TABLE_SHARE, so we want new
           transactions to fetch the updated data into the TABLE_SHARE before
           using it again.
         */

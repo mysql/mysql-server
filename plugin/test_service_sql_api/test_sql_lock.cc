@@ -550,7 +550,7 @@ static void test_isolation_levels(void *p) {
 
   WRITE_STR("\n");
 
-  /* Isolation Level : READ COMMITED */
+  /* Isolation Level : READ COMMITTED */
   WRITE_STR(
       "===================================================================\n");
   WRITE_STR("Isolation Level : READ COMMITTED\n");
@@ -597,7 +597,7 @@ static void test_isolation_levels(void *p) {
   exec_test_cmd(session_2, "SET AUTOCOMMIT = 1", p, plugin_ctx);
   exec_test_cmd(session_2, "SELECT COUNT(*) FROM test.t1", p, plugin_ctx);
 
-  /* Isolation Level : READ COMMITED */
+  /* Isolation Level : READ COMMITTED */
   WRITE_STR("\n");
   WRITE_STR(
       "===================================================================\n");

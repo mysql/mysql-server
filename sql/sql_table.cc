@@ -1381,7 +1381,7 @@ static bool collect_fk_names(THD *thd, const char *db,
                              MDL_request_list *mdl_requests) {
   for (const dd::Foreign_key *fk : table_def->foreign_keys()) {
     /*
-      Since foreign key names are case-insesitive we need to lowercase them
+      Since foreign key names are case-insensitive we need to lowercase them
       before passing to MDL subsystem.
     */
     char fk_name[NAME_LEN + 1];
@@ -1446,7 +1446,7 @@ bool rm_table_do_discovery_and_lock_fk_tables(THD *thd, TABLE_LIST *tables) {
     /*
       Ensure that we don't hold memory used by MDL_requests after locks
       have been acquired. This reduces memory usage in cases when we have
-      DROP DATABASE tha needs to drop lots of different objects.
+      DROP DATABASE that needs to drop lots of different objects.
     */
     MEM_ROOT *save_thd_mem_root = thd->mem_root;
     auto restore_thd_mem_root =
@@ -1816,7 +1816,7 @@ class Drop_tables_ctx {
     GTID_SINGLE_TABLE_GROUP
   } gtid_and_table_groups_state;
 
-  /* Methods to simplify quering the above state. */
+  /* Methods to simplify querying the above state. */
   bool has_no_gtid_many_table_groups() const {
     return gtid_and_table_groups_state == NO_GTID_MANY_TABLE_GROUPS;
   }
@@ -1971,8 +1971,8 @@ static bool rm_table_sort_into_groups(THD *thd, Drop_tables_ctx *drop_ctx,
           action right after it. This increases chances of SE,
           data-dictionary and binary log being in sync if crash occurs.
           This also handles case of error/statement being killed in
-          a natural way - by the time when error occurrs we already
-          have logged all drops which were successfull. So we don't
+          a natural way - by the time when error occurs we already
+          have logged all drops which were successful. So we don't
           need to write the whole failed statement with error code
           to binary log.
 
@@ -3182,8 +3182,8 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       This increases chances of SE, data-dictionary and binary log being in
       sync if crash occurs.
       This also handles case of error/statement being killed in a natural
-      way - by the time when error occurrs we already have logged all drops
-      which were successfull. So we don't need to write the whole failed
+      way - by the time when error occurs we already have logged all drops
+      which were successful. So we don't need to write the whole failed
       statement with error code to binary log.
 
       Note that we process non-atomic tables before atomic ones in order to
@@ -3717,7 +3717,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 err_with_rollback:
   if (!drop_ctx.drop_database) {
     /*
-      Be consistent with successfull case. Rollback statement
+      Be consistent with successful case. Roll back statement
       and call post-DDL hooks within this function.
 
       Note that this will rollback deletion of tables in SEs
@@ -5383,7 +5383,7 @@ static uint fk_key_prefix_match_count(Alter_info *alter_info, uint fk_col_count,
 }
 
 /**
-  Check if candidate parent/supporting key contains all colums from the
+  Check if candidate parent/supporting key contains all columns from the
   foreign key at its start and in the same order it is in the foreign key.
   Also check that columns usage by key is acceptable, i.e. key is not over
   column prefix.
@@ -5407,7 +5407,7 @@ static uint fk_key_prefix_match_count(Alter_info *alter_info, uint fk_col_count,
 
   @sa fk_key_is_full_prefix_match(uint, F, dd::Index, bool).
 
-  @retval True  - Key is proper parent/suporting key for the foreign key.
+  @retval True  - Key is proper parent/supporting key for the foreign key.
   @retval False - Key can't be parent/supporting key for the foreign key.
 */
 template <class F>
@@ -5663,7 +5663,7 @@ static const KEY *find_fk_supporting_key(handlerton *hton,
         /*
           Storage engine supports hash keys as supporting keys for foreign
           keys. Hash key should contain all foreign key columns and only
-          them (altough in any order).
+          them (although in any order).
           Example: NDB and unique/primary key with USING HASH clause.
          */
         if (fk_is_key_exact_match_any_order(alter_info, fk->key_parts,
@@ -6022,7 +6022,7 @@ static uint fk_key_prefix_match_count(uint fk_col_count, const F &fk_columns,
 }
 
 /**
-  Check if candidate parent/supporting key contains all colums from the
+  Check if candidate parent/supporting key contains all columns from the
   foreign key at its start and in the same order it is in the foreign key.
   Also check that columns usage by key is acceptable, i.e. key is not over
   column prefix.
@@ -6209,7 +6209,7 @@ static const dd::Index *find_fk_supporting_key(handlerton *hton,
         /*
           Storage engine supports hash keys as supporting keys for foreign
           keys. Hash key should contain all foreign key columns and only
-          them (altough in any order).
+          them (although in any order).
           Example: NDB and unique/primary key with USING HASH clause.
          */
         if (fk_is_key_exact_match_any_order(fk->elements().size(),
@@ -7707,7 +7707,7 @@ static bool is_not_slave_or_master_sorts_functional_index_columns_last(
   @param thd The thread handler
   @param key_spec The index that contains the key part.-
   @param alter_info A structure describing the changes to be carried out. This
-                    stucture will be updated with the new generated column.
+                    structure will be updated with the new generated column.
   @param kp The specification of the key part. This contains the expression we
             will create a generated column for, and it will be updated to point
             at the newly created generated column.
@@ -8302,7 +8302,7 @@ bool mysql_prepare_create_table(
   @brief check comment length of table, column, index and partition
 
   @details If comment length is more than the standard length
-    truncate it and store the comment length upto the standard
+    truncate it and store the comment length up to the standard
     comment length size
 
   @param          thd             Thread handle
@@ -8354,7 +8354,7 @@ bool validate_comment_length(THD *thd, const char *comment_str,
     create_info        Table create information
 
   DESCRIPTION
-    If the table character set was not given explicitely,
+    If the table character set was not given explicitly,
     let's fetch the database default character set and
     apply it to the table.
 */
@@ -8485,7 +8485,7 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field,
    Struct for representing the result of checking if a table exists
    before trying to create it. The result has two different
    dimensions; if the table actually exists, and if an error
-   occurd. If the table exists m_error will still be false if this is
+   occurred. If the table exists m_error will still be false if this is
    CREATE IF NOT EXISTS.
 */
 struct Table_exists_result {
@@ -9912,7 +9912,7 @@ bool collect_fk_names_for_new_fks(THD *thd, const char *db_name,
       if (fk->has_explicit_name) {
         assert(fk->name.str);
         /*
-          Since foreign key names are case-insesitive we need to lowercase
+          Since foreign key names are case-insensitive we need to lowercase
           them before passing to MDL subsystem.
         */
         char fk_name[NAME_LEN + 1];
@@ -10364,7 +10364,7 @@ static bool alter_table_drop_histograms(THD *thd, TABLE_LIST *table,
 
   /*
     If we are changing the character set, find all character columns. TEXT and
-    similary types will be reportet as a BLOB/LONG_BLOB etc. but with a
+    similar types will be converted similarly as a BLOB/LONG_BLOB etc. but with a
     non-binary character set.
   */
   if (convert_character_set) {
@@ -10520,7 +10520,7 @@ bool mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
   }
 
   /*
-    Unless supressed update generated foreign key names
+    Unless suppressed update generated foreign key names
     (as they have table_name<SE-specific or default suffix>#### format).
   */
   if (!(flags & NO_FK_RENAME) &&
@@ -10899,7 +10899,7 @@ bool mysql_create_like_table(THD *thd, TABLE_LIST *table, TABLE_LIST *src_table,
     /*
        Since temporary tables are not replicated under row-based
        replication, CREATE TABLE ... LIKE ... needs special
-       treatement.  We have four cases to consider, according to the
+       treatment.  We have four cases to consider, according to the
        following decision table:
 
            ==== ========= ========= ==============================
@@ -12575,7 +12575,7 @@ static bool is_inplace_alter_impossible(TABLE *table,
 
   /*
     Check constraints are evaluated in the server, if any check constraint
-    (re-)evalutation is required then it can't be added/enforced inplace.
+    (re-)evaluation is required then it can't be added/enforced inplace.
   */
   if (is_any_check_constraints_evaluation_required(alter_info)) return true;
 
@@ -12771,7 +12771,7 @@ static bool collect_and_lock_fk_tables_for_complex_alter_table(
   @param  table_list      Table list element for table being ALTERed.
   @param  alter_ctx       ALTER TABLE operation context.
   @param  alter_info      Alter_info describing ALTER TABLE, specifically
-                          containing informaton about columns being renamed.
+                          containing information about columns being renamed.
   @param  new_hton        Table's new SE.
   @param  fk_invalidator  Object keeping track of which dd::Table
                           objects to invalidate. Used to filter out
@@ -12865,7 +12865,7 @@ static bool collect_fk_names_for_rename_table(
 
   for (const dd::Foreign_key *fk : table_def->foreign_keys()) {
     /*
-      Since foreign key names are case-insesitive we need to lowercase
+      Since foreign key names are case-insensitive we need to lowercase
       them before passing to MDL subsystem.
     */
     char fk_name[NAME_LEN + 1];
@@ -13625,8 +13625,8 @@ cleanup2:
     db_type->post_ddl(thd);
 
   /*
-    InnoDB requires additional SE dictionary cache invalidation if we rollback
-    after successfull call to handler::ha_commit_inplace_alter_table().
+    InnoDB requires additional SE dictionary cache invalidation if we roll back
+    after successful call to handler::ha_commit_inplace_alter_table().
   */
   if (rollback_needs_dict_cache_reset) {
     if (db_type->dict_cache_reset != nullptr)
@@ -14783,7 +14783,7 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
 
           In case of TEXTs we check the data type maximum length *in bytes*
           to key part length measured *in characters* (i.e. key_part_length
-          devided to mbmaxlen). This is because it's OK to have:
+          divided to mbmaxlen). This is because it's OK to have:
           CREATE TABLE t1 (a tinytext, key(a(254)) character set utf8);
           In case of this example:
           - data type maximum length is 255.
@@ -15907,7 +15907,7 @@ static bool collect_fk_names_for_dropped_fks(THD *thd, const char *db,
         if (my_strcasecmp(system_charset_info, drop->name,
                           fk->name().c_str()) == 0) {
           /*
-            Since foreign key names are case-insesitive we need to lowercase
+            Since foreign key names are case-insensitive we need to lowercase
             them before passing to MDL subsystem.
           */
           char fk_name[NAME_LEN + 1];
@@ -15992,7 +15992,7 @@ static bool handle_drop_functional_index(THD *thd, Alter_info *alter_info,
   @param table_list a reference to the current table
 
   @retval true OOM
-  @retval false succes
+  @retval false success
 */
 static bool handle_rename_functional_index(THD *thd, Alter_info *alter_info,
                                            TABLE_LIST *table_list) {
@@ -16202,7 +16202,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
   /*
     Assign the partition info, so that the locks on tablespaces
-    assigned for any new partitions added would be acuired during
+    assigned for any new partitions added would be acquired during
     open_table.
   */
   thd->work_part_info = thd->lex->part_info;
@@ -16329,7 +16329,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
   /*
     Prohibit changing of the UNION list of a non-temporary MERGE table
-    under LOCK tables. It would be quite difficult to reuse a shrinked
+    under LOCK tables. It would be quite difficult to reuse a shrunk
     set of tables from the old table or to open a new TABLE object for
     an extended list and verify that they belong to locked tables.
   */
@@ -17083,7 +17083,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       from schema encryption type.
     */
     if (new_schema->default_encryption() != destination_encrytion_type) {
-      // Ingore privilege check and show warning if database is same and
+      // Ignore privilege check and show warning if database is same and
       // table encryption type is not changed.
       bool show_warning = !alter_ctx.is_database_changed() &&
                           source_encrytion_type == destination_encrytion_type;
@@ -17252,7 +17252,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                 Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT) {
           use_inplace = false;
         }
-        // Otherwise, if weaker lock was requested, report errror.
+        // Otherwise, if weaker lock was requested, report error.
         else if (alter_info->requested_lock ==
                      Alter_info::ALTER_TABLE_LOCK_NONE ||
                  alter_info->requested_lock ==
@@ -17265,7 +17265,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         break;
       case HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE:
       case HA_ALTER_INPLACE_SHARED_LOCK:
-        // If weaker lock was requested, report errror.
+        // If weaker lock was requested, report error.
         if (alter_info->requested_lock == Alter_info::ALTER_TABLE_LOCK_NONE) {
           ha_alter_info.report_unsupported_error("LOCK=NONE", "LOCK=SHARED");
           close_temporary_table(thd, altered_table, true, false);
@@ -17597,7 +17597,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
   /*
     Close the intermediate table that will be the new table, but do
-    not delete it! Even altough MERGE tables do not have their children
+    not delete it! Even though MERGE tables do not have their children
     attached here it is safe to call close_temporary_table().
   */
   close_temporary_table(thd, new_table, true, false);
@@ -19647,7 +19647,7 @@ bool lock_check_constraint_names(THD *thd, TABLE_LIST *tables) {
     /*
       Ensure that we don't hold memory used by MDL_requests after locks
       have been acquired. This reduces memory usage in cases when we have
-      DROP DATABASE tha needs to drop lots of different objects.
+      DROP DATABASE that needs to drop lots of different objects.
     */
     MEM_ROOT *save_thd_mem_root = thd->mem_root;
     auto restore_thd_mem_root =

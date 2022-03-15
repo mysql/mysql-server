@@ -2313,7 +2313,7 @@ static bool clone_without_autowrapping(const Json_path *source_path,
         continue;
       }
     }
-    // The rule above is NOT satisified. So add the leg.
+    // The rule above is NOT satisfied. So add the leg.
     if (target_path->append(path_leg)) return true; /* purecov: inspected */
   }
 
@@ -3937,8 +3937,8 @@ longlong Item_func_json_overlaps::val_int() {
     JSON_OVERLAPS([json expr], [const json array])
     JSON_OVERLAPS([const json array], [json expr])
   If there's a functional index matching [json expr], the latter will be
-  substituted for index's GC field. This function returns such field so
-  optimier can generate range access for index over that field.
+  substituted for the GC field of the index. This function returns such a field so
+  that the optimizer can generate range access for the index over that field.
 
   @returns
     Item_field field that can be used to generate index access

@@ -78,7 +78,7 @@ BEGIN_SERVICE_DEFINITION(keyring_writer)
   Examples: AES, SECRET
 
   Note: If components want to support aes_encryption service,
-  it must spport storing data of type AES.
+  it must support storing data of type AES.
 
   A success status implies that data is stored persistently on
   keyring backend and shall always be available for access unless

@@ -207,7 +207,7 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::lookup,
 }
 
 /**
-  Reads a named security context attribute and retuns its value.
+  Reads a named security context attribute and returns its value.
   Currently defined names are:
 
   - user  MYSQL_LEX_CSTRING *  login user (a.k.a. the user's part of USER())

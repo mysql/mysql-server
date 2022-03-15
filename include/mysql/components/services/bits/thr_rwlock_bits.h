@@ -73,7 +73,7 @@ typedef pthread_rwlock_t native_rw_lock_t;
      MDL subsystem deadlock detector relies on this property for
      its correctness.
   2) They are optimized for uncontended wr-lock/unlock case.
-     This is scenario in which they are most oftenly used
+     This is scenario in which they are most often used
      within MDL subsystem. Optimizing for it gives significant
      performance improvements in some of tests involving many
      connections.

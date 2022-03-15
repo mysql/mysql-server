@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -150,7 +150,7 @@ PSI_memory_key key_memory_defaults;
    check the pointer, use "----args-separator----" here to ease debug
    if someone misused it.
 
-   The args seprator will only be added when
+   The args separator will only be added when
    my_getopt_use_args_seprator is set to TRUE before calling
    load_defaults();
 
@@ -611,7 +611,7 @@ int get_defaults_options(int argc, char **argv, char **defaults,
     load_defaults()
     conf_file			Basename for configuration file to search for.
                                 If this is a path, then only this file is read.
-    groups			Which [group] entrys to read.
+    groups			Which [group] entries to read.
                                 Points to an null terminated array of pointers
     argc			Pointer to argc of original program
     argv			Pointer to argv of original program
@@ -641,7 +641,7 @@ bool my_defaults_read_login_file = true;
     my_load_defaults()
     conf_file			Basename for configuration file to search for.
                                 If this is a path, then only this file is read.
-    groups			Which [group] entrys to read.
+    groups			Which [group] entries to read.
                                 Points to an null terminated array of pointers
     argc			Pointer to argc of original program
     argv			Pointer to argv of original program
@@ -741,7 +741,7 @@ int my_load_defaults(const char *conf_file, const char **groups, int *argc,
   (*argv) += args_used;
 
   /*
-    Check if we wan't to see the new argument list
+    Check if we want to see the new argument list
     This options must always be the last of the default options
   */
   if (*argc >= 2 && !strcmp(argv[0][1], "--print-defaults")) {
@@ -818,7 +818,7 @@ static int search_default_file(Process_option_func opt_handler,
    get_argument()
    keyword		Include directive keyword
    kwlen		Length of keyword
-   ptr			Pointer to the keword in the line under process
+   ptr			Pointer to the keyword in the line under process
    line			line number
 
   RETURN
@@ -1437,7 +1437,7 @@ void init_variable_default_paths() {
   /etc/my.cnf has max_connections
   /$datadir/mysqld.auto.cnf has max_user_connections
   ./mysqld --server-id=47
-  with this setup, variables_hash has 3 entires of the above options
+  with this setup, variables_hash has 3 entries of the above options
   along with path of config files and its enum value which is as below:
   max_connections -> (/etc/my.cnf , enum_variable_source::GLOBAL)
   max_user_connections -> ($datadir/mysqld.auto.cnf ,

@@ -91,9 +91,9 @@ class PFS_index_processlist_by_processlist_id : public PFS_index_threads {
 enum enum_priv_processlist {
   /** User is not allowed to see any data. */
   PROCESSLIST_DENIED,
-  /** User does not have the PROCESS_ACL priviledge. */
+  /** User does not have the PROCESS_ACL privilege. */
   PROCESSLIST_USER_ONLY,
-  /** User has the PROCESS_ACL priviledge. */
+  /** User has the PROCESS_ACL privilege. */
   PROCESSLIST_ALL
 };
 

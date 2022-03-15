@@ -714,7 +714,7 @@ ha_rows check_quick_select(THD *thd, RANGE_OPT_PARAM *param, uint idx,
 
       PRIMARY KEY(a_1, ..., a_n, b1, ..., b_k)
 
-    i.e. the first key parts of it are identical to uncovered parts ot the
+    i.e. the first key parts of it are identical to uncovered parts of the
     key being scanned. This function assumes that the index flags do not
     include HA_KEY_SCAN_NOT_ROR flag (that is checked elsewhere).
 

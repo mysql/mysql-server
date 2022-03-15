@@ -88,7 +88,7 @@ public:
     MaxWrite   = 4, // Maximum write as multiple of blocksize
     
     // Max throughput
-    // Parallell files
+    // Parallel files
     
     NoOfTables = 1000,
     TableName  = 1001  // char*

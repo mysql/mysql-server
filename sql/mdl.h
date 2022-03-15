@@ -608,8 +608,8 @@ struct MDL_key {
 
     @remark The key for a routine/event/resource group/trigger is
       @<mdl_namespace@>+@<database name@>+@<normalized object name@>
-      additionaly @<object name@> is stored in the same buffer for information
-      purpose if buffer has sufficent space.
+      additionally @<object name@> is stored in the same buffer for information
+      purpose if buffer has sufficient space.
 
     Routine, Event and Resource group names are case sensitive and accent
     sensitive. So normalized object name is used to form a MDL_key.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -350,7 +350,7 @@ bool partition_info::can_prune_insert(
   }
 
   /*
-    Can't prune partitions over generated default expresssions, as their values
+    Can't prune partitions over generated default expressions, as their values
     are calculated much later.
   */
   if (table->gen_def_fields_ptr) {
@@ -800,7 +800,7 @@ bool partition_info::set_up_defaults_for_partitioning(
     no parameters
 
   RETURN VALUE
-    Erroneus field name  Error, there are two fields with same name
+    Erroneous field name  Error, there are two fields with same name
     NULL                 Ok, no field defined twice
 
   DESCRIPTION

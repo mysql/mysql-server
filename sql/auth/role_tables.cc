@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -185,7 +185,7 @@ bool modify_default_roles_in_table(THD *thd, TABLE *table,
 
 /*
   Populates caches from roles tables.
-  Assumes that tables are opened and requried locks are taken.
+  Assumes that tables are opened and required locks are taken.
   Assumes that caller will close the tables.
 
   @param [in] thd      Handle to THD object

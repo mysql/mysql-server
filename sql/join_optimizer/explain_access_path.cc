@@ -219,7 +219,7 @@ static void ExplainMaterializeAccessPath(const AccessPath *path, JOIN *join,
                               description);
 
   /*
-    There may be multiple refrences to a CTE, but we should only print the
+    There may be multiple references to a CTE, but we should only print the
     plan once.
   */
   const bool explain_cte_now = param->cte != nullptr && [&]() {
@@ -462,7 +462,7 @@ static void AddChildrenFromPushedCondition(
     A table access path is normally a leaf node in the set of paths.
     The exception is if a subquery was included as part of an
     'engine_condition_pushdown'. In such cases the subquery has
-    been evaluated prior to acessing this table, and the result(s)
+    been evaluated prior to accessing this table, and the result(s)
     from the subquery materialized into the pushed condition.
     Report such subqueries as children of this table.
   */

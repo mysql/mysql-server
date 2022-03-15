@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,7 @@ static Item *FindReplacementItem(Item *item,
     bool match;
     if (need_exact_match) {
       // For nearly all cases, just comparing the items (by pointer) would
-      // be sufficent, but in rare cases involving CTEs (see e.g. the test for
+      // be sufficient, but in rare cases involving CTEs (see e.g. the test for
       // bug #26907753), we can have a ref in func.func(), so we need to call
       // real_item() before comparing.
       match = func.func()->hidden == item->hidden &&

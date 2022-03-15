@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,7 @@
 
 /*
   Extra functions we want to do with a database
-  - All flags, exept record-cache-flags, are set in all used databases
+  - All flags, except record-cache-flags, are set in all used databases
     record-cache-flags are set in myrg_rrnd when we are changing database.
 */
 

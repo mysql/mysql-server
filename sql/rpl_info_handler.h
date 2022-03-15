@@ -199,8 +199,8 @@ class Rpl_info_handler {
     set the value of a field pointed at @c pk_cursor to
     @ value.
 
-    @param[in]   pk_cursor   cursor for the filed value.
-    @param[in]   value       fieled[pk_cursor] would be set
+    @param[in]   pk_cursor   cursor for the field value.
+    @param[in]   value       field[pk_cursor] is set to
                              this value.
 
     @retval      false       ok

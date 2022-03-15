@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ private:
 };
 
 /**
- * The node receving this signal has been accepted into the cluster
+ * The node receiving this signal has been accepted into the cluster
  */
 class CmRegConf {
   /**
@@ -89,7 +89,7 @@ private:
   Uint32 presidentMysqlVersion;
 
   /**
-   * The dynamic id that the node reciving this signal has
+   * The dynamic id that the node receiving this signal has
    */
   Uint32 dynamicId;
   Uint32 allNdbNodes_v1[NdbNodeBitmask48::Size];

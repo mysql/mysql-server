@@ -656,7 +656,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   {
     Item *report_item = nullptr;
     /*
-       This will hold the intersection of the priviliges on all columns in the
+       This will hold the intersection of the privileges on all columns in the
        view.
      */
     uint final_priv = VIEW_ANY_ACL;
@@ -1222,7 +1222,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
 
       Optimizer trace: because tables have been unfolded already, they are
       in LEX::query_tables of the statement using the view. So privileges on
-      them are checked as done for explicitely listed tables, in constructor
+      them are checked as done for explicitly listed tables, in constructor
       of Opt_trace_start. Security context change is checked in
       prepare_security() below.
     */

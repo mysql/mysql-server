@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -277,7 +277,7 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
     2. Load source plugin.
     3. Load destination plugin.
     4. Fetch all keys from source plugin and upon
-       sucess store in destination plugin.
+       success store in destination plugin.
     5. Enable access to keyring service APIs.
     6. Unload source plugin.
     7. Unload destination plugin.
@@ -321,7 +321,7 @@ bool Migrate_keyring::execute() {
   /* skip program name */
   m_argc--;
   /* We use a tmp ptr instead of m_argv since if the latter gets changed, we
-   * lose access to the alloced mem and hence there would be leak */
+   * lose access to the allocated mem and hence there would be leak */
   tmp_m_argv = m_argv + 1;
   /* check for invalid options */
   if (m_argc > 1) {

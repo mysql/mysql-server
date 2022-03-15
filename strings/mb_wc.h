@@ -1,7 +1,7 @@
 #ifndef MB_WC_INCLUDED
 #define MB_WC_INCLUDED
 
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -212,7 +212,7 @@ static ALWAYS_INLINE int my_mb_wc_utf8mb4(my_wc_t *pwc, const uchar *s,
 }
 
 // Non-inlined versions of the above. These are used as function pointers
-// in MY_CHARSET_HANDLER structs, and you can compare againt them to see
+// in MY_CHARSET_HANDLER structs, and you can compare against them to see
 // if using the Mb_wc_utf8* functors would be appropriate.
 
 extern "C" int my_mb_wc_utf8_thunk(const CHARSET_INFO *cs, my_wc_t *pwc,

@@ -32,7 +32,7 @@ Keys_iterator::Keys_iterator(ILogger *logger) : logger(logger) {}
 
 /**
   This function initiates the internal pointers to point to
-  begining of the first element of keys metadata.
+  beginning of the first element of keys metadata.
 */
 void Keys_iterator::init() {
   key_metadata_list = keys->get_keys_metadata();

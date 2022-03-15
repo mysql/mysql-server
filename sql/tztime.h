@@ -2,7 +2,7 @@
 #define TZTIME_INCLUDED
 
 #include "my_config.h"
-/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,7 @@ class Time_zone {
   */
   virtual long get_timezone_offset() const = 0;
   /**
-    We need this only for surpressing warnings, objects of this type are
+    We need this only for suppressing warnings, objects of this type are
     allocated on MEM_ROOT and should not require destruction.
   */
   virtual ~Time_zone() = default;
@@ -120,7 +120,7 @@ void sec_to_TIME(MYSQL_TIME *tmp, my_time_t t, int64 offset);
 /**
   Number of elements in table list produced by my_tz_get_table_list()
   (this table list contains tables which are needed for dynamical loading
-  of time zone descriptions). Actually it is imlementation detail that
+  of time zone descriptions). Actually it is implementation detail that
   should not be used anywhere outside of tztime.h and tztime.cc.
 */
 

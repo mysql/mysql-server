@@ -486,7 +486,7 @@ void TC_LOG_MMAP::overflow() {
 /**
   Commit the transaction.
 
-  @note When the TC_LOG inteface was changed, this function was added
+  @note When the TC_LOG interface was changed, this function was added
   and uses the functions that were there with the old interface to
   implement the logic.
  */

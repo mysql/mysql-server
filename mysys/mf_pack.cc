@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -154,7 +154,7 @@ size_t cleanup_dirname(char *to, const char *from) {
 #ifdef FN_NETWORK_DRIVES
         if (pos - start != 1)
 #endif
-          pos--; /* Remove dupplicate '/' */
+          pos--; /* Remove duplicate '/' */
       } else if (pos - start > 1 && pos[-1] == FN_CURLIB &&
                  pos[-2] == FN_LIBCHAR)
         pos -= 2; /* Skip /./ */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -269,7 +269,7 @@ bool InitIndexRangeScan(TABLE *table, handler *file, int index,
     const bool sorted = (mrr_flags & HA_MRR_SORTED);
     DBUG_EXECUTE_IF("bug14365043_2", DBUG_SET("+d,ha_index_init_fail"););
 
-    /* Pass index specifc read set for ror_merged_scan */
+    /* Pass index specific read set for ror_merged_scan */
     if (in_ror_merged_scan) {
       /*
         We don't need to signal the bitmap change as the bitmap is always the

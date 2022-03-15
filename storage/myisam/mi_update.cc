@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,7 +96,7 @@ int mi_update(MI_INFO *info, const uchar *oldrec, uchar *newrec) {
         if (_mi_ft_cmp(info, i, oldrec, newrec)) {
           if ((int)i == info->lastinx) {
             /*
-              We are changeing the index we are reading on.  Mark that
+              We are changing the index we are reading on.  Mark that
               the index data has changed and we need to do a full search
               when doing read-next
             */

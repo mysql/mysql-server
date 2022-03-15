@@ -804,7 +804,7 @@ static bool create_unlinked_view(THD *thd, TABLE_LIST *view_ref) {
 /**
   Construct ALTER VIEW statement to fix the column list
   and dependency information but retains the previous
-  view defintion entry in DD.
+  view definition entry in DD.
 
   @param[in]  thd       Thread handle.
   @param[in]  view_ref  TABLE_LIST to store view data.
@@ -1243,7 +1243,7 @@ static bool add_triggers_to_table(THD *thd, TABLE *table,
       sp_head::destroy(sp);
 
     }  // End of while loop
-  }    // End of If condition to check Trigger existance
+  }    // End of If condition to check Trigger existence
   return false;
 }
 
@@ -1988,7 +1988,7 @@ bool migrate_all_frm_to_dd(THD *thd, const char *dbname,
         Upgrade process does not stop immediately if it encounters any error.
         All the tables in the data directory are processed and all error are
         reported to user at once. Server code has many checks for error in DA.
-        if thd->is_error() return true, atempt to upgrade all subsequent tables
+        if thd->is_error() return true, attempt to upgrade all subsequent tables
         will fail and error log will report error false positives.
        */
       thd->clear_error();

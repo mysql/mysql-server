@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -908,7 +908,7 @@ DEFINE_METHOD(log_service_error, log_service_imp::flush,
 /**
   Open a new instance.
 
-  @returns  LOG_SERVICE_SUCCESS        success, returned hande is valid
+  @returns  LOG_SERVICE_SUCCESS        success, returned handle is valid
   @returns  otherwise                  a new instance could not be created
 */
 DEFINE_METHOD(log_service_error, log_service_imp::open,

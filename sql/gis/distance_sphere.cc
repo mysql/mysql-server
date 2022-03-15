@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ namespace gis {
 /// Map Cartesian geometry to geographic, mapping degrees east = x, degrees
 /// north = y. Do not canonicalize coordinates of poles.
 ///
-/// Used when a SQL function needs to accept Cartesian coordiates as a shorthand
+/// Used when a SQL function needs to accept Cartesian coordinates as a shorthand
 /// for geographic with some default SRS.
 static Geographic_point reinterpret_as_degrees(const Cartesian_point &g) {
   double lon_deg = g.x();
@@ -65,7 +65,7 @@ static Geographic_point reinterpret_as_degrees(const Cartesian_point &g) {
 /// Map Cartesian geometry to geographic, mapping degrees east = x, degrees
 /// north = y. Do not canonicalize coordinates of poles.
 ///
-/// Used when a SQL function needs to accept Cartesian coordiates as a shorthand
+/// Used when a SQL function needs to accept Cartesian coordinates as a shorthand
 /// for geographic with some default SRS.
 static Geographic_multipoint reinterpret_as_degrees(
     const Cartesian_multipoint &g) {
@@ -129,7 +129,7 @@ double Distance_sphere::eval(const Geographic_multipoint *g1,
 double Distance_sphere::eval(const Geographic_multipoint *g1,
                              const Geographic_multipoint *g2) const {
   // Boost does not yet implement distance between two multipoints. Find
-  // minumum by iterating over multipoint-point distances.
+  // minimum by iterating over multipoint-point distances.
   double minimum = eval(g1, &(*g2)[0]);
   for (size_t i = 1; i < g2->size(); i++) {
     double d = eval(g1, &(*g2)[i]);

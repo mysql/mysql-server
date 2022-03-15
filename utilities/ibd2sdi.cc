@@ -1315,7 +1315,7 @@ class ibd2sdi {
   @return false on success, true on failure */
   bool process_sdi_from_copy(ib_tablespace *ts);
 
-  /** Iterate over record from a single SDI copy. There is no comparision
+  /** Iterate over record from a single SDI copy. There is no comparison
   involved with the records in other copy
   @param[in]	ts		tablespace structure
   @param[in]	root_page_num	SDI root page number
@@ -1457,7 +1457,7 @@ bool ibd2sdi::process_sdi_from_copy(ib_tablespace *ts) {
   return (dump_all_recs_in_leaf_level(ts, ts->get_sdi_root(), m_out_stream));
 }
 
-/** Iterate over record from a single SDI copy. There is no comparision
+/** Iterate over record from a single SDI copy. There is no comparison
 involved with the records in other copy
 @param[in]	ts		tablespace structure
 @param[in]	root_page_num	SDI root page number
@@ -2289,7 +2289,7 @@ int main(int argc, char **argv) {
 
   if (!ret && opts.is_dump_file) {
     /* Rename file can fail if the source and destination
-    are across parititions. */
+    are across partitions. */
     if (my_rename(tmp_filename_buf, opts.dump_filename, MYF(0)) == -1) {
       if (my_copy(tmp_filename_buf, opts.dump_filename, MYF(0)) != 0) {
         ib::error() << "Copy failed: from: " << tmp_filename_buf

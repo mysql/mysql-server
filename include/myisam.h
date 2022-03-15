@@ -141,7 +141,7 @@ struct MI_ISAMINFO /* Struct from h_info */
   char *data_file_name{nullptr}, *index_file_name{nullptr};
   uint keys{0};          /* Number of keys in use */
   uint options{};        /* HA_OPTION_... used */
-  int errkey{0},         /* With key was dupplicated on err */
+  int errkey{0},         /* With key was duplicated on err */
       sortkey{0};        /* clustered by this key */
   File filenr{0};        /* (uniq) filenr for datafile */
   time_t create_time{0}; /* When table was created */
@@ -164,7 +164,7 @@ struct MI_CREATE_INFO {
   bool with_auto_increment;
 };
 
-struct MI_INFO; /* For referense */
+struct MI_INFO; /* For reference */
 struct MYISAM_SHARE;
 struct MI_INFO;
 struct MI_KEY_PARAM;

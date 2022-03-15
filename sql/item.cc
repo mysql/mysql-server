@@ -4590,7 +4590,7 @@ bool Item_param::convert_value() {
         }
       }
       /*
-        str_value_ptr is returned from val_str(). It must be not alloced
+        str_value_ptr is returned from val_str(). It must not be allocated
         to prevent it's modification by val_str() invoker.
       */
       str_value_ptr.set(str_value.ptr(), str_value.length(),
@@ -5509,7 +5509,7 @@ bool is_null_on_empty_table(THD *thd, Item_field *i) {
     optimize subquery expressions as their optimization may lead to evaluation
     of the item (e.g. in create_ref_for_key()).
     However there is one exception where QQ's result is not empty even though
-    FROM clause's result is: when QQ is implicitely aggregated. In that case,
+    FROM clause's result is: when QQ is implicitly aggregated. In that case,
     return_zero_rows() sets all tables' columns to NULL and any expression in
     QQ's SELECT list is evaluated; to prepare for this, we mark the item 'i'
     as nullable below.
@@ -5874,7 +5874,7 @@ void Item_field::cleanup() {
   /*
     When TABLE is detached from TABLE_LIST, field pointers are invalid,
     unless field objects are created as part of statement (placeholder tables).
-    Also invalidate the orginal field name, since it is usually determined
+    Also invalidate the original field name, since it is usually determined
     from the field name in the Field object.
   */
   if (table_ref != nullptr && !table_ref->is_view_or_derived() &&
@@ -7425,7 +7425,7 @@ bool Item::cache_const_expr_analyzer(uchar **arg) {
 
       Check if such data can be cached:
       1) this item is constant
-      2) this item is an arg to a funciton
+      2) this item is an arg to a function
       3) it's a source of JSON data
       4) this item's type isn't JSON so conversion will be required
       5) it's not cached already
@@ -7452,7 +7452,7 @@ bool Item::cache_const_expr_analyzer(uchar **arg) {
     /*
       If this item will be cached, no need to explore items further down
       in the tree, but the transformer must be called, so return 'true'.
-      If this item will not be cached, items further doen in the tree
+      If this item will not be cached, items further down in the tree
       must be explored, so return 'true'.
     */
     return true;
@@ -10212,7 +10212,7 @@ bool Item_aggregate_type::join_types(THD *thd, Item *item) {
       SELECT CONVERT("foo" USING utf8mb3);
 
     If we are in a prepared statement or a stored routine (any non-conventional
-    query that needs rollback of any item tree modifications), we neeed to
+    query that needs rollback of any item tree modifications), we need to
     remember what Item we changed ("foo" in this case) and where that Item is
     located (in the "args" array in this case) so we can roll back the changes
     done to the Item tree when the execution is done. When we enter the rollback
@@ -10246,7 +10246,7 @@ bool Item_aggregate_type::join_types(THD *thd, Item *item) {
 }
 
 /**
-  Calculate lenth for merging result for given Item type.
+  Calculate length for merging result for given Item type.
 
   @param item  Item for length detection
 

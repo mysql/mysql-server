@@ -103,7 +103,7 @@ class Assign_gtids_to_anonymous_transactions_info {
   */
   enum class enum_type { AGAT_OFF = 1, AGAT_LOCAL, AGAT_UUID };
   /**
-    The default constructor intializes the parameter to their default value
+    The default constructor initializes parameters to their default value
   */
   Assign_gtids_to_anonymous_transactions_info() {
     set_info(enum_type::AGAT_OFF, "");
@@ -138,7 +138,7 @@ Relay_log_info contains:
   - misc information specific to the SQL thread
 
 Relay_log_info is initialized from a repository, i.e. table or file, if there is
-one. Otherwise, data members are intialized with defaults by calling
+one. Otherwise, data members are initialized with defaults by calling
 init_relay_log_info().
 
 The relay.info table/file shall be updated whenever: (i) the relay log file
@@ -227,7 +227,7 @@ class Relay_log_info : public Rpl_info {
      */
     USER_DOES_NOT_EXIST,
     /**
-      Provided user doesn't have the necesary privileges to execute the needed
+      Provided user doesn't have the necessary privileges to execute the needed
       operations.
      */
     USER_DOES_NOT_HAVE_PRIVILEGES,
@@ -663,7 +663,7 @@ class Relay_log_info : public Rpl_info {
     Let's call a group (of events) :
       - a transaction
       or
-      - an autocommiting query + its associated events (INSERT_ID,
+      - an autocommitting query + its associated events (INSERT_ID,
     TIMESTAMP...)
     We need these rli coordinates :
     - relay log name and position of the beginning of the group we currently are
@@ -673,7 +673,7 @@ class Relay_log_info : public Rpl_info {
     executed. This event is part of the current group.
     Formerly we only had the immediately above coordinates, plus a 'pending'
     variable, but this dealt wrong with the case of a transaction starting on a
-    relay log and finishing (commiting) on another relay log. Case which can
+    relay log and finishing (committing) on another relay log. Case which can
     happen when, for example, the relay log gets rotated because of
     max_binlog_size.
   */
@@ -939,7 +939,7 @@ class Relay_log_info : public Rpl_info {
   ulonglong ign_master_log_pos_end;
 
   /*
-    Indentifies where the SQL Thread should create temporary files for the
+    Identifies where the SQL Thread should create temporary files for the
     LOAD DATA INFILE. This is used for security reasons.
    */
   char slave_patternload_file[FN_REFLEN];
@@ -1138,7 +1138,7 @@ class Relay_log_info : public Rpl_info {
   /*
     This flag is turned ON when the workers array is initialized.
     Before destroying the workers array we check this flag to make sure
-    we are not destroying an unitilized array. For the purpose of reporting the
+    we are not destroying an uninitialized array. For the purpose of reporting the
     worker status in performance schema table, we need to preserve the workers
     array after worker thread was killed. So, we copy this array into
     workers_copy_pfs array which is used for reporting until next
@@ -1208,7 +1208,7 @@ class Relay_log_info : public Rpl_info {
   bool mts_recovery_group_seen_begin;
 
   /*
-    While distibuting events basing on their properties MTS
+    While distributing events based on their properties MTS
     Coordinator changes its mts group status.
     Transition normally flowws to follow `=>' arrows on the diagram:
 
@@ -1243,7 +1243,7 @@ class Relay_log_info : public Rpl_info {
   ulong wq_size_waits_cnt;  // number of times C slept due to WQ:s oversize
   /*
     Counter of how many times Coordinator saw Workers are filled up
-    "enough" with assignements. The enough definition depends on
+    "enough" with assignments. The enough definition depends on
     the scheduler type.
   */
   ulong mts_wq_no_underrun_cnt;
@@ -1798,7 +1798,7 @@ class Relay_log_info : public Rpl_info {
  private:
   /*
     Commit order manager to order commits made by its workers. In context of
-    Multi Source Replication each worker will be ordered by the coresponding
+    Multi Source Replication each worker will be ordered by the corresponding
     corrdinator's order manager.
    */
   Commit_order_manager *commit_order_mngr;
@@ -1994,7 +1994,7 @@ class Relay_log_info : public Rpl_info {
     which is not atomic DDL and has no XID assigned. Checked at commit
     time to decide whether it is safe to update slave info table
     within the same transaction as the write to binary log or this
-    should be deffered. The deffered scenario applies for not XIDed events
+    should be deferred. The deferred scenario applies for not XIDed events
     in which case such update might be lost on recovery.
   */
   bool ddl_not_atomic;
@@ -2032,7 +2032,7 @@ class Relay_log_info : public Rpl_info {
            until_option->is_satisfied_after_dispatching_event();
   }
   /**
-   Intialize until option object when starting slave.
+   Initialize until option object when starting slave.
 
    @param[in] thd The thread object of current session.
    @param[in] master_param the parameters of START SLAVE.
@@ -2179,7 +2179,7 @@ inline bool is_committed_ddl(Log_event *ev) {
   is always correct.
 
   @param  thd   a pointer to THD describing the transaction context
-  @return true  when a slave applier thread is set to commmit being processed
+  @return true  when a slave applier thread is set to commit being processed
                 DDL query-log-event, otherwise returns false.
 */
 inline bool is_atomic_ddl_commit_on_slave(THD *thd) {
@@ -2381,9 +2381,9 @@ class Applier_security_context_guard {
   /**
     Checks if the `PRIVILEGE_CHECKS_USER` user has access to the privilieges
     passed on by `extra_privileges` parameter as well as to the privileges
-    passed on at initilization time.
+    passed on at initialization time.
 
-    This particular method checks those privileges agains a given table and
+    This particular method checks those privileges against a given table and
     against that table's columns - the ones that are used or changed in the
     event.
 
@@ -2400,7 +2400,7 @@ class Applier_security_context_guard {
   /**
     Checks if the `PRIVILEGE_CHECKS_USER` user has access to the privilieges
     passed on by `extra_privileges` parameter as well as to the privileges
-    passed on at initilization time.
+    passed on at initialization time.
 
     @param extra_privileges set of privileges to check, additionally to those
                             passed on at initialization. It's a list of
@@ -2415,7 +2415,7 @@ class Applier_security_context_guard {
   /**
     Checks if the `PRIVILEGE_CHECKS_USER` user has access to the privilieges
     passed on by `extra_privileges` parameter as well as to the privileges
-    passed on at initilization time.
+    passed on at initialization time.
 
     @param extra_privileges set of privileges to check, additionally to those
                             passed on at initialization. It's a list of

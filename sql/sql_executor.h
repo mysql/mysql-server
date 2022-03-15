@@ -226,7 +226,7 @@ bool copy_funcs(Temp_table_param *, const THD *thd,
   @param ref   information about the index lookup key
 
   @retval false ref key copied successfully
-  @retval true  error dectected during copying of key
+  @retval true  error detected during copying of key
 */
 bool construct_lookup_ref(THD *thd, TABLE *table, TABLE_REF *ref);
 
@@ -238,12 +238,12 @@ int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
 int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl);
 int update_item_cache_if_changed(List<Cached_item> &list);
 
-// Create list for using with tempory table
+// Create list for using with temporary table
 bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
                               Ref_item_array ref_item_array,
                               mem_root_deque<Item *> *res_fields,
                               size_t added_non_hidden_fields);
-// Create list for using with tempory table
+// Create list for using with temporary table
 bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
                                           THD *thd, Query_block *select,
                                           Ref_item_array ref_item_array,
@@ -431,7 +431,7 @@ class QEP_TAB : public QEP_shared_owner {
 
   /**
     If we pushed a global ORDER BY down onto this first table, that ORDER BY
-    list will be preseved here.
+    list will be preserved here.
    */
   ORDER *filesort_pushed_order = nullptr;
 
@@ -491,7 +491,7 @@ struct PendingCondition {
 };
 
 /**
-  Create an AND conjuction of all given items. If there are no items, returns
+  Create an AND conjunction of all given items. If there are no items, returns
   nullptr. If there's only one item, returns that item.
  */
 Item *CreateConjunction(List<Item> *items);

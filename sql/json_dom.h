@@ -1,7 +1,7 @@
 #ifndef JSON_DOM_INCLUDED
 #define JSON_DOM_INCLUDED
 
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -785,7 +785,7 @@ class Json_decimal final : public Json_number {
 
     @details
       This and two next functions help storage engine to deal with
-      decimal value in a serialized JSON document. This funciton converts
+      decimal value in a serialized JSON document. This function converts
       serialized value to my_decimal. The later two functions extract the
       decimal value from serialized JSON, so SE can index it in multi-valued
       index.

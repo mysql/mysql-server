@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ class State {
   /**
    * @brief The set of gtids handled in this stream.
    *
-   * This set is updated everytime a transaction identifier event comes down the
+   * This set is updated every time a transaction identifier event comes down the
    * stream. The identifier is added to the stream.
    */
   binary_log::gtids::Gtid_set m_gtid_set;

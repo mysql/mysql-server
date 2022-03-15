@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -323,7 +323,7 @@ int _mi_prefix_search(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
     pointer          Reference to the data file (last_keyseg->length).
   */
 
-  matched = 0; /* how many char's from prefix were alredy matched */
+  matched = 0; /* how many chars from prefix were already matched */
   len = 0;     /* length of previous key unpacked */
 
   while (page < end) {
@@ -400,7 +400,7 @@ int _mi_prefix_search(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
 
       /*
         If prefix_len > cmplen then we are in the end-space comparison
-        phase. Do not try to acces the key any more ==> left= 0.
+        phase. Do not try to access the key any more ==> left= 0.
       */
       left =
           ((len <= cmplen) ? suffix_len
@@ -1460,7 +1460,7 @@ int _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo, uint nod_flag,
             We put a different key between two identical variable length keys
             Extend next key to have same prefix as this key
           */
-          if (new_ref_length) /* prefix of previus key */
+          if (new_ref_length) /* prefix of previous key */
           {                   /* make next key longer */
             s_temp->part_of_prev_key = new_ref_length;
             s_temp->prev_length =

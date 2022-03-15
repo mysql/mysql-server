@@ -474,7 +474,7 @@ static Item *make_year_constant(Field *field) {
 
   @note
     This function may be called both at prepare and optimize stages.
-    Whne called at optimize stage, ensure that we record transient changes.
+    When called at optimize stage, ensure that we record transient changes.
 
   @returns false if success, true if error
 */
@@ -857,7 +857,7 @@ bool Arg_comparator::set_compare_func(Item_result_field *item,
 /**
   A minion of get_mysql_time_from_str, see its description.
   This version doesn't issue any warnings, leaving that to its parent.
-  This method has one extra argument which resturn warnings.
+  This method has one extra argument which return warnings.
 
   @param[in]   thd           Thread handle
   @param[in]   str           A string to convert
@@ -2889,8 +2889,8 @@ longlong Item_func_interval::val_int() {
       interval_range *range = intervals + mid;
       bool cmp_result;
       /*
-        The values in the range intervall may have different types,
-        Only do a decimal comparision of the first argument is a decimal
+        The values in the range interval may have different types,
+        Only do a decimal comparison of the first argument is a decimal
         and we are comparing against a decimal
       */
       if (dec && range->type == DECIMAL_RESULT)
@@ -3997,7 +3997,7 @@ bool Item_func_case::resolve_type_inner(THD *thd) {
         If we'll do string comparison, we also need to aggregate
         character set and collation for first/WHEN items and
         install converters for some of them to cmp_collation when necessary.
-        This is done because cmp_item compatators cannot compare
+        This is done because cmp_item comparators cannot compare
         strings in two different character sets.
         Some examples when we install converters:
 
@@ -4021,7 +4021,7 @@ bool Item_func_case::resolve_type_inner(THD *thd) {
         return true;
       /*
         Now copy first expression and all WHEN expressions back to args[]
-        arrray, because some of the items might have been changed to converters
+        array, because some of the items might have been changed to converters
         (e.g. Item_func_conv_charset, or Item_string for constants).
       */
       change_item_tree_if_needed(&args[first_expr_num], agg[0]);
@@ -5125,7 +5125,7 @@ bool Item_func_in::resolve_type(THD *thd) {
           }
           if (itm->result_type() != STRING_RESULT || skip_column) {
             skip_column = true;
-            // If the warning wasn't printed yet, we need to continue scaning
+            // If the warning wasn't printed yet, we need to continue scanning
             // through args to check whether one of them is JSON
             if (json_row_warning_printed)
               break;
@@ -5670,7 +5670,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
   on literal(s), we evaluate the item and based on the result, decide
   if the entire condition can be replaced with an ALWAYS TRUE or
   ALWAYS FALSE item.
-  For every constant conditon, if the result is true, then
+  For every constant condition, if the result is true, then
   for an OR condition we return an ALWAYS TRUE item. For an AND
   condition we return NULL if its not the only argument in the
   condition.

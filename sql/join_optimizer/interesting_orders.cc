@@ -370,7 +370,7 @@ void LogicalOrderings::PruneFDs(THD *thd) {
   // The definition of prunable FDs in the papers seems to be very abstract
   // and not practically realizable, so we use a simple heuristic instead:
   // A FD is useful iff it produces an item that is part of some ordering.
-  // Discard all non-useful FDs. (Items not part of some ordering will cause
+  // Discard all useless FDs. (Items not part of some ordering will cause
   // the new proposed ordering to immediately be pruned away, so this is
   // safe. See also the comment in the .h file about transitive dependencies.)
   //
@@ -380,7 +380,7 @@ void LogicalOrderings::PruneFDs(THD *thd) {
   // the main point of the pruning), it just slows the NFSM down slightly,
   // and by far the dominant FDs to prune in our cases are the ones
   // induced by keys, e.g. S → k where S is always the same and k
-  // is non-useful. These are caught by this heuristic.
+  // is useless. These are caught by this heuristic.
 
   m_optimized_fd_mapping =
       Bounds_checked_array<int>::Alloc(thd->mem_root, m_fds.size());
@@ -1273,7 +1273,7 @@ static void DeduplicateOrdering(Ordering *ordering) {
 }
 
 void LogicalOrderings::BuildNFSM(THD *thd) {
-  // Add a state for each producable ordering.
+  // Add a state for each producible ordering.
   for (size_t i = 0; i < m_orderings.size(); ++i) {
     NFSMState state;
     state.satisfied_ordering = m_orderings[i].ordering;
@@ -1285,10 +1285,10 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
     m_states.push_back(move(state));
   }
 
-  // Add an edge from the initial state to each producable ordering/grouping.
+  // Add an edge from the initial state to each producible ordering/grouping.
   for (size_t i = 1; i < m_orderings.size(); ++i) {
     if (IsGrouping(m_orderings[i].ordering)) {
-      // Not directly producable, but we've made an ordering out of it earlier.
+      // Not directly producible, but we've made an ordering out of it earlier.
       continue;
     }
     NFSMEdge edge;

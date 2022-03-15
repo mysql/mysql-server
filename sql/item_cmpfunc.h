@@ -264,7 +264,7 @@ class Arg_comparator {
   /// @param item_arg the item to retrieve the value from
   /// @param cache_arg a pointer to an Item where we can cache the value
   ///   from "item_arg". Can be nullptr
-  /// @param warn_item if rasing an conversion warning, the warning gets the
+  /// @param warn_item if raising an conversion warning, the warning gets the
   ///   data type and item name from this item
   /// @param is_null whether or not "item_arg" returned SQL NULL
   ///
@@ -998,7 +998,7 @@ class Item_func_eq : public Item_func_comparison {
   ///
   /// @param thd the thread handler
   /// @param tables a bitmap that marks the tables that are involved in the join
-  /// @param join_condition an isntance containing the join condition together
+  /// @param join_condition an instance containing the join condition together
   ///   with some pre-calculated values
   /// @param[out] join_key_buffer a buffer where the value from the join
   ///   condition will be appended
@@ -1169,7 +1169,7 @@ class Item_func_le final : public Item_func_comparison {
 };
 
 /**
-  Internal function used by subquery to derived tranformation to check
+  Internal function used by subquery to derived transformation to check
   if a subquery is scalar. We model it to check if the count is greater than
   1 using Item_func_gt.
 */
@@ -2352,7 +2352,7 @@ class Item_func_like final : public Item_bool_func2 {
 
     @param thd Pointer to THD object.
 
-    @retval true if error happens during wild string prefix claculation,
+    @retval true if error happens during wild string prefix calculation,
             false otherwise.
   */
   bool check_covering_prefix_keys(THD *thd);

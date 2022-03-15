@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -454,7 +454,7 @@ static uint read_huff_table(MI_BIT_BUFF *bit_buff, MI_DECODE_TREE *decode_tree,
     This means so many bits from the input stream were needed to
     represent this byte value. The remaining bits belong to later
     Huffman codes. This also means that for every Huffman code shorter
-    than table_bits there are multiple entires in the array, which
+    than table_bits there are multiple entries in the array, which
     differ just in the unused bits.
 
     If the high-order bit (16) is clear (0) then the remaining bits are
@@ -761,7 +761,7 @@ static unpack_function_t get_unpack_function(MI_COLUMNDEF *rec) {
       return &uf_varchar2;
     case FIELD_LAST:
     default:
-      return nullptr; /* This should never happend */
+      return nullptr; /* This should never happen */
   }
 }
 
@@ -1026,7 +1026,7 @@ static void decode_bytes(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to,
       This means so many bits from the input stream were needed to
       represent this byte value. The remaining bits belong to later
       Huffman codes. This also means that for every Huffman code shorter
-      than table_bits there are multiple entires in the array, which
+      than table_bits there are multiple entries in the array, which
       differ just in the unused bits.
 
       If the high-order bit (16) is clear (0) then the remaining bits are
@@ -1047,7 +1047,7 @@ static void decode_bytes(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to,
       /* This means that the Huffman code must be longer than table_bits. */
       pos = decode_tree->table + low_byte;
       bits -= table_bits;
-      /* NOTE: decode_bytes_test_bit() is a macro wich contains a break !!! */
+      /* NOTE: decode_bytes_test_bit() is a macro which contains a break !!! */
       for (;;) {
         low_byte = (uint)(bit_buff->current_byte >> (bits - 8));
         decode_bytes_test_bit(0);
@@ -1316,7 +1316,7 @@ static void fill_buffer(MI_BIT_BUFF *bit_buff) {
 #endif
 }
 
-/* Get number of bits neaded to represent value */
+/* Get number of bits needed to represent value */
 
 static uint max_bit(uint value) {
   uint power = 1;

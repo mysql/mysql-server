@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -149,7 +149,7 @@ class Sql_cmd_signal : public Sql_cmd_common_signal {
   /**
     Constructor, used to represent a SIGNAL statement.
     @param cond the SQL condition to signal (required).
-    @param set the collection of signal informations to signal.
+    @param set the collection of signal information to signal.
   */
   Sql_cmd_signal(const sp_condition_value *cond, Set_signal_information *set)
       : Sql_cmd_common_signal(cond, set) {}
@@ -169,7 +169,7 @@ class Sql_cmd_resignal : public Sql_cmd_common_signal {
   /**
     Constructor, used to represent a RESIGNAL statement.
     @param cond the SQL condition to resignal (optional, may be NULL).
-    @param set the collection of signal informations to resignal.
+    @param set the collection of signal information to resignal.
   */
   Sql_cmd_resignal(const sp_condition_value *cond, Set_signal_information *set)
       : Sql_cmd_common_signal(cond, set) {}

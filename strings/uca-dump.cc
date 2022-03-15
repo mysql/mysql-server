@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -329,7 +329,7 @@ static void print_one_page(MY_UCA *uca, size_t level, size_t page,
   printf("uint16 %s[]= { /* %04X (%d weights per char) */\n",
          page_name(uca, page, level), page * MY_UCA_NCHARS, maxnum);
 
-  /* Calculate how many wights to print per line */
+  /* Calculate how many weights to print per line */
   switch (maxnum) {
     case 0:
       mchars = 8;

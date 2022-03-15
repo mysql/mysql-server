@@ -1,7 +1,7 @@
 #ifndef SQL_ITERATORS_HASH_JOIN_ITERATOR_H_
 #define SQL_ITERATORS_HASH_JOIN_ITERATOR_H_
 
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -472,7 +472,7 @@ class HashJoinIterator final : public RowIterator {
   ///
   /// @retval -1 There are no more matching rows in the hash table.
   /// @retval 0 A joined row is ready.
-  /// @retval 1 An error occured.
+  /// @retval 1 An error occurred.
   int ReadNextJoinedRowFromHashTable();
 
   enum class State {
@@ -566,7 +566,7 @@ class HashJoinIterator final : public RowIterator {
   //
   // There are two functions that needs this buffer; ConstructJoinKey() and
   // StoreFromTableBuffers(). After calling one of these functions, the user
-  // must take responsiblity of the data if it is needed for a longer lifetime.
+  // must take responsibility of the data if it is needed for a longer lifetime.
   //
   // If there are no BLOB/TEXT column in the join, we calculate an upper bound
   // of the row size that is used to preallocate this buffer. In the case of

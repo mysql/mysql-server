@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -125,7 +125,7 @@ const char *Security_context_wrapper::get_ip() {
 
 bool Security_context_wrapper::security_context_exists() { return m_valid; }
 
-/** Check whether user has requried privilege or not */
+/** Check whether user has required privilege or not */
 
 bool Security_context_wrapper::is_super_user() {
   if (!m_valid) return false;

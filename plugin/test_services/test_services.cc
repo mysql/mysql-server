@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,7 +96,7 @@ static int test_log_plugin_error(void *p [[maybe_unused]]) {
   return 0;
 }
 
-/* the tests of snprintf ans log_message run when INSTALL PLUGIN is called. */
+/* The tests of snprintf and log_message run when INSTALL PLUGIN is called. */
 static int test_services_plugin_init(void *p) {
   DBUG_TRACE;
 

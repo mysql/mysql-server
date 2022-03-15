@@ -203,7 +203,7 @@ DECLARE_METHOD(log_service_error, flush, (void **instance));
                      the server/logging framework. It must be released
                      on close.
 
-  @returns  LOG_SERVICE_SUCCESS        success, returned hande is valid
+  @returns  LOG_SERVICE_SUCCESS        success, returned handle is valid
   @returns  otherwise                  a new instance could not be created
 */
 DECLARE_METHOD(log_service_error, open, (log_line * ll, void **instance));

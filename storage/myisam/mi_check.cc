@@ -286,7 +286,7 @@ static int check_k_link(MI_CHECK *param, MI_INFO *info, uint nr) {
     /*
       Read the key block with MI_MIN_KEY_BLOCK_LENGTH to find next link.
       If the key cache block size is smaller than block_size, we can so
-      avoid unecessary eviction of cache block.
+      avoid unnecessary eviction of cache block.
     */
     if (!(buff = key_cache_read(info->s->key_cache, keycache_thread_var(),
                                 info->s->kfile, next_link, DFLT_INIT_HITS,
@@ -579,7 +579,7 @@ static int chk_index_down(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
                          llstr(page, llbuff), keyinfo->block_length,
                          llstr(info->state->key_file_length, llbuff2));
     if (page + keyinfo->block_length > max_length) goto err;
-    /* Fix the remebered key file length. */
+    /* Fix the remembered key file length. */
     info->state->key_file_length =
         (max_length & ~(my_off_t)(keyinfo->block_length - 1));
     /* purecov: end */
@@ -1743,7 +1743,7 @@ int flush_blocks(MI_CHECK *param, KEY_CACHE *key_cache, File file) {
   return 0;
 } /* flush_blocks */
 
-/* Sort index for more efficent reads */
+/* Sort index for more efficient reads */
 
 int mi_sort_index(MI_CHECK *param, MI_INFO *info, char *name,
                   bool no_copy_stat) {
@@ -1929,7 +1929,7 @@ err:
   This assumes that the new file was created in the same
   directory as given by realpath(filename).
   This will ensure that any symlinks that are used will still work.
-  Copy stats from old file to new file, deletes orignal and
+  Copy stats from old file to new file, deletes original and
   changes new file name to old file name
 */
 
@@ -2659,7 +2659,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param) {
           /*
             Copy information that is already read. Avoid accessing data
             below the cache start. This could happen if the header
-            streched over the end of the previous buffer contents.
+            stretched over the end of the previous buffer contents.
           */
           {
             uint header_len = (uint)(block_info.filepos - pos);
@@ -3309,7 +3309,7 @@ int test_if_almost_full(MI_INFO *info) {
              (my_off_t)info->s->base.max_data_file_length;
 }
 
-/* Recreate table with bigger more alloced record-data */
+/* Recreate table with bigger more allocated record-data */
 
 int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename) {
   int error;
@@ -3441,7 +3441,7 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename) {
         my_errno());
     goto end;
   }
-  /* We are modifing */
+  /* We are modifying */
   (*org_info)->s->options &= ~HA_OPTION_READ_ONLY_DATA;
   (void)_mi_readinfo(*org_info, F_WRLCK, 0);
   (*org_info)->state->records = status_info.records;
@@ -3461,7 +3461,7 @@ end:
   return error;
 }
 
-/* write suffix to data file if neaded */
+/* write suffix to data file if needed */
 
 int write_data_suffix(SORT_INFO *sort_info, bool fix_datafile) {
   MI_INFO *info = sort_info->info;
@@ -3507,7 +3507,7 @@ int update_state_info(MI_CHECK *param, MI_INFO *info, uint update) {
     }
     /*
       When tables are locked we haven't synched the share state and the
-      real state for a while so we better do it here before synching
+      real state for a while so we better do it here before syncing
       the share state to disk. Only when table is write locked is it
       necessary to perform this synch.
     */
@@ -3631,7 +3631,7 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
          keypart_k=c_k for arbitrary constants c_1 ... c_k)
 
      = {assuming that values have uniform distribution and index contains all
-        tuples from the domain (or that {c_1, ..., c_k} tuple is choosen from
+        tuples from the domain (or that {c_1, ..., c_k} tuple is chosen from
         index tuples}
 
      = #tuples-in-the-index / #distinct-tuples-in-the-index.

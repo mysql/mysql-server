@@ -465,7 +465,7 @@ void delegates_update_lock_type() {
                              ? info->plugin                            \
                              : my_plugin_lock(0, &info->plugin));      \
     if (!plugin) {                                                     \
-      /* plugin is not intialized or deleted, this is not an error */  \
+      /* plugin is not initialized or deleted, this is not an error */ \
       r = 0;                                                           \
       break;                                                           \
     }                                                                  \
@@ -508,7 +508,7 @@ void delegates_update_lock_type() {
                              ? info->plugin                            \
                              : my_plugin_lock(0, &info->plugin));      \
     if (!plugin) {                                                     \
-      /* plugin is not intialized or deleted, this is not an error */  \
+      /* plugin is not initialized or deleted, this is not an error */ \
       r = 0;                                                           \
       break;                                                           \
     }                                                                  \

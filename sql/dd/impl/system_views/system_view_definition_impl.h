@@ -218,7 +218,7 @@ class System_view_select_definition_impl : public System_view_definition_impl {
   // Map of field ordinal position and their view column definition.
   typedef std::map<int, String_type> Field_definitions;
 
-  // List of FROM clause definintion in the SELECT
+  // List of FROM clause definition in the SELECT
   typedef std::vector<String_type> From_clauses;
 
   // List of WHERE clause definition in the SELECT

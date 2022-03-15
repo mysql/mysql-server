@@ -1,6 +1,6 @@
 /************************************************************************
                       Mysql Enterprise Backup
- Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -538,7 +538,7 @@ int page_track_callback(MYSQL_THD opaque_thd [[maybe_unused]],
 
   // on-going backup interrupted, stop receiving the changed page data
   if (!Backup_page_tracker::m_receive_changed_page_data)
-    return (2);  // interupt an on going transfer
+    return (2);  // interrupt an ongoing transfer
   else
     return (0);
 }

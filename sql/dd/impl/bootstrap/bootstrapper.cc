@@ -1045,7 +1045,7 @@ void store_predefined_tablespace_metadata(THD *thd) {
       space_file->set_se_private_data(file->get_se_private_data());
     }
 
-    // All the predefined tablespace are unencrypted (atleast for now).
+    // All the predefined tablespace are unencrypted (at least for now).
     tablespace->options().set("encryption", "N");
 
     /*
@@ -1365,7 +1365,7 @@ bool sync_meta_data(THD *thd) {
 
     // If the persisted meta data indicates that the DD tablespace is
     // encrypted, then we record this fact to make sure the DDL statements
-    // that are genereated during e.g. upgrade will have the correct
+    // that are generated during e.g. upgrade will have the correct
     // encryption option.
     String_type encryption("");
     Object_table_definition_impl::set_dd_tablespace_encrypted(

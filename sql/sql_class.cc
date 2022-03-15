@@ -178,7 +178,7 @@ bool Thd_mem_cnt_conn::alloc_cnt(size_t size) {
   if (mem_counter > m_thd->variables.conn_mem_limit) {
 #ifndef NDEBUG
     // Used for testing the entering to idle state
-    // after succesful statement execution(see mem_cnt_common_debug.test).
+    // after successful statement execution(see mem_cnt_common_debug.test).
     if (!DBUG_EVALUATE_IF("mem_cnt_no_error_on_exec_session", 1, 0))
 #endif
       (void)generate_error(ER_DA_CONN_LIMIT, m_thd->variables.conn_mem_limit,
@@ -206,7 +206,7 @@ bool Thd_mem_cnt_conn::alloc_cnt(size_t size) {
     if (global_conn_mem_counter_save > global_conn_mem_limit_save) {
 #ifndef NDEBUG
       // Used for testing the entering to idle state
-      // after succesful statement execution(see mem_cnt_common_debug.test).
+      // after successful statement execution(see mem_cnt_common_debug.test).
       if (DBUG_EVALUATE_IF("mem_cnt_no_error_on_exec_global", 1, 0))
         return true;
 #endif
@@ -229,7 +229,7 @@ void Thd_mem_cnt_conn::free_cnt(size_t size) {
 }
 
 /**
-   Funtion resets current memory counter mode and adjust
+   Function resets current memory counter mode and adjusts
    global memory counter according to thread memory counter.
 
    @returns -1 if OOM error, 0 otherwise.
@@ -1613,7 +1613,7 @@ void THD::disconnect(bool server_shutdown) {
     While exiting kill immune mode, awake() is called again with the killed
     state saved in THD::kill_immunizer object.
 
-    active_vio is aleady associated to the thread when it is in the kill
+    active_vio is already associated to the thread when it is in the kill
     immune mode. THD::awake() closes the active_vio.
    */
   if (kill_immunizer != nullptr)
@@ -2207,7 +2207,7 @@ void THD::begin_attachable_rw_transaction() {
     Seed for random() is saved for the first! usage of RAND()
     We reset examined_row_count and num_truncated_fields and add these to the
     result to ensure that if we have a bug that would reset these within
-    a function, we are not loosing any rows from the main statement.
+    a function, we are not losing any rows from the main statement.
 
     We do not reset value of last_insert_id().
 ****************************************************************************/
@@ -2898,7 +2898,7 @@ void THD::send_statement_status() {
 void THD::claim_memory_ownership(bool claim [[maybe_unused]]) {
 #ifdef HAVE_PSI_MEMORY_INTERFACE
   /*
-    Ownership of the THD object is transfered to this thread.
+    Ownership of the THD object is transferred to this thread.
     This happens typically:
     - in the event scheduler,
       when the scheduler thread creates a work item and

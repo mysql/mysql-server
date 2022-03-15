@@ -6248,7 +6248,7 @@ bool Item_func_set_user_var::update_hash(const void *ptr, uint length,
   }
 
   /*
-    If we set a variable explicitely to NULL then keep the old
+    If we set a variable explicitly to NULL then keep the old
     result type of the variable
   */
   if (null_value && null_item) res_type = entry->type();
@@ -7769,7 +7769,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref) {
       for (uint i = 0; i < arg_count; i++)
         update_table_read_set(((Item_field *)args[i])->field);
       /*
-        Prevent index only accces by non-FTS index if table does not have
+        Prevent index only access by non-FTS index if table does not have
         FTS_DOC_ID column, find_relevance does not work properly without
         FTS_DOC_ID value. Decision for FTS index about index only access
         is made later by JOIN::fts_index_access() function.
@@ -7966,7 +7966,7 @@ void Item_func_match::set_hints(JOIN *join, uint ft_flag, ha_rows ft_limit,
   /* skip hints setting if there are aggregates(except of FT_NO_RANKING) */
   if (join->implicit_grouping || !join->group_list.empty() ||
       join->select_distinct) {
-    /* 'No ranking' is possibe even if aggregates are present */
+    /* 'No ranking' is possible even if aggregates are present */
     if ((ft_flag & FT_NO_RANKING)) hints->set_hint_flag(FT_NO_RANKING);
     return;
   }
@@ -8296,7 +8296,7 @@ bool Item_func_sp::val_json(Json_wrapper *result) {
 
 /**
   @brief Execute function & store value in field.
-         Will set null_value properly only for a successfull execution.
+         Will set null_value properly only for a successful execution.
   @return Function returns error status.
   @retval false on success.
   @retval true if an error occurred.
@@ -8335,7 +8335,7 @@ bool Item_func_sp::execute() {
 
 /**
    @brief Execute function and store the return value in the field.
-          Will set null_value properly only for a successfull execution.
+          Will set null_value properly only for a successful execution.
 
    @note This function was intended to be the concrete implementation of
     the interface function execute. This was never realized.
@@ -8516,7 +8516,7 @@ bool Item_func_sp::fix_fields(THD *thd, Item **ref) {
     /*
       Here we check privileges of the stored routine only during view
       creation, in order to validate the view.  A runtime check is
-      perfomed in Item_func_sp::execute(), and this method is not
+      performed in Item_func_sp::execute(), and this method is not
       called during context analysis.  Notice, that during view
       creation we do not infer into stored routine bodies and do not
       check privileges of its statements, which would probably be a

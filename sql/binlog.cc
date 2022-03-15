@@ -605,7 +605,7 @@ class MYSQL_BIN_LOG::Binlog_ofile : public Basic_ostream {
   structure). It will set up thread specific "globals" correctly
   so that the POSIX thread looks exactly like the session attached to.
   However, PSI_thread info is not touched as it is required to show
-  the actual physial view in PFS instrumentation i.e., it should
+  the actual physical view in PFS instrumentation i.e., it should
   depict as the real thread doing the work instead of thread it switched
   to.
 
@@ -1235,12 +1235,12 @@ class binlog_cache_mngr {
   }
 
   /**
-    Check if at least one of transacaction and statement binlog caches
+    Check if at least one of transactions and statement binlog caches
     contains an empty transaction, other one is empty or contains an
     empty transaction.
 
-    @return true  At least one of transacaction and statement binlog
-                  caches an empty transaction, other one is emptry
+    @return true  At least one of transactions and statement binlog
+                  caches an empty transaction, other one is empty
                   or contains an empty transaction.
     @return false Otherwise.
   */
@@ -1351,7 +1351,7 @@ static int binlog_dummy_recover(handlerton *, XA_recover_txn *, uint,
 
   This class allows feeding events in parts, so it is practical to use
   in do_write_cache() which reads events from an IO_CACHE where events
-  may span mutiple cache pages.
+  may span multiple cache pages.
 
   The following fields are fixed before writing the event:
   - end_log_pos is set
@@ -2835,7 +2835,7 @@ static int binlog_savepoint_rollback(handlerton *, THD *thd, void *sv) {
 
 /**
    purge logs, master and slave sides both, related error code
-   convertor.
+   converter.
    Called from @c purge_error_message(), @c MYSQL_BIN_LOG::reset_logs()
 
    @param  res  an error code as used by purging routines
@@ -3262,7 +3262,7 @@ err:
 /**
    Load data's io cache specific hook to be executed
    before a chunk of data is being read into the cache's buffer
-   The fuction instantianates and writes into the binlog
+   The function instantiates and writes into the binlog
    replication events along LOAD DATA processing.
 
    @param file  pointer to io-cache
@@ -4735,7 +4735,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
   }
   if (lost_gtids != nullptr && !reached_first_file) {
     /*
-      This branch is only reacheable by a binary log. The relay log
+      This branch is only reachable by a binary log. The relay log
       don't need to get lost_gtids information.
 
       A 5.6 server sets GTID_PURGED by rotating the binary log.
@@ -5055,7 +5055,7 @@ bool MYSQL_BIN_LOG::open_binlog(
 
     /*
       The new log file name is appended into crash safe index file after
-      all the content of index file is copyed into the crash safe index
+      all the content of index file is copied into the crash safe index
       file. Then move the crash safe index file to index file.
     */
     DBUG_EXECUTE_IF("simulate_disk_full_on_open_binlog",
@@ -5834,10 +5834,10 @@ int MYSQL_BIN_LOG::close_crash_safe_index_file() {
 /**
   Remove logs from index file.
 
-  - To make crash safe, we copy the content of index file
-  from index_file_start_offset recored in log_info to
-  crash safe index file firstly and then move the crash
-  safe index file to index file.
+  - To make it crash safe, we copy the content of the index file
+  from index_file_start_offset recorded in log_info to a
+  crash safe index file first and then move the crash
+  safe index file to the index file.
 
   @param log_info               Store here the found log file name and
                                 position to the NEXT log file name in
@@ -6790,7 +6790,7 @@ bool MYSQL_BIN_LOG::after_write_to_relay_log(Master_info *mi) {
         If relay log is too big, rotate. But only if not in the middle of a
         transaction when GTIDs are enabled.
 
-        Also rotate, if a deffered flush request has been placed.
+        Also rotate if a deferred flush request has been placed.
 
         We now try to mimic the following master binlog behavior: "A transaction
         is written in one chunk to the binary log, so it is never split between
@@ -7504,7 +7504,7 @@ inline bool MYSQL_BIN_LOG::write_event_to_binlog(Log_event *ev) {
          binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
 
   /*
-    Stores current position into log_pos, it is used to calculate correcty
+    Stores current position into log_pos, it is used to calculate correctly
     end_log_pos by adding data_written in Log_event::write_header().
   */
   ev->common_header->log_pos = m_binlog_file->position();
@@ -8018,7 +8018,7 @@ int MYSQL_BIN_LOG::prepare(THD *thd, bool all) {
   This function will commit the sessions transaction in the binary log
   and in the storage engines (by calling @c ha_commit_low). If the
   transaction was successfully logged (or not successfully unlogged)
-  but the commit in the engines did not succed, there is a risk of
+  but the commit in the engines did not succeed, there is a risk of
   inconsistency between the engines and the binary log.
 
   For binary log group commit, the commit is separated into three
@@ -8139,7 +8139,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
       Log and finalize transaction cache regarding XA PREPARE/XA COMMIT ONE
       PHASE if one of the following statements is true:
       - If it is a loggable XA transaction in prepare state;
-      - If it is a transaction being commited with 'XA COMMIT ONE PHASE',
+      - If it is a transaction being committed with 'XA COMMIT ONE PHASE',
       statement and is not an empty transaction when GTID_NEXT is set to a
       manual GTID.
 
@@ -8961,11 +8961,11 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit) {
     This stage is skipped if we do not need to order the commits and
     each thread have to execute the handlerton commit instead.
 
-    Howver, since we are keeping the lock from the previous stage, we
+    However, since we are keeping the lock from the previous stage, we
     need to unlock it if we skip the stage.
 
     We must also step commit_clock before the ha_commit_low() is called
-    either in ordered fashion(by the leader of this stage) or by the tread
+    either in ordered fashion (by the leader of this stage) or by the thread
     themselves.
 
     We are delaying the handling of sync error until
@@ -9313,7 +9313,7 @@ void register_binlog_handler(THD *thd, bool trx) {
     cache_mngr->trx_cache.set_prev_position(pos);
 
     /*
-      Set callbacks in order to be able to call commmit or rollback.
+      Set callbacks in order to be able to call commit or rollback.
     */
     if (trx) trans_register_ha(thd, true, binlog_hton, nullptr);
     trans_register_ha(thd, false, binlog_hton, nullptr);
@@ -9335,7 +9335,7 @@ void register_binlog_handler(THD *thd, bool trx) {
 
     - Start a statement transaction to allow us to truncate the cache.
 
-    - Save the currrent binlog position so that we can roll back the
+    - Save the current binlog position so that we can roll back the
       statement by truncating the cache.
 
       We only update the saved position if the old one was undefined,
@@ -9370,7 +9370,7 @@ static int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event) {
       cache_mngr->get_binlog_cache_data(is_transactional);
 
   /*
-    If the event is requesting immediatly logging, there is no need to go
+    If the event is requesting immediate logging, there is no need to go
     further down and set savepoint and register callbacks.
   */
   if (start_event->is_using_immediate_logging()) return 0;
@@ -9553,7 +9553,7 @@ void THD::add_to_binlog_accessed_dbs(const char *db_param) {
     the list and when we are processing the second statement and when we try
     to add 'db2' in the db1's list, it will lead to crash as db1's memory
     is already freed. To handle this special case, if in_sub_stmt is set
-    (which is true incase of stored functions/triggers), we use &main_mem_root,
+    (which is true in case of stored functions/triggers), we use &main_mem_root,
     if not set we will use thd->memroot which changes it's value to
     'execute_mem_root' or '&main_mem_root' depends on the context.
    */
@@ -9634,10 +9634,8 @@ static bool has_write_table_with_auto_increment(TABLE_LIST *tables) {
 
   RETURN VALUES
 
-   -true if the table list has atleast one table with auto-increment column
-
-
-         and atleast one table to select from.
+   -true if the table list has at least one table with auto-increment column
+         and at least one table to select from.
    -false otherwise
 */
 
@@ -9953,7 +9951,7 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
     */
     uint non_replicated_tables_count = 0;
     /**
-      Indicate whether we alreadly reported a warning
+      Indicate whether we already reported a warning
       on modifying gtid_executed table.
     */
     int warned_gtid_executed_table = 0;
@@ -9968,7 +9966,7 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
       /*
         DML statements that modify a table with an auto_increment column based
         on rows selected from a table are unsafe as the order in which the rows
-        are fetched fron the select tables cannot be determined and may differ
+        are fetched from the select tables cannot be determined and may differ
         on master and slave.
        */
       if (has_write_table_with_auto_increment_and_query_block(tables))
@@ -10001,7 +9999,7 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
 
       /*
         A DML or DDL statement is unsafe if it reads a ACL table while
-        modifing the table, because SE skips acquiring row locks.
+        modifying the table, because SE skips acquiring row locks.
         Therefore rows seen by DML or DDL may not have same effect on slave.
 
         We skip checking the same under lock tables mode, because we do
@@ -10689,7 +10687,7 @@ bool THD::is_dml_gtid_compatible(bool some_transactional_table,
 
 /*
   Template member function for ensuring that there is an rows log
-  event of the apropriate type before proceeding.
+  event of the appropriate type before proceeding.
 
   PRE CONDITION:
     - Events of type 'RowEventT' have the type code 'type_code'.
@@ -11456,12 +11454,12 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, const char *query_arg,
     involving functions.
 
     3 - THD::binlog_query (here) which prints warning for top level
-    statements not covered by the two cases above: i.e., if not insided a
+    statements not covered by the two cases above: i.e., if not inside a
     procedure and a function.
 
     Besides, we should not try to print these warnings if it is not
     possible to write statements to the binary log as it happens when
-    the execution is inside a function, or generaly speaking, when
+    the execution is inside a function, or generally speaking, when
     the variables.option_bits & OPTION_BIN_LOG is false.
   */
   if ((variables.option_bits & OPTION_BIN_LOG) && sp_runtime_ctx == nullptr &&

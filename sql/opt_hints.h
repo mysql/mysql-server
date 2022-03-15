@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -151,7 +151,7 @@ class PT_hint_max_execution_time;
 
   Opt_hints_global class is hierarchical structure.
   It contains information about global hints and also
-  conains array of QUERY BLOCK level objects (Opt_hints_qb class).
+  contains array of QUERY BLOCK level objects (Opt_hints_qb class).
   Each QUERY BLOCK level object contains array of TABLE level hints
   (class Opt_hints_table). Each TABLE level hint contains array of
   KEY lelev hints (Opt_hints_key class).
@@ -489,7 +489,7 @@ class Opt_hints_qb : public Opt_hints {
 class PT_key_level_hint;
 
 /**
-  Auxiluary class for compound key objects.
+  Auxiliary class for compound key objects.
 */
 class Compound_key_hint {
   PT_key_level_hint *pt_hint;  // Pointer to PT_key_level_hint object.

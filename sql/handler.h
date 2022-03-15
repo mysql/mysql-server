@@ -706,7 +706,7 @@ enum class enum_sampling_method { SYSTEM, NONE };
 
 /* Bits in used_fields */
 #define HA_CREATE_USED_AUTO (1L << 0)
-#define HA_CREATE_USED_RAID (1L << 1)  // RAID is no longer availble
+#define HA_CREATE_USED_RAID (1L << 1)  // RAID is no longer available
 #define HA_CREATE_USED_UNION (1L << 2)
 #define HA_CREATE_USED_INSERT_METHOD (1L << 3)
 #define HA_CREATE_USED_MIN_ROWS (1L << 4)
@@ -2647,14 +2647,14 @@ struct handlerton {
   sdi_delete_t sdi_delete;
 
   /**
-    Null-ended array of file extentions that exist for the storage engine.
+    Null-ended array of file extensions that exist for the storage engine.
     Used by frm_error() and the default handler::rename_table and delete_table
     methods in handler.cc.
 
-    For engines that have two file name extentions (separate meta/index file
+    For engines that have two file name extensions (separate meta/index file
     and data file), the order of elements is relevant. First element of engine
-    file name extentions array should be meta/index file extention. Second
-    element - data file extention. This order is assumed by
+    file name extensions array should be meta/index file extension. Second
+    element - data file extension. This order is assumed by
     prepare_for_repair() when REPAIR TABLE ... USE_FRM is issued.
 
     For engines that don't have files, file_extensions is NULL.
@@ -2764,7 +2764,7 @@ struct handlerton {
 #define HTON_NO_FLAGS 0
 #define HTON_CLOSE_CURSORS_AT_COMMIT (1 << 0)
 #define HTON_ALTER_NOT_SUPPORTED (1 << 1)  // Engine does not support alter
-#define HTON_CAN_RECREATE (1 << 2)         // Delete all is used fro truncate
+#define HTON_CAN_RECREATE (1 << 2)         // Delete all is used for truncate
 #define HTON_HIDDEN (1 << 3)               // Engine does not appear in lists
 /*
   Bit 4 was occupied by BDB-specific HTON_FLUSH_AFTER_RENAME flag and is no
@@ -2849,7 +2849,7 @@ static const uint32 HTON_FKS_WITH_PREFIX_PARENT_KEYS = (1 << 0);
 /**
   Storage engine supports hash keys as supporting keys for foreign
   keys. Hash key should contain all foreign key columns and only
-  them (altough in any order).
+  them (although in any order).
 
   Storage engines which support foreign keys but do not have this
   flag set are assumed to not allow hash keys as supporting keys.
@@ -2935,7 +2935,7 @@ struct HA_CREATE_INFO {
   LEX_STRING compress{nullptr, 0};
 
   /**
-  This attibute is used for InnoDB's transparent page encryption.
+  This attribute is used for InnoDB's transparent page encryption.
   If this attribute is set then it is hint to the storage engine to encrypt
   the data. Note: this value is interpreted by the storage engine only.
   and ignored by the Server layer. */
@@ -3110,7 +3110,7 @@ class Alter_inplace_info {
   static const HA_ALTER_FLAGS ADD_STORED_BASE_COLUMN = 1ULL << 7;
   // Stored generated column
   static const HA_ALTER_FLAGS ADD_STORED_GENERATED_COLUMN = 1ULL << 8;
-  // Add generic column (convience constant).
+  // Add generic column (convenience constant).
   static const HA_ALTER_FLAGS ADD_COLUMN =
       ADD_VIRTUAL_COLUMN | ADD_STORED_BASE_COLUMN | ADD_STORED_GENERATED_COLUMN;
 
@@ -3777,7 +3777,7 @@ class ha_statistics {
   uint mrr_length_per_rec;
 
   /**
-    Estimate for how much of the table that is availabe in a memory
+    Estimate for how much of the table that is available in a memory
     buffer. Valid range is [0..1]. If it has the special value
     IN_MEMORY_ESTIMATE_UNKNOWN (defined in structs.h), it means that
     the storage engine has not supplied any value for it.
@@ -4306,7 +4306,7 @@ class handler {
   ha_statistics stats;
 
   /* MultiRangeRead-related members: */
-  range_seq_t mrr_iter;   /* Interator to traverse the range sequence */
+  range_seq_t mrr_iter;   /* Iterator to traverse the range sequence */
   RANGE_SEQ_IF mrr_funcs; /* Range sequence traversal functions */
   HANDLER_BUFFER *multi_range_buffer; /* MRR buffer info */
   uint ranges_in_seq; /* Total number of ranges in the traversed sequence */
@@ -5471,7 +5471,7 @@ class handler {
     (Join, Filter conditions, ... possiby more)
 
     Call the handlerton::push_to_engine() method for performing the
-    actuall pushdown of (parts of) the AccessPath functionality
+    actual pushdown of (parts of) the AccessPath functionality
 
     @returns   handlerton* of the SE if it may be capable of
                off loading part of the query by calling
@@ -6946,9 +6946,9 @@ class DsMrr_impl {
   void dsmrr_close();
 
   /**
-    Resets the DS-MRR object to the state it had after being intialized.
+    Resets the DS-MRR object to the state it had after being initialized.
 
-    If there is an open scan then this will be closed.
+    If there is an open scan then it will be closed.
 
     This function should be called by handler::ha_reset() which is called
     when a statement is completed in order to make the handler object ready

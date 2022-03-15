@@ -79,7 +79,7 @@ bool validate_tspnamelen(const LEXSTR &name) {
   if (name.length > NAME_LEN ||
       my_numchars_mb(system_charset_info, name.str, name.str + name.length) >
           NAME_CHAR_LEN) {
-    // Byte length exceeding NAME_LEN, and character lenght exceeding
+    // Byte length exceeding NAME_LEN, and character length exceeding
     // NAME_CHAR_LEN not allowed
     my_error(ER_TOO_LONG_IDENT, MYF(0), name.str);
     return true;

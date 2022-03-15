@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -231,7 +231,7 @@ inline void Ack_receiver::wait_for_slave_connection() {
   mysql_cond_wait(&m_cond, &m_mutex);
 }
 
-/* Auxilary function to initialize a NET object with given net buffer. */
+/* Auxiliary function to initialize a NET object with given net buffer. */
 static void init_net(NET *net, unsigned char *buff, unsigned int buff_len) {
   memset(net, 0, sizeof(NET));
   net->max_packet = buff_len;

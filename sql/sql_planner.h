@@ -1,7 +1,7 @@
 #ifndef SQL_PLANNER_INCLUDED
 #define SQL_PLANNER_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -236,7 +236,7 @@ void get_partial_join_cost(JOIN *join, uint n_tables, double *cost_arg,
   @param is_join_buffering  Whether or not condition filtering is about
                       to be calculated for an access method using join
                       buffering.
-  @param write_to_trace Wheter we should print the filtering effect calculated
+  @param write_to_trace Whether we should print the filtering effect calculated
                       by histogram statistics and the final aggregated filtering
                       effect to optimizer trace.
   @param parent_trace The parent trace object where the final aggregated

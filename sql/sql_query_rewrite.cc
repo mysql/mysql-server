@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -142,7 +142,7 @@ bool invoke_post_parse_rewrite_plugins(THD *thd, bool is_prepared) {
       diagnostics statement, in which case we keep everything: conditions from
       previous statements, parser conditions and plugin conditions. If this is
       not a diagnostics statement, parse_sql() has already cleared the
-      statement DA, copied the parser condtitions to the statement DA and set
+      statement DA, copied the parser conditions to the statement DA and set
       DA_KEEP_PARSE_ERROR. So we arrive at the below condition for telling us
       when to clear the statement DA.
     */

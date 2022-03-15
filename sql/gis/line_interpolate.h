@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ namespace gis {
 /// @param[out] result_null Whether result is `NULL` instead of `result`.
 ///
 /// @retval false Success.
-/// @retval true An error has occured. The error has been reported with
+/// @retval true An error has occurred. The error has been reported with
 /// my_error().
 bool line_interpolate_point(const dd::Spatial_reference_system *srs,
                             const Geometry *g,

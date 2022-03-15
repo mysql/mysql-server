@@ -282,7 +282,7 @@ class Histogram {
     This function will read/evaluate the value from the given Item, and pass
     this value on to the correct selectivity estimation function based on the
     data type of the histogram. For instance, if the data type of the histogram
-    is INT, we will call "val_int" on the Item to evaulate the value as an
+    is INT, we will call "val_int" on the Item to evaluate the value as an
     integer and pass this value on to the next function.
 
     @param item The Item to read/evaluate the value from.

@@ -357,7 +357,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
 
   /*
     In case a session state exists do not cache the SELECT stmt. If we
-    cache SELECT statment when session state information exists, then
+    cache SELECT statement when session state information exists, then
     the result sets of this SELECT are cached which contains changed
     session information. Next time when same query is executed when there
     is no change in session state, then result sets are picked from cache
@@ -476,14 +476,14 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
     statement. To make sure that items are created in the statement mem_root,
     change state to STMT_INITIALIZED_FOR_SP.
 
-    When a "table exists" error occur for CREATE TABLE ... SELECT change state
+    When a "table exists" error occurs for CREATE TABLE ... SELECT change state
     to STMT_INITIALIZED_FOR_SP, as if statement must be reprepared.
 
       Why is this necessary? A useful pointer would be to note how
       PREPARE/EXECUTE uses functions like select_like_stmt_test to implement
       CREATE TABLE .... SELECT. The SELECT part of the DDL is resolved first.
       Then there is an attempt to create the table. So in the execution phase,
-      if "table exists" error occurs or flush table preceeds the execute, the
+      if "table exists" error occurs or flush table precedes the execute, the
       item tree of the select is re-created and followed by an attempt to create
       the table.
 
@@ -593,7 +593,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
   Item *execution_item_list = thd->item_list();
   thd->reset_item_list();
 
-  // Create a new LEX and intialize it.
+  // Create a new LEX and initialize it.
 
   LEX *lex_saved = thd->lex;
 

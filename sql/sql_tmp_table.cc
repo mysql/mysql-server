@@ -273,7 +273,7 @@ static Field *create_tmp_field_from_item(Item *item, TABLE *table) {
       break;
     case ROW_RESULT:
     default:
-      // This case should never be choosen
+      // This case should never be chosen
       assert(0);
       new_field = nullptr;
       break;
@@ -332,7 +332,7 @@ static Field *create_tmp_field_for_schema(const Item *item, TABLE *table) {
   @param default_field	If field has a default value field, store it here
   @param group		1 if we are going to do a relative group by on result
   @param modify_item	1 if item->result_field should point to new item.
-                       This is relevent for how fill_record() is going to
+                       This is relevant for how fill_record() is going to
                        work:
                        If modify_item is 1 then fill_record() will update
                        the record in the original table.
@@ -663,7 +663,7 @@ static const char *create_tmp_table_field_tmp_name(THD *thd, Item *item) {
   @param default_field    Default value array pointer
   @param from_field       Original field array pointer
   @param blob_field       Array pointer to record fields index of blob type
-  @param field            The registed hidden field
+  @param field            The registered hidden field
  */
 
 static void register_hidden_field(TABLE *table, Field **default_field,
@@ -672,7 +672,7 @@ static void register_hidden_field(TABLE *table, Field **default_field,
   uint i;
   Field **tmp_field = table->field;
 
-  /* Increase all of registed fields index */
+  /* Increase all of registered fields index */
   for (i = 0; i < table->s->fields; i++)
     tmp_field[i]->set_field_index(tmp_field[i]->field_index() + 1);
 
@@ -1530,7 +1530,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
         */
         param->keyinfo->flags |= HA_NULL_ARE_EQUAL;  // def. that NULL == NULL
         cur_group->buff++;                           // Pointer to field data
-        group_buff++;                                // Skipp null flag
+        group_buff++;                                // Skip null flag
       }
       group_buff += cur_group->field_in_tmp_table->pack_length();
     }
@@ -1701,7 +1701,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
   }
   {
     /*
-      For the sake of uniformity, always use Field_varstring (altough we could
+      For the sake of uniformity, always use Field_varstring (although we could
       use Field_string for shorter keys)
     */
     field = new (thd->mem_root) Field_varstring(
@@ -2457,7 +2457,7 @@ void free_tmp_table(TABLE *table) {
                                 is inserted into the newly created table after
                                 copying all the records from the temp table.
                                 If false, the last record is not inserted
-                                and the paramters ignore_last_dup, is_duplicate
+                                and the parameters ignore_last_dup, is_duplicate
                                 are ignored.
   @param[in] ignore_last_dup    If true, ignore duplicate key error for last
                                 inserted key (see detailed description below).

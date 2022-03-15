@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -202,7 +202,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */) {
   uchar *result_buf = pointer_cast<uchar *>(tmp_value.ptr());
 
   // Although the result of this item node is never persisted, we still have to
-  // use portable endianess access otherwise unaligned access will crash
+  // use portable endianness access otherwise unaligned access will crash
   // on sparc CPUs.
   for (uint32 i = 0; i <= Item_func_buffer::max_strategy; i++) {
     // The above var_str_ascii() call makes the strat_name an ascii string so

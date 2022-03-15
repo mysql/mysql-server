@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,7 @@ int mi_panic(enum ha_panic_function flag) {
     }
   }
   if (flag == HA_PANIC_CLOSE) {
-    (void)mi_log(0); /* Close log if neaded */
+    (void)mi_log(0); /* Close log if needed */
     ft_free_stopwords();
   }
   mysql_mutex_unlock(&THR_LOCK_myisam);

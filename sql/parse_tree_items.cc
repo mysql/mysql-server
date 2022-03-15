@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -115,7 +115,7 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
     should be re-interpreted as an Item_in_subselect, which corresponds
     to a <table subquery> when used inside an <in predicate>.
 
-    Our reading of Note 184 is reccursive, so that all:
+    Our reading of Note 184 is recursive, so that all:
     - IN (( <subquery> ))
     - IN ((( <subquery> )))
     - IN '('^N <subquery> ')'^N
