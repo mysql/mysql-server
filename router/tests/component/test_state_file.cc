@@ -1124,7 +1124,7 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
       router_cmdline, EXIT_SUCCESS, true, false, -1s,
       RouterComponentBootstrapTest::kBootstrapOutputResponder);
 
-  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 20s));
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS));
 
   // check the state file that was produced, if it constains
   // what the bootstrap server has reported
@@ -1184,7 +1184,7 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
       router_cmdline, EXIT_SUCCESS, true, false, -1s,
       RouterComponentBootstrapTest::kBootstrapOutputResponder);
 
-  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 5s));
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS));
 
   // check the state file that was produced, if it constains
   // what the bootstrap server has reported

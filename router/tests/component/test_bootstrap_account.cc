@@ -4795,7 +4795,7 @@ TEST_F(RouterReportHostTest, multiple_hostnames) {
   auto &router =
       launch_router_for_bootstrap({"--bootstrap=1.2.3.4:5678", "--report-host",
                                    "host1", "--report-host", "host2"},
-                                  1);
+                                  EXIT_FAILURE);
 
   EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstraping was successful

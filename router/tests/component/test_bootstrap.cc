@@ -383,7 +383,7 @@ TEST_P(RouterBootstrapErrorBasePortTest, RouterBootstrapErrorBasePort) {
                  param.bs_params.end());
   auto &router = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
 
-  check_exit_code(router, EXIT_FAILURE, 5s);
+  check_exit_code(router, EXIT_FAILURE);
 
   // let's check if the expected error was reported:
   EXPECT_THAT(router.get_full_output(),
@@ -453,7 +453,7 @@ TEST_P(RouterReBootstrapOkBasePortTest, RouterReBootstrapOkBasePort) {
                           param.first_bs_params.end());
 
   auto &router_bs1 = launch_router_for_bootstrap(cmdline_first_bs);
-  check_exit_code(router_bs1, EXIT_SUCCESS, 5s);
+  check_exit_code(router_bs1, EXIT_SUCCESS);
 
   const std::string conf_file2 =
       mysql_harness::Path(bootstrap_dir.name()).join("mysqlrouter.conf").str();
@@ -470,7 +470,7 @@ TEST_P(RouterReBootstrapOkBasePortTest, RouterReBootstrapOkBasePort) {
                            param.second_bs_params.begin(),
                            param.second_bs_params.end());
   auto &router_bs2 = launch_router_for_bootstrap(cmdline_second_bs);
-  check_exit_code(router_bs2, EXIT_SUCCESS, 5s);
+  check_exit_code(router_bs2, EXIT_SUCCESS);
 
   const std::string conf_file =
       mysql_harness::Path(bootstrap_dir.name()).join("mysqlrouter.conf").str();
@@ -1383,7 +1383,7 @@ TEST_F(RouterBootstrapTest,
       bootstrap_directory.name(), "--report-host", "host.foo.bar"};
   auto &router = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
 
-  check_exit_code(router, EXIT_FAILURE, 5s);
+  check_exit_code(router, EXIT_FAILURE);
   // expect config write error
   EXPECT_THAT(router.get_full_output(),
               ::testing::ContainsRegex("Error: Could not create file "
@@ -2080,7 +2080,7 @@ TEST_F(ConfSetOptionTest, ErrorIfNotBootstrap) {
 
   auto &router = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
 
-  check_exit_code(router, EXIT_FAILURE, 5s);
+  check_exit_code(router, EXIT_FAILURE);
 
   // let's check if the expected error was reported:
   EXPECT_THAT(
@@ -2205,7 +2205,7 @@ TEST_P(ConfSetOptionErrorTest, ErrorTest) {
   }
 
   auto &router = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
-  check_exit_code(router, EXIT_FAILURE, 5s);
+  check_exit_code(router, EXIT_FAILURE);
 
   // let's check if the expected error was reported:
   EXPECT_THAT(router.get_full_output(),

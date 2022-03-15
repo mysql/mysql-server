@@ -161,7 +161,7 @@ class RouterComponentBootstrapTest : virtual public RouterComponentTest {
       int expected_exitcode = 0,
       const std::vector<std::string> &expected_output_regex = {},
       std::chrono::milliseconds wait_for_exit_timeout =
-          std::chrono::seconds(10),
+          std::chrono::seconds(30),
       const mysqlrouter::MetadataSchemaVersion &metadata_version = {2, 0, 3},
       const std::vector<std::string> &extra_router_options = {});
 

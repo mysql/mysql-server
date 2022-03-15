@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -55,11 +55,11 @@ int get_transaction_count(const uint16_t http_port);
 
 bool wait_for_transaction_count(
     const uint16_t http_port, const int expected_queries_count,
-    std::chrono::milliseconds timeout = std::chrono::seconds(5));
+    std::chrono::milliseconds timeout = std::chrono::seconds(30));
 
 bool wait_for_transaction_count_increase(
     const uint16_t http_port, const int increment_by = 1,
-    std::chrono::milliseconds timeout = std::chrono::seconds(5));
+    std::chrono::milliseconds timeout = std::chrono::seconds(30));
 
 bool wait_connection_dropped(
     mysqlrouter::MySQLSession &session,
