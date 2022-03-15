@@ -1,0 +1,13 @@
+create table paths(
+id int primary key,
+from_id int,
+to_id int,
+cost double
+);
+insert into paths values(0, 0, 1, 5.0);
+insert into paths values(1, 1, 2, 5.0);
+insert into paths values(2, 0, 2, 15.0);
+select st_shortest_dir_path(id, from_id, to_id, cost, 0, 2) from paths;
+st_shortest_dir_path(id, from_id, to_id, cost, 0, 2)
+mip mop
+drop table paths;

@@ -54,6 +54,9 @@ class Item_sum_shortest_dir_path final : public Item_sum_json {
   enum Sumfunctype sum_func() const override { return SHORTEST_DIR_PATH_FUNC; }
   const char *func_name() const override { return "st_shortest_dir_path"; }
   
+  bool val_json(Json_wrapper *wr) override;
+  String *val_str(String *str) override;
+
   void clear() override;
   bool add() override;
   Item *copy_or_same(THD *thd) override;

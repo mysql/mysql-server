@@ -71,6 +71,20 @@ Item_sum_shortest_dir_path::Item_sum_shortest_dir_path(
     : Item_sum_json(std::move(wrapper), pos, args, w),
       m_json_object(std::move(object)) {}
 
+bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
+  
+
+  return Item_sum_json::val_json(wr);
+}
+String *Item_sum_shortest_dir_path::val_str(String *str) {
+  //const THD *thd = base_query_block->parent_lex->thd;
+
+  str->length(0);
+  str->append("mip mop");
+
+  return str; //Item_sum_json::val_str(str);
+}
+
 void Item_sum_shortest_dir_path::clear() {
   null_value = true;
   m_json_object->clear();
@@ -92,86 +106,8 @@ bool Item_sum_shortest_dir_path::add() {
      clear())
    */
   if (thd->is_error()) return error_json();
-
-  try {
-    // key
-    Item *key_item = args[0];
-    const char *safep;   // contents of key_item, possibly converted
-    size_t safe_length;  // length of safep
-
-    if (get_json_object_member_name(thd, key_item, &m_tmp_key_value,
-                                    &m_conversion_buffer, &safep, &safe_length))
-      return error_json();
-
-    std::string key(safep, safe_length);
-    if (m_is_window_function) {
-      /*
-        When a row is leaving a frame, we have two options:
-        1. If rows are ordered according to the "key", then remove
-        the key/value pair from Json_object if this row is the
-        last row in peerset for that key.
-        2. If unordered, reduce the count in the key map for this key.
-        If the count is 0, remove the key/value pair from the Json_object.
-      */
-      if (m_window->do_inverse()) {
-        auto object = down_cast<Json_object *>(m_wrapper->to_dom(thd));
-        if (m_optimize)  // Option 1
-        {
-          if (m_window->is_last_row_in_peerset_within_frame())
-            object->remove(key);
-        } else  // Option 2
-        {
-          auto it = m_key_map.find(key);
-          if (it != m_key_map.end()) {
-            int count = it->second - 1;
-            if (count > 0) {
-              it->second = count;
-            } else {
-              m_key_map.erase(it);
-              object->remove(key);
-            }
-          }
-        }
-        object->cardinality() == 0 ? null_value = true : null_value = false;
-        return false;
-      }
-    }
-    // value
-    Json_wrapper value_wrapper;
-    if (get_atom_null_as_null(args, 1, func_name(), &m_value,
-                              &m_conversion_buffer, &value_wrapper))
-      return error_json();
-
-    /*
-      The m_wrapper always points to m_json_object or the result of
-      deserializing the result_field in reset/update_field.
-    */
-    Json_object *object = down_cast<Json_object *>(m_wrapper->to_dom(thd));
-    if (object->add_alias(key, value_wrapper.to_dom(thd)))
-      return error_json(); /* purecov: inspected */
-    /*
-      If rows in the window are not ordered based on "key", add this key
-      to the key map.
-    */
-    if (m_is_window_function && !m_optimize) {
-      int count = 1;
-      auto it = m_key_map.find(key);
-      if (it != m_key_map.end()) {
-        count = count + it->second;
-        it->second = count;
-      } else
-        m_key_map.emplace(std::make_pair(key, count));
-    }
-
-    null_value = false;
-    // object will take ownership of the value
-    value_wrapper.set_alias();
-  } catch (...) {
-    /* purecov: begin inspected */
-    handle_std_exception(func_name());
-    return error_json();
-    /* purecov: end */
-  }
+  
+  
 
   return false;
 }
