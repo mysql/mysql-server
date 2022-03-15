@@ -302,6 +302,8 @@ if(CMAKE_COMPILER_IS_GNUCC)
 	add_compile_options(-Wno-unused-result)
 endif()
 
+DISABLE_MISSING_PROFILE_WARNING()
+
 # Decide which keyword to use for thread-local storage.
 if(CMAKE_COMPILER_IS_GNUCC OR
    CMAKE_C_COMPILER_ID STREQUAL "Clang" OR
