@@ -1,3 +1,0 @@
-# Tests to run on mysql-trunk-win pb2 branch.
-
-perl mysql-test-run.pl --timer --testcase-timeout=30 --suite-timeout=300 --debug-server --force  --comment=all-default-debug --vardir=var-all-default --skip-combinations --skip-rpl --unit-tests-report --no-skip --platform=windows --skip-ndb innodb.doublewrite_on_to_reduced innodb.doublewrite_reduced innodb.doublewrite_reduced_odirect
