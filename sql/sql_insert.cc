@@ -49,6 +49,7 @@
 #include "my_thread_local.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/mysql_lex_string.h"
+#include "mysql/psi/mysql_table.h"  // IWYU pragma: keep
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
