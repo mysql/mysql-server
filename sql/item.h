@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5894,6 +5894,7 @@ class Item_view_ref final : public Item_ref {
   bool collect_item_field_or_view_ref_processor(uchar *arg) override;
   Item *replace_item_view_ref(uchar *arg) override;
   Item *replace_view_refs_with_clone(uchar *arg) override;
+  TABLE_LIST *get_first_inner_table() const { return first_inner_table; }
 
  protected:
   type_conversion_status save_in_field_inner(Field *field,
