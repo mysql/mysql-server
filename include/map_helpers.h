@@ -264,9 +264,9 @@ class mem_root_unordered_set
     is missing several unordered_set constructors, so let's give in everything.
   */
   explicit mem_root_unordered_set(MEM_ROOT *mem_root, Hash hash = Hash(),
-                                  KeyEqual key_equal = KeyEqual())
+                                  KeyEqual key_equal_arg = KeyEqual())
       : std::unordered_set<Key, Hash, KeyEqual, Mem_root_allocator<Key>>(
-            /*bucket_count=*/10, hash, key_equal,
+            /*bucket_count=*/10, hash, key_equal_arg,
             Mem_root_allocator<Key>(mem_root)) {}
 };
 
