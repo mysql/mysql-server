@@ -13540,12 +13540,6 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   }
   ndbassert(transP->ndbapiBlockref == apiBlockRef);
 
-  if (unlikely(tabptr.i >= ctabrecFilesize))
-  {
-    errCode = ZUNKNOWN_TABLE_ERROR;
-    goto SCAN_TAB_error;
-  }
-
   if (unlikely(ScanTabReq::getMultiFragFlag(ri) &&
                !ScanTabReq::getViaSPJFlag(ri)))
   {
