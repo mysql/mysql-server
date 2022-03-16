@@ -1,4 +1,4 @@
-#include "sql/a_star.h"
+#include "sql/Item_sum_shortest_dir_path.h"
 
 #include <algorithm>
 #include <bitset>
@@ -57,6 +57,7 @@
 #include "sql/temp_table_param.h"  // Temp_table_param
 #include "sql/uniques.h"           // Unique
 #include "sql/window.h"
+#include "sql/Dijkstras_functor.h"
 
 Item_sum_shortest_dir_path::Item_sum_shortest_dir_path(
     THD *thd, Item_sum *item, unique_ptr_destroy_only<Json_wrapper> wrapper,
@@ -80,9 +81,11 @@ String *Item_sum_shortest_dir_path::val_str(String *str) {
   const THD *thd = base_query_block->parent_lex->thd;
   Json_object *object = down_cast<Json_object *>(m_wrapper->to_dom(thd));
 
-  for (auto& edge_pair : m_edge_map) {
-    Json_double *num = new (std::nothrow) Json_double(edge_pair.second.cost);
-    if (object->add_alias(std::to_string(edge_pair.first), (Json_dom*)num))
+  Dijkstra dijkstra(m_edge_map);
+  double cost;
+  for (const Edge* edge : dijkstra(0, 2, cost)) {
+    Json_double *num = new (std::nothrow) Json_double(edge->cost);
+    if (object->add_alias(std::to_string(edge->id), (Json_dom*)num))
       return error_str();
   }
 
@@ -123,7 +126,7 @@ bool Item_sum_shortest_dir_path::add() {
   if (thd->is_error()) return true;
   for (int i = 0; i < 4; i++) if (args[i]->null_value) return true;
 
-  m_edge_map.insert(std::pair<int, Edge>(id, Edge{id, from_id, to_id, cost}));
+  m_edge_map.insert(std::pair<int, Edge*>(from_id, new Edge{id, from_id, to_id, cost}));
 
 
   return false;

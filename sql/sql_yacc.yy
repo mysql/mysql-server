@@ -103,7 +103,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/item_strfunc.h"
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"
-#include "sql/a_star.h"
+#include "sql/Item_sum_shortest_dir_path.h"
 #include "sql/item_timefunc.h"
 #include "sql/json_dom.h"
 #include "sql/json_syntax_check.h"           // is_valid_json_syntax

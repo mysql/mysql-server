@@ -9,5 +9,5 @@ insert into paths values(1, 1, 2, 5.0);
 insert into paths values(2, 0, 2, 15.0);
 select st_shortest_dir_path(id, from_id, to_id, cost, 0, 2) from paths;
 st_shortest_dir_path(id, from_id, to_id, cost, 0, 2)
-{"0": 5.0, "1": 5.0, "2": 15.0}
+{"0": 5.0, "1": 5.0}
 drop table paths;

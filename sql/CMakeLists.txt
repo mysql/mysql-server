@@ -405,7 +405,7 @@ SET(SQL_SHARED_SOURCES
   item_strfunc.cc
   item_subselect.cc
   item_sum.cc
-  a_star.cc
+  Item_sum_shortest_dir_path.cc
   window.cc
   item_timefunc.cc
   item_xmlfunc.cc
@@ -625,6 +625,7 @@ SET(SQL_SHARED_SOURCES
   uniques.cc
   xa.cc
   daemon_proxy_keyring/daemon_proxy_keyring.cc
+  Dijkstras_functor.cc
   )
 
 IF(BUILD_IS_SINGLE_CONFIG)

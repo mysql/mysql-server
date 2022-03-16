@@ -2,25 +2,10 @@
 #define ITEM_SUM_SHORTEST_DIR_PATH_INCLUDED
 
 #include "sql/item_sum.h"
-
-
-struct Edge {
-  int id, from, to;
-  double cost;
-};
-
-class Dijkstra {
-  int heu_coeff;
-public:
-  Dijkstra(const int& heu_coeff = 1): heu_coeff(heu_coeff) {}
-  template<typename EdgeID_T>
-  std::vector<Edge> operator()(const std::unordered_multimap<int, Edge>& edge_map, int start_id, int end_id){
-    return {};
-  }
-};
+#include "sql/Dijkstras_functor.h"
 
 class Item_sum_shortest_dir_path final : public Item_sum_json {
-  std::unordered_multimap<int, Edge> m_edge_map;
+  std::unordered_multimap<int, Edge*> m_edge_map;
   /// Accumulates the final value.
   unique_ptr_destroy_only<Json_object> m_json_object;
   /// Buffer used to get the value of the key.
