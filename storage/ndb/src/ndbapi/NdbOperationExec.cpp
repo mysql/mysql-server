@@ -1140,6 +1140,15 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
   /* Interpreted program main signal words */
   if (code)
   {
+    if (tOpType == UpdateRequest || tOpType == WriteRequest) {
+      /* Handle any Extra GetValues, treating as 'InitialRead's */
+      const NdbRecAttr *ra = theReceiver.m_firstRecAttr;
+      while (ra) {
+        res = insertATTRINFOHdr_NdbRecord(ra->attrId(), 0);
+        if (res) return res;
+        ra = ra->next();
+      }
+    }
     /* Record length of Initial Read section */
     attrinfo_section_sizes_ptr[0]= theTotalCurrAI_Len - 
       AttrInfo::SectionSizeInfoLength;

@@ -289,7 +289,15 @@ public:
    * @return 0 if successful otherwise -1.
    */  
   virtual int			interpretedUpdateTuple();
-		
+
+  /**
+   * Write a tuple using an interpreted program.
+   * Interpreted program only executed in the UPDATE case.
+   *
+   * @return 0 if successful otherwise -1.
+   */
+  virtual int	interpretedWriteTuple();
+
   /**
    * Delete a tuple using an interpreted program.
    *
@@ -1354,6 +1362,7 @@ protected:
 		    Uint32 aStartPosition,	
 		    Uint32 aKeyLenInByte);
   void reorderKEYINFO();
+  int transferKeyInfoToAttrInfo();
   
   virtual void setErrorCode(int aErrorCode) const;
   virtual void setErrorCodeAbort(int aErrorCode) const;

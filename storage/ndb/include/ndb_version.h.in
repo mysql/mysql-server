@@ -717,4 +717,17 @@ ndbd_support_encryption_key_material(Uint32 x)
   return x >= NDBD_SUPPORT_ENCRYPTION_KEY_MATERIAL;
 }
 
+/*
+ * Along with the newly added conflcit detection and resolution algorithms
+ * for INSERTs, support for Interpreted write is also added from 8.0.30.
+ */
+#define NDBD_INTERPRETED_WRITE NDB_MAKE_VERSION(8, 0, 30)
+static
+inline
+bool
+ndbd_interpreted_write_supported(Uint32 v)
+{
+  return v >= NDBD_INTERPRETED_WRITE;
+}
+
 #endif

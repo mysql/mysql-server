@@ -850,6 +850,7 @@ Uint32 NdbReceiver::unpackRecAttr(NdbRecAttr** recAttr,
         handle_packed_bit((const char*)src, bitPos, len, currRecAttr->aRef());
         src += byte_len;
         bitPos = (bitPos + len) & 31;
+        currRecAttr->set_size_in_bytes(sz);
         goto next;
       }
       default:
