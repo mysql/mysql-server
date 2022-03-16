@@ -2163,3 +2163,23 @@ bool Sql_cmd_delete_rule::execute(THD *thd) {
   DBUG_TRACE;
   return mysql_delete_rule(thd, rule_name);
 }
+
+bool Sql_cmd_create_user_attribute::execute(THD *thd) {
+  DBUG_TRACE;
+  return mysql_create_user_attribute(thd, attrib_name);
+}
+
+bool Sql_cmd_create_object_attribute::execute(THD *thd) {
+  DBUG_TRACE;
+  return mysql_create_object_attribute(thd, attrib_name);
+}
+
+bool Sql_cmd_delete_user_attribute::execute(THD *thd) {
+  DBUG_TRACE;
+  return mysql_delete_user_attribute(thd, attrib_name);
+}
+
+bool Sql_cmd_delete_object_attribute::execute(THD *thd) {
+  DBUG_TRACE;
+  return mysql_delete_object_attribute(thd, attrib_name);
+}

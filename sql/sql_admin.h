@@ -387,6 +387,46 @@ class Sql_cmd_delete_rule : public Sql_cmd {
     }
 };
 
+class Sql_cmd_create_user_attribute : public Sql_cmd {
+  std::string attrib_name;
+  public:
+    explicit Sql_cmd_create_user_attribute(std::string attrib_arg) : attrib_name(attrib_arg) {}
+    bool execute(THD *thd) override;
+    enum_sql_command sql_command_code() const override {
+      return SQLCOM_CREATE_USER_ATTRIBUTE;
+    }
+};
+
+class Sql_cmd_create_object_attribute : public Sql_cmd {
+  std::string attrib_name;
+  public:
+    explicit Sql_cmd_create_object_attribute(std::string attrib_arg) : attrib_name(attrib_arg) {}
+    bool execute(THD *thd) override;
+    enum_sql_command sql_command_code() const override {
+      return SQLCOM_CREATE_OBJECT_ATTRIBUTE;
+    }
+};
+
+class Sql_cmd_delete_user_attribute : public Sql_cmd {
+  std::string attrib_name;
+  public:
+    explicit Sql_cmd_delete_user_attribute(std::string attrib_arg) : attrib_name(attrib_arg) {}
+    bool execute(THD *thd) override;
+    enum_sql_command sql_command_code() const override {
+      return SQLCOM_DELETE_USER_ATTRIBUTE;
+    }
+};
+
+class Sql_cmd_delete_object_attribute : public Sql_cmd {
+  std::string attrib_name;
+  public:
+    explicit Sql_cmd_delete_object_attribute(std::string attrib_arg) : attrib_name(attrib_arg) {}
+    bool execute(THD *thd) override;
+    enum_sql_command sql_command_code() const override {
+      return SQLCOM_DELETE_OBJECT_ATTRIBUTE;
+    }
+};
+
 enum alter_instance_action_enum {
   ROTATE_INNODB_MASTER_KEY,
   ALTER_INSTANCE_RELOAD_TLS,

@@ -2901,6 +2901,34 @@ class PT_delete_rule final : public Parse_tree_root {
   Sql_cmd *make_cmd(THD *thd) override;
 };
 
+class PT_create_user_attribute final : public Parse_tree_root {
+  Sql_cmd_create_user_attribute sql_cmd;
+  public:
+    PT_create_user_attribute(string attrib_arg) : sql_cmd(attrib_arg) {}
+    Sql_cmd *make_cmd(THD *thd) override;
+};
+
+class PT_create_object_attribute final : public Parse_tree_root {
+  Sql_cmd_create_object_attribute sql_cmd;
+  public:
+    PT_create_object_attribute(string attrib_arg) : sql_cmd(attrib_arg) {}
+    Sql_cmd *make_cmd(THD *thd) override;
+};
+
+class PT_delete_user_attribute final : public Parse_tree_root {
+  Sql_cmd_delete_user_attribute sql_cmd;
+  public:
+    PT_delete_user_attribute(string attrib_arg) : sql_cmd(attrib_arg) {}
+    Sql_cmd *make_cmd(THD *thd) override;
+};
+
+class PT_delete_object_attribute final : public Parse_tree_root {
+  Sql_cmd_delete_object_attribute sql_cmd;
+  public:
+    PT_delete_object_attribute(string attrib_arg) : sql_cmd(attrib_arg) {}
+    Sql_cmd *make_cmd(THD *thd) override;
+};
+
 class PT_drop_role final : public Parse_tree_root {
   Sql_cmd_drop_role sql_cmd;
 

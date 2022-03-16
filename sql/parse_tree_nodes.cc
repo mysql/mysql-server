@@ -4086,6 +4086,26 @@ Sql_cmd *PT_delete_rule::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_DELETE_RULE;
   return &sql_cmd;
 }
+
+Sql_cmd *PT_create_user_attribute::make_cmd(THD *thd) {
+  thd->lex->sql_command = SQLCOM_CREATE_USER_ATTRIBUTE;
+  return &sql_cmd;
+}
+
+Sql_cmd *PT_create_object_attribute::make_cmd(THD *thd) {
+  thd->lex->sql_command = SQLCOM_CREATE_OBJECT_ATTRIBUTE;
+  return &sql_cmd;
+}
+
+Sql_cmd *PT_delete_user_attribute::make_cmd(THD *thd) {
+  thd->lex->sql_command = SQLCOM_DELETE_USER_ATTRIBUTE;
+  return &sql_cmd;
+}
+
+Sql_cmd *PT_delete_object_attribute::make_cmd(THD *thd) {
+  thd->lex->sql_command = SQLCOM_DELETE_OBJECT_ATTRIBUTE;
+  return &sql_cmd;
+}
 /**
    Generic attribute node that can be used with different base types
    and corrsponding parse contexts. CFP (Contextualizer Function

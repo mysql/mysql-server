@@ -50,6 +50,9 @@ class THD;
 #define MYSQL_POLICY_OBJECT_AVAL_FIELD_ATTRIB_NAME 1
 #define MYSQL_POLICY_OBJECT_AVAL_FIELD_VALUE 2
 
+#define MYSQL_OBJECT_ATTRIBUTES_ATTRIB_NAME 0
+#define MYSQL_USER_ATTRIBUTES_ATTRIB_NAME 0
+
 bool modify_rule_in_table(THD *thd, TABLE *table, string rule_name, 
 												int privs, bool delete_option) {
   DBUG_TRACE;
@@ -149,6 +152,62 @@ bool modify_policy_object_aval_in_table(THD *thd, TABLE *table, string rule_name
 		key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 		ret = table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
+                                           HA_WHOLE_KEY, HA_READ_KEY_EXACT);
+		if (ret != HA_ERR_KEY_NOT_FOUND) {
+			ret = table->file->ha_delete_row(table->record[0]);
+		}
+	}
+	return ret != 0;
+}
+
+bool modify_user_attribute_in_table(THD *thd, TABLE *table, 
+												string user_attrib, bool delete_option) {
+	DBUG_TRACE;
+  int ret = 0;
+
+  Acl_table_intact table_intact(thd);
+
+  if (table_intact.check(table, ACL_TABLES::TABLE_USER_ATTRIBUTES)) return true;
+
+  table->use_all_columns();
+
+	table->field[MYSQL_USER_ATTRIBUTES_ATTRIB_NAME]->store(
+							user_attrib.c_str(), user_attrib.size(), system_charset_info);
+	if (!delete_option) {
+		ret = table->file->ha_write_row(table->record[0]);
+	} else {
+		uchar user_attrib_key[MAX_KEY_LENGTH];
+		key_copy(user_attrib_key, table->record[0], table->key_info,
+           table->key_info->key_length);
+		ret = table->file->ha_index_read_idx_map(table->record[0], 0, user_attrib_key,
+                                           HA_WHOLE_KEY, HA_READ_KEY_EXACT);
+		if (ret != HA_ERR_KEY_NOT_FOUND) {
+			ret = table->file->ha_delete_row(table->record[0]);
+		}
+	}
+	return ret != 0;
+}
+
+bool modify_object_attribute_in_table(THD *thd, TABLE *table, 
+												string object_attrib, bool delete_option) {
+	DBUG_TRACE;
+  int ret = 0;
+
+  Acl_table_intact table_intact(thd);
+
+  if (table_intact.check(table, ACL_TABLES::TABLE_OBJECT_ATTRIBUTES)) return true;
+
+  table->use_all_columns();
+
+	table->field[MYSQL_OBJECT_ATTRIBUTES_ATTRIB_NAME]->store(
+							object_attrib.c_str(), object_attrib.size(), system_charset_info);
+	if (!delete_option) {
+		ret = table->file->ha_write_row(table->record[0]);
+	} else {
+		uchar object_attrib_key[MAX_KEY_LENGTH];
+		key_copy(object_attrib_key, table->record[0], table->key_info,
+           table->key_info->key_length);
+		ret = table->file->ha_index_read_idx_map(table->record[0], 0, object_attrib_key,
                                            HA_WHOLE_KEY, HA_READ_KEY_EXACT);
 		if (ret != HA_ERR_KEY_NOT_FOUND) {
 			ret = table->file->ha_delete_row(table->record[0]);

@@ -7730,3 +7730,183 @@ bool mysql_delete_rule(THD *thd, std::string rule_name) {
   
   return errors;
 } 
+
+bool mysql_create_user_attribute(THD *thd, std::string user_attrib) {
+  DBUG_TRACE;
+  int ret;
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
+  bool transactional_tables;
+  TABLE *table = nullptr;
+  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  bool errors  =false;
+
+  if ((ret = open_grant_tables(thd, tables, &transactional_tables))) 
+    return ret != 1;
+  
+  {   /* Crititcal section */
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+
+    if (!acl_cache_lock.lock()) {
+      commit_and_close_mysql_tables(thd);
+      return true;
+    }
+
+    if (user_attribute_set->count(user_attrib)) {
+      std::cout<<"Attribute is already present in the system\n";
+      errors = true;
+      goto end;
+    }
+
+    table = tables[ACL_TABLES::TABLE_USER_ATTRIBUTES].table;
+    ret |= modify_user_attribute_in_table(thd, table, user_attrib, false);
+    if (ret) {
+      errors = true;
+      std::cout<<"Failed to add user attribute to table\n";
+    }
+    end:
+      errors = log_and_commit_acl_ddl(thd, transactional_tables);
+      get_global_acl_cache()->increase_version();
+  }   /* Critical section */
+
+  if (!errors) {
+    my_ok(thd);
+    /* Notify storage engines */
+  }
+
+  return errors;
+}
+
+bool mysql_create_object_attribute(THD *thd, std::string object_attrib) {
+  DBUG_TRACE;
+  int ret;
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
+  bool transactional_tables;
+  TABLE *table = nullptr;
+  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  bool errors  =false;
+
+  if ((ret = open_grant_tables(thd, tables, &transactional_tables))) 
+    return ret != 1;
+  
+  {   /* Crititcal section */
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+
+    if (!acl_cache_lock.lock()) {
+      commit_and_close_mysql_tables(thd);
+      return true;
+    }
+
+    if (object_attribute_set->count(object_attrib)) {
+      std::cout<<"Attribute is already present in the system\n";
+      errors = true;
+      goto end;
+    }
+
+    table = tables[ACL_TABLES::TABLE_OBJECT_ATTRIBUTES].table;
+    ret |= modify_object_attribute_in_table(thd, table, object_attrib, false);
+    if (ret) {
+      errors = true;
+      std::cout<<"Failed to add object attribute to table\n";
+    }
+    end:
+      errors = log_and_commit_acl_ddl(thd, transactional_tables);
+      get_global_acl_cache()->increase_version();
+  }   /* Critical section */
+
+  if (!errors) {
+    my_ok(thd);
+    /* Notify storage engines */
+  }
+
+  return errors;
+}
+
+bool mysql_delete_user_attribute(THD *thd, std::string user_attrib) {
+  DBUG_TRACE;
+  int ret;
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
+  bool transactional_tables;
+  TABLE *table = nullptr;
+  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  bool errors  =false;
+
+  if ((ret = open_grant_tables(thd, tables, &transactional_tables))) 
+    return ret != 1;
+  
+  {   /* Crititcal section */
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+
+    if (!acl_cache_lock.lock()) {
+      commit_and_close_mysql_tables(thd);
+      return true;
+    }
+
+    if (!user_attribute_set->count(user_attrib)) {
+      std::cout<<"Invalid user attribute\n";
+      errors = true;
+      goto end;
+    }
+
+    table = tables[ACL_TABLES::TABLE_USER_ATTRIBUTES].table;
+    ret |= modify_user_attribute_in_table(thd, table, user_attrib, true);
+    if (ret) {
+      errors = true;
+      std::cout<<"Failed to delete user attribute from table\n";
+    }
+    end:
+      errors = log_and_commit_acl_ddl(thd, transactional_tables);
+      get_global_acl_cache()->increase_version();
+  }   /* Critical section */
+
+  if (!errors) {
+    my_ok(thd);
+    /* Notify storage engines */
+  }
+
+  return errors;
+}
+
+bool mysql_delete_object_attribute(THD *thd, std::string object_attrib) {
+  DBUG_TRACE;
+  int ret;
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
+  bool transactional_tables;
+  TABLE *table = nullptr;
+  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  bool errors  =false;
+
+  if ((ret = open_grant_tables(thd, tables, &transactional_tables))) 
+    return ret != 1;
+  
+  {   /* Crititcal section */
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+
+    if (!acl_cache_lock.lock()) {
+      commit_and_close_mysql_tables(thd);
+      return true;
+    }
+
+    if (!object_attribute_set->count(object_attrib)) {
+      std::cout<<"Invalid object attribute\n";
+      errors = true;
+      goto end;
+    }
+
+    table = tables[ACL_TABLES::TABLE_OBJECT_ATTRIBUTES].table;
+    ret |= modify_object_attribute_in_table(thd, table, object_attrib, true);
+    if (ret) {
+      errors = true;
+      std::cout<<"Failed to delete object attribute from table\n";
+    }
+    end:
+      errors = log_and_commit_acl_ddl(thd, transactional_tables);
+      get_global_acl_cache()->increase_version();
+  }   /* Critical section */
+
+  if (!errors) {
+    my_ok(thd);
+    /* Notify storage engines */
+  }
+
+  return errors;
+}

@@ -213,8 +213,8 @@ SET @cmd = "CREATE TABLE IF NOT EXISTS user_attrib_val
   Attrib_name varchar(20) CHARACTER SET ASCII NOT NULL,
   Attrib_val varchar(10) CHARACTER SET ASCII NOT NULL,
   PRIMARY KEY (User, Host, Attrib_name),
-  FOREIGN KEY (Host, User) REFERENCES user(Host, User),
-  FOREIGN KEY (Attrib_name) REFERENCES user_attributes(Attrib_name)
+  FOREIGN KEY (Host, User) REFERENCES user(Host, User) ON DELETE CASCADE,
+  FOREIGN KEY (Attrib_name) REFERENCES user_attributes(Attrib_name) ON DELETE CASCADE
 ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='User attribute values' ROW_FORMAT=DYNAMIC TABLESPACE=mysql";
 SET @str = CONCAT(@cmd, " ENCRYPTION='", @is_mysql_encrypted, "'");
 PREPARE stmt FROM @str;
@@ -227,7 +227,7 @@ SET @cmd = "CREATE TABLE IF NOT EXISTS object_attrib_val (
   Attrib_name varchar(20) CHARACTER SET ASCII NOT NULL,
   Attrib_val varchar(10) CHARACTER SET ASCII NOT NULL,
   PRIMARY KEY (Db_name, Table_name, Attrib_name),
-  FOREIGN KEY (Attrib_name) REFERENCES object_attributes(Attrib_name)
+  FOREIGN KEY (Attrib_name) REFERENCES object_attributes(Attrib_name) ON DELETE CASCADE
 ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Object attribute values' ROW_FORMAT=DYNAMIC TABLESPACE=mysql";
 SET @str = CONCAT(@CMD, " ENCRYPTION='", @is_mysql_encrypted, "'");
 PREPARE stmt FROM @str;
@@ -252,7 +252,7 @@ SET @cmd = "CREATE TABLE IF NOT EXISTS policy_user_aval (
   User_attrib_val varchar(10) CHARACTER SET ASCII NOT NULL,
 	PRIMARY KEY (Rule_name, User_attrib_name),
 	FOREIGN KEY (Rule_name) REFERENCES policy(Rule_name) ON DELETE CASCADE,
-	FOREIGN KEY (User_attrib_name) REFERENCES user_attributes(Attrib_name)
+	FOREIGN KEY (User_attrib_name) REFERENCES user_attributes(Attrib_name) ON DELETE CASCADE
 ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Policy definitions for user attributes' ROW_FORMAT=DYNAMIC TABLESPACE=mysql";
 SET @str = CONCAT(@cmd, " ENCRYPTION='", @is_mysql_encrypted, "'");
 PREPARE stmt FROM @str;
@@ -265,7 +265,7 @@ SET @cmd = "CREATE TABLE IF NOT EXISTS policy_object_aval (
   Object_attrib_val varchar(10) CHARACTER SET ASCII NOT NULL,
 	PRIMARY KEY (Rule_name, Object_attrib_name),
 	FOREIGN KEY (Rule_name) REFERENCES policy(Rule_name) ON DELETE CASCADE,
-	FOREIGN KEY (Object_attrib_name) REFERENCES object_attributes(Attrib_name)
+	FOREIGN KEY (Object_attrib_name) REFERENCES object_attributes(Attrib_name) ON DELETE CASCADE
 ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Policy definitions for object attributes' ROW_FORMAT=DYNAMIC TABLESPACE=mysql";
 SET @str = CONCAT(@cmd, " ENCRYPTION='", @is_mysql_encrypted, "'");
 PREPARE stmt FROM @str;

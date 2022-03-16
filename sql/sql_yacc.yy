@@ -1843,8 +1843,12 @@ void warn_about_deprecated_binary(THD *thd)
         create_rule_stmt
         create_srs_stmt
         create_table_stmt
+        create_resource_attribute_stmt
+        create_user_attribute_stmt
         delete_stmt
+        delete_resource_attribute_stmt
         delete_rule_stmt
+        delete_user_attribute_stmt
         describe_stmt
         do_stmt
         drop_index_stmt
@@ -2311,14 +2315,18 @@ simple_statement:
         | commit                        { $$= nullptr; }
         | create                        { $$= nullptr; }
         | create_index_stmt
+        | create_resource_attribute_stmt
         | create_resource_group_stmt
         | create_role_stmt
         | create_rule_stmt
         | create_srs_stmt
         | create_table_stmt
+        | create_user_attribute_stmt
         | deallocate                    { $$= nullptr; }
         | delete_stmt
+        | delete_resource_attribute_stmt
         | delete_rule_stmt
+        | delete_user_attribute_stmt
         | describe_stmt
         | do_stmt
         | drop_database_stmt            { $$= nullptr; }
@@ -3450,6 +3458,34 @@ attrib_val_pair:
           ident ':' ident 
           {
             $$ = new pair<LEX_STRING, LEX_STRING>($1, $3);
+          }
+          ;
+
+create_user_attribute_stmt:
+          CREATE USER ATTRIBUTE_SYM ident
+          {
+            $$ = NEW_PTN PT_create_user_attribute(string($4.str));
+          }
+          ;
+
+create_resource_attribute_stmt:
+          CREATE RESOURCE_SYM ATTRIBUTE_SYM ident
+          {
+            $$ = NEW_PTN PT_create_object_attribute(string($4.str));
+          }
+          ;
+
+delete_user_attribute_stmt:
+          DROP USER ATTRIBUTE_SYM ident
+          {
+            $$ = NEW_PTN PT_delete_user_attribute(string($4.str));
+          }
+          ;
+
+delete_resource_attribute_stmt:
+          DROP RESOURCE_SYM ATTRIBUTE_SYM ident
+          {
+            $$ = NEW_PTN PT_delete_object_attribute(string($4.str));
           }
           ;
 
@@ -15265,7 +15301,7 @@ ident_keywords_unambiguous:
         | ANY_SYM
         | ARRAY_SYM
         | AT_SYM
-        | ATTRIBUTE_SYM
+        /* | ATTRIBUTE_SYM */
         | AUTHENTICATION_SYM
         | AUTOEXTEND_SIZE_SYM
         | AUTO_INC

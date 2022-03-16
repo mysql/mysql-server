@@ -4423,6 +4423,18 @@ SHOW_VAR com_status_vars[] = {
     {"delete_rule",
      (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_DELETE_RULE]),
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"create user attribute",
+     (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_CREATE_USER_ATTRIBUTE]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"create object attribute",
+    (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_CREATE_OBJECT_ATTRIBUTE]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"delete user attribute",
+     (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_DELETE_USER_ATTRIBUTE]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"delete object attribute",
+    (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_DELETE_OBJECT_ATTRIBUTE]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL}, 
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_ALL}};
 
 LEX_CSTRING sql_statement_names[(uint)SQLCOM_END + 1];
