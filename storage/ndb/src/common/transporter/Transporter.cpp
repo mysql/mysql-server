@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -558,7 +558,7 @@ void
 Transporter::set_get(NDB_SOCKET_TYPE fd,
                      int level,
                      int optval,
-                     const char *optname, 
+                     const char */*optname*/,
                      int val)
 {
   int actual = 0, defval = 0;

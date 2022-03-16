@@ -4026,7 +4026,7 @@ void
 calculate_send_buffer_level(Uint64 node_send_buffer_size,
                             Uint64 total_send_buffer_size,
                             Uint64 total_used_send_buffer_size,
-                            Uint32 num_threads,
+                            Uint32 /*num_threads*/,
                             SB_LevelType &level)
 {
   Uint64 percentage =
