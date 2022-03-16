@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -928,7 +928,7 @@ TEST_P(NotifyBootstrapNotAffectedTest, NotifyBootstrapNotAffected) {
       RouterComponentBootstrapTest::kBootstrapOutputResponder);
 
   SCOPED_TRACE("// Bootstrap should be successful");
-  check_exit_code(router, EXIT_SUCCESS, 10s);
+  check_exit_code(router, EXIT_SUCCESS);
 
   SCOPED_TRACE("// No notification should be sent by the Router");
   wait_for_stopped.join();

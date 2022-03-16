@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -43,8 +43,7 @@ static constexpr auto kDefaultExpectOutputTimeout =
 
 // wait-timeout should be less than infinite, and long enough that even with
 // valgrind we properly pass the tests
-static constexpr auto kDefaultWaitForExitTimeout =
-    std::chrono::milliseconds(10000);
+static constexpr auto kDefaultWaitForExitTimeout = std::chrono::seconds(30);
 
 static constexpr size_t kReadBufSize = 1024;
 

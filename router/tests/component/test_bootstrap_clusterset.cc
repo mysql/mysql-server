@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -127,7 +127,7 @@ TEST_P(ClusterSetBootstrapTargetClusterTest, ClusterSetBootstrapTargetCluster) {
 
   auto &router = launch_router_for_bootstrap(bootstrap_params, EXIT_SUCCESS);
 
-  check_exit_code(router, EXIT_SUCCESS, 5s);
+  check_exit_code(router, EXIT_SUCCESS);
 
   const std::string conf_file_path =
       bootstrap_directory.name() + "/mysqlrouter.conf";
@@ -471,7 +471,7 @@ TEST_P(ClusterSetConfUseGrNotificationParamTest,
   // launch the router in bootstrap mode
   auto &router = launch_router_for_bootstrap(bootstrap_params);
 
-  check_exit_code(router, EXIT_SUCCESS, 5s);
+  check_exit_code(router, EXIT_SUCCESS);
 
   const std::string state_file_path =
       bootstrap_directory.name() + "/data/state.json";
@@ -965,7 +965,7 @@ TEST_F(RouterClusterSetBootstrapTest, PrimaryClusterQueriedFirst) {
 
   auto &router = launch_router_for_bootstrap(bootstrap_params, EXIT_SUCCESS);
 
-  check_exit_code(router, EXIT_SUCCESS, 5s);
+  check_exit_code(router, EXIT_SUCCESS);
 
   // check that the only nodes that we connected to during the bootstrap are the
   // one used as a -B parameter (first node of the second cluster) and the
