@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -294,8 +294,8 @@ public:
    * a default will be used of sum(max send buffer) over all transporters.
    * The second is the config parameter ExtraSendBufferMemory
    */
-  virtual void allocate_send_buffers(Uint64 total_send_buffer,
-			             Uint64 extra_send_buffer) {}
+  virtual void allocate_send_buffers(Uint64 /*total_send_buffer*/,
+			             Uint64 /*extra_send_buffer*/) {}
 
   /**
    * Check that send bufferes are enabled for the specified node.
@@ -312,7 +312,7 @@ public:
    * send buffers, it may be disabled before the written data is
    * actually sent. The buffer contents is then silently discarded.
    */
-  virtual bool isSendEnabled(NodeId node) const
+  virtual bool isSendEnabled(NodeId /*node*/) const
   { return true; }
 
   /**
