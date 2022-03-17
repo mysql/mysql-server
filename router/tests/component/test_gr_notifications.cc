@@ -237,6 +237,7 @@ class GrNotificationsTest : public RouterComponentTest {
                        mysqlx_wait_timeout_unsupported ? 1 : 0, allocator);
     json_doc.AddMember("gr_notices_unsupported", gr_notices_unsupported ? 1 : 0,
                        allocator);
+    json_doc.AddMember("md_query_count", 0, allocator);
     const auto json_str = json_to_string(json_doc);
     EXPECT_NO_THROW(MockServerRestClient(http_port).set_globals(json_str));
   }
