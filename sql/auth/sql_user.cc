@@ -2394,14 +2394,14 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   }
 
   DBUG_EXECUTE_IF("mysql_handle_grant_data_fail_on_routine_table",
-                  DBUG_SET("+d,wl7158_handle_grant_table_2"););
+                  DBUG_SET("+d,wl7158_handle_grant_table_1"););
 
   /* Handle stored routines table. */
   if ((found = handle_grant_table(thd, tables, ACL_TABLES::TABLE_PROCS_PRIV,
                                   drop, user_from, user_to)) < 0) {
     /* Handle of table failed, don't touch in-memory array. */
     DBUG_EXECUTE_IF("mysql_handle_grant_data_fail_on_routine_table",
-                    DBUG_SET("-d,wl7158_handle_grant_table_2"););
+                    DBUG_SET("-d,wl7158_handle_grant_table_1"););
     return -1;
   } else {
     /* Handle procs array. */
@@ -2433,13 +2433,13 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   }
 
   DBUG_EXECUTE_IF("mysql_handle_grant_data_fail_on_tables_table",
-                  DBUG_SET("+d,wl7158_handle_grant_table_2"););
+                  DBUG_SET("+d,wl7158_handle_grant_table_1"););
 
   /* Handle tables table. */
   if ((found = handle_grant_table(thd, tables, ACL_TABLES::TABLE_TABLES_PRIV,
                                   drop, user_from, user_to)) < 0) {
     DBUG_EXECUTE_IF("mysql_handle_grant_data_fail_on_tables_table",
-                    DBUG_SET("-d,wl7158_handle_grant_table_2"););
+                    DBUG_SET("-d,wl7158_handle_grant_table_1"););
     /* Handle of table failed, don't touch columns and in-memory array. */
     return -1;
   } else {
@@ -2450,13 +2450,13 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
     }
 
     DBUG_EXECUTE_IF("mysql_handle_grant_data_fail_on_columns_table",
-                    DBUG_SET("+d,wl7158_handle_grant_table_2"););
+                    DBUG_SET("+d,wl7158_handle_grant_table_1"););
 
     /* Handle columns table. */
     if ((found = handle_grant_table(thd, tables, ACL_TABLES::TABLE_COLUMNS_PRIV,
                                     drop, user_from, user_to)) < 0) {
       DBUG_EXECUTE_IF("mysql_handle_grant_data_fail_on_columns_table",
-                      DBUG_SET("-d,wl7158_handle_grant_table_2"););
+                      DBUG_SET("-d,wl7158_handle_grant_table_1"););
       /* Handle of table failed, don't touch the in-memory array. */
       return -1;
     } else {
@@ -2475,7 +2475,7 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   /* Handle proxies_priv table. */
   if (tables[ACL_TABLES::TABLE_PROXIES_PRIV].table) {
     DBUG_EXECUTE_IF("mysql_handle_grant_data_fail_on_proxies_priv_table",
-                    DBUG_SET("+d,wl7158_handle_grant_table_2"););
+                    DBUG_SET("+d,wl7158_handle_grant_table_1"););
 
     if (table_intact.check(tables[ACL_TABLES::TABLE_PROXIES_PRIV].table,
                            ACL_TABLES::TABLE_PROXIES_PRIV)) {
@@ -2486,7 +2486,7 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
     if ((found = handle_grant_table(thd, tables, ACL_TABLES::TABLE_PROXIES_PRIV,
                                     drop, user_from, user_to)) < 0) {
       DBUG_EXECUTE_IF("mysql_handle_grant_data_fail_on_proxies_priv_table",
-                      DBUG_SET("-d,wl7158_handle_grant_table_2"););
+                      DBUG_SET("-d,wl7158_handle_grant_table_1"););
       /* Handle of table failed, don't touch the in-memory array. */
       return -1;
     } else {

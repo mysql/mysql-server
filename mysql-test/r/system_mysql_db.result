@@ -62,7 +62,7 @@ db	CREATE TABLE `db` (
   `Execute_priv` enum('N','Y') COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
   `Event_priv` enum('N','Y') COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
   `Trigger_priv` enum('N','Y') COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
-  PRIMARY KEY (`Host`,`Db`,`User`),
+  PRIMARY KEY (`Host`,`User`,`Db`),
   KEY `User` (`User`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Database privileges'
 show create table user;
@@ -141,7 +141,7 @@ tables_priv	CREATE TABLE `tables_priv` (
   `Timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `Table_priv` set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger') COLLATE utf8_general_ci NOT NULL DEFAULT '',
   `Column_priv` set('Select','Insert','Update','References') COLLATE utf8_general_ci NOT NULL DEFAULT '',
-  PRIMARY KEY (`Host`,`Db`,`User`,`Table_name`),
+  PRIMARY KEY (`Host`,`User`,`Db`,`Table_name`),
   KEY `Grantor` (`Grantor`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Table privileges'
 show create table columns_priv;
@@ -154,7 +154,7 @@ columns_priv	CREATE TABLE `columns_priv` (
   `Column_name` char(64) COLLATE utf8mb3_bin NOT NULL DEFAULT '',
   `Timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `Column_priv` set('Select','Insert','Update','References') COLLATE utf8_general_ci NOT NULL DEFAULT '',
-  PRIMARY KEY (`Host`,`Db`,`User`,`Table_name`,`Column_name`)
+  PRIMARY KEY (`Host`,`User`,`Db`,`Table_name`,`Column_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Column privileges'
 show create table procs_priv;
 Table	Create Table
@@ -167,7 +167,7 @@ procs_priv	CREATE TABLE `procs_priv` (
   `Grantor` varchar(288) COLLATE utf8mb3_bin NOT NULL DEFAULT '',
   `Proc_priv` set('Execute','Alter Routine','Grant') COLLATE utf8_general_ci NOT NULL DEFAULT '',
   `Timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`Host`,`Db`,`User`,`Routine_name`,`Routine_type`),
+  PRIMARY KEY (`Host`,`User`,`Db`,`Routine_name`,`Routine_type`),
   KEY `Grantor` (`Grantor`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Procedure privileges'
 show create table servers;

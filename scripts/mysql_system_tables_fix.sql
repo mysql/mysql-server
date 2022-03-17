@@ -1467,7 +1467,6 @@ INSERT INTO global_grants SELECT user, host, 'FLUSH_TABLES', IF(grant_priv = 'Y'
 FROM mysql.user WHERE Reload_priv = 'Y' AND @hadFlushTablesPriv = 0;
 COMMIT;
 
-SET @@session.sql_mode = @old_sql_mode;
 
 -- Fixes to inconsistent system table upgrades.
 ALTER TABLE func
@@ -1547,3 +1546,17 @@ SET @str = IF(@had_firewall_membership_pk = 0 AND @had_firewall_membership,
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
+
+ALTER TABLE mysql.db DROP PRIMARY KEY,
+                     ADD PRIMARY KEY (`Host`,`User`,`Db`);
+
+ALTER TABLE mysql.tables_priv DROP PRIMARY KEY,
+                              ADD PRIMARY KEY (`Host`,`User`,`Db`,`Table_name`);
+
+ALTER TABLE mysql.columns_priv DROP PRIMARY KEY,
+                               ADD PRIMARY KEY (`Host`,`User`,`Db`,`Table_name`,`Column_name`);
+
+ALTER TABLE mysql.procs_priv DROP PRIMARY KEY,
+                             ADD PRIMARY KEY (`Host`,`User`,`Db`,`Routine_name`,`Routine_type`);
+
+SET @@session.sql_mode = @old_sql_mode;

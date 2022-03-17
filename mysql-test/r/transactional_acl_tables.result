@@ -1169,24 +1169,6 @@ Error	3501	The ACL operation failed due to the following error from SE: errcode 
 SHOW GRANTS FOR u1@h;
 ERROR 42000: There is no such grant defined for user 'u1' on host 'h'
 SET debug="-d,wl7158_handle_grant_table_1";
-SET debug="+d,wl7158_handle_grant_table_2";
-CREATE USER u1@h;
-ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
-SHOW WARNINGS;
-Level	Code	Message
-Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
-SHOW GRANTS FOR u1@h;
-ERROR 42000: There is no such grant defined for user 'u1' on host 'h'
-SET debug="-d,wl7158_handle_grant_table_2";
-SET debug="+d,wl7158_handle_grant_table_3";
-CREATE USER u1@h;
-ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
-SHOW WARNINGS;
-Level	Code	Message
-Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
-SHOW GRANTS FOR u1@h;
-ERROR 42000: There is no such grant defined for user 'u1' on host 'h'
-SET debug="-d,wl7158_handle_grant_table_3";
 CREATE USER u1@h;
 SET debug="+d,wl7158_modify_grant_table_1";
 rename user u1@h to u2@h;

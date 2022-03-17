@@ -26761,17 +26761,17 @@
                     },
                     {
                         "ordinal_position": 2,
-                        "length": 192,
-                        "order": 2,
-                        "hidden": false,
-                        "column_opx": 1
-                    },
-                    {
-                        "ordinal_position": 3,
                         "length": 96,
                         "order": 2,
                         "hidden": false,
                         "column_opx": 2
+                    },
+                    {
+                        "ordinal_position": 3,
+                        "length": 192,
+                        "order": 2,
+                        "hidden": false,
+                        "column_opx": 1
                     },
                     {
                         "ordinal_position": 4,
@@ -33880,17 +33880,17 @@
                     },
                     {
                         "ordinal_position": 2,
-                        "length": 192,
-                        "order": 2,
-                        "hidden": false,
-                        "column_opx": 1
-                    },
-                    {
-                        "ordinal_position": 3,
                         "length": 96,
                         "order": 2,
                         "hidden": false,
                         "column_opx": 2
+                    },
+                    {
+                        "ordinal_position": 3,
+                        "length": 192,
+                        "order": 2,
+                        "hidden": false,
+                        "column_opx": 1
                     },
                     {
                         "ordinal_position": 4,
@@ -33979,14 +33979,14 @@
                         "length": 4294967295,
                         "order": 2,
                         "hidden": true,
-                        "column_opx": 1
+                        "column_opx": 2
                     },
                     {
                         "ordinal_position": 4,
                         "length": 4294967295,
                         "order": 2,
                         "hidden": true,
-                        "column_opx": 2
+                        "column_opx": 1
                     },
                     {
                         "ordinal_position": 5,
@@ -34428,17 +34428,17 @@
                     },
                     {
                         "ordinal_position": 2,
-                        "length": 192,
-                        "order": 2,
-                        "hidden": false,
-                        "column_opx": 1
-                    },
-                    {
-                        "ordinal_position": 3,
                         "length": 96,
                         "order": 2,
                         "hidden": false,
                         "column_opx": 2
+                    },
+                    {
+                        "ordinal_position": 3,
+                        "length": 192,
+                        "order": 2,
+                        "hidden": false,
+                        "column_opx": 1
                     },
                     {
                         "ordinal_position": 4,
@@ -36650,17 +36650,17 @@
                     },
                     {
                         "ordinal_position": 2,
-                        "length": 192,
-                        "order": 2,
-                        "hidden": false,
-                        "column_opx": 1
-                    },
-                    {
-                        "ordinal_position": 3,
                         "length": 96,
                         "order": 2,
                         "hidden": false,
                         "column_opx": 2
+                    },
+                    {
+                        "ordinal_position": 3,
+                        "length": 192,
+                        "order": 2,
+                        "hidden": false,
+                        "column_opx": 1
                     },
                     {
                         "ordinal_position": 4,
@@ -36749,14 +36749,14 @@
                         "length": 4294967295,
                         "order": 2,
                         "hidden": true,
-                        "column_opx": 1
+                        "column_opx": 2
                     },
                     {
                         "ordinal_position": 4,
                         "length": 4294967295,
                         "order": 2,
                         "hidden": true,
-                        "column_opx": 2
+                        "column_opx": 1
                     },
                     {
                         "ordinal_position": 5,

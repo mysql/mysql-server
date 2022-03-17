@@ -1687,22 +1687,6 @@ SHOW WARNINGS;
 SHOW GRANTS FOR u1@h;
 SET debug="-d,wl7158_handle_grant_table_1";
 
-SET debug="+d,wl7158_handle_grant_table_2";
---error ER_ACL_OPERATION_FAILED
-CREATE USER u1@h;
-SHOW WARNINGS;
---error ER_NONEXISTING_GRANT
-SHOW GRANTS FOR u1@h;
-SET debug="-d,wl7158_handle_grant_table_2";
-
-SET debug="+d,wl7158_handle_grant_table_3";
---error ER_ACL_OPERATION_FAILED
-CREATE USER u1@h;
-SHOW WARNINGS;
---error ER_NONEXISTING_GRANT
-SHOW GRANTS FOR u1@h;
-SET debug="-d,wl7158_handle_grant_table_3";
-
 CREATE USER u1@h;
 SET debug="+d,wl7158_modify_grant_table_1";
 # RENAME USER succeeds if there is no error in handler call.
