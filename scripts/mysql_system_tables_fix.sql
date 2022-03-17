@@ -1539,8 +1539,8 @@ SET @had_firewall_membership =
 SET @had_firewall_membership_pk =
   (SELECT COUNT(table_name) FROM information_schema.table_constraints
      WHERE constraint_type = 'PRIMARY KEY' AND
-           constraint_schema='mysql' AND
-           constraint_name = 'firewall_membership');
+           table_schema = 'mysql' AND
+           table_name = 'firewall_membership');
 SET @cmd="ALTER TABLE mysql.firewall_membership ADD PRIMARY KEY(GROUP_ID,MEMBER_ID)";
 SET @str = IF(@had_firewall_membership_pk = 0 AND @had_firewall_membership,
               @cmd, "SET @dummy = 0");
