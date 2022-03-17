@@ -83,7 +83,7 @@ String *Item_sum_shortest_dir_path::val_str(String *str) {
 
   Dijkstra dijkstra(m_edge_map);
   double cost;
-  for (const Edge* edge : dijkstra(0, 2, cost)) {
+  for (const Edge* edge : dijkstra(m_begin_node, m_end_node, cost)) {
     Json_double *num = new (std::nothrow) Json_double(edge->cost);
     if (object->add_alias(std::to_string(edge->id), (Json_dom*)num))
       return error_str();
@@ -116,13 +116,16 @@ bool Item_sum_shortest_dir_path::add() {
      clear())
    */
   if (thd->is_error()) return error_json();
-  
+
   int id, from_id, to_id;
   double cost;
-  id = args[0]->val_real();
-  from_id = args[1]->val_real();
-  to_id = args[2]->val_real();
+
+  id = args[0]->val_int();
+  from_id = args[1]->val_int();
+  to_id = args[2]->val_int();
   cost = args[3]->val_real();
+  m_begin_node = args[4]->val_real();
+  m_end_node = args[5]->val_real();
   if (thd->is_error()) return true;
   for (int i = 0; i < 4; i++) if (args[i]->null_value) return true;
 
