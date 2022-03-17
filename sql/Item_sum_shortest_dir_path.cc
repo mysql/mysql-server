@@ -135,12 +135,24 @@ bool Item_sum_shortest_dir_path::add() {
   int id, from_id, to_id;
   double cost;
 
+  for (size_t i = 0; i < 2; i++)
+  {
+    verify_id_argument(i);
+  }
+
+  verify_cost_argument(3);
+
+  for (size_t i = 4; i < 5; i++)
+  {
+    verify_const_id_argument(i);
+  }
+
   id = args[0]->val_int();
   from_id = args[1]->val_int();
   to_id = args[2]->val_int();
   cost = args[3]->val_real();
-  m_begin_node = args[4]->val_real();
-  m_end_node = args[5]->val_real();
+  m_begin_node = args[4]->val_int();
+  m_end_node = args[5]->val_int();
   if (thd->is_error()) return true;
   for (int i = 0; i < 4; i++) if (args[i]->null_value) return true;
 
@@ -167,6 +179,35 @@ Item *Item_sum_shortest_dir_path::copy_or_same(THD *thd) {
 bool Item_sum_shortest_dir_path::check_wf_semantics1(THD *thd, Query_block *select,
                                         Window_evaluation_requirements *reqs) {
   return Item_sum::check_wf_semantics1(thd, select, reqs);
+}
+
+bool Item_sum_shortest_dir_path::verify_const_id_argument(int i) {
+
+    if (!args[i]->const_item() ||
+        (!args[i]->is_null() &&
+         (args[i]->result_type() != INT_RESULT))) {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+      return true;
+    } 
+    return false;
+}
+
+bool Item_sum_shortest_dir_path::verify_id_argument(int i) {
+
+    if (!args[i]->is_null() && (args[i]->result_type() != INT_RESULT)) {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+      return true;
+    } 
+    return false;
+}
+
+bool Item_sum_shortest_dir_path::verify_cost_argument(int i) {
+
+  if (!args[i]->is_null() && (args[i]->result_type() != REAL_RESULT)) {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+      return true;
+    } 
+    return false;
 }
 
 Json_dom *Item_sum_shortest_dir_path::jsonify_to_heap(int i) {

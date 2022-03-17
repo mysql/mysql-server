@@ -13,6 +13,6 @@ insert into paths values
     (4, 3, 2, 2.0)
     ;
 
-select st_shortest_dir_path(id, from_id, to_id, cost, 0, 2) from paths;
+select st_shortest_dir_path(id, from_id, to_id, cost, id, 2) from paths;
 
 drop table paths;
