@@ -2,16 +2,19 @@ create table paths(
 id int primary key,
 from_id int,
 to_id int,
-cost double
+cost double,
+type varchar(50)
 );
 insert into paths values
-(0, 0, 1, 5.0),
-(1, 1, 2, 5.0),
-(2, 0, 2, 15.0),
-(3, 1, 3, 2.0),
-(4, 3, 2, 2.0)
+(10, 0, 1, 2.0, "car"),
+(11, 1, 2, 3.0, "car"),
+(12, 0, 2, 8.0, "car"),
+(20, 0, 1, 20.0, "bike"),
+(21, 1, 2, 25.0, "bike"),
+(22, 0, 2, 40.0, "bike")
 ;
-select st_shortest_dir_path(id, from_id, to_id, cost, 0, 2) from paths;
+select st_shortest_dir_path(id, from_id, to_id, cost, 0, 2) from paths group by type;
 st_shortest_dir_path(id, from_id, to_id, cost, 0, 2)
-{"cost": 9.0, "path": [{"id": 0, "cost": 5.0}, {"id": 3, "cost": 2.0}, {"id": 4, "cost": 2.0}]}
+{"cost": 40.0, "path": [{"id": 22, "cost": 40.0}]}
+{"cost": 5.0, "path": [{"id": 10, "cost": 2.0}, {"id": 11, "cost": 3.0}]}
 drop table paths;
