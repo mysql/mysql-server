@@ -48,6 +48,9 @@ class Item_sum_shortest_dir_path final : public Item_sum_json {
   bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
 
+ private:
+  Json_dom *jsonify_to_heap(int i);
+  Json_dom *jsonify_to_heap(double d);
 };
 
 #endif /* ITEM_SUM_SHORTEST_DIR_PATH_INCLUDED */

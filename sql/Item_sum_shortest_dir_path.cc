@@ -57,7 +57,6 @@
 #include "sql/temp_table_param.h"  // Temp_table_param
 #include "sql/uniques.h"           // Unique
 #include "sql/window.h"
-#include "sql/Dijkstras_functor.h"
 
 Item_sum_shortest_dir_path::Item_sum_shortest_dir_path(
     THD *thd, Item_sum *item, unique_ptr_destroy_only<Json_wrapper> wrapper,
@@ -73,24 +72,36 @@ Item_sum_shortest_dir_path::Item_sum_shortest_dir_path(
       m_json_object(std::move(object)) {}
 
 bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
-  
+  assert(false);
 
   return Item_sum_json::val_json(wr);
 }
 String *Item_sum_shortest_dir_path::val_str(String *str) {
-  const THD *thd = base_query_block->parent_lex->thd;
-  Json_object *object = down_cast<Json_object *>(m_wrapper->to_dom(thd));
+  assert(!m_is_window_function);
 
+  const THD *thd = base_query_block->parent_lex->thd;  
+  if (thd->is_error()) return error_str();
+
+  Json_array *arr = new (std::nothrow) Json_array();
   Dijkstra dijkstra(m_edge_map);
   double cost;
   for (const Edge* edge : dijkstra(0, 2, cost)) {
-    Json_double *num = new (std::nothrow) Json_double(edge->cost);
-    if (object->add_alias(std::to_string(edge->id), (Json_dom*)num))
-      return error_str();
+    Json_object *json_edge = new (std::nothrow) Json_object();
+    if (json_edge->add_alias("id", jsonify_to_heap(edge->id)) ||
+        json_edge->add_alias("cost", jsonify_to_heap(edge->cost)) ||
+        arr->append_alias(json_edge))
+          return error_str();
   }
+  Json_object *object = down_cast<Json_object *>(m_wrapper->to_dom(thd));
+  object->clear();
+  if( object->add_alias("path", arr) ||
+      object->add_alias("cost", jsonify_to_heap(cost)))
+        return error_str();
 
   str->length(0);
   if (m_wrapper->to_string(str, true, func_name())) return error_str();
+
+  if(aggr) aggr->endup();
 
   return str; //Item_sum_json::val_str(str);
 }
@@ -99,6 +110,7 @@ void Item_sum_shortest_dir_path::clear() {
   null_value = true;
   m_json_object->clear();
 
+  for (auto& pair : m_edge_map) delete pair.second;
   // Set the object to the m_wrapper, but let a_star_ting keep the
   // ownership.
   *m_wrapper = Json_wrapper(m_json_object.get(), true);
@@ -108,6 +120,7 @@ void Item_sum_shortest_dir_path::clear() {
 bool Item_sum_shortest_dir_path::add() {
   assert(fixed);
   assert(arg_count == 6);
+  assert(!m_is_window_function);
 
   const THD *thd = base_query_block->parent_lex->thd;
   /*
@@ -149,5 +162,12 @@ Item *Item_sum_shortest_dir_path::copy_or_same(THD *thd) {
 bool Item_sum_shortest_dir_path::check_wf_semantics1(THD *thd, Query_block *select,
                                         Window_evaluation_requirements *reqs) {
   return Item_sum::check_wf_semantics1(thd, select, reqs);
+}
+
+Json_dom *Item_sum_shortest_dir_path::jsonify_to_heap(int i) {
+  return new (std::nothrow) Json_int(i);
+}
+Json_dom *Item_sum_shortest_dir_path::jsonify_to_heap(double d) {
+  return new (std::nothrow) Json_double(d);
 }
 
