@@ -113,6 +113,7 @@ void Item_sum_shortest_dir_path::clear() {
   m_json_object->clear();
 
   for (auto& pair : m_edge_map) delete pair.second;
+  m_edge_map.clear();
   // Set the object to the m_wrapper, but let a_star_ting keep the
   // ownership.
   *m_wrapper = Json_wrapper(m_json_object.get(), true);
