@@ -43,9 +43,8 @@ ADD DATAFILE 'datafile.dat'
   USE LOGFILE GROUP lg_1
 INITIAL_SIZE 2M
 ENGINE NDB;
-SELECT id, fq_name FROM ndbinfo.dict_obj_info WHERE type = 22;
-id	datafile_objectid
-fq_name	datafile.dat
+Check that the datafiles FILE_ID column in INFORMATION_SCHEMA.FILES
+is the same as its object id in NDB(as reported by ndbinfo)
 
 ALTER TABLESPACE ts_1
 ADD DATAFILE 'datafile2.dat'
