@@ -938,29 +938,39 @@ static FOREIGN_SERVER *clone_server(MEM_ROOT *mem, const FOREIGN_SERVER *server,
 FOREIGN_SERVER *get_server_by_name(MEM_ROOT *mem, const char *server_name,
                                    FOREIGN_SERVER *buff) {
   size_t server_name_length;
-  FOREIGN_SERVER *server;
+  FOREIGN_SERVER *server = nullptr;
   DBUG_TRACE;
-  DBUG_PRINT("info", ("server_name %s", server_name));
 
-  server_name_length = strlen(server_name);
+  DBUG_EXECUTE_IF("bug33962357_simulate_null_server",
+                  { server_name = nullptr; });
+  DBUG_PRINT("info", ("server_name %s", server_name));
 
   if (!server_name || !strlen(server_name)) {
     DBUG_PRINT("info", ("server_name not defined!"));
-    return (FOREIGN_SERVER *)nullptr;
+    return nullptr;
   }
+
+  server_name_length = strlen(server_name);
+  const std::string str_server(server_name, server_name_length);
 
   DBUG_PRINT("info", ("locking servers_cache"));
   mysql_rwlock_rdlock(&THR_LOCK_servers);
-  const auto it =
-      servers_cache->find(std::string(server_name, server_name_length));
-  if (it == servers_cache->end()) {
-    DBUG_PRINT("info", ("server_name %s length %u not found!", server_name,
-                        (unsigned)server_name_length));
-    server = (FOREIGN_SERVER *)nullptr;
+
+  DBUG_EXECUTE_IF("bug33962357_simulate_null_cache",
+                  { servers_cache = nullptr; });
+
+  if (!servers_cache) {
+    DBUG_PRINT("error", ("server_cache not initialized!"));
+  } else {
+    const auto it = servers_cache->find(str_server);
+    if (it == servers_cache->end()) {
+      DBUG_PRINT("info", ("server_name %s length %u not found!", server_name,
+                          (unsigned)server_name_length));
+    }
+    /* otherwise, make copy of server */
+    else
+      server = clone_server(mem, it->second, buff);
   }
-  /* otherwise, make copy of server */
-  else
-    server = clone_server(mem, it->second, buff);
 
   DBUG_PRINT("info", ("unlocking servers_cache"));
   mysql_rwlock_unlock(&THR_LOCK_servers);
