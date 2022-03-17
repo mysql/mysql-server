@@ -1,5 +1,8 @@
 --source include/have_64bit.inc
 
+# If supplied, use a custom path for a 64bit Perl.
+--let PATH = $MTR_PERL64_PATH:$PATH
+
 perl;
 use Config;
 my $result_file_path = "$ENV{'MYSQLTEST_VARDIR'}/have_perl_64bit_int-result.inc";

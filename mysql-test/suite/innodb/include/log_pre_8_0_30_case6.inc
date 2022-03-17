@@ -1,6 +1,6 @@
---source include/not_solaris.inc
 
-# According to perl's documentation, 'Q' in (un)pack() is supported only if perl has been compiled with support for 64bit integers.
+# According to perl's documentation, 'Q' in (un)pack() is supported only if perl
+# has been compiled with support for 64bit integers.
 --source include/have_perl_64bit_int.inc
 
 --source log_pre_8_0_30_case_begin.inc

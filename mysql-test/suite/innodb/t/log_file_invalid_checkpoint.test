@@ -1,9 +1,10 @@
---source include/not_solaris.inc
 --source include/have_debug_sync.inc
 
-# This test checks scenario of recovery executed on data directory with redo file that has broken checkpoint_lsn (pointing outside the file)
+# This test checks scenario of recovery executed on data directory with redo
+# file that has broken checkpoint_lsn (pointing outside the file)
 
-# According to perl's documentation, 'Q' in (un)pack() is supported only if perl has been compiled with support for 64bit integers.
+# According to perl's documentation, 'Q' in (un)pack() is supported only if perl
+# has been compiled with support for 64bit integers.
 # The log_file_get_checkpoint_lsn(), which is used in this test, uses unpack('Q>').
 # The log_file_get_start_lsn(), which is used in this test, uses unpack('Q>').
 --source include/have_perl_64bit_int.inc

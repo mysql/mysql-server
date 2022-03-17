@@ -1,15 +1,17 @@
---source include/not_solaris.inc
 --source include/have_debug_sync.inc
 
-# According to perl's documentation, 'Q' in (un)pack() is supported only if perl has been compiled with support for 64bit integers.
+# This test checks scenario of recovery executed on data directory with a redo
+# file that has invalid metadata.
+# Scenario-2. Create scenario based on at least two redo files, in which the
+# second redo file has start_lsn different than end_lsn of the first file.
+
+# According to perl's documentation, 'Q' in (un)pack() is supported only if perl
+# has been compiled with support for 64bit integers.
 # The log_file_get_start_lsn(), which is used in this test, uses unpack('Q>').
 --source include/have_perl_64bit_int.inc
 
-# This test checks scenario of recovery executed on data directory with a redo file that has invalid metadata.
-# Scenario-2. Create scenario based on at least two redo files, in which the second redo file has start_lsn different than end_lsn of the first file.
-
-let $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
-let MYSQLD_IB_REDO_LOG_NON_TMP_FILES_COUNT_MIN = 2;
+--let $INNODB_PAGE_SIZE = `select @@innodb_page_size`
+--let MYSQLD_IB_REDO_LOG_NON_TMP_FILES_COUNT_MIN = 2
 
 --source include/log_multiple_files_test_begin.inc
 
