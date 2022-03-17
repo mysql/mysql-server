@@ -46,14 +46,14 @@ CREATE TABLESPACE ts_1
   INITIAL_SIZE 2M
   ENGINE NDB;
 
-# Check that the datafiles FILE_ID column in INFORMATION_SCHEMA.FILES is same
-# as its object id in NDB(as reported by ndbinfo)
+--echo Check that the datafiles FILE_ID column in INFORMATION_SCHEMA.FILES
+--echo is the same as its object id in NDB(as reported by ndbinfo)
 let $datafile_objectid =
   `SELECT FILE_ID FROM INFORMATION_SCHEMA.FILES
       WHERE ENGINE='ndbcluster' AND FILE_TYPE='DATAFILE'`;
-#echo datafile_objectid: $datafile_objectid;
---replace_result $datafile_objectid datafile_objectid
-SELECT id, fq_name FROM ndbinfo.dict_obj_info WHERE type = 22;
+let $datafile_objectid_ndbinfo = `SELECT id FROM ndbinfo.dict_obj_info WHERE type = 22`;
+#--echo $datafile_objectid_ndbinfo, $datafile_objectid
+assert($datafile_objectid_ndbinfo == $datafile_objectid);
 --echo
 
 ALTER TABLESPACE ts_1
