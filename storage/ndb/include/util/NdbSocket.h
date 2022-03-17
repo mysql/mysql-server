@@ -28,6 +28,7 @@
 #include "portlib/ndb_socket.h"
 #include "portlib/ndb_socket_poller.h"
 #include "portlib/NdbMutex.h"
+#include "util/ssl_socket_table.h"
 
 static constexpr int TLS_BUSY_TRY_AGAIN = -2;
 
@@ -36,8 +37,8 @@ public:
   enum class From { New, Existing };
 
   NdbSocket() = default;
-  NdbSocket(ndb_socket_t ndbsocket, From /*fromType*/) {
-    // ssl = socket_table_get_ssl(ndbsocket.s, (fromType == From::Existing));
+  NdbSocket(ndb_socket_t ndbsocket, From fromType) {
+    ssl = socket_table_get_ssl(ndbsocket.s, (fromType == From::Existing));
     init_from_native(ndbsocket.s);
   }
   /* NdbSockets cannot be copied, except using NdbSocket::transfer() */
@@ -199,7 +200,7 @@ private:
 
 inline
 void NdbSocket::init_from_new(ndb_socket_t ndbsocket) {
-  // assert(! socket_table_get_ssl(ndbsocket.s, false));
+  assert(! socket_table_get_ssl(ndbsocket.s, false));
   init_from_native(ndbsocket.s);
 }
 

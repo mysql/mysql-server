@@ -127,7 +127,7 @@ bool NdbSocket::associate(SSL * new_ssl)
 {
   if(ssl) return false; // already associated
   if(! SSL_set_fd(new_ssl, s.s)) return false;
-  // if(! socket_table_set_ssl(s.s, new_ssl)) return false;
+  socket_table_set_ssl(s.s, new_ssl);
   ssl = new_ssl;
   return true;
 }
@@ -186,7 +186,7 @@ bool NdbSocket::disable_locking() {
 void NdbSocket::ssl_close() {
   set_nonblocking(false);  // set to blocking
   SSL_shutdown(ssl);       // wait for close
-  // socket_table_clear_ssl(s.s);
+  socket_table_clear_ssl(s.s);
   SSL_free(ssl);
 }
 

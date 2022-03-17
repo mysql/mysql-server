@@ -69,6 +69,7 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
   parse_mask.cpp
   random.cpp
   require.cpp
+  ssl_socket_table.cpp
   socket_io.cpp
   uucode.cpp
   version.cpp
