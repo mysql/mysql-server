@@ -136,17 +136,9 @@ bool Item_sum_shortest_dir_path::add() {
   int id, from_id, to_id;
   double cost;
 
-  for (size_t i = 0; i < 2; i++)
-  {
-    verify_id_argument(i);
-  }
-
+  for (size_t i = 0; i <= 2; i++) verify_id_argument(i);
   verify_cost_argument(3);
-
-  for (size_t i = 4; i < 5; i++)
-  {
-    verify_const_id_argument(i);
-  }
+  for (size_t i = 4; i <= 5; i++) verify_const_id_argument(i);
 
   id = args[0]->val_int();
   from_id = args[1]->val_int();
