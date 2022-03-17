@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,9 @@
 
 static_assert(net::is_executor<net::system_executor>::value,
               "net::system_executor MUST be an executor");
+
+using namespace std::chrono_literals;
+constexpr auto kRetryTimeout = 1s;
 
 // a service MUST inherit from execution_context::service
 class MockService : public net::execution_context::service {
@@ -118,8 +121,6 @@ TEST(TestExecutor, use_service_dup_no_throws) {
 
 template <class Func>
 bool retry_for(Func &&func, std::chrono::milliseconds timeout) {
-  using namespace std::chrono_literals;
-
   using clock_type = std::chrono::steady_clock;
 
   auto start = clock_type::now();
@@ -134,20 +135,16 @@ bool retry_for(Func &&func, std::chrono::milliseconds timeout) {
 }
 
 TEST(TestSystemExecutor, defer_default_context) {
-  using namespace std::chrono_literals;
-
   std::atomic<int> done{};
 
   // net::defer runs in another thread.
   net::defer([&]() { done = 1; });
 
   // wait for 'done' to become 1
-  EXPECT_TRUE(retry_for([&]() { return done == 1; }, 100ms));
+  EXPECT_TRUE(retry_for([&]() { return done == 1; }, kRetryTimeout));
 }
 
 TEST(TestSystemExecutor, defer_system_executor) {
-  using namespace std::chrono_literals;
-
   net::system_executor ex;
 
   std::atomic<int> done{};
@@ -156,24 +153,20 @@ TEST(TestSystemExecutor, defer_system_executor) {
   net::defer(ex, [&]() { done = 1; });
 
   // wait for 'done' to become 1
-  EXPECT_TRUE(retry_for([&]() { return done == 1; }, 100ms));
+  EXPECT_TRUE(retry_for([&]() { return done == 1; }, kRetryTimeout));
 
   // and a 2nd task
   net::defer(ex, [&]() { done = 2; });
-  EXPECT_TRUE(retry_for([&]() { return done == 2; }, 100ms));
+  EXPECT_TRUE(retry_for([&]() { return done == 2; }, kRetryTimeout));
 }
 
 TEST(TestSystemExecutor, stopped_no_work) {
-  using namespace std::chrono_literals;
-
   net::system_executor ex;
 
   ASSERT_FALSE(ex.context().stopped());
 }
 
 TEST(TestSystemExecutor, stopped_with_work) {
-  using namespace std::chrono_literals;
-
   // there is only one system-context for _all_ tests.
   net::system_executor ex;
 
@@ -185,7 +178,7 @@ TEST(TestSystemExecutor, stopped_with_work) {
   net::defer(ex, [&]() { done = 1; });
 
   // wait for 'done' to become 1
-  EXPECT_TRUE(retry_for([&]() { return done == 1; }, 100ms));
+  EXPECT_TRUE(retry_for([&]() { return done == 1; }, kRetryTimeout));
 
   // the executor shouldn't stop itself.
   ASSERT_FALSE(ex.context().stopped());
@@ -198,8 +191,6 @@ TEST(TestSystemExecutor, stopped_with_work) {
  * is stopped
  */
 TEST(TestSystemExecutor, stop) {
-  using namespace std::chrono_literals;
-
   // there is only one system-context for _all_ tests.
   net::system_executor ex;
 
@@ -211,7 +202,7 @@ TEST(TestSystemExecutor, stop) {
   net::defer(ex, [&]() { done = 1; });
 
   // wait for 'done' to become 1
-  EXPECT_TRUE(retry_for([&]() { return done == 1; }, 100ms));
+  EXPECT_TRUE(retry_for([&]() { return done == 1; }, kRetryTimeout));
 
   // the executor shouldn't stop itself.
   ASSERT_FALSE(ex.context().stopped());
@@ -225,14 +216,12 @@ TEST(TestSystemExecutor, stop) {
 
   // should timeout as the 'defer' will not be executed (within the time we
   // wait)
-  EXPECT_FALSE(retry_for([&]() { return done == 2; }, 100ms));
+  EXPECT_FALSE(retry_for([&]() { return done == 2; }, kRetryTimeout));
 
   ex.context().join();
 }
 
 TEST(TestSystemExecutor, stopped_after_other_test_stopped) {
-  using namespace std::chrono_literals;
-
   // there is only one system-context for _all_ tests.
   net::system_executor ex;
 
