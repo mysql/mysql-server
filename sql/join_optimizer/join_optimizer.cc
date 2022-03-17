@@ -3170,8 +3170,8 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
           } else {
             join_path->cost += cost.cost_if_not_materialized;
           }
-          join_path->num_output_rows *= pred.selectivity;
           if (!already_applied_as_sargable) {
+            join_path->num_output_rows *= pred.selectivity;
             filter_predicates.SetBit(pred_idx);
           }
         }

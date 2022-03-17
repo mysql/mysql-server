@@ -73,6 +73,7 @@
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/handler-t.h"
 #include "unittest/gunit/mock_field_datetime.h"
+#include "unittest/gunit/mock_field_long.h"
 #include "unittest/gunit/parsertest.h"
 #include "unittest/gunit/test_utils.h"
 
@@ -1984,6 +1985,73 @@ TEST_F(HypergraphOptimizerTest, DoNotApplyBothSargableJoinAndFilterJoin) {
   EXPECT_STREQ("t1", inner_inner->ref().table->alias);
   EXPECT_EQ(0, inner_inner->ref().ref->key);
   EXPECT_EQ("t2.x", ItemToString(inner_inner->ref().ref->items[0]));
+}
+
+// The selectivity of sargable join predicates could in some cases be
+// double-counted when the sargable join predicate was part of a cycle in the
+// join graph.
+TEST_F(HypergraphOptimizerTest, SargableJoinPredicateSelectivity) {
+  // The inconsistent row estimates were only seen if the sargable predicate
+  // t1.x=t2.x was not fully subsumed by a ref access on t1.x. Achieved by
+  // giving t2.x a different type (UNSIGNED) than t1.x (SIGNED).
+  Mock_field_long t2_x("x", /*is_nullable=*/false, /*is_unsigned=*/true);
+  Mock_field_long t2_y("y", /*is_nullable=*/false, /*is_unsigned=*/false);
+  Fake_TABLE *t2 = new (m_initializer.thd()->mem_root) Fake_TABLE(&t2_x, &t2_y);
+  m_fake_tables["t2"] = t2;
+  t2->set_created();
+
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2, t3 "
+      "WHERE t1.x = t2.x AND t1.y = t3.x AND t2.y = t3.y",
+      /*nullable=*/false);
+
+  // Add an index on t1(x) to make t1.x=t2.x sargable.
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  const int t1_idx =
+      t1->create_index(t1->field[0], /*column2=*/nullptr, /*unique=*/false);
+  ulong rec_per_key_int[] = {1};
+  float rec_per_key[] = {1.0f};
+  t1->key_info[t1_idx].set_rec_per_key_array(rec_per_key_int, rec_per_key);
+
+  Fake_TABLE *t3 = m_fake_tables["t3"];
+  t1->file->stats.records = 1000;
+  t1->file->stats.data_file_length = 1e6;
+  t2->file->stats.records = 100;
+  t2->file->stats.data_file_length = 1e5;
+  t3->file->stats.records = 10;
+  t3->file->stats.data_file_length = 1e4;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // We don't really care about which exact plan is chosen, but the inconsistent
+  // row estimates were caused by REF access, so make sure our plan has one.
+  AccessPath *ref_path = nullptr;
+  WalkAccessPaths(root, query_block->join,
+                  WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
+                  [&ref_path](AccessPath *path, const JOIN *) {
+                    if (path->type == AccessPath::REF) {
+                      EXPECT_EQ(nullptr, ref_path);
+                      ref_path = path;
+                    }
+                    return false;
+                  });
+  ASSERT_NE(nullptr, ref_path);
+  EXPECT_STREQ("t1", ref_path->ref().table->alias);
+  EXPECT_EQ(string("t2.x"), ItemToString(ref_path->ref().ref->items[0]));
+
+  // We do care about the estimated cardinality of the result. It used to be
+  // much too low because the selectivity of the sargable predicate was applied
+  // twice.
+  EXPECT_FLOAT_EQ(
+      /* Rows from t1: */ rec_per_key[0] *
+          /* Rows from t2: */ t2->file->stats.records * COND_FILTER_EQUALITY *
+          /* Rows from t3: */ t3->file->stats.records * COND_FILTER_EQUALITY,
+      root->num_output_rows);
 }
 
 TEST_F(HypergraphOptimizerTest, AntiJoinGetsSameEstimateWithAndWithoutIndex) {
