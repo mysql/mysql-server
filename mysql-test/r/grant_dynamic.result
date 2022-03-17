@@ -882,12 +882,16 @@ SELECT * FROM test.t1;
 a
 1
 555
+GRANT CONNECTION_ADMIN ON *.* TO u1@localhost;
 SET GLOBAL init_connect = '';
 SET GLOBAL offline_mode = 'ON';
+REVOKE CONNECTION_ADMIN ON *.* from u1@localhost;
 # Connection will fail
 ERROR HY000: The server is currently in offline mode
+GRANT CONNECTION_ADMIN ON *.* TO u1@localhost;
 SET GLOBAL offline_mode = 'OFF';
 SET GLOBAL read_only = 'ON';
+REVOKE CONNECTION_ADMIN ON *.* from u1@localhost;
 # User can't do write operation in database
 INSERT INTO test.t1 VALUES(1);
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement

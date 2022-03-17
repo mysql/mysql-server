@@ -296,16 +296,18 @@ connect(con_admin_test,localhost,u1,pwd,,,,);
 SELECT * FROM test.t1;
 disconnect con_admin_test;
 
-CONNECTION default;
+connect(con_admin_test,localhost,u1,pwd,,,,);
 SET GLOBAL init_connect = '';
 SET GLOBAL offline_mode = 'ON';
+disconnect con_admin_test;
 --echo # Connection will be successful
 connect(con_admin_test,localhost,u1,pwd,,,,);
 disconnect con_admin_test;
 
-CONNECTION default;
+connect(con_admin_test,localhost,u1,pwd,,,,);
 SET GLOBAL offline_mode = 'OFF';
 SET GLOBAL read_only = 'ON';
+disconnect con_admin_test;
 --echo # User can do write operation in database
 connect(con_admin_test,localhost,u1,pwd,,,,);
 INSERT INTO test.t1 VALUES(1);
@@ -331,9 +333,9 @@ SET sql_log_off = OFF;
 SELECT 'helloworld';
 --echo # Should be 2 because log_off= OFF and we have CONNECTION_ADMIN
 SELECT COUNT(*)>=2 FROM mysql.general_log WHERE ARGUMENT like '%helloworld%';
-DISCONNECT con_admin_test;
 --echo # Test of user when it does not have the privilege CONNECTION_ADMIN
 CONNECTION default;
+DISCONNECT con_admin_test;
 TRUNCATE TABLE mysql.general_log;
 REVOKE CONNECTION_ADMIN ON *.* from u1@localhost;
 SHOW GRANTS FOR u1@localhost;
@@ -342,28 +344,42 @@ SET GLOBAL init_connect = 'INSERT INTO test.t1 values(555)';
 connect(con_admin_test,localhost,u1,pwd,,,,);
 --echo # sql statement in the variable init_connect will be executed
 SELECT * FROM test.t1;
-disconnect con_admin_test;
 
-CONNECTION default;
+# CONNECTION_ADMIN needed to modify offline_mode
+connection default;
+disconnect con_admin_test;
+GRANT CONNECTION_ADMIN ON *.* TO u1@localhost;
+connect(con_admin_test,localhost,u1,pwd,,,,);
 SET GLOBAL init_connect = '';
 SET GLOBAL offline_mode = 'ON';
+connection default;
+disconnect con_admin_test;
+REVOKE CONNECTION_ADMIN ON *.* from u1@localhost;
+
 --echo # Connection will fail
 --disable_query_log
 --error 3032
 connect(con_admin_test_test,localhost,u1,pwd,,,,);
 --enable_query_log
 
-CONNECTION default;
+# CONNECTION_ADMIN needed to modify offline_mode
+connection default;
+GRANT CONNECTION_ADMIN ON *.* TO u1@localhost;
+connect(con_admin_test,localhost,u1,pwd,,,,);
 SET GLOBAL offline_mode = 'OFF';
 SET GLOBAL read_only = 'ON';
+connection default;
+disconnect con_admin_test;
+REVOKE CONNECTION_ADMIN ON *.* from u1@localhost;
+
 --echo # User can't do write operation in database
 connect(con_admin_test,localhost,u1,pwd,,,,);
 --error 1290
 INSERT INTO test.t1 VALUES(1);
-DISCONNECT con_admin_test;
 
 --echo # sql_log_off test of user when it lack the privilege CONNECTION_ADMIN
 CONNECTION default;
+DISCONNECT con_admin_test;
 REVOKE CONNECTION_ADMIN ON *.* from u1@localhost;
 SET GLOBAL read_only = 'OFF';
 --echo # Entry will go to general_log
@@ -381,10 +397,10 @@ SET sql_log_off = ON;
 --echo # Entry will go to general_log because user doesn't have CONNECTION_ADMIN
 SELECT 'helloworld';
 SELECT COUNT(*)>0 FROM mysql.general_log WHERE ARGUMENT like '%helloworld%';
-DISCONNECT con_admin_test;
 
 --echo # Reset the value of general-log variables to original
 CONNECTION default;
+DISCONNECT con_admin_test;
 TRUNCATE TABLE mysql.general_log;
 SET sql_log_off = OFF;
 SET GLOBAL general_log_file=  @old_general_log_file;

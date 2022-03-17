@@ -6377,7 +6377,8 @@ static void sql_kill(THD *thd, my_thread_id id, bool only_kill_query) {
 
 /**
   This class implements callback function used by killall_non_super_threads
-  to kill all threads that do not have the SUPER privilege
+  to kill all threads that do not have either SYSTEM_VARIABLES_ADMIN +
+  CONNECTION_ADMIN privileges or legacy SUPER privilege
 */
 
 class Kill_non_super_conn : public Do_THD_Impl {
@@ -6389,9 +6390,10 @@ class Kill_non_super_conn : public Do_THD_Impl {
  public:
   Kill_non_super_conn(THD *thd) : m_client_thd(thd) {
     assert(m_client_thd->security_context()->check_access(SUPER_ACL) ||
-           m_client_thd->security_context()
-               ->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
-               .first);
+           (m_client_thd->is_connection_admin() &&
+            m_client_thd->security_context()
+                ->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
+                .first));
     m_is_client_regular_user = !m_client_thd->is_system_user();
   }
 
