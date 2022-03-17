@@ -148,7 +148,7 @@ int ToDescr(size_t hi) { return hi + MY_FILE_MIN; }
 bool IsValidIndex(size_t hi) {
   const HandleInfoVector &hiv = *hivp;
   mysql_mutex_assert_owner(&THR_LOCK_open);
-  return (hi > 0 && hi < hiv.size());
+  return (hi < hiv.size());
 }
 
 HandleInfo GetHandleInfo(File fd) {
