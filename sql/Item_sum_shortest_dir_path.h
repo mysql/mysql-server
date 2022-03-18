@@ -44,23 +44,44 @@ class Item_sum_shortest_dir_path final : public Item_sum_json {
                            Window_evaluation_requirements *reqs) override;
 
  private:
-  inline bool verify_const_id_argument(int i);
-  inline bool verify_id_argument(int i);
-  inline bool verify_cost_argument(int i);
+  /**
+   * @brief verifies that item is a valid const id
+   * 
+   * @param item 
+   * @return true if valid
+   * @return false if invalid
+   */
+  inline bool verify_const_id_argument(Item *item);
+  /**
+   * @brief verifies that item is a valid id
+   * 
+   * @param item 
+   * @return true if valid
+   * @return false if invalid
+   */
+  inline bool verify_id_argument(Item *item);
+  /**
+   * @brief verifies that item is a valid dijkstra weight (cost)
+   * 
+   * @param item 
+   * @return true if valid
+   * @return false if invalid
+   */
+  inline bool verify_cost_argument(Item *item);
   /**
    * @brief allocates Json_int on heap with given value
    * 
    * @param i value
    * @return Json_dom* ptr to Json_int
    */
-  inline Json_dom *jsonify_to_heap(int i);
+  inline Json_dom *jsonify_to_heap(const int& i);
   /**
    * @brief allocates Json_double on heap with given value
    * 
    * @param d value
    * @return Json_dom* ptr to Json_double
    */
-  inline Json_dom *jsonify_to_heap(double d);
+  inline Json_dom *jsonify_to_heap(const double& d);
 };
 
 #endif /* ITEM_SUM_SHORTEST_DIR_PATH_INCLUDED */

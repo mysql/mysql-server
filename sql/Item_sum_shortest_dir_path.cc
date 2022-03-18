@@ -74,14 +74,14 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
 }
 String *Item_sum_shortest_dir_path::val_str(String *str) {
   assert(!m_is_window_function);
-
+  // could be redundant
   const THD *thd = base_query_block->parent_lex->thd;
   if (thd->is_error()) return error_str();
 
   Json_array *arr = new (std::nothrow) Json_array();
   Dijkstra dijkstra(m_edge_map);
   double cost;
-
+  // jsonifying path from dijkstra into arr
   for (const Edge* edge : dijkstra(m_begin_node, m_end_node, cost)) {
     Json_object *json_edge = new (std::nothrow) Json_object();
     if (json_edge->add_alias("id", jsonify_to_heap(edge->id)) ||
@@ -90,6 +90,7 @@ String *Item_sum_shortest_dir_path::val_str(String *str) {
           return error_str();
 
   }
+  // inserting path and path cost into m_wrapper
   Json_object *object = down_cast<Json_object *>(m_wrapper->to_dom(thd));
   if( object->add_alias("path", arr) ||
       object->add_alias("cost", jsonify_to_heap(cost)))
@@ -129,9 +130,9 @@ bool Item_sum_shortest_dir_path::add() {
   int id, from_id, to_id;
   double cost;
 
-  for (size_t i = 0; i <= 2; i++) verify_id_argument(i);
-  verify_cost_argument(3);
-  for (size_t i = 4; i <= 5; i++) verify_const_id_argument(i);
+  for (size_t i = 0; i <= 2; i++) verify_id_argument(args[i]);
+  verify_cost_argument(args[3]);
+  for (size_t i = 4; i <= 5; i++) verify_const_id_argument(args[i]);
 
   id = args[0]->val_int();
   from_id = args[1]->val_int();
@@ -149,7 +150,10 @@ bool Item_sum_shortest_dir_path::add() {
 
 Item *Item_sum_shortest_dir_path::copy_or_same(THD *thd) {
   assert(!m_is_window_function);
-  auto wrapper = make_unique_destroy_only<Json_wrapper>(thd->mem_root);
+  Json_object *object = ::new (thd->mem_root, std::nothrow) Json_object;
+  if (object == nullptr) return nullptr;
+  // object not owned (deallocated) by wrapper
+  auto wrapper = make_unique_destroy_only<Json_wrapper>(thd->mem_root, object, true);
   if (wrapper == nullptr) return nullptr;
   return new (thd->mem_root) Item_sum_shortest_dir_path(thd, this, std::move(wrapper));
 }
@@ -159,35 +163,35 @@ bool Item_sum_shortest_dir_path::check_wf_semantics1(THD *thd, Query_block *sele
   return Item_sum::check_wf_semantics1(thd, select, reqs);
 }
 
-inline bool Item_sum_shortest_dir_path::verify_const_id_argument(int i) {
-    if (!args[i]->const_item() ||
-        (!args[i]->is_null() &&
-         (args[i]->result_type() != INT_RESULT))) {
+inline bool Item_sum_shortest_dir_path::verify_const_id_argument(Item *item) {
+    if (!item->const_item() ||
+        (!item->is_null() &&
+         (item->result_type() != INT_RESULT))) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
       return true;
     }
     return false;
 }
 
-inline bool Item_sum_shortest_dir_path::verify_id_argument(int i) {
-    if (!args[i]->is_null() && (args[i]->result_type() != INT_RESULT)) {
+inline bool Item_sum_shortest_dir_path::verify_id_argument(Item *item) {
+    if (!item->is_null() && (item->result_type() != INT_RESULT)) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
       return true;
     } 
     return false;
 }
 
-inline bool Item_sum_shortest_dir_path::verify_cost_argument(int i) {
-  if (!args[i]->is_null() && (args[i]->result_type() != REAL_RESULT)) {
+inline bool Item_sum_shortest_dir_path::verify_cost_argument(Item *item) {
+  if (!item->is_null() && (item->result_type() != REAL_RESULT)) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
       return true;
     } 
     return false;
 }
 
-inline Json_dom *Item_sum_shortest_dir_path::jsonify_to_heap(int i) {
+inline Json_dom *Item_sum_shortest_dir_path::jsonify_to_heap(const int& i) {
   return new (std::nothrow) Json_int(i);
 }
-inline Json_dom *Item_sum_shortest_dir_path::jsonify_to_heap(double d) {
+inline Json_dom *Item_sum_shortest_dir_path::jsonify_to_heap(const double& d) {
   return new (std::nothrow) Json_double(d);
 }
