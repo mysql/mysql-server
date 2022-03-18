@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -198,7 +198,6 @@ TEST_F(SplicerTest, invalid_metadata) {
         // guard against inifinite loop
         if (rounds == 100) FAIL() << "connect() should have failed by now.";
 
-        // the router's certs against the corresponding CA
         sess.connect("127.0.0.1", router_port,
                      "someuser",  // user
                      "somepass",  // pass
@@ -213,7 +212,12 @@ TEST_F(SplicerTest, invalid_metadata) {
       }
     } catch (const mysqlrouter::MySQLSession::Error &e) {
       // connect failed eventually.
-      EXPECT_EQ(e.code(), 2003);
+      // depending on the timing this cand also be "SSL connection aborted"
+      // openssl 1.1.1: 2013
+      // openssl 1.0.2: 2026
+      EXPECT_THAT(e.code(),
+                  ::testing::AnyOf(::testing::Eq(2003), ::testing::Eq(2013),
+                                   ::testing::Eq(2026)));
     }
   }
 
