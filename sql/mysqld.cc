@@ -4435,6 +4435,12 @@ SHOW_VAR com_status_vars[] = {
     {"delete object attribute",
     (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_DELETE_OBJECT_ATTRIBUTE]),
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL}, 
+    {"grant user attribute",
+    (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_GRANT_USER_ATTRIBUTE]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL}, 
+     {"grant object attribute",
+    (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_GRANT_OBJECT_ATTRIBUTE]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_ALL}};
 
 LEX_CSTRING sql_statement_names[(uint)SQLCOM_END + 1];

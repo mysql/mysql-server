@@ -1857,6 +1857,8 @@ void warn_about_deprecated_binary(THD *thd)
         drop_srs_stmt
         explain_stmt
         explainable_stmt
+        grant_user_attribute_stmt
+        grant_resource_attribute_stmt
         handler_stmt
         insert_stmt
         keycache_stmt
@@ -2351,6 +2353,8 @@ simple_statement:
         | get_diagnostics               { $$= nullptr; }
         | group_replication             { $$= nullptr; }
         | grant                         { $$= nullptr; }
+        | grant_user_attribute_stmt
+        | grant_resource_attribute_stmt
         | handler_stmt
         | help                          { $$= nullptr; }
         | import_stmt                   { $$= nullptr; }
@@ -3493,6 +3497,26 @@ delete_rule_stmt:
           DROP RULE_SYM ident
           {
             $$ = NEW_PTN PT_delete_rule(string($3.str));
+          }
+          ;
+
+grant_user_attribute_stmt:
+          GRANT USER ATTRIBUTE_SYM attrib_val_pair TO_SYM user_list
+          {
+            $$ = NEW_PTN PT_grant_user_attribute($4->first, $4->second, $6);
+          }
+          ;
+
+grant_resource_attribute_stmt:
+          GRANT RESOURCE_SYM ATTRIBUTE_SYM attrib_val_pair TO_SYM table_list
+          {
+            List<LEX_CSTRING> *dbs = NEW_PTN List<LEX_CSTRING>;
+            List<LEX_CSTRING> *tables = NEW_PTN List<LEX_CSTRING>;
+            for (auto it = $6->begin(); it != $6->end(); it++) {
+              dbs->push_back(&((*it)->db));
+              tables->push_back(&((*it)->table));
+            }  
+            $$ = NEW_PTN PT_grant_object_attribute($4->first, $4->second, dbs, tables);
           }
           ;
 

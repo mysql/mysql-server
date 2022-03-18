@@ -2183,3 +2183,13 @@ bool Sql_cmd_delete_object_attribute::execute(THD *thd) {
   DBUG_TRACE;
   return mysql_delete_object_attribute(thd, attrib_name);
 }
+
+bool Sql_cmd_grant_user_attribute::execute(THD *thd) {
+  DBUG_TRACE;
+  return mysql_grant_user_attribute(thd, attrib_name, value, user_list);
+}
+
+bool Sql_cmd_grant_object_attribute::execute(THD *thd) {
+  DBUG_TRACE;
+  return mysql_grant_object_attribute(thd, attrib_name, value, dbs, tables);
+}

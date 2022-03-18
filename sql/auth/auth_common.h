@@ -914,6 +914,10 @@ bool mysql_create_user_attribute(THD *thd, std::string user_attrib);
 bool mysql_create_object_attribute(THD *thd, std::string object_attrib);
 bool mysql_delete_user_attribute(THD *thd, std::string user_attrib);
 bool mysql_delete_object_attribute(THD *thd, std::string object_attrib);
+bool mysql_grant_user_attribute(THD *thd, LEX_STRING attrib_name, 
+      LEX_STRING value, const List<LEX_USER> *user_list);
+bool mysql_grant_object_attribute(THD *thd, LEX_STRING attrib_name, 
+      LEX_STRING value, List<LEX_CSTRING> *dbs, List<LEX_CSTRING> *table_list);
 void get_default_roles(const Auth_id_ref &user, List_of_auth_id_refs &list);
 
 bool is_granted_table_access(THD *thd, ulong required_acl, TABLE_LIST *table);

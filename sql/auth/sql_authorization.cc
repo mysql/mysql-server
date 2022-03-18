@@ -7910,3 +7910,153 @@ bool mysql_delete_object_attribute(THD *thd, std::string object_attrib) {
 
   return errors;
 }
+
+ACL_USER_ABAC *find_abac_user(const char *user, const char *host) {
+  std::string hash_value;
+  hash_value.append(std::string(user));
+  hash_value.push_back('\0');
+  hash_value.append(std::string(host));
+  hash_value.push_back('\0');
+  if (!acl_user_abac_hash->count(hash_value)) return nullptr;
+  return acl_user_abac_hash->at(hash_value);
+}
+
+bool mysql_grant_user_attribute(THD *thd, LEX_STRING attrib_name, LEX_STRING value, const List<LEX_USER> *user_list) {
+  DBUG_TRACE;
+  int ret;
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
+  bool transactional_tables;
+  TABLE *table = nullptr;
+  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  bool errors  =false;
+  List_iterator<LEX_USER> users_it(const_cast<List<LEX_USER> &>(*user_list));
+  LEX_USER *lex_user;
+  if ((ret = open_grant_tables(thd, tables, &transactional_tables))) 
+    return ret != 1;
+
+  {       /* Crititcal section */
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+
+    if (!acl_cache_lock.lock()) {
+      commit_and_close_mysql_tables(thd);
+      return true;
+    }
+
+    if (!user_attribute_set->count(std::string(attrib_name.str))) {
+      std::cout<<"Invalid user attribute\n";
+      errors = true;
+      goto end;
+    }
+
+    table = tables[ACL_TABLES::TABLE_USER_ATTRIB_VAL].table;
+
+    while ((lex_user = users_it++) && !errors) {
+      if (lex_user->user.str == nullptr) {
+        lex_user = get_current_user(thd, lex_user);
+      } else if (lex_user->user.length == 0 || *(lex_user->user.str) == '\0') {
+        my_error(ER_CANNOT_GRANT_ROLES_TO_ANONYMOUS_USER, MYF(0));
+        errors = true;
+        break;
+      }
+
+      ACL_USER *acl_user;
+      if ((acl_user = find_acl_user(lex_user->host.str, lex_user->user.str, true)) == nullptr) {
+        my_error(ER_UNKNOWN_AUTHID, MYF(0), lex_user->user.str,
+                 lex_user->host.str);
+        errors = true;
+        break;
+      }
+      ACL_USER_ABAC *abac_user = find_abac_user(lex_user->user.str, lex_user->host.str);
+      if (abac_user == nullptr || !abac_user->attrib_map.count(std::string(attrib_name.str))) {
+        modify_user_attrib_val_in_table(thd, table, *lex_user, attrib_name, to_string(value), false);
+      } else {
+        std::string current_val = abac_user->attrib_map[to_string(attrib_name)];
+        errors |= modify_user_attrib_val_in_table(thd, table, *lex_user, attrib_name, current_val, true);
+        errors |= modify_user_attrib_val_in_table(thd, table, *lex_user, attrib_name, to_string(value), false);
+      }
+    }
+
+    end:
+      errors = log_and_commit_acl_ddl(thd, transactional_tables);
+      get_global_acl_cache()->increase_version();
+  }       /* Crititcal section */
+
+  if (!errors) {
+    my_ok(thd);
+    /* Notify storage engines */
+  }
+
+  return errors;
+}
+
+ABAC_OBJECT *find_abac_object(LEX_CSTRING db_name, LEX_CSTRING table_name) {
+  std::string hash_value;
+  hash_value.append(std::string(db_name.str));
+  hash_value.push_back('\0');
+  hash_value.append(std::string(table_name.str));
+  hash_value.push_back('\0');
+  if (!abac_object_hash->count(hash_value)) {
+    return nullptr;
+  }
+  return abac_object_hash->at(hash_value);
+}
+
+bool mysql_grant_object_attribute(THD *thd, LEX_STRING attrib_name, 
+            LEX_STRING value, List<LEX_CSTRING> *dbs, List<LEX_CSTRING> *table_list) {
+  DBUG_TRACE;
+  int ret;
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
+  bool transactional_tables;
+  TABLE *table = nullptr;
+  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  bool errors  =false;
+  
+  if ((ret = open_grant_tables(thd, tables, &transactional_tables))) 
+    return ret != 1;
+
+  {       /* Crititcal section */
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+
+    if (!acl_cache_lock.lock()) {
+      commit_and_close_mysql_tables(thd);
+      return true;
+    }
+
+    if (!object_attribute_set->count(std::string(attrib_name.str))) {
+      std::cout<<"Invalid object attribute\n";
+      errors = true;
+      goto end;
+    }
+
+    table = tables[ACL_TABLES::TABLE_OBJECT_ATTRIB_VAL].table;
+
+    for (auto it_db = dbs->begin(), it_table = table_list->begin(); 
+                          it_db != dbs->end(); it_db++, it_table++) {
+      LEX_CSTRING db_name = *it_db;
+      LEX_CSTRING table_name = *it_table;
+      if (!db_name.length || !table_name.length) {
+        errors = true;
+        break;
+      }
+      ABAC_OBJECT *abac_object = find_abac_object(db_name, table_name);
+      if (abac_object == nullptr || !abac_object->attrib_map.count(std::string(attrib_name.str))) {
+        errors |= modify_object_attrib_val_in_table(thd, table, db_name, table_name, attrib_name, to_string(value), false);
+      } else {
+        std::string current_val = abac_object->attrib_map[to_string(attrib_name)];
+        errors |= modify_object_attrib_val_in_table(thd, table, db_name, table_name, attrib_name, current_val, true);
+        errors |= modify_object_attrib_val_in_table(thd, table, db_name, table_name, attrib_name, to_string(value), false);
+      }
+    }
+
+    end:
+      errors = log_and_commit_acl_ddl(thd, transactional_tables);
+      get_global_acl_cache()->increase_version();
+  }       /* Crititcal section */
+
+  if (!errors) {
+    my_ok(thd);
+    /* Notify storage engines */
+  }
+
+  return errors;
+}

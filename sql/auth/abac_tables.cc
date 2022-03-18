@@ -53,6 +53,16 @@ class THD;
 #define MYSQL_OBJECT_ATTRIBUTES_ATTRIB_NAME 0
 #define MYSQL_USER_ATTRIBUTES_ATTRIB_NAME 0
 
+#define MYSQL_USER_ATTRIB_VAL_USER 0
+#define MYSQL_USER_ATTRIB_VAL_HOST 1
+#define MYSQL_USER_ATTRIB_VAL_ATTRIB_NAME 2
+#define MYSQL_USER_ATTRIB_VAL_ATTRIB_VAL 3
+
+#define MYSQL_OBJECT_ATTRIB_VAL_DB 0
+#define MYSQL_OBJECT_ATTRIB_VAL_TABLE 1
+#define MYSQL_OBJECT_ATTRIB_VAL_ATTRIB_NAME 2
+#define MYSQL_OBJECT_ATTRIB_VAL_ATTRIB_VAL 3
+
 bool modify_rule_in_table(THD *thd, TABLE *table, string rule_name, 
 												int privs, bool delete_option) {
   DBUG_TRACE;
@@ -212,6 +222,70 @@ bool modify_object_attribute_in_table(THD *thd, TABLE *table,
 		if (ret != HA_ERR_KEY_NOT_FOUND) {
 			ret = table->file->ha_delete_row(table->record[0]);
 		}
+	}
+	return ret != 0;
+}
+
+bool modify_user_attrib_val_in_table(THD *thd, TABLE *table, LEX_USER user, 
+						LEX_STRING attrib, std::string value, bool delete_option) {
+	DBUG_TRACE;
+  int ret = 0;
+	uchar user_attrib_val_key[MAX_KEY_LENGTH];
+
+  Acl_table_intact table_intact(thd);
+
+  if (table_intact.check(table, ACL_TABLES::TABLE_USER_ATTRIB_VAL)) return true;
+
+  table->use_all_columns();
+
+	table->field[MYSQL_USER_ATTRIB_VAL_ATTRIB_NAME]->store(attrib.str, attrib.length, system_charset_info);
+	table->field[MYSQL_USER_ATTRIB_VAL_ATTRIB_VAL]->store(value.c_str(), value.size(), system_charset_info);
+	table->field[MYSQL_USER_ATTRIB_VAL_HOST]->store(user.host.str, user.host.length, system_charset_info);
+	table->field[MYSQL_USER_ATTRIB_VAL_USER]->store(user.user.str, user.user.length, system_charset_info);
+
+	key_copy(user_attrib_val_key, table->record[0], table->key_info,
+           table->key_info->key_length);
+  ret = table->file->ha_index_read_idx_map(table->record[0], 0, user_attrib_val_key,
+                                           HA_WHOLE_KEY, HA_READ_KEY_EXACT);
+	if (delete_option) {
+		if (ret == 0) {
+			ret = table->file->ha_delete_row(table->record[0]);
+		}
+		else return false;
+	} else if (ret == HA_ERR_KEY_NOT_FOUND) {
+		ret = table->file->ha_write_row(table->record[0]);
+	}
+	return ret != 0;
+}
+
+bool modify_object_attrib_val_in_table(THD *thd, TABLE *table, LEX_CSTRING db_name, LEX_CSTRING table_name,
+						LEX_STRING attrib, std::string value, bool delete_option) {
+	DBUG_TRACE;
+  int ret = 0;
+	uchar object_attrib_val_key[MAX_KEY_LENGTH];
+
+  Acl_table_intact table_intact(thd);
+
+  if (table_intact.check(table, ACL_TABLES::TABLE_OBJECT_ATTRIB_VAL)) return true;
+
+  table->use_all_columns();
+
+	table->field[MYSQL_OBJECT_ATTRIB_VAL_DB]->store(db_name.str, db_name.length, system_charset_info);
+	table->field[MYSQL_OBJECT_ATTRIB_VAL_TABLE]->store(table_name.str, table_name.length, system_charset_info);
+	table->field[MYSQL_OBJECT_ATTRIB_VAL_ATTRIB_NAME]->store(attrib.str, attrib.length, system_charset_info);
+	table->field[MYSQL_OBJECT_ATTRIB_VAL_ATTRIB_VAL]->store(value.c_str(), value.size(), system_charset_info);
+
+	key_copy(object_attrib_val_key, table->record[0], table->key_info,
+           table->key_info->key_length);
+  ret = table->file->ha_index_read_idx_map(table->record[0], 0, object_attrib_val_key,
+                                           HA_WHOLE_KEY, HA_READ_KEY_EXACT);
+	if (delete_option) {
+		if (ret == 0) {
+			ret = table->file->ha_delete_row(table->record[0]);
+		}
+		else return false;
+	} else if (ret == HA_ERR_KEY_NOT_FOUND) {
+		ret = table->file->ha_write_row(table->record[0]);
 	}
 	return ret != 0;
 }

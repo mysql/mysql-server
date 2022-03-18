@@ -427,6 +427,34 @@ class Sql_cmd_delete_object_attribute : public Sql_cmd {
     }
 };
 
+class Sql_cmd_grant_user_attribute : public Sql_cmd {
+  LEX_STRING attrib_name;
+  LEX_STRING value;
+  List<LEX_USER> *user_list;
+  public:
+    explicit Sql_cmd_grant_user_attribute(LEX_STRING attrib_arg, LEX_STRING value_arg,  List<LEX_USER> *user_list_arg) : 
+                        attrib_name(attrib_arg), value(value_arg), user_list(user_list_arg) {}
+    bool execute(THD *thd) override;
+    enum_sql_command sql_command_code() const override {
+      return SQLCOM_GRANT_USER_ATTRIBUTE; 
+    }
+};
+
+class Sql_cmd_grant_object_attribute : public Sql_cmd {
+  LEX_STRING attrib_name;
+  LEX_STRING value;
+  List<LEX_CSTRING> *dbs;
+  List<LEX_CSTRING> *tables;
+  public:
+    explicit Sql_cmd_grant_object_attribute(LEX_STRING attrib_arg, 
+            LEX_STRING value_arg, List<LEX_CSTRING> *dbs_arg, List<LEX_CSTRING> *tables_arg) : 
+                        attrib_name(attrib_arg), value(value_arg), dbs(dbs_arg), tables(tables_arg) {}
+    bool execute(THD *thd) override;
+    enum_sql_command sql_command_code() const override {
+      return SQLCOM_GRANT_OBJECT_ATTRIBUTE; 
+    }
+};
+
 enum alter_instance_action_enum {
   ROTATE_INNODB_MASTER_KEY,
   ALTER_INSTANCE_RELOAD_TLS,
