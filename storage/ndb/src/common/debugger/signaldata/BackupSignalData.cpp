@@ -30,7 +30,8 @@ bool printBACKUP_REQ(FILE* output,
                      Uint32 len,
                      Uint16 /*bno*/)
 {
-  if (len < BackupReq::SignalLength)
+  //If no inputBackupId is provided, len will be SignalLength-1.
+  if (len < BackupReq::SignalLength-1)
   {
     assert(false);
     return false;
