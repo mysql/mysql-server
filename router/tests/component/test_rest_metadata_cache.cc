@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,7 @@
 #include "mysqlrouter/mysql_session.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
+#include "router_component_testutils.h"
 #include "tcp_port_pool.h"
 #include "test/temp_directory.h"
 
@@ -292,6 +293,7 @@ class RestMetadataCacheApiTest
       public ::testing::WithParamInterface<RestApiTestParams> {
  protected:
   const uint16_t metadata_server_port_{port_pool_.get_next_available()};
+  const uint16_t metadata_server_http_port_{port_pool_.get_next_available()};
 };
 
 /**
@@ -360,7 +362,7 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
 
   /*auto &md_server =*/ProcessManager::launch_mysql_server_mock(
       get_data_dir().join("metadata_1_node_repeat.js").str(),
-      metadata_server_port_, EXIT_SUCCESS, false);
+      metadata_server_port_, EXIT_SUCCESS, false, metadata_server_http_port_);
 
   const std::string userfile = create_password_file();
 
@@ -408,8 +410,9 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
   // this part is relevant only for Get OK, otherwise let's avoid useless sleep
   if (GetParam().methods == HttpMethod::Get &&
       GetParam().status_code == HttpStatusCode::Ok) {
-    // sleep ~2*TTL to make the counters and timestamps change
-    std::this_thread::sleep_for(500ms);
+    // wait 2 metadata refresh cycles for the counters and timestamps change
+    ASSERT_TRUE(
+        wait_for_transaction_count_increase(metadata_server_http_port_, 2));
 
     // check the resources again, we want to compare them against the previous
     // ones
