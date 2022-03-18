@@ -1445,7 +1445,6 @@ public:
       NdbDictionary::HashMap hashMap;
       char pk_cols[column_buff_size];
       size_t s = 0;
-      Uint32 tablespace_id;
 
       // Get value for column "dynamic"
       int is_dynamic = [t]() {
@@ -1465,7 +1464,8 @@ public:
       }
 
       // Get tablespace ID
-      bool has_ts = t->getTablespace(&tablespace_id);
+      Uint32 tablespace_id;
+      if (!t->getTablespace(&tablespace_id)) tablespace_id = 0;
 
       w.write_string(elem->database);                       // database
       w.write_string(t->getName());                         // name
@@ -1483,7 +1483,7 @@ public:
       w.write_number(t->getRowSizeInBytes());               // row_size
       w.write_number64(t->getMinRows());                    // min_rows
       w.write_number64(t->getMaxRows());                    // max_rows
-      w.write_number(has_ts ? tablespace_id : 0);           // tablespace
+      w.write_number(tablespace_id);                        // tablespace
       w.write_number((int) t->getFragmentType());           // fragment_type
       w.write_string(hashMap.getName());                    // hash_map
       w.write_number(t->getFragmentCount());                // fragments
