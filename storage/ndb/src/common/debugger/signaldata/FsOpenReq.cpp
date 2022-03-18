@@ -23,9 +23,17 @@
 
 #include <signaldata/FsOpenReq.hpp>
 
-bool 
-printFSOPENREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo){
-  
+bool printFSOPENREQ(FILE *output,
+                    const Uint32 *theData,
+                    Uint32 len,
+                    Uint16 /*receiverBlockNo*/)
+{
+  if (len < FsOpenReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const FsOpenReq * const sig = (FsOpenReq *) theData;
   
 

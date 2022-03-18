@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -23,11 +23,19 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #include <signaldata/BackupSignalData.hpp>
 
-bool 
-printBACKUP_REQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 bno){
+bool printBACKUP_REQ(FILE* output,
+                     const Uint32* theData,
+                     Uint32 len,
+                     Uint16 /*bno*/)
+{
+  if (len < BackupReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   BackupReq* sig = (BackupReq*)theData;
   fprintf(output, " senderData: %d DataLength: %d flags: %d\n", 
 	  sig->senderData,
@@ -36,8 +44,17 @@ printBACKUP_REQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 bno){
   return true;
 }
 
-bool 
-printBACKUP_DATA(FILE * output, const Uint32 * theData, Uint32 len, Uint16 bno){
+bool printBACKUP_DATA(FILE* output,
+                      const Uint32* theData,
+                      Uint32 len,
+                      Uint16 /*bno*/)
+{
+  if (len < BackupData::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   BackupData * sig = (BackupData*)theData;
   if(sig->requestType == BackupData::ClientToMaster){
     fprintf(output, " ClientToMaster: senderData: %d backupId: %d\n",
@@ -49,8 +66,16 @@ printBACKUP_DATA(FILE * output, const Uint32 * theData, Uint32 len, Uint16 bno){
   return false;
 }
 
-bool 
-printBACKUP_REF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 bno){
+bool printBACKUP_REF(FILE* output,
+                     const Uint32* theData,
+                     Uint32 len,
+                     Uint16 /*bno*/)
+{
+  if (len < BackupRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
 
   BackupRef* sig = (BackupRef*)theData;
   fprintf(output, " senderData: %d errorCode: %d masterRef: %d\n",
@@ -60,8 +85,17 @@ printBACKUP_REF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 bno){
   return true;
 }
 
-bool 
-printBACKUP_CONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 bno){
+bool printBACKUP_CONF(FILE* output,
+                      const Uint32* theData,
+                      Uint32 len,
+                      Uint16 /*bno*/)
+{
+  if (len < BackupConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   BackupConf* sig = (BackupConf*)theData;
   fprintf(output, " senderData: %d backupId: %d\n",
 	  sig->senderData,
@@ -69,8 +103,17 @@ printBACKUP_CONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 bno){
   return true;
 }
 
-bool 
-printBACKUP_ABORT_REP(FILE * out, const Uint32 * data, Uint32 len, Uint16 bno){
+bool printBACKUP_ABORT_REP(FILE* out,
+                           const Uint32* data,
+                           Uint32 len,
+                           Uint16 /*bno*/)
+{
+  if (len < BackupAbortRep::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   BackupAbortRep* sig = (BackupAbortRep*)data;
   fprintf(out, " senderData: %d backupId: %d reason: %d\n",
 	  sig->senderData,
@@ -79,8 +122,17 @@ printBACKUP_ABORT_REP(FILE * out, const Uint32 * data, Uint32 len, Uint16 bno){
   return true;
 }
 
-bool 
-printBACKUP_COMPLETE_REP(FILE * out, const Uint32 * data, Uint32 len, Uint16 b){
+bool printBACKUP_COMPLETE_REP(FILE* out,
+                              const Uint32* data,
+                              Uint32 len,
+                              Uint16 /*b*/)
+{
+  if (len < BackupCompleteRep::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   BackupCompleteRep* sig = (BackupCompleteRep*)data;
   fprintf(out, " senderData: %d backupId: %d records: %llu bytes: %llu\n",
 	  sig->senderData,
@@ -95,8 +147,17 @@ printBACKUP_NF_COMPLETE_REP(FILE*, const Uint32*, Uint32, Uint16){
   return false;
 }
 
-bool 
-printABORT_BACKUP_ORD(FILE * out, const Uint32 * data, Uint32 len, Uint16 b){
+bool printABORT_BACKUP_ORD(FILE* out,
+                           const Uint32* data,
+                           Uint32 len,
+                           Uint16 /*b*/)
+{
+  if (len < AbortBackupOrd::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   AbortBackupOrd* sig = (AbortBackupOrd*)data;
 
   AbortBackupOrd::RequestType rt =(AbortBackupOrd::RequestType)sig->requestType;

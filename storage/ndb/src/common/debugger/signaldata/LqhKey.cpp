@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,16 @@
 
 #include <signaldata/LqhKey.hpp>
 
-bool
-printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo){
+bool printLQHKEYREQ(FILE *output,
+                    const Uint32 *theData,
+                    Uint32 len,
+                    Uint16 /*receiverBlockNo*/)
+{
+  if (len < LqhKeyReq::FixedSignalLength)
+  {
+    assert(false);
+    return false;
+  }
 
   const LqhKeyReq * const sig = (LqhKeyReq *) theData;
   
@@ -212,9 +220,12 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
   return true;
 }
 
-bool
-printLQHKEYCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo){
-//  const LqhKeyConf * const sig = (LqhKeyConf *) theData;
+bool printLQHKEYCONF(FILE *output,
+                     const Uint32 *theData,
+                     Uint32 len,
+                     Uint16 /*receiverBlockNo*/)
+{
+  //  const LqhKeyConf * const sig = (LqhKeyConf *) theData;
 
   fprintf(output, "Signal data: ");
   Uint32 i = 0;
@@ -225,9 +236,12 @@ printLQHKEYCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiv
   return true;
 }
 
-bool
-printLQHKEYREF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo){
-//  const LqhKeyRef * const sig = (LqhKeyRef *) theData;
+bool printLQHKEYREF(FILE *output,
+                    const Uint32 *theData,
+                    Uint32 len,
+                    Uint16 /*receiverBlockNo*/)
+{
+  //  const LqhKeyRef * const sig = (LqhKeyRef *) theData;
 
   fprintf(output, "Signal data: ");
   Uint32 i = 0;

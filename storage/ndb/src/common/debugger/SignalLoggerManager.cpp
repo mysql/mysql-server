@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -636,11 +636,10 @@ SignalLoggerManager::printSignalData(FILE * output,
   }
 }
 
-void
-SignalLoggerManager::printLinearSection(FILE * output,
-                                        const SignalHeader & sh,
-                                        const LinearSectionPtr ptr[3],
-                                        unsigned i)
+void SignalLoggerManager::printLinearSection(FILE* output,
+                                             const SignalHeader& /*sh*/,
+                                             const LinearSectionPtr ptr[3],
+                                             unsigned i)
 {
   fprintf(output, "SECTION %u type=linear", i);
   if (i >= 3) {
@@ -658,11 +657,10 @@ SignalLoggerManager::printLinearSection(FILE * output,
     putc('\n', output);
 }
 
-void
-SignalLoggerManager::printGenericSection(FILE * output,
-                                         const SignalHeader & sh,
-                                         const GenericSectionPtr ptr[3],
-                                         unsigned i)
+void SignalLoggerManager::printGenericSection(FILE* output,
+                                              const SignalHeader& /*sh*/,
+                                              const GenericSectionPtr ptr[3],
+                                              unsigned i)
 {
   fprintf(output, "SECTION %u type=generic", i);
   if (i >= 3) {

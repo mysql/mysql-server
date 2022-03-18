@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -22,7 +22,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
-
 
 #include <signaldata/MasterLCP.hpp>
 #include <RefConvert.hpp>
@@ -54,12 +53,17 @@ operator<<(NdbOut& out, const MasterLCPConf::State& s){
   return out;
 }
 
-bool 
-printMASTER_LCP_CONF(FILE * output, 
-		     const Uint32 * theData, 
-		     Uint32 len, 
-		     Uint16 recBlockNo){
-  
+bool printMASTER_LCP_CONF(FILE *output,
+                          const Uint32 *theData,
+                          Uint32 len,
+                          Uint16 /*recBlockNo*/)
+{
+  if (len < MasterLCPConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   MasterLCPConf * sig = (MasterLCPConf *)&theData[0];
   
   static char buf[255];
@@ -69,12 +73,17 @@ printMASTER_LCP_CONF(FILE * output,
   return true;
 }
 
-bool 
-printMASTER_LCP_REQ(FILE * output, 
-		    const Uint32 * theData, 
-		    Uint32 len, 
-		    Uint16 recBlockNo){
-  
+bool printMASTER_LCP_REQ(FILE *output,
+                         const Uint32 *theData,
+                         Uint32 len,
+                         Uint16 /*recBlockNo*/)
+{
+  if (len < MasterLCPReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   MasterLCPReq * sig = (MasterLCPReq *)&theData[0];
   
   fprintf(output, " masterRef=(node=%d, block=%d), failedNode=%d\n",
@@ -83,12 +92,17 @@ printMASTER_LCP_REQ(FILE * output,
   return true;
 }
 
-bool 
-printMASTER_LCP_REF(FILE * output, 
-		    const Uint32 * theData, 
-		    Uint32 len, 
-		    Uint16 recBlockNo){
-  
+bool printMASTER_LCP_REF(FILE *output,
+                         const Uint32 *theData,
+                         Uint32 len,
+                         Uint16 /*recBlockNo*/)
+{
+  if (len < MasterLCPRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   MasterLCPRef * sig = (MasterLCPRef *)&theData[0];  
   fprintf(output, " senderNode=%d failedNode=%d\n",
 	  sig->senderNodeId, sig->failedNodeId);

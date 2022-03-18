@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2022, Oracle and/or its affiliates.
    Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -28,6 +28,12 @@
 bool
 printDBINFO_SCAN(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < DbinfoScan::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const DbinfoScan* sig = (const DbinfoScan*)theData;
   fprintf(output, " resultData: 0x%x", sig->resultData);
   fprintf(output, " transid: { 0x%x, 0x%x}", sig->transId[0], sig->transId[1]);
@@ -58,6 +64,12 @@ printDBINFO_SCAN(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 
 bool printDBINFO_SCAN_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < DbinfoScanRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const DbinfoScanRef* sig = (const DbinfoScanRef*)theData;
   fprintf(output, " resultData: 0x%x", sig->resultData);
   fprintf(output, " transid: { 0x%x, 0x%x}", sig->transId[0], sig->transId[1]);

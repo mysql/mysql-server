@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -163,9 +163,17 @@ printSCHEMA_TRANS_IMPL_REQ(FILE* output, const Uint32* theData,
   return true;
 }
 
-bool
-printSCHEMA_TRANS_IMPL_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn)
+bool printSCHEMA_TRANS_IMPL_CONF(FILE* output,
+                                 const Uint32* theData,
+                                 Uint32 len,
+                                 Uint16 /*rbn*/)
 {
+  if (len < SchemaTransImplConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const SchemaTransImplConf* sig = (const SchemaTransImplConf*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " transKey: %u", sig->transKey);
@@ -173,9 +181,17 @@ printSCHEMA_TRANS_IMPL_CONF(FILE* output, const Uint32* theData, Uint32 len, Uin
   return true;
 }
 
-bool
-printSCHEMA_TRANS_IMPL_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn)
+bool printSCHEMA_TRANS_IMPL_REF(FILE* output,
+                                const Uint32* theData,
+                                Uint32 len,
+                                Uint16 /*rbn*/)
 {
+  if (len < SchemaTransImplRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const SchemaTransImplRef* sig = (const SchemaTransImplRef*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " transKey: %u", sig->transKey);

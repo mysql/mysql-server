@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,10 +24,17 @@
 
 #include <signaldata/GetConfig.hpp>
 
-bool
-printGET_CONFIG_REQ(FILE * output, const Uint32 * theData,
-                   Uint32 len, Uint16 receiverBlockNo)
+bool printGET_CONFIG_REQ(FILE* output,
+                         const Uint32* theData,
+                         Uint32 len,
+                         Uint16 /*receiverBlockNo*/)
 {
+  if (len < GetConfigReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const GetConfigReq* sig = (const GetConfigReq*)theData;
   fprintf(output, " nodeId : %u senderRef : %x\n",
           sig->nodeId,
@@ -35,19 +42,34 @@ printGET_CONFIG_REQ(FILE * output, const Uint32 * theData,
   return true;
 }
 
-bool
-printGET_CONFIG_REF(FILE * output, const Uint32 * theData,
-                   Uint32 len, Uint16 receiverBlockNo) {
+bool printGET_CONFIG_REF(FILE* output,
+                         const Uint32* theData,
+                         Uint32 len,
+                         Uint16 /*receiverBlockNo*/)
+{
+  if (len < GetConfigRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const GetConfigRef* sig = (const GetConfigRef*)theData;
   fprintf(output, " error : %u\n",
           sig->error);
   return true;
 }
 
+bool printGET_CONFIG_CONF(FILE* output,
+                          const Uint32* theData,
+                          Uint32 len,
+                          Uint16 /*receiverBlockNo*/)
+{
+  if (len < GetConfigConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
 
-bool
-printGET_CONFIG_CONF(FILE * output, const Uint32 * theData,
-                   Uint32 len, Uint16 receiverBlockNo) {
   const GetConfigConf* sig = (const GetConfigConf*)theData;
   fprintf(output, " Config size : %u\n",
           sig->configLength);

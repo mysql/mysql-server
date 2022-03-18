@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -25,9 +25,17 @@
 
 #include <signaldata/UtilExecute.hpp>
 
-bool 
-printUTIL_EXECUTE_REQ(FILE* out, const Uint32 * data, Uint32 len, Uint16 rec) 
+bool printUTIL_EXECUTE_REQ(FILE* out,
+                           const Uint32* data,
+                           Uint32 len,
+                           Uint16 /*rec*/)
 {
+  if (len < UtilExecuteRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const UtilExecuteReq* const sig = (UtilExecuteReq*)data;
   fprintf(out, " senderRef: H'%.8x, senderData: H'%.8x prepareId: %d "
           " releaseFlag: %d\n",
@@ -38,18 +46,34 @@ printUTIL_EXECUTE_REQ(FILE* out, const Uint32 * data, Uint32 len, Uint16 rec)
   return true;
 }
 
-bool 
-printUTIL_EXECUTE_CONF(FILE* out, const Uint32 * data, Uint32 len, Uint16 rec)
+bool printUTIL_EXECUTE_CONF(FILE* out,
+                            const Uint32* data,
+                            Uint32 len,
+                            Uint16 /*rec*/)
 {
+  if (len < UtilExecuteConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   UtilExecuteConf* sig = (UtilExecuteConf*)data;
   fprintf(out, " senderData: H'%.8x gci: %u/%u\n",
 	  sig->senderData, sig->gci_hi, sig->gci_lo);
   return true;
 }
 
-bool 
-printUTIL_EXECUTE_REF(FILE* out, const Uint32 * data, Uint32 len, Uint16 rec)
+bool printUTIL_EXECUTE_REF(FILE* out,
+                           const Uint32* data,
+                           Uint32 len,
+                           Uint16 /*rec*/)
 {
+  if (len < UtilExecuteRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   UtilExecuteRef* sig = (UtilExecuteRef*)data;
   fprintf(out, " senderData: H'%.8x, ", sig->senderData);
   fprintf(out, " errorCode: %s, ",

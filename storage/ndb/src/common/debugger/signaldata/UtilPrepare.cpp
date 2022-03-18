@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +24,17 @@
 
 #include <signaldata/UtilPrepare.hpp>
 
-bool 
-printUTIL_PREPARE_REQ(FILE* out, const Uint32 * data, Uint32 len, Uint16 rec)
+bool printUTIL_PREPARE_REQ(FILE* out,
+                           const Uint32* data,
+                           Uint32 len,
+                           Uint16 /*rec*/)
 {
+  if (len < UtilPrepareReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   UtilPrepareReq* sig = (UtilPrepareReq*)data;
   fprintf(out, " senderRef: H'%.8x senderData: H'%.8x schemaTransId: H'%.8x\n",
 	  sig->senderRef,
@@ -36,9 +44,17 @@ printUTIL_PREPARE_REQ(FILE* out, const Uint32 * data, Uint32 len, Uint16 rec)
   return true;
 }
 
-bool 
-printUTIL_PREPARE_CONF(FILE* out, const Uint32 * data, Uint32 len, Uint16 rec)
+bool printUTIL_PREPARE_CONF(FILE* out,
+                            const Uint32* data,
+                            Uint32 len,
+                            Uint16 /*rec*/)
 {
+  if (len < UtilPrepareConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   UtilPrepareConf* sig = (UtilPrepareConf*)data;
   fprintf(out, " senderData: H'%.8x prepareId: %d\n",
 	  sig->senderData,
@@ -46,9 +62,17 @@ printUTIL_PREPARE_CONF(FILE* out, const Uint32 * data, Uint32 len, Uint16 rec)
   return true;
 }
 
-bool 
-printUTIL_PREPARE_REF(FILE* out, const Uint32 * data, Uint32 len, Uint16 rec)
+bool printUTIL_PREPARE_REF(FILE* out,
+                           const Uint32* data,
+                           Uint32 len,
+                           Uint16 /*rec*/)
 {
+  if (len < UtilPrepareRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   UtilPrepareRef* sig = (UtilPrepareRef*)data;
   fprintf(out, " senderData: H'%.8x, ", sig->senderData);
   fprintf(out, " error: %d, ", sig->errorCode);
