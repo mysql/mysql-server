@@ -51,11 +51,11 @@ class Item_sum_shortest_dir_path final : public Item_sum_json {
                            Window_evaluation_requirements *reqs) override;
 
  private:
-  bool verify_const_id_argument(int i);
-  bool verify_id_argument(int i);
-  bool verify_cost_argument(int i);
-  Json_dom *jsonify_to_heap(int i);
-  Json_dom *jsonify_to_heap(double d);
+  inline bool verify_const_id_argument(int i);
+  inline bool verify_id_argument(int i);
+  inline bool verify_cost_argument(int i);
+  inline Json_dom *jsonify_to_heap(int i);
+  inline Json_dom *jsonify_to_heap(double d);
 };
 
 #endif /* ITEM_SUM_SHORTEST_DIR_PATH_INCLUDED */

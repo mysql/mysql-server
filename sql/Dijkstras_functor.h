@@ -6,48 +6,107 @@
 #include <functional>
 #include <algorithm>
 
+/**
+ * @brief Edge data for Dijkstra functor
+ * 
+ */
 struct Edge {
   int id;
   int from, to;
   double cost;
 };
 
+/**
+ * @brief functor for A* (finds shortest path)
+ * 
+ */
 class Dijkstra {
-  typedef std::unordered_multimap<int, Edge*>::iterator edge_iterator;
+  typedef std::unordered_multimap<int, Edge*>::const_iterator edge_iterator;
 
-  std::unordered_multimap<int, Edge*> edges_lookup_from;
-  std::function<double(const int& point_id)> heu = [](const int&) -> double { return 0.0; };
-  std::unordered_map<int, bool> popped_map;
-  std::unordered_map<int, double> cost_map, heu_cost_map; // heu_cost = real_cost + heuristic
-  std::unordered_map<int, const Edge*> path_map;
+  // key = Edge.from
+  const std::unordered_multimap<int, Edge*> m_edges_lookup_from;
+  const std::function<double(const int& point_id)> m_heu = [](const int&) -> double { return 0.0; };
 
+  std::unordered_map<int, bool> m_popped_map;
+  std::unordered_map<int, double> m_cost_map, m_heu_cost_map; // heu_cost = real_cost + heuristic
+  std::unordered_map<int, const Edge*> m_path_map;
+
+  // comparator used for point_heap sorting to make min heap based on m_heu_cost_map
   struct greater_point_heuristic_comparator {
     bool operator()(const int& a, const int& b) { return val.at(a) > val.at(b); }
     const std::unordered_map<int, double>& val;
-  } heap_cmp{ heu_cost_map };
+  } heap_cmp{ m_heu_cost_map };
   std::deque<int> point_heap;
 
  public:
+  /**
+   * @brief Construct a new Dijkstra object
+   * 
+   * @param edges_lookup_from key must equal edge start node id (i.e. Edge.from)
+   * @param heu_func A* heuristic. If not supplied normal dijkstra will be used
+   */
   Dijkstra(std::unordered_multimap<int, Edge*> edges_lookup_from,
             std::function<double(const int& point_id)> heu_func = [](const int&) -> double { return 0.0; })
-    : edges_lookup_from(edges_lookup_from), heu(heu_func) {}
-
+    : m_edges_lookup_from(edges_lookup_from), m_heu(heu_func) {}
+  /**
+   * @brief runs A* to find shortest path through m_edges_lookup_from
+   * 
+   * @param start_point_id node id of path start
+   * @param end_point_id node if of path end
+   * @param total_cost l-val-ref returns total cost of found path (if path exists)
+   * @return std::vector<const Edge*> vector of pointers pointing to edges in
+   *  edges_lookup_from representing found path
+   */
   std::vector<const Edge*> operator()(const int& start_point_id, const int& end_point_id, double& total_cost);
  private:
+  /**
+   * @brief checks if map contains key
+   * 
+   * @tparam Key type
+   * @tparam T value type
+   * @param map 
+   * @param key 
+   * @return true if map contains key
+   * @return false if map doesn't contain key
+   */
   template<typename Key, typename T>
-  inline static bool contains(std::unordered_map<Key, T> map, Key key) {
-  	return map.find(key) != map.end();
-  }
+  static inline bool contains(std::unordered_map<Key, T> map, Key key);
+  /**
+   * @brief extracts value from map with given key
+   * 
+   * @tparam Key type
+   * @tparam T value type
+   * @param map 
+   * @param key 
+   * @param val 
+   * @return true if map contains key
+   * @return false if map doesn't contain key
+   */
   template<typename Key, typename T>
-  bool extract(std::unordered_map<Key, T> map, Key key, T& val) {
-  	auto pair = map.find(key);
-  	bool found = pair != map.end();
-    if (found) val = pair->second;
-    return found;
-  }
-  void set_point(const int& id, const double& cost, const double& heu_cost, const Edge *const path);
+  static inline bool extract(std::unordered_map<Key, T> map, Key key, T& val);
+  /**
+   * @brief stores point info in node maps (i.e. m_xxx_map)
+   * 
+   * @param id node id
+   * @param cost dijkstra path cost
+   * @param heu_cost cost + heuristic_cost (e.g. euclidean dist)
+   * @param path ptr to edge leading to node
+   */
+  inline void set_point(const int& id, const double& cost, const double& heu_cost, const Edge *const path);
+  /**
+   * @brief finds path by accumulating edge_ptrs from m_path_map and reverting their order
+   *   NB: will deref invalid ptr if path doesn't exist
+   * @param from_point node id of path start
+   * @param to_point node id of path end
+   * @return std::vector<const Edge*> path found in m_path_map
+   */
   std::vector<const Edge*> retrace(int from_point, int to_point);
-  void empty_path_maps();
+
+  /**
+   * @brief empties all node maps (i.e. m_xxx_map) to remove prev path data
+   * 
+   */
+  inline void empty_path_maps();
 };
 
 #endif

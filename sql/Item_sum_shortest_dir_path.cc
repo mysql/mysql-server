@@ -174,8 +174,7 @@ bool Item_sum_shortest_dir_path::check_wf_semantics1(THD *thd, Query_block *sele
   return Item_sum::check_wf_semantics1(thd, select, reqs);
 }
 
-bool Item_sum_shortest_dir_path::verify_const_id_argument(int i) {
-
+inline bool Item_sum_shortest_dir_path::verify_const_id_argument(int i) {
     if (!args[i]->const_item() ||
         (!args[i]->is_null() &&
          (args[i]->result_type() != INT_RESULT))) {
@@ -185,8 +184,7 @@ bool Item_sum_shortest_dir_path::verify_const_id_argument(int i) {
     return false;
 }
 
-bool Item_sum_shortest_dir_path::verify_id_argument(int i) {
-
+inline bool Item_sum_shortest_dir_path::verify_id_argument(int i) {
     if (!args[i]->is_null() && (args[i]->result_type() != INT_RESULT)) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
       return true;
@@ -194,8 +192,7 @@ bool Item_sum_shortest_dir_path::verify_id_argument(int i) {
     return false;
 }
 
-bool Item_sum_shortest_dir_path::verify_cost_argument(int i) {
-
+inline bool Item_sum_shortest_dir_path::verify_cost_argument(int i) {
   if (!args[i]->is_null() && (args[i]->result_type() != REAL_RESULT)) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
       return true;
@@ -203,10 +200,9 @@ bool Item_sum_shortest_dir_path::verify_cost_argument(int i) {
     return false;
 }
 
-Json_dom *Item_sum_shortest_dir_path::jsonify_to_heap(int i) {
+inline Json_dom *Item_sum_shortest_dir_path::jsonify_to_heap(int i) {
   return new (std::nothrow) Json_int(i);
 }
-Json_dom *Item_sum_shortest_dir_path::jsonify_to_heap(double d) {
+inline Json_dom *Item_sum_shortest_dir_path::jsonify_to_heap(double d) {
   return new (std::nothrow) Json_double(d);
 }
-
