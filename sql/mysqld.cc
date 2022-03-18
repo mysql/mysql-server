@@ -8289,7 +8289,7 @@ int mysqld_main(int argc, char **argv) {
     }
   }
 
-  if (Service.GetOS() && mysqld_monitor) /* true NT family */
+  if (mysqld_monitor) /* true NT family */
   {
     char file_path[FN_REFLEN];
     my_path(file_path, argv[0], ""); /* Find name in path */

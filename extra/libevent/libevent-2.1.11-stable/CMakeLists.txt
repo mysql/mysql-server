@@ -29,6 +29,13 @@ IF(HAS_WARN_FLAG)
   STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
 ENDIF()
 
+#TODO(Bug#33986250): fix the deprecation for libevent
+IF(WIN32)
+  STRING_APPEND(CMAKE_C_FLAGS " /wd4996")
+  STRING_APPEND(CMAKE_CXX_FLAGS " /wd4996")
+ENDIF()
+
+
 # Don't do this here, it will load policies for an older version of cmake.
 # cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
 

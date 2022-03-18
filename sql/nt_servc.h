@@ -24,7 +24,6 @@ class NTService {
   NTService();
   ~NTService();
 
-  BOOL bOsNT;  ///< true if OS is NT, false for Win95
   // install optinos
   DWORD dwDesiredAccess;
   DWORD dwServiceType;
@@ -34,7 +33,6 @@ class NTService {
   LPSTR szLoadOrderGroup;
   LPDWORD lpdwTagID;
   LPSTR szDependencies;
-  OSVERSIONINFO osVer;
 
   // time-out (in milisec)
   int nStartTimeOut;
@@ -49,8 +47,6 @@ class NTService {
   int nError;
   DWORD dwState;
 
-  BOOL GetOS();  // returns TRUE if WinNT
-  BOOL IsNT() { return bOsNT; }
   // init service entry point
   long Init(LPCSTR szInternName, void *ServiceThread);
 
