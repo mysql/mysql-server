@@ -393,9 +393,7 @@ class ndbxfrm_file
       int key_cipher,  // 0 - none, 1 - cbc, 2 - xts (always no padding)
       int key_selection_mode,   // 0 - same, 1 - pair, 2 - mixed
       int key_count,
-      int key_data_unit_size,
-      off_t file_block_size,
-      off_t data_size);
+      int key_data_unit_size);
   int write_trailer(ndbxfrm_output_iterator* out,
                     ndbxfrm_output_iterator* extra);
 };

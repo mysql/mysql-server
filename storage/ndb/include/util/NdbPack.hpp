@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -362,7 +362,7 @@ public:
     Data(const Data&);
     Data& operator=(const Data&);
     int finalize_impl();
-    int convert_impl(Endian::Value to_endian);
+    int convert_impl();
     const Uint32 m_varBytes;
     Uint8* m_buf;
     Uint32 m_bufMaxLen;
@@ -798,7 +798,7 @@ NdbPack::Data::convert(Endian::Value to_endian)
     to_endian = Endian::get_endian();
   if (m_endian == to_endian)
     return 0;
-  if (convert_impl(to_endian) == 0)
+  if (convert_impl() == 0)
   {
     m_endian = to_endian;
     return 0;

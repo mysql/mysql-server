@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -723,7 +723,7 @@ NdbPack::Data::copy(const DataC& d2)
 }
 
 int
-NdbPack::Data::convert_impl(Endian::Value to_endian)
+NdbPack::Data::convert_impl()
 {
   const Spec& spec = m_spec;
   Iter r(*this);
