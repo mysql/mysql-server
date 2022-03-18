@@ -5,36 +5,13 @@
 #include "sql/Dijkstras_functor.h"
 
 class Item_sum_shortest_dir_path final : public Item_sum_json {
-
   int m_begin_node, m_end_node;
   std::unordered_multimap<int, Edge*> m_edge_map;
-  /// Accumulates the final value.
-  unique_ptr_destroy_only<Json_object> m_json_object;
-  /// Buffer used to get the value of the key.
-  String m_tmp_key_value;
-  /**
-     Map of keys in Json_object and the count for each key
-     within a window frame. It is used in handling rows
-     leaving a window frame when rows are not sorted
-     according to the key in Json_object.
-   */
-  std::map<std::string, int> m_key_map;
-  /**
-    If window provides ordering on the key in Json_object,
-    a key_map is not needed to handle rows leaving a window
-    frame. In this case, process_buffered_windowing_record()
-    will set flags when a key/value pair can be removed from
-    the Json_object.
-  */
-  bool m_optimize{false};
-
  public:
   Item_sum_shortest_dir_path(THD *thd, Item_sum *item,
-                       unique_ptr_destroy_only<Json_wrapper> wrapper,
-                       unique_ptr_destroy_only<Json_object> object);
+                       unique_ptr_destroy_only<Json_wrapper> wrapper);
   Item_sum_shortest_dir_path(const POS &pos, PT_item_list *args, PT_window *w,
-                       unique_ptr_destroy_only<Json_wrapper> wrapper,
-                       unique_ptr_destroy_only<Json_object> object);
+                       unique_ptr_destroy_only<Json_wrapper> wrapper);
 
   ~Item_sum_shortest_dir_path() override = default;
 

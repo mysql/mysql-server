@@ -11,10 +11,16 @@ insert into paths values
 (12, 0, 2, 8.0, "car"),
 (20, 0, 1, 20.0, "bike"),
 (21, 1, 2, 25.0, "bike"),
-(22, 0, 2, 40.0, "bike")
+(22, 0, 2, 40.0, "bike"),
+(30, 0, 1, 80.0, "pedestrian"),
+(31, 1, 2, 100.0, "pedestrian"),
+(32, 0, 2, 200.0, "pedestrian"),
+(33, 1, 3, 40.0, "pedestrian"),
+(34, 3, 2, 20.0, "pedestrian")
 ;
 select st_shortest_dir_path(id, from_id, to_id, cost, 0, 2) from paths group by type;
 st_shortest_dir_path(id, from_id, to_id, cost, 0, 2)
 {"cost": 40.0, "path": [{"id": 22, "cost": 40.0}]}
 {"cost": 5.0, "path": [{"id": 10, "cost": 2.0}, {"id": 11, "cost": 3.0}]}
+{"cost": 140.0, "path": [{"id": 30, "cost": 80.0}, {"id": 33, "cost": 40.0}, {"id": 34, "cost": 20.0}]}
 drop table paths;

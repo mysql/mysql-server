@@ -13,7 +13,13 @@ insert into paths values
 
 (20, 0, 1, 20.0, "bike"),
 (21, 1, 2, 25.0, "bike"),
-(22, 0, 2, 40.0, "bike")
+(22, 0, 2, 40.0, "bike"),
+
+(30, 0, 1, 80.0, "pedestrian"),
+(31, 1, 2, 100.0, "pedestrian"),
+(32, 0, 2, 200.0, "pedestrian"),
+(33, 1, 3, 40.0, "pedestrian"),
+(34, 3, 2, 20.0, "pedestrian")
 ;
 
 select st_shortest_dir_path(id, from_id, to_id, cost, 0, 2) from paths group by type;

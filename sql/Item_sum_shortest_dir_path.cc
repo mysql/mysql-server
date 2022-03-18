@@ -59,17 +59,13 @@
 #include "sql/window.h"
 
 Item_sum_shortest_dir_path::Item_sum_shortest_dir_path(
-    THD *thd, Item_sum *item, unique_ptr_destroy_only<Json_wrapper> wrapper,
-    unique_ptr_destroy_only<Json_object> object)
-    : Item_sum_json(std::move(wrapper), thd, item),
-      m_json_object(std::move(object)) {}
+    THD *thd, Item_sum *item, unique_ptr_destroy_only<Json_wrapper> wrapper)
+    : Item_sum_json(std::move(wrapper), thd, item) {}
 
 Item_sum_shortest_dir_path::Item_sum_shortest_dir_path(
     const POS &pos, PT_item_list *args, PT_window *w,
-    unique_ptr_destroy_only<Json_wrapper> wrapper,
-    unique_ptr_destroy_only<Json_object> object)
-    : Item_sum_json(std::move(wrapper), pos, args, w),
-      m_json_object(std::move(object)) {}
+    unique_ptr_destroy_only<Json_wrapper> wrapper)
+    : Item_sum_json(std::move(wrapper), pos, args, w) {}
 
 bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
   assert(false);
@@ -79,7 +75,7 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
 String *Item_sum_shortest_dir_path::val_str(String *str) {
   assert(!m_is_window_function);
 
-  const THD *thd = base_query_block->parent_lex->thd;  
+  const THD *thd = base_query_block->parent_lex->thd;
   if (thd->is_error()) return error_str();
 
   Json_array *arr = new (std::nothrow) Json_array();
@@ -95,7 +91,6 @@ String *Item_sum_shortest_dir_path::val_str(String *str) {
 
   }
   Json_object *object = down_cast<Json_object *>(m_wrapper->to_dom(thd));
-  object->clear();
   if( object->add_alias("path", arr) ||
       object->add_alias("cost", jsonify_to_heap(cost)))
         return error_str();
@@ -105,19 +100,17 @@ String *Item_sum_shortest_dir_path::val_str(String *str) {
 
   if(aggr) aggr->endup();
 
-  return str; //Item_sum_json::val_str(str);
+  return str;
 }
 
 void Item_sum_shortest_dir_path::clear() {
-  null_value = true;
-  m_json_object->clear();
+  const THD *thd = base_query_block->parent_lex->thd;
 
-  for (auto& pair : m_edge_map) delete pair.second;
+  null_value = true;
+
   m_edge_map.clear();
-  // Set the object to the m_wrapper, but let a_star_ting keep the
-  // ownership.
-  *m_wrapper = Json_wrapper(m_json_object.get(), true);
-  m_key_map.clear();
+  Json_object *object = down_cast<Json_object *>(m_wrapper->to_dom(thd));
+  object->clear();
 }
 
 bool Item_sum_shortest_dir_path::add() {
@@ -149,24 +142,16 @@ bool Item_sum_shortest_dir_path::add() {
   if (thd->is_error()) return true;
   for (int i = 0; i < 4; i++) if (args[i]->null_value) return true;
 
-  m_edge_map.insert(std::pair<int, Edge*>(from_id, new Edge{id, from_id, to_id, cost}));
-
+  m_edge_map.insert(std::pair<int, Edge*>(from_id, new (thd->mem_root) Edge{id, from_id, to_id, cost}));
 
   return false;
 }
 
 Item *Item_sum_shortest_dir_path::copy_or_same(THD *thd) {
-  if (m_is_window_function) return this;
-
+  assert(!m_is_window_function);
   auto wrapper = make_unique_destroy_only<Json_wrapper>(thd->mem_root);
   if (wrapper == nullptr) return nullptr;
-
-  unique_ptr_destroy_only<Json_object> object{::new (thd->mem_root)
-                                                  Json_object};
-  if (object == nullptr) return nullptr;
-
-  return new (thd->mem_root)
-      Item_sum_shortest_dir_path(thd, this, std::move(wrapper), std::move(object));
+  return new (thd->mem_root) Item_sum_shortest_dir_path(thd, this, std::move(wrapper));
 }
 
 bool Item_sum_shortest_dir_path::check_wf_semantics1(THD *thd, Query_block *select,
@@ -180,7 +165,7 @@ inline bool Item_sum_shortest_dir_path::verify_const_id_argument(int i) {
          (args[i]->result_type() != INT_RESULT))) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
       return true;
-    } 
+    }
     return false;
 }
 
