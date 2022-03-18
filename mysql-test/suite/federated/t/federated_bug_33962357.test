@@ -75,3 +75,4 @@ SELECT * FROM federated.t1;
 SET GLOBAL DEBUG= @debug_save;
 source suite/federated/include/federated_cleanup.inc;
 --source include/force_restart.inc
+
