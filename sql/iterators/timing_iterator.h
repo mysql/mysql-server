@@ -1,7 +1,7 @@
 #ifndef SQL_ITERATORS_TIMING_ITERATOR_H_
 #define SQL_ITERATORS_TIMING_ITERATOR_H_
 
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,8 +64,7 @@ class TimingIterator final : public RowIterator {
     m_iterator.EndPSIBatchModeIfStarted();
   }
 
-  std::string TimingString() const override;
-
+  IteratorTimingData GetTimingData() const override;
   RowIterator *real_iterator() override { return &m_iterator; }
   const RowIterator *real_iterator() const override { return &m_iterator; }
 
@@ -131,7 +130,7 @@ int TimingIterator<RealIterator>::Read() {
 
 // In the default implementation, just return default_num_init_calls.
 template <class RealIterator, class = void>
-struct GetTimingData {
+struct TimingDataRetriever {
   inline uint64_t num_init_calls(const RealIterator &,
                                  uint64_t default_num_init_calls) const {
     return default_num_init_calls;
@@ -146,7 +145,8 @@ struct GetTimingData {
 // num_init_calls(). (If it does not exist, this template is not considered
 // due to SFINAE.)
 template <class RealIterator>
-struct GetTimingData<RealIterator, typename RealIterator::keeps_own_timing> {
+struct TimingDataRetriever<RealIterator,
+                           typename RealIterator::keeps_own_timing> {
   inline uint64_t num_init_calls(const RealIterator &iterator, uint64_t) const {
     return iterator.num_init_calls();
   }
@@ -156,28 +156,16 @@ struct GetTimingData<RealIterator, typename RealIterator::keeps_own_timing> {
 };
 
 template <class RealIterator>
-std::string TimingIterator<RealIterator>::TimingString() const {
-  double first_row_ms =
-      duration<double>(m_time_spent_in_first_row).count() * 1e3;
-  double last_row_ms =
+IteratorTimingData TimingIterator<RealIterator>::GetTimingData() const {
+  const TimingDataRetriever<RealIterator> timing_data;
+
+  return {
+      duration<double>(m_time_spent_in_first_row).count() * 1e3,
       duration<double>(m_time_spent_in_first_row + m_time_spent_in_other_rows)
-          .count() *
-      1e3;
-  char buf[1024];
-  GetTimingData<RealIterator> timing_data;
-  const uint64_t num_init_calls =
-      timing_data.num_init_calls(m_iterator, m_num_init_calls);
-  const uint64_t num_rows = timing_data.num_rows(m_iterator, m_num_rows);
-  if (num_init_calls == 0) {
-    snprintf(buf, sizeof(buf), "(never executed)");
-  } else {
-    snprintf(buf, sizeof(buf),
-             "(actual time=%.3f..%.3f rows=%lld loops=%" PRIu64 ")",
-             first_row_ms / num_init_calls, last_row_ms / num_init_calls,
-             llrintf(static_cast<double>(num_rows) / num_init_calls),
-             num_init_calls);
-  }
-  return buf;
+              .count() *
+          1e3,
+      timing_data.num_init_calls(m_iterator, m_num_init_calls),
+      timing_data.num_rows(m_iterator, m_num_rows)};
 }
 
 // Allocates a new iterator on the given MEM_ROOT. The MEM_ROOT must live

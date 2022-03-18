@@ -211,28 +211,59 @@ static void AddTableIteratorDescription(const AccessPath *path, JOIN *join,
 
 static void ExplainMaterializeAccessPath(const AccessPath *path, JOIN *join,
                                          vector<string> *description,
-                                         vector<ExplainData::Child> *children) {
+                                         vector<ExplainData::Child> *children,
+                                         bool explain_analyze) {
   MaterializePathParameters *param = path->materialize().param;
 
   AddTableIteratorDescription(path->materialize().table_path, join,
                               description);
 
+  /*
+    There may be multiple refrences to a CTE, but we should only print the
+    plan once.
+  */
+  const bool explain_cte_now = param->cte != nullptr && [&]() {
+    if (explain_analyze) {
+      /*
+        Find the temporary table for which the CTE was materialized, if there
+        is one.
+      */
+      if (path->iterator->GetTimingData().get_num_init_calls() == 0) {
+        // If the CTE was never materialized, print it at the first reference.
+        return param->table == param->cte->tmp_tables[0]->table &&
+               std::none_of(param->cte->tmp_tables.cbegin(),
+                            param->cte->tmp_tables.cend(),
+                            [](const TABLE_LIST *tab) {
+                              return tab->table->materialized;
+                            });
+      } else {
+        // The CTE was materialized here, print it now with cost data.
+        return true;
+      }
+    } else {
+      // If we do not want cost data, print the plan at the first reference.
+      return param->table == param->cte->tmp_tables[0]->table;
+    }
+  }();
+
   const bool is_union = param->query_blocks.size() > 1;
   string str;
 
-  if (param->cte != nullptr && param->cte->recursive) {
-    str = "Materialize recursive CTE " + to_string(param->cte->name);
-  } else if (param->cte != nullptr) {
-    if (is_union) {
-      str = "Materialize union CTE " + to_string(param->cte->name);
+  if (param->cte != nullptr) {
+    if (param->cte->recursive) {
+      str = "Materialize recursive CTE " + to_string(param->cte->name);
     } else {
-      str = "Materialize CTE " + to_string(param->cte->name);
-    }
-    if (param->cte->tmp_tables.size() > 1) {
-      str += " if needed";
-      if (param->cte->tmp_tables[0]->table != param->table) {
-        // See children().
-        str += " (query plan printed elsewhere)";
+      if (is_union) {
+        str = "Materialize union CTE " + to_string(param->cte->name);
+      } else {
+        str = "Materialize CTE " + to_string(param->cte->name);
+      }
+      if (param->cte->tmp_tables.size() > 1) {
+        str += " if needed";
+        if (!explain_cte_now) {
+          // See children().
+          str += " (query plan printed elsewhere)";
+        }
       }
     }
   } else if (is_union) {
@@ -270,8 +301,7 @@ static void ExplainMaterializeAccessPath(const AccessPath *path, JOIN *join,
   //
   // TODO(sgunders): Consider printing CTE query plans on the top level of the
   // query block instead?
-  if (param->cte != nullptr &&
-      param->cte->tmp_tables[0]->table != param->table) {
+  if (param->cte != nullptr && !explain_cte_now) {
     return;
   }
 
@@ -893,7 +923,9 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join,
       children.push_back({path->stream().child});
       break;
     case AccessPath::MATERIALIZE:
-      ExplainMaterializeAccessPath(path, join, &description, &children);
+      ExplainMaterializeAccessPath(
+          path, join, &description, &children,
+          include_costs && current_thd->lex->is_explain_analyze);
       break;
     case AccessPath::MATERIALIZE_INFORMATION_SCHEMA_TABLE:
       AddTableIteratorDescription(
@@ -1089,7 +1121,21 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join,
       description.back().push_back(' ');
     }
     description.back().push_back(' ');
-    description.back() += path->iterator->TimingString();
+    const IteratorTimingData timingData = path->iterator->GetTimingData();
+    if (timingData.get_num_init_calls() == 0) {
+      description.back() += "(never executed)";
+    } else {
+      char buf[1024];
+      snprintf(buf, sizeof(buf),
+               "(actual time=%.3f..%.3f rows=%lld loops=%" PRIu64 ")",
+               timingData.get_first_row_ms() / timingData.get_num_init_calls(),
+               timingData.get_last_row_ms() / timingData.get_num_init_calls(),
+               llrintf(static_cast<double>(timingData.get_num_rows()) /
+                       timingData.get_num_init_calls()),
+               timingData.get_num_init_calls());
+
+      description.back() += buf;
+    }
   }
   return {description, children};
 }
