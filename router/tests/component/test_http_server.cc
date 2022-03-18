@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1719,15 +1719,6 @@ TEST_P(HttpServerAuthFailTest, ensure) {
     config_sections.push_back(section);
   }
 
-  std::string config_content = mysql_harness::join(config_sections, "\n");
-
-  std::string conf_file = create_config_file(conf_dir_.name(), config_content);
-
-  ProcessWrapper &http_server{
-      launch_router({"-c", conf_file},
-                    GetParam().check_at_runtime ? EXIT_SUCCESS : EXIT_FAILURE,
-                    true, false, -1s)};
-
   std::fstream pwf{passwd_filename, std::ios::out};
 
   if (!pwf.is_open()) throw std::runtime_error("hmm");
@@ -1740,6 +1731,15 @@ TEST_P(HttpServerAuthFailTest, ensure) {
 
   pwf << kPasswdUserTest;
   pwf.close();
+
+  std::string config_content = mysql_harness::join(config_sections, "\n");
+
+  std::string conf_file = create_config_file(conf_dir_.name(), config_content);
+
+  ProcessWrapper &http_server{
+      launch_router({"-c", conf_file},
+                    GetParam().check_at_runtime ? EXIT_SUCCESS : EXIT_FAILURE,
+                    true, false, -1s)};
 
   if (GetParam().check_at_runtime) {
     ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port_));
