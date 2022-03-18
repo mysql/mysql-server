@@ -6,10 +6,26 @@
 
 class Item_sum_shortest_dir_path final : public Item_sum_json {
   int m_begin_node, m_end_node;
+  // accumulated edges from ::add. map key = node id of edge origin (i.e. Edge.from)
   std::unordered_multimap<int, Edge*> m_edge_map;
  public:
+ /**
+  * @brief Construct a new Item_sum_shortest_dir_path object
+  * 
+  * @param thd 
+  * @param item 
+  * @param wrapper must contain Json_object
+  */
   Item_sum_shortest_dir_path(THD *thd, Item_sum *item,
                        unique_ptr_destroy_only<Json_wrapper> wrapper);
+  /**
+   * @brief Construct a new Item_sum_shortest_dir_path object
+   * 
+   * @param pos 
+   * @param args 
+   * @param w 
+   * @param wrapper must contain Json_object
+   */
   Item_sum_shortest_dir_path(const POS &pos, PT_item_list *args, PT_window *w,
                        unique_ptr_destroy_only<Json_wrapper> wrapper);
 
@@ -31,7 +47,19 @@ class Item_sum_shortest_dir_path final : public Item_sum_json {
   inline bool verify_const_id_argument(int i);
   inline bool verify_id_argument(int i);
   inline bool verify_cost_argument(int i);
+  /**
+   * @brief allocates Json_int on heap with given value
+   * 
+   * @param i value
+   * @return Json_dom* ptr to Json_int
+   */
   inline Json_dom *jsonify_to_heap(int i);
+  /**
+   * @brief allocates Json_double on heap with given value
+   * 
+   * @param d value
+   * @return Json_dom* ptr to Json_double
+   */
   inline Json_dom *jsonify_to_heap(double d);
 };
 

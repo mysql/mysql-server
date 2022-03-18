@@ -109,4 +109,4 @@ class Dijkstra {
   inline void empty_path_maps();
 };
 
-#endif
+#endif /* DIJKSTRAS_FUNCTOR_INCLUDED */
