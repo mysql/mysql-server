@@ -36,7 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
  Created 9/11/1995 Heikki Tuuri
  *******************************************************/
-
+// NOTE:读写锁的实现
 #ifndef sync0rw_h
 #define sync0rw_h
 

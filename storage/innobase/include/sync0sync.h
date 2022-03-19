@@ -37,7 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
  Created 9/5/1995 Heikki Tuuri
  *******************************************************/
-
+// NOTE:互斥量的实现
 #ifndef sync0sync_h
 #define sync0sync_h
 

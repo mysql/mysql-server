@@ -29,7 +29,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
  Created 9/5/1995 Heikki Tuuri
  *******************************************************/
-
+// NOTE:相关定义
 #ifndef sync0types_h
 #define sync0types_h
 
