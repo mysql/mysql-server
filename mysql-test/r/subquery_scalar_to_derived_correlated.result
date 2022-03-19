@@ -941,4 +941,38 @@ a
 1
 2
 DROP TABLE t1,t2;
+#
+# Bug#33927457 mysqld crash - Assertion failure in is_correlated_predicate_eligible
+#
+CREATE TABLE t1(b BOOL);
+SELECT *
+FROM t1 AS alias1
+WHERE ( SELECT COUNT(t1.b)
+FROM t1
+WHERE EXISTS ( SELECT SUM( t1.b )
+FROM t1
+WHERE alias1.b
+)
+AND alias1.b
+);
+b
+EXPLAIN SELECT *
+FROM t1 AS alias1
+WHERE ( SELECT COUNT(t1.b)
+FROM t1
+WHERE EXISTS ( SELECT SUM( t1.b )
+FROM t1
+WHERE alias1.b
+)
+AND alias1.b
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	alias1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+3	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.alias1.b' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.alias1.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`alias1`.`b` AS `b` from `test`.`t1` `alias1` where (0 <> (/* select#2 */ select count(`test`.`t1`.`b`) from `test`.`t1` where (exists(/* select#3 */ select sum(`test`.`t1`.`b`) from `test`.`t1` where (0 <> `test`.`alias1`.`b`)) and (0 <> `test`.`alias1`.`b`))))
+DROP TABLE t1;
 SET optimizer_switch = 'subquery_to_derived=default';

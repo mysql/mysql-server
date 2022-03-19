@@ -7128,7 +7128,7 @@ bool Query_block::transform_subquery_to_derived(
 */
 bool is_correlated_predicate_eligible(Item *cor_pred) {
   assert(cor_pred->is_outer_reference());
-  if (cor_pred->type() == Item::FUNC_ITEM &&
+  if (cor_pred->type() != Item::FUNC_ITEM ||
       down_cast<Item_func *>(cor_pred)->functype() != Item_func::EQ_FUNC)
     return false;
   Item_func *eq_func = down_cast<Item_func *>(cor_pred);

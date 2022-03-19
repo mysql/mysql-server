@@ -693,6 +693,28 @@ eval $query;
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug#33927457 mysqld crash - Assertion failure in is_correlated_predicate_eligible
+--echo #
+
+CREATE TABLE t1(b BOOL);
+
+let $query=
+  SELECT *
+  FROM t1 AS alias1
+  WHERE ( SELECT COUNT(t1.b)
+          FROM t1
+          WHERE EXISTS ( SELECT SUM( t1.b )
+                         FROM t1
+                         WHERE alias1.b
+                       )
+                AND alias1.b
+         );
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE t1;
+
 SET optimizer_switch = 'subquery_to_derived=default';
 # Local Variables:
 # mode: sql
