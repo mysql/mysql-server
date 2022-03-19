@@ -38,7 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  - @ref Sharded_rw_lock - sharded rw-lock (very fast s-lock, slow x-lock)
 
  *******************************************************/
-
+// NOTE:其他常用操作,包括时间、打印、对数和指数操作
 #ifndef ut0ut_h
 #define ut0ut_h
 

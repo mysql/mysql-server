@@ -30,7 +30,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  Created 9/10/1995 Heikki Tuuri
  Rewritten by Sunny Bains Dec 2011.
  ***********************************************************************/
-
+// NOTE:双向线性链表实现
 #ifndef ut0lst_h
 #define ut0lst_h
 

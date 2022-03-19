@@ -29,7 +29,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
  Created 6/9/1994 Heikki Tuuri
  *******************************************************/
-
+// NOTE:内存管理系统,包括内存池实现
 #ifndef mem0mem_h
 #define mem0mem_h
 

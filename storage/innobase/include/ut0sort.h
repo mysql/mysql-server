@@ -29,7 +29,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
  Created 11/9/1995 Heikki Tuuri
  ***********************************************************************/
-
+// NOTE:标准排序算法的宏定义,基于合并排序
 #ifndef ut0sort_h
 #define ut0sort_h
 

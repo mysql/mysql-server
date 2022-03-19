@@ -29,7 +29,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
  Created 12/13/1995 Heikki Tuuri
  ***********************************************************************/
-
+// NOTE:基于文件的工具集,实现了基于磁盘地址而不是内存地址的双链表
 #ifndef fut0fut_h
 #define fut0fut_h
 

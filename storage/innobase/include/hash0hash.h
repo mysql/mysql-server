@@ -29,7 +29,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
  Created 5/20/1997 Heikki Tuuri
  *******************************************************/
-
+// NOTE:简单哈希表实现,用于fil、buf和recv等模块中
 #ifndef hash0hash_h
 #define hash0hash_h
 

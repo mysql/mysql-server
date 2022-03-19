@@ -29,7 +29,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
  Created 5/30/1994 Heikki Tuuri
  ************************************************************************/
-
+// NOTE:内存管理单元,内存块实现
 #ifndef ut0mem_h
 #define ut0mem_h
 

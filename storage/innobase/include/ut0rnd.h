@@ -29,7 +29,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
  Created 1/20/1994 Heikki Tuuri
  ***********************************************************************/
-
+// NOTE:随机数和哈希值操作实现
 #ifndef ut0rnd_h
 #define ut0rnd_h
 

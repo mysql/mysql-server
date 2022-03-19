@@ -29,7 +29,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
  Created 1/20/1994 Heikki Tuuri
  ***********************************************************************/
-
+// NOTE:字节操作实现(ut=utils,工具集)
 #ifndef ut0byte_h
 #define ut0byte_h
 
