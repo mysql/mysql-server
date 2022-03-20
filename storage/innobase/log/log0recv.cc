@@ -30,7 +30,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
  Created 9/20/1997 Heikki Tuuri
  *******************************************************/
-
+// NOTE:重做日志恢复
 #include "ha_prototypes.h"
 
 #include <my_aes.h>

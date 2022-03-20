@@ -54,7 +54,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
  Created 12/9/1995 Heikki Tuuri
  *******************************************************/
-
+/* NOTE:重做日志相关操作:
+* 函数log_block_*重做日志缓冲操作
+* 函数log_group_*重做日志文件操作
+* 函数log_archive_*重做日志归档操作
+*/
 #include "log0types.h"
 
 /** Pointer to the log checksum calculation function. */
