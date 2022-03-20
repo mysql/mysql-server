@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
    Use is subject to license terms
 
    This program is free software; you can redistribute it and/or modify
@@ -26,6 +26,12 @@
 bool
 printDROP_INDX_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < DropIndxImplReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const DropIndxImplReq* sig = (const DropIndxImplReq*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
@@ -43,6 +49,12 @@ printDROP_INDX_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 bool
 printDROP_INDX_IMPL_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < DropIndxImplConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const DropIndxImplConf* sig = (const DropIndxImplConf*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
@@ -53,6 +65,12 @@ printDROP_INDX_IMPL_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16
 bool
 printDROP_INDX_IMPL_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < DropIndxImplRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const DropIndxImplRef* sig = (const DropIndxImplRef*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);

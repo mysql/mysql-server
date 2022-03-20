@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,17 @@
 
 #include <signaldata/ProcessInfoRep.hpp>
 
-bool
-printPROCESSINFO_REP(FILE * out, const Uint32 * data, Uint32 len, Uint16 bno) {
+bool printPROCESSINFO_REP(FILE *out,
+                          const Uint32 *data,
+                          Uint32 len,
+                          Uint16 /*bno*/)
+{
+  if (len < ProcessInfoRep::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   ProcessInfoRep * sig = (ProcessInfoRep *) data;
 
   fprintf(out, " process_name: %s", (char *) sig->process_name);

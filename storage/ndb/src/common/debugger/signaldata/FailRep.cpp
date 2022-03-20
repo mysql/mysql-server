@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -23,13 +23,19 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
-
 #include <signaldata/FailRep.hpp>
 
-bool
-printFAIL_REP(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo){
-  
+bool printFAIL_REP(FILE *output,
+                   const Uint32 *theData,
+                   Uint32 len,
+                   Uint16 /*receiverBlockNo*/)
+{
+  if (len < FailRep::OrigSignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const FailRep * const sig = (FailRep *) theData;
   
   fprintf(output, " FailedNode: %d, FailCause: %d\n", 

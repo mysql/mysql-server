@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,14 +43,20 @@
 // PUBLIC
 //
 
-#define QQQQ char *m_text, size_t m_text_len, const Uint32* theData, Uint32 len
-
-void getTextConnected(QQQQ) {
+void getTextConnected(char *m_text,
+                      size_t m_text_len,
+                      const Uint32 *theData,
+                      Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, 
 		       "Node %u Connected",
 		       theData[1]);
 }
-void getTextConnectedApiVersion(QQQQ) {
+void getTextConnectedApiVersion(char *m_text,
+                                size_t m_text_len,
+                                const Uint32 *theData,
+                                Uint32 /*len*/)
+{
   char tmp[100];
   Uint32 mysql_version = theData[3];
   BaseString::snprintf(m_text, m_text_len, 
@@ -60,12 +66,20 @@ void getTextConnectedApiVersion(QQQQ) {
                                            tmp, sizeof(tmp)));
 }
 
-void getTextDisconnected(QQQQ) {
+void getTextDisconnected(char *m_text,
+                         size_t m_text_len,
+                         const Uint32 *theData,
+                         Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, 
 		       "Node %u Disconnected", 
 		       theData[1]);
 }
-void getTextCommunicationClosed(QQQQ) {
+void getTextCommunicationClosed(char *m_text,
+                                size_t m_text_len,
+                                const Uint32 *theData,
+                                Uint32 /*len*/)
+{
   //-----------------------------------------------------------------------
   // REPORT communication to node closed.
   //-----------------------------------------------------------------------
@@ -73,7 +87,11 @@ void getTextCommunicationClosed(QQQQ) {
 		       "Communication to Node %u closed", 
 		       theData[1]);
 }
-void getTextCommunicationOpened(QQQQ) {
+void getTextCommunicationOpened(char *m_text,
+                                size_t m_text_len,
+                                const Uint32 *theData,
+                                Uint32 /*len*/)
+{
   //-----------------------------------------------------------------------
   // REPORT communication to node opened.
   //-----------------------------------------------------------------------
@@ -81,7 +99,11 @@ void getTextCommunicationOpened(QQQQ) {
 		       "Communication to Node %u opened", 
 		       theData[1]);
 }
-void getTextNDBStartStarted(QQQQ) {
+void getTextNDBStartStarted(char *m_text,
+                            size_t m_text_len,
+                            const Uint32 *theData,
+                            Uint32 /*len*/)
+{
   //-----------------------------------------------------------------------
   // Start of NDB has been initiated.
   //-----------------------------------------------------------------------
@@ -93,7 +115,11 @@ void getTextNDBStartStarted(QQQQ) {
 		       ndbGetVersionString(theData[1], mysql_version, 0,
                                            tmp, sizeof(tmp)));
 }
-void getTextNDBStopStarted(QQQQ) {
+void getTextNDBStopStarted(char *m_text,
+                           size_t m_text_len,
+                           const Uint32 *theData,
+                           Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len,
 		       "%s shutdown initiated", 
 		       (theData[1] == 1 ? "Cluster" : "Node"));
@@ -108,7 +134,11 @@ void getRestartAction(Uint32 action, BaseString &str)
   if (action & 4)
     str.appfmt(", initial");
 }
-void getTextNDBStopCompleted(QQQQ) {
+void getTextNDBStopCompleted(char *m_text,
+                             size_t m_text_len,
+                             const Uint32 *theData,
+                             Uint32 /*len*/)
+{
   BaseString action_str("");
   BaseString signum_str("");
   getRestartAction(theData[1], action_str);
@@ -119,7 +149,11 @@ void getTextNDBStopCompleted(QQQQ) {
 		       action_str.c_str(),
 		       signum_str.c_str());
 }
-void getTextNDBStopForced(QQQQ) {
+void getTextNDBStopForced(char *m_text,
+                          size_t m_text_len,
+                          const Uint32 *theData,
+                          Uint32 /*len*/)
+{
   BaseString action_str("");
   BaseString reason_str("");
   BaseString sphase_str("");
@@ -150,11 +184,19 @@ void getTextNDBStopForced(QQQQ) {
 		       action_str.c_str(), sphase_str.c_str(),
 		       reason_str.c_str());
 }
-void getTextNDBStopAborted(QQQQ) {
+void getTextNDBStopAborted(char *m_text,
+                           size_t m_text_len,
+                           const Uint32 * /*theData*/,
+                           Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len,
 		       "Node shutdown aborted");
 }
-void getTextNDBStartCompleted(QQQQ) {
+void getTextNDBStartCompleted(char *m_text,
+                              size_t m_text_len,
+                              const Uint32 *theData,
+                              Uint32 /*len*/)
+{
   //-----------------------------------------------------------------------
   // Start of NDB has been completed.
   //-----------------------------------------------------------------------
@@ -167,14 +209,22 @@ void getTextNDBStartCompleted(QQQQ) {
                                            tmp, sizeof(tmp)));
 }
 
-void getTextSTTORRYRecieved(QQQQ) {
+void getTextSTTORRYRecieved(char *m_text,
+                            size_t m_text_len,
+                            const Uint32 * /*theData*/,
+                            Uint32 /*len*/)
+{
   //-----------------------------------------------------------------------
   // STTORRY recevied after restart finished.
   //-----------------------------------------------------------------------
   BaseString::snprintf(m_text, m_text_len, 
 		       "STTORRY received after restart finished");
 }
-void getTextStartPhaseCompleted(QQQQ) {
+void getTextStartPhaseCompleted(char *m_text,
+                                size_t m_text_len,
+                                const Uint32 *theData,
+                                Uint32 /*len*/)
+{
   //-----------------------------------------------------------------------
   // REPORT Start phase completed.
   //-----------------------------------------------------------------------
@@ -207,14 +257,22 @@ void getTextStartPhaseCompleted(QQQQ) {
 		       theData[1],
 		       type);
 }
-void getTextCM_REGCONF(QQQQ) {
+void getTextCM_REGCONF(char *m_text,
+                       size_t m_text_len,
+                       const Uint32 *theData,
+                       Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, 
 		       "CM_REGCONF president = %u, own Node = %u, our dynamic id = %u/%u",
 		       theData[2], 
 		       theData[1],
 		       (theData[3] >> 16), (theData[3] & 0xFFFF));
 }
-void getTextCM_REGREF(QQQQ) {
+void getTextCM_REGREF(char *m_text,
+                      size_t m_text_len,
+                      const Uint32 *theData,
+                      Uint32 /*len*/)
+{
   const char* line = "";
   switch (theData[3]) {
   case 0:
@@ -243,7 +301,11 @@ void getTextCM_REGREF(QQQQ) {
 		       theData[1], 
 		       line);
 }
-void getTextFIND_NEIGHBOURS(QQQQ) {
+void getTextFIND_NEIGHBOURS(char *m_text,
+                            size_t m_text_len,
+                            const Uint32 *theData,
+                            Uint32 /*len*/)
+{
   //-----------------------------------------------------------------------
   // REPORT Node Restart copied a fragment.
   //-----------------------------------------------------------------------
@@ -255,7 +317,11 @@ void getTextFIND_NEIGHBOURS(QQQQ) {
 		       theData[2], 
 		       theData[3]);
 }
-void getTextNodeFailCompleted(QQQQ) {
+void getTextNodeFailCompleted(char *m_text,
+                              size_t m_text_len,
+                              const Uint32 *theData,
+                              Uint32 /*len*/)
+{
   //-----------------------------------------------------------------------
   // REPORT Node failure phase completed.
   //-----------------------------------------------------------------------
@@ -290,14 +356,23 @@ void getTextNodeFailCompleted(QQQQ) {
 			 line);
   }
 }
-void getTextNODE_FAILREP(QQQQ) {
-  BaseString::snprintf(m_text, m_text_len, 
-		       "Node %u has failed. The Node state at failure "
-		       "was %u", 
-		       theData[1], 
-		       theData[2]); 
+void getTextNODE_FAILREP(char *m_text,
+                         size_t m_text_len,
+                         const Uint32 *theData,
+                         Uint32 /*len*/)
+{
+  BaseString::snprintf(m_text,
+                       m_text_len,
+                       "Node %u has failed. The Node state at failure "
+                       "was %u",
+                       theData[1],
+                       theData[2]);
 }
-void getTextArbitState(QQQQ) {
+void getTextArbitState(char *m_text,
+                       size_t m_text_len,
+                       const Uint32 *theData,
+                       Uint32 /*len*/)
+{
   //-----------------------------------------------------------------------
   // REPORT arbitrator found or lost.
   //-----------------------------------------------------------------------
@@ -351,7 +426,11 @@ void getTextArbitState(QQQQ) {
   }
 }
 
-void getTextArbitResult(QQQQ) {
+void getTextArbitResult(char *m_text,
+                        size_t m_text_len,
+                        const Uint32 *theData,
+                        Uint32 /*len*/)
+{
   //-----------------------------------------------------------------------
   // REPORT arbitration result (the failures may not reach us).
   //-----------------------------------------------------------------------
@@ -416,7 +495,11 @@ void getTextArbitResult(QQQQ) {
     }
   }
 }
-void getTextGlobalCheckpointStarted(QQQQ) {
+void getTextGlobalCheckpointStarted(char *m_text,
+                                    size_t m_text_len,
+                                    const Uint32 *theData,
+                                    Uint32 /*len*/)
+{
   //-----------------------------------------------------------------------
   // This event reports that a global checkpoint has been started and this
   // node is the master of this global checkpoint.
@@ -425,7 +508,11 @@ void getTextGlobalCheckpointStarted(QQQQ) {
 		       "Global checkpoint %u started", 
 		       theData[1]);
 }
-void getTextGlobalCheckpointCompleted(QQQQ) {
+void getTextGlobalCheckpointCompleted(char *m_text,
+                                      size_t m_text_len,
+                                      const Uint32 *theData,
+                                      Uint32 /*len*/)
+{
   //-----------------------------------------------------------------------
   // This event reports that a global checkpoint has been completed on this
   // node and the node is the master of this global checkpoint.
@@ -434,7 +521,11 @@ void getTextGlobalCheckpointCompleted(QQQQ) {
 		       "Global checkpoint %u completed", 
 		       theData[1]);
 }
-void getTextLocalCheckpointStarted(QQQQ) {
+void getTextLocalCheckpointStarted(char *m_text,
+                                   size_t m_text_len,
+                                   const Uint32 *theData,
+                                   Uint32 /*len*/)
+{
   //-----------------------------------------------------------------------
   // This event reports that a local checkpoint has been started and this
   // node is the master of this local checkpoint.
@@ -446,7 +537,11 @@ void getTextLocalCheckpointStarted(QQQQ) {
 		       theData[2], 
 		       theData[3]);
 }
-void getTextLocalCheckpointCompleted(QQQQ) {
+void getTextLocalCheckpointCompleted(char *m_text,
+                                     size_t m_text_len,
+                                     const Uint32 *theData,
+                                     Uint32 /*len*/)
+{
   //-----------------------------------------------------------------------
   // This event reports that a local checkpoint has been completed on this
   // node and the node is the master of this local checkpoint.
@@ -455,7 +550,11 @@ void getTextLocalCheckpointCompleted(QQQQ) {
 		       "Local checkpoint %u completed", 
 		       theData[1]);
 }
-void getTextTableCreated(QQQQ) {
+void getTextTableCreated(char *m_text,
+                         size_t m_text_len,
+                         const Uint32 *theData,
+                         Uint32 /*len*/)
+{
   //-----------------------------------------------------------------------
   // This event reports that a table has been created.
   //-----------------------------------------------------------------------
@@ -464,12 +563,20 @@ void getTextTableCreated(QQQQ) {
 		       theData[1]);
 }
 /* STRANGE */
-void getTextLCPStoppedInCalcKeepGci(QQQQ) {
+void getTextLCPStoppedInCalcKeepGci(char *m_text,
+                                    size_t m_text_len,
+                                    const Uint32 *theData,
+                                    Uint32 /*len*/)
+{
   if (theData[1] == 0)
     BaseString::snprintf(m_text, m_text_len, 
 			 "Local Checkpoint stopped in CALCULATED_KEEP_GCI");
 }
-void getTextNR_CopyDict(QQQQ) {
+void getTextNR_CopyDict(char *m_text,
+                        size_t m_text_len,
+                        const Uint32 *theData,
+                        Uint32 len)
+{
   //-----------------------------------------------------------------------
   // REPORT Node Restart completed copy of dictionary information.
   //-----------------------------------------------------------------------
@@ -486,7 +593,11 @@ void getTextNR_CopyDict(QQQQ) {
 		         "Node restart completed copy of dictionary information");
   }
 }
-void getTextNR_CopyDistr(QQQQ) {
+void getTextNR_CopyDistr(char *m_text,
+                         size_t m_text_len,
+                         const Uint32 *theData,
+                         Uint32 len)
+{
   //-----------------------------------------------------------------------
   // REPORT Node Restart completed copy of distribution information.
   //-----------------------------------------------------------------------
@@ -503,7 +614,11 @@ void getTextNR_CopyDistr(QQQQ) {
 		   "Node restart completed copy of distribution information");
   }
 }
-void getTextNR_CopyFragsStarted(QQQQ) {
+void getTextNR_CopyFragsStarted(char *m_text,
+                                size_t m_text_len,
+                                const Uint32 *theData,
+                                Uint32 /*len*/)
+{
   //-----------------------------------------------------------------------
   // REPORT Node Restart is starting to copy the fragments.
   //-----------------------------------------------------------------------
@@ -512,7 +627,11 @@ void getTextNR_CopyFragsStarted(QQQQ) {
 		       "to Node %u", 
 		       theData[1]);
 }
-void getTextNR_CopyFragDone(QQQQ) {
+void getTextNR_CopyFragDone(char *m_text,
+                            size_t m_text_len,
+                            const Uint32 *theData,
+                            Uint32 /*len*/)
+{
   //-----------------------------------------------------------------------
   // REPORT Node Restart copied a fragment.
   //-----------------------------------------------------------------------
@@ -526,13 +645,21 @@ void getTextNR_CopyFragDone(QQQQ) {
 		       theData[1],
                        rows, bytes);
 }
-void getTextNR_CopyFragsCompleted(QQQQ) {
+void getTextNR_CopyFragsCompleted(char *m_text,
+                                  size_t m_text_len,
+                                  const Uint32 *theData,
+                                  Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, 
 		       "Node restart completed copying the fragments "
 		       "to Node %u", 
 		       theData[1]);
 }
-void getTextLCPFragmentCompleted(QQQQ) {
+void getTextLCPFragmentCompleted(char *m_text,
+                                 size_t m_text_len,
+                                 const Uint32 *theData,
+                                 Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, 
 		       "Table ID = %u, fragment ID = %u has completed LCP "
 		       "on Node %u maxGciStarted: %d maxGciCompleted: %d", 
@@ -542,7 +669,11 @@ void getTextLCPFragmentCompleted(QQQQ) {
 		       theData[4],
 		       theData[5]);
 }
-void getTextTransReportCounters(QQQQ) {
+void getTextTransReportCounters(char *m_text,
+                                size_t m_text_len,
+                                const Uint32 *theData,
+                                Uint32 len)
+{
   // -------------------------------------------------------------------  
   // Report information about transaction activity once per 10 seconds.
   // ------------------------------------------------------------------- 
@@ -589,12 +720,20 @@ void getTextTransReportCounters(QQQQ) {
   }
 }
 
-void getTextOperationReportCounters(QQQQ) {
+void getTextOperationReportCounters(char *m_text,
+                                    size_t m_text_len,
+                                    const Uint32 *theData,
+                                    Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len,
 		       "Operations=%u",
 		       theData[1]);
 }
-void getTextUndoLogBlocked(QQQQ) {
+void getTextUndoLogBlocked(char *m_text,
+                           size_t m_text_len,
+                           const Uint32 *theData,
+                           Uint32 /*len*/)
+{
   //-----------------------------------------------------------------------
   // REPORT Undo Logging blocked due to buffer near to overflow.
   //-----------------------------------------------------------------------
@@ -604,7 +743,11 @@ void getTextUndoLogBlocked(QQQQ) {
 		       theData[2]);
 }
 
-void getTextTransporterError(QQQQ) {
+void getTextTransporterError(char *m_text,
+                             size_t m_text_len,
+                             const Uint32 *theData,
+                             Uint32 /*len*/)
+{
   struct myTransporterError{
     Uint32 errorNum;
     char   errorString[256];
@@ -680,56 +823,96 @@ void getTextTransporterError(QQQQ) {
                          theData[1],
                          theData[2]);
 }
-void getTextTransporterWarning(QQQQ) {
+void getTextTransporterWarning(char *m_text,
+                               size_t m_text_len,
+                               const Uint32 *theData,
+                               Uint32 len)
+{
   getTextTransporterError(m_text, m_text_len, theData, len);
 }
-void getTextMissedHeartbeat(QQQQ) {
+void getTextMissedHeartbeat(char *m_text,
+                            size_t m_text_len,
+                            const Uint32 *theData,
+                            Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, 
 		       "Node %d missed heartbeat %d",
 		       theData[1],
 		       theData[2]);
 }
-void getTextDeadDueToHeartbeat(QQQQ) {
+void getTextDeadDueToHeartbeat(char *m_text,
+                               size_t m_text_len,
+                               const Uint32 *theData,
+                               Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, 
 		       "Node %d declared dead due to missed heartbeat",
 		       theData[1]);
 }
-void getTextJobStatistic(QQQQ) {
+void getTextJobStatistic(char *m_text,
+                         size_t m_text_len,
+                         const Uint32 *theData,
+                         Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, 
 		       "Mean loop Counter in doJob last 8192 times = %u",
 		       theData[1]);
 }
-void getTextThreadConfigLoop(QQQQ) {
+void getTextThreadConfigLoop(char *m_text,
+                             size_t m_text_len,
+                             const Uint32 *theData,
+                             Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, 
   "8192 loops,tot %u usec,exec %u extra:loops = %u,time %u,const %u",
 		       theData[1], theData[3], theData[4], theData[5],
                        theData[2]);
 }
-void getTextSendBytesStatistic(QQQQ) {
+void getTextSendBytesStatistic(char *m_text,
+                               size_t m_text_len,
+                               const Uint32 *theData,
+                               Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, 
 		       "Mean send size to Node = %d last 4096 sends = %u bytes",
 		       theData[1],
 		       theData[2]);
 }
-void getTextReceiveBytesStatistic(QQQQ) {
+void getTextReceiveBytesStatistic(char *m_text,
+                                  size_t m_text_len,
+                                  const Uint32 *theData,
+                                  Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, 
 		       "Mean receive size to Node = %d last 4096 sends = %u bytes",
 		       theData[1],
 		       theData[2]);
 }
-void getTextSentHeartbeat(QQQQ) {
+void getTextSentHeartbeat(char *m_text,
+                          size_t m_text_len,
+                          const Uint32 *theData,
+                          Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, 
 		       "Node Sent Heartbeat to node = %d",
 		       theData[1]);
 }
-void getTextCreateLogBytes(QQQQ) {
+void getTextCreateLogBytes(char *m_text,
+                           size_t m_text_len,
+                           const Uint32 *theData,
+                           Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, 
 		       "Log part %u, log file %u, MB %u",
 		       theData[1],
 		       theData[2],
 		       theData[3]);
 }
-void getTextStartLog(QQQQ) {
+void getTextStartLog(char *m_text,
+                     size_t m_text_len,
+                     const Uint32 *theData,
+                     Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, 
 		       "Log part %u, start MB %u, stop MB %u, last GCI, log exec %u",
 		       theData[1],
@@ -737,7 +920,11 @@ void getTextStartLog(QQQQ) {
 		       theData[3],
 		       theData[4]);
 }
-void getTextLCPRestored(QQQQ) {
+void getTextLCPRestored(char *m_text,
+                        size_t m_text_len,
+                        const Uint32 *theData,
+                        Uint32 /*len*/)
+{
   //-----------------------------------------------------------------------
   // REPORT Node Start completed restore of LCP.
   //-----------------------------------------------------------------------
@@ -745,7 +932,11 @@ void getTextLCPRestored(QQQQ) {
            "Node Start completed restore of LCP id: %u",
            theData[1]);
 }
-void getTextStartREDOLog(QQQQ) {
+void getTextStartREDOLog(char *m_text,
+                         size_t m_text_len,
+                         const Uint32 *theData,
+                         Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, 
 		       "Node: %d StartLog: [GCI Keep: %d LastCompleted: %d NewestRestorable: %d]",
 		       theData[1],
@@ -753,7 +944,11 @@ void getTextStartREDOLog(QQQQ) {
 		       theData[3],
 		       theData[4]);
 }
-void getTextRedoStatus(QQQQ) {
+void getTextRedoStatus(char *m_text,
+                       size_t m_text_len,
+                       const Uint32 *theData,
+                       Uint32 /*len*/)
+{
   Uint64 total = (Uint64(theData[6]) << 32) + theData[7];
   Uint64 free = (Uint64(theData[8]) << 32) + theData[9];
   
@@ -768,7 +963,11 @@ void getTextRedoStatus(QQQQ) {
                        free,
                        Uint32((100 * free) / total));
 }
-void getTextUNDORecordsExecuted(QQQQ) {
+void getTextUNDORecordsExecuted(char *m_text,
+                                size_t m_text_len,
+                                const Uint32 *theData,
+                                Uint32 /*len*/)
+{
   const char* line = "";
   if (theData[1] == DBTUP){
     line = "DBTUP";
@@ -790,7 +989,11 @@ void getTextUNDORecordsExecuted(QQQQ) {
 		       theData[10],
 		       theData[11]);
 }
-void getTextInfoEvent(QQQQ) {
+void getTextInfoEvent(char *m_text,
+                      size_t m_text_len,
+                      const Uint32 *theData,
+                      Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, "%s", (char *)&theData[1]);
 }
 const char bytes_unit[]= "B";
@@ -835,7 +1038,11 @@ static void convert_unit64(Uint64 &data, const char *&unit)
   }
 }
 
-void getTextEventBufferStatus(QQQQ) {
+void getTextEventBufferStatus(char *m_text,
+                              size_t m_text_len,
+                              const Uint32 *theData,
+                              Uint32 /*len*/)
+{
   unsigned used = theData[1], max_ = theData[3];
 
   BaseString used_str = "used=";
@@ -878,7 +1085,6 @@ void getTextEventBufferStatus(QQQQ) {
       theData[5], theData[4], theData[7], theData[6]);
 }
 
-
 /** Give the text for the reason enum
  * ndb_logevent_event_buffer_status_report_reason defined ndb_logevent.h
  */
@@ -901,7 +1107,11 @@ const char* getReason(Uint32 reason)
   return "UNKNOWN reason code";
 }
 
-void getTextEventBufferStatus2(QQQQ) {
+void getTextEventBufferStatus2(char *m_text,
+                               size_t m_text_len,
+                               const Uint32 *theData,
+                               Uint32 /*len*/)
+{
   unsigned used = theData[1], max_ = theData[3];
 
   BaseString used_str = "used=";
@@ -946,7 +1156,11 @@ void getTextEventBufferStatus2(QQQQ) {
                        theData[6], getReason(theData[9]));
 }
 
-void getTextEventBufferStatus3(QQQQ) {
+void getTextEventBufferStatus3(char *m_text,
+                               size_t m_text_len,
+                               const Uint32 *theData,
+                               Uint32 /*len*/)
+{
   Uint64 used = ((Uint64)theData[10] << 32) | theData[1];
   Uint64 max_ = ((Uint64)theData[12] << 32) | theData[3];
 
@@ -991,24 +1205,48 @@ void getTextEventBufferStatus3(QQQQ) {
                        alloc_str.c_str(), theData[5], theData[4], theData[7],
                        theData[6], getReason(theData[9]));
 }
-void getTextWarningEvent(QQQQ) {
+void getTextWarningEvent(char *m_text,
+                         size_t m_text_len,
+                         const Uint32 *theData,
+                         Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, "%s", (char *)&theData[1]);
 }
-void getTextGCP_TakeoverStarted(QQQQ) {
+void getTextGCP_TakeoverStarted(char *m_text,
+                                size_t m_text_len,
+                                const Uint32 * /*theData*/,
+                                Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, "GCP Take over started");
 }
-void getTextGCP_TakeoverCompleted(QQQQ) {
+void getTextGCP_TakeoverCompleted(char *m_text,
+                                  size_t m_text_len,
+                                  const Uint32 * /*theData*/,
+                                  Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, "GCP Take over completed");
 }
-void getTextLCP_TakeoverStarted(QQQQ) {
+void getTextLCP_TakeoverStarted(char *m_text,
+                                size_t m_text_len,
+                                const Uint32 * /*theData*/,
+                                Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, "LCP Take over started");
 }
-void getTextLCP_TakeoverCompleted(QQQQ) {
+void getTextLCP_TakeoverCompleted(char *m_text,
+                                  size_t m_text_len,
+                                  const Uint32 *theData,
+                                  Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len,
 		       "LCP Take over completed (state = %d)", 
 		       theData[1]);
 }
-void getTextMemoryUsage(QQQQ) {
+void getTextMemoryUsage(char *m_text,
+                        size_t m_text_len,
+                        const Uint32 *theData,
+                        Uint32 /*len*/)
+{
   const int gth = theData[1];
   const int size = theData[2];
   const int used = theData[3];
@@ -1025,17 +1263,29 @@ void getTextMemoryUsage(QQQQ) {
 		       );
 }
 
-void getTextBackupStarted(QQQQ) {
+void getTextBackupStarted(char *m_text,
+                          size_t m_text_len,
+                          const Uint32 *theData,
+                          Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, 
 		       "Backup %u started from node %d", 
 		       theData[2], refToNode(theData[1]));
 }
-void getTextBackupFailedToStart(QQQQ) {
+void getTextBackupFailedToStart(char *m_text,
+                                size_t m_text_len,
+                                const Uint32 *theData,
+                                Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, 
 		       "Backup request from %d failed to start. Error: %d", 
 		       refToNode(theData[1]), theData[2]);
 }
-void getTextBackupCompleted(QQQQ) {
+void getTextBackupCompleted(char *m_text,
+                            size_t m_text_len,
+                            const Uint32 *theData,
+                            Uint32 /*len*/)
+{
   // Build 64-bit data bytes and records by assembling 32-bit signal parts
   const Uint64 bytes_hi = theData[11];
   const Uint64 records_hi = theData[12];
@@ -1058,7 +1308,11 @@ void getTextBackupCompleted(QQQQ) {
                        data_records, log_records,
                        data_bytes, log_bytes);
 }
-void getTextBackupStatus(QQQQ) {
+void getTextBackupStatus(char *m_text,
+                         size_t m_text_len,
+                         const Uint32 *theData,
+                         Uint32 /*len*/)
+{
   if (theData[1])
     BaseString::snprintf(m_text, m_text_len, 
                          "Local backup status: backup %u started from node %u\n" 
@@ -1073,20 +1327,30 @@ void getTextBackupStatus(QQQQ) {
     BaseString::snprintf(m_text, m_text_len, 
                          "Backup not started");
 }
-void getTextBackupAborted(QQQQ) {
+void getTextBackupAborted(char *m_text,
+                          size_t m_text_len,
+                          const Uint32 *theData,
+                          Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, 
 		       "Backup %u started from %d has been aborted. Error: %d",
 		       theData[2], 
 		       refToNode(theData[1]), 
 		       theData[3]);
 }
-void getTextRestoreStarted(QQQQ)
+void getTextRestoreStarted(char *m_text,
+                           size_t m_text_len,
+                           const Uint32 *theData,
+                           Uint32 /*len*/)
 {
   BaseString::snprintf(m_text, m_text_len,
                        "Restore started: backup %u from node %u",
                        theData[1], theData[2]);
 }
-void getTextRestoreMetaData(QQQQ)
+void getTextRestoreMetaData(char *m_text,
+                            size_t m_text_len,
+                            const Uint32 *theData,
+                            Uint32 /*len*/)
 {
   BaseString::snprintf(m_text, m_text_len,
                        "Restore meta data: backup %u from node %u "
@@ -1096,7 +1360,10 @@ void getTextRestoreMetaData(QQQQ)
                        theData[1], theData[2], theData[3],
                        theData[4], theData[5], theData[6], theData[7]);
 }
-void getTextRestoreData(QQQQ)
+void getTextRestoreData(char *m_text,
+                        size_t m_text_len,
+                        const Uint32 *theData,
+                        Uint32 /*len*/)
 {
   BaseString::snprintf(m_text, m_text_len,
                        "Restore data: backup %u from node %u "
@@ -1105,7 +1372,10 @@ void getTextRestoreData(QQQQ)
                        make_uint64(theData[3], theData[4]),
                        make_uint64(theData[5], theData[6]));
 }
-void getTextRestoreLog(QQQQ)
+void getTextRestoreLog(char *m_text,
+                       size_t m_text_len,
+                       const Uint32 *theData,
+                       Uint32 /*len*/)
 {
   BaseString::snprintf(m_text, m_text_len,
                        "Restore log: backup %u from node %u "
@@ -1114,13 +1384,20 @@ void getTextRestoreLog(QQQQ)
                        make_uint64(theData[3], theData[4]),
                        make_uint64(theData[5], theData[6]));
 }
-void getTextRestoreCompleted(QQQQ)
+void getTextRestoreCompleted(char *m_text,
+                             size_t m_text_len,
+                             const Uint32 *theData,
+                             Uint32 /*len*/)
 {
   BaseString::snprintf(m_text, m_text_len,
                        "Restore completed: backup %u from node %u",
                        theData[1], theData[2]);
 }
-void getTextLogFileInitStatus(QQQQ) {
+void getTextLogFileInitStatus(char *m_text,
+                              size_t m_text_len,
+                              const Uint32 *theData,
+                              Uint32 /*len*/)
+{
   if (theData[2])
     BaseString::snprintf(m_text, m_text_len,
                          "Local redo log file initialization status:"
@@ -1134,16 +1411,27 @@ void getTextLogFileInitStatus(QQQQ) {
                          "Node %u: Log file initializtion completed",
                           refToNode(theData[1]));
 }
-void getTextLogFileInitCompStatus(QQQQ) {
-    BaseString::snprintf(m_text, m_text_len,
-                         "Local redo log file initialization completed:"
-                         " #Total files: %u, Completed: %u"
-                         " #Total MBytes: %u, Completed: %u",
-//                         refToNode(theData[1]),
-                         theData[2], theData[3],
-                         theData[4], theData[5]);
+void getTextLogFileInitCompStatus(char *m_text,
+                                  size_t m_text_len,
+                                  const Uint32 *theData,
+                                  Uint32 /*len*/)
+{
+  BaseString::snprintf(m_text,
+                       m_text_len,
+                       "Local redo log file initialization completed:"
+                       " #Total files: %u, Completed: %u"
+                       " #Total MBytes: %u, Completed: %u",
+                       //                         refToNode(theData[1]),
+                       theData[2],
+                       theData[3],
+                       theData[4],
+                       theData[5]);
 }
-void getTextSingleUser(QQQQ) {
+void getTextSingleUser(char *m_text,
+                       size_t m_text_len,
+                       const Uint32 *theData,
+                       Uint32 /*len*/)
+{
   switch (theData[1])
   {
   case 0:
@@ -1164,7 +1452,11 @@ void getTextSingleUser(QQQQ) {
   }
 }
 
-void getTextStartReport(QQQQ) {
+void getTextStartReport(char *m_text,
+                        size_t m_text_len,
+                        const Uint32 *theData,
+                        Uint32 len)
+{
   Uint32 time = theData[2];
   Uint32 sz = theData[3];
   BaseString 
@@ -1266,7 +1558,11 @@ void getTextStartReport(QQQQ) {
        bstr0.c_str(), bstr1.c_str(), bstr2.c_str(), bstr3.c_str());
   }
 }
-void getTextMTSignalStatistics(QQQQ) {
+void getTextMTSignalStatistics(char *m_text,
+                               size_t m_text_len,
+                               const Uint32 *theData,
+                               Uint32 /*len*/)
+{
   BaseString::snprintf(m_text, m_text_len, 
 		       "Signals delivered from thread %u: "
                        "prio A %u (%u bytes) prio B %u (%u bytes)",
@@ -1274,7 +1570,10 @@ void getTextMTSignalStatistics(QQQQ) {
                        theData[2], theData[3], theData[4], theData[5]);
 }
 
-void getTextSubscriptionStatus(QQQQ)
+void getTextSubscriptionStatus(char *m_text,
+                               size_t m_text_len,
+                               const Uint32 *theData,
+                               Uint32 /*len*/)
 {
   switch(theData[1]) {
   case(1): // SubscriptionStatus::DISCONNECTED
@@ -1301,8 +1600,10 @@ void getTextSubscriptionStatus(QQQQ)
   }
 }
 
-void
-getTextStartReadLCP(QQQQ)
+void getTextStartReadLCP(char *m_text,
+                         size_t m_text_len,
+                         const Uint32 *theData,
+                         Uint32 /*len*/)
 {
   BaseString::snprintf(m_text, m_text_len,
                        "Start reading LCP for table %u fragment: %u",
@@ -1310,8 +1611,10 @@ getTextStartReadLCP(QQQQ)
                        theData[2]);
 }
 
-void
-getTextReadLCPComplete(QQQQ)
+void getTextReadLCPComplete(char *m_text,
+                            size_t m_text_len,
+                            const Uint32 *theData,
+                            Uint32 /*len*/)
 {
   BaseString::snprintf(m_text, m_text_len,
                        "Restored LCP for table %u fragment: %u rows: %llu",
@@ -1320,8 +1623,10 @@ getTextReadLCPComplete(QQQQ)
                        (Uint64(theData[3]) << 32) + Uint64(theData[4]));
 }
 
-void
-getTextRunRedo(QQQQ)
+void getTextRunRedo(char *m_text,
+                    size_t m_text_len,
+                    const Uint32 *theData,
+                    Uint32 /*len*/)
 {
   const ndb_logevent_RunRedo * ev = (const ndb_logevent_RunRedo*)(theData+1);
   if (ev->currgci == ev->startgci)
@@ -1363,8 +1668,10 @@ getTextRunRedo(QQQQ)
   }
 }
 
-void
-getTextRebuildIndex(QQQQ)
+void getTextRebuildIndex(char *m_text,
+                         size_t m_text_len,
+                         const Uint32 *theData,
+                         Uint32 /*len*/)
 {
   BaseString::snprintf(m_text, m_text_len,
                        "instace: %u rebuild index: %u",
@@ -1372,15 +1679,12 @@ getTextRebuildIndex(QQQQ)
                        theData[2]);
 }
 
-const
-char*
-getObjectTypeName(Uint32 type)
-{
-  return "object";
-}
+const char *getObjectTypeName(Uint32 /*type*/) { return "object"; }
 
-void
-getTextCreateSchemaObject(QQQQ)
+void getTextCreateSchemaObject(char *m_text,
+                               size_t m_text_len,
+                               const Uint32 *theData,
+                               Uint32 /*len*/)
 {
   BaseString::snprintf(m_text, m_text_len,
                        "create %s id: %u version: %u (from %u)",
@@ -1390,8 +1694,10 @@ getTextCreateSchemaObject(QQQQ)
                        theData[4]);
 }
 
-void
-getTextAlterSchemaObject(QQQQ)
+void getTextAlterSchemaObject(char *m_text,
+                              size_t m_text_len,
+                              const Uint32 *theData,
+                              Uint32 /*len*/)
 {
   BaseString::snprintf(m_text, m_text_len,
                        "alter %s id: %u version: %u (from %u)",
@@ -1401,8 +1707,10 @@ getTextAlterSchemaObject(QQQQ)
                        theData[4]);
 }
 
-void
-getTextDropSchemaObject(QQQQ)
+void getTextDropSchemaObject(char *m_text,
+                             size_t m_text_len,
+                             const Uint32 *theData,
+                             Uint32 /*len*/)
 {
   BaseString::snprintf(m_text, m_text_len,
                        "drop %s id: %u version: %u (from %u)",
@@ -1412,12 +1720,18 @@ getTextDropSchemaObject(QQQQ)
                        theData[4]);
 }
 
-void getTextSavedEvent(QQQQ)
+void getTextSavedEvent(char * /*m_text*/,
+                       size_t /*m_text_len*/,
+                       const Uint32 * /*theData*/,
+                       Uint32 /*len*/)
 {
   abort();
 }
 
-void getTextConnectCheckStarted(QQQQ)
+void getTextConnectCheckStarted(char *m_text,
+                                size_t m_text_len,
+                                const Uint32 *theData,
+                                Uint32 /*len*/)
 {
   /* EventReport format :
    * 1 : other_node_count
@@ -1472,7 +1786,10 @@ void getTextConnectCheckStarted(QQQQ)
   }
 }
 
-void getTextConnectCheckCompleted(QQQQ)
+void getTextConnectCheckCompleted(char *m_text,
+                                  size_t m_text_len,
+                                  const Uint32 *theData,
+                                  Uint32 /*len*/)
 {
   /* EventReport format
    * 1 : Nodes checked
@@ -1525,7 +1842,10 @@ void getTextConnectCheckCompleted(QQQQ)
   }
 }
 
-void getTextNodeFailRejected(QQQQ)
+void getTextNodeFailRejected(char *m_text,
+                             size_t m_text_len,
+                             const Uint32 *theData,
+                             Uint32 /*len*/)
 {
   Uint32 reason = theData[1];
   Uint32 failed_node = theData[2];

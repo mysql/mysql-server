@@ -290,9 +290,7 @@ int ndbxfrm_file::create(
                        key_cipher,
                        key_selection_mode,
                        key_count,
-                       key_data_unit_size,
-                       file_block_size,
-                       data_size);
+                       key_data_unit_size);
   if (r != 0) return r;
   m_payload_start = out.begin() - out_begin;
   m_file_buffer.update_write(out);
@@ -876,9 +874,7 @@ int ndbxfrm_file::write_header(
     int key_cipher,
     int key_selection_mode,  // 0 - same, 1 - pair, 2 - mixed
     int key_count,
-    int key_data_unit_size,  //
-    off_t file_block_size,   // typ. 32KiB phys (or logical?)
-    off_t data_size)
+    int key_data_unit_size)
 {
   bool padding = (data_page_size == 0);
   // Write file header

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -25,9 +25,17 @@
 
 #include <signaldata/PrepDropTab.hpp>
 
-bool 
-printPREP_DROP_TAB_REQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool printPREP_DROP_TAB_REQ(FILE *output,
+                            const Uint32 *theData,
+                            Uint32 len,
+                            Uint16 /*receiverBlockNo*/)
 {
+  if (len < PrepDropTabReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const PrepDropTabReq * const sig = (PrepDropTabReq *) theData;
   
   fprintf(output, 
@@ -36,8 +44,17 @@ printPREP_DROP_TAB_REQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16
   return true;
 }
 
-bool printPREP_DROP_TAB_CONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool printPREP_DROP_TAB_CONF(FILE *output,
+                             const Uint32 *theData,
+                             Uint32 len,
+                             Uint16 /*receiverBlockNo*/)
 {
+  if (len < PrepDropTabConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const PrepDropTabConf * const sig = (PrepDropTabConf *) theData;
 
   fprintf(output, 
@@ -47,8 +64,17 @@ bool printPREP_DROP_TAB_CONF(FILE * output, const Uint32 * theData, Uint32 len, 
   return true;
 }
 
-bool printPREP_DROP_TAB_REF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool printPREP_DROP_TAB_REF(FILE *output,
+                            const Uint32 *theData,
+                            Uint32 len,
+                            Uint16 /*receiverBlockNo*/)
 {
+  if (len < PrepDropTabReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const PrepDropTabRef * const sig = (PrepDropTabRef *) theData;
   
   fprintf(output, 

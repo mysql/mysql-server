@@ -12310,7 +12310,7 @@ void Dbdih::execMASTER_LCPCONF(Signal* signal)
   
 #ifdef VM_TRACE
   g_eventLogger->info("MASTER_LCPCONF from node %u", senderNodeId);
-  printMASTER_LCP_CONF(stdout, &signal->theData[0], 0, 0);
+  printMASTER_LCP_CONF(stdout, &signal->theData[0], signal->getLength(), 0);
 #endif  
 
   bool found = false;

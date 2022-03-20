@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -25,9 +25,10 @@
 
 #include <signaldata/IndxAttrInfo.hpp>
 
-bool 
-printINDXATTRINFO(FILE * output, const Uint32 * theData, Uint32 len, 
-                  Uint16 receiverBlockNo)
+bool printINDXATTRINFO(FILE* output,
+                       const Uint32* theData,
+                       Uint32 len,
+                       Uint16 /*receiverBlockNo*/)
 {
 //  const IndxAttrInfo * const sig = (IndxAttrInfo *) theData;
 
