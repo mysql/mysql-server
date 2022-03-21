@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,21 +22,19 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef _SOCKET_IO_H
-#define _SOCKET_IO_H
+/* Include this file *after* ndb_socket.h and socket_io.h.
+   It will redefine the functions that should be replaced with NdbSocket
+   method calls, so that the compiler catches them as errors.
 
-#include <ndb_global.h>
+   The error message will be along the lines of "error: expected expression".
+*/
 
-#include "portlib/ndb_socket.h"
+#define ndb_socket_close(A)
+#define ndb_socket_nonblock(A, B)
+#define ndb_recv(A, B, C, D)
+#define ndb_send(A, B, C, D)
+#define ndb_socket_writev(A, B, C)
+#define read_socket(A, B, C)
+#define readln_socket(A, B, C, D, E, F)
+#define write_socket(A, B, C, D, E)
 
-#include "portlib/NdbMutex.h"
-
-int read_socket(ndb_socket_t, int timeout_msec, char * buf, int len);
-
-int readln_socket(ndb_socket_t, int timeout_msec, int * time,
-                  char * buf, int len, NdbMutex *mutex);
-
-int write_socket(ndb_socket_t, int timeout_msec, int * time,
-                 const char[], int len);
-
-#endif

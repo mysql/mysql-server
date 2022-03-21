@@ -43,6 +43,7 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
   LogBuffer.cpp
   NdbOut.cpp
   NdbPack.cpp
+  NdbSocket.cpp
   NdbSqlUtil.cpp
   ndb_az31.cpp
   ndb_ndbxfrm1.cpp
