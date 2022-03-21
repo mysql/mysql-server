@@ -78,6 +78,7 @@
 #include "unittest/gunit/test_utils.h"
 
 using hypergraph::NodeMap;
+using my_testing::Server_initializer;
 using std::string;
 using std::string_view;
 using std::to_string;
@@ -87,6 +88,16 @@ using testing::_;
 using testing::Pair;
 using testing::Return;
 using namespace std::literals;  // For operator""sv.
+
+static Query_block *ParseAndResolve(
+    const char *query, bool nullable, const Server_initializer &initializer,
+    unordered_map<string, Fake_TABLE *> *fake_tables);
+static void ResolveFieldToFakeTable(
+    Item *item, const unordered_map<string, Fake_TABLE *> &fake_tables);
+static void ResolveAllFieldsToFakeTable(
+    const mem_root_deque<TABLE_LIST *> &join_list,
+    const unordered_map<string, Fake_TABLE *> &fake_tables);
+static void SetJoinConditions(const mem_root_deque<TABLE_LIST *> &join_list);
 
 static AccessPath *FindBestQueryPlanAndFinalize(THD *thd,
                                                 Query_block *query_block,
@@ -99,42 +110,48 @@ static AccessPath *FindBestQueryPlanAndFinalize(THD *thd,
   return path;
 }
 
+static void DestroyFakeTables(
+    const unordered_map<string, Fake_TABLE *> &fake_tables) {
+  for (const auto &[name, table] : fake_tables) {
+    destroy(table);
+  }
+}
+
 // Base class for the hypergraph unit tests. Its parent class is a type
 // parameter, so that it can be used as a base class for both non-parameterized
 // tests (::testing::Test) and parameterized tests (::testing::TestWithParam).
 template <typename Parent>
 class HypergraphTestBase : public Parent {
  public:
-  void SetUp() override { m_initializer.SetUp(); }
+  void SetUp() override {
+    m_initializer.SetUp();
+    m_thd = m_initializer.thd();
+  }
   void TearDown() override {
-    DestroyFakeTables();
+    ClearFakeTables();
     m_initializer.TearDown();
   }
 
  protected:
-  Query_block *ParseAndResolve(const char *query, bool nullable);
-  void ResolveFieldToFakeTable(Item *item);
-  void ResolveAllFieldsToFakeTable(
-      const mem_root_deque<TABLE_LIST *> &join_list);
-  void SetJoinConditions(const mem_root_deque<TABLE_LIST *> &join_list);
-  void DestroyFakeTables() {
-    for (const auto &name_and_table : m_fake_tables) {
-      destroy(name_and_table.second);
-    }
+  Query_block *ParseAndResolve(const char *query, bool nullable) {
+    return ::ParseAndResolve(query, nullable, m_initializer, &m_fake_tables);
+  }
+  void ClearFakeTables() {
+    DestroyFakeTables(m_fake_tables);
     m_fake_tables.clear();
   }
   handlerton *EnableSecondaryEngine(bool aggregation_is_unordered);
 
-  my_testing::Server_initializer m_initializer;
+  Server_initializer m_initializer;
   THD *m_thd = nullptr;
   std::unordered_map<std::string, Fake_TABLE *> m_fake_tables;
 };
 
-template <typename T>
-Query_block *HypergraphTestBase<T>::ParseAndResolve(const char *query,
-                                                    bool nullable) {
-  Query_block *query_block = ::parse(&m_initializer, query, 0);
-  m_thd = m_initializer.thd();
+static Query_block *ParseAndResolve(
+    const char *query, bool nullable, const Server_initializer &initializer,
+    unordered_map<string, Fake_TABLE *> *fake_tables) {
+  Query_block *query_block = ::parse(&initializer, query, 0);
+  THD *thd = initializer.thd();
 
   // The hypergraph optimizer does not do const tables,
   // nor does it evaluate subqueries during optimization.
@@ -148,14 +165,14 @@ Query_block *HypergraphTestBase<T>::ParseAndResolve(const char *query,
     // If we already have created a fake table with this name (for example to
     // get columns of specific types), use that one. Otherwise, create a new one
     // with four integer columns.
-    Fake_TABLE *&fake_table = m_fake_tables[tl->alias];
+    Fake_TABLE *&fake_table = (*fake_tables)[tl->alias];
     if (fake_table == nullptr) {
       List<Field> fields;
       for (const char *field_name : {"x", "y", "z", "w"}) {
-        fields.push_back(new (m_thd->mem_root) Mock_field_long(
+        fields.push_back(new (thd->mem_root) Mock_field_long(
             field_name, nullable, /*is_unsigned=*/false));
       }
-      fake_table = new (m_thd->mem_root) Fake_TABLE(fields);
+      fake_table = new (thd->mem_root) Fake_TABLE(fields);
     }
     fake_table->alias = tl->alias;
     fake_table->pos_in_table_list = tl;
@@ -168,7 +185,7 @@ Query_block *HypergraphTestBase<T>::ParseAndResolve(const char *query,
   }
 
   // Find all Item_field objects, and resolve them to fields in the fake tables.
-  ResolveAllFieldsToFakeTable(query_block->top_join_list);
+  ResolveAllFieldsToFakeTable(query_block->top_join_list, *fake_tables);
 
   // Also in any conditions and subqueries within the WHERE condition.
   if (query_block->where_cond() != nullptr) {
@@ -176,19 +193,21 @@ Query_block *HypergraphTestBase<T>::ParseAndResolve(const char *query,
       if (item->type() == Item::SUBSELECT_ITEM) {
         Item_in_subselect *item_subselect =
             down_cast<Item_in_subselect *>(item);
-        ResolveFieldToFakeTable(item_subselect->left_expr);
+        ResolveFieldToFakeTable(item_subselect->left_expr, *fake_tables);
         Query_block *child_query_block =
             item_subselect->unit->first_query_block();
-        ResolveAllFieldsToFakeTable(child_query_block->top_join_list);
+        ResolveAllFieldsToFakeTable(child_query_block->top_join_list,
+                                    *fake_tables);
         if (child_query_block->where_cond() != nullptr) {
-          ResolveFieldToFakeTable(child_query_block->where_cond());
+          ResolveFieldToFakeTable(child_query_block->where_cond(),
+                                  *fake_tables);
         }
         for (Item *field_item : child_query_block->fields) {
-          ResolveFieldToFakeTable(field_item);
+          ResolveFieldToFakeTable(field_item, *fake_tables);
         }
         return true;  // Don't go down into item_subselect->left_expr again.
       } else if (item->type() == Item::FIELD_ITEM) {
-        ResolveFieldToFakeTable(item);
+        ResolveFieldToFakeTable(item, *fake_tables);
       }
       return false;
     });
@@ -196,19 +215,19 @@ Query_block *HypergraphTestBase<T>::ParseAndResolve(const char *query,
 
   // And in the SELECT, GROUP BY and ORDER BY lists.
   for (Item *item : query_block->fields) {
-    ResolveFieldToFakeTable(item);
+    ResolveFieldToFakeTable(item, *fake_tables);
   }
   for (ORDER *cur_group = query_block->group_list.first; cur_group != nullptr;
        cur_group = cur_group->next) {
-    ResolveFieldToFakeTable(*cur_group->item);
+    ResolveFieldToFakeTable(*cur_group->item, *fake_tables);
   }
   for (ORDER *cur_group = query_block->order_list.first; cur_group != nullptr;
        cur_group = cur_group->next) {
-    ResolveFieldToFakeTable(*cur_group->item);
+    ResolveFieldToFakeTable(*cur_group->item, *fake_tables);
   }
 
   // Set up necessary context for single-table delete.
-  if (m_thd->lex->sql_command == SQLCOM_DELETE) {
+  if (thd->lex->sql_command == SQLCOM_DELETE) {
     assert(query_block->context.table_list == nullptr);
     assert(query_block->context.first_name_resolution_table == nullptr);
     query_block->context.table_list =
@@ -216,10 +235,10 @@ Query_block *HypergraphTestBase<T>::ParseAndResolve(const char *query,
             query_block->get_table_list();
   }
 
-  query_block->prepare(m_thd, nullptr);
+  query_block->prepare(thd, nullptr);
 
   // Create a fake, tiny JOIN. (This would normally be done in optimization.)
-  query_block->join = new (m_thd->mem_root) JOIN(m_thd, query_block);
+  query_block->join = new (thd->mem_root) JOIN(thd, query_block);
   query_block->join->where_cond = query_block->where_cond();
   query_block->join->having_cond = query_block->having_cond();
   query_block->join->fields = &query_block->fields;
@@ -234,12 +253,12 @@ Query_block *HypergraphTestBase<T>::ParseAndResolve(const char *query,
   return query_block;
 }
 
-template <typename T>
-void HypergraphTestBase<T>::ResolveFieldToFakeTable(Item *item_arg) {
+static void ResolveFieldToFakeTable(
+    Item *item_arg, const unordered_map<string, Fake_TABLE *> &fake_tables) {
   WalkItem(item_arg, enum_walk::POSTFIX, [&](Item *item) {
     if (item->type() == Item::FIELD_ITEM) {
       Item_field *item_field = down_cast<Item_field *>(item);
-      Fake_TABLE *table = m_fake_tables[item_field->table_name];
+      Fake_TABLE *table = fake_tables.at(item_field->table_name);
       item_field->table_ref = table->pos_in_table_list;
       Field *field = nullptr;
       if (strcmp(item_field->field_name, "x") == 0) {
@@ -263,22 +282,20 @@ void HypergraphTestBase<T>::ResolveFieldToFakeTable(Item *item_arg) {
   });
 }
 
-template <typename T>
-void HypergraphTestBase<T>::ResolveAllFieldsToFakeTable(
-    const mem_root_deque<TABLE_LIST *> &join_list) {
+static void ResolveAllFieldsToFakeTable(
+    const mem_root_deque<TABLE_LIST *> &join_list,
+    const unordered_map<string, Fake_TABLE *> &fake_tables) {
   for (TABLE_LIST *tl : join_list) {
     if (tl->join_cond() != nullptr) {
-      ResolveFieldToFakeTable(tl->join_cond());
+      ResolveFieldToFakeTable(tl->join_cond(), fake_tables);
     }
     if (tl->nested_join != nullptr) {
-      ResolveAllFieldsToFakeTable(tl->nested_join->join_list);
+      ResolveAllFieldsToFakeTable(tl->nested_join->join_list, fake_tables);
     }
   }
 }
 
-template <typename T>
-void HypergraphTestBase<T>::SetJoinConditions(
-    const mem_root_deque<TABLE_LIST *> &join_list) {
+static void SetJoinConditions(const mem_root_deque<TABLE_LIST *> &join_list) {
   for (TABLE_LIST *tl : join_list) {
     tl->set_join_cond_optim(tl->join_cond());
     if (tl->nested_join != nullptr) {
@@ -1996,7 +2013,7 @@ TEST_F(HypergraphOptimizerTest, SargableJoinPredicateSelectivity) {
   // giving t2.x a different type (UNSIGNED) than t1.x (SIGNED).
   Mock_field_long t2_x("x", /*is_nullable=*/false, /*is_unsigned=*/true);
   Mock_field_long t2_y("y", /*is_nullable=*/false, /*is_unsigned=*/false);
-  Fake_TABLE *t2 = new (m_initializer.thd()->mem_root) Fake_TABLE(&t2_x, &t2_y);
+  Fake_TABLE *t2 = new (m_thd->mem_root) Fake_TABLE(&t2_x, &t2_y);
   m_fake_tables["t2"] = t2;
   t2->set_created();
 
@@ -2081,7 +2098,7 @@ TEST_F(HypergraphOptimizerTest, AntiJoinGetsSameEstimateWithAndWithoutIndex) {
     }
 
     query_block->cleanup(m_thd, /*full=*/true);
-    DestroyFakeTables();
+    ClearFakeTables();
   }
 }
 
@@ -2213,7 +2230,7 @@ TEST_F(HypergraphOptimizerTest, InsertCastsInSelectExpressions) {
   t1_x.field_name = "x";
   t1_y.field_name = "y";
 
-  Fake_TABLE *t1 = new (m_initializer.thd()->mem_root) Fake_TABLE(&t1_x, &t1_y);
+  Fake_TABLE *t1 = new (m_thd->mem_root) Fake_TABLE(&t1_x, &t1_y);
   m_fake_tables["t1"] = t1;
   t1->set_created();
 
@@ -2673,7 +2690,7 @@ TEST_F(HypergraphOptimizerTest, SwitchesOrderToMakeSafeForRowid) {
   t1_x.field_name = "x";
   t1_y.field_name = "y";
 
-  Fake_TABLE *t1 = new (m_initializer.thd()->mem_root) Fake_TABLE(&t1_x, &t1_y);
+  Fake_TABLE *t1 = new (m_thd->mem_root) Fake_TABLE(&t1_x, &t1_y);
   m_fake_tables["t1"] = t1;
 
   t1->set_created();
@@ -2750,7 +2767,7 @@ TEST_P(HypergraphFullTextTest, FullTextSearch) {
   // CREATE TABLE t1(x VARCHAR(100)).
   Base_mock_field_varstring column1(/*length=*/100, /*share=*/nullptr);
   column1.field_name = "x";
-  Fake_TABLE *t1 = new (m_initializer.thd()->mem_root) Fake_TABLE(&column1);
+  Fake_TABLE *t1 = new (m_thd->mem_root) Fake_TABLE(&column1);
   t1->file->stats.records = 10000;
   m_fake_tables["t1"] = t1;
   t1->set_created();
@@ -2866,7 +2883,7 @@ TEST_F(HypergraphOptimizerTest, FullTextSearchNoHashJoin) {
   // CREATE TABLE t1(x VARCHAR(100)).
   Base_mock_field_varstring column1(/*length=*/100, /*share=*/nullptr);
   column1.field_name = "x";
-  Fake_TABLE *t1 = new (m_initializer.thd()->mem_root) Fake_TABLE(&column1);
+  Fake_TABLE *t1 = new (m_thd->mem_root) Fake_TABLE(&column1);
   m_fake_tables["t1"] = t1;
   t1->set_created();
 
@@ -2901,7 +2918,7 @@ TEST_F(HypergraphOptimizerTest, FullTextCanSkipRanking) {
   // CREATE TABLE t1(x VARCHAR(100)).
   Base_mock_field_varstring column1(/*length=*/100, /*share=*/nullptr);
   column1.field_name = "x";
-  Fake_TABLE *t1 = new (m_initializer.thd()->mem_root) Fake_TABLE(&column1);
+  Fake_TABLE *t1 = new (m_thd->mem_root) Fake_TABLE(&column1);
   m_fake_tables["t1"] = t1;
   t1->set_created();
 
@@ -2954,7 +2971,7 @@ TEST_F(HypergraphOptimizerTest, FullTextAvoidDescSort) {
   // CREATE TABLE t1(x VARCHAR(100)).
   Base_mock_field_varstring column1(/*length=*/100, /*share=*/nullptr);
   column1.field_name = "x";
-  Fake_TABLE *t1 = new (m_initializer.thd()->mem_root) Fake_TABLE(&column1);
+  Fake_TABLE *t1 = new (m_thd->mem_root) Fake_TABLE(&column1);
   t1->file->stats.records = 10000;
   m_fake_tables["t1"] = t1;
   t1->set_created();
@@ -2987,7 +3004,7 @@ TEST_F(HypergraphOptimizerTest, FullTextAscSort) {
   // CREATE TABLE t1(x VARCHAR(100)).
   Base_mock_field_varstring column1(/*length=*/100, /*share=*/nullptr);
   column1.field_name = "x";
-  Fake_TABLE *t1 = new (m_initializer.thd()->mem_root) Fake_TABLE(&column1);
+  Fake_TABLE *t1 = new (m_thd->mem_root) Fake_TABLE(&column1);
   t1->file->stats.records = 10000;
   m_fake_tables["t1"] = t1;
   t1->set_created();
@@ -3020,7 +3037,7 @@ TEST_F(HypergraphOptimizerTest, FullTextDescSortNoPredicate) {
   // CREATE TABLE t1(x VARCHAR(100)).
   Base_mock_field_varstring column1(/*length=*/100, /*share=*/nullptr);
   column1.field_name = "x";
-  Fake_TABLE *t1 = new (m_initializer.thd()->mem_root) Fake_TABLE(&column1);
+  Fake_TABLE *t1 = new (m_thd->mem_root) Fake_TABLE(&column1);
   t1->file->stats.records = 10000;
   m_fake_tables["t1"] = t1;
   t1->set_created();
@@ -3092,11 +3109,11 @@ TEST_F(HypergraphOptimizerTest, DistinctIsSubsumedByGroup) {
 }
 
 TEST_F(HypergraphOptimizerTest, DistinctWithOrderBy) {
-  m_initializer.thd()->variables.sql_mode &= ~MODE_ONLY_FULL_GROUP_BY;
+  m_thd->variables.sql_mode &= ~MODE_ONLY_FULL_GROUP_BY;
   Query_block *query_block =
       ParseAndResolve("SELECT DISTINCT t1.y FROM t1 ORDER BY t1.x, t1.y",
                       /*nullable=*/true);
-  m_initializer.thd()->variables.sql_mode |= MODE_ONLY_FULL_GROUP_BY;
+  m_thd->variables.sql_mode |= MODE_ONLY_FULL_GROUP_BY;
 
   string trace;
   AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
@@ -4123,7 +4140,7 @@ TEST_F(HypergraphOptimizerTest, IndexMergePrefersNonCPKToOrderByPrimaryKey) {
     }
 
     query_block->cleanup(m_thd, /*full=*/true);
-    DestroyFakeTables();
+    ClearFakeTables();
   }
 }
 
@@ -4133,7 +4150,7 @@ TEST_F(HypergraphOptimizerTest, IndexMergeInexactRangeWithOverflowBitset) {
                          /*char_len=*/100, /*is_nullable=*/true);
   Mock_field_long y("y");
   Mock_field_long z("z");
-  Fake_TABLE *t1 = new (m_initializer.thd()->mem_root) Fake_TABLE(&x, &y, &z);
+  Fake_TABLE *t1 = new (m_thd->mem_root) Fake_TABLE(&x, &y, &z);
   t1->file->stats.records = 10000;
   t1->file->stats.data_file_length = 1e6;
   t1->create_index(&x, nullptr, /*unique=*/false);
@@ -5019,7 +5036,7 @@ std::pair<size_t, size_t> CountTreesAndPlans(
   (Moerkotte, personal communication).
  */
 TEST(ConflictDetectorTest, CountPlansSmallOperatorSet) {
-  my_testing::Server_initializer initializer;
+  Server_initializer initializer;
   initializer.SetUp();
   THD *thd = initializer.thd();
   current_thd = thd;
@@ -5042,7 +5059,7 @@ TEST(ConflictDetectorTest, CountPlansSmallOperatorSet) {
 }
 
 TEST(ConflictDetectorTest, CountPlansLargeOperatorSet) {
-  my_testing::Server_initializer initializer;
+  Server_initializer initializer;
   initializer.SetUp();
   THD *thd = initializer.thd();
   current_thd = thd;
