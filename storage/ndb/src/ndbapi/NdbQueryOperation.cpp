@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2375,7 +2375,8 @@ NdbQueryImpl::nextRootResult(bool fetchAllowed, bool forceSend)
 
     if (worker!=NULL)
     {
-      getRoot().fetchRow(worker->getResultStream(0));
+      if (unlikely(getRoot().fetchRow(worker->getResultStream(0)) == -1))
+        return NdbQuery::NextResult_error;
       return NdbQuery::NextResult_gotRow;
     }
   } // m_state != EndOfData
@@ -4203,7 +4204,8 @@ NdbQueryOperationImpl::firstResult()
     NdbResultStream& resultStream = worker->getResultStream(*this);
     if (resultStream.firstResult() != tupleNotFound)
     {
-      fetchRow(resultStream);
+      if (unlikely(fetchRow(resultStream) == -1))
+        return NdbQuery::NextResult_error;
       return NdbQuery::NextResult_gotRow;
     }
   }
@@ -4243,7 +4245,8 @@ NdbQueryOperationImpl::nextResult(bool fetchAllowed, bool forceSend)
       NdbResultStream& resultStream = worker->getResultStream(*this);
       if (resultStream.nextResult() != tupleNotFound)
       {
-        fetchRow(resultStream);
+        if (unlikely(fetchRow(resultStream) == -1))
+          return NdbQuery::NextResult_error;
         return NdbQuery::NextResult_gotRow;
       }
     }
@@ -4252,9 +4255,7 @@ NdbQueryOperationImpl::nextResult(bool fetchAllowed, bool forceSend)
   return NdbQuery::NextResult_scanComplete;
 } //NdbQueryOperationImpl::nextResult()
 
-
-void 
-NdbQueryOperationImpl::fetchRow(NdbResultStream& resultStream)
+int NdbQueryOperationImpl::fetchRow(NdbResultStream& resultStream)
 {
   const char* buff = resultStream.getCurrentRow();
   assert(buff!=NULL || (m_firstRecAttr==NULL && m_ndbRecord==NULL));
@@ -4264,7 +4265,8 @@ NdbQueryOperationImpl::fetchRow(NdbResultStream& resultStream)
   {
     // Retrieve any RecAttr (getValues()) for current row
     const int retVal = resultStream.getReceiver().get_AttrValues(m_firstRecAttr);
-    assert(retVal==0);  ((void)retVal);
+    assert(retVal == 0);
+    if (unlikely(retVal == -1)) return -1;
   }
   if (m_ndbRecord != NULL)
   {
@@ -4276,10 +4278,12 @@ NdbQueryOperationImpl::fetchRow(NdbResultStream& resultStream)
     else
     {
       assert(m_resultBuffer!=NULL);
+      if (unlikely(m_resultBuffer == NULL)) return -1;
       // Copy result to buffer supplied by application.
       memcpy(m_resultBuffer, buff, m_ndbRecord->m_row_size);
     }
   }
+  return 0;
 } // NdbQueryOperationImpl::fetchRow
 
 
