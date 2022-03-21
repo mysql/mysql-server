@@ -67,9 +67,11 @@
 #include "sql/sql_optimizer.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "template_utils.h"
 #include "temptable/mock_field_varstring.h"
 #include "unittest/gunit/base_mock_field.h"
+#include "unittest/gunit/benchmark.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/handler-t.h"
 #include "unittest/gunit/mock_field_datetime.h"
@@ -5152,3 +5154,71 @@ TEST_F(CSETest, ShortCircuitWithMultipleElements) {
   EXPECT_EQ(TestCSE("(t1.x=0 AND t1.y=1) OR (t1.x=0 AND t1.y=1)"),
             "((t1.x = 0) and (t1.y = 1))");
 }
+
+// Measures the time spent in FindBestQueryPlan() and
+// FinalizePlanForQueryBlock() for a point-select query.
+static void BM_FindBestQueryPlanPointSelect(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  Server_initializer initializer;
+  initializer.SetUp();
+  unordered_map<string, Fake_TABLE *> fake_tables;
+
+  THD *const thd = initializer.thd();
+
+  Query_block *const query_block =
+      ParseAndResolve("SELECT t1.y FROM t1 WHERE t1.x = 123",
+                      /*nullable=*/false, initializer, &fake_tables);
+
+  // Make t1.x the primary key. Add secondary indexes on t1.y and t1.z, just to
+  // give the optimizer some more information to look into.
+  Fake_TABLE *t1 = fake_tables["t1"];
+  t1->s->primary_key = t1->create_index(t1->field[0], nullptr, /*unique=*/true);
+  t1->create_index(t1->field[1], nullptr, /*unique=*/false);
+  t1->create_index(t1->field[2], nullptr, /*unique=*/false);
+  t1->file->stats.records = 100000;
+  t1->file->stats.data_file_length = 1e8;
+
+  // Mark the indexes as supporting range scans, so that the range optimizer
+  // gets some information to process.
+  ON_CALL(*down_cast<Mock_HANDLER *>(t1->file), index_flags(_, _, _))
+      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
+
+  const size_t mem_root_size_after_resolving = thd->mem_root->allocated_size();
+
+  {
+    // Use a separate MEM_ROOT for the allocations done by the hypergraph
+    // optimizer, so that this memory can be freed after each iteration without
+    // interfering with the data structures allocated during resolving above.
+    MEM_ROOT optimize_mem_root;
+    Swap_mem_root_guard mem_root_guard(thd, &optimize_mem_root);
+
+    StartBenchmarkTiming();
+
+    for (size_t i = 0; i < num_iterations; ++i) {
+      AccessPath *path = FindBestQueryPlan(thd, query_block, /*trace=*/nullptr);
+      assert(path != nullptr);
+      assert(path->type == AccessPath::EQ_REF);
+      query_block->join->set_root_access_path(path);
+
+      [[maybe_unused]] const bool error =
+          FinalizePlanForQueryBlock(thd, query_block);
+      assert(!error);
+
+      query_block->cleanup(thd, /*full=*/false);
+      query_block->join->set_root_access_path(nullptr);
+      optimize_mem_root.ClearForReuse();
+    }
+
+    StopBenchmarkTiming();
+  }
+
+  // Check that all the allocations in FindBestQueryPlan() used
+  // optimize_mem_root. We don't want the memory footprint to grow for each
+  // iteration.
+  EXPECT_EQ(mem_root_size_after_resolving, thd->mem_root->allocated_size());
+
+  query_block->cleanup(thd, /*full=*/true);
+  DestroyFakeTables(fake_tables);
+}
+BENCHMARK(BM_FindBestQueryPlanPointSelect)
