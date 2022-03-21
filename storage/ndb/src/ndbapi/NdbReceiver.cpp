@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 #include <signaldata/TcKeyConf.hpp>
 #include <signaldata/DictTabInfo.hpp>
 #include "portlib/ndb_compiler.h"
-
+#include <cstddef>
 
 /**
  * 'class NdbReceiveBuffer' takes care of buffering multi-row
@@ -797,22 +797,23 @@ handle_packed_bit(const char* _src, Uint32 pos, Uint32 len, char* _dst)
                          src, pos, len);
 }
 
-
 /**
  * unpackRecAttr
  * Unpack a packed stream of field values, whose presence and nullness
  * is indicated by a leading bitmap into a list of NdbRecAttr objects
  * Return the number of words read from the input stream.
+ * On failure UINT32_MAX is returned.
  */
-//static
-Uint32
-NdbReceiver::unpackRecAttr(NdbRecAttr** recAttr, 
-                           Uint32 bmlen, 
-                           const Uint32* aDataPtr, 
-                           Uint32 aLength)
+Uint32 NdbReceiver::unpackRecAttr(NdbRecAttr** recAttr,
+                                  Uint32 bmlen,
+                                  const Uint32* const aDataPtr,
+                                  Uint32 aLength)
 {
+  constexpr Uint32 ERROR = UINT32_MAX;
+  if (unlikely(bmlen > aLength)) return ERROR;
   NdbRecAttr* currRecAttr = *recAttr;
-  const Uint8 *src = (Uint8*)(aDataPtr + bmlen);
+  const Uint8* src = (const Uint8*)(aDataPtr + bmlen);
+  const Uint8* const end = (const Uint8*)(aDataPtr + aLength);
   Uint32 bitPos = 0;
   for (Uint32 i = 0, attrId = 0; i<32*bmlen; i++, attrId++)
   {
@@ -820,12 +821,12 @@ NdbReceiver::unpackRecAttr(NdbRecAttr** recAttr,
     {
       const NdbColumnImpl & col = 
 	NdbColumnImpl::getImpl(* currRecAttr->getColumn());
-      if (unlikely(attrId != (Uint32)col.m_attrId))
-        goto err;
+      if (unlikely(attrId != (Uint32)col.m_attrId)) return ERROR;
       if (col.m_nullable)
       {
-	if (BitmaskImpl::get(bmlen, aDataPtr, ++i))
-	{
+        if (unlikely(i + 1 >= 32 * bmlen)) return ERROR;
+        if (BitmaskImpl::get(bmlen, aDataPtr, ++i))
+        {
 	  currRecAttr->setNULL();
 	  currRecAttr = currRecAttr->next();
 	  continue;
@@ -840,12 +841,15 @@ NdbReceiver::unpackRecAttr(NdbRecAttr** recAttr,
       
       switch(align){
       case DictTabInfo::aBit: // Bit
+      {
         src = pad(src, 0, 0);
-	handle_packed_bit((const char*)src, bitPos, len, 
-                          currRecAttr->aRef());
-	src += 4 * ((bitPos + len) >> 5);
-	bitPos = (bitPos + len) & 31;
+        size_t byte_len = 4 * ((bitPos + len) >> 5);
+        if (unlikely(end < src + byte_len)) return ERROR;
+        handle_packed_bit((const char*)src, bitPos, len, currRecAttr->aRef());
+        src += byte_len;
+        bitPos = (bitPos + len) & 31;
         goto next;
+      }
       default:
         src = pad(src, align, bitPos);
       }
@@ -853,16 +857,19 @@ NdbReceiver::unpackRecAttr(NdbRecAttr** recAttr,
       case NDB_ARRAYTYPE_FIXED:
         break;
       case NDB_ARRAYTYPE_SHORT_VAR:
+        if (unlikely(end < src + 1)) return ERROR;
         sz = 1 + src[0];
         break;
       case NDB_ARRAYTYPE_MEDIUM_VAR:
-	sz = 2 + src[0] + 256 * src[1];
+        if (unlikely(end < src + 2)) return ERROR;
+        sz = 2 + src[0] + 256 * src[1];
         break;
       default:
-        goto err;
+        return ERROR;
       }
       
       bitPos = 0;
+      if (unlikely(end < src + sz)) return ERROR;
       currRecAttr->receive_data((Uint32*)src, sz);
       src += sz;
   next:
@@ -870,11 +877,12 @@ NdbReceiver::unpackRecAttr(NdbRecAttr** recAttr,
     }
   }
   * recAttr = currRecAttr;
-  return (Uint32)(((Uint32*)pad(src, 0, bitPos)) - aDataPtr);
-
-err:
-  abort();
-  return 0;
+  const Uint8* read_src = pad(src, 0, bitPos);
+  if (unlikely(end < read_src)) return ERROR;
+  const std::ptrdiff_t read_words = (const Uint32*)read_src - aDataPtr;
+  if (unlikely(read_words < 0) || unlikely(read_words >= UINT32_MAX))
+    return ERROR;
+  return (Uint32)read_words;
 }
 
 
@@ -1223,7 +1231,9 @@ NdbReceiver::handle_rec_attrs(NdbRecAttr* rec_attr_list,
       {
         const Uint32 len = unpackRecAttr(&currRecAttr, 
                                          attrSize>>2, aDataPtr, aLength);
+        if (unlikely(len == UINT32_MAX)) return -1;
         assert(aLength >= len);
+        if (unlikely(aLength < len)) return -1;
         aDataPtr += len;
         aLength -= len;
         continue;
