@@ -32,11 +32,11 @@ std::vector<const Edge*> Dijkstra::operator()(const int& start_point_id, const i
 }
 
 template<typename Key, typename T>
-inline bool Dijkstra::contains(std::unordered_map<Key, T> map, Key key) {
+inline bool Dijkstra::contains(const std::unordered_map<Key, T>& map, const Key& key) {
 	return map.find(key) != map.end();
 }
 template<typename Key, typename T>
-inline bool Dijkstra::extract(std::unordered_map<Key, T> map, Key key, T& val) {
+inline bool Dijkstra::extract(const std::unordered_map<Key, T>& map, const Key& key, T& val) {
 	auto pair = map.find(key);
 	bool found = pair != map.end();
   if (found) val = pair->second;

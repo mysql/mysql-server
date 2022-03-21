@@ -21,10 +21,10 @@ struct Edge {
  * 
  */
 class Dijkstra {
-  typedef std::unordered_multimap<int, Edge*>::const_iterator edge_iterator;
+  typedef std::unordered_multimap<int, const Edge*>::const_iterator edge_iterator;
 
   // key = Edge.from
-  const std::unordered_multimap<int, Edge*> m_edges_lookup_from;
+  const std::unordered_multimap<int, const Edge*> m_edges_lookup_from;
   const std::function<double(const int& point_id)> m_heu = [](const int&) -> double { return 0.0; };
 
   std::unordered_map<int, bool> m_popped_map;
@@ -45,7 +45,7 @@ class Dijkstra {
    * @param edges_lookup_from key must equal edge start node id (i.e. Edge.from)
    * @param heu_func A* heuristic. If not supplied normal dijkstra will be used
    */
-  Dijkstra(std::unordered_multimap<int, Edge*> edges_lookup_from,
+  Dijkstra(std::unordered_multimap<int, const Edge*> edges_lookup_from,
             std::function<double(const int& point_id)> heu_func = [](const int&) -> double { return 0.0; })
     : m_edges_lookup_from(edges_lookup_from), m_heu(heu_func) {}
   /**
@@ -70,7 +70,7 @@ class Dijkstra {
    * @return false if map doesn't contain key
    */
   template<typename Key, typename T>
-  static inline bool contains(std::unordered_map<Key, T> map, Key key);
+  static inline bool contains(const std::unordered_map<Key, T>& map, const Key& key);
   /**
    * @brief extracts value from map with given key
    * 
@@ -83,7 +83,7 @@ class Dijkstra {
    * @return false if map doesn't contain key
    */
   template<typename Key, typename T>
-  static inline bool extract(std::unordered_map<Key, T> map, Key key, T& val);
+  static inline bool extract(const std::unordered_map<Key, T>& map, const Key& key, T& val);
   /**
    * @brief stores point info in node maps (i.e. m_xxx_map)
    * 

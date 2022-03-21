@@ -143,7 +143,7 @@ bool Item_sum_shortest_dir_path::add() {
   if (thd->is_error()) return true;
   for (int i = 0; i < 4; i++) if (args[i]->null_value) return true;
 
-  m_edge_map.insert(std::pair<int, Edge*>(from_id, new (thd->mem_root) Edge{id, from_id, to_id, cost}));
+  m_edge_map.insert(std::pair<int, const Edge*>(from_id, new (thd->mem_root) Edge{id, from_id, to_id, cost}));
 
   return false;
 }
