@@ -8,7 +8,7 @@ std::vector<const Edge*> Dijkstra::operator()(const int& start_point_id, const i
     // A*
     while (point != end_point_id) {
       const double point_cost = m_cost_map[point];
-      const std::pair<edge_iterator, edge_iterator> edge_range_it = m_edges_lookup_from.equal_range(point);
+      const std::pair<edge_iterator, edge_iterator> edge_range_it = m_edges_lookup_from->equal_range(point);
       // checks all edges from point (i.e. current point)
       for (edge_iterator edge_it = edge_range_it.first; edge_it != edge_range_it.second; edge_it++) {
         const Edge *edge = edge_it->second;
@@ -45,7 +45,7 @@ inline bool Dijkstra::extract(const std::unordered_map<Key, T>& map, const Key& 
 void Dijkstra::set_point(const int& id, const double& cost, const double& heu_cost, const Edge *const path) {
   	m_cost_map[id] = cost; m_heu_cost_map[id] = heu_cost; m_path_map[id] = path;
 }
-std::vector<const Edge*> Dijkstra::retrace(int from_point, int to_point) {
+std::vector<const Edge*> Dijkstra::retrace(int from_point, const int& to_point) {
   std::vector<const Edge*> path;
   while (from_point != to_point) {
     const Edge* path_ = m_path_map[from_point];

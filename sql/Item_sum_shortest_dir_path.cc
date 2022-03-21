@@ -79,7 +79,7 @@ String *Item_sum_shortest_dir_path::val_str(String *str) {
   if (thd->is_error()) return error_str();
 
   Json_array *arr = new (std::nothrow) Json_array();
-  Dijkstra dijkstra(m_edge_map);
+  Dijkstra dijkstra(&m_edge_map);
   double cost;
   // jsonifying path from dijkstra into arr
   for (const Edge* edge : dijkstra(m_begin_node, m_end_node, cost)) {

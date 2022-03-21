@@ -24,7 +24,7 @@ class Dijkstra {
   typedef std::unordered_multimap<int, const Edge*>::const_iterator edge_iterator;
 
   // key = Edge.from
-  const std::unordered_multimap<int, const Edge*> m_edges_lookup_from;
+  const std::unordered_multimap<int, const Edge*>* m_edges_lookup_from;
   const std::function<double(const int& point_id)> m_heu = [](const int&) -> double { return 0.0; };
 
   std::unordered_map<int, bool> m_popped_map;
@@ -45,8 +45,8 @@ class Dijkstra {
    * @param edges_lookup_from key must equal edge start node id (i.e. Edge.from)
    * @param heu_func A* heuristic. If not supplied normal dijkstra will be used
    */
-  Dijkstra(std::unordered_multimap<int, const Edge*> edges_lookup_from,
-            std::function<double(const int& point_id)> heu_func = [](const int&) -> double { return 0.0; })
+  Dijkstra(const std::unordered_multimap<int, const Edge*>* edges_lookup_from,
+           const std::function<double(const int& point_id)>& heu_func = [](const int&) -> double { return 0.0; })
     : m_edges_lookup_from(edges_lookup_from), m_heu(heu_func) {}
   /**
    * @brief runs A* to find shortest path through m_edges_lookup_from
@@ -100,7 +100,7 @@ class Dijkstra {
    * @param to_point node id of path end
    * @return std::vector<const Edge*> path found in m_path_map
    */
-  std::vector<const Edge*> retrace(int from_point, int to_point);
+  std::vector<const Edge*> retrace(int from_point, const int& to_point);
 
   /**
    * @brief empties all node maps (i.e. m_xxx_map) to remove prev path data
