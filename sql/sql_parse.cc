@@ -5766,9 +5766,9 @@ bool PT_common_table_expr::match_table_ref(TABLE_LIST *tl, bool in_self,
     } else {
       if (m_postparse.references.push_back(tl))
         return true; /* purecov: inspected */
-      tl->set_common_table_expr(&m_postparse);
       if (m_column_names.size()) tl->set_derived_column_names(&m_column_names);
     }
+    tl->set_common_table_expr(&m_postparse);
   }
   return false;
 }

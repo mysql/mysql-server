@@ -167,6 +167,9 @@ class Opt_trace_context;
 */
 
 TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl) {
+  // Should have been attached to CTE already.
+  assert(tl->common_table_expr() == this);
+
 #ifndef NDEBUG
   /*
     We're adding a clone; if another clone has been opened before, it was not
