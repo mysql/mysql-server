@@ -1546,7 +1546,8 @@ AccessPath *GetAccessPathForDerivedTable(
     // iterator. This saves both CPU time and memory (for the temporary
     // table).
     //
-    // NOTE: Currently, rematerialize is true only for JSON_TABLE.
+    // NOTE: Currently, rematerialize is true only for JSON_TABLE. (In the
+    // hypergraph optimizer, it is also true for lateral derived tables.)
     // We could extend this to other situations, such as the leftmost
     // table of the join (assuming nested loop only). The test for CTEs is
     // also conservative; if the CTE is defined within this join and used

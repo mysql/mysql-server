@@ -58,3 +58,24 @@ SELECT i1 FROM t;
 SELECT i2 FROM t;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#33834514: 'RAND(0)' gives inconsistent results with hypergraph
+--echo #
+
+CREATE TABLE t (i INT);
+INSERT INTO t VALUES (1), (2), (3);
+
+# An uncorrelated derived table on the inner side of a join should
+# only be materialized once. The hypergraph optimizer used to
+# rematerialize it for every evaluation of the inner side if it was
+# non-deterministic.
+SELECT r FROM t LEFT JOIN (SELECT RAND(0) AS r) AS dt ON TRUE;
+
+# If the inner side is a correlated derived table, it should be
+# rematerialized for each row in the outer table. This was done
+# correctly also before the fix. Verify that it still is.
+--sorted_result
+SELECT r FROM t LEFT JOIN LATERAL (SELECT i, RAND(0) AS r) AS dt ON TRUE;
+
+DROP TABLE t;

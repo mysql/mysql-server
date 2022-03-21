@@ -83,6 +83,7 @@
 #include "sql/key_spec.h"
 #include "sql/mem_root_array.h"
 #include "sql/opt_costmodel.h"
+#include "sql/parse_tree_node_base.h"
 #include "sql/query_options.h"
 #include "sql/range_optimizer/index_range_scan_plan.h"
 #include "sql/range_optimizer/internal.h"
@@ -2130,7 +2131,8 @@ bool CostingReceiver::ProposeTableScan(
         materialize_path->parameter_tables |= RAND_TABLE_BIT;
       }
     } else {
-      bool rematerialize = tl->derived_query_expression()->uncacheable != 0;
+      bool rematerialize = Overlaps(tl->derived_query_expression()->uncacheable,
+                                    UNCACHEABLE_DEPENDENT);
       if (tl->common_table_expr()) {
         // Handled in clear_corr_derived_tmp_tables(), not here.
         rematerialize = false;
