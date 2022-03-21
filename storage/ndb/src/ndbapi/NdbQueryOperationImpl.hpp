@@ -865,7 +865,7 @@ private:
   ~NdbQueryOperationImpl();
 
   /** Copy NdbRecAttr and/or NdbRecord results from stream into appl. buffers */
-  void fetchRow(NdbResultStream& resultStream);
+  int fetchRow(NdbResultStream& resultStream);
 
   /** Set result for this operation and all its descendand child 
    *  operations to NULL.
