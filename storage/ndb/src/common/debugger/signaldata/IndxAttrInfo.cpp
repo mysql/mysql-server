@@ -30,7 +30,7 @@ bool printINDXATTRINFO(FILE* output,
                        Uint32 len,
                        Uint16 /*receiverBlockNo*/)
 {
-//  const IndxAttrInfo * const sig = (IndxAttrInfo *) theData;
+  //  const IndxAttrInfo * const sig = (const IndxAttrInfo *) theData;
 
   Uint32 i = 0;
   while (i < len)

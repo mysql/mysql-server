@@ -31,7 +31,7 @@ bool printCLOSECOMREQCONF(FILE* output,
                           Uint32 len,
                           Uint16 /*receiverBlockNo*/)
 {
-  CloseComReqConf * cc = (CloseComReqConf*)theData;
+  const CloseComReqConf* cc = (const CloseComReqConf*)theData;
 
   if (len == 1)
   {

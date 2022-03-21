@@ -37,8 +37,8 @@ bool printGCPSaveReq(FILE* output,
     return false;
   }
 
-  GCPSaveReq * sr = (GCPSaveReq*)theData;
-  
+  const GCPSaveReq* sr = (const GCPSaveReq*)theData;
+
   fprintf(output, " dihBlockRef = (%d, %d) dihPtr = %d gci = %d\n",
 	  refToBlock(sr->dihBlockRef), refToNode(sr->dihBlockRef),
 	  sr->dihPtr, sr->gci);
@@ -57,8 +57,8 @@ bool printGCPSaveRef(FILE* output,
     return false;
   }
 
-  GCPSaveRef * sr = (GCPSaveRef*)theData;
-  
+  const GCPSaveRef* sr = (const GCPSaveRef*)theData;
+
   fprintf(output, " nodeId = %d dihPtr = %d gci = %d reason: ",
 	  sr->nodeId,
 	  sr->dihPtr, sr->gci);
@@ -89,8 +89,8 @@ bool printGCPSaveConf(FILE* output,
     return false;
   }
 
-  GCPSaveConf * sr = (GCPSaveConf*)theData;
-  
+  const GCPSaveConf* sr = (const GCPSaveConf*)theData;
+
   fprintf(output, " nodeId = %d dihPtr = %d gci = %d\n",
 	  sr->nodeId,
 	  sr->dihPtr, sr->gci);

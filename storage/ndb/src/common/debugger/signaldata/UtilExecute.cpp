@@ -36,7 +36,7 @@ bool printUTIL_EXECUTE_REQ(FILE* out,
     return false;
   }
 
-  const UtilExecuteReq* const sig = (UtilExecuteReq*)data;
+  const UtilExecuteReq* const sig = (const UtilExecuteReq*)data;
   fprintf(out, " senderRef: H'%.8x, senderData: H'%.8x prepareId: %d "
           " releaseFlag: %d\n",
 	  sig->senderRef,
@@ -57,7 +57,7 @@ bool printUTIL_EXECUTE_CONF(FILE* out,
     return false;
   }
 
-  UtilExecuteConf* sig = (UtilExecuteConf*)data;
+  const UtilExecuteConf* sig = (const UtilExecuteConf*)data;
   fprintf(out, " senderData: H'%.8x gci: %u/%u\n",
 	  sig->senderData, sig->gci_hi, sig->gci_lo);
   return true;
@@ -74,7 +74,7 @@ bool printUTIL_EXECUTE_REF(FILE* out,
     return false;
   }
 
-  UtilExecuteRef* sig = (UtilExecuteRef*)data;
+  const UtilExecuteRef* sig = (const UtilExecuteRef*)data;
   fprintf(out, " senderData: H'%.8x, ", sig->senderData);
   fprintf(out, " errorCode: %s, ",
 	  sig->errorCode == UtilExecuteRef::IllegalKeyNumber ? 

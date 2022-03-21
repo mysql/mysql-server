@@ -36,7 +36,7 @@ bool printUTIL_LOCK_REQ(FILE *output,
     return false;
   }
 
-  const UtilLockReq *const sig = (UtilLockReq *) theData;
+  const UtilLockReq *const sig = (const UtilLockReq *)theData;
   fprintf (output, " senderData: %x\n", sig->senderData);
   fprintf (output, " senderRef: %x\n", sig->senderRef);
   fprintf (output, " lockId: %x\n", sig->lockId);
@@ -56,7 +56,7 @@ bool printUTIL_LOCK_CONF(FILE *output,
     return false;
   }
 
-  const UtilLockConf *const sig = (UtilLockConf *) theData;
+  const UtilLockConf *const sig = (const UtilLockConf *)theData;
   fprintf (output, " senderData: %x\n", sig->senderData);
   fprintf (output, " senderRef: %x\n", sig->senderRef);
   fprintf (output, " lockId: %x\n", sig->lockId);
@@ -75,7 +75,7 @@ bool printUTIL_LOCK_REF(FILE *output,
     return false;
   }
 
-  const UtilLockRef *const sig = (UtilLockRef *) theData;
+  const UtilLockRef *const sig = (const UtilLockRef *)theData;
   fprintf (output, " senderData: %x\n", sig->senderData);
   fprintf (output, " senderRef: %x\n", sig->senderRef);
   fprintf (output, " lockId: %x\n", sig->lockId);
@@ -95,7 +95,7 @@ bool printUTIL_UNLOCK_REQ(FILE *output,
     return false;
   }
 
-  const UtilUnlockReq *const sig = (UtilUnlockReq *) theData;
+  const UtilUnlockReq *const sig = (const UtilUnlockReq *)theData;
   fprintf (output, " senderData: %x\n", sig->senderData);
   fprintf (output, " senderRef: %x\n", sig->senderRef);
   fprintf (output, " lockId: %x\n", sig->lockId);
@@ -113,7 +113,7 @@ bool printUTIL_UNLOCK_CONF(FILE *output,
     return false;
   }
 
-  const UtilUnlockConf *const sig = (UtilUnlockConf *) theData;
+  const UtilUnlockConf *const sig = (const UtilUnlockConf *)theData;
   fprintf (output, " senderData: %x\n", sig->senderData);
   fprintf (output, " senderRef: %x\n", sig->senderRef);
   fprintf (output, " lockId: %x\n", sig->lockId);
@@ -131,7 +131,7 @@ bool printUTIL_UNLOCK_REF(FILE *output,
     return false;
   }
 
-  const UtilUnlockRef *const sig = (UtilUnlockRef *) theData;
+  const UtilUnlockRef *const sig = (const UtilUnlockRef *)theData;
   fprintf (output, " senderData: %x\n", sig->senderData);
   fprintf (output, " senderRef: %x\n", sig->senderRef);
   fprintf (output, " lockId: %x\n", sig->lockId);
@@ -150,7 +150,7 @@ bool printUTIL_CREATE_LOCK_REQ(FILE *output,
     return false;
   }
 
-  const UtilCreateLockReq *const sig = (UtilCreateLockReq *) theData;
+  const UtilCreateLockReq *const sig = (const UtilCreateLockReq *)theData;
   fprintf (output, " senderData: %x\n", sig->senderData);
   fprintf (output, " senderRef: %x\n", sig->senderRef);
   fprintf (output, " lockId: %x\n", sig->lockId);
@@ -169,7 +169,7 @@ bool printUTIL_CREATE_LOCK_REF(FILE *output,
     return false;
   }
 
-  const UtilCreateLockRef *const sig = (UtilCreateLockRef *) theData;
+  const UtilCreateLockRef *const sig = (const UtilCreateLockRef *)theData;
   fprintf (output, " senderData: %x\n", sig->senderData);
   fprintf (output, " senderRef: %x\n", sig->senderRef);
   fprintf (output, " lockId: %x\n", sig->lockId);
@@ -188,7 +188,7 @@ bool printUTIL_CREATE_LOCK_CONF(FILE *output,
     return false;
   }
 
-  const UtilCreateLockConf *const sig = (UtilCreateLockConf *) theData;
+  const UtilCreateLockConf *const sig = (const UtilCreateLockConf *)theData;
   fprintf (output, " senderData: %x\n", sig->senderData);
   fprintf (output, " senderRef: %x\n", sig->senderRef);
   fprintf (output, " lockId: %x\n", sig->lockId);
@@ -206,7 +206,7 @@ bool printUTIL_DESTROY_LOCK_REQ(FILE *output,
     return false;
   }
 
-  const UtilDestroyLockReq *const sig = (UtilDestroyLockReq *) theData;
+  const UtilDestroyLockReq *const sig = (const UtilDestroyLockReq *)theData;
   fprintf (output, " senderData: %x\n", sig->senderData);
   fprintf (output, " senderRef: %x\n", sig->senderRef);
   fprintf (output, " lockId: %x\n", sig->lockId);
@@ -224,7 +224,7 @@ bool printUTIL_DESTROY_LOCK_REF(FILE *output,
     return false;
   }
 
-  const UtilDestroyLockRef *const sig = (UtilDestroyLockRef *) theData;
+  const UtilDestroyLockRef *const sig = (const UtilDestroyLockRef *)theData;
   fprintf (output, " senderData: %x\n", sig->senderData);
   fprintf (output, " senderRef: %x\n", sig->senderRef);
   fprintf (output, " lockId: %x\n", sig->lockId);
@@ -243,7 +243,7 @@ bool printUTIL_DESTROY_LOCK_CONF(FILE *output,
     return false;
   }
 
-  const UtilDestroyLockConf *const sig = (UtilDestroyLockConf *) theData;
+  const UtilDestroyLockConf *const sig = (const UtilDestroyLockConf *)theData;
   fprintf (output, " senderData: %x\n", sig->senderData);
   fprintf (output, " senderRef: %x\n", sig->senderRef);
   fprintf (output, " lockId: %x\n", sig->lockId);

@@ -37,7 +37,7 @@ bool printBACKUP_REQ(FILE* output,
     return false;
   }
 
-  BackupReq* sig = (BackupReq*)theData;
+  const BackupReq* sig = (const BackupReq*)theData;
   fprintf(output, " senderData: %d DataLength: %d flags: %d\n", 
 	  sig->senderData,
 	  sig->backupDataLen,
@@ -56,7 +56,7 @@ bool printBACKUP_DATA(FILE* output,
     return false;
   }
 
-  BackupData * sig = (BackupData*)theData;
+  const BackupData* sig = (const BackupData*)theData;
   if(sig->requestType == BackupData::ClientToMaster){
     fprintf(output, " ClientToMaster: senderData: %d backupId: %d\n",
 	    sig->senderData, sig->backupId);
@@ -78,7 +78,7 @@ bool printBACKUP_REF(FILE* output,
     return false;
   }
 
-  BackupRef* sig = (BackupRef*)theData;
+  const BackupRef* sig = (const BackupRef*)theData;
   fprintf(output, " senderData: %d errorCode: %d masterRef: %d\n",
 	  sig->senderData,
 	  sig->errorCode,
@@ -97,7 +97,7 @@ bool printBACKUP_CONF(FILE* output,
     return false;
   }
 
-  BackupConf* sig = (BackupConf*)theData;
+  const BackupConf* sig = (const BackupConf*)theData;
   fprintf(output, " senderData: %d backupId: %d\n",
 	  sig->senderData,
 	  sig->backupId);
@@ -115,7 +115,7 @@ bool printBACKUP_ABORT_REP(FILE* out,
     return false;
   }
 
-  BackupAbortRep* sig = (BackupAbortRep*)data;
+  const BackupAbortRep* sig = (const BackupAbortRep*)data;
   fprintf(out, " senderData: %d backupId: %d reason: %d\n",
 	  sig->senderData,
 	  sig->backupId,
@@ -134,7 +134,7 @@ bool printBACKUP_COMPLETE_REP(FILE* out,
     return false;
   }
 
-  BackupCompleteRep* sig = (BackupCompleteRep*)data;
+  const BackupCompleteRep* sig = (const BackupCompleteRep*)data;
   fprintf(out, " senderData: %d backupId: %d records: %llu bytes: %llu\n",
 	  sig->senderData,
 	  sig->backupId,
@@ -159,7 +159,7 @@ bool printABORT_BACKUP_ORD(FILE* out,
     return false;
   }
 
-  AbortBackupOrd* sig = (AbortBackupOrd*)data;
+  const AbortBackupOrd* sig = (const AbortBackupOrd*)data;
 
   AbortBackupOrd::RequestType rt =(AbortBackupOrd::RequestType)sig->requestType;
   switch(rt){

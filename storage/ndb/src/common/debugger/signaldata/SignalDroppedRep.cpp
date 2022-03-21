@@ -37,8 +37,8 @@ bool printSIGNAL_DROPPED_REP(FILE* output,
     return false;
   }
 
-  SignalDroppedRep * sig = (SignalDroppedRep*)theData;
-  
+  const SignalDroppedRep* sig = (const SignalDroppedRep*)theData;
+
   fprintf(output, " originalGsn: %s(%d) Length: %d SectionCount: %d\n", 
 	  getSignalName(sig->originalGsn),
 	  sig->originalGsn,

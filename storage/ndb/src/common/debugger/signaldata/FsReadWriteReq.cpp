@@ -30,9 +30,9 @@ bool printFSREADWRITEREQ(FILE *output,
                          Uint16 /*receiverBlockNo*/)
 {
   bool ret = true;
-  
-  const FsReadWriteReq * const sig = (FsReadWriteReq *) theData;
-  
+
+  const FsReadWriteReq *const sig = (const FsReadWriteReq *)theData;
+
   fprintf(output, " UserPointer: %d\n", sig->userPointer);
   fprintf(output, " FilePointer: %d\n", sig->filePointer);
   fprintf(output, " UserReference: H\'%.8x", sig->userReference);

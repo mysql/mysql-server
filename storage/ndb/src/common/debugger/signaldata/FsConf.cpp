@@ -28,8 +28,8 @@ bool printFSCONF(FILE *output,
                  Uint32 len,
                  Uint16 /*receiverBlockNo*/)
 {
-  const FsConf * const sig = (FsConf *) theData;
-  
+  const FsConf *const sig = (const FsConf *)theData;
+
   fprintf(output, " UserPointer: %d\n", sig->userPointer);
 
   if (len > 1){

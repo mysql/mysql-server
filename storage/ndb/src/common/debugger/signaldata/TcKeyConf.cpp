@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -46,17 +46,20 @@ printTCKEYCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
     return true;
   }
   else {
-    const TcKeyConf * const sig = (TcKeyConf *) theData;
-    
+    const TcKeyConf *const sig = (const TcKeyConf *)theData;
+
     Uint32 i = 0;
     Uint32 confInfo = sig->confInfo;
     Uint32 noOfOp = TcKeyConf::getNoOfOperations(confInfo);
     if (noOfOp > 10) noOfOp = 10;
-    fprintf(output, " apiConnectPtr: H'%.8x, gci: %u/%u, transId:(H'%.8x, H'%.8x)\n",
-	    sig->apiConnectPtr,
-            sig->gci_hi, *(Uint32*)&sig->operations[noOfOp],
-            sig->transId1, sig->transId2);
-    
+    fprintf(output,
+            " apiConnectPtr: H'%.8x, gci: %u/%u, transId:(H'%.8x, H'%.8x)\n",
+            sig->apiConnectPtr,
+            sig->gci_hi,
+            *(const Uint32 *)&sig->operations[noOfOp],
+            sig->transId1,
+            sig->transId2);
+
     fprintf(output, " noOfOperations: %u, commitFlag: %s, markerFlag: %s\n", 
 	    noOfOp,
 	  (TcKeyConf::getCommitFlag(confInfo) == 0)?"false":"true",

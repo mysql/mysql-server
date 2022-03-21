@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,7 @@ printREDO_STATE_REP(FILE *output,
                     Uint32 len,
                     Uint32 recB)
 {
-  RedoStateRep* sig = (RedoStateRep*)theData;
+  const RedoStateRep *sig = (const RedoStateRep *)theData;
   char *receiver_info_str;
   char *redo_state_str;
   switch (sig->receiverInfo)

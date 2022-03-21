@@ -36,8 +36,8 @@ bool printDISCONNECT_REP(FILE *output,
     return false;
   }
 
-  const DisconnectRep * const sig = (DisconnectRep *) theData;
-  
+  const DisconnectRep *const sig = (const DisconnectRep *)theData;
+
   fprintf(output, " NodeId: %d, ErrorCode: %d\n", 
 	  sig->nodeId, sig->err);
   

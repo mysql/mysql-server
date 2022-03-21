@@ -29,8 +29,8 @@ bool printTCKEYREQ(FILE *output,
                    Uint32 len,
                    Uint16 /*receiverBlockNo*/)
 {
-  const TcKeyReq * const sig = (TcKeyReq *) theData;
-  
+  const TcKeyReq *const sig = (const TcKeyReq *)theData;
+
   UintR requestInfo = sig->requestInfo;
 
   fprintf(output, " apiConnectPtr: H\'%.8x, apiOperationPtr: H\'%.8x\n", 

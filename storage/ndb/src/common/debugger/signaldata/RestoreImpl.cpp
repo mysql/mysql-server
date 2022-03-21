@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@ printRESTORE_LCP_REQ(FILE * output,
                      Uint32 len,
                      Uint16 receiverBlockNo)
 {
-  const RestoreLcpReq * const sig = (RestoreLcpReq*) theData;
+  const RestoreLcpReq* const sig = (const RestoreLcpReq*)theData;
   fprintf(output, "senderData: H'%.8x, senderRef: H'%.8x, lcpNo: %u\n",
           sig->senderData, sig->senderRef, sig->lcpNo);
   fprintf(output, "tableId: %u, fragmentId: %u, lcpId: %u, restoreGcpId: %u"
@@ -45,7 +45,7 @@ printRESTORE_LCP_REF(FILE * output,
                      Uint32 len,
                      Uint16 receiverBlockNo)
 {
-  const RestoreLcpRef * const sig = (RestoreLcpRef*) theData;
+  const RestoreLcpRef* const sig = (const RestoreLcpRef*)theData;
   fprintf(output, "senderData: H'%.8x, senderRef: H'%.8x, errorCode: %u\n",
           sig->senderData, sig->senderRef, sig->errorCode);
   for (Uint32 i = 3; i < len; i++)
@@ -62,7 +62,7 @@ printRESTORE_LCP_CONF(FILE * output,
                      Uint32 len,
                      Uint16 receiverBlockNo)
 {
-  const RestoreLcpConf * const sig = (RestoreLcpConf*) theData;
+  const RestoreLcpConf* const sig = (const RestoreLcpConf*)theData;
   fprintf(output, "senderData: H'%.8x, senderRef: H'%.8x, restoredLcpId: %u",
           sig->senderData, sig->senderRef, sig->restoredLcpId);
   fprintf(output, ", restoredLocalLcpId: %u\n", sig->restoredLocalLcpId);

@@ -32,7 +32,7 @@ bool printTCINDXREF(FILE* output,
                     Uint32 len,
                     Uint16 /*receiverBlockNo*/)
 {
-  //  const TcIndxRef * const sig = (TcIndxRef *) theData;
+  //  const TcIndxRef * const sig = (const TcIndxRef *) theData;
 
   fprintf(output, "Signal data: ");
   Uint32 i = 0;

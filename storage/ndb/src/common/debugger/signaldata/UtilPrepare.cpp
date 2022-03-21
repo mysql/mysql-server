@@ -35,7 +35,7 @@ bool printUTIL_PREPARE_REQ(FILE* out,
     return false;
   }
 
-  UtilPrepareReq* sig = (UtilPrepareReq*)data;
+  const UtilPrepareReq* sig = (const UtilPrepareReq*)data;
   fprintf(out, " senderRef: H'%.8x senderData: H'%.8x schemaTransId: H'%.8x\n",
 	  sig->senderRef,
 	  sig->senderData,
@@ -55,7 +55,7 @@ bool printUTIL_PREPARE_CONF(FILE* out,
     return false;
   }
 
-  UtilPrepareConf* sig = (UtilPrepareConf*)data;
+  const UtilPrepareConf* sig = (const UtilPrepareConf*)data;
   fprintf(out, " senderData: H'%.8x prepareId: %d\n",
 	  sig->senderData,
 	  sig->prepareId);
@@ -73,7 +73,7 @@ bool printUTIL_PREPARE_REF(FILE* out,
     return false;
   }
 
-  UtilPrepareRef* sig = (UtilPrepareRef*)data;
+  const UtilPrepareRef* sig = (const UtilPrepareRef*)data;
   fprintf(out, " senderData: H'%.8x, ", sig->senderData);
   fprintf(out, " error: %d, ", sig->errorCode);
 

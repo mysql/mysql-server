@@ -28,7 +28,7 @@ bool printALLOC_NODEID_REQ(FILE *output,
                            Uint32 len,
                            Uint16 /*recBlockNo*/)
 {
-  AllocNodeIdReq * sig = (AllocNodeIdReq *)&theData[0];
+  const AllocNodeIdReq *sig = (const AllocNodeIdReq *)&theData[0];
 
   switch (len)
   {
@@ -69,7 +69,7 @@ bool printALLOC_NODEID_CONF(FILE *output,
                             Uint32 len,
                             Uint16 /*recBlockNo*/)
 {
-  AllocNodeIdConf * sig = (AllocNodeIdConf *)&theData[0];
+  const AllocNodeIdConf *sig = (const AllocNodeIdConf *)&theData[0];
 
   if (len == AllocNodeIdConf::SignalLength)
   {
@@ -111,7 +111,7 @@ bool printALLOC_NODEID_REF(FILE *output,
                            Uint32 len,
                            Uint16 /*recBlockNo*/)
 {
-  AllocNodeIdRef * sig = (AllocNodeIdRef *)&theData[0];
+  const AllocNodeIdRef *sig = (const AllocNodeIdRef *)&theData[0];
 
   if (len == AllocNodeIdRef::SignalLength)
   {

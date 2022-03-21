@@ -35,8 +35,8 @@ bool printLQH_FRAG_REQ(FILE* output,
     return false;
   }
 
-  LqhFragReq* sig = (LqhFragReq*)theData;
-  
+  const LqhFragReq* sig = (const LqhFragReq*)theData;
+
   fprintf(output, " senderData: %d senderRef: %x",
 	  sig->senderData, sig->senderRef);
   fprintf(output, " tableId: %d fragmentId: %d", sig->tableId, sig->fragmentId);
@@ -69,8 +69,8 @@ bool printLQH_FRAG_CONF(FILE* output,
     return false;
   }
 
-  LqhFragConf* sig = (LqhFragConf*)theData;
-  
+  const LqhFragConf* sig = (const LqhFragConf*)theData;
+
   fprintf(output, " senderData: %d lqhFragPtr: %d\n",
 	  sig->senderData, sig->lqhFragPtr);
   return true;
@@ -87,8 +87,8 @@ bool printLQH_FRAG_REF(FILE* output,
     return false;
   }
 
-  LqhFragRef* sig = (LqhFragRef*)theData;
-  
+  const LqhFragRef* sig = (const LqhFragRef*)theData;
+
   fprintf(output, " senderData: %d errorCode: %d\n",
 	  sig->senderData, sig->errorCode);
   return true;

@@ -34,8 +34,7 @@ bool printFSOPENREQ(FILE *output,
     return false;
   }
 
-  const FsOpenReq * const sig = (FsOpenReq *) theData;
-  
+  const FsOpenReq *const sig = (const FsOpenReq *)theData;
 
   fprintf(output, " UserReference: H\'%.8x, userPointer: H\'%.8x\n", 
 	  sig->userReference, sig->userPointer);

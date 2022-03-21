@@ -30,7 +30,7 @@ bool printNDB_STTOR(FILE *output,
                     Uint32 len,
                     Uint16 /*receiverBlockNo*/)
 {
-  const NdbSttor * const sig = (NdbSttor *)theData;
+  const NdbSttor *const sig = (const NdbSttor *)theData;
   fprintf(output, " senderRef: %x\n", sig->senderRef);
   fprintf(output, " nodeId: %x\n", sig->nodeId);
   fprintf(output, " internalStartPhase: %x\n", sig->internalStartPhase);
@@ -62,7 +62,7 @@ bool printNDB_STTORRY(FILE *output,
     return false;
   }
 
-  const NdbSttorry * const sig = (NdbSttorry *)theData;
+  const NdbSttorry *const sig = (const NdbSttorry *)theData;
   fprintf(output, " senderRef: %x\n", sig->senderRef);
   return true;
 }

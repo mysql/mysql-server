@@ -112,7 +112,7 @@ printCREATE_TRIG_IMPL_REF(FILE* output, const Uint32* theData, Uint32 len, Uint1
     return false;
   }
 
-  const CreateTrigImplRef* sig = (CreateTrigImplRef*)theData;
+  const CreateTrigImplRef* sig = (const CreateTrigImplRef*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, "\n");  

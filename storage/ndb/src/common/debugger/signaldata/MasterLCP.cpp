@@ -64,8 +64,8 @@ bool printMASTER_LCP_CONF(FILE *output,
     return false;
   }
 
-  MasterLCPConf * sig = (MasterLCPConf *)&theData[0];
-  
+  const MasterLCPConf *sig = (const MasterLCPConf *)&theData[0];
+
   static char buf[255];
   print(buf, sizeof(buf), (MasterLCPConf::State)sig->lcpState);
   fprintf(output, " senderNode=%d failedNode=%d SenderState=%s\n",
@@ -84,8 +84,8 @@ bool printMASTER_LCP_REQ(FILE *output,
     return false;
   }
 
-  MasterLCPReq * sig = (MasterLCPReq *)&theData[0];
-  
+  const MasterLCPReq *sig = (const MasterLCPReq *)&theData[0];
+
   fprintf(output, " masterRef=(node=%d, block=%d), failedNode=%d\n",
 	  refToNode(sig->masterRef), refToBlock(sig->masterRef),
 	  sig->failedNodeId);
@@ -103,7 +103,7 @@ bool printMASTER_LCP_REF(FILE *output,
     return false;
   }
 
-  MasterLCPRef * sig = (MasterLCPRef *)&theData[0];  
+  const MasterLCPRef *sig = (const MasterLCPRef *)&theData[0];
   fprintf(output, " senderNode=%d failedNode=%d\n",
 	  sig->senderNodeId, sig->failedNodeId);
   return true;

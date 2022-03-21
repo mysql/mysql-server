@@ -35,8 +35,8 @@ bool printLQHKEYREQ(FILE *output,
     return false;
   }
 
-  const LqhKeyReq * const sig = (LqhKeyReq *) theData;
-  
+  const LqhKeyReq *const sig = (const LqhKeyReq *)theData;
+
   fprintf(output,
     " ClientPtr = H\'%.8x hashValue = H\'%.8x tcBlockRef = H\'%.8x\n"
     " transId1 = H\'%.8x transId2 = H\'%.8x savePointId = H\'%.8x\n",
@@ -225,7 +225,7 @@ bool printLQHKEYCONF(FILE *output,
                      Uint32 len,
                      Uint16 /*receiverBlockNo*/)
 {
-  //  const LqhKeyConf * const sig = (LqhKeyConf *) theData;
+  //  const LqhKeyConf * const sig = (const LqhKeyConf *) theData;
 
   fprintf(output, "Signal data: ");
   Uint32 i = 0;
@@ -241,7 +241,7 @@ bool printLQHKEYREF(FILE *output,
                     Uint32 len,
                     Uint16 /*receiverBlockNo*/)
 {
-  //  const LqhKeyRef * const sig = (LqhKeyRef *) theData;
+  //  const LqhKeyRef * const sig = (const LqhKeyRef *) theData;
 
   fprintf(output, "Signal data: ");
   Uint32 i = 0;

@@ -129,7 +129,7 @@ printCREATE_TRIG_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
     return false;
   }
 
-  const CreateTrigRef* sig = (CreateTrigRef*)theData;
+  const CreateTrigRef* sig = (const CreateTrigRef*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, " transId: 0x%x", sig->transId);

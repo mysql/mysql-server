@@ -30,7 +30,7 @@ bool printINDXKEYINFO(FILE* output,
                       Uint32 len,
                       Uint16 /*receiverBlockNo*/)
 {
-//  const IndxKeyInfo * const sig = (IndxKeyInfo *) theData;
+  //  const IndxKeyInfo * const sig = (const IndxKeyInfo *) theData;
 
   Uint32 i = 0;
   while (i < len)
