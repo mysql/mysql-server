@@ -2324,7 +2324,6 @@ static bool mysql_install_plugin(THD *thd, LEX_CSTRING name,
   mysql_mutex_lock(&LOCK_plugin_install);
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
   mysql_mutex_lock(&LOCK_plugin);
-  DEBUG_SYNC(thd, "acquired_LOCK_plugin");
 
   {
     MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
