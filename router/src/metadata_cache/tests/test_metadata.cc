@@ -391,6 +391,8 @@ class MetadataTest : public ::testing::Test {
   // Only some tests need this variable.
 
   const ManagedCluster typical_cluster{
+      "cluster-id",
+      "cluster-name",
       {
           // will be set ----------------------vvvvvvvvvvvvvvvvvvvvvvv
           // v--v--vv--- ignored at the time of writing

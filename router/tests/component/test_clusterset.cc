@@ -1298,13 +1298,14 @@ TEST_P(ViewIdChangesTest, ViewIdChanges) {
                    clusterset_data_.get_all_nodes_classic_ports(), view_id + 2);
 
   SCOPED_TRACE(
-      "// Let's propagete the last change to all nodes in the ClusterSet");
+      "// Let's propagate the last change to all nodes in the ClusterSet");
 
   for (const auto &cluster : clusterset_data_.clusters) {
     for (const auto &node : cluster.nodes) {
       const auto http_port = node.http_port;
-      set_mock_metadata(view_id + 2, /*this_cluster_id*/ 2, target_cluster_id,
-                        http_port, clusterset_data_, router_options);
+      set_mock_metadata(view_id + 2, /*this_cluster_id*/ cluster.id,
+                        target_cluster_id, http_port, clusterset_data_,
+                        router_options);
     }
   }
 
@@ -1412,12 +1413,10 @@ TEST_F(ClusterSetTest, TwoPrimaryClustersHighierViewId) {
   for (unsigned node_id = 0;
        node_id < clusterset_data_.clusters[kPrimaryClusterId].nodes.size();
        ++node_id) {
-    set_mock_metadata(view_id + 2, /*this_cluster_id*/ kPrimaryClusterId,
-                      kPrimaryClusterId,
-                      clusterset_data_.clusters[kFirstReplicaClusterId]
-                          .nodes[node_id]
-                          .http_port,
-                      clusterset_data_, router_options);
+    set_mock_metadata(
+        view_id + 2, /*this_cluster_id*/ kPrimaryClusterId, kPrimaryClusterId,
+        clusterset_data_.clusters[kPrimaryClusterId].nodes[node_id].http_port,
+        clusterset_data_, router_options);
   }
 
   EXPECT_TRUE(wait_for_transaction_count_increase(

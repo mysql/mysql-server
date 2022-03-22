@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -158,20 +158,12 @@ class TargetCluster {
   const char *c_str() const { return target_value_.c_str(); }
 
   TargetType target_type() const { return target_type_; }
-  bool is_primary() const { return is_primary_; }
-  bool is_invalidated() const { return is_invalidated_; }
-  bool is_usable() const {
-    return (!is_invalidated()) || (invalidated_cluster_routing_policy() !=
-                                   InvalidatedClusterRoutingPolicy::DropAll);
-  }
   InvalidatedClusterRoutingPolicy invalidated_cluster_routing_policy() const {
     return invalidated_cluster_routing_policy_;
   }
 
   void target_type(const TargetType value) { target_type_ = value; }
   void target_value(const std::string &value) { target_value_ = value; }
-  void is_primary(const bool value) { is_primary_ = value; }
-  void is_invalidated(const bool value) { is_invalidated_ = value; }
   void invalidated_cluster_routing_policy(
       const InvalidatedClusterRoutingPolicy value) {
     invalidated_cluster_routing_policy_ = value;
@@ -187,10 +179,6 @@ class TargetCluster {
   std::string target_value_;
   InvalidatedClusterRoutingPolicy invalidated_cluster_routing_policy_{
       InvalidatedClusterRoutingPolicy::DropAll};
-  // in case of ClusterSet is this Cluster a Primary
-  bool is_primary_{false};
-  // is the Cluster marked as invalid in the metadata
-  bool is_invalidated_{false};
 
   std::string options_string_{"{}"};
 };

@@ -25,6 +25,7 @@
 #include "cluster_metadata_gr.h"
 
 #include <algorithm>
+#include <optional>
 
 #include "dim.h"
 #include "group_replication_metadata.h"
@@ -199,18 +200,6 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
   uint64_t view_id_{0};
   bool metadata_read_{false};
 
-  /** @brief Returns vector of the cluster members according to the metadata of
-   * the selected server.
-   *
-   * @param session active connection to the member that is checked for the
-   * metadata
-   * @param cluster_id ID of the cluster this operation refers to
-   * @return vector of the cluster members
-   */
-  metadata_cache::cluster_nodes_list_t
-  fetch_target_cluster_instances_from_metadata_server(
-      mysqlrouter::MySQLSession &session, const std::string &cluster_id);
-
   // returns cluster_id
   std::string get_target_cluster_info_from_metadata_server(
       mysqlrouter::MySQLSession &session,
@@ -218,16 +207,13 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
       const std::string &clusterset_id);
 
   /** @brief Queries the metada for the current ClusterSet topology. Stores the
-   * topology in the class state. Returns the set of the metadata server for the
-   * ClusterSet.
+   * topology in the class state.
    *
    * @param session active connection to the member that is checked for the
    * metadata
    * @param clusterset_id ID of the ClusterSet this operation refers to
-   * @return set of the servers that contains metadata for the ClusterSet
    */
-  metadata_cache::metadata_servers_list_t
-  update_clusterset_topology_from_metadata_server(
+  void update_clusterset_topology_from_metadata_server(
       mysqlrouter::MySQLSession &session, const std::string &clusterset_id);
 
   /** @brief Finds the writable node within the currently known ClusterSet
@@ -248,13 +234,11 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
     // highiest view_id
     bool is_set{false};
 
-    struct ClusterTopology {
-      std::vector<metadata_cache::ManagedInstance> nodes;
-      bool is_primary;  // it this Cluster is a PRIMARY in the ClusterSet
-    };
-
     // the key is Cluster UUID
-    std::map<std::string, ClusterTopology> clusters;
+    std::vector<metadata_cache::ManagedCluster> clusters_data;
+    // index of the target cluster in the clusters_data vector
+    std::optional<size_t> target_cluster_pos{};
+    metadata_cache::metadata_servers_list_t metadata_servers;
 
     std::vector<metadata_cache::metadata_servers_list_t> get_metadata_servers(
         const metadata_cache::metadata_servers_list_t &metadata_servers) const {
@@ -263,9 +247,9 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
       if (is_set) {
         // We already know the latest ClusterSet topology so we return the
         // servers grouped by the Cluster they belong to
-        for (const auto &cluster : clusters) {
+        for (const auto &cluster : clusters_data) {
           metadata_cache::metadata_servers_list_t nodes;
-          for (const auto &node : cluster.second.nodes) {
+          for (const auto &node : cluster.members) {
             nodes.push_back({node.host, node.port});
           }
           if (!nodes.empty()) {
@@ -287,6 +271,16 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
       return result;
     }
   };
+
+  /** @brief Returns index of the target cluster in the clusters vector in
+   * topology.
+   *
+   * @param topology object containing ClusterSet topology to search
+   * @param target_cluster_id UUID fo the target_cluster to find
+   * @return index in the clusters array or std::nullopt if not found
+   */
+  static std::optional<size_t> target_cluster_pos(
+      const ClusterSetTopology &topology, const std::string &target_cluster_id);
 
   ClusterSetTopology clusterset_topology_;
 };
@@ -1171,61 +1165,6 @@ static std::string get_limit_target_cluster_clause(
   }
 }
 
-metadata_cache::cluster_nodes_list_t GRClusterSetMetadataBackend::
-    fetch_target_cluster_instances_from_metadata_server(
-        mysqlrouter::MySQLSession &session, const std::string &cluster_id) {
-  metadata_cache::cluster_nodes_list_t result;
-
-  std::string query =
-      "select I.mysql_server_uuid, I.endpoint, I.xendpoint, I.attributes from "
-      "mysql_innodb_cluster_metadata.v2_instances I join "
-      "mysql_innodb_cluster_metadata.v2_gr_clusters C on I.cluster_id = "
-      "C.cluster_id where C.cluster_id = " +
-      session.quote(cluster_id);
-
-  // example response
-  // clang-format off
-    // +--------------------------------------+----------------+-----------------+--------------------------------------------------------------------+
-    // | member_id                            | endpoint       | xendpoint       | attributes                                                         |
-    // +--------------------------------------+----------------+-----------------+--------------------------------------------------------------------+
-    // | dc46223b-d620-11e9-9f25-0800276c00e7 | 127.0.0.1:5000 | 127.0.0.1:50000 | {"tags": {"_hidden": true}, "joinTime": "2020-07-18 09:36:50.416"} |
-    // | f167ceb4-d620-11e9-9155-0800276c00e7 | 127.0.0.1:5001 | 127.0.0.1:50010 | {"joinTime": "2020-07-18 09:36:51.000"}                            |
-    // | 06c519c9-d621-11e9-9451-0800276c00e7 | 127.0.0.1:5002 | 127.0.0.1:50020 | {"joinTime": "2020-07-18 09:36:53.456"}                            |
-    // +--------------------------------------+----------------+-----------------+--------------------------------------------------------------------+
-  // clang-format on
-
-  auto result_processor = [&result](const MySQLSession::Row &row) -> bool {
-    if (row.size() != 4) {
-      throw metadata_cache::metadata_error(
-          "Unexpected number of fields in the resultset. "
-          "Expected = 4, got = " +
-          std::to_string(row.size()));
-    }
-
-    metadata_cache::ManagedInstance instance;
-    instance.mysql_server_uuid = get_string(row[0]);
-
-    if (!set_instance_ports(instance, row, 1, 2)) {
-      return true;  // next row
-    }
-
-    set_instance_attributes(instance, get_string(row[3]));
-
-    result.push_back(instance);
-    return true;  // get next row if available
-  };
-
-  assert(session.is_connected());
-
-  try {
-    session.query(query, result_processor);
-  } catch (const MySQLSession::Error &e) {
-    throw metadata_cache::metadata_error(e.what());
-  }
-
-  return result;
-}
-
 std::string
 GRClusterSetMetadataBackend::get_target_cluster_info_from_metadata_server(
     mysqlrouter::MySQLSession &session,
@@ -1234,7 +1173,7 @@ GRClusterSetMetadataBackend::get_target_cluster_info_from_metadata_server(
   std::string result;
 
   std::string query =
-      "select C.cluster_id, C.cluster_name, CSM.invalidated, CSM.member_role "
+      "select C.cluster_id, C.cluster_name "
       "from mysql_innodb_cluster_metadata.v2_gr_clusters C join "
       "mysql_innodb_cluster_metadata.v2_cs_members CSM on "
       "CSM.cluster_id = C.cluster_id left join "
@@ -1252,10 +1191,10 @@ GRClusterSetMetadataBackend::get_target_cluster_info_from_metadata_server(
 
   auto result_processor =
       [&result, &target_cluster](const MySQLSession::Row &row) -> bool {
-    if (row.size() != 4) {
+    if (row.size() != 2) {
       throw metadata_cache::metadata_error(
           "Unexpected number of fields in the resultset. "
-          "Expected = 4, got = " +
+          "Expected = 2, got = " +
           std::to_string(row.size()));
     }
 
@@ -1263,8 +1202,6 @@ GRClusterSetMetadataBackend::get_target_cluster_info_from_metadata_server(
 
     target_cluster.target_type(mysqlrouter::TargetCluster::TargetType::ByName);
     target_cluster.target_value(get_string(row[1]));
-    target_cluster.is_primary(get_string(row[3]) == "PRIMARY");
-    target_cluster.is_invalidated(strtoui_checked(row[2]) == 1);
 
     return false;
   };
@@ -1278,14 +1215,14 @@ GRClusterSetMetadataBackend::get_target_cluster_info_from_metadata_server(
   return result;
 }
 
-metadata_cache::metadata_servers_list_t
-GRClusterSetMetadataBackend::update_clusterset_topology_from_metadata_server(
-    mysqlrouter::MySQLSession &session, const std::string &clusterset_id) {
-  metadata_cache::metadata_servers_list_t result;
-  ClusterSetTopology clusterset_topology;
+void GRClusterSetMetadataBackend::
+    update_clusterset_topology_from_metadata_server(
+        mysqlrouter::MySQLSession &session, const std::string &clusterset_id) {
+  ClusterSetTopology result;
 
   std::string query =
-      "select I.address, I.mysql_server_uuid, C.group_name, CSM.member_role "
+      "select I.mysql_server_uuid, I.endpoint, I.xendpoint, I.attributes, "
+      "C.cluster_id, C.cluster_name, CSM.member_role, CSM.invalidated "
       "from mysql_innodb_cluster_metadata.v2_instances I join "
       "mysql_innodb_cluster_metadata.v2_gr_clusters C on I.cluster_id = "
       "C.cluster_id join mysql_innodb_cluster_metadata.v2_cs_members CSM on "
@@ -1297,74 +1234,89 @@ GRClusterSetMetadataBackend::update_clusterset_topology_from_metadata_server(
     query += " where CS.clusterset_id = " + session.quote(clusterset_id);
   }
 
+  query += " order by C.cluster_id";
+
   try {
-    session.query(query,
-                  [&clusterset_topology,
-                   &result](const std::vector<const char *> &row) -> bool {
-                    const std::string node_addr = get_string(row[0]);
-                    const std::string node_uuid = get_string(row[1]);
-                    const std::string cluster_id = get_string(row[2]);
-                    const std::string cluster_role = get_string(row[3]);
+    session.query(
+        query, [&result](const std::vector<const char *> &row) -> bool {
+          const std::string node_uuid = get_string(row[0]);
+          const std::string node_addr_classic = get_string(row[1]);
+          const std::string node_addr_x = get_string(row[2]);
+          const std::string node_attributes = get_string(row[3]);
+          const std::string cluster_id = get_string(row[4]);
+          const std::string cluster_name = get_string(row[5]);
+          const bool cluster_is_primary = get_string(row[6]) == "PRIMARY";
+          const bool cluster_is_invalidated = strtoui_checked(row[7]) == 1;
 
-                    mysqlrouter::URI uri("mysql://" + node_addr);
+          if (result.clusters_data.empty() ||
+              result.clusters_data.back().name != cluster_name) {
+            metadata_cache::ManagedCluster cluster;
+            cluster.id = cluster_id;
+            cluster.name = cluster_name;
+            cluster.is_primary = cluster_is_primary;
+            cluster.is_invalidated = cluster_is_invalidated;
+            result.clusters_data.push_back(cluster);
+          }
 
-                    clusterset_topology.clusters[cluster_id].is_primary =
-                        cluster_role == "PRIMARY";
+          mysqlrouter::URI uri_classic("mysql://" + node_addr_classic);
+          mysqlrouter::URI uri_x("mysql://" + node_addr_x);
+          result.clusters_data.back().members.emplace_back(
+              node_uuid, metadata_cache::ServerMode::ReadOnly, uri_classic.host,
+              uri_classic.port, uri_x.port);
 
-                    clusterset_topology.clusters[cluster_id].nodes.push_back(
-                        metadata_cache::ManagedInstance{
-                            node_uuid, metadata_cache::ServerMode::ReadOnly,
-                            uri.host, uri.port, 0});
-                    result.push_back({uri.host, uri.port});
-                    return true;
-                  });
+          set_instance_attributes(result.clusters_data.back().members.back(),
+                                  node_attributes);
+
+          result.metadata_servers.emplace_back(uri_classic.host,
+                                               uri_classic.port);
+          return true;
+        });
   } catch (const MySQLSession::Error &e) {
     throw std::runtime_error(std::string("Error querying metadata: ") +
                              e.what());
   }
-  clusterset_topology.is_set = true;
-  clusterset_topology_ = std::move(clusterset_topology);
-
-  return result;
+  result.is_set = true;
+  clusterset_topology_ = std::move(result);
 }
 
 static void log_target_cluster_warnings(
-    const mysqlrouter::TargetCluster &target_cluster) {
-  const bool is_invalidated = target_cluster.is_invalidated();
+    const metadata_cache::ManagedCluster &cluster,
+    const mysqlrouter::TargetCluster::InvalidatedClusterRoutingPolicy
+        invalidated_cluster_policy) {
+  const bool is_invalidated = cluster.is_invalidated;
   const bool state_changed = EventStateTracker::instance().state_changed(
-      is_invalidated, EventStateTracker::EventId::TargetClusterInvalidated);
+      is_invalidated, EventStateTracker::EventId::ClusterInvalidatedInMetadata,
+      cluster.id);
 
   if (is_invalidated) {
     const auto log_level =
         state_changed ? LogLevel::kWarning : LogLevel::kDebug;
 
-    const auto policy = target_cluster.invalidated_cluster_routing_policy();
-
-    if (policy ==
+    if (invalidated_cluster_policy ==
         mysqlrouter::TargetCluster::InvalidatedClusterRoutingPolicy::DropAll) {
       log_custom(
           log_level,
           "Target cluster '%s' invalidated in the metadata - blocking all "
           "connections",
-          target_cluster.c_str());
+          cluster.name.c_str());
     } else {
       // mysqlrouter::TargetCluster::InvalidatedClusterRoutingPolicy::AcceptRO
       log_custom(log_level,
-                 "Target cluster %s invalidated in the metadata - accepting "
+                 "Target cluster '%s' invalidated in the metadata - accepting "
                  "only RO connections",
-                 target_cluster.c_str());
+                 cluster.name.c_str());
     }
   }
 }
 
 stdx::expected<metadata_cache::metadata_server_t, std::error_code>
 GRClusterSetMetadataBackend::find_rw_server() const {
-  for (const auto &cluster : clusterset_topology_.clusters) {
-    if (!cluster.second.is_primary) continue;
+  for (const auto &cluster : clusterset_topology_.clusters_data) {
+    if (!cluster.is_primary) continue;
 
-    const auto cluster_uuid = cluster.first;
+    const auto cluster_uuid = cluster.id;
     metadata_cache::ManagedCluster primary_cluster;
-    for (const auto &node : cluster.second.nodes) {
+    for (const auto &node : cluster.members) {
       primary_cluster.members.emplace_back(node);
     }
 
@@ -1382,6 +1334,29 @@ GRClusterSetMetadataBackend::find_rw_server() const {
 
   return stdx::make_unexpected(
       make_error_code(metadata_cache::metadata_errc::no_rw_node_needed));
+}
+
+static bool is_cluster_usable(
+    const metadata_cache::ManagedCluster &cluster,
+    const mysqlrouter::TargetCluster::InvalidatedClusterRoutingPolicy
+        &invalidated_cluster_policy) {
+  return (!cluster.is_invalidated) ||
+         (invalidated_cluster_policy !=
+          mysqlrouter::TargetCluster::InvalidatedClusterRoutingPolicy::DropAll);
+}
+
+std::optional<size_t> GRClusterSetMetadataBackend::target_cluster_pos(
+    const GRClusterSetMetadataBackend::ClusterSetTopology &topology,
+    const std::string &target_cluster_id) {
+  size_t i{};
+  for (const auto &cluster : topology.clusters_data) {
+    if (cluster.id == target_cluster_id) {
+      return i;
+    }
+    i++;
+  }
+
+  return std::nullopt;
 }
 
 stdx::expected<metadata_cache::ClusterTopology, std::error_code>
@@ -1477,26 +1452,33 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
     }
   }
 
-  log_target_cluster_warnings(target_cluster);
-
   // update the clusterset topology
-  result.metadata_servers =
-      update_clusterset_topology_from_metadata_server(*connection, cs_id);
+  update_clusterset_topology_from_metadata_server(*connection, cs_id);
 
-  // query for the nodes of our target_cluster
-  if (target_cluster.is_usable()) {
-    result.cluster_data.members =
-        fetch_target_cluster_instances_from_metadata_server(*connection,
-                                                            target_cluster_id);
-    result.cluster_data.view_id = view_id;
-    result.cluster_data.single_primary_mode = true;
-  }
-
-  // we are done with querying metadata, this transaction commit has to be done
-  // unconditionally, regardless of the target cluster usability
+  // we are done with querying metadata, this transaction commit has to be
+  // done unconditionally, regardless of the target cluster usability
   transaction.commit();
 
-  if (target_cluster.is_usable()) {
+  const auto target_cluster_idx =
+      target_cluster_pos(clusterset_topology_, target_cluster_id);
+
+  if (target_cluster_idx)
+    result.cluster_data =
+        clusterset_topology_.clusters_data[*target_cluster_idx];
+  else
+    result.cluster_data.name = target_cluster.to_string();
+
+  log_target_cluster_warnings(
+      result.cluster_data, target_cluster.invalidated_cluster_routing_policy());
+
+  result.view_id = view_id;
+  result.cluster_data.single_primary_mode = true;
+  result.metadata_servers = clusterset_topology_.metadata_servers;
+
+  if (!is_cluster_usable(result.cluster_data,
+                         target_cluster.invalidated_cluster_routing_policy())) {
+    result.cluster_data.members.clear();
+  } else {
     // connect to the cluster and query for the list and status of its
     // members. (more precisely: search and connect to a
     // member which is part of quorum to retrieve this data)
@@ -1506,7 +1488,7 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
 
     // change the mode of RW node(s) reported by the GR to RO if the
     // Cluster is Replica or if our target cluster is invalidated
-    if (!target_cluster.is_primary() || target_cluster.is_invalidated()) {
+    if (!result.cluster_data.is_primary || result.cluster_data.is_invalidated) {
       for (auto &member : result.cluster_data.members) {
         if (member.mode == metadata_cache::ServerMode::ReadWrite) {
           member.mode = metadata_cache::ServerMode::ReadOnly;
@@ -1516,9 +1498,9 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
   }
 
   if (needs_writable_node) {
-    if (target_cluster.is_primary()) {
-      // if our target cluster is PRIMARY we grab the writable node; we already
-      // know which one is it as we just checked it
+    if (result.cluster_data.is_primary) {
+      // if our target cluster is PRIMARY we grab the writable node; we
+      // already know which one is it as we just checked it
       result.cluster_data.writable_server =
           metadata_->find_rw_server(result.cluster_data.members);
     } else {
