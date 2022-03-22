@@ -230,9 +230,9 @@ const MockServerCLITestParam mock_server_cli_test_param[] = {
      }},
 };
 
-INSTANTIATE_TEST_CASE_P(Spec, MockServerCLITest,
-                        ::testing::ValuesIn(mock_server_cli_test_param),
-                        [](const auto &info) { return info.param.test_name; });
+INSTANTIATE_TEST_SUITE_P(Spec, MockServerCLITest,
+                         ::testing::ValuesIn(mock_server_cli_test_param),
+                         [](const auto &info) { return info.param.test_name; });
 
 class MockServerCLITestBase : public RouterComponentTest {};
 
@@ -563,9 +563,9 @@ const MockServerConnectOkTestParam mock_server_connect_ok_test_param[] = {
      }},
 };
 
-INSTANTIATE_TEST_CASE_P(Spec, MockServerConnectOkTest,
-                        ::testing::ValuesIn(mock_server_connect_ok_test_param),
-                        [](const auto &info) { return info.param.test_name; });
+INSTANTIATE_TEST_SUITE_P(Spec, MockServerConnectOkTest,
+                         ::testing::ValuesIn(mock_server_connect_ok_test_param),
+                         [](const auto &info) { return info.param.test_name; });
 
 // custom connect tests
 
@@ -1058,9 +1058,9 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
      }},
 };
 
-INSTANTIATE_TEST_CASE_P(Spec, MockServerConnectTest,
-                        ::testing::ValuesIn(mock_server_connect_test_param),
-                        [](const auto &info) { return info.param.test_name; });
+INSTANTIATE_TEST_SUITE_P(Spec, MockServerConnectTest,
+                         ::testing::ValuesIn(mock_server_connect_test_param),
+                         [](const auto &info) { return info.param.test_name; });
 
 int main(int argc, char *argv[]) {
   net::impl::socket::init();

@@ -570,7 +570,7 @@ TEST_P(NotifyTestInvalidSocketNameTest, NotifyTestInvalidSocketName) {
                         2s));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     NotifyTestInvalidSocketName, NotifyTestInvalidSocketNameTest,
     ::testing::Values(
         "CON", "PRN",
@@ -936,7 +936,7 @@ TEST_P(NotifyBootstrapNotAffectedTest, NotifyBootstrapNotAffected) {
             stdx::make_unexpected(make_error_code(std::errc::timed_out)));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     NotifyBootstrapNotAffected, NotifyBootstrapNotAffectedTest,
     ::testing::Values("READY=1",
                       "STOPPING=1\nSTATUS=Router shutdown in progress\n"));
