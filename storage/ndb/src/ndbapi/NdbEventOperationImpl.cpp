@@ -1071,12 +1071,14 @@ NdbEventOperationImpl::receive_event()
 
   int is_insert= operation == NdbDictionary::Event::_TE_INSERT;
 
-  Uint32 *aAttrPtr = m_data_item->ptr[0].p;
-  Uint32 *aAttrEndPtr = aAttrPtr + m_data_item->ptr[0].sz;
-  Uint32 *aDataPtr = m_data_item->ptr[1].p;
+  const Uint32* aAttrPtr = m_data_item->ptr[0].p;
+  const Uint32* aAttrEndPtr = aAttrPtr + m_data_item->ptr[0].sz;
+  const Uint32* aDataPtr = m_data_item->ptr[1].p;
 
-  DBUG_DUMP_EVENT("after",(char*)m_data_item->ptr[1].p, m_data_item->ptr[1].sz*4);
-  DBUG_DUMP_EVENT("before",(char*)m_data_item->ptr[2].p, m_data_item->ptr[2].sz*4);
+  DBUG_DUMP_EVENT(
+      "after", (const char*)m_data_item->ptr[1].p, m_data_item->ptr[1].sz * 4);
+  DBUG_DUMP_EVENT(
+      "before", (const char*)m_data_item->ptr[2].p, m_data_item->ptr[2].sz * 4);
 
   // copy data into the RecAttr's
   // we assume that the respective attribute lists are sorted
@@ -1150,7 +1152,7 @@ NdbEventOperationImpl::receive_event()
   
   tWorkingRecAttr = theFirstDataAttrs[1];
   aDataPtr = m_data_item->ptr[2].p;
-  Uint32 *aDataEndPtr = aDataPtr + m_data_item->ptr[2].sz;
+  const Uint32* aDataEndPtr = aDataPtr + m_data_item->ptr[2].sz;
   while ((aDataPtr < aDataEndPtr) && (tWorkingRecAttr != NULL)) {
     tRecAttrId = tWorkingRecAttr->attrId();
     tAttrId = AttributeHeader(*aDataPtr).getAttributeId();
@@ -1225,9 +1227,9 @@ NdbEventOperationImpl::print()
 void
 NdbEventOperationImpl::printAll()
 {
-  Uint32 *aAttrPtr = m_data_item->ptr[0].p;
-  Uint32 *aAttrEndPtr = aAttrPtr + m_data_item->ptr[0].sz;
-  Uint32 *aDataPtr = m_data_item->ptr[1].p;
+  const Uint32* aAttrPtr = m_data_item->ptr[0].p;
+  const Uint32* aAttrEndPtr = aAttrPtr + m_data_item->ptr[0].sz;
+  const Uint32* aDataPtr = m_data_item->ptr[1].p;
 
   //tRecAttr->setup(tAttrInfo, aValue)) {
 
@@ -3737,7 +3739,9 @@ NdbEventBuffer::copy_data(const SubTableData * const sdata, Uint32 len,
 
   for (int i = 0; i <= 2; i++) {
     if (ptr[i].sz > 0) {
-      memcpy(data->ptr[i].p, ptr[i].p, ptr[i].sz << 2);
+      // Ok to cast const away, memory allocated in alloc_mem call above.
+      Uint32* p = const_cast<Uint32*>(data->ptr[i].p);
+      memcpy(p, ptr[i].p, ptr[i].sz << 2);
     }
   }
 
@@ -3904,8 +3908,12 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata, Uint32 len,
       Uint32 j2 = 0;
       while (i < nkey)
       {
-        ah = copy_head(i, ptr[0].p, i2, ptr2[0].p, loop);
-        copy_attr(ah, j, ptr[1].p, j2, ptr2[1].p, loop);
+        /*
+         * Ok to cast const away, memory allocated in alloc_mem call above.
+         * And in first loop pointers are not used for any writing.
+         */
+        ah = copy_head(i, const_cast<Uint32*>(ptr[0].p), i2, ptr2[0].p, loop);
+        copy_attr(ah, j, const_cast<Uint32*>(ptr[1].p), j2, ptr2[1].p, loop);
       }
       ptr[0].sz = i;
       ptr[1].sz = j;
@@ -3945,13 +3953,21 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata, Uint32 len,
         }
         if (b1)
         {
-          ah = copy_head(i, ptr[0].p, i1, ptr1[0].p, loop);
-          copy_attr(ah, j, ptr[1].p, j1, ptr1[1].p, loop);
+          /*
+           * Ok to cast const away, memory allocated in alloc_mem call above.
+           * And in first loop pointers are not used for any writing.
+           */
+          ah = copy_head(i, const_cast<Uint32*>(ptr[0].p), i1, ptr1[0].p, loop);
+          copy_attr(ah, j, const_cast<Uint32*>(ptr[1].p), j1, ptr1[1].p, loop);
         }
         else if (b2)
         {
-          ah = copy_head(i, ptr[0].p, i2, ptr2[0].p, loop);
-          copy_attr(ah, j, ptr[1].p, j2, ptr2[1].p, loop);
+          /*
+           * Ok to cast const away, memory allocated in alloc_mem call above.
+           * And in first loop pointers are not used for any writing.
+           */
+          ah = copy_head(i, const_cast<Uint32*>(ptr[0].p), i2, ptr2[0].p, loop);
+          copy_attr(ah, j, const_cast<Uint32*>(ptr[1].p), j2, ptr2[1].p, loop);
         }
         else
           break;
@@ -3988,12 +4004,22 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata, Uint32 len,
         if (b1)
         {
           ah = AttributeHeader(ptr1[2].p[k1]);
-          copy_attr(ah, k, ptr[2].p, k1, ptr1[2].p, loop | 2);
+          /*
+           * Ok to cast const away, memory allocated in alloc_mem call above.
+           * And in first loop pointers are not used for any writing.
+           */
+          copy_attr(
+              ah, k, const_cast<Uint32*>(ptr[2].p), k1, ptr1[2].p, loop | 2);
         }
         else if (b2)
         {
           ah = AttributeHeader(ptr2[2].p[k2]);
-          copy_attr(ah, k, ptr[2].p, k2, ptr2[2].p, loop | 2);
+          /*
+           * Ok to cast const away, memory allocated in alloc_mem call above.
+           * And in first loop pointers are not used for any writing.
+           */
+          copy_attr(
+              ah, k, const_cast<Uint32*>(ptr[2].p), k2, ptr2[2].p, loop | 2);
         }
         else
           break;
@@ -4030,7 +4056,7 @@ NdbEventBuffer::get_main_data(Gci_container* bucket,
   LinearSectionPtr ptr[3];
 
   Uint32 pk_ah[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY];
-  Uint32* pk_data = blob_data->ptr[1].p;
+  const Uint32* pk_data = blob_data->ptr[1].p;
   Uint32 pk_size = 0;
 
   if (unlikely(blobVersion == 1)) {
