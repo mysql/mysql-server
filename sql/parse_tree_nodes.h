@@ -2946,6 +2946,24 @@ class PT_grant_object_attribute final : public Parse_tree_root {
     Sql_cmd *make_cmd(THD *thd) override;
 };
 
+class PT_revoke_user_attribute final : public Parse_tree_root {
+  Sql_cmd_revoke_user_attribute sql_cmd;
+  public:
+    PT_revoke_user_attribute(LEX_STRING attrib_arg, 
+        LEX_STRING *value_arg, List<LEX_USER> *user_list_arg) : 
+              sql_cmd(attrib_arg, value_arg, user_list_arg) {}
+    Sql_cmd *make_cmd(THD *thd) override;
+};
+
+class PT_revoke_object_attribute final : public Parse_tree_root {
+  Sql_cmd_revoke_object_attribute sql_cmd;
+  public:
+    PT_revoke_object_attribute(LEX_STRING attrib_arg, 
+        LEX_STRING *value_arg, List<LEX_CSTRING> *dbs, List<LEX_CSTRING> *tables) : 
+              sql_cmd(attrib_arg, value_arg, dbs, tables) {}
+    Sql_cmd *make_cmd(THD *thd) override;
+};
+
 class PT_drop_role final : public Parse_tree_root {
   Sql_cmd_drop_role sql_cmd;
 

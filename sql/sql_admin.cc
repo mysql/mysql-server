@@ -2193,3 +2193,13 @@ bool Sql_cmd_grant_object_attribute::execute(THD *thd) {
   DBUG_TRACE;
   return mysql_grant_object_attribute(thd, attrib_name, value, dbs, tables);
 }
+
+bool Sql_cmd_revoke_user_attribute::execute(THD *thd) {
+  DBUG_TRACE;
+  return mysql_revoke_user_attribute(thd, attrib_name, value_ptr, user_list);
+}
+
+bool Sql_cmd_revoke_object_attribute::execute(THD *thd) {
+  DBUG_TRACE;
+  return mysql_revoke_object_attribute(thd, attrib_name, value_ptr, dbs, tables);
+}

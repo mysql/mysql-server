@@ -1868,6 +1868,8 @@ void warn_about_deprecated_binary(THD *thd)
         repair_table_stmt
         replace_stmt
         restart_server_stmt
+        revoke_resource_attribute_stmt
+        revoke_user_attribute_stmt
         select_stmt
         select_stmt_with_into
         set_resource_group_stmt
@@ -2168,6 +2170,8 @@ void warn_about_deprecated_binary(THD *thd)
 
 %type <attrib_val_pair> attrib_val_pair
 
+%type <lex_str_ptr> opt_attrib_val
+
 %%
 
 /*
@@ -2376,6 +2380,8 @@ simple_statement:
         | resignal_stmt                 { $$= nullptr; }
         | restart_server_stmt
         | revoke                        { $$= nullptr; }
+        | revoke_resource_attribute_stmt
+        | revoke_user_attribute_stmt
         | rollback                      { $$= nullptr; }
         | savepoint                     { $$= nullptr; }
         | select_stmt
@@ -3517,6 +3523,34 @@ grant_resource_attribute_stmt:
               tables->push_back(&((*it)->table));
             }  
             $$ = NEW_PTN PT_grant_object_attribute($4->first, $4->second, dbs, tables);
+          }
+          ;
+
+revoke_user_attribute_stmt: 
+          REVOKE USER ATTRIBUTE_SYM ident opt_attrib_val FROM user_list
+          {
+            $$ = NEW_PTN PT_revoke_user_attribute($4, $5, $7);
+          }
+          ;
+
+revoke_resource_attribute_stmt:
+          REVOKE RESOURCE_SYM ATTRIBUTE_SYM ident opt_attrib_val FROM table_list
+          {
+            List<LEX_CSTRING> *dbs = NEW_PTN List<LEX_CSTRING>;
+            List<LEX_CSTRING> *tables = NEW_PTN List<LEX_CSTRING>;
+            for (auto it = $7->begin(); it != $7->end(); it++) {
+              dbs->push_back(&((*it)->db));
+              tables->push_back(&((*it)->table));
+            } 
+            $$ = NEW_PTN PT_revoke_object_attribute($4, $5, dbs, tables);
+          }
+          ;
+          
+opt_attrib_val:
+          /* Empty production */      { $$ = nullptr; }
+          | ':' ident
+          {
+            $$ = (LEX_STRING*)sql_memdup(&$2, sizeof(LEX_STRING));
           }
           ;
 
