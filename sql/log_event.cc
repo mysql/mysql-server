@@ -9931,7 +9931,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
     */
     sql_mode_t saved_sql_mode = thd->variables.sql_mode;
     if (!is_auto_inc_in_extra_columns())
-      thd->variables.sql_mode = MODE_NO_AUTO_VALUE_ON_ZERO;
+      thd->variables.sql_mode |= MODE_NO_AUTO_VALUE_ON_ZERO;
 
     // row processing loop
 
