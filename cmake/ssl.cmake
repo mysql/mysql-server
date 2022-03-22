@@ -629,19 +629,26 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
       MESSAGE(STATUS "INSTALL ${OPENSSL_NAME} to ${INSTALL_LIBDIR}")
 
       # ${CMAKE_CFG_INTDIR} does not work with Xcode INSTALL ??
-      SET(SUBDIRECTORY "")
-      IF(CMAKE_BUILD_TYPE AND NOT BUILD_IS_SINGLE_CONFIG AND CMAKE_BUILD_TYPE STREQUAL "Debug")
-        SET(SUBDIRECTORY "Debug")
-      ELSEIF(CMAKE_BUILD_TYPE AND NOT BUILD_IS_SINGLE_CONFIG AND CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-        SET(SUBDIRECTORY "RelWithDebInfo")
+      IF(BUILD_IS_SINGLE_CONFIG)
+        INSTALL(FILES
+          ${CMAKE_BINARY_DIR}/library_output_directory/${CRYPTO_NAME}
+          ${CMAKE_BINARY_DIR}/library_output_directory/${OPENSSL_NAME}
+          ${CMAKE_BINARY_DIR}/library_output_directory/${CRYPTO_VERSION}
+          ${CMAKE_BINARY_DIR}/library_output_directory/${OPENSSL_VERSION}
+          DESTINATION "${INSTALL_LIBDIR}" COMPONENT SharedLibraries
+          )
+      ELSE()
+        FOREACH(cfg Debug Release RelWithDebInfo MinSizeRel)
+          INSTALL(FILES
+            ${CMAKE_BINARY_DIR}/library_output_directory/${cfg}/${CRYPTO_NAME}
+            ${CMAKE_BINARY_DIR}/library_output_directory/${cfg}/${OPENSSL_NAME}
+            ${CMAKE_BINARY_DIR}/library_output_directory/${cfg}/${CRYPTO_VERSION}
+            ${CMAKE_BINARY_DIR}/library_output_directory/${cfg}/${OPENSSL_VERSION}
+            DESTINATION "${INSTALL_LIBDIR}" COMPONENT SharedLibraries
+            CONFIGURATIONS ${cfg}
+            )
+        ENDFOREACH()
       ENDIF()
-      INSTALL(FILES
-        ${CMAKE_BINARY_DIR}/library_output_directory/${SUBDIRECTORY}/${CRYPTO_NAME}
-        ${CMAKE_BINARY_DIR}/library_output_directory/${SUBDIRECTORY}/${OPENSSL_NAME}
-        ${CMAKE_BINARY_DIR}/library_output_directory/${SUBDIRECTORY}/${CRYPTO_VERSION}
-        ${CMAKE_BINARY_DIR}/library_output_directory/${SUBDIRECTORY}/${OPENSSL_VERSION}
-        DESTINATION "${INSTALL_LIBDIR}" COMPONENT SharedLibraries
-        )
       INSTALL(FILES
         ${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/${CRYPTO_VERSION}
         ${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/${OPENSSL_VERSION}
