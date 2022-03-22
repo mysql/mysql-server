@@ -263,7 +263,7 @@ void NdbSocket::close_with_reset(bool with_reset) {
 /* ndb_socket_poller.h */
 inline
 uint NdbSocket::add_readable(ndb_socket_poller * poller) const {
-  return poller->add_readable(s);
+  return poller->add_readable(s, ssl);
 }
 
 inline
@@ -274,7 +274,7 @@ uint NdbSocket::add_writable(ndb_socket_poller * poller) const {
 inline
 int NdbSocket::poll_readable(int timeout) const {
   ndb_socket_poller poller;
-  poller.add_readable(s);
+  poller.add_readable(s, ssl);
   return poller.poll(timeout);
 }
 
