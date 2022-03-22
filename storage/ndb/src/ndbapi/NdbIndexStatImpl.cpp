@@ -1000,7 +1000,7 @@ NdbIndexStatImpl::sys_sample_setkey(Con& con)
     setError(con, __LINE__);
     return -1;
   }
-  if (op->equal("stat_key", (char*)m_keyData.get_full_buf()) == -1)
+  if (op->equal("stat_key", (const char*)m_keyData.get_full_buf()) == -1)
   {
     setError(con, __LINE__);
     return -1;

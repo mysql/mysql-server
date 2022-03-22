@@ -1390,7 +1390,8 @@ protected:
 
   NdbReceiver theReceiver;
 
-  NdbError theError;			// Errorcode	       
+  // Allow update error from const methods.
+  mutable NdbError theError;            // Errorcode
   int 	   theErrorLine;		// Error line       
 
   Ndb*		   theNdb;	      	// Point back to the Ndb object.

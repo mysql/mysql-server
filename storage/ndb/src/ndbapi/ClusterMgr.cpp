@@ -758,7 +758,7 @@ ClusterMgr::sendProcessInfoReport(NodeId nodeId)
   m_process_info->buildProcessInfoReport(report);
 
   const char * uri_path = m_process_info->getUriPath();
-  pathSection.p = (Uint32 *) uri_path;
+  pathSection.p = (const Uint32*)uri_path;
   pathSection.sz = ProcessInfo::UriPathLengthInWords;
   if(uri_path[0])
   {
@@ -769,7 +769,7 @@ ClusterMgr::sendProcessInfoReport(NodeId nodeId)
   if(hostAddress[0])
   {
     nsections = 2;
-    hostSection.p = (Uint32 *) hostAddress;
+    hostSection.p = (const Uint32*)hostAddress;
     hostSection.sz = ProcessInfo::AddressStringLengthInWords;
   }
   safe_noflush_sendSignal(&signal, nodeId, ptr, nsections);
@@ -782,7 +782,7 @@ ClusterMgr::sendProcessInfoReport(NodeId nodeId)
 
 void
 ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
-  const ApiRegReq * const apiRegReq = (ApiRegReq *)&theData[0];
+  const ApiRegReq* const apiRegReq = (const ApiRegReq*)&theData[0];
   const NodeId nodeId = refToNode(apiRegReq->ref);
 
 #ifdef DEBUG_REG
@@ -969,9 +969,8 @@ ClusterMgr::execAPI_REGCONF(const NdbApiSignal * signal,
 
 void
 ClusterMgr::execAPI_REGREF(const Uint32 * theData){
-  
-  ApiRegRef * ref = (ApiRegRef*)theData;
-  
+  const ApiRegRef* ref = (const ApiRegRef*)theData;
+
   const NodeId nodeId = refToNode(ref->ref);
 
   assert(nodeId > 0 && nodeId < MAX_NODES);

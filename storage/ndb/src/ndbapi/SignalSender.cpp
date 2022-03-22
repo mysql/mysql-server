@@ -232,7 +232,7 @@ SignalSender::sendFragmentedSignal(Uint16 nodeId,
 SendStatus
 SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s)
 {
-  int ret = raw_sendSignal((NdbApiSignal*)&s->header,
+  int ret = raw_sendSignal((const NdbApiSignal*)&s->header,
                            nodeId,
                            s->ptr,
                            s->header.m_noOfSections);

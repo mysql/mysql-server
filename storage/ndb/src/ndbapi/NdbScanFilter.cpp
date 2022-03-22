@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,7 +84,8 @@ public:
   Vector<State> m_stack;
   Vector<bool> m_stack2;    //to store info of m_negate
   NdbInterpretedCode * m_code;
-  NdbError m_error;
+  // Allow update error from const methods
+  mutable NdbError m_error;
 
   /* Members for supporting old Api */
   NdbScanOperation *m_associated_op;
@@ -881,8 +882,8 @@ NdbScanFilter::cmp(BinaryCondition cond, int ColId1, int ColId2)
   }
 }
 
-static void
-update(const NdbError & _err){
+static void update(NdbError& _err)
+{
   NdbError & error = (NdbError &) _err;
   ndberror_struct ndberror = (ndberror_struct)error;
   ndberror_update(&ndberror);

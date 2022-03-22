@@ -1312,24 +1312,22 @@ class Extra_metadata
 
   static const size_t BLOB_HEADER_SZ = 12;
 
-public:
-
-  static
-  bool
-  check_header(void* pack_data, Uint32 pack_length,
-               Uint32& version)
+ public:
+  static bool check_header(const void* pack_data,
+                           Uint32 pack_length,
+                           Uint32& version)
   {
     if (pack_length == 0)
     {
       // No extra metadata
-      return false; // not ok
+      return false;  // not ok
     }
 
     if (pack_length < BLOB_HEADER_SZ)
     {
       // There are extra metadata but it's too short
       // to even have a header
-      return false; // not ok
+      return false;  // not ok
     }
 
     // Verify the header
@@ -1344,9 +1342,8 @@ public:
     // packed data length minus header length
     assert(uint4korr(header + 8) == (Uint32)pack_length - BLOB_HEADER_SZ);
 
-    return true; // OK
+    return true;  // OK
   }
-
 
   /*
     pack is a method used to pack the extra metadata
@@ -1395,10 +1392,11 @@ public:
     // Use an aligned stack variable of expected type to avoid
     // potential alignment issues.
     uLongf compressed_len = (uLongf)blob_len;
-    const int compress_result =
-        compress2((Bytef*) blob + BLOB_HEADER_SZ, &compressed_len,
-                  (Bytef*) data, (uLong)len,
-                  compression_level);
+    const int compress_result = compress2((Bytef*)blob + BLOB_HEADER_SZ,
+                                          &compressed_len,
+                                          (const Bytef*)data,
+                                          (uLong)len,
+                                          compression_level);
     if (compress_result != Z_OK)
     {
       DBUG_PRINT("error", ("Failed to compress, error: %d", compress_result));
@@ -1452,7 +1450,7 @@ public:
 
      DBUG_PRINT("blob",("complen: %lu, orglen: %lu",
                         (ulong) complen, (ulong) orglen));
-     DBUG_DUMP("blob->data", (uchar*)header + BLOB_HEADER_SZ, complen);
+     DBUG_DUMP("blob->data", (const uchar*)header + BLOB_HEADER_SZ, complen);
 
      // Allocate memory large enough to hold unpacked data
      uchar *data = (uchar*)malloc(orglen);
@@ -1469,9 +1467,11 @@ public:
      // potential alignment issues.
      uLongf uncompressed_len= (uLongf) orglen;
      const int uncompress_result =
-         uncompress((Bytef*) data, &uncompressed_len,
-                    (Bytef*) pack_data + BLOB_HEADER_SZ, (uLong) complen);
-    if (uncompress_result != Z_OK)
+         uncompress((Bytef*)data,
+                    &uncompressed_len,
+                    (const Bytef*)pack_data + BLOB_HEADER_SZ,
+                    (uLong)complen);
+     if (uncompress_result != Z_OK)
      {
        DBUG_PRINT("error", ("Failed to uncompress, error: %d",
                             uncompress_result));
@@ -3256,7 +3256,7 @@ NdbDictInterface::getTable(const BaseString& name)
 #endif
   
   LinearSectionPtr ptr[1];
-  ptr[0].p= (Uint32*)m_buffer.get_data();
+  ptr[0].p = (const Uint32*)m_buffer.get_data();
   ptr[0].sz= namelen_words;
 
   return getTable(&tSignal, ptr, 1);
@@ -3294,8 +3294,8 @@ NdbDictInterface::getTable(class NdbApiSignal * signal,
     return 0;
   
   NdbTableImpl * rt = 0;
-  m_error.code = parseTableInfo(&rt, 
-				(Uint32*)m_buffer.get_data(), 
+  m_error.code = parseTableInfo(&rt,
+                                (const Uint32*)m_buffer.get_data(),
                                 m_buffer.length() / 4,
                                 true /* fully qualified */);
   if(rt)
@@ -4814,7 +4814,7 @@ NdbDictInterface::sendAlterTable(const NdbTableImpl &impl,
                                  Uint32 change_mask)
 {
   LinearSectionPtr ptr[1];
-  ptr[0].p = (Uint32*)m_buffer.get_data();
+  ptr[0].p = (const Uint32*)m_buffer.get_data();
   ptr[0].sz = m_buffer.length() / 4;
   NdbApiSignal tSignal(m_reference);
   tSignal.theReceiversBlockNumber = DBDICT;
@@ -4861,7 +4861,7 @@ int
 NdbDictInterface::sendCreateTable()
 {
   LinearSectionPtr ptr[1];
-  ptr[0].p = (Uint32*)m_buffer.get_data();
+  ptr[0].p = (const Uint32*)m_buffer.get_data();
   ptr[0].sz = m_buffer.length() / 4;
   NdbApiSignal tSignal(m_reference);
   tSignal.theReceiversBlockNumber = DBDICT;
@@ -5583,7 +5583,7 @@ NdbDictInterface::createIndex(const NdbIndexImpl & impl,
   LinearSectionPtr ptr[2];
   ptr[0].p = (Uint32*)&attributeList;
   ptr[0].sz = 1 + attributeList.sz;
-  ptr[1].p = (Uint32*)m_buffer.get_data();
+  ptr[1].p = (const Uint32*)m_buffer.get_data();
   ptr[1].sz = m_buffer.length() >> 2;                //BUG?
 
   int errCodes[] = { CreateIndxRef::Busy, CreateIndxRef::NotMaster, 0 };
@@ -6125,7 +6125,7 @@ NdbDictInterface::createEvent(NdbEventImpl & evnt,
           evnt.m_tableImpl->m_internalName.c_str());
   }
 
-  ptr[0].p = (Uint32*)m_buffer.get_data();
+  ptr[0].p = (const Uint32*)m_buffer.get_data();
   ptr[0].sz = (m_buffer.length()+3) >> 2;
 
   int ret = dictSignal(&tSignal,ptr, seccnt,
@@ -6138,11 +6138,12 @@ NdbDictInterface::createEvent(NdbEventImpl & evnt,
   if (ret) {
     ERR_RETURN(getNdbError(), ret);
   }
-  
-  char *dataPtr = (char *)m_buffer.get_data();
-  unsigned int lenCreateEvntConf = *((unsigned int *)dataPtr);
+
+  const char* dataPtr = (const char*)m_buffer.get_data();
+  unsigned int lenCreateEvntConf =
+      *((const unsigned int*)dataPtr);  // TODO Uint32???
   dataPtr += sizeof(lenCreateEvntConf);
-  CreateEvntConf const * evntConf = (CreateEvntConf *)dataPtr;
+  CreateEvntConf const* evntConf = (const CreateEvntConf*)dataPtr;
   dataPtr += lenCreateEvntConf;
   
   //  NdbEventImpl *evntImpl = (NdbEventImpl *)evntConf->getUserData();
@@ -6275,7 +6276,7 @@ NdbDictInterface::stopSubscribeEvent(NdbEventOperationImpl & ev_op,
                       errCodes, -1);
   if (ret == 0)
   {
-    Uint32 *data = (Uint32*)m_buffer.get_data();
+    const Uint32* data = (const Uint32*)m_buffer.get_data();
     stop_gci = data[1] | (Uint64(data[0]) << 32);
   }
   DBUG_RETURN(ret);
@@ -6491,11 +6492,11 @@ NdbDictInterface::execCREATE_EVNT_CONF(const NdbApiSignal * signal,
   m_buffer.clear();
   m_tableData.clear();
   unsigned int len = signal->getLength() << 2;
-  m_buffer.append((char *)&len, sizeof(len));
+  m_buffer.append(&len, sizeof(len));
   m_buffer.append(signal->getDataPtr(), len);
 
   if (signal->m_noOfSections > 0) {
-    m_buffer.append((char *)ptr[0].p, strlen((char *)ptr[0].p)+1);
+    m_buffer.append(ptr[0].p, strlen((const char*)ptr[0].p) + 1);
   }
   if (signal->m_noOfSections > 1)
   {
@@ -6757,7 +6758,7 @@ NdbDictInterface::dropEvent(const NdbEventImpl &evnt)
   w.add(SimpleProperties::StringValue, evnt.m_name.c_str());
 
   LinearSectionPtr ptr[1];
-  ptr[0].p = (Uint32*)m_buffer.get_data();
+  ptr[0].p = (const Uint32*)m_buffer.get_data();
   ptr[0].sz = (m_buffer.length()+3) >> 2;
 
   return dictSignal(&tSignal,ptr, 1,
@@ -7094,8 +7095,8 @@ NdbDictInterface::unpackListTables(NdbDictionary::Dictionary::List& list,
                                    bool fullyQualifiedNames)
 {
   Uint32 count = 0;
-  Uint32* tableData = (Uint32*)m_tableData.get_data();
-  Uint32* tableNames = (Uint32*)m_tableNames.get_data();
+  const Uint32* tableData = (const Uint32*)m_tableData.get_data();
+  const Uint32* tableNames = (const Uint32*)m_tableNames.get_data();
   const Uint32 listTablesDataSizeInWords = (sizeof(ListTablesData) + 3) / 4;
   assert(list.count == 0);  // user must clear list before reusing it
   list.count = m_noOfTables;
@@ -7136,7 +7137,7 @@ NdbDictInterface::unpackListTables(NdbDictionary::Dictionary::List& list,
         m_error.code= 4000;
         return -1;
       }
-      memcpy(indexName, (char *) tableNames, size);
+      memcpy(indexName, tableNames, size);
       if (!(databaseName = Ndb::getDatabaseFromInternalName(indexName)) ||
           !(schemaName = Ndb::getSchemaFromInternalName(indexName)))
       {
@@ -7155,7 +7156,7 @@ NdbDictInterface::unpackListTables(NdbDictionary::Dictionary::List& list,
         m_error.code= 4000;
         return -1;
       }
-      memcpy(tableName, (char *) tableNames, size);
+      memcpy(tableName, tableNames, size);
       if (!(databaseName = Ndb::getDatabaseFromInternalName(tableName)) ||
           !(schemaName = Ndb::getSchemaFromInternalName(tableName)))
       {
@@ -7174,7 +7175,7 @@ NdbDictInterface::unpackListTables(NdbDictionary::Dictionary::List& list,
         m_error.code= 4000;
         return -1;
       }
-      memcpy(otherName, (char *) tableNames, size);
+      memcpy(otherName, tableNames, size);
       if (!(objectName = BaseString(otherName)))
       {
         m_error.code= 4000;
@@ -9055,7 +9056,7 @@ NdbDictInterface::create_file(const NdbFileImpl & file,
   req->transKey = m_tx.transKey();
   
   LinearSectionPtr ptr[3];
-  ptr[0].p = (Uint32*)m_buffer.get_data();
+  ptr[0].p = (const Uint32*)m_buffer.get_data();
   ptr[0].sz = m_buffer.length() / 4;
 
   int err[] = { CreateFileRef::Busy, CreateFileRef::NotMaster, 0};
@@ -9073,7 +9074,7 @@ NdbDictInterface::create_file(const NdbFileImpl & file,
 
   if (ret == 0)
   {
-    Uint32* data = (Uint32*)m_buffer.get_data();
+    const Uint32* data = (const Uint32*)m_buffer.get_data();
     if (obj)
     {
       obj->m_id = data[0];
@@ -9262,7 +9263,7 @@ NdbDictInterface::create_filegroup(const NdbFilegroupImpl & group,
   req->transKey = m_tx.transKey();
   
   LinearSectionPtr ptr[3];
-  ptr[0].p = (Uint32*)m_buffer.get_data();
+  ptr[0].p = (const Uint32*)m_buffer.get_data();
   ptr[0].sz = m_buffer.length() / 4;
 
   int err[] = { CreateFilegroupRef::Busy, CreateFilegroupRef::NotMaster, 0};
@@ -9280,7 +9281,7 @@ NdbDictInterface::create_filegroup(const NdbFilegroupImpl & group,
   
   if (ret == 0)
   {
-    Uint32* data = (Uint32*)m_buffer.get_data();
+    const Uint32* data = (const Uint32*)m_buffer.get_data();
     if (obj)
     {
       obj->m_id = data[0];
@@ -9415,7 +9416,7 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
   tSignal.theLength = GetTabInfoReq::SignalLength;
 
   LinearSectionPtr ptr[1];
-  ptr[0].p  = (Uint32*)name;
+  ptr[0].p = (const Uint32*)name;
   ptr[0].sz = (strLen + 3)/4;
   
 #ifndef IGNORE_VALGRIND_WARNINGS
@@ -9425,7 +9426,7 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
     m_buffer.clear();
     m_buffer.append(name, strLen);
     m_buffer.append(&pad, 4);
-    ptr[0].p = (Uint32*)m_buffer.get_data();
+    ptr[0].p = (const Uint32*)m_buffer.get_data();
   }
 #endif
   
@@ -9449,9 +9450,8 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
     DBUG_RETURN(-1);
   }
 
-  m_error.code = parseFilegroupInfo(dst,
-				    (Uint32*)m_buffer.get_data(),
-				    m_buffer.length() / 4);
+  m_error.code = parseFilegroupInfo(
+      dst, (const Uint32*)m_buffer.get_data(), m_buffer.length() / 4);
 
   if(m_error.code)
   {
@@ -9547,9 +9547,8 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
     DBUG_RETURN(-1);
   }
 
-  m_error.code = parseFilegroupInfo(dst,
-				    (Uint32*)m_buffer.get_data(),
-				    m_buffer.length() / 4);
+  m_error.code = parseFilegroupInfo(
+      dst, (const Uint32*)m_buffer.get_data(), m_buffer.length() / 4);
 
   if(m_error.code)
   {
@@ -9588,7 +9587,7 @@ NdbDictInterface::get_file(NdbFileImpl & dst,
   tSignal.theLength = GetTabInfoReq::SignalLength;
 
   LinearSectionPtr ptr[1];
-  ptr[0].p  = (Uint32*)name;
+  ptr[0].p = (const Uint32*)name;
   ptr[0].sz = (strLen + 3)/4;
   
 #ifndef IGNORE_VALGRIND_WARNINGS
@@ -9598,7 +9597,7 @@ NdbDictInterface::get_file(NdbFileImpl & dst,
     m_buffer.clear();
     m_buffer.append(name, strLen);
     m_buffer.append(&pad, 4);
-    ptr[0].p = (Uint32*)m_buffer.get_data();
+    ptr[0].p = (const Uint32*)m_buffer.get_data();
   }
 #endif
   
@@ -9619,9 +9618,8 @@ NdbDictInterface::get_file(NdbFileImpl & dst,
     DBUG_RETURN(-1);
   }
 
-  m_error.code = parseFileInfo(dst,
-			       (Uint32*)m_buffer.get_data(),
-			       m_buffer.length() / 4);
+  m_error.code = parseFileInfo(
+      dst, (const Uint32*)m_buffer.get_data(), m_buffer.length() / 4);
 
   if(m_error.code)
   {
@@ -9747,7 +9745,7 @@ NdbDictInterface::get_hashmap(NdbHashMapImpl & dst,
   tSignal.theLength = GetTabInfoReq::SignalLength;
 
   LinearSectionPtr ptr[1];
-  ptr[0].p  = (Uint32*)name;
+  ptr[0].p = (const Uint32*)name;
   ptr[0].sz = (strLen + 3)/4;
 
 #ifndef IGNORE_VALGRIND_WARNINGS
@@ -9757,7 +9755,7 @@ NdbDictInterface::get_hashmap(NdbHashMapImpl & dst,
     m_buffer.clear();
     m_buffer.append(name, strLen);
     m_buffer.append(&pad, 4);
-    ptr[0].p = (Uint32*)m_buffer.get_data();
+    ptr[0].p = (const Uint32*)m_buffer.get_data();
   }
 #endif
 
@@ -9780,9 +9778,8 @@ NdbDictInterface::get_hashmap(NdbHashMapImpl & dst,
     return -1;
   }
 
-  m_error.code = parseHashMapInfo(dst,
-                                  (Uint32*)m_buffer.get_data(),
-                                  m_buffer.length() / 4);
+  m_error.code = parseHashMapInfo(
+      dst, (const Uint32*)m_buffer.get_data(), m_buffer.length() / 4);
 
   return m_error.code;
 }
@@ -9823,9 +9820,8 @@ NdbDictInterface::get_hashmap(NdbHashMapImpl & dst,
     return -1;
   }
 
-  m_error.code = parseHashMapInfo(dst,
-                                  (Uint32*)m_buffer.get_data(),
-                                  m_buffer.length() / 4);
+  m_error.code = parseHashMapInfo(
+      dst, (const Uint32*)m_buffer.get_data(), m_buffer.length() / 4);
 
   return m_error.code;
 }
@@ -9923,7 +9919,7 @@ NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
   req->buckets = 0; // not used from here
 
   LinearSectionPtr ptr[3];
-  ptr[0].p = (Uint32*)m_buffer.get_data();
+  ptr[0].p = (const Uint32*)m_buffer.get_data();
   ptr[0].sz = m_buffer.length() / 4;
 
   int err[]= { CreateTableRef::Busy, CreateTableRef::NotMaster, 0 };
@@ -9954,7 +9950,7 @@ NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
 
   if (ret == 0 && obj)
   {
-    Uint32* data = (Uint32*)m_buffer.get_data();
+    const Uint32* data = (const Uint32*)m_buffer.get_data();
     obj->m_id = data[0];
     obj->m_version = data[1];
   }
@@ -10163,7 +10159,7 @@ NdbDictInterface::create_fk(const NdbForeignKeyImpl& src,
   req->transKey = m_tx.transKey();
 
   LinearSectionPtr ptr[3];
-  ptr[0].p = (Uint32*)m_buffer.get_data();
+  ptr[0].p = (const Uint32*)m_buffer.get_data();
   ptr[0].sz = m_buffer.length() / 4;
 
   int err[]= { CreateTableRef::Busy, CreateTableRef::NotMaster, 0 };
@@ -10183,7 +10179,7 @@ NdbDictInterface::create_fk(const NdbForeignKeyImpl& src,
 
   if (ret == 0 && obj)
   {
-    Uint32* data = (Uint32*)m_buffer.get_data();
+    const Uint32* data = (const Uint32*)m_buffer.get_data();
     obj->m_id = data[0];
     obj->m_version = data[1];
   }
@@ -10246,7 +10242,7 @@ NdbDictInterface::get_fk(NdbForeignKeyImpl & dst,
   tSignal.theLength = GetTabInfoReq::SignalLength;
 
   LinearSectionPtr ptr[1];
-  ptr[0].p  = (Uint32*)name;
+  ptr[0].p = (const Uint32*)name;
   ptr[0].sz = (strLen + 3)/4;
 
 #ifndef IGNORE_VALGRIND_WARNINGS
@@ -10256,7 +10252,7 @@ NdbDictInterface::get_fk(NdbForeignKeyImpl & dst,
     m_buffer.clear();
     m_buffer.append(name, strLen);
     m_buffer.append(&pad, 4);
-    ptr[0].p = (Uint32*)m_buffer.get_data();
+    ptr[0].p = (const Uint32*)m_buffer.get_data();
   }
 #endif
 
@@ -10276,9 +10272,8 @@ NdbDictInterface::get_fk(NdbForeignKeyImpl & dst,
     DBUG_RETURN(-1);
   }
 
-  m_error.code = parseForeignKeyInfo(dst,
-                                     (Uint32*)m_buffer.get_data(),
-                                     m_buffer.length() / 4);
+  m_error.code = parseForeignKeyInfo(
+      dst, (const Uint32*)m_buffer.get_data(), m_buffer.length() / 4);
 
   if (m_error.code)
   {

@@ -1117,7 +1117,8 @@ private:
                                              // array for this object
   TimeMillis_t       theStartTransTime;      // Start time of the transaction
 
-  NdbError theError;	      	// Errorcode on transaction
+  // Allow update error from const methods.
+  mutable NdbError theError;    // Errorcode on transaction
   int	   theErrorLine;	// Method number of last error in NdbOperation
   NdbOperation*	theErrorOperation; // The NdbOperation where the error occurred
 

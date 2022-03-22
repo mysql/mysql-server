@@ -436,7 +436,8 @@ private:
   const NdbQueryDefImpl* m_queryDef;
 
   /** Possible error status of this query.*/
-  NdbError m_error;
+  // Allow update error from const methods
+  mutable NdbError m_error;
 
   /**
    * Possible error received from TC / datanodes.

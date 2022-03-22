@@ -558,7 +558,8 @@ Uint32 packed_rowsize(const NdbRecord *result_record,
       }
     }
   }
-  Uint32 sizeInWords = (Uint32)(((Uint32*)pad(pos, 0, bitPos) - (Uint32*)NULL));
+  Uint32 sizeInWords =
+      (Uint32)(((const Uint32*)pad(pos, 0, bitPos) - (Uint32*)NULL));
 
   // Add AttributeHeader::READ_PACKED or ::READ_ALL (Uint32) and
   // variable size bitmask the 'packed' columns and their null bits.
@@ -786,7 +787,7 @@ static
 void
 handle_packed_bit(const char* _src, Uint32 pos, Uint32 len, char* _dst)
 {
-  Uint32 * src = (Uint32*)_src;
+  const Uint32* src = (const Uint32*)_src;
   assert((UintPtr(src) & 3) == 0);
 
   /* Convert char* to aligned Uint32* and some byte offset */
@@ -871,7 +872,7 @@ Uint32 NdbReceiver::unpackRecAttr(NdbRecAttr** recAttr,
       
       bitPos = 0;
       if (unlikely(end < src + sz)) return ERROR;
-      currRecAttr->receive_data((Uint32*)src, sz);
+      currRecAttr->receive_data((const Uint32*)src, sz);
       src += sz;
   next:
       currRecAttr = currRecAttr->next();
@@ -965,7 +966,7 @@ NdbReceiver::unpackNdbRecord(const NdbRecord *rec,
                              char* row)
 {
   assert(bmlen <= 0x07FF);
-  const Uint8 *src = (Uint8*)(aDataPtr + bmlen);
+  const Uint8* src = (const Uint8*)(aDataPtr + bmlen);
   uint bitPos = 0;
   uint attrId = 0;
   uint bitIndex = 0;
@@ -1036,7 +1037,7 @@ NdbReceiver::unpackNdbRecord(const NdbRecord *rec,
     src += sz;
     memcpy(col_row_ptr, source, sz);
   }
-  const Uint32 len = (Uint32)(((Uint32*)pad(src, 0, bitPos)) - aDataPtr);
+  const Uint32 len = (Uint32)(((const Uint32*)pad(src, 0, bitPos)) - aDataPtr);
   return len;
 }
 

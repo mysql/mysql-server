@@ -472,7 +472,7 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
   case GSN_TCKEYCONF:
   case GSN_TCINDXCONF:
   {
-    const TcKeyConf * const keyConf = (TcKeyConf *)tDataPtr;
+    const TcKeyConf* const keyConf = (const TcKeyConf*)tDataPtr;
     if (tFirstData != RNIL)
     {
       tCon = void2con(tFirstDataPtr);
@@ -1090,7 +1090,7 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
   }
   case GSN_TCKEY_FAILCONF:
   {
-    const TcKeyFailConf * failConf = (TcKeyFailConf *)tDataPtr;
+    const TcKeyFailConf* failConf = (const TcKeyFailConf*)tDataPtr;
     const BlockReference aTCRef = aSignal->theSendersBlockRef;
     if (tFirstDataPtr != 0)
     {
@@ -2043,7 +2043,7 @@ NdbImpl::send_event_report(bool is_poll_owner,
   aSignal.theReceiversBlockNumber = CMVMI;
   aSignal.theVerId_signalNumber   = GSN_EVENT_REP;
   aSignal.theLength               = length;
-  memcpy((char *)aSignal.getDataPtrSend(), (char *)data, length*4);
+  memcpy(aSignal.getDataPtrSend(), data, length * 4);
 
   return send_to_nodes(&aSignal, is_poll_owner, false);
 }

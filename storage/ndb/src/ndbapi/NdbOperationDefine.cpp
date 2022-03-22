@@ -617,13 +617,13 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
    * If it is not aligned then we start by copying the value to tempData and 
    * use this as aValue instead.
    *************************************************************************/
-  
-  tReturnCode = insertATTRINFOloop((Uint32*)aValue, sizeInWords);
+
+  tReturnCode = insertATTRINFOloop((const Uint32*)aValue, sizeInWords);
   if (tReturnCode == -1) {
     DBUG_RETURN(tReturnCode);
   }//if
   if (bitsInLastWord != 0) {
-    tData = *(Uint32*)(aValue + sizeInWords*4);
+    tData = *(const Uint32*)(aValue + sizeInWords * 4);
     tData = convertEndian(tData);
     tData = tData & ((1 << bitsInLastWord) - 1);
     tData = convertEndian(tData);
@@ -859,9 +859,9 @@ NdbOperation::getBlobHandlesNdbRecord(NdbTransaction* aCon,
     {
       /*
        * For read request, it is safe to cast away const-ness for the
-       * m_attribute_row.
+       * m_attribute_row. // TODO: why?
        */
-      memcpy((char *)&m_attribute_row[col->offset], &bh, sizeof(bh));
+      memcpy(const_cast<char*>(&m_attribute_row[col->offset]), &bh, sizeof(bh));
     }
   }
 

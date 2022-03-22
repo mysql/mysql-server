@@ -342,18 +342,20 @@ struct Gci_op  //A helper
 class Gci_container
 {
 public:
-  Gci_container(NdbEventBuffer* event_buffer)
-  : m_event_buffer(event_buffer),
-    m_state(0),
-    m_gcp_complete_rep_count(0),
-    m_gcp_complete_rep_sub_data_streams(),
-    m_gci(0),
-    m_head(NULL), m_tail(NULL),
-    m_data_hash(event_buffer),
-    m_gci_op_list(NULL),
-    m_gci_op_count(0),
-    m_gci_op_alloc(0)
-  {}
+ Gci_container(NdbEventBuffer *event_buffer = nullptr)
+     : m_event_buffer(event_buffer),
+       m_state(0),
+       m_gcp_complete_rep_count(0),
+       m_gcp_complete_rep_sub_data_streams(),
+       m_gci(0),
+       m_head(NULL),
+       m_tail(NULL),
+       m_data_hash(event_buffer),
+       m_gci_op_list(NULL),
+       m_gci_op_count(0),
+       m_gci_op_alloc(0)
+ {
+ }
 
   void clear()
   {
@@ -410,11 +412,6 @@ public:
   // Create an EpochData containing the Gci_op and event data added above.
   // This effectively 'completes' the epoch represented by this Gci_container
   EpochData* createEpochData(Uint64 gci);
-};
-
-struct Gci_container_pod
-{
-  char data[sizeof(Gci_container)];
 };
 
 
@@ -599,7 +596,8 @@ public:
   Uint32 m_magic_number;
 
   const NdbError & getNdbError() const;
-  NdbError m_error;
+  // Allow update error from const methods
+  mutable NdbError m_error;
 
   Ndb *m_ndb;
   NdbEventImpl *m_eventImpl;
@@ -839,7 +837,7 @@ public:
   Uint16 m_min_gci_index;
   Uint16 m_max_gci_index;
   Vector<Uint64> m_known_gci;
-  Vector<Gci_container_pod> m_active_gci;
+  Vector<Gci_container> m_active_gci;
   static constexpr Uint32 ACTIVE_GCI_DIRECTORY_SIZE = 4;
   static constexpr Uint32 ACTIVE_GCI_MASK = ACTIVE_GCI_DIRECTORY_SIZE - 1;
 
@@ -1006,9 +1004,10 @@ public:
   unsigned m_gci_slip_thresh;
   NDB_TICKS m_last_log_time; // Limit frequency of event buffer status reports
 
-  NdbError m_error;
+  // Allow update error from const methods
+  mutable NdbError m_error;
 
-private:
+ private:
   void insert_event(NdbEventOperationImpl* impl,
                     SubTableData &data,
                     const LinearSectionPtr *ptr,

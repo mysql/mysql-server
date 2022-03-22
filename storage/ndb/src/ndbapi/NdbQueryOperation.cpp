@@ -2185,7 +2185,7 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
       }
       else if (column.m_arrayType == NDB_ARRAYTYPE_SHORT_VAR)
       {
-        len  = 1+*((Uint8*)(m_value.raw));
+        len = 1 + *((const Uint8*)(m_value.raw));
 
         assert(column.getType() == NdbDictionary::Column::Varchar ||
                     column.getType() == NdbDictionary::Column::Varbinary);
@@ -2196,7 +2196,7 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
       }
       else if (column.m_arrayType == NDB_ARRAYTYPE_MEDIUM_VAR)
       {
-        len  = 2+uint2korr((Uint8*)m_value.raw);
+        len = 2 + uint2korr((const Uint8*)m_value.raw);
 
         assert(column.getType() == NdbDictionary::Column::Longvarchar ||
                     column.getType() == NdbDictionary::Column::Longvarbinary);
@@ -2220,7 +2220,7 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
 
       {
         // Convert from two-byte to one-byte length field.
-        len = 1+uint2korr((Uint8*)m_value.raw);
+        len = 1 + uint2korr((const Uint8*)m_value.raw);
         assert(len <= 0x100);
 
         if (unlikely(len > 1+static_cast<Uint32>(column.getLength())))
@@ -2228,7 +2228,7 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
 
         const Uint8 shortLen = static_cast<Uint8>(len-1);
         dst.appendBytes(&shortLen, 1);
-        dst.appendBytes(((Uint8*)m_value.raw)+2, shortLen);
+        dst.appendBytes(((const Uint8*)m_value.raw) + 2, shortLen);
       }
       break;
 

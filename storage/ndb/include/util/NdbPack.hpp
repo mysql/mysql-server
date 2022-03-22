@@ -344,6 +344,7 @@ public:
     Uint32 get_max_len() const;
     Uint32 get_max_len4() const;
     Uint32 get_var_bytes() const;
+    void* get_full_buf();
     const void* get_full_buf() const;
     Uint32 get_full_len() const;
     Uint32 get_data_len() const;
@@ -828,11 +829,9 @@ NdbPack::Data::get_var_bytes() const
   return m_varBytes;
 }
 
-inline const void*
-NdbPack::Data::get_full_buf() const
-{
-  return &m_buf[0];
-}
+inline const void* NdbPack::Data::get_full_buf() const { return m_buf; }
+
+inline void* NdbPack::Data::get_full_buf() { return m_buf; }
 
 inline Uint32
 NdbPack::Data::get_full_len() const
