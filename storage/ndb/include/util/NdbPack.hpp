@@ -455,7 +455,7 @@ public:
     ~DataEntry() {}
   private:
     friend class DataArray;
-    Uint8* m_data_ptr;
+    const Uint8* m_data_ptr;
     Uint32 m_data_len;
   };
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -209,8 +209,7 @@ LogBuffer::checkForBufferSpace(size_t write_bytes)
   return ret;
 }
 
-size_t
-LogBuffer::append(void* buf, size_t write_bytes)
+size_t LogBuffer::append(const void* buf, size_t write_bytes)
 {
   Guard g(m_mutex);
   assert(checkInvariants());
@@ -522,7 +521,7 @@ void* thread_producer1(void* dummy)
       NdbSleep_SecSleep(1);
     }
     string = string.assfmt("Log %*d\n", 5, i);
-    buf_t2->append((void*)string.c_str(), string.length());
+    buf_t2->append(string.c_str(), string.length());
   }
   NdbThread_Exit(NULL);
   return NULL;
@@ -557,7 +556,7 @@ void* thread_producer3(void* dummy)
     }
     to_write_bytes = rand() % 10 + 1;
     total_to_write_t3 += to_write_bytes;
-    int ret = buf_t3->append((void*)buf, to_write_bytes);
+    int ret = buf_t3->append(buf, to_write_bytes);
     if(ret)
     {
       printf("Write: %d bytes\n", ret);
@@ -670,7 +669,7 @@ TAPTEST(LogBuffer)
 
 
   // **********#
-  OK(buf_t1->append((void*)"123", 3) == 3);
+  OK(buf_t1->append("123", 3) == 3);
   // 123*******#
   // should return 3 immediately
   bytes = buf_t1->get(buf1, 5, 1000);
@@ -698,13 +697,13 @@ TAPTEST(LogBuffer)
 
 
   // **********#
-  OK(buf_t1->append((void*)"01234", 5) == 5); // w == r, empty logbuf
+  OK(buf_t1->append("01234", 5) == 5);  // w == r, empty logbuf
   // 01234*****#
-  OK(buf_t1->append((void*)"56789", 5) == 5); // w > r, no-wrap
+  OK(buf_t1->append("56789", 5) == 5);  // w > r, no-wrap
   // 0123456789#
   buf_t1->get(buf1, 5); // read in one go, w < r
   // *****56789#
-  OK(buf_t1->append((void*)"01234", 5) == 5); // w < r
+  OK(buf_t1->append("01234", 5) == 5);  // w < r
   // 0123456789#
   clearbuf(buf1, bufsize);
   bytes = buf_t1->get(buf1, 3); // read in one go, w == r
@@ -721,13 +720,13 @@ TAPTEST(LogBuffer)
 
 
   // **********#
-  OK(buf_t1->append((void*)"01234", 5) == 5);
+  OK(buf_t1->append("01234", 5) == 5);
   // 01234*****#
-  OK(buf_t1->append((void*)"56789", 5) == 5);
+  OK(buf_t1->append("56789", 5) == 5);
   // 0123456789#
   buf_t1->get(buf1, 5);
   // *****56789#
-  OK(buf_t1->append((void*)"01234", 5) == 5);
+  OK(buf_t1->append("01234", 5) == 5);
   // 0123456789#
   clearbuf(buf1, bufsize);
   bytes = buf_t1->get(buf1, 3); // read in one go, w == r
@@ -760,7 +759,7 @@ TAPTEST(LogBuffer)
   OK(strcmp(buf1, "0123") == 0);
   OK(buf_t1->append("012", empty_ap, 3) == 3); // w > r, wrap
   // 012*4567**#
-  OK(buf_t1->append((void*)"3", 1) == 1); // w < r
+  OK(buf_t1->append("3", 1) == 1);  // w < r
   // 01234567**#
   bytes = buf_t1->get(buf1, 10);
   buf1[bytes] = '\0';
@@ -786,7 +785,7 @@ TAPTEST(LogBuffer)
 
 
   // **********#
-  OK(buf_t1->append((void*)"012345678", 9) == 9);
+  OK(buf_t1->append("012345678", 9) == 9);
   // 012345678*#
   buf_t1->get(buf1, 4);
   // ****45678*#
@@ -796,7 +795,7 @@ TAPTEST(LogBuffer)
   // **********#
   buf1[8] = '\0';
   OK(strcmp(buf1, "4567890a") == 0);
-  OK(buf_t1->append((void*)"123", 0) == 0); // length zero
+  OK(buf_t1->append("123", 0) == 0);           // length zero
   OK(buf_t1->append("123", empty_ap, 0) == 0); // length zero
   assert(buf_t1->getSize() == 0);
   printf("Sub-test 8 OK\n");
@@ -804,9 +803,9 @@ TAPTEST(LogBuffer)
 
 
   // **********#
-  buf_t1->append((void*)"01234", 5);
+  buf_t1->append("01234", 5);
   // 01234*****#
-  buf_t1->append((void*)"56789", 5);
+  buf_t1->append("56789", 5);
   // 0123456789#
   OK(buf_t1->append("will fail", empty_ap, 9) == 0); // full log buffer
   // 0123456789#
@@ -824,23 +823,14 @@ TAPTEST(LogBuffer)
   struct NdbThread* log_threadvar1;
   struct NdbThread* prod_threadvar1;
   struct NdbThread* prod_threadvar2;
-  prod_threadvar1 = NdbThread_Create(thread_producer1,
-                       (void**)NULL,
-                       0,
-                       (char*)"thread_test1",
-                       NDB_THREAD_PRIO_MEAN);
+  prod_threadvar1 = NdbThread_Create(
+      thread_producer1, (void**)NULL, 0, "thread_test1", NDB_THREAD_PRIO_MEAN);
 
-  prod_threadvar2 = NdbThread_Create(thread_producer2,
-                         (void**)NULL,
-                         0,
-                         (char*)"thread_test2",
-                         NDB_THREAD_PRIO_MEAN);
+  prod_threadvar2 = NdbThread_Create(
+      thread_producer2, (void**)NULL, 0, "thread_test2", NDB_THREAD_PRIO_MEAN);
 
-  log_threadvar1 = NdbThread_Create(thread_consumer1,
-                     (void**)NULL,
-                     0,
-                     (char*)"thread_io1",
-                     NDB_THREAD_PRIO_MEAN);
+  log_threadvar1 = NdbThread_Create(
+      thread_consumer1, (void**)NULL, 0, "thread_io1", NDB_THREAD_PRIO_MEAN);
 
   NdbThread_WaitFor(prod_threadvar1, NULL);
   NdbThread_WaitFor(prod_threadvar2, NULL);
@@ -857,17 +847,11 @@ TAPTEST(LogBuffer)
 
   struct NdbThread* log_threadvar2;
   struct NdbThread* prod_threadvar3;
-  prod_threadvar3 = NdbThread_Create(thread_producer3,
-                         (void**)NULL,
-                         0,
-                         (char*)"thread_test3",
-                         NDB_THREAD_PRIO_MEAN);
+  prod_threadvar3 = NdbThread_Create(
+      thread_producer3, (void**)NULL, 0, "thread_test3", NDB_THREAD_PRIO_MEAN);
 
-  log_threadvar2 = NdbThread_Create(thread_consumer2,
-                     (void**)NULL,
-                     0,
-                     (char*)"thread_io2",
-                     NDB_THREAD_PRIO_MEAN);
+  log_threadvar2 = NdbThread_Create(
+      thread_consumer2, (void**)NULL, 0, "thread_io2", NDB_THREAD_PRIO_MEAN);
   NdbThread_WaitFor(prod_threadvar3, NULL);
   stop_t3 = true;
   NdbThread_WaitFor(log_threadvar2, NULL);

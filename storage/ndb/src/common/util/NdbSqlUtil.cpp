@@ -475,7 +475,7 @@ NdbSqlUtil::cmpChar(const void* info, const void* p1, unsigned n1, const void* p
   assert(info != 0 && n1 == n2);
   const uchar* v1 = (const uchar*)p1;
   const uchar* v2 = (const uchar*)p2;
-  CHARSET_INFO* cs = (CHARSET_INFO*)info;
+  const CHARSET_INFO* cs = (const CHARSET_INFO*)info;
 
   // Comparing with a NO_PAD collation requires trailing spaces to be stripped.
   if (cs->pad_attribute == NO_PAD)
@@ -496,7 +496,7 @@ NdbSqlUtil::cmpVarchar(const void* info, const void* p1, unsigned n1, const void
   uint m1 = v1[0];
   uint m2 = v2[0];
   require(lb + m1 <= n1 && lb + m2 <= n2);
-  CHARSET_INFO* cs = (CHARSET_INFO*)info;
+  const CHARSET_INFO* cs = (const CHARSET_INFO*)info;
   // compare with space padding
   return (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2);
 }
@@ -673,7 +673,7 @@ NdbSqlUtil::cmpLongvarchar(const void* info, const void* p1, unsigned n1, const 
   uint m1 = v1[0] | (v1[1] << 8);
   uint m2 = v2[0] | (v2[1] << 8);
   require(lb + m1 <= n1 && lb + m2 <= n2);
-  CHARSET_INFO* cs = (CHARSET_INFO*)info;
+  const CHARSET_INFO* cs = (const CHARSET_INFO*)info;
   // compare with space padding
   return (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2);
 }
@@ -751,7 +751,7 @@ NdbSqlUtil::likeChar(const void* info, const void* p1, unsigned n1, const void* 
 {
   const char* v1 = (const char*)p1;
   const char* v2 = (const char*)p2;
-  CHARSET_INFO* cs = (CHARSET_INFO*)(info);
+  const CHARSET_INFO* cs = (const CHARSET_INFO*)(info);
   // strip end spaces to match (incorrect) MySQL behaviour
   n1 = (unsigned)(*cs->cset->lengthsp)(cs, v1, n1);
   int k = (*cs->coll->wildcmp)(cs, v1, v1 + n1, v2, v2 + n2, ndb_wild_prefix, ndb_wild_one, ndb_wild_many);
@@ -777,7 +777,7 @@ NdbSqlUtil::likeVarchar(const void* info, const void* p1, unsigned n1, const voi
     if (lb + m1 <= n1) {
       const char* w1 = (const char*)v1 + lb;
       const char* w2 = (const char*)v2;
-      CHARSET_INFO* cs = (CHARSET_INFO*)(info);
+      const CHARSET_INFO* cs = (const CHARSET_INFO*)(info);
       int k = (*cs->coll->wildcmp)(cs, w1, w1 + m1, w2, w2 + m2, ndb_wild_prefix, ndb_wild_one, ndb_wild_many);
       return k == 0 ? 0 : +1;
     }
@@ -804,7 +804,7 @@ NdbSqlUtil::likeLongvarchar(const void* info, const void* p1, unsigned n1, const
     if (lb + m1 <= n1) {
       const char* w1 = (const char*)v1 + lb;
       const char* w2 = (const char*)v2;
-      CHARSET_INFO* cs = (CHARSET_INFO*)(info);
+      const CHARSET_INFO* cs = (const CHARSET_INFO*)(info);
       int k = (*cs->coll->wildcmp)(cs, w1, w1 + m1, w2, w2 + m2, ndb_wild_prefix, ndb_wild_one, ndb_wild_many);
       return k == 0 ? 0 : +1;
     }
