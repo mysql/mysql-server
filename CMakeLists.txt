@@ -2148,6 +2148,7 @@ IF(NOT WITHOUT_SERVER AND WITH_UNIT_TESTS)
       sql_main
       ${MYSQLD_STATIC_PLUGIN_LIBS}
       minchassis
+      ${ICU_LIBRARIES}
       # Import some core symbols. Other symbols needed by the unit test
       # executables are pulled in transitively by symbol dependencies.
       #
@@ -2182,6 +2183,7 @@ IF(NOT WITHOUT_SERVER AND WITH_UNIT_TESTS)
     TARGET_LINK_LIBRARIES(server_unittest_library perfschema)
     TARGET_LINK_LIBRARIES(server_unittest_library sql_main)
     TARGET_LINK_LIBRARIES(server_unittest_library minchassis)
+    TARGET_LINK_LIBRARIES(server_unittest_library ${ICU_LIBRARIES})
   ENDIF()
 ENDIF()
 
