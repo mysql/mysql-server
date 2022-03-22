@@ -120,6 +120,7 @@ class HypergraphTestBase : public Parent {
     for (const auto &name_and_table : m_fake_tables) {
       destroy(name_and_table.second);
     }
+    m_fake_tables.clear();
   }
   handlerton *EnableSecondaryEngine(bool aggregation_is_unordered);
 
@@ -145,17 +146,24 @@ Query_block *HypergraphTestBase<T>::ParseAndResolve(const char *query,
        tl = tl->next_global) {
     // If we already have created a fake table with this name (for example to
     // get columns of specific types), use that one. Otherwise, create a new one
-    // with two integer columns.
-    Fake_TABLE *fake_table = m_fake_tables.count(tl->alias) == 0
-                                 ? new (m_thd->mem_root)
-                                       Fake_TABLE(/*num_columns=*/4, nullable)
-                                 : m_fake_tables[tl->alias];
+    // with four integer columns.
+    Fake_TABLE *&fake_table = m_fake_tables[tl->alias];
+    if (fake_table == nullptr) {
+      List<Field> fields;
+      for (const char *field_name : {"x", "y", "z", "w"}) {
+        fields.push_back(new (m_thd->mem_root) Mock_field_long(
+            field_name, nullable, /*is_unsigned=*/false));
+      }
+      fake_table = new (m_thd->mem_root) Fake_TABLE(fields);
+    }
     fake_table->alias = tl->alias;
     fake_table->pos_in_table_list = tl;
+    fake_table->s->db = {tl->db, tl->db_length};
+    fake_table->s->table_name = {tl->table_name, tl->table_name_length};
     tl->table = fake_table;
     tl->set_tableno(num_tables++);
     tl->set_updatable();
-    m_fake_tables[tl->alias] = fake_table;
+    tl->grant.privilege = ~0UL;
   }
 
   // Find all Item_field objects, and resolve them to fields in the fake tables.
@@ -208,20 +216,6 @@ Query_block *HypergraphTestBase<T>::ParseAndResolve(const char *query,
   }
 
   query_block->prepare(m_thd, nullptr);
-
-  // Give the fields proper names, for easier reading of index lookups (refs).
-  // Sadly, this must come after resolving, or we get into lots of trouble
-  // with ACL checking and similar.
-  for (TABLE_LIST *tl = query_block->get_table_list(); tl != nullptr;
-       tl = tl->next_global) {
-    TABLE *table = tl->table;
-    if (table->s->fields == 4) {
-      table->field[0]->field_name = "x";
-      table->field[1]->field_name = "y";
-      table->field[2]->field_name = "z";
-      table->field[3]->field_name = "w";
-    }
-  }
 
   // Create a fake, tiny JOIN. (This would normally be done in optimization.)
   query_block->join = new (m_thd->mem_root) JOIN(m_thd, query_block);
@@ -2019,6 +2013,7 @@ TEST_F(HypergraphOptimizerTest, AntiJoinGetsSameEstimateWithAndWithoutIndex) {
     }
 
     query_block->cleanup(m_thd, /*full=*/true);
+    DestroyFakeTables();
   }
 }
 
@@ -4060,6 +4055,7 @@ TEST_F(HypergraphOptimizerTest, IndexMergePrefersNonCPKToOrderByPrimaryKey) {
     }
 
     query_block->cleanup(m_thd, /*full=*/true);
+    DestroyFakeTables();
   }
 }
 
