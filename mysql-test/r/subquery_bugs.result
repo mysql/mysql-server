@@ -2008,3 +2008,89 @@ LEFT JOIN t1 AS t3 ON (t2.a = t3.a OR 0 IN ( SELECT REGEXP_LIKE(a, '') FROM t1 )
 1
 1
 DROP TABLE t1;
+# Bug#33952115: Semijoin may give wrong result
+CREATE TABLE t1(c0 int);
+INSERT INTO t1 VALUES(NULL), (1), (NULL), (2), (NULL), (3);
+explain SELECT t1.c0 AS ref0
+FROM t1
+WHERE t1.c0 IN (SELECT t2.c0 AS ref1
+FROM t1 as t2
+WHERE t2.c0 NOT IN (SELECT t3.c0 AS ref2
+FROM t1 as t3
+WHERE t3.c0
+)
+= t2.c0
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (hash join)
+2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
+3	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	6	83.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c0` AS `ref0` from `test`.`t1` semi join (`test`.`t1` `t2`) where ((`test`.`t1`.`c0` = `<subquery2>`.`ref1`) and (<in_optimizer>(`test`.`t2`.`c0`,`test`.`t2`.`c0` not in ( <materialize> (/* select#3 */ select `test`.`t3`.`c0` AS `ref2` from `test`.`t1` `t3` where (0 <> `test`.`t3`.`c0`) having true ), <primary_index_lookup>(`test`.`t2`.`c0` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`c0` = `<materialized_subquery>`.`ref2`))))) = `test`.`t2`.`c0`))
+SELECT t1.c0 AS ref0
+FROM t1
+WHERE t1.c0 IN (SELECT t2.c0 AS ref1
+FROM t1 as t2
+WHERE t2.c0 NOT IN (SELECT t3.c0 AS ref2
+FROM t1 as t3
+WHERE t3.c0
+)
+= t2.c0
+);
+ref0
+DROP TABLE t1;
+# Bug#33957233: Incorrect inner hash join when using materialization
+CREATE TABLE t0 (
+c0 INTEGER
+);
+INSERT INTO t0 VALUES
+(321108437), (-64596961), (329053785), (1983), (NULL), (NULL),
+(1936), (-543970881), (NULL), (NULL), (-1945919442), (NULL), (1230052719);
+explain SELECT t0.c0
+FROM t0
+WHERE t0.c0 NOT IN (SELECT t0.c0 AS ref1
+FROM t0
+WHERE t0.c0 IN (SELECT t0.c0
+FROM t0
+WHERE t0.c0 NOT IN (SELECT t0.c0 AS ref3
+FROM t0
+)
+= t0.c0
+)
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t0	NULL	ALL	NULL	NULL	NULL	NULL	13	100.00	Using where
+2	SUBQUERY	<subquery3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
+2	SUBQUERY	t0	NULL	ALL	NULL	NULL	NULL	NULL	13	10.00	Using where; Using join buffer (hash join)
+3	MATERIALIZED	t0	NULL	ALL	NULL	NULL	NULL	NULL	13	10.00	Using where
+4	SUBQUERY	t0	NULL	ALL	NULL	NULL	NULL	NULL	13	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`c0` AS `c0` from `test`.`t0` where <in_optimizer>(`test`.`t0`.`c0`,`test`.`t0`.`c0` in ( <materialize> (/* select#2 */ select `test`.`t0`.`c0` AS `ref1` from `test`.`t0` semi join (`test`.`t0`) where ((<in_optimizer>(`test`.`t0`.`c0`,`test`.`t0`.`c0` not in ( <materialize> (/* select#4 */ select `test`.`t0`.`c0` AS `ref3` from `test`.`t0` where true having true ), <primary_index_lookup>(`test`.`t0`.`c0` in <temporary table> on <auto_distinct_key> where ((`test`.`t0`.`c0` = `<materialized_subquery>`.`ref3`))))) = `test`.`t0`.`c0`) and (`test`.`t0`.`c0` = `<subquery3>`.`c0`)) having true ), <primary_index_lookup>(`test`.`t0`.`c0` in <temporary table> on <auto_distinct_key> where ((`test`.`t0`.`c0` = `<materialized_subquery>`.`ref1`)))) is false)
+SELECT t0.c0
+FROM t0
+WHERE t0.c0 NOT IN (SELECT t0.c0 AS ref1
+FROM t0
+WHERE t0.c0 IN (SELECT t0.c0
+FROM t0
+WHERE t0.c0 NOT IN (SELECT t0.c0 AS ref3
+FROM t0
+)
+= t0.c0
+)
+);
+c0
+321108437
+-64596961
+329053785
+1983
+NULL
+NULL
+1936
+-543970881
+NULL
+NULL
+-1945919442
+NULL
+1230052719
+DROP TABLE t0;

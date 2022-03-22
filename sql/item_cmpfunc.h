@@ -889,6 +889,11 @@ class Item_func_trig_cond final : public Item_bool_func {
     Item_bool_func::update_used_tables();
     add_trig_func_tables();
   }
+  void fix_after_pullout(Query_block *parent_query_block,
+                         Query_block *removed_query_block) override {
+    Item_bool_func::fix_after_pullout(parent_query_block, removed_query_block);
+    add_trig_func_tables();
+  }
   const JOIN *get_join() const { return m_join; }
   enum enum_trig_type get_trig_type() const { return trig_type; }
   bool *get_trig_var() { return trig_var; }

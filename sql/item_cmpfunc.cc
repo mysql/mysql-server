@@ -7390,6 +7390,10 @@ Item *Item_equal::equality_substitution_transformer(uchar *arg) {
 Item *Item_func_eq::equality_substitution_transformer(uchar *arg) {
   TABLE_LIST *sj_nest = reinterpret_cast<TABLE_LIST *>(arg);
 
+  // Skip if equality can be processed during materialization
+  if (((used_tables() & ~INNER_TABLE_BIT) & ~sj_nest->sj_inner_tables) == 0) {
+    return this;
+  }
   // Iterate over the fields selected from the subquery
   uint fieldno = 0;
   for (Item *existing : sj_nest->nested_join->sj_inner_exprs) {
