@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -329,6 +329,17 @@ void Plugin_gcs_events_handler::handle_recovery_message(
     */
     group_member_mgr->update_member_status(
         member_uuid, Group_member_info::MEMBER_ONLINE, m_notification_ctx);
+
+    /*
+     Take View_change_log_event transaction into account, that
+     despite being queued on applier channel was applied through
+     recovery channel.
+    */
+    if (group_member_mgr->get_number_of_members() != 1) {
+      Pipeline_stats_member_collector *pipeline_stats =
+          applier_module->get_pipeline_stats_member_collector();
+      pipeline_stats->decrement_transactions_waiting_apply();
+    }
 
     /*
       unblock threads waiting for the member to become ONLINE

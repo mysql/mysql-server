@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -145,6 +145,10 @@ void Certifier_broadcast_thread::dispatcher() {
     if (broadcast_counter % 30 == 0) {
       applier_module->get_pipeline_stats_member_collector()
           ->set_send_transaction_identifiers();
+      if (applier_module->is_applier_thread_waiting()) {
+        applier_module->get_pipeline_stats_member_collector()
+            ->clear_transactions_waiting_apply();
+      }
     }
 
     applier_module->run_flow_control_step();
