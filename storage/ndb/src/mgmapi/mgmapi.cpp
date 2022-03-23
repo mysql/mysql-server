@@ -46,6 +46,7 @@
 #include <ndb_base64.h>
 #include <ndb_limits.h>
 #include <EventLogger.hpp>
+#include <memory>
 
 //#define MGMAPI_LOG
 #define MGM_CMD(name, fun, desc) \
@@ -1208,10 +1209,10 @@ status_ackumulate2(struct ndb_mgm_node_state2 * state,
 static int
 cmp_state(const void *_a, const void *_b) 
 {
-  struct ndb_mgm_node_state *a, *b;
+  const struct ndb_mgm_node_state *a, *b;
 
-  a = (struct ndb_mgm_node_state *)_a;
-  b = (struct ndb_mgm_node_state *)_b;
+  a = (const struct ndb_mgm_node_state *)_a;
+  b = (const struct ndb_mgm_node_state *)_b;
 
   if (a->node_id > b->node_id)
     return 1;
@@ -3895,20 +3896,22 @@ ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)
     DBUG_RETURN(-1);
   }
 
-  BaseString encoded;
   const uint64 encoded_length = base64_needed_encoded_length(buf.length());
   require(encoded_length > 0);  // Always need room for null termination
-  if (encoded_length > INT_MAX || encoded_length > UINT32_MAX)
+  if (encoded_length > UINT32_MAX)
   {
     SET_ERROR(h, NDB_MGM_CONFIG_CHANGE_FAILED, "Too big configuration");
     DBUG_RETURN(-1);
   }
+  std::unique_ptr<char[]> encoded(new (std::nothrow) char[encoded_length]);
+  if (!encoded)
+  {
+    SET_ERROR(h, NDB_MGM_OUT_OF_MEMORY, "Too big configuration");
+    DBUG_RETURN(-1);
+  }
+  (void)base64_encode(buf.get_data(), buf.length(), encoded.get());
 
-  encoded.assfmt("%*s", (int)(encoded_length - 1), "Z");
-  (void) base64_encode(buf.get_data(), buf.length(), (char*)encoded.c_str());
-
-  assert(strlen(encoded.c_str()) == encoded.length());
-  assert(encoded.length() == encoded_length - 1);
+  assert(strlen(encoded.get()) == encoded_length - 1);
 
   Properties args;
   args.put("Content-Length", (Uint32)(encoded_length - 1));
@@ -3923,8 +3926,7 @@ ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)
 
   const Properties *reply;
   const char *cmd_str = v2 ? "set config_v2" : "set config";
-  reply= ndb_mgm_call(h, set_config_reply, cmd_str, &args,
-                      encoded.c_str());
+  reply = ndb_mgm_call(h, set_config_reply, cmd_str, &args, encoded.get());
   CHECK_REPLY(h, reply, -1);
 
   BaseString result;
