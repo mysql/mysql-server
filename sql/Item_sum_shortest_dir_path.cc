@@ -77,7 +77,7 @@ String *Item_sum_shortest_dir_path::val_str(String *str) {
   const THD *thd = base_query_block->parent_lex->thd;
   if (thd->is_error()) return error_str();
 
-  Json_array *arr = new (std::nothrow) Json_array();
+  Json_array_ptr arr(new (std::nothrow) Json_array());
   Dijkstra dijkstra(&m_edge_map);
   double cost;
   // jsonifying path from dijkstra into arr
@@ -89,12 +89,12 @@ String *Item_sum_shortest_dir_path::val_str(String *str) {
       json_edge->add_alias("cost", jsonify_to_heap(edge->cost)) ||
       //json_edge->add_alias("from", jsonify_to_heap(edge->from)) ||
       //json_edge->add_alias("to", jsonify_to_heap(edge->to)) ||
-      arr->append_alias(Json_dom_ptr(std::move(json_edge))))
+      arr->append_alias(std::move(json_edge)))
         return error_str();
   }
   // inserting path and path cost into m_json_obj (which is wrapped into m_wrapper in clear())
   if (
-    m_json_obj.add_alias("path", arr) ||
+    m_json_obj.add_alias("path", std::move(arr)) ||
     m_json_obj.add_alias("cost", jsonify_to_heap(cost)))
       return error_str();
 
