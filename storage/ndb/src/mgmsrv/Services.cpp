@@ -989,21 +989,23 @@ MgmApiSession::restart(Properties const &args, int version) {
     nostart = 0,
     initialstart = 0,
     abort = 0, force = 0;
-  char *nodes_str;
+  const char *nodes_str;
   Vector<NodeId> nodes;
     
   args.get("initialstart", &initialstart);
   args.get("nostart", &nostart);
   args.get("abort", &abort);
-  args.get("node", (const char **)&nodes_str);
+  args.get("node", &nodes_str);
   args.get("force", &force);
 
   char *p, *last;
-  for((p = my_strtok_r(nodes_str, " ", &last));
-      p;
-      (p = my_strtok_r(NULL, " ", &last))) {
+  char *nodes_tmpstr = strdup(nodes_str);
+  for ((p = my_strtok_r(nodes_tmpstr, " ", &last)); p;
+       (p = my_strtok_r(nullptr, " ", &last)))
+  {
     nodes.push_back(atoi(p));
   }
+  free(nodes_tmpstr);
 
   int restarted = 0;
   int result= m_mgmsrv.restartNodes(nodes,
@@ -1224,10 +1226,10 @@ MgmApiSession::stop_v2(Parser<MgmApiSession>::Context &,
 void
 MgmApiSession::stop(Properties const &args, int version) {
   Uint32 abort, force = 0;
-  char *nodes_str;
+  const char *nodes_str;
   Vector<NodeId> nodes;
 
-  args.get("node", (const char **)&nodes_str);
+  args.get("node", &nodes_str);
   if(nodes_str == NULL)
   {
     m_output->println("stop reply");
@@ -1239,11 +1241,13 @@ MgmApiSession::stop(Properties const &args, int version) {
   args.get("force", &force);
 
   char *p, *last;
-  for((p = my_strtok_r(nodes_str, " ", &last));
-      p;
-      (p = my_strtok_r(NULL, " ", &last))) {
+  char *nodes_tmpstr = strdup(nodes_str);
+  for ((p = my_strtok_r(nodes_tmpstr, " ", &last)); p;
+       (p = my_strtok_r(nullptr, " ", &last)))
+  {
     nodes.push_back(atoi(p));
   }
+  free(nodes_tmpstr);
 
   int stopped= 0;
   int result= 0;

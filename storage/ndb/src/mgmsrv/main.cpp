@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -270,10 +270,10 @@ static void mgmd_run()
 
   // Create log thread which logs data to the mgmd local log.
   locallog_threadvar = NdbThread_Create(async_local_log_func,
-                       (void**)&thread_args,
-                       0,
-                       (char*)"async_local_log_thread",
-                       NDB_THREAD_PRIO_MEAN);
+                                        (void**)&thread_args,
+                                        0,
+                                        "async_local_log_thread",
+                                        NDB_THREAD_PRIO_MEAN);
 
   BufferedOutputStream* ndbouts_bufferedoutputstream = new BufferedOutputStream(logBufLocalLog);
 
