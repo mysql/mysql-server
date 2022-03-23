@@ -134,7 +134,6 @@ ENDIF()
 # Disable specific types of warnings for current directory, and subdirectories,
 # if the compiler supports the flag
 FOREACH(warning
-    "cast-qual"
     )
   MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)

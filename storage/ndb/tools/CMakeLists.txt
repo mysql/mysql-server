@@ -25,6 +25,7 @@ INCLUDE(ndb_downgrade_warnings)
 # Disable specific types of warnings for current directory
 # if the compiler supports the flag
 FOREACH(warning
+    "error=cast-qual"
     # Downgrade -Werror=implicit-fallthrough to warning for
     # NdbImportCsvGram.cpp
     "error=implicit-fallthrough"

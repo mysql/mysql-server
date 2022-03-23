@@ -32,6 +32,7 @@ IF(CMAKE_COMPILER_IS_GNUCXX
 ENDIF()
 
 FOREACH(warning
+    "error=cast-qual"
     # Warnings in Dbtup.hpp
     "error=class-memaccess"
     )
