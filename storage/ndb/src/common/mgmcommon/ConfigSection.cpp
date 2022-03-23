@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,7 +113,7 @@ void ConfigSection::free_entry(Entry *entry)
   if (entry->m_type == StringTypeId)
   {
     DEB_MALLOC(("this(%p)free(%u) => %p",this,__LINE__,entry->m_string));
-    free((void*)entry->m_string);
+    free(const_cast<char *>(entry->m_string));
   }
   delete entry;
 }
@@ -847,7 +847,7 @@ bool ConfigSection::set_string(Entry *update_entry,
     if (free_string)
     {
       DEB_MALLOC(("free(%u) => %p", __LINE__, free_str));
-      free((void*)free_str);
+      free(const_cast<char *>(free_str));
     }
   }
   return true;
