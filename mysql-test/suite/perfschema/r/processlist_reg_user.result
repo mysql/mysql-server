@@ -15,6 +15,9 @@ SELECT USER, INFO FROM performance_schema.processlist;
 USER	INFO
 regular	SELECT USER, INFO FROM performance_schema.processlist
 SHOW PROCESSLIST;
+SELECT "Previous statement is now completed." as status;
+status
+Previous statement is now completed.
 SELECT EVENT_NAME, SQL_TEXT, ROWS_SENT as BROKEN_ROWS_SENT
 FROM performance_schema.events_statements_history
 WHERE SQL_TEXT = "SHOW PROCESSLIST";
@@ -32,6 +35,9 @@ SELECT USER, INFO FROM performance_schema.processlist;
 USER	INFO
 regular	SELECT USER, INFO FROM performance_schema.processlist
 SHOW PROCESSLIST;
+SELECT "Previous statement is now completed." as status;
+status
+Previous statement is now completed.
 SELECT EVENT_NAME, SQL_TEXT, ROWS_SENT
 FROM performance_schema.events_statements_history
 WHERE SQL_TEXT = "SHOW PROCESSLIST";
@@ -50,6 +56,9 @@ SELECT count(*) >= 2 FROM performance_schema.processlist;
 count(*) >= 2
 1
 SHOW PROCESSLIST;
+SELECT "Previous statement is now completed." as status;
+status
+Previous statement is now completed.
 SELECT EVENT_NAME, SQL_TEXT, ROWS_SENT as BROKEN_ROWS_SENT
 FROM performance_schema.events_statements_history
 WHERE SQL_TEXT = "SHOW PROCESSLIST";
@@ -67,6 +76,9 @@ SELECT count(*) >= 2 FROM performance_schema.processlist;
 count(*) >= 2
 1
 SHOW PROCESSLIST;
+SELECT "Previous statement is now completed." as status;
+status
+Previous statement is now completed.
 SELECT EVENT_NAME, SQL_TEXT, ROWS_SENT >= 2
 FROM performance_schema.events_statements_history
 WHERE SQL_TEXT = "SHOW PROCESSLIST";

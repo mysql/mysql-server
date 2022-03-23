@@ -29,6 +29,8 @@ SELECT USER, INFO FROM performance_schema.processlist;
 SHOW PROCESSLIST;
 --enable_result_log
 
+SELECT "Previous statement is now completed." as status;
+
 connection default;
 
 # Returns ROWS_SENT = 0 even when SHOW PROCESSLIST has rows
@@ -53,6 +55,8 @@ SELECT USER, INFO FROM performance_schema.processlist;
 --disable_result_log
 SHOW PROCESSLIST;
 --enable_result_log
+
+SELECT "Previous statement is now completed." as status;
 
 connection default;
 
@@ -83,6 +87,8 @@ SELECT count(*) >= 2 FROM performance_schema.processlist;
 SHOW PROCESSLIST;
 --enable_result_log
 
+SELECT "Previous statement is now completed." as status;
+
 connection default;
 
 # Returns ROWS_SENT = 0 even when SHOW PROCESSLIST has rows
@@ -107,6 +113,8 @@ SELECT count(*) >= 2 FROM performance_schema.processlist;
 --disable_result_log
 SHOW PROCESSLIST;
 --enable_result_log
+
+SELECT "Previous statement is now completed." as status;
 
 connection default;
 
