@@ -1578,10 +1578,9 @@ THRConfig::getInfoMessage() const
   return m_info_msg.c_str();
 }
 
-int
-THRConfig::handle_spec(char *str,
-                       unsigned realtime,
-                       unsigned spintime)
+int THRConfig::handle_spec(const char* str,
+                           unsigned realtime,
+                           unsigned spintime)
 {
   ParseThreadConfiguration parser(str,
                                   &m_parse_entries[0],
@@ -1803,9 +1802,7 @@ THRConfig::do_parse(const char * ThreadConfig,
                     unsigned &num_rr_groups,
                     bool check)
 {
-  BaseString str(ThreadConfig);
-  char * ptr = (char*)str.c_str();
-  int ret = handle_spec(ptr, realtime, spintime);
+  int ret = handle_spec(ThreadConfig, realtime, spintime);
   if (ret != 0)
     return ret;
 
