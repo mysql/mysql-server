@@ -9,8 +9,6 @@ class Item_sum_shortest_dir_path final : public Item_sum_json {
   int m_begin_node, m_end_node;
   // * accumulated edges from ::add. map key = node id of edge origin (i.e. Edge.from)
   std::unordered_multimap<int, const Edge*> m_edge_map;
-  // root json_dom in m_wrapper (not needed before val_str(), but allocated as a member for consistency)
-  Json_object m_json_obj;
  public:
  /**
   * @brief Construct a new Item_sum_shortest_dir_path object
@@ -26,8 +24,10 @@ class Item_sum_shortest_dir_path final : public Item_sum_json {
    * 
    * @param pos 
    * @param args 
-   * @param w 
+   * @param w
    * @param wrapper
+   * ! wrapper not needed
+   * TODO inherit from Item_sum?
    */
   Item_sum_shortest_dir_path(const POS &pos, PT_item_list *args, PT_window *w,
                        unique_ptr_destroy_only<Json_wrapper> wrapper);

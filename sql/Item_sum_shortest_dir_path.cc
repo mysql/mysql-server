@@ -67,14 +67,10 @@ Item_sum_shortest_dir_path::Item_sum_shortest_dir_path(
     : Item_sum_json(std::move(wrapper), pos, args, w) {}
 
 bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
-  assert(false);
-
-  return Item_sum_json::val_json(wr);
-}
-String *Item_sum_shortest_dir_path::val_str(String *str) {
   assert(!m_is_window_function);
 
   Json_array_ptr arr(new (std::nothrow) Json_array());
+  if (arr == nullptr) return true;
   Dijkstra dijkstra(&m_edge_map);
   double cost;
   // jsonifying path from dijkstra into arr
@@ -87,16 +83,29 @@ String *Item_sum_shortest_dir_path::val_str(String *str) {
       //json_edge->add_alias("from", jsonify_to_heap(edge->from)) ||
       //json_edge->add_alias("to", jsonify_to_heap(edge->to)) ||
       arr->append_alias(std::move(json_edge)))
-        return error_str();
+        return true;
   }
-  // inserting path and path cost into m_json_obj (which is wrapped into m_wrapper in clear())
+  // inserting path and cost into obj
+  Json_object_ptr obj = Json_object_ptr(new (std::nothrow) Json_object());
   if (
-    m_json_obj.add_alias("path", std::move(arr)) ||
-    m_json_obj.add_alias("cost", jsonify_to_heap(cost)))
-      return error_str();
+    obj == nullptr ||
+    obj->add_alias("path", std::move(arr)) ||
+    obj->add_alias("cost", jsonify_to_heap(cost)))
+      return true;
+
+  *wr = Json_wrapper(std::move(obj));
+  return false;
+}
+String *Item_sum_shortest_dir_path::val_str(String *str) {
+  assert(!m_is_window_function);
+
+  Json_wrapper wr;
+  if (val_json(&wr))
+    return error_str();
 
   str->length(0);
-  if (m_wrapper->to_string(str, true, func_name())) return error_str();
+  if (wr.to_string(str, true, func_name()))
+    return error_str();
 
   if(aggr) aggr->endup();
 
@@ -106,11 +115,7 @@ String *Item_sum_shortest_dir_path::val_str(String *str) {
 void Item_sum_shortest_dir_path::clear() {
   null_value = true;
 
-  m_json_obj.clear();
   m_edge_map.clear();
-
-  // insert m_json_obj into m_wrapper, but keep the ownership
-  *m_wrapper = Json_wrapper(&m_json_obj, true);
 }
 
 bool Item_sum_shortest_dir_path::add() {
