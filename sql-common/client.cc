@@ -227,6 +227,31 @@ static int read_one_row(MYSQL *mysql, uint fields, MYSQL_ROW row,
 static net_async_status read_one_row_nonblocking(MYSQL *mysql, uint fields,
                                                  MYSQL_ROW row, ulong *lengths,
                                                  int *res);
+/**
+ Free async_qp_data buffer in async_context.
+
+ @param async_context pointer to asynchronous context structure
+*/
+void inline free_async_qp_data(MYSQL_ASYNC *async_context) {
+  if (async_context->async_qp_data) {
+    my_free(async_context->async_qp_data);
+    async_context->async_qp_data = nullptr;
+    async_context->async_qp_data_length = 0;
+  }
+}
+
+/**
+ Set async_context to idle status, free async_qp_data buffer.
+
+ @param async_context pointer to asynchronous context structure
+*/
+void inline set_query_idle(MYSQL_ASYNC *async_context) {
+  async_context->async_op_status = ASYNC_OP_UNSET;
+  async_context->async_query_state = QUERY_IDLE;
+  async_context->async_query_length = 0;
+  DBUG_PRINT("async", ("set state=%d", async_context->async_query_state));
+  free_async_qp_data(async_context);
+}
 
 /**
   Convert the connect timeout option to a timeout value for VIO
@@ -7813,10 +7838,7 @@ net_async_status STDCALL mysql_send_query_nonblocking(MYSQL *mysql,
     if (mysql_prepare_com_query_parameters(
             mysql, &async_context->async_qp_data,
             &async_context->async_qp_data_length)) {
-      async_context->async_op_status = ASYNC_OP_UNSET;
-      async_context->async_query_state = QUERY_IDLE;
-      async_context->async_query_length = 0;
-      DBUG_PRINT("async", ("set state=%d", async_context->async_query_state));
+      set_query_idle(async_context);
       return NET_ASYNC_ERROR;
     }
   }
@@ -7826,10 +7848,7 @@ net_async_status STDCALL mysql_send_query_nonblocking(MYSQL *mysql,
   if (ret == NET_ASYNC_NOT_READY)
     return ret;
   else if (ret == NET_ASYNC_ERROR) {
-    async_context->async_op_status = ASYNC_OP_UNSET;
-    async_context->async_query_state = QUERY_IDLE;
-    DBUG_PRINT("async", ("set state=%d", async_context->async_query_state));
-    async_context->async_query_length = 0;
+    set_query_idle(async_context);
     return ret;
   }
 
@@ -7841,11 +7860,7 @@ net_async_status STDCALL mysql_send_query_nonblocking(MYSQL *mysql,
     advanced_command. But since advanced_command() requires these we
     keep them as they are.
   */
-  if (async_context->async_qp_data) {
-    my_free(async_context->async_qp_data);
-    async_context->async_qp_data = nullptr;
-    async_context->async_qp_data_length = 0;
-  }
+  free_async_qp_data(async_context);
   return ret;
 }
 
