@@ -585,15 +585,20 @@ static Item *AddCachesAroundConstantConditions(Item *item) {
  */
 bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block) {
   assert(query_block->join->needs_finalize);
+  query_block->join->needs_finalize = false;
 
   AccessPath *const root_path = query_block->join->root_access_path();
   assert(root_path != nullptr);
+  if (root_path->type == AccessPath::EQ_REF) {
+    // None of the finalization below is relevant to point selects, so just
+    // return immediately.
+    return false;
+  }
 
   // If the query is offloaded to an external executor, we don't need to create
   // the internal temporary tables or filesort objects, or rewrite the Item tree
   // to point into them.
   if (!IteratorsAreNeeded(thd, root_path)) {
-    query_block->join->needs_finalize = false;
     return false;
   }
 
@@ -715,7 +720,6 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block) {
     base_fields->pop_front();
   }
 
-  query_block->join->needs_finalize = false;
   if (query_block->join->push_to_engines()) return true;
 
   thd->lex->set_current_query_block(old_query_block);
