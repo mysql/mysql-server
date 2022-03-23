@@ -3,18 +3,21 @@
 
 #include "sql/item_sum.h"
 #include "sql/Dijkstras_functor.h"
+#include "sql/json_dom.h"
 
 class Item_sum_shortest_dir_path final : public Item_sum_json {
   int m_begin_node, m_end_node;
   // accumulated edges from ::add. map key = node id of edge origin (i.e. Edge.from)
   std::unordered_multimap<int, const Edge*> m_edge_map;
+  // root json_dom in m_wrapper (not needed before val_str(), but allocated as a member for consistency)
+  Json_object m_json_obj;
  public:
  /**
   * @brief Construct a new Item_sum_shortest_dir_path object
   * 
   * @param thd 
   * @param item 
-  * @param wrapper must contain Json_object
+  * @param wrapper
   */
   Item_sum_shortest_dir_path(THD *thd, Item_sum *item,
                        unique_ptr_destroy_only<Json_wrapper> wrapper);
@@ -24,7 +27,7 @@ class Item_sum_shortest_dir_path final : public Item_sum_json {
    * @param pos 
    * @param args 
    * @param w 
-   * @param wrapper must contain Json_object
+   * @param wrapper
    */
   Item_sum_shortest_dir_path(const POS &pos, PT_item_list *args, PT_window *w,
                        unique_ptr_destroy_only<Json_wrapper> wrapper);
@@ -72,16 +75,16 @@ class Item_sum_shortest_dir_path final : public Item_sum_json {
    * @brief allocates Json_int on heap with given value
    * 
    * @param i value
-   * @return Json_dom* ptr to Json_int
+   * @return Json_dom_ptr to Json_int
    */
-  inline Json_dom *jsonify_to_heap(const int& i);
+  inline Json_dom_ptr jsonify_to_heap(const int& i);
   /**
    * @brief allocates Json_double on heap with given value
    * 
    * @param d value
-   * @return Json_dom* ptr to Json_double
+   * @return Json_dom_ptr to Json_double
    */
-  inline Json_dom *jsonify_to_heap(const double& d);
+  inline Json_dom_ptr jsonify_to_heap(const double& d);
 };
 
 #endif /* ITEM_SUM_SHORTEST_DIR_PATH_INCLUDED */

@@ -33,7 +33,6 @@
 #include "sql/item_func.h"
 #include "sql/item_json_func.h"
 #include "sql/item_subselect.h"
-#include "sql/json_dom.h"
 #include "sql/key_spec.h"
 #include "sql/mysqld.h"
 #include "sql/parse_tree_helpers.h"    // PT_item_list
@@ -83,18 +82,21 @@ String *Item_sum_shortest_dir_path::val_str(String *str) {
   double cost;
   // jsonifying path from dijkstra into arr
   for (const Edge* edge : dijkstra(m_begin_node, m_end_node, cost)) {
-    Json_object *json_edge = new (std::nothrow) Json_object();
-    if (json_edge->add_alias("id", jsonify_to_heap(edge->id)) ||
-        json_edge->add_alias("cost", jsonify_to_heap(edge->cost)) ||
-        arr->append_alias(json_edge))
-          return error_str();
-
-  }
-  // inserting path and path cost into m_wrapper
-  Json_object *object = down_cast<Json_object *>(m_wrapper->to_dom(thd));
-  if( object->add_alias("path", arr) ||
-      object->add_alias("cost", jsonify_to_heap(cost)))
+    Json_object_ptr json_edge(new (std::nothrow) Json_object());
+    if (
+      json_edge == nullptr ||
+      json_edge->add_alias("id", jsonify_to_heap(edge->id)) ||
+      json_edge->add_alias("cost", jsonify_to_heap(edge->cost)) ||
+      //json_edge->add_alias("from", jsonify_to_heap(edge->from)) ||
+      //json_edge->add_alias("to", jsonify_to_heap(edge->to)) ||
+      arr->append_alias(Json_dom_ptr(std::move(json_edge))))
         return error_str();
+  }
+  // inserting path and path cost into m_json_obj (which is wrapped into m_wrapper in clear())
+  if (
+    m_json_obj.add_alias("path", arr) ||
+    m_json_obj.add_alias("cost", jsonify_to_heap(cost)))
+      return error_str();
 
   str->length(0);
   if (m_wrapper->to_string(str, true, func_name())) return error_str();
@@ -105,13 +107,13 @@ String *Item_sum_shortest_dir_path::val_str(String *str) {
 }
 
 void Item_sum_shortest_dir_path::clear() {
-  const THD *thd = base_query_block->parent_lex->thd;
-
   null_value = true;
 
+  m_json_obj.clear();
   m_edge_map.clear();
-  Json_object *object = down_cast<Json_object *>(m_wrapper->to_dom(thd));
-  object->clear();
+
+  // insert m_json_obj into m_wrapper, but keep the ownership
+  *m_wrapper = Json_wrapper(&m_json_obj, true);
 }
 
 bool Item_sum_shortest_dir_path::add() {
@@ -130,30 +132,44 @@ bool Item_sum_shortest_dir_path::add() {
   int id, from_id, to_id;
   double cost;
 
-  for (size_t i = 0; i <= 2; i++) verify_id_argument(args[i]);
-  verify_cost_argument(args[3]);
-  for (size_t i = 4; i <= 5; i++) verify_const_id_argument(args[i]);
+  // verify arg 0, 1, 2
+  for (size_t i = 0; i < 3; i++)
+    if (verify_id_argument(args[i]))
+      return true;
+  // verify arg 3
+  if (verify_cost_argument(args[3]))
+    return true;
+  // verify arg 4, 5 TODO: only once per agg
+  for (size_t i = 4; i < 6; i++)
+    if (verify_const_id_argument(args[i]))
+      return true;
 
+  // get data
   id = args[0]->val_int();
   from_id = args[1]->val_int();
   to_id = args[2]->val_int();
   cost = args[3]->val_real();
+  // TODO only once per agg
   m_begin_node = args[4]->val_int();
   m_end_node = args[5]->val_int();
+  
+  // catch any leftover type errors
   if (thd->is_error()) return true;
-  for (int i = 0; i < 4; i++) if (args[i]->null_value) return true;
+  for (int i = 0; i < 4; i++)
+    if (args[i]->null_value)
+      return true;
 
-  m_edge_map.insert(std::pair<int, const Edge*>(from_id, new (thd->mem_root) Edge{id, from_id, to_id, cost}));
+  // store edge
+  Edge *edge = new (thd->mem_root, std::nothrow) Edge{ id, from_id, to_id, cost };
+  if (edge == nullptr) return false;
+  m_edge_map.insert(std::pair(from_id, edge));
 
   return false;
 }
 
 Item *Item_sum_shortest_dir_path::copy_or_same(THD *thd) {
   assert(!m_is_window_function);
-  Json_object *object = ::new (thd->mem_root, std::nothrow) Json_object;
-  if (object == nullptr) return nullptr;
-  // object not owned (deallocated) by wrapper
-  auto wrapper = make_unique_destroy_only<Json_wrapper>(thd->mem_root, object, true);
+  auto wrapper = make_unique_destroy_only<Json_wrapper>(thd->mem_root);
   if (wrapper == nullptr) return nullptr;
   return new (thd->mem_root) Item_sum_shortest_dir_path(thd, this, std::move(wrapper));
 }
@@ -164,9 +180,7 @@ bool Item_sum_shortest_dir_path::check_wf_semantics1(THD *thd, Query_block *sele
 }
 
 inline bool Item_sum_shortest_dir_path::verify_const_id_argument(Item *item) {
-    if (!item->const_item() ||
-        (!item->is_null() &&
-         (item->result_type() != INT_RESULT))) {
+    if (!item->const_item() || item->is_null() || item->result_type() != INT_RESULT) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
       return true;
     }
@@ -174,24 +188,24 @@ inline bool Item_sum_shortest_dir_path::verify_const_id_argument(Item *item) {
 }
 
 inline bool Item_sum_shortest_dir_path::verify_id_argument(Item *item) {
-    if (!item->is_null() && (item->result_type() != INT_RESULT)) {
+    if (item->is_null() || item->result_type() != INT_RESULT) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
       return true;
-    } 
+    }
     return false;
 }
 
 inline bool Item_sum_shortest_dir_path::verify_cost_argument(Item *item) {
-  if (!item->is_null() && (item->result_type() != REAL_RESULT)) {
+  if (item->is_null() || item->result_type() != REAL_RESULT) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
       return true;
-    } 
+    }
     return false;
 }
 
-inline Json_dom *Item_sum_shortest_dir_path::jsonify_to_heap(const int& i) {
-  return new (std::nothrow) Json_int(i);
+inline Json_dom_ptr Item_sum_shortest_dir_path::jsonify_to_heap(const int& i) {
+  return Json_dom_ptr(new (std::nothrow) Json_int(i));
 }
-inline Json_dom *Item_sum_shortest_dir_path::jsonify_to_heap(const double& d) {
-  return new (std::nothrow) Json_double(d);
+inline Json_dom_ptr Item_sum_shortest_dir_path::jsonify_to_heap(const double& d) {
+  return Json_dom_ptr(new (std::nothrow) Json_double(d));
 }

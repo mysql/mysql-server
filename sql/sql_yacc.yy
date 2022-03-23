@@ -11107,10 +11107,7 @@ sum_expr:
           }
         | ST_SHORTEST_DIR_PATH_SYM '(' in_sum_expr ',' in_sum_expr ',' in_sum_expr ',' in_sum_expr ',' expr ',' expr ')' opt_windowing_clause
           {
-            Json_object *object = ::new (YYMEM_ROOT, std::nothrow) Json_object;
-            if (object == nullptr) YYABORT;
-            // object not owned (deallocated) by wrapper
-            auto wrapper = make_unique_destroy_only<Json_wrapper>(YYMEM_ROOT, object, true);
+            auto wrapper = make_unique_destroy_only<Json_wrapper>(YYMEM_ROOT);
             if (wrapper == nullptr) YYABORT;
             
             PT_item_list *args= NEW_PTN PT_item_list;
