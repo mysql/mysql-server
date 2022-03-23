@@ -64,10 +64,10 @@ BufferedLogHandler::BufferedLogHandler(LogHandler* dest_loghandler)
   thr_data->buf_loghandler = this;
 
   m_log_threadvar = NdbThread_Create(async_log_function,
-                   (void**)thr_data,
-                   0,
-                   (char*)"async_local_log_thread",
-                   NDB_THREAD_PRIO_MEAN);
+                                     (void**)thr_data,
+                                     0,
+                                     "async_local_log_thread",
+                                     NDB_THREAD_PRIO_MEAN);
   if (m_log_threadvar == NULL)
   {
     abort();
