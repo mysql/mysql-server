@@ -28,7 +28,7 @@ class Dijkstra {
 
   // key = Edge.from
   const std::unordered_multimap<int, const Edge*>* m_edges;
-  const std::function<double(const int& point_id)> m_heu = [](const int&) -> double { return 0.0; };
+  const std::function<double(const int& point_id)> m_heu;
 
   /**
    * @brief Node data (internal use)
