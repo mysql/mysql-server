@@ -71,7 +71,7 @@ class Dijkstra {
    *   NB: will deref invalid ptr if path doesn't exist
    * @param from_point node id of path start
    * @param to_point node id of path end
-   * @return std::vector<const Edge*> path found in m_path_map
+   * @return std::vector<const Edge*> path found in m_point_map.path
    */
   std::vector<const Edge*> retrace(int from_point, const int& to_point);
 };
