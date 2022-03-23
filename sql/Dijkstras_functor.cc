@@ -2,7 +2,7 @@
 
 std::vector<const Edge*> Dijkstra::operator()(const int& start_point_id, const int& end_point_id, double& total_cost) {
     m_point_map.clear();
-    int point = start_point_id;
+    int point = start_point_id; // node id
     Point& node = m_point_map[point] = Point{ 0, m_heu(point), nullptr };
     // A*
     while (point != end_point_id) {
@@ -10,7 +10,7 @@ std::vector<const Edge*> Dijkstra::operator()(const int& start_point_id, const i
       // checks all edges from point (i.e. current point)
       for (edge_iterator edge_it = edge_range_it.first; edge_it != edge_range_it.second; edge_it++) {
         const Edge *edge = edge_it->second;
-        // grabs existing node or creates new with cost of INFINITY
+        // grabs existing node or creates new with cost of INFINITY inside map
         Point& node_to = m_point_map[edge->to];
         
         // ignore longer paths

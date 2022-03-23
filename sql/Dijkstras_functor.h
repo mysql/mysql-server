@@ -4,7 +4,7 @@
 #include <queue>            // std::deque
 #include <unordered_map>    // std::unordered_map & std::unordered_multimap
 #include <functional>       // std::function
-#include <algorithm>        // std::push_heap
+#include <algorithm>        // std::push_heap & std::reverse
 #include <cmath>            // INFINITY
 
 /**
@@ -13,7 +13,9 @@
  */
 struct Edge {
   int id;
+  // node id
   int from, to;
+  // weight
   double cost;
 };
 
@@ -33,7 +35,12 @@ class Dijkstra {
    * 
    */
   struct Point {
-      double cost = INFINITY, cost_heu = INFINITY; // heu_cost = real_cost + heuristic
+      // sum of edge.cost in path
+      double cost = INFINITY;
+      // cost_heu = real_cost + heuristic
+      double cost_heu = INFINITY;
+      // used in retrace() to return path
+      // linked list in Edge would speed up retrace(), but also mutate m_edges
       const Edge* path = nullptr;
   };
   std::unordered_map<int, Point> m_point_map;
