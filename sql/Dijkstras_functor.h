@@ -28,13 +28,17 @@ class Dijkstra {
   const std::unordered_multimap<int, const Edge*>* m_edges;
   const std::function<double(const int& point_id)> m_heu = [](const int&) -> double { return 0.0; };
 
+  /**
+   * @brief Node data (internal use)
+   * 
+   */
   struct Point {
       double cost = INFINITY, cost_heu = INFINITY; // heu_cost = real_cost + heuristic
       const Edge* path = nullptr;
   };
   std::unordered_map<int, Point> m_point_map;
 
-  // comparator used for point_heap sorting to make min heap based on m_heu_cost_map
+  // comparator used for point_heap sorting to make min heap based on m_point_map.cost_heu
   struct greater_point_heuristic_comparator {
     bool operator()(const int& a, const int& b) { return point_map.at(a).cost_heu > point_map.at(b).cost_heu; }
     const std::unordered_map<int, Point>& point_map;
@@ -52,13 +56,13 @@ class Dijkstra {
            const std::function<double(const int& point_id)>& heu_func = [](const int&) -> double { return 0.0; })
     : m_edges(edges), m_heu(heu_func) {}
   /**
-   * @brief runs A* to find shortest path through m_edges_lookup_from
+   * @brief runs A* to find shortest path through m_edges
    * 
    * @param start_point_id node id of path start
    * @param end_point_id node if of path end
    * @param total_cost l-val-ref returns total cost of found path (if path exists)
-   * @return std::vector<const Edge*> vector of pointers pointing to edges in
-   *  edges_lookup_from representing found path
+   * @return std::vector<const Edge*> vector of pointers, pointing to edges in
+   *  m_edges, representing found path
    */
   std::vector<const Edge*> operator()(const int& start_point_id, const int& end_point_id, double& total_cost);
  private:
