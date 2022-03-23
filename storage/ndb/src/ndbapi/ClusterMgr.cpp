@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1577,28 +1577,25 @@ ClusterMgr::setProcessInfoUri(const char * scheme, const char * address_string,
 /******************************************************************************
  * Arbitrator
  ******************************************************************************/
-ArbitMgr::ArbitMgr(ClusterMgr & c)
-  : m_clusterMgr(c)
+ArbitMgr::ArbitMgr(ClusterMgr& c)
+    : m_clusterMgr(c),
+      theRank(0),
+      theDelay(0),
+      theThread(nullptr),
+      theInputTimeout(0),
+      theInputFull(false),
+      theInputBuffer(),
+      theState(StateInit),
+      theStartReq(),
+      theChooseReq1(),
+      theChooseReq2(),
+      theStopOrd()
 {
   DBUG_ENTER("ArbitMgr::ArbitMgr");
 
   theThreadMutex = NdbMutex_Create();
   theInputCond = NdbCondition_Create();
   theInputMutex = NdbMutex_Create();
-  
-  theRank = 0;
-  theDelay = 0;
-  theThread = 0;
-
-  theInputTimeout = 0;
-  theInputFull = false;
-  memset(&theInputBuffer, 0, sizeof(theInputBuffer));
-  theState = StateInit;
-
-  memset(&theStartReq, 0, sizeof(theStartReq));
-  memset(&theChooseReq1, 0, sizeof(theChooseReq1));
-  memset(&theChooseReq2, 0, sizeof(theChooseReq2));
-  memset(&theStopOrd, 0, sizeof(theStopOrd));
 
   DBUG_VOID_RETURN;
 }

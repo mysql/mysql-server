@@ -785,7 +785,7 @@ NdbBlob::getNullOrEmptyBlobHeadDataPtr(const char * & data,
 
   /* Reset affected members */
   theSetBuf=NULL;
-  std::memset(&theHead, 0, sizeof(theHead));
+  theHead = Head();
 
   /* This column is not null anymore - record the fact so that
    * a setNull() call will modify state
@@ -1241,11 +1241,9 @@ NdbBlob::getHeadInlineValue(NdbOperation* anOp)
   }
   /*
    * If we get no data from this op then the operation is aborted
-   * one way or other.  Following hack in 5.0 makes sure we don't read
-   * garbage.  The proper fix exists only in version >= 5.1.
+   * one way or other.
    */
-  // 5.0 theHead->length = 0;
-  std::memset(&theHead, 0, sizeof(theHead));
+  theHead = Head();
   packBlobHead();
   DBUG_RETURN(0);
 }
