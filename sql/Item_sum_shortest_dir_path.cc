@@ -73,9 +73,6 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
 }
 String *Item_sum_shortest_dir_path::val_str(String *str) {
   assert(!m_is_window_function);
-  // could be redundant
-  const THD *thd = base_query_block->parent_lex->thd;
-  if (thd->is_error()) return error_str();
 
   Json_array_ptr arr(new (std::nothrow) Json_array());
   Dijkstra dijkstra(&m_edge_map);
@@ -139,7 +136,8 @@ bool Item_sum_shortest_dir_path::add() {
   // verify arg 3
   if (verify_cost_argument(args[3]))
     return true;
-  // verify arg 4, 5 TODO: only once per agg
+  // verify arg 4, 5
+  // TODO only once per agg
   for (size_t i = 4; i < 6; i++)
     if (verify_const_id_argument(args[i]))
       return true;

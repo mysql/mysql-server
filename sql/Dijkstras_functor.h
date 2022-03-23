@@ -75,7 +75,7 @@ class Dijkstra {
  private:
   /**
    * @brief finds path by accumulating Point.path from m_point_map and reverting their order
-   *   NB: will deref invalid ptr if path doesn't exist
+   * ! NB: will deref invalid ptr if path doesn't exist
    * @param from_point node id of path start
    * @param to_point node id of path end
    * @return std::vector<const Edge*> path found in m_point_map.path
