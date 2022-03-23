@@ -31,7 +31,7 @@
 
 #include <ndb_types.h>
 
-        class Ndb;
+class Ndb;
 struct CHARSET_INFO;
 
 /* Forward declaration only. */
