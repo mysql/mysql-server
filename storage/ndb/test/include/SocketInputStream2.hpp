@@ -28,10 +28,10 @@
 #include "portlib/ndb_socket.h"
 #include <BaseString.hpp>
 #include <UtilBuffer.hpp>
-#include "util/SecureSocket.h"
+#include "util/NdbSocket.h"
 
 class SocketInputStream2 {
-  SecureSocket m_socket;
+  NdbSocket m_socket;
   unsigned m_read_timeout;
   UtilBuffer m_buffer;
   size_t m_buffer_read_pos;
@@ -44,7 +44,7 @@ class SocketInputStream2 {
 public:
   SocketInputStream2(ndb_socket_t socket,
                      unsigned read_timeout = 60) :
-    m_socket(socket, SecureSocket::From::Existing),
+    m_socket(socket, NdbSocket::From::Existing),
     m_read_timeout(read_timeout),
     m_buffer_read_pos(0)          {}
 

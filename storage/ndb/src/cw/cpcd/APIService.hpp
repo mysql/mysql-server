@@ -28,6 +28,7 @@
 #include <InputStream.hpp>
 #include <Parser.hpp>
 #include <SocketServer.hpp>
+#include "util/NdbSocket.h"
 
 class CPCD;
 
@@ -35,6 +36,7 @@ class CPCDAPISession : public SocketServer::Session {
   typedef Parser<CPCDAPISession> Parser_t;
 
   class CPCD &m_cpcd;
+  NdbSocket m_secure_socket;
   InputStream *m_input;
   OutputStream *m_output;
   Parser_t *m_parser;

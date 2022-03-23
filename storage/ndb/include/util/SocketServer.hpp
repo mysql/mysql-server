@@ -52,8 +52,8 @@ public:
     friend void* sessionThread_C(void*);
     Session(ndb_socket_t sock) :
       m_stop(false),
-      m_socket(sock),
       m_refCount(0),
+      m_socket(sock),
       m_thread_stopped(false)
       {
 	DBUG_ENTER("SocketServer::Session");
@@ -62,9 +62,9 @@ public:
 	DBUG_VOID_RETURN;
       }
     bool m_stop;    // Has the session been ordered to stop?
-    ndb_socket_t m_socket;
     unsigned m_refCount;
   private:
+    ndb_socket_t m_socket;
     bool m_thread_stopped; // Has the session thread stopped?
   };
   
