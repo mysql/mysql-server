@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -180,7 +180,7 @@ Item *EarlyExpandMultipleEquals(Item *condition, table_map tables_in_subtree) {
                                             &eq_items);
 
           table_map included_tables = 0;
-          Item *base_item = nullptr;
+          Item_field *base_item = nullptr;
           for (Item_field &field : equal->get_fields()) {
             assert(IsSingleBitSet(field.used_tables()));
             if (!IsSubset(field.used_tables(), tables_in_subtree) ||
@@ -862,15 +862,13 @@ bool IsCandidateForCycle(RelationalExpression *expr, Item *cond,
 }
 
 bool ComesFromMultipleEquality(Item *item, Item_equal *equal) {
-  return item->type() == Item::FUNC_ITEM &&
-         down_cast<Item_func *>(item)->functype() == Item_func::EQ_FUNC &&
+  return is_function_of_type(item, Item_func::EQ_FUNC) &&
          down_cast<Item_func_eq *>(item)->source_multiple_equality == equal;
 }
 
 int FindSourceMultipleEquality(Item *item,
                                const Mem_root_array<Item_equal *> &equals) {
-  if (item->type() != Item::FUNC_ITEM ||
-      down_cast<Item_func *>(item)->functype() != Item_func::EQ_FUNC) {
+  if (!is_function_of_type(item, Item_func::EQ_FUNC)) {
     return -1;
   }
   Item_func_eq *eq = down_cast<Item_func_eq *>(item);
@@ -902,11 +900,31 @@ bool MultipleEqualityAlreadyExistsOnJoin(Item_equal *equal,
 bool AlreadyExistsOnJoin(Item *cond, const RelationalExpression &expr) {
   assert(expr.equijoin_conditions
              .empty());  // MakeHashJoinConditions() has not run yet.
+  constexpr bool binary_cmp = true;
   for (Item *item : expr.join_conditions) {
-    if (cond->eq(item, /*binary_cmp=*/true)) {
+    if (cond->eq(item, binary_cmp)) {
       return true;
     }
   }
+
+  // If "cond" is an equality created from a multiple equality, it's a bit
+  // arbitrary if it ends up as a=b or b=a. If we didn't find an exact match,
+  // see if we find one with the operands swapped.
+  Item_func_eq *cond_eq = is_function_of_type(cond, Item_func::EQ_FUNC)
+                              ? down_cast<Item_func_eq *>(cond)
+                              : nullptr;
+  if (cond_eq != nullptr && cond_eq->source_multiple_equality != nullptr) {
+    for (Item *item : expr.join_conditions) {
+      if (ComesFromMultipleEquality(item, cond_eq->source_multiple_equality)) {
+        Item_func_eq *item_eq = down_cast<Item_func_eq *>(item);
+        if (cond_eq->get_arg(0)->eq(item_eq->get_arg(1), binary_cmp) &&
+            cond_eq->get_arg(1)->eq(item_eq->get_arg(0), binary_cmp)) {
+          return true;
+        }
+      }
+    }
+  }
+
   return false;
 }
 
@@ -1071,12 +1089,7 @@ Item_func_eq *ConcretizeMultipleEquals(Item_equal *cond,
   assert(left != nullptr);
   assert(right != nullptr);
 
-  Item_func_eq *eq_item = new Item_func_eq(left, right);
-  eq_item->set_cmp_func();
-  eq_item->update_used_tables();
-  eq_item->quick_fix_field();
-  eq_item->source_multiple_equality = cond;
-  return eq_item;
+  return MakeEqItem(left, right, cond);
 }
 
 /**
@@ -1104,12 +1117,7 @@ static void FullyConcretizeMultipleEquals(Item_equal *cond,
       continue;
     }
     if (last_field != nullptr) {
-      Item_func_eq *eq_item = new Item_func_eq(last_field, &field);
-      eq_item->set_cmp_func();
-      eq_item->update_used_tables();
-      eq_item->quick_fix_field();
-      eq_item->source_multiple_equality = cond;
-      result->push_back(eq_item);
+      result->push_back(MakeEqItem(last_field, &field, cond));
     }
     last_field = &field;
     seen_tables |= field.used_tables();
@@ -3063,11 +3071,7 @@ void AddMultipleEqualityPredicate(THD *thd, Item_equal *item_equal,
                                          /*functional_dependencies_idx=*/{}});
   }
 
-  Item_func_eq *eq_item = new Item_func_eq(left_field, right_field);
-  eq_item->source_multiple_equality = item_equal;
-  eq_item->set_cmp_func();
-  eq_item->update_used_tables();
-  eq_item->quick_fix_field();
+  Item_func_eq *eq_item = MakeEqItem(left_field, right_field, item_equal);
   expr->equijoin_conditions.push_back(
       eq_item);  // NOTE: We run after MakeHashJoinConditions().
 

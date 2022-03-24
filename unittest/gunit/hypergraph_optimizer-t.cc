@@ -45,6 +45,7 @@
 #include "sql/item.h"
 #include "sql/item_subselect.h"
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/common_subexpression_elimination.h"
 #include "sql/join_optimizer/explain_access_path.h"
 #include "sql/join_optimizer/hypergraph.h"
@@ -1009,6 +1010,61 @@ TEST_F(MakeHypergraphTest, CyclesGetConsistentSelectivities) {
   EXPECT_FLOAT_EQ(0.02F, graph.edges[0].selectivity);
   EXPECT_FLOAT_EQ(0.02F, graph.edges[1].selectivity);
   EXPECT_FLOAT_EQ(0.02F, graph.edges[2].selectivity);
+}
+
+TEST_F(MakeHypergraphTest, MultiEqualityPredicateAppliedOnce) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2, t3, t4 "
+      "WHERE t1.x <> t4.y AND t4.z <> t3.y AND t2.z <> t3.x AND "
+      "t2.x = t4.x AND t1.y = t2.x",
+      /*nullable=*/true);
+
+  // Build multiple equalities from the WHERE condition.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  string trace;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  ASSERT_EQ(4, graph.nodes.size());
+  EXPECT_STREQ("t2", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t1", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t4", graph.nodes[3].table->alias);
+
+  ASSERT_EQ(5, graph.edges.size());
+
+  // t1/t4: t1.y = t4.x AND t1.x <> t4.y
+  EXPECT_EQ(TableBitmap(2), graph.graph.edges[0].left);
+  EXPECT_EQ(TableBitmap(3), graph.graph.edges[0].right);
+  // Used to apply the equality predicate twice. Once as t1.y = t4.x and
+  // once as t4.x = t1.y. Verify that it's applied once now.
+  EXPECT_FLOAT_EQ(COND_FILTER_EQUALITY * (1.0f - COND_FILTER_EQUALITY),
+                  graph.edges[0].selectivity);
+
+  // t3/t4: t4.z <> t3.y
+  EXPECT_EQ(TableBitmap(1), graph.graph.edges[2].left);
+  EXPECT_EQ(TableBitmap(3), graph.graph.edges[2].right);
+  EXPECT_FLOAT_EQ(1.0f - COND_FILTER_EQUALITY, graph.edges[1].selectivity);
+
+  // t2/t3: t2.z <> t3.x
+  EXPECT_EQ(TableBitmap(0), graph.graph.edges[4].left);
+  EXPECT_EQ(TableBitmap(1), graph.graph.edges[4].right);
+  EXPECT_FLOAT_EQ(1.0f - COND_FILTER_EQUALITY, graph.edges[2].selectivity);
+
+  // t2/t4: t2.x = t4.x
+  EXPECT_EQ(TableBitmap(0), graph.graph.edges[6].left);
+  EXPECT_EQ(TableBitmap(3), graph.graph.edges[6].right);
+  EXPECT_FLOAT_EQ(COND_FILTER_EQUALITY, graph.edges[3].selectivity);
+
+  // t1/t2: t1.y = t2.x
+  EXPECT_EQ(TableBitmap(2), graph.graph.edges[8].left);
+  EXPECT_EQ(TableBitmap(0), graph.graph.edges[8].right);
+  EXPECT_FLOAT_EQ(COND_FILTER_EQUALITY, graph.edges[4].selectivity);
 }
 
 TEST_F(MakeHypergraphTest, HyperpredicatesDoNotLeadToExtraCycleEdges) {
