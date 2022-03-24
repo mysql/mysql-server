@@ -7446,6 +7446,12 @@ extern "C" void *handle_slave_sql(void *arg)
                       " seconds.  Consider increasing --ndb-wait-setup value",
                       opt_ndb_wait_setup);
   }
+  if (!opt_slave_allow_batching)
+  {
+    sql_print_warning("Slave SQL thread : NDB : --slave_allow_batching is OFF. "
+                      "Turn ON to obtain better BLOB write/update/delete "
+                      "performance.");
+  }
 #endif
 
   DBUG_PRINT("master_info",("log_file_name: %s  position: %s",

@@ -5268,10 +5268,26 @@ static Sys_var_mybool Sys_relay_log_recovery(
        "processed",
         READ_ONLY GLOBAL_VAR(relay_log_recovery), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
+static bool check_slave_allow_batching(sys_var *self, THD *thd, set_var *var)
+{
+  if (!var->value) return false;
+
+  if (var->value->result_type() == INT_RESULT && !var->value->val_int())
+  {
+      push_warning(thd, Sql_condition::SL_WARNING,
+                   ER_NO,
+                   "Turn slave_allow_batching ON to obtain better BLOB "
+                   "write/update/delete performance.");
+  }
+
+  return false;
+}
+
 static Sys_var_mybool Sys_slave_allow_batching(
        "slave_allow_batching", "Allow slave to batch requests",
        GLOBAL_VAR(opt_slave_allow_batching),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_slave_allow_batching));
 
 static Sys_var_charptr Sys_slave_load_tmpdir(
        "slave_load_tmpdir", "The location where the slave should put "

@@ -22,6 +22,8 @@ SELECT @@global.slave_allow_batching;
 1
 '#--------------------FN_DYNVARS_145_03------------------------#'
 SET @@global.slave_allow_batching = 0;
+Warnings:
+Warning	1002	Turn slave_allow_batching ON to obtain better BLOB write/update/delete performance.
 SELECT @@global.slave_allow_batching;
 @@global.slave_allow_batching
 0
@@ -143,10 +145,14 @@ SELECT @@global.slave_allow_batching;
 @@global.slave_allow_batching
 1
 SET @@global.slave_allow_batching = FALSE;
+Warnings:
+Warning	1002	Turn slave_allow_batching ON to obtain better BLOB write/update/delete performance.
 SELECT @@global.slave_allow_batching;
 @@global.slave_allow_batching
 0
 SET @@global.slave_allow_batching = @global_start_value;
+Warnings:
+Warning	1002	Turn slave_allow_batching ON to obtain better BLOB write/update/delete performance.
 SELECT @@global.slave_allow_batching;
 @@global.slave_allow_batching
 0

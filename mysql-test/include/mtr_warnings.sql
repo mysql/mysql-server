@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+-- Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -133,6 +133,7 @@ INSERT INTO global_suppressions VALUES
  ("Slave I.O thread aborted while waiting for relay log"),
  ("Slave SQL thread is stopped because UNTIL condition"),
  ("Slave SQL thread retried transaction"),
+ ("Slave SQL thread : NDB : --slave_allow_batching is OFF"),
  ("Slave \\(additional info\\)"),
  ("Slave: .*Duplicate column name"),
  ("Slave: .*master may suffer from"),
