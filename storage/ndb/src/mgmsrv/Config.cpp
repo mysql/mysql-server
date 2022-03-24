@@ -246,19 +246,19 @@ Config::pack64_v1(BaseString& encoded) const
   if (m_configuration->m_config_values.pack_v1(buf) == 0)
     return false;
 
+  const uint64 encoded_length = base64_needed_encoded_length(buf.length());
+  require(encoded_length > 0);  // Always need room for null termination
+  if (encoded_length > INT_MAX || encoded_length > UINT32_MAX) return false;
   /*
     Expand the string to correct length by filling with Z.
-    The base64 encoded data of UtilBuffer can be of max length (1024*1024)/3*4
-    hence using int to store the length.
   */
-  encoded.assfmt("%*s",
-                 (int)base64_needed_encoded_length(buf.length()),
-                 "Z");
+  encoded.assfmt("%*s", (int)(encoded_length - 1), "Z");
 
   if (base64_encode(buf.get_data(),
                     buf.length(),
                     (char*)encoded.c_str()))
     return false;
+  assert(strlen(encoded.c_str()) == encoded_length - 1);
   return true;
 }
 
@@ -269,19 +269,19 @@ Config::pack64_v2(BaseString& encoded, Uint32 node_id) const
   if (m_configuration->m_config_values.pack_v2(buf, node_id) == 0)
     return false;
 
+  const uint64 encoded_length = base64_needed_encoded_length(buf.length());
+  require(encoded_length > 0);  // Always need room for null termination
+  if (encoded_length > INT_MAX || encoded_length > UINT32_MAX) return false;
   /*
     Expand the string to correct length by filling with Z.
-    The base64 encoded data of UtilBuffer can be of max length (1024*1024)/3*4
-    hence using int to store the length.
   */
-  encoded.assfmt("%*s",
-                 (int)base64_needed_encoded_length(buf.length()),
-                 "Z");
+  encoded.assfmt("%*s", (int)(encoded_length - 1), "Z");
 
   if (base64_encode(buf.get_data(),
                     buf.length(),
                     (char*)encoded.c_str()))
     return false;
+  assert(strlen(encoded.c_str()) == encoded_length - 1);
   return true;
 }
 

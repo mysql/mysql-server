@@ -3896,15 +3896,22 @@ ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)
   }
 
   BaseString encoded;
-  /*
-    The base64 encoded data of BaseString can be of max length (1024*1024)/3*4
-    hence using int to store the length.
-  */
-  encoded.assfmt("%*s", (int)base64_needed_encoded_length(buf.length()), "Z");
+  const uint64 encoded_length = base64_needed_encoded_length(buf.length());
+  require(encoded_length > 0);  // Always need room for null termination
+  if (encoded_length > INT_MAX || encoded_length > UINT32_MAX)
+  {
+    SET_ERROR(h, NDB_MGM_CONFIG_CHANGE_FAILED, "Too big configuration");
+    DBUG_RETURN(-1);
+  }
+
+  encoded.assfmt("%*s", (int)(encoded_length - 1), "Z");
   (void) base64_encode(buf.get_data(), buf.length(), (char*)encoded.c_str());
 
+  assert(strlen(encoded.c_str()) == encoded.length());
+  assert(encoded.length() == encoded_length - 1);
+
   Properties args;
-  args.put("Content-Length", (Uint32)strlen(encoded.c_str()));
+  args.put("Content-Length", (Uint32)(encoded_length - 1));
   args.put("Content-Type",  "ndbconfig/octet-stream");
   args.put("Content-Transfer-Encoding", "base64");
 
