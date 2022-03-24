@@ -69,6 +69,7 @@ usr/lib/mysql/plugin/component_test_status_var_service_str.so
 usr/lib/mysql/plugin/component_test_status_var_service_unreg_only.so
 usr/lib/mysql/plugin/component_test_system_variable_source.so
 usr/lib/mysql/plugin/component_test_backup_lock_service.so
+usr/lib/mysql/plugin/conflicting_variables.so
 usr/lib/mysql/plugin/daemon_example.ini
 usr/lib/mysql/plugin/ha_example.so
 usr/lib/mysql/plugin/ha_mock.so

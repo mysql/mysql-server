@@ -127,6 +127,7 @@ usr/lib/mysql/plugin/debug/component_udf_reg_real_func.so
 usr/lib/mysql/plugin/debug/component_udf_unreg_3_func.so
 usr/lib/mysql/plugin/debug/component_udf_unreg_int_func.so
 usr/lib/mysql/plugin/debug/component_udf_unreg_real_func.so
+usr/lib/mysql/plugin/debug/conflicting_variables.so
 usr/lib/mysql/plugin/debug/daemon_example.ini
 usr/lib/mysql/plugin/debug/ha_example.so
 usr/lib/mysql/plugin/debug/ha_mock.so

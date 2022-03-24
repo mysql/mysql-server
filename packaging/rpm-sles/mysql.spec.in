@@ -1203,6 +1203,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_system_variable_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_audit_api_message.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_udf_services.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/conflicting_variables.so
 %attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_services.so
@@ -1292,6 +1293,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_system_variable_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_audit_api_message.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_udf_services.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/conflicting_variables.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/udf_example.so

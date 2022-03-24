@@ -294,6 +294,7 @@ for p in \
          component_udf_unreg_3_func.so \
          component_udf_unreg_int_func.so \
          component_udf_unreg_real_func.so \
+         conflicting_variables.so \
          daemon_example.ini \
          ha_example.so \
          ha_mock.so \
