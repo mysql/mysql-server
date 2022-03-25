@@ -3991,7 +3991,7 @@ TransporterFacade::get_bytes_to_send_iovec(NodeId node,
   {
     dst[count].iov_base = page->m_data+page->m_start;
     dst[count].iov_len = page->m_bytes;
-    assert(page->m_start + page->m_bytes <= page->max_data_bytes());
+    assert(Uint32{page->m_start} + page->m_bytes <= page->max_data_bytes());
     page = page->m_next;
     count++;
   }
@@ -4044,7 +4044,7 @@ TransporterFacade::bytes_sent(NodeId node,
 
     page->m_start += bytes;
     page->m_bytes -= bytes;
-    assert(page->m_start + page->m_bytes <= page->max_data_bytes());
+    assert(Uint32{page->m_start} + page->m_bytes <= page->max_data_bytes());
     b->m_head = page;
   }
 

@@ -132,7 +132,7 @@ public:
   /**
    * Returns the error string.
    */
-  char* getErrorStr();
+  const char* getErrorStr() const;
 
   /**
    * Sets the error string.
@@ -219,7 +219,7 @@ private:
   bool operator == (const LogHandler&);
 
   int m_errorCode;
-  char* m_errorStr;
+  const char* m_errorStr;
 
   // for handling repeated messages
   unsigned m_count_repeated_messages;
