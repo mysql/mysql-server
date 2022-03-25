@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,12 +66,11 @@ unsigned sections[]=
 };
 const size_t num_sections= sizeof(sections)/sizeof(unsigned);
 
-static const ConfigInfo g_info;
-
 void
 Config::print(const char* section_filter, NodeId nodeid_filter,
               const char* param_filter,
               NdbOut& out) const {
+  const ConfigInfo& default_info = ConfigInfo::default_instance();
 
   for(unsigned i= 0; i < num_sections; i++) {
     unsigned section= sections[i];
@@ -87,11 +86,10 @@ Config::print(const char* section_filter, NodeId nodeid_filter,
         continue;
 
       const ConfigInfo::ParamInfo* pinfo= NULL;
-      ConfigInfo::ParamInfoIter param_iter(g_info,
-                                           section,
-                                           section_type);
+      ConfigInfo::ParamInfoIter param_iter(default_info, section, section_type);
 
-      const char* section_name= g_info.sectionName(section, section_type);
+      const char* section_name =
+          default_info.sectionName(section, section_type);
 
       // Section name filter
       if (section_filter &&                     // Filter is on
@@ -410,10 +408,10 @@ diff_system(const Config* a, const Config* b, Properties& diff)
   ConfigIter itB(b, CFG_SECTION_SYSTEM);
 
   // Check each possible configuration value
+  const ConfigInfo& default_info = ConfigInfo::default_instance();
   const ConfigInfo::ParamInfo* pinfo= NULL;
-  ConfigInfo::ParamInfoIter param_iter(g_info,
-                                       CFG_SECTION_SYSTEM,
-                                       CFG_SECTION_SYSTEM);
+  ConfigInfo::ParamInfoIter param_iter(
+      default_info, CFG_SECTION_SYSTEM, CFG_SECTION_SYSTEM);
   while((pinfo= param_iter.next())) {
     /*  Loop through the section and compare values */
     compare_value("SYSTEM", "", pinfo, itA.m_config, itB.m_config, diff);
@@ -424,6 +422,7 @@ diff_system(const Config* a, const Config* b, Properties& diff)
 static void
 diff_nodes(const Config* a, const Config* b, Properties& diff)
 {
+  const ConfigInfo& default_info = ConfigInfo::default_instance();
   ConfigIter itA(a, CFG_SECTION_NODE);
 
   for(;itA.valid(); itA.next())
@@ -433,7 +432,7 @@ diff_nodes(const Config* a, const Config* b, Properties& diff)
     Uint32 nodeType;
     require(itA.get(CFG_TYPE_OF_SECTION, &nodeType) == 0);
 
-    BaseString name(g_info.sectionName(CFG_SECTION_NODE, nodeType));
+    BaseString name(default_info.sectionName(CFG_SECTION_NODE, nodeType));
 
     /* Get NodeId which is "primary key" */
     Uint32 nodeId;
@@ -475,7 +474,8 @@ diff_nodes(const Config* a, const Config* b, Properties& diff)
 
     // Check each possible configuration value
     const ConfigInfo::ParamInfo* pinfo= NULL;
-    ConfigInfo::ParamInfoIter param_iter(g_info, CFG_SECTION_NODE, nodeType);
+    ConfigInfo::ParamInfoIter param_iter(
+        default_info, CFG_SECTION_NODE, nodeType);
     while((pinfo= param_iter.next())) {
       /*  Loop through the section and compare values */
       compare_value(name.c_str(), key.c_str(), pinfo,
@@ -511,6 +511,7 @@ diff_connections(const Config* a, const Config* b, Properties& diff)
     }
   }
 
+  const ConfigInfo& default_info = ConfigInfo::default_instance();
   ConfigIter itA(a, CFG_SECTION_CONNECTION);
 
   for(;itA.valid(); itA.next())
@@ -519,7 +520,8 @@ diff_connections(const Config* a, const Config* b, Properties& diff)
     Uint32 connectionType;
     require(itA.get(CFG_TYPE_OF_SECTION, &connectionType) == 0);
 
-    BaseString name(g_info.sectionName(CFG_SECTION_CONNECTION, connectionType));
+    BaseString name(
+        default_info.sectionName(CFG_SECTION_CONNECTION, connectionType));
 
     /* Get NodeId1 and NodeId2 which is "primary key" */
     Uint32 nodeId1_A, nodeId2_A;
@@ -556,9 +558,8 @@ diff_connections(const Config* a, const Config* b, Properties& diff)
 
     // Check each possible configuration value
     const ConfigInfo::ParamInfo* pinfo= NULL;
-    ConfigInfo::ParamInfoIter param_iter(g_info,
-                                         CFG_SECTION_CONNECTION,
-                                         connectionType);
+    ConfigInfo::ParamInfoIter param_iter(
+        default_info, CFG_SECTION_CONNECTION, connectionType);
     while((pinfo= param_iter.next())) {
       /*  Loop through the section and compare values */
       compare_value(name.c_str(), key.c_str(), pinfo, itA.m_config, itB, diff);
