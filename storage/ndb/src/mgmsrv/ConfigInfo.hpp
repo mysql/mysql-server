@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -187,6 +187,12 @@ public:
   };
   
   ConfigInfo();
+  /*
+   * Get reference to a static default instance of ConfigInfo.
+   * The instance is an static object within function and will
+   * therefore delay initialization until first use.
+   */
+  static const ConfigInfo& default_instance();
 
   /**
    *   Checks if the suggested value is valid for the suggested parameter
@@ -247,5 +253,11 @@ public:
   static const ConfigRule  m_ConfigRules[];
   static const int         m_NoOfRules;
 };
+
+inline const ConfigInfo& ConfigInfo::default_instance()
+{
+  static const ConfigInfo default_instance;
+  return default_instance;
+}
 
 #endif // ConfigInfo_H
