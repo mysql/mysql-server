@@ -43,7 +43,8 @@
 # 11. [OPTIMIZE | ANALYZE | REPAIR] TABLE
 # 12. ALTER TABLE ... [OPTIMIZE | ANALYZE | REPAIR] PARTITION.
 # 13. Run GRANT, REVOKE, CREATE USER, DROP USER in a way that it fails, e.g., create two users where the second already exists.
-# 14. Run DML on mysql.gtid_executed, slave_master_info and relay_log_info.
+# 14. Run DML on the tables gtid_executed, slave_master_info,
+#     slave_relay_log_info, and slave_worker_info.
 # 15. Cleanup
 #
 # === References ===
@@ -655,22 +656,27 @@ DROP USER u1,u2;
 --source include/gtid_step_assert.inc
 
 ########################################################################
---echo #### 14. Run DML on mysql.gtid_executed, slave_master_info
---echo ####     and relay_log_info
+--echo #### 14. Run DML on mysql.gtid_executed, slave_master_info,
+--echo ####     slave_relay_log_info, and slave_worker_info tables.
 ########################################################################
 
 --error ER_OPTION_PREVENTS_STATEMENT
-INSERT INTO mysql.slave_master_info VALUES(24,'box1.000010',191,'127.0.0.1','root','',4001,60,0,'','','','','',0,1800,'','0','075f2616-8508-11e2-a100-2d636aea58f7',86400,'','',0,'','','',1,'','',0,'', 0);
+UPDATE mysql.slave_master_info SET Retry_count = Retry_count + 1;
 --let $gtid_step_count = 0
 --source include/gtid_step_assert.inc
 
 --error ER_OPTION_PREVENTS_STATEMENT
-INSERT INTO mysql.slave_relay_log_info VALUES(8,'./prosimmon-relay-bin.000041',4464,'box1.000010',4264,0,0,1,'',NULL,NULL,0,'STREAM','OFF',NULL);
+UPDATE mysql.slave_relay_log_info SET Sql_delay = Sql_delay + 1;
 --let $gtid_step_count = 0
 --source include/gtid_step_assert.inc
 
 --error ER_OPTION_PREVENTS_STATEMENT
-INSERT INTO mysql.relay_log_info VALUES(8,'./prosimmon-relay-bin.000041',4464,'box1.000010',4264,0,0,1,'',NULL,NULL,0,'STREAM','OFF',NULL);
+UPDATE mysql.slave_worker_info SET Relay_log_pos = Relay_log_pos + 1;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+--error ER_OPTION_PREVENTS_STATEMENT
+UPDATE mysql.gtid_executed SET interval_end = interval_end + 1;
 --let $gtid_step_count = 0
 --source include/gtid_step_assert.inc
 

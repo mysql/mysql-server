@@ -311,15 +311,18 @@ include/gtid_step_assert.inc [count=0, only_count=0]
 DROP USER u1,u2;
 ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
 include/gtid_step_assert.inc [count=0, only_count=0]
-#### 14. Run DML on mysql.gtid_executed, slave_master_info
-####     and relay_log_info
-INSERT INTO mysql.slave_master_info VALUES(24,'box1.000010',191,'127.0.0.1','root','',4001,60,0,'','','','','',0,1800,'','0','075f2616-8508-11e2-a100-2d636aea58f7',86400,'','',0,'','','',1,'','',0,'', 0);
+#### 14. Run DML on mysql.gtid_executed, slave_master_info,
+####     slave_relay_log_info, and slave_worker_info tables.
+UPDATE mysql.slave_master_info SET Retry_count = Retry_count + 1;
 ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
 include/gtid_step_assert.inc [count=0, only_count=0]
-INSERT INTO mysql.slave_relay_log_info VALUES(8,'./prosimmon-relay-bin.000041',4464,'box1.000010',4264,0,0,1,'',NULL,NULL,0,'STREAM','OFF',NULL);
+UPDATE mysql.slave_relay_log_info SET Sql_delay = Sql_delay + 1;
 ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
 include/gtid_step_assert.inc [count=0, only_count=0]
-INSERT INTO mysql.relay_log_info VALUES(8,'./prosimmon-relay-bin.000041',4464,'box1.000010',4264,0,0,1,'',NULL,NULL,0,'STREAM','OFF',NULL);
+UPDATE mysql.slave_worker_info SET Relay_log_pos = Relay_log_pos + 1;
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+include/gtid_step_assert.inc [count=0, only_count=0]
+UPDATE mysql.gtid_executed SET interval_end = interval_end + 1;
 ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
 include/gtid_step_assert.inc [count=0, only_count=0]
 #### 15. Cleanup
