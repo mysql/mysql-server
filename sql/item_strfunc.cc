@@ -1167,13 +1167,13 @@ bool Item_func_replace::resolve_type(THD *thd) {
   ulonglong char_length = args[0]->max_char_length(collation.collation);
   ulonglong search_length = args[1]->max_char_length(collation.collation);
   ulonglong replace_length = args[2]->max_char_length(collation.collation);
+  int diff = (int) (replace_length - search_length);
 
-  if (replace_length > 1ULL && search_length >= 1ULL) {
+  if (diff > 0 && search_length >= 1ULL) {
     // instead of calc only from replace_length, use search_length as well
-    // no "/": "char_length = char_length * replace_length" 
-    // with "/" less memory, slower processor? // nick belyavski
-    char_length = char_length / search_length * (replace_length - search_length)
-        + char_length;
+    // nick belyavski 
+    ulonglong max_substrs = char_length / search_length;
+    char_length += max_substrs * (uint) diff;
   }
 
   set_data_type_string(char_length);
