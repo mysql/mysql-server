@@ -35,6 +35,7 @@ FOREACH(warning
     "error=cast-qual"
     # Warnings in Dbtup.hpp
     "error=class-memaccess"
+    "error=unused-but-set-variable"
     )
   MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)

@@ -23,7 +23,6 @@
 # Disable specific types of warnings for current directory, and subdirectories,
 # if the compiler supports the flag
 FOREACH(warning
-    "unused-but-set-variable"
     "strict-aliasing"
     "unused-parameter"
     # Downgrade -Werror=deprecated-copy to warning for gcc 9
