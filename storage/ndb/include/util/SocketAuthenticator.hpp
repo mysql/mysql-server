@@ -32,21 +32,9 @@ class SocketAuthenticator
 public:
   SocketAuthenticator() {}
   virtual ~SocketAuthenticator() {}
-  bool client_authenticate(ndb_socket_t);
-  bool server_authenticate(ndb_socket_t);
   virtual bool client_authenticate(NdbSocket &) = 0;
   virtual bool server_authenticate(NdbSocket &) = 0;
 };
-
-inline bool SocketAuthenticator::client_authenticate(ndb_socket_t fd) {
-  NdbSocket socket(fd, NdbSocket::From::Existing);
-  return client_authenticate(socket);
-}
-
-inline bool SocketAuthenticator::server_authenticate(ndb_socket_t fd) {
-  NdbSocket socket(fd, NdbSocket::From::Existing);
-  return server_authenticate(socket);
-}
 
 
 class SocketAuthSimple : public SocketAuthenticator
