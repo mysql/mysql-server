@@ -265,7 +265,6 @@ LogBuffer::append(const char* fmt, va_list ap, size_t len, bool append_ln)
   assert(checkInvariants());
   char* write_ptr = NULL;
   int ret = 0;
-  int res = 0;
   bool buffer_was_empty = (m_size == 0);
 
   // extra byte for null termination, will be discarded
@@ -291,20 +290,22 @@ LogBuffer::append(const char* fmt, va_list ap, size_t len, bool append_ln)
 
     if(write_ptr)
     {
-      res = vsnprintf(write_ptr, write_bytes, fmt, ap);
-      assert(res >= 0);
+      int res = vsnprintf(write_ptr, write_bytes, fmt, ap);
+      size_t fmt_len = unlikely(res < 0) ? 0 : (size_t)res;
+      assert(fmt_len == len);
+      if (unlikely(fmt_len > len)) fmt_len = len;
 
       if(append_ln)
       {
-        write_ptr[write_bytes - 2] = '\n';
+        write_ptr[fmt_len] = '\n';
       }
       if(write_ptr == m_log_buf && m_write_ptr != m_log_buf)
       {
         //need to wrap the write ptr
         wrapWritePtr();
       }
-      updateWritePtr(write_bytes - 1);
-      ret = write_bytes - 1;
+      updateWritePtr(fmt_len + append_ln);
+      ret = fmt_len + append_ln;
       if(buffer_was_empty)
       {
         // Signal consumers if log buf was empty previously.
