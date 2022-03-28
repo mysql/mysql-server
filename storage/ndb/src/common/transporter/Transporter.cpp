@@ -92,7 +92,6 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   DBUG_ENTER("Transporter::Transporter");
 
   // Initialize member variables
-  ndb_socket_initialize(&theSocket);
   m_multi_transporter_instance = 0;
   m_recv_thread_idx = 0;
   m_is_active = true;
@@ -179,12 +178,12 @@ bool Transporter::do_disconnect(int err, bool send_source)
   }
   else
   {
-    if (ndb_socket_valid(theSocket))
+    if (theSocket.is_valid())
     {
       DEB_MULTI_TRP(("Close trp_id %u in inactive mode, socket valid",
                      getTransporterIndex()));
-      ndb_socket_close(theSocket);
-      ndb_socket_invalidate(&theSocket);
+      theSocket.close();
+      theSocket.invalidate();
     }
     else
     {

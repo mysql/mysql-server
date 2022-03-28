@@ -39,7 +39,7 @@
 #include <NdbThread.h>
 
 #include "portlib/ndb_socket.h"
-
+#include "util/NdbSocket.h"
 
 #define DISCONNECT_ERRNO(e, sz) ( \
                 (sz == 0) || \
@@ -287,7 +287,7 @@ protected:
   Uint32 m_slowdown_count;
 
   // Sending/Receiving socket used by both client and server
-  ndb_socket_t theSocket;
+  NdbSocket theSocket;
 private:
   SocketClient *m_socket_client;
   struct in6_addr m_connect_address;
@@ -370,7 +370,7 @@ protected:
 inline
 ndb_socket_t
 Transporter::getSocket() const {
-  return theSocket;
+  return theSocket.ndb_socket();
 }
 
 inline
