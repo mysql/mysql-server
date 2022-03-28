@@ -11871,6 +11871,12 @@ ER_SYSTEMD_NOTIFY_DEBUG
 ER_TMP_SESSION_FOR_VAR
   eng "Setting session values for system variables only makes sense in a user session (failed to set '%.256s')."
 
+ER_BUILD_ID
+  eng "BuildID[sha1]=%s"
+
+ER_THREAD_POOL_CANNOT_REGISTER_DYNAMIC_PRIVILEGE
+  eng "Failed to register dynamic privilege %s."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
