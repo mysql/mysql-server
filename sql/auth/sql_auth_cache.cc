@@ -126,6 +126,7 @@ static uint m_registry_array_size = 0;
 
 MEM_ROOT global_acl_memory;
 MEM_ROOT memex;
+MEM_ROOT abac_memory;
 Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *acl_users = nullptr;
 Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *acl_proxy_users = nullptr;
 Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *acl_dbs = nullptr;
@@ -3861,13 +3862,14 @@ bool abac_load(THD *thd, TABLE_LIST *tables) {
   thd->variables.sql_mode &= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
   int read_rec_errcode;
 
+  init_sql_alloc(key_memory_acl_mem, &abac_memory, ACL_ALLOC_BLOCK_SIZE, 0);
   /* Processing user_attributes table */
   if (tables[0].table) {
     iterator = init_table_iterator(thd, table = tables[0].table, false, false);
     if (iterator == nullptr) goto end;
     table->use_all_columns();
     while (!(read_rec_errcode = iterator->Read())) {
-      string attrib_name = string(get_field(&global_acl_memory, table->field[MYSQL_USER_ATTRIBUTES_ATTRIB_NAME]));
+      string attrib_name = string(get_field(&abac_memory, table->field[MYSQL_USER_ATTRIBUTES_ATTRIB_NAME]));
       user_attribute_set->insert(attrib_name);
     } 
     iterator.reset();
@@ -3880,7 +3882,7 @@ bool abac_load(THD *thd, TABLE_LIST *tables) {
     if (iterator == nullptr) goto end;
     table->use_all_columns();
     while (!(read_rec_errcode = iterator->Read())) {
-      string attrib_name = string(get_field(&global_acl_memory, table->field[MYSQL_OBJECT_ATTRIBUTES_ATTRIB_NAME]));
+      string attrib_name = string(get_field(&abac_memory, table->field[MYSQL_OBJECT_ATTRIBUTES_ATTRIB_NAME]));
       object_attribute_set->insert(attrib_name);
     }
     iterator.reset();
@@ -3893,18 +3895,18 @@ bool abac_load(THD *thd, TABLE_LIST *tables) {
     if (iterator == nullptr) goto end;
     table->use_all_columns();
     while (!(read_rec_errcode = iterator->Read())) {
-      string user = string(get_field(&global_acl_memory, table->field[MYSQL_USER_ATTRIB_VAL_USER]));
-      string host = string(get_field(&global_acl_memory, table->field[MYSQL_USER_ATTRIB_VAL_HOST]));
-      string attrib_name = string(get_field(&global_acl_memory, table->field[MYSQL_USER_ATTRIB_VAL_ATTRIB_NAME]));
-      string attrib_val = string(get_field(&global_acl_memory, table->field[MYSQL_USER_ATTRIB_VAL_ATTRIB_VAL]));
+      string user = string(get_field(&abac_memory, table->field[MYSQL_USER_ATTRIB_VAL_USER]));
+      string host = string(get_field(&abac_memory, table->field[MYSQL_USER_ATTRIB_VAL_HOST]));
+      string attrib_name = string(get_field(&abac_memory, table->field[MYSQL_USER_ATTRIB_VAL_ATTRIB_NAME]));
+      string attrib_val = string(get_field(&abac_memory, table->field[MYSQL_USER_ATTRIB_VAL_ATTRIB_VAL]));
       string hash_value = user;
       hash_value.push_back('\0');
       hash_value.append(host);
       hash_value.push_back('\0');
       ACL_USER_ABAC *user_abac = new ACL_USER_ABAC();
       if (!acl_user_abac_hash->count(hash_value)) {
-        user_abac->set_user(&global_acl_memory, user.c_str());
-        user_abac->set_host(&global_acl_memory, host.c_str());
+        user_abac->set_user(&abac_memory, user.c_str());
+        user_abac->set_host(&abac_memory, host.c_str());
         user_abac->set_attribute_value(attrib_name, attrib_val);
         acl_user_abac_hash->emplace(hash_value, user_abac);
       } else {
@@ -3921,10 +3923,10 @@ bool abac_load(THD *thd, TABLE_LIST *tables) {
     if (iterator == nullptr) goto end;
     table->use_all_columns();
     while (!(read_rec_errcode = iterator->Read())) {
-      string db_name = string(get_field(&global_acl_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_DB]));
-      string table_name = string(get_field(&global_acl_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_TABLE]));
-      string attrib_name = string(get_field(&global_acl_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_ATTRIB_NAME]));
-      string attrib_val = string(get_field(&global_acl_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_ATTRIB_VAL]));
+      string db_name = string(get_field(&abac_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_DB]));
+      string table_name = string(get_field(&abac_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_TABLE]));
+      string attrib_name = string(get_field(&abac_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_ATTRIB_NAME]));
+      string attrib_val = string(get_field(&abac_memory, table->field[MYSQL_OBJECT_ATTRIB_VAL_ATTRIB_VAL]));
       string hash_value = db_name;
       hash_value.push_back('\0');
       hash_value.append(table_name);
@@ -3949,14 +3951,14 @@ bool abac_load(THD *thd, TABLE_LIST *tables) {
     if (iterator == nullptr) goto end;
     table->use_all_columns();
     while (!(read_rec_errcode = iterator->Read())) {
-      string rule_name = string(get_field(&global_acl_memory, table->field[MYSQL_POLICY_RULE_NAME]));
+      string rule_name = string(get_field(&abac_memory, table->field[MYSQL_POLICY_RULE_NAME]));
       ABAC_RULE *abac_rule = new ABAC_RULE();
       abac_rule->set_rule_name(rule_name);
       ulong access = 0ll;
-      char *select_priv = get_field(&global_acl_memory, table->field[MYSQL_POLICY_SELECT_PRIV]);
-      char *insert_priv = get_field(&global_acl_memory, table->field[MYSQL_POLICY_INSERT_PRIV]);
-      char *delete_priv = get_field(&global_acl_memory, table->field[MYSQL_POLICY_DELETE_PRIV]);
-      char *update_priv = get_field(&global_acl_memory, table->field[MYSQL_POLICY_UPDATE_PRIV]);
+      char *select_priv = get_field(&abac_memory, table->field[MYSQL_POLICY_SELECT_PRIV]);
+      char *insert_priv = get_field(&abac_memory, table->field[MYSQL_POLICY_INSERT_PRIV]);
+      char *delete_priv = get_field(&abac_memory, table->field[MYSQL_POLICY_DELETE_PRIV]);
+      char *update_priv = get_field(&abac_memory, table->field[MYSQL_POLICY_UPDATE_PRIV]);
       if (select_priv[0] == 'Y') access |= SELECT_ACL;
       if (insert_priv[0] == 'Y') access |= INSERT_ACL;
       if (delete_priv[0] == 'Y') access |= DELETE_ACL;
@@ -3974,10 +3976,10 @@ bool abac_load(THD *thd, TABLE_LIST *tables) {
     if (iterator == nullptr) goto end;
     table->use_all_columns();
     while (!(read_rec_errcode = iterator->Read())) {
-      string rule_name = string(get_field(&global_acl_memory, table->field[MYSQL_POLICY_USER_AVAL_RULE_NAME]));
-      string attrib_name = string(get_field(&global_acl_memory, 
+      string rule_name = string(get_field(&abac_memory, table->field[MYSQL_POLICY_USER_AVAL_RULE_NAME]));
+      string attrib_name = string(get_field(&abac_memory, 
           table->field[MYSQL_POLICY_USER_AVAL_USER_ATTRIB_NAME]));
-      string attrib_val = string(get_field(&global_acl_memory, 
+      string attrib_val = string(get_field(&abac_memory, 
           table->field[MYSQL_POLICY_USER_AVAL_USER_ATTRIB_VAL]));
       (*abac_rule_hash)[rule_name]->set_user_attribute(attrib_name, attrib_val);
     }
@@ -3991,10 +3993,10 @@ bool abac_load(THD *thd, TABLE_LIST *tables) {
     if (iterator == nullptr) goto end;
     table->use_all_columns();
     while (!(read_rec_errcode = iterator->Read())) {
-      string rule_name = string(get_field(&global_acl_memory, table->field[MYSQL_POLICY_OBJECT_AVAL_RULE_NAME]));
-      string attrib_name = string(get_field(&global_acl_memory, 
+      string rule_name = string(get_field(&abac_memory, table->field[MYSQL_POLICY_OBJECT_AVAL_RULE_NAME]));
+      string attrib_name = string(get_field(&abac_memory, 
           table->field[MYSQL_POLICY_OBJECT_AVAL_OBJECT_ATTRIB_NAME]));
-      string attrib_val = string(get_field(&global_acl_memory, 
+      string attrib_val = string(get_field(&abac_memory, 
           table->field[MYSQL_POLICY_OBJECT_AVAL_OBJECT_ATTRIB_VAL]));
       (*abac_rule_hash)[rule_name]->set_object_attribute(attrib_name, attrib_val);
     }
@@ -4070,6 +4072,7 @@ void abac_free() {
   user_attribute_set = nullptr;
   delete object_attribute_set;
   object_attribute_set = nullptr;
+  abac_memory.Clear();
 }
 bool abac_init(bool skip_abac_tables = false) {
   THD *thd;
@@ -4098,6 +4101,7 @@ bool abac_init(bool skip_abac_tables = false) {
   return return_val;
 }
 bool abac_reload(THD *thd, bool mdl_locked) {
+  MEM_ROOT old_mem;
   bool return_val = true;
   uint flags = mdl_locked
                    ? MYSQL_OPEN_HAS_MDL_LOCK | MYSQL_LOCK_IGNORE_TIMEOUT |
@@ -4166,6 +4170,7 @@ bool abac_reload(THD *thd, bool mdl_locked) {
   old_abac_table_priv_hash = abac_table_priv_hash;
   old_user_attribute_set  = user_attribute_set;
   old_object_attribute_set = object_attribute_set;
+  old_mem = move(abac_memory);
 
   abac_object_hash = new malloc_unordered_map<string, ABAC_OBJECT*>(key_memory_acl_memex);
   abac_rule_hash = new malloc_unordered_map<string, ABAC_RULE*>(key_memory_acl_memex);
@@ -4182,6 +4187,7 @@ bool abac_reload(THD *thd, bool mdl_locked) {
     acl_user_abac_hash = old_acl_user_abac_hash;
     user_attribute_set = old_user_attribute_set;
     object_attribute_set = old_object_attribute_set;
+    abac_memory = move(old_mem);
   } else {
     delete old_abac_object_hash;
     delete old_abac_rule_hash;
@@ -4189,6 +4195,7 @@ bool abac_reload(THD *thd, bool mdl_locked) {
     delete old_acl_user_abac_hash;
     delete old_user_attribute_set;
     delete old_object_attribute_set;
+    old_mem.Clear();
   }
 
   end:

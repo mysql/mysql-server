@@ -555,6 +555,7 @@ void rebuild_cached_acl_users_for_name(void);
 /* Data Structures */
 extern MEM_ROOT global_acl_memory;
 extern MEM_ROOT memex;
+extern MEM_ROOT abac_memory;
 const size_t ACL_PREALLOC_SIZE = 10U;
 extern Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *acl_users;
 extern Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *acl_proxy_users;

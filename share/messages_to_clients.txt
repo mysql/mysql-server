@@ -9652,6 +9652,45 @@ ER_DA_SSL_FIPS_MODE_ERROR
 ER_VALUE_OUT_OF_RANGE
   eng "%s=%llu is outside the valid range [%llu,%llu]. %llu will be used."
 
+ER_INVALID_USER_ATTRIBUTE
+  eng "Invalid user attribute : %s."
+
+ER_INVALID_RESOURCE_ATTRIBUTE
+  eng "Invalid resource attribute : %s."
+
+ER_FAILED_USER_ATTRIBUTE_GRANT
+  eng "Failed to grant attribute to user '%s'@'%s'."
+
+ER_FAILED_RESOURCE_ATTRIBUTE_GRANT
+  eng "Failed to grant resource attribute to %s.%s."
+
+ER_FAILED_DELETE_ATTRIBUTE
+  eng "Failed to delete attribute %s."
+
+ER_EMPTY_TABLE_OR_DB_NAME
+  eng "Empty table or db name."
+
+ER_FAILED_REVOKE_USER_ATTRIBUTE
+  eng "Failed to revoke user attribute from '%s'@'%s'."
+
+ER_FAILED_REVOKE_RESOURCE_ATTRIBUTE
+  eng "Failed to revoke resource attribute from %s.%s."
+
+ER_ATTRIBUTE_ALREADY_EXISTS
+  eng "Attribute already exists."
+
+ER_FAILED_CREATE_ATTRIBUTE
+  eng "Failed to create attribute %s."
+
+ER_FAILED_DELETE_RULE
+  eng "Failed to delete rule %s."
+
+ER_FAILED_CREATE_RULE
+  eng "Failed to create rule %s."
+
+ER_INVALID_RULE_NAME
+  eng "Invalid rule name."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

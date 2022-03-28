@@ -7589,7 +7589,7 @@ bool mysql_create_rule(THD *thd, std::string rule_name, int privs,
     
     // Check if rule having same name already exists
     if (abac_rule_hash->count(rule_name)) {
-      std::cout<<"Rule with same name already exists\n";
+      my_error(ER_INVALID_RULE_NAME, MYF(0));
       errors = true;
       goto end;
     }
@@ -7597,7 +7597,8 @@ bool mysql_create_rule(THD *thd, std::string rule_name, int privs,
     // Checking if user attributes are valid or not
     for (auto it = user_attributes.attributes->begin(); it != user_attributes.attributes->end(); it++) {
       if (!user_attribute_set->count(std::string(it->str))) {
-        std::cout<<"Cannot identify user attribute\n";
+        // std::cout<<"Cannot identify user attribute\n";
+        my_error(ER_INVALID_USER_ATTRIBUTE, MYF(0), it->str);
         errors = true;
         goto end;
       }
@@ -7606,7 +7607,8 @@ bool mysql_create_rule(THD *thd, std::string rule_name, int privs,
     // Checking if object attributes are valid or not
     for (auto it = object_attributes.attributes->begin(); it != object_attributes.attributes->end(); it++) {
       if (!object_attribute_set->count(std::string(it->str))) {
-        std::cout<<"Cannot identify object attribute\n";
+        // std::cout<<"Cannot identify object attribute\n";
+        my_error(ER_INVALID_RESOURCE_ATTRIBUTE, MYF(0), it->str);
         errors = true;
         goto end;
       }
@@ -7617,7 +7619,8 @@ bool mysql_create_rule(THD *thd, std::string rule_name, int privs,
     ret |= modify_rule_in_table(thd, table, rule_name, privs, false);
     if (ret) {
       errors = true;
-      std::cout<<"Failed to add rule to policy table\n";
+      // std::cout<<"Failed to add rule to policy table\n";
+      my_error(ER_FAILED_CREATE_RULE, MYF(0));
       goto end;
     }
     table = tables[ACL_TABLES::TABLE_POLICY_USER_AVAL].table;
@@ -7631,7 +7634,8 @@ bool mysql_create_rule(THD *thd, std::string rule_name, int privs,
     }
     if (ret) {
       errors = true;
-      std::cout<<"Failed to add attribute value pairs to policy_user_aval\n";
+      // std::cout<<"Failed to add attribute value pairs to policy_user_aval\n";
+      my_error(ER_FAILED_CREATE_RULE, MYF(0));
       goto end;
     }
 
@@ -7644,16 +7648,18 @@ bool mysql_create_rule(THD *thd, std::string rule_name, int privs,
     }
     if (ret) {
       errors = true;
-      std::cout<<"Failed to add attribute value pairs to policy_object_aval\n";
+      // std::cout<<"Failed to add attribute value pairs to policy_object_aval\n";
+      my_error(ER_FAILED_CREATE_RULE, MYF(0));
     }
     end:
-      // assert(!errors || thd->is_error()); TODO(): Add error messages
+      assert(!errors || thd->is_error());
       errors = log_and_commit_acl_ddl(thd, transactional_tables);
       get_global_acl_cache()->increase_version();
   } /* Critical section */
 
   if (!errors) {
     my_ok(thd);
+    abac_reload(thd, false);
     /* Notify storage engines */
   }
 
@@ -7683,7 +7689,7 @@ bool mysql_delete_rule(THD *thd, std::string rule_name) {
     
     // Check if rule having same name already exists
     if (!abac_rule_hash->count(rule_name)) {
-      std::cout<<"Invalid rule name\n";
+      my_error(ER_INVALID_RULE_NAME, MYF(0));
       errors = true;
       goto end;
     }
@@ -7695,6 +7701,7 @@ bool mysql_delete_rule(THD *thd, std::string rule_name) {
     for (auto it = rule->user_attrib_map.begin(); it != rule->user_attrib_map.end(); it++) {
       ret |= modify_policy_user_aval_in_table(thd, table, rule_name, it->first, it->second, true);
       if (ret) {
+        my_error(ER_FAILED_DELETE_RULE, MYF(0));
         errors = true;
         goto end;
       }
@@ -7705,6 +7712,7 @@ bool mysql_delete_rule(THD *thd, std::string rule_name) {
     for (auto it = rule->object_attrib_map.begin(); it != rule->object_attrib_map.end(); it++) {
       ret |= modify_policy_object_aval_in_table(thd, table, rule_name, it->first, it->second, true);
       if (ret) {
+        my_error(ER_FAILED_DELETE_RULE, MYF(0));
         errors = true;
         goto end;
       }
@@ -7714,17 +7722,19 @@ bool mysql_delete_rule(THD *thd, std::string rule_name) {
     // Delete rule from policy table
     ret |= modify_rule_in_table(thd, table, rule_name, rule->access, true);
     if (ret) {
+      my_error(ER_FAILED_DELETE_RULE, MYF(0));
       errors = true;
       goto end;
     }
     end:
-      // assert(!errors || thd->is_error()); TODO(): Add error messages
+      assert(!errors || thd->is_error());
       errors = log_and_commit_acl_ddl(thd, transactional_tables);
       get_global_acl_cache()->increase_version();    
   } /* Critical section */
 
   if (!errors) {
     my_ok(thd);
+    abac_reload(thd, false);
     /* Notify storage engines */
   }
   
@@ -7752,7 +7762,8 @@ bool mysql_create_user_attribute(THD *thd, std::string user_attrib) {
     }
 
     if (user_attribute_set->count(user_attrib)) {
-      std::cout<<"Attribute is already present in the system\n";
+      // std::cout<<"Attribute is already present in the system\n";
+      my_error(ER_ATTRIBUTE_ALREADY_EXISTS, MYF(0));
       errors = true;
       goto end;
     }
@@ -7760,17 +7771,19 @@ bool mysql_create_user_attribute(THD *thd, std::string user_attrib) {
     table = tables[ACL_TABLES::TABLE_USER_ATTRIBUTES].table;
     ret |= modify_user_attribute_in_table(thd, table, user_attrib, false);
     if (ret) {
+      my_error(ER_FAILED_CREATE_ATTRIBUTE, MYF(0), user_attrib.c_str());
       errors = true;
-      std::cout<<"Failed to add user attribute to table\n";
+      // std::cout<<"Failed to add user attribute to table\n";
     }
     end:
+      assert(!errors || thd->is_error());
       errors = log_and_commit_acl_ddl(thd, transactional_tables);
       get_global_acl_cache()->increase_version();
   }   /* Critical section */
 
   if (!errors) {
     my_ok(thd);
-    /* Notify storage engines */
+    abac_reload(thd, false);
   }
 
   return errors;
@@ -7797,7 +7810,8 @@ bool mysql_create_object_attribute(THD *thd, std::string object_attrib) {
     }
 
     if (object_attribute_set->count(object_attrib)) {
-      std::cout<<"Attribute is already present in the system\n";
+      my_error(ER_ATTRIBUTE_ALREADY_EXISTS, MYF(0));
+      // std::cout<<"Attribute is already present in the system\n";
       errors = true;
       goto end;
     }
@@ -7805,17 +7819,18 @@ bool mysql_create_object_attribute(THD *thd, std::string object_attrib) {
     table = tables[ACL_TABLES::TABLE_OBJECT_ATTRIBUTES].table;
     ret |= modify_object_attribute_in_table(thd, table, object_attrib, false);
     if (ret) {
+      my_error(ER_FAILED_CREATE_ATTRIBUTE, MYF(0), object_attrib.c_str());
       errors = true;
-      std::cout<<"Failed to add object attribute to table\n";
     }
     end:
+      assert(!errors || thd->is_error());
       errors = log_and_commit_acl_ddl(thd, transactional_tables);
       get_global_acl_cache()->increase_version();
   }   /* Critical section */
 
   if (!errors) {
     my_ok(thd);
-    /* Notify storage engines */
+    abac_reload(thd, false);
   }
 
   return errors;
@@ -7842,7 +7857,7 @@ bool mysql_delete_user_attribute(THD *thd, std::string user_attrib) {
     }
 
     if (!user_attribute_set->count(user_attrib)) {
-      std::cout<<"Invalid user attribute\n";
+      my_error(ER_INVALID_USER_ATTRIBUTE, MYF(0), user_attrib.c_str());
       errors = true;
       goto end;
     }
@@ -7850,16 +7865,18 @@ bool mysql_delete_user_attribute(THD *thd, std::string user_attrib) {
     table = tables[ACL_TABLES::TABLE_USER_ATTRIBUTES].table;
     ret |= modify_user_attribute_in_table(thd, table, user_attrib, true);
     if (ret) {
+      my_error(ER_FAILED_DELETE_ATTRIBUTE, MYF(0), user_attrib.c_str());
       errors = true;
-      std::cout<<"Failed to delete user attribute from table\n";
     }
     end:
+      assert(!errors || thd->is_error());
       errors = log_and_commit_acl_ddl(thd, transactional_tables);
       get_global_acl_cache()->increase_version();
   }   /* Critical section */
 
   if (!errors) {
     my_ok(thd);
+    abac_reload(thd, false);
     /* Notify storage engines */
   }
 
@@ -7887,7 +7904,7 @@ bool mysql_delete_object_attribute(THD *thd, std::string object_attrib) {
     }
 
     if (!object_attribute_set->count(object_attrib)) {
-      std::cout<<"Invalid object attribute\n";
+      my_error(ER_INVALID_RESOURCE_ATTRIBUTE, MYF(0), object_attrib.c_str());
       errors = true;
       goto end;
     }
@@ -7895,16 +7912,18 @@ bool mysql_delete_object_attribute(THD *thd, std::string object_attrib) {
     table = tables[ACL_TABLES::TABLE_OBJECT_ATTRIBUTES].table;
     ret |= modify_object_attribute_in_table(thd, table, object_attrib, true);
     if (ret) {
+      my_error(ER_FAILED_DELETE_ATTRIBUTE, MYF(0), object_attrib.c_str());
       errors = true;
-      std::cout<<"Failed to delete object attribute from table\n";
     }
     end:
+      assert(!errors || thd->is_error());
       errors = log_and_commit_acl_ddl(thd, transactional_tables);
       get_global_acl_cache()->increase_version();
   }   /* Critical section */
 
   if (!errors) {
     my_ok(thd);
+    abac_reload(thd, false);
     /* Notify storage engines */
   }
 
@@ -7943,7 +7962,8 @@ bool mysql_grant_user_attribute(THD *thd, LEX_STRING attrib_name, LEX_STRING val
     }
 
     if (!user_attribute_set->count(std::string(attrib_name.str))) {
-      std::cout<<"Invalid user attribute\n";
+      // std::cout<<"Invalid user attribute\n";
+      my_error(ER_INVALID_USER_ATTRIBUTE, MYF(0), attrib_name.str);
       errors = true;
       goto end;
     }
@@ -7954,6 +7974,7 @@ bool mysql_grant_user_attribute(THD *thd, LEX_STRING attrib_name, LEX_STRING val
       if (lex_user->user.str == nullptr) {
         lex_user = get_current_user(thd, lex_user);
       } else if (lex_user->user.length == 0 || *(lex_user->user.str) == '\0') {
+        my_error(ER_FAILED_USER_ATTRIBUTE_GRANT, MYF(0), lex_user->user.str, lex_user->host.str);
         errors = true;
         break;
       }
@@ -7967,21 +7988,27 @@ bool mysql_grant_user_attribute(THD *thd, LEX_STRING attrib_name, LEX_STRING val
       }
       ACL_USER_ABAC *abac_user = find_abac_user(lex_user->user.str, lex_user->host.str);
       if (abac_user == nullptr || !abac_user->attrib_map.count(std::string(attrib_name.str))) {
-        modify_user_attrib_val_in_table(thd, table, *lex_user, attrib_name, to_string(value), false);
+        errors |= modify_user_attrib_val_in_table(thd, table, *lex_user, attrib_name, to_string(value), false);
       } else {
         std::string current_val = abac_user->attrib_map[to_string(attrib_name)];
         errors |= modify_user_attrib_val_in_table(thd, table, *lex_user, attrib_name, current_val, true);
         errors |= modify_user_attrib_val_in_table(thd, table, *lex_user, attrib_name, to_string(value), false);
       }
+      if (errors) {
+        my_error(ER_FAILED_USER_ATTRIBUTE_GRANT, MYF(0), lex_user->user.str, lex_user->host.str);
+        break;
+      }
     }
 
     end:
+      assert(!errors || thd->is_error());
       errors = log_and_commit_acl_ddl(thd, transactional_tables);
       get_global_acl_cache()->increase_version();
   }       /* Crititcal section */
 
   if (!errors) {
     my_ok(thd);
+    abac_reload(thd, false);
     /* Notify storage engines */
   }
 
@@ -8022,7 +8049,8 @@ bool mysql_grant_object_attribute(THD *thd, LEX_STRING attrib_name,
     }
 
     if (!object_attribute_set->count(std::string(attrib_name.str))) {
-      std::cout<<"Invalid object attribute\n";
+      // std::cout<<"Invalid object attribute\n";
+      my_error(ER_INVALID_RESOURCE_ATTRIBUTE, MYF(0), attrib_name.str);
       errors = true;
       goto end;
     }
@@ -8033,10 +8061,19 @@ bool mysql_grant_object_attribute(THD *thd, LEX_STRING attrib_name,
                           it_db != dbs->end(); it_db++, it_table++) {
       LEX_CSTRING db_name = *it_db;
       LEX_CSTRING table_name = *it_table;
-      if (!db_name.length || !table_name.length) {
-        errors = true;
-        break;
+      bool exists;
+      if (dd::table_exists(thd->dd_client(), db_name.str, table_name.str, &exists))
+        return true;
+
+      if (!exists) {
+        my_error(ER_NO_SUCH_TABLE, MYF(0), db_name, table_name);
+        return true;
       }
+      // if (!db_name.length || !table_name.length) {
+      //   my_error(ER_EMPTY_TABLE_OR_DB_NAME, MYF(0));
+      //   errors = true;
+      //   break;
+      // }
       ABAC_OBJECT *abac_object = find_abac_object(db_name, table_name);
       if (abac_object == nullptr || !abac_object->attrib_map.count(std::string(attrib_name.str))) {
         errors |= modify_object_attrib_val_in_table(thd, table, db_name, table_name, attrib_name, to_string(value), false);
@@ -8045,15 +8082,20 @@ bool mysql_grant_object_attribute(THD *thd, LEX_STRING attrib_name,
         errors |= modify_object_attrib_val_in_table(thd, table, db_name, table_name, attrib_name, current_val, true);
         errors |= modify_object_attrib_val_in_table(thd, table, db_name, table_name, attrib_name, to_string(value), false);
       }
+      if (errors) {
+        my_error(ER_FAILED_RESOURCE_ATTRIBUTE_GRANT, MYF(0), db_name.str, table_name.str);
+      }
     }
 
     end:
+      assert(!errors || thd->is_error());
       errors = log_and_commit_acl_ddl(thd, transactional_tables);
       get_global_acl_cache()->increase_version();
   }       /* Crititcal section */
 
   if (!errors) {
     my_ok(thd);
+    abac_reload(thd, false);
     /* Notify storage engines */
   }
 
@@ -8083,7 +8125,7 @@ bool mysql_revoke_user_attribute(THD *thd, LEX_STRING attrib_name, LEX_STRING *v
     }
 
     if (!user_attribute_set->count(std::string(attrib_name.str))) {
-      std::cout<<"Invalid user attribute\n";
+      my_error(ER_INVALID_USER_ATTRIBUTE, MYF(0), attrib_name.str);
       errors = true;
       goto end;
     }
@@ -8094,6 +8136,7 @@ bool mysql_revoke_user_attribute(THD *thd, LEX_STRING attrib_name, LEX_STRING *v
       if (lex_user->user.str == nullptr) {
         lex_user = get_current_user(thd, lex_user);
       } else if (lex_user->user.length == 0 || *(lex_user->user.str) == '\0') {
+        my_error(ER_FAILED_REVOKE_USER_ATTRIBUTE, MYF(0), lex_user->user.str, lex_user->host.str);
         errors = true;
         break;
       }
@@ -8107,24 +8150,32 @@ bool mysql_revoke_user_attribute(THD *thd, LEX_STRING attrib_name, LEX_STRING *v
       }
       ACL_USER_ABAC *abac_user = find_abac_user(lex_user->user.str, lex_user->host.str);
       if (abac_user == nullptr || !abac_user->attrib_map.count(to_string(attrib_name))) {
+        my_error(ER_FAILED_REVOKE_USER_ATTRIBUTE, MYF(0), lex_user->user.str, lex_user->host.str);
         errors = true;
         break;
       }
       std::string current_val = abac_user->get_attribute_value(to_string(attrib_name));
       if (value_ptr != nullptr && to_string(*value_ptr) != current_val) {
+        my_error(ER_FAILED_REVOKE_USER_ATTRIBUTE, MYF(0), lex_user->user.str, lex_user->host.str);
         errors = true;
         break;
       }
       errors |= modify_user_attrib_val_in_table(thd, table, *lex_user, attrib_name, current_val, true);
+      if (errors) {
+        my_error(ER_FAILED_REVOKE_USER_ATTRIBUTE, MYF(0), lex_user->user.str, lex_user->host.str);
+        break;
+      }
     }
 
     end:
+      assert(!errors || thd->is_error());
       errors = log_and_commit_acl_ddl(thd, transactional_tables);
       get_global_acl_cache()->increase_version();
   }       /* Crititcal section */
 
   if (!errors) {
     my_ok(thd);
+    abac_reload(thd, false);
     /* Notify storage engines */
   }
 
@@ -8153,7 +8204,7 @@ bool mysql_revoke_object_attribute(THD *thd, LEX_STRING attrib_name, LEX_STRING 
     }
 
     if (!object_attribute_set->count(std::string(attrib_name.str))) {
-      std::cout<<"Invalid object attribute\n";
+      my_error(ER_INVALID_RESOURCE_ATTRIBUTE, MYF(0), attrib_name.str);
       errors = true;
       goto end;
     }
@@ -8165,29 +8216,39 @@ bool mysql_revoke_object_attribute(THD *thd, LEX_STRING attrib_name, LEX_STRING 
       LEX_CSTRING db_name = *it_db;
       LEX_CSTRING table_name = *it_table;
       if (!db_name.length || !table_name.length) {
+        my_error(ER_FAILED_REVOKE_RESOURCE_ATTRIBUTE, MYF(0), db_name.str, table_name.str);
         errors = true;
         break;
       }
       ABAC_OBJECT *abac_object = find_abac_object(db_name, table_name);
       if (abac_object == nullptr || !abac_object->attrib_map.count(to_string(attrib_name))) {
+        my_error(ER_FAILED_REVOKE_RESOURCE_ATTRIBUTE, MYF(0), db_name.str, table_name.str);
         errors = true;
         break;
       }
       std::string current_val = abac_object->attrib_map[to_string(attrib_name)];
       if (value_ptr != nullptr && current_val != to_string(*value_ptr)) {
+        my_error(ER_FAILED_REVOKE_RESOURCE_ATTRIBUTE, MYF(0), db_name.str, table_name.str);
         errors = true;
         break;
       }
       errors |= modify_object_attrib_val_in_table(thd, table, db_name, table_name, attrib_name, current_val, true);
+      if (errors) {
+        my_error(ER_FAILED_REVOKE_RESOURCE_ATTRIBUTE, MYF(0), db_name.str, table_name.str);
+        errors = true;
+        break;
+      }
     }
 
     end:
+      assert(!errors || thd->is_error());
       errors = log_and_commit_acl_ddl(thd, transactional_tables);
       get_global_acl_cache()->increase_version();
   }         /* Crititcal section */
 
   if (!errors) {
     my_ok(thd);
+    abac_reload(thd, false);
     /* Notify storage engines */
   }
 
