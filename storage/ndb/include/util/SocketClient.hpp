@@ -26,6 +26,7 @@
 #define SOCKET_CLIENT_HPP
 
 #include "portlib/ndb_socket.h"
+#include "util/NdbSocket.h"
 
 class SocketAuthenticator;
 
@@ -45,6 +46,7 @@ public:
            unsigned short local_port);
   ndb_socket_t connect(const char* server_hostname,
                        unsigned short server_port);
+  void connect(NdbSocket &, const char *hostname, unsigned short port);
 
   ndb_socket_t m_sockfd;
 };
