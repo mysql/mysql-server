@@ -774,7 +774,8 @@ The following options may be given as the first argument:
  --old-style-user-limits 
  Enable old-style user limits (before 5.0.3, user
  resources were counted for each user + host vs. per
- account).
+ account). This option is deprecated and will be removed
+ in a future version.
  --open-files-limit=# 
  If this is not 0, then mysqld will use this value to
  reserve file descriptors to use with setrlimit(). If this

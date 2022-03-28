@@ -8882,9 +8882,10 @@ struct my_option my_long_options[] = {
     {"memlock", 0, "Lock mysqld in memory.", &locked_in_memory,
      &locked_in_memory, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-    {"old-style-user-limits", 0,
+    {"old-style-user-limits", OPT_OLD_STYLE_USER_LIMITS,
      "Enable old-style user limits (before 5.0.3, user resources were counted "
-     "for each user + host vs. per account).",
+     "for each user + host vs. per account). "
+     "This option is deprecated and will be removed in a future version.",
      &opt_old_style_user_limits, &opt_old_style_user_limits, nullptr, GET_BOOL,
      NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"port-open-timeout", 0,
@@ -10661,6 +10662,9 @@ bool mysqld_get_one_option(int optid,
         push_deprecated_warn(nullptr, "--replica-parallel-workers=0",
                              "'--replica-parallel-workers=1'");
       }
+      break;
+    case OPT_OLD_STYLE_USER_LIMITS:
+      push_deprecated_warn_no_replacement(nullptr, "--old-style-user-limits");
   }
   return false;
 }
