@@ -1318,7 +1318,7 @@ public:
 
   int read_row(VirtualScanContext *ctx, VirtualTable::Row &w,
                Uint32) const override {
-    IndexStatRow *row_data;
+    const IndexStatRow *row_data;
     const int scan_next_result =
         ctx->getScanOp()->nextResult((const char **)&row_data, true, false);
     if (scan_next_result == 0) {

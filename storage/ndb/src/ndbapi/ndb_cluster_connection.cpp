@@ -987,7 +987,7 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
   for(iter.first(); iter.valid(); iter.next())
   {
     Uint32 nodeid1, nodeid2, remoteNodeId, group= 5;
-    const char * remoteHostName= 0, * localHostName= 0;
+    const char *remoteHostName = nullptr;
     if(iter.get(CFG_CONNECTION_NODE_1, &nodeid1)) continue;
     if(iter.get(CFG_CONNECTION_NODE_2, &nodeid2)) continue;
 
@@ -1000,7 +1000,6 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
       const char * host1= 0, * host2= 0;
       iter.get(CFG_CONNECTION_HOSTNAME_1, &host1);
       iter.get(CFG_CONNECTION_HOSTNAME_2, &host2);
-      localHostName  = (nodeid == nodeid1 ? host1 : host2);
       remoteHostName = (nodeid == nodeid1 ? host2 : host1);
     }
 

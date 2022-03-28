@@ -1197,7 +1197,6 @@ NdbEventOperationImpl::getEventType2()
 }
 
 
-
 void
 NdbEventOperationImpl::print()
 {
@@ -1221,26 +1220,6 @@ NdbEventOperationImpl::print()
       p = p->next();
     }
     ndbout << "\n";
-  }
-}
-
-void
-NdbEventOperationImpl::printAll()
-{
-  const Uint32* aAttrPtr = m_data_item->ptr[0].p;
-  const Uint32* aAttrEndPtr = aAttrPtr + m_data_item->ptr[0].sz;
-  const Uint32* aDataPtr = m_data_item->ptr[1].p;
-
-  //tRecAttr->setup(tAttrInfo, aValue)) {
-
-  Uint32 tAttrId;
-  Uint32 tDataSz;
-  for (; aAttrPtr < aAttrEndPtr; ) {
-    tAttrId = AttributeHeader(*aAttrPtr).getAttributeId();
-    tDataSz = AttributeHeader(*aAttrPtr).getDataSize();
-
-    aAttrPtr++;
-    aDataPtr += tDataSz;
   }
 }
 
@@ -2096,7 +2075,7 @@ NdbEventBuffer::resize_known_gci()
   Uint64 gci = array[minpos];
   for (Uint32 i = minpos + 1; i<maxpos; i++)
   {
-    assert(array[i] > gci);
+    require(array[i] > gci);
     gci = array[i];
   }
 #endif
