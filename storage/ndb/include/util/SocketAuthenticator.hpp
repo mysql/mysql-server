@@ -25,16 +25,29 @@
 #ifndef SOCKET_AUTHENTICATOR_HPP
 #define SOCKET_AUTHENTICATOR_HPP
 
-#include "portlib/ndb_socket.h"
+#include "util/NdbSocket.h"
 
 class SocketAuthenticator
 {
 public:
   SocketAuthenticator() {}
   virtual ~SocketAuthenticator() {}
-  virtual bool client_authenticate(ndb_socket_t sockfd) = 0;
-  virtual bool server_authenticate(ndb_socket_t sockfd) = 0;
+  bool client_authenticate(ndb_socket_t);
+  bool server_authenticate(ndb_socket_t);
+  virtual bool client_authenticate(NdbSocket &) = 0;
+  virtual bool server_authenticate(NdbSocket &) = 0;
 };
+
+inline bool SocketAuthenticator::client_authenticate(ndb_socket_t fd) {
+  NdbSocket socket(fd, NdbSocket::From::Existing);
+  return client_authenticate(socket);
+}
+
+inline bool SocketAuthenticator::server_authenticate(ndb_socket_t fd) {
+  NdbSocket socket(fd, NdbSocket::From::Existing);
+  return server_authenticate(socket);
+}
+
 
 class SocketAuthSimple : public SocketAuthenticator
 {
@@ -43,8 +56,9 @@ class SocketAuthSimple : public SocketAuthenticator
 public:
   SocketAuthSimple(const char *username, const char *passwd);
   ~SocketAuthSimple() override;
-  bool client_authenticate(ndb_socket_t sockfd) override;
-  bool server_authenticate(ndb_socket_t sockfd) override;
+  bool client_authenticate(NdbSocket &) override;
+  bool server_authenticate(NdbSocket &) override;
 };
+
 
 #endif // SOCKET_AUTHENTICATOR_HPP

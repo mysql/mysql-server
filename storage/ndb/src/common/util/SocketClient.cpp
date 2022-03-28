@@ -235,16 +235,16 @@ done:
   assert(m_last_used_port == 0);
   ndb_socket_get_port(m_sockfd, &m_last_used_port);
 
+  secureSocket.init_from_new(m_sockfd);
+
   if (m_auth) {
-    if (!m_auth->client_authenticate(m_sockfd))
+    if (!m_auth->client_authenticate(secureSocket))
     {
       DEBUG_FPRINTF((stderr, "authenticate failed in connect\n"));
-      ndb_socket_close(m_sockfd);
-      ndb_socket_invalidate(&m_sockfd);
+      secureSocket.close();
+      secureSocket.invalidate();
     }
   }
-
-  secureSocket.init_from_new(m_sockfd);
 
   ndb_socket_invalidate(&m_sockfd);
 }

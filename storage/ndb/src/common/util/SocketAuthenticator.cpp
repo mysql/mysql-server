@@ -45,10 +45,10 @@ SocketAuthSimple::~SocketAuthSimple()
     free(m_username);
 }
 
-bool SocketAuthSimple::client_authenticate(ndb_socket_t sockfd)
+bool SocketAuthSimple::client_authenticate(NdbSocket & sockfd)
 {
-  SocketOutputStream s_output(sockfd);
-  SocketInputStream  s_input(sockfd);
+  SecureSocketOutputStream s_output(sockfd);
+  SecureSocketInputStream  s_input(sockfd);
 
   // Write username and password
   s_output.println("%s", m_username ? m_username : "");
@@ -68,10 +68,10 @@ bool SocketAuthSimple::client_authenticate(ndb_socket_t sockfd)
   return false;
 }
 
-bool SocketAuthSimple::server_authenticate(ndb_socket_t sockfd)
+bool SocketAuthSimple::server_authenticate(NdbSocket & sockfd)
 {
-  SocketOutputStream s_output(sockfd);
-  SocketInputStream  s_input(sockfd);
+  SecureSocketOutputStream s_output(sockfd);
+  SecureSocketInputStream  s_input(sockfd);
 
   char buf[256];
 
