@@ -20,8 +20,21 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET(CPACK_COMPONENTS_USED 
-    "Server;Client;DataFiles;Development;SharedLibraries;Documentation;IniFiles;Readme;Server_Scripts;Meb;MebReadme;Router")
+SET(CPACK_COMPONENTS_USED
+  Client
+  DataFiles
+  Development
+  Documentation
+  Info
+  IniFiles
+  Meb
+  MebReadme
+  Readme
+  Router
+  Server
+  Server_Scripts
+  SharedLibraries
+  )
 
 IF(WITH_NDBCLUSTER)
   MESSAGE(STATUS "This is Cluster build, append additional components")
