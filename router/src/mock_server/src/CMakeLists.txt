@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -97,6 +97,11 @@ IF(HAS_WARN_FLAG)
   ADD_COMPILE_FLAGS(${DUKTAPE_SRCS} COMPILE_FLAGS "${HAS_WARN_FLAG}")
 ENDIF()
 MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  ADD_COMPILE_FLAGS(${DUKTAPE_SRCS} COMPILE_FLAGS "${HAS_WARN_FLAG}")
+ENDIF()
+
+MY_CHECK_CXX_COMPILER_WARNING("-Wmaybe-uninitialized" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
   ADD_COMPILE_FLAGS(${DUKTAPE_SRCS} COMPILE_FLAGS "${HAS_WARN_FLAG}")
 ENDIF()
