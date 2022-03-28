@@ -5496,7 +5496,6 @@ static bool
 fixHostname(InitConfigFileParser::Context & ctx, const char * data){
   
   char buf[] = "NodeIdX"; buf[6] = data[sizeof("HostNam")];
-  char sysbuf[] = "SystemX"; sysbuf[6] = data[sizeof("HostNam")];
   
   if(!ctx.m_currentSection->contains(data)){
     Uint32 id = 0;
