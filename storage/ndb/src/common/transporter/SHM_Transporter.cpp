@@ -321,13 +321,13 @@ SHM_Transporter::setupBuffers()
 }
 
 bool
-SHM_Transporter::connect_server_impl(ndb_socket_t sockfd)
+SHM_Transporter::connect_server_impl(NdbSocket & sockfd)
 {
   DBUG_ENTER("SHM_Transporter::connect_server_impl");
   DEBUG_FPRINTF((stderr, "(%u)connect_server_impl(%u)\n",
                  localNodeId, remoteNodeId));
-  SocketOutputStream s_output(sockfd);
-  SocketInputStream s_input(sockfd);
+  SecureSocketOutputStream s_output(sockfd);
+  SecureSocketInputStream s_input(sockfd);
 
   // Create
   if (!_shmSegCreated)
@@ -399,7 +399,7 @@ SHM_Transporter::connect_server_impl(ndb_socket_t sockfd)
 
   DEBUG_FPRINTF((stderr, "(%u)connect_common()(%u)\n",
                  localNodeId, remoteNodeId));
-  int r= connect_common(sockfd);
+  int r= connect_common();
 
   if (r)
   {
@@ -424,25 +424,25 @@ SHM_Transporter::connect_server_impl(ndb_socket_t sockfd)
 }
 
 void
-SHM_Transporter::set_socket(ndb_socket_t sockfd)
+SHM_Transporter::set_socket(NdbSocket & sock)
 {
-  set_get(sockfd, IPPROTO_TCP, TCP_NODELAY, "TCP_NODELAY", 1);
-  set_get(sockfd, SOL_SOCKET, SO_KEEPALIVE, "SO_KEEPALIVE", 1);
-  ndb_socket_nonblock(sockfd, true);
+  set_get(sock.ndb_socket(), IPPROTO_TCP, TCP_NODELAY, "TCP_NODELAY", 1);
+  set_get(sock.ndb_socket(), SOL_SOCKET, SO_KEEPALIVE, "SO_KEEPALIVE", 1);
+  sock.set_nonblocking(true);
   get_callback_obj()->lock_transporter(remoteNodeId, m_transporter_index);
-  theSocket.init_from_new(sockfd);
+  NdbSocket::transfer(theSocket, sock);
   send_checksum_state.init();
   get_callback_obj()->unlock_transporter(remoteNodeId, m_transporter_index);
 }
 
 bool
-SHM_Transporter::connect_client_impl(ndb_socket_t sockfd)
+SHM_Transporter::connect_client_impl(NdbSocket & sockfd)
 {
   DBUG_ENTER("SHM_Transporter::connect_client_impl");
   DEBUG_FPRINTF((stderr, "(%u)connect_client_impl(%u)\n",
                  localNodeId, remoteNodeId));
-  SocketInputStream s_input(sockfd);
-  SocketOutputStream s_output(sockfd);
+  SecureSocketInputStream s_input(sockfd);
+  SecureSocketOutputStream s_output(sockfd);
   char buf[256];
 
   // Wait for server to create and attach
@@ -522,7 +522,7 @@ SHM_Transporter::connect_client_impl(ndb_socket_t sockfd)
   
   DEBUG_FPRINTF((stderr, "(%u)connect_common(%u)\n",
                  localNodeId, remoteNodeId));
-  int r = connect_common(sockfd);
+  int r = connect_common();
   
   if (r)
   {
@@ -557,7 +557,7 @@ SHM_Transporter::connect_client_impl(ndb_socket_t sockfd)
 }
 
 bool
-SHM_Transporter::connect_common(ndb_socket_t)
+SHM_Transporter::connect_common()
 {
   if (!checkConnected())
   {

@@ -127,8 +127,12 @@ public:
    *    Use isConnected() to check status
    */
   virtual bool connect_client();
-  bool connect_client(ndb_socket_t sockfd);
-  bool connect_server(ndb_socket_t socket, BaseString& errormsg);
+  bool connect_client(NdbSocket &);
+  bool connect_client(ndb_socket_t fd) {
+    NdbSocket socket(fd, NdbSocket::From::Existing);
+    return connect_client(socket);
+  }
+  bool connect_server(NdbSocket & socket, BaseString& errormsg);
 
   /**
    * Returns socket used (sockets are used for all transporters to ensure
@@ -241,8 +245,8 @@ protected:
    * Blocking, for max timeOut milli seconds
    *   Returns true if connect succeeded
    */
-  virtual bool connect_server_impl(ndb_socket_t) = 0;
-  virtual bool connect_client_impl(ndb_socket_t) = 0;
+  virtual bool connect_server_impl(NdbSocket &) = 0;
+  virtual bool connect_client_impl(NdbSocket &) = 0;
   virtual int pre_connect_options(ndb_socket_t) { return 0;}
   
   /**

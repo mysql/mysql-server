@@ -201,25 +201,25 @@ TCP_Transporter::resetBuffers()
   send_checksum_state.init();
 }
 
-bool TCP_Transporter::connect_server_impl(ndb_socket_t sockfd)
+bool TCP_Transporter::connect_server_impl(NdbSocket & socket)
 {
   DBUG_ENTER("TCP_Transpporter::connect_server_impl");
-  DBUG_RETURN(connect_common(sockfd));
+  DBUG_RETURN(connect_common(socket));
 }
 
-bool TCP_Transporter::connect_client_impl(ndb_socket_t sockfd)
+bool TCP_Transporter::connect_client_impl(NdbSocket & socket)
 {
   DBUG_ENTER("TCP_Transpporter::connect_client_impl");
-  DBUG_RETURN(connect_common(sockfd));
+  DBUG_RETURN(connect_common(socket));
 }
 
-bool TCP_Transporter::connect_common(ndb_socket_t sockfd)
+bool TCP_Transporter::connect_common(NdbSocket & socket)
 {
-  setSocketOptions(sockfd);
-  setSocketNonBlocking(sockfd);
+  setSocketOptions(socket.ndb_socket());
+  socket.set_nonblocking(true);
 
   get_callback_obj()->lock_transporter(remoteNodeId, m_transporter_index);
-  theSocket.init_from_new(sockfd);
+  NdbSocket::transfer(theSocket, socket);
   send_checksum_state.init();
   get_callback_obj()->unlock_transporter(remoteNodeId, m_transporter_index);
 

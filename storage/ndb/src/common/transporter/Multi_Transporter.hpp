@@ -143,9 +143,8 @@ protected:
    * A client connects to the remote server
    * A server accepts any new connections
    */
-  bool connect_server_impl(ndb_socket_t sockfd) override;
-  bool connect_client_impl(ndb_socket_t sockfd) override;
-  bool connect_common(ndb_socket_t sockfd);
+  bool connect_server_impl(NdbSocket & sockfd) override;
+  bool connect_client_impl(NdbSocket & sockfd) override;
  
   /**
    * Disconnects a TCP/IP node, possibly blocking.

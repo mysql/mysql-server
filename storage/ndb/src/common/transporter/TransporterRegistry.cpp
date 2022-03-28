@@ -783,7 +783,7 @@ TransporterRegistry::connect_server(NdbSocket & socket,
   // Setup transporter (transporter responsible for closing sockfd)
   DEBUG_FPRINTF((stderr, "connect_server for trp_id %u\n",
                  t->getTransporterIndex()));
-  DBUG_RETURN(t->connect_server(socket.ndb_socket(), msg)); // WL#15130 fix me soon
+  DBUG_RETURN(t->connect_server(socket, msg));
 }
 
 void
