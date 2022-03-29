@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -417,7 +417,10 @@ class basic_socket_impl_base {
       cancel();
 
       auto res = io_ctx_->socket_service()->close(native_handle());
-      if (res) native_handle_ = impl::socket::kInvalidSocket;
+
+      // after close() finished, the socket's state is undefined even if it
+      // failed. See "man close" on Linux.
+      native_handle_ = impl::socket::kInvalidSocket;
 
       return res;
     }
