@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,10 @@
 # This file includes OSX specific options and quirks, related to system checks
 
 INCLUDE(CheckCSourceRuns)
+
+IF(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
+  SET(APPLE_ARM 1)
+ENDIF()
 
 # We require at least Clang 3.3 (XCode 5).
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
