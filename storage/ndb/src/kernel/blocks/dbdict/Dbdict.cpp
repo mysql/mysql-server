@@ -17153,6 +17153,7 @@ Dbdict::indexStatBg_fromBeginTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
 
   if (ret != 0) {
     jam();
+    releaseTxHandle(tx_ptr);
     indexStatBg_sendContinueB(signal);
     return;
   }
