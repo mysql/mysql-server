@@ -1188,7 +1188,6 @@ WHERE b.constraint_type = 'FOREIGN KEY'
 ORDER BY a.table_name , a.ordinal_position;
 
 # Simplified query
---skip_if_hypergraph  # Query takes long time to execute - Bug#33616174
 SELECT a.table_name
 FROM information_schema.key_column_usage a
      JOIN information_schema.table_constraints b

@@ -22,6 +22,7 @@
 
 #include <assert.h>
 #include <gtest/gtest.h>
+#include <math.h>
 #include <string.h>
 #include <initializer_list>
 #include <memory>
@@ -1067,7 +1068,7 @@ TEST_F(MakeHypergraphTest, MultiEqualityPredicateAppliedOnce) {
   EXPECT_FLOAT_EQ(COND_FILTER_EQUALITY, graph.edges[4].selectivity);
 }
 
-TEST_F(MakeHypergraphTest, HyperpredicatesDoNotLeadToExtraCycleEdges) {
+TEST_F(MakeHypergraphTest, HyperpredicatesDoNotBlockExtraCycleEdges) {
   Query_block *query_block = ParseAndResolve(
       "SELECT 1 "
       "FROM t1 JOIN t2 ON t1.x = t2.x JOIN t3 ON t1.y = t3.y "
@@ -1094,16 +1095,22 @@ TEST_F(MakeHypergraphTest, HyperpredicatesDoNotLeadToExtraCycleEdges) {
   EXPECT_STREQ("t3", graph.nodes[2].table->alias);
 
   // t1/t2.
-  ASSERT_EQ(2, graph.edges.size());
+  ASSERT_EQ(3, graph.edges.size());
   EXPECT_EQ(0x01, graph.graph.edges[0].left);
   EXPECT_EQ(0x02, graph.graph.edges[0].right);
 
   // {t1,t2}/t3. We don't really care how this hyperedge turns out,
-  // but we _do_ care that there's not a separate t1-t3 edge,
-  // since it is already part of this edge, and would then essentially
-  // be a duplicate.
+  // but we _do_ care that its presence does not prevent a separate
+  // t1-t3 edge from being added.
   EXPECT_EQ(0x03, graph.graph.edges[2].left);
   EXPECT_EQ(0x04, graph.graph.edges[2].right);
+
+  // t1/t3. This edge didn't use to be added. But that effectively blocked
+  // the join order (t1 JOIN t3) JOIN t2, which could be advantageous if
+  // (t1 JOIN t2) had much higher cardinality than (t1 JOIN t3). So now we
+  // want it to be there.
+  EXPECT_EQ(0x01, graph.graph.edges[4].left);
+  EXPECT_EQ(0x04, graph.graph.edges[4].right);
 }
 
 TEST_F(MakeHypergraphTest, Flattening) {
@@ -2739,6 +2746,63 @@ TEST_F(HypergraphOptimizerTest, SemiJoinPredicateNotRedundant2) {
                                     .inner->filter()
                                     .child->nested_loop_join()
                                     .inner->type);
+}
+
+/*
+  Test a query with two multiple equalities on overlapping, but not identical,
+  sets of tables, and where there is a hyperpredicate that references all of the
+  tables in one of the multiple equalities.
+
+  The presence of the hyperpredicate used to prevent addition of a cycle edge
+  for the tables in the first multiple equality. If the tables in the
+  hyperpredicate were joined together without following the hyperedge
+  corresponding to the hyperpredicate, via an alternative edge provided by the
+  second multiple equality, one application of the first multiple equality would
+  be lost, and inconsistent row estimates were seen.
+
+  Now, the presence of a hyperpredicate no longer prevents addition of a cycle
+  edge. Both because of the inconsistencies that were seen in this test case,
+  and because it turned out to be bad also for performance, as it blocked some
+  valid and potentially cheaper join orders.
+ */
+TEST_F(HypergraphOptimizerTest, HyperpredicatesConsistentRowEstimates) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2, t3, t4 WHERE "
+      "t1.x = t2.x AND t2.x = t3.x AND "
+      "t2.y = t3.y AND t3.y = t4.y AND "
+      "t1.z + t2.z < t3.z",
+      /*nullable=*/true);
+
+  const ha_rows t1_rows = m_fake_tables["t1"]->file->stats.records = 1000;
+  const ha_rows t2_rows = m_fake_tables["t2"]->file->stats.records = 1000;
+  const ha_rows t3_rows = m_fake_tables["t3"]->file->stats.records = 10;
+  const ha_rows t4_rows = m_fake_tables["t4"]->file->stats.records = 10;
+
+  // Build two multiple equalities: t1.x = t2.x = t3.x and t2.y = t3.y = t4.y.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+  EXPECT_EQ(2, cond_equal->current_level.size());
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+  ASSERT_NE(nullptr, root);
+
+  // We don't really care which plan is chosen. The main point is that
+  // FindBestQueryPlan() above didn't fail with an assertion about inconsistent
+  // row estimates, and that the row estimate here is as expected. (It used to
+  // be too high because one of the multiple equalities was only applied once.
+  // Both multiple equalities should be applied twice.)
+  EXPECT_FLOAT_EQ(
+      t1_rows * t2_rows * t3_rows * t4_rows *  // Input rows.
+          powf(COND_FILTER_EQUALITY, 4) *      // Selectivity of equalities.
+          COND_FILTER_ALLPASS,                 // Selectivity of hyperpredicate.
+      root->num_output_rows);
 }
 
 TEST_F(HypergraphOptimizerTest, SwitchesOrderToMakeSafeForRowid) {

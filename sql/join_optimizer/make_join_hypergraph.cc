@@ -3006,28 +3006,6 @@ NodeMap GetNodeMapFromTableMap(
 
 namespace {
 
-// See if there is already a connection between the given nodes, potentially
-// through a larger hyperedge.
-bool ExistsEdgeBetween(const JoinHypergraph *graph, int left_node_idx,
-                       int right_node_idx, int *out_edge_idx) {
-  if (IsBitSet(right_node_idx,
-               graph->graph.nodes[left_node_idx].simple_neighborhood)) {
-    for (int edge_idx : graph->graph.nodes[left_node_idx].simple_edges) {
-      if (graph->graph.edges[edge_idx].right == TableBitmap(right_node_idx)) {
-        *out_edge_idx = edge_idx / 2;
-        return true;
-      }
-    }
-  }
-  for (int edge_idx : graph->graph.nodes[left_node_idx].complex_edges) {
-    if (IsBitSet(right_node_idx, graph->graph.edges[edge_idx].right)) {
-      *out_edge_idx = edge_idx / 2;
-      return true;
-    }
-  }
-  return false;
-}
-
 void AddMultipleEqualityPredicate(THD *thd, Item_equal *item_equal,
                                   Item_field *left_field, int left_table_idx,
                                   Item_field *right_field, int right_table_idx,
@@ -3035,18 +3013,26 @@ void AddMultipleEqualityPredicate(THD *thd, Item_equal *item_equal,
   const int left_node_idx = graph->table_num_to_node_num[left_table_idx];
   const int right_node_idx = graph->table_num_to_node_num[right_table_idx];
 
-  // See if there is already an edge between these two tables.
-  // Even though the tables are in the same companion set
-  // (i.e., no outerjoins), they may be connected through complex edges
-  // due to hyperpredicates.
+  // See if there is already an edge between these two tables. Since the tables
+  // are in the same companion set, they are not outerjoined to each other, so
+  // it's enough to check the simple neighborhood. They could already be
+  // connected through complex edges due to hyperpredicates, but in this case we
+  // still want to add a simple edge, as it could in some cases be advantageous
+  // to join along the simple edge before applying the hyperpredicate.
   RelationalExpression *expr = nullptr;
-  int edge_idx;
-  if (ExistsEdgeBetween(graph, left_node_idx, right_node_idx, &edge_idx)) {
-    expr = graph->edges[edge_idx].expr;
-    if (MultipleEqualityAlreadyExistsOnJoin(item_equal, *expr)) {
-      return;
+  if (IsSubset(TableBitmap(right_node_idx),
+               graph->graph.nodes[left_node_idx].simple_neighborhood)) {
+    for (int edge_idx : graph->graph.nodes[left_node_idx].simple_edges) {
+      if (graph->graph.edges[edge_idx].right == TableBitmap(right_node_idx)) {
+        expr = graph->edges[edge_idx / 2].expr;
+        if (MultipleEqualityAlreadyExistsOnJoin(item_equal, *expr)) {
+          return;
+        }
+        graph->edges[edge_idx / 2].selectivity *= selectivity;
+        break;
+      }
     }
-    graph->edges[edge_idx].selectivity *= selectivity;
+    assert(expr != nullptr);
   } else {
     // There was none, so create a new one.
     graph->graph.AddEdge(TableBitmap(left_node_idx),
@@ -3094,10 +3080,6 @@ void CompleteFullMeshForMultipleEqualities(
     THD *thd, const Mem_root_array<Item_equal *> &multiple_equalities,
     JoinHypergraph *graph, string *trace) {
   for (Item_equal *item_equal : multiple_equalities) {
-    if (item_equal->get_fields().size() <= 2) {
-      continue;
-    }
-
     double selectivity = EstimateSelectivity(thd, item_equal, trace);
     for (Item_field &left_field : item_equal->get_fields()) {
       const int left_table_idx =

@@ -2584,7 +2584,6 @@ class Item_equal final : public Item_bool_func {
     List_STL_Iterator<const Item_field> cend() const {
       return m_fields->cend();
     }
-    size_t size() const { return m_fields->size(); }
 
    private:
     List<Item_field> *m_fields;
