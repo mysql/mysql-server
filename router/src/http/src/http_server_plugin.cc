@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,6 @@
 
 #include <sys/types.h>  // timeval
 
-// Harness interface include files
 #include "my_thread.h"  // my_thread_self_setname
 #include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
@@ -51,6 +50,7 @@
 #include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/plugin_config.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/utility/string.h"
 #include "scope_guard.h"
 
@@ -232,66 +232,53 @@ void HttpRequestThread::initialization_finished() {
 
 class HttpRequestMainThread : public HttpRequestThread {
  public:
-  void bind(const std::string &address, uint16_t port) {
-    net::io_context io_ctx;
-    net::ip::tcp::resolver resolver(io_ctx);
-    auto resolve_res = resolver.resolve(address, std::to_string(port));
-    if (!resolve_res) {
-      throw std::system_error(resolve_res.error(),
-                              "resolving " + address + " failed");
+  void bind(net::ip::tcp::acceptor &listen_sock, const std::string &address,
+            uint16_t port) {
+    auto bind_res = bind_acceptor(listen_sock, address, port);
+    if (!bind_res) throw std::system_error(bind_res.error());
+
+    accept_fd_ = listen_sock.native_handle();
+
+    auto handle = event_http_.accept_socket_with_handle(accept_fd_);
+    if (!handle.is_valid()) {
+      const auto ec = net::impl::socket::last_error_code();
+
+      throw std::system_error(ec, "evhttp_accept_socket_with_handle() failed");
     }
+  }
+
+ private:
+  static stdx::expected<void, std::error_code> bind_acceptor(
+      net::ip::tcp::acceptor &sock, const std::string &address, uint16_t port) {
+    net::ip::tcp::resolver resolver(sock.get_executor().context());
+    auto resolve_res = resolver.resolve(address, std::to_string(port));
+    if (!resolve_res) return stdx::make_unexpected(resolve_res.error());
 
     for (auto const &resolved : resolve_res.value()) {
-      net::ip::tcp::acceptor sock(io_ctx);
+      sock.close();
 
       auto open_res = sock.open(resolved.endpoint().protocol());
-      if (!open_res) {
-        throw std::system_error(open_res.error(), "socket() failed");
-      }
+      if (!open_res) return open_res.get_unexpected();
 
       sock.native_non_blocking(true);
       auto setop_res = sock.set_option(net::socket_base::reuse_address(true));
-      if (!setop_res) {
-        throw std::system_error(setop_res.error(),
-                                "setsockopt(SO_REUSEADDR) failed");
-      }
+      if (!setop_res) return setop_res.get_unexpected();
+
       setop_res = sock.set_option(net::socket_base::keep_alive(true));
-      if (!setop_res) {
-        throw std::system_error(setop_res.error(),
-                                "setsockopt(SO_KEEPALIVE) failed");
-      }
+      if (!setop_res) return setop_res.get_unexpected();
 
       auto bind_res = sock.bind(resolved.endpoint());
-      if (!bind_res) {
-        std::ostringstream ss;
-        ss << "bind(" << resolved.endpoint() << ") failed";
+      if (!bind_res) return bind_res.get_unexpected();
 
-        throw std::system_error(bind_res.error(), ss.str());
-      }
       auto listen_res = sock.listen(128);
-      if (!listen_res) {
-        throw std::system_error(setop_res.error(), "listen(128) failed");
-      }
+      if (!listen_res) return listen_res.get_unexpected();
 
-      auto sock_release_res = sock.release();
-      if (!sock_release_res) {
-        throw std::system_error(sock_release_res.error(), "release() failed");
-      }
-
-      accept_fd_ = sock_release_res.value();
-      auto handle =
-          event_http_.accept_socket_with_handle(sock_release_res.value());
-      if (!handle.is_valid()) {
-        const auto ec = net::impl::socket::last_error_code();
-
-        throw std::system_error(ec,
-                                "evhttp_accept_socket_with_handle() failed");
-      }
-
-      return;
+      return listen_res;
     }
 
-    throw std::invalid_argument("resolved to nothing?");
+    // no address
+    return stdx::make_unexpected(
+        make_error_code(std::errc::no_such_file_or_directory));
   }
 };
 
@@ -336,13 +323,15 @@ void HttpServer::join_all() {
     thr.join();
     sys_threads_.pop_back();
   }
+
   thread_contexts_.clear();
 }
 
 void HttpServer::start(size_t max_threads) {
   {
     auto main_thread = HttpRequestMainThread();
-    main_thread.bind(address_, port_);
+    main_thread.bind(listen_sock_, address_, port_);
+
     thread_contexts_.emplace_back(std::move(main_thread));
   }
 
@@ -389,7 +378,7 @@ class HttpsServer : public HttpServer {
 void HttpsServer::start(size_t max_threads) {
   {
     auto main_thread = HttpsRequestMainThread(&ssl_ctx_);
-    main_thread.bind(address_, port_);
+    main_thread.bind(listen_sock_, address_, port_);
     thread_contexts_.emplace_back(std::move(main_thread));
   }
 

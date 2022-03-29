@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,8 @@
 #include <vector>
 
 #include "mysql/harness/net_ts/impl/socket_constants.h"
+#include "mysql/harness/net_ts/internet.h"
+#include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/stdx/monitor.h"
 #include "mysqlrouter/http_common.h"
 #include "mysqlrouter/http_server_component.h"
@@ -147,6 +149,9 @@ class HttpServer {
   std::string address_;
   uint16_t port_;
   HttpRequestRouter request_router_;
+
+  net::io_context io_ctx_;
+  net::ip::tcp::acceptor listen_sock_{io_ctx_};
 
   std::vector<std::thread> sys_threads_;
 };
