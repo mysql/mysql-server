@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -262,6 +262,30 @@ TEST(NetTS_internet, make_address_v6_invalid) {
   ASSERT_EQ(
       net::ip::make_address("::1%"),
       stdx::make_unexpected(make_error_code(std::errc::invalid_argument)));
+}
+
+/*
+ * check a failing close() still marks a socket as "!is_open()".
+ */
+TEST(NetTS_internet, closed_after_close_failed) {
+  net::io_context io_ctx;
+
+  SCOPED_TRACE("// open a socket.");
+  net::ip::tcp::socket client_sock(io_ctx);
+  ASSERT_TRUE(client_sock.open(net::ip::tcp::v4()));
+
+  ASSERT_TRUE(client_sock.is_open());
+
+  SCOPED_TRACE("// close the socket natively.");
+  ASSERT_TRUE(net::impl::socket::close(client_sock.native_handle()));
+
+  ASSERT_TRUE(client_sock.is_open());
+
+  SCOPED_TRACE("// expect that sock.close() fails");
+  ASSERT_FALSE(client_sock.close());
+
+  SCOPED_TRACE("// ... and socket is marked as closed unconditionally.");
+  ASSERT_FALSE(client_sock.is_open());
 }
 
 TEST(NetTS_internet, tcp_resolver) {
