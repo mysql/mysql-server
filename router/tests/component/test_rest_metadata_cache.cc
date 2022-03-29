@@ -410,9 +410,9 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
   // this part is relevant only for Get OK, otherwise let's avoid useless sleep
   if (GetParam().methods == HttpMethod::Get &&
       GetParam().status_code == HttpStatusCode::Ok) {
-    // wait 2 metadata refresh cycles for the counters and timestamps change
+    // wait a few metadata refresh cycles for the counters and timestamps change
     ASSERT_TRUE(
-        wait_for_transaction_count_increase(metadata_server_http_port_, 2));
+        wait_for_transaction_count_increase(metadata_server_http_port_, 4));
 
     // check the resources again, we want to compare them against the previous
     // ones
