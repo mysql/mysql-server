@@ -287,4 +287,14 @@ inline void trx_undo_t::set_prepared(const XID *in_xid) {
   flag |= TRX_UNDO_FLAG_XID;
 }
 
+inline void trx_undo_t::set_prepared_in_tc() {
+  ut_ad(!xid.is_null());
+  state = TRX_UNDO_PREPARED_IN_TC;
+}
+
+inline bool trx_undo_t::is_prepared() const {
+  return state == TRX_UNDO_PREPARED_80028 || state == TRX_UNDO_PREPARED ||
+         state == TRX_UNDO_PREPARED_IN_TC;
+}
+
 #endif /* !UNIV_HOTBACKUP */

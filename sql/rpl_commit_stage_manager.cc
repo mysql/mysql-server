@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -231,12 +231,17 @@ bool Commit_stage_manager::enroll_for(StageID stage, THD *thd,
   switch (stage) {
     case BINLOG_FLUSH_STAGE:
       DEBUG_SYNC(thd, "bgc_after_enrolling_for_flush_stage");
+      CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP(
+          "bgc_after_enrolling_for_flush_stage");
       break;
     case SYNC_STAGE:
       DEBUG_SYNC(thd, "bgc_after_enrolling_for_sync_stage");
+      CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP(
+          "bgc_after_enrolling_for_sync_stage");
       break;
     case COMMIT_STAGE:
       DEBUG_SYNC(thd, "bgc_after_enrolling_for_commit_stage");
+      CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("after_writing_to_tc_log");
       break;
     case COMMIT_ORDER_FLUSH_STAGE:
       break;

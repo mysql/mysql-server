@@ -624,6 +624,16 @@ SET(SQL_SHARED_SOURCES
   tztime.cc
   uniques.cc
   xa.cc
+  xa/recovery.cc
+  xa/sql_xa_second_phase.cc
+  xa/sql_xa_commit.cc
+  xa/sql_xa_end.cc
+  xa/sql_xa_prepare.cc
+  xa/sql_xa_recover.cc
+  xa/sql_xa_rollback.cc
+  xa/sql_xa_start.cc
+  xa/transaction_cache.cc
+  xa/xid_extract.cc
   daemon_proxy_keyring/daemon_proxy_keyring.cc
   )
 
@@ -965,6 +975,7 @@ SET(BINLOG_SOURCE
   basic_istream.cc
   basic_ostream.cc
   binlog/global.cc
+  binlog/recovery.cc
   binlog/monitoring/context.cc
   binlog/tools/iterators.cc
   binlog.cc

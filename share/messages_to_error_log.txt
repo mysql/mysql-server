@@ -734,13 +734,13 @@ ER_XA_RECOVER_FOUND_TRX_IN_SE
 ER_XA_RECOVER_FOUND_XA_TRX
   eng "Found %d prepared XA transactions"
 
-ER_XA_IGNORING_XID
+OBSOLETE_ER_XA_IGNORING_XID
   eng "ignore xid %s"
 
-ER_XA_COMMITTING_XID
+OBSOLETE_ER_XA_COMMITTING_XID
   eng "commit xid %s"
 
-ER_XA_ROLLING_BACK_XID
+OBSOLETE_ER_XA_ROLLING_BACK_XID
   eng "rollback xid %s"
 
 ER_XA_STARTING_RECOVERY
@@ -2645,7 +2645,7 @@ ER_TURNING_LOGGING_OFF_FOR_THE_DURATION
 ER_BINLOG_FAILED_TO_RUN_AFTER_FLUSH_HOOK
   eng "Failed to run 'after_flush' hooks"
 
-ER_BINLOG_CRASH_RECOVERY_FAILED
+OBSOLETE_ER_BINLOG_CRASH_RECOVERY_FAILED
   eng "Crash recovery failed. Either correct the problem (if it's, for example, out of memory error) and restart, or delete (or rename) binary log and start mysqld with --tc-heuristic-recover={commit|rollback}"
 
 ER_BINLOG_WARNING_SUPPRESSED
@@ -11802,6 +11802,24 @@ ER_IB_MSG_LOG_PARAMS_LEGACY_USAGE
 
 ER_GRP_RPL_FAILED_TO_LOG_VIEW_CHANGE
   eng "This member was unable to log the View_change_log_event into the binary log, hence it will leave the group. Please check that there is available disk space and add the member back to the group."
+
+ER_BINLOG_CRASH_RECOVERY_MALFORMED_LOG
+  eng "Found invalid event sequence while recovering from binary log file '%s', between positions %llu and %llu: %s. The recovery process was stopped early and no transaction was recovered. Side effects may be transactions in an inconsistent state between the binary log and the storage engines, or transactions kept by storage engines in a prepared state (possibly holding locks). Either fix the issues with the binary log or, to release possibly acquired locks, disable the binary log during server recovery. Note that disabling the binary log may lead to loss of transactions that were already acknowledged as successful to client connections and may have been replicated to other servers in the topology."
+
+ER_BINLOG_CRASH_RECOVERY_ERROR_RETURNED_SE
+  eng "Storage engines failed to recover one or more transactions. The recovery process was stopped early, check previous messages for the details on failed transactions. Side effects may be transactions in an inconsistent state between the binary log and the storage engines, or transactions kept by storage engines in a prepared state (possibly holding locks). Either fix the issues with the storage engine (out-of-memory, no disk space, etc) or, to release possibly acquired locks held by XA transactions, disable the binary log during server recovery and check consistency between storage engines and binary log files."
+
+ER_BINLOG_CRASH_RECOVERY_ENGINE_RESULTS
+  eng "Crash recovery finished in %s engine. %s"
+
+ER_BINLOG_CRASH_RECOVERY_COMMIT_FAILED
+  eng "Failed to commit %s in %s, with failure code %s."
+
+ER_BINLOG_CRASH_RECOVERY_ROLLBACK_FAILED
+  eng "Failed to rollback %s in %s, with failure code %s."
+
+ER_BINLOG_CRASH_RECOVERY_PREPARE_FAILED
+  eng "Failed to prepare %s in %s, with failure code %s."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

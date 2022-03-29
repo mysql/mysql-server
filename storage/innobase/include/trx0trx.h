@@ -52,6 +52,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0fts.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "read0read.h"
+#include "sql/handler.h"  // Xa_state_list
 #include "srv0srv.h"
 
 // Forward declaration
@@ -182,6 +183,12 @@ int trx_recover_for_mysql(
     XA_recover_txn *txn_list, /*!< in/out: prepared transactions */
     ulint len,                /*!< in: number of slots in xid_list */
     MEM_ROOT *mem_root);      /*!< in: memory for table names */
+
+/** Find prepared transactions that are marked as prepared in TC, for recovery
+purposes.
+@param[in,out] xa_list prepared transactions state
+@return 0 if successful or error number */
+int trx_recover_tc_for_mysql(Xa_state_list &xa_list);
 
 /** This function is used to find one X/Open XA distributed transaction
  which is in the prepared state
@@ -1587,8 +1594,18 @@ class TrxInInnoDB {
 bool trx_is_mysql_xa(const trx_t *trx);
 
 /** Update transaction binlog file name and position from session THD.
-@param[in,out]  trx     current transaction. */
+@param[in,out] trx     current transaction. */
 void trx_sys_update_binlog_position(trx_t *trx);
+
+/** Checks whether or not the transaction has been marked as prepared in TC.
+@param[in]     trx the transaction
+@return true if the transaction is marked as prepared in TC, false otherwise. */
+bool trx_is_prepared_in_tc(trx_t const *trx);
+
+/** Does the 2nd phase of an XA transaction prepare for MySQL.
+@param[in,out] trx Transaction instance to finish prepare
+@return DB_SUCCESS or error number */
+dberr_t trx_set_prepared_in_tc_for_mysql(trx_t *trx);
 
 #include "trx0trx.ic"
 #endif /* !UNIV_HOTBACKUP */

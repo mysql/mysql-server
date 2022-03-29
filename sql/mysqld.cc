@@ -867,7 +867,8 @@ MySQL clients support the protocol:
 #include "sql/tztime.h"  // Time_zone
 #include "sql/udf_service_impl.h"
 #include "sql/xa.h"
-#include "sql_common.h"  // mysql_client_plugin_init
+#include "sql/xa/transaction_cache.h"  // xa::Transaction_cache
+#include "sql_common.h"                // mysql_client_plugin_init
 #include "sql_string.h"
 #include "storage/myisam/ha_myisam.h"  // HA_RECOVER_OFF
 #include "storage/perfschema/pfs_services.h"
@@ -2588,7 +2589,7 @@ static void clean_up(bool print_message) {
 
   Recovered_xa_transactions::destroy();
   delegates_destroy();
-  transaction_cache_free();
+  xa::Transaction_cache::dispose();
   MDL_context_backup_manager::destroy();
   table_def_free();
   mdl_destroy();
@@ -5991,10 +5992,7 @@ static int init_server_components() {
   set_waiting_for_disk_space_hook = thd_set_waiting_for_disk_space;
   is_killed_hook = thd_killed;
 
-  if (transaction_cache_init()) {
-    LogErr(ERROR_LEVEL, ER_OOM);
-    unireg_abort(MYSQLD_ABORT_EXIT);
-  }
+  xa::Transaction_cache::initialize();
 
   if (MDL_context_backup_manager::init()) {
     LogErr(ERROR_LEVEL, ER_OOM);
@@ -6634,6 +6632,7 @@ static int init_server_components() {
              "default_tmp_storage_engine", default_tmp_storage_engine);
   }
 
+  DBUG_EXECUTE_IF("total_ha_2pc_equals_2", total_ha_2pc = 2;);
   if (total_ha_2pc > 1 || (1 == total_ha_2pc && opt_bin_log)) {
     if (opt_bin_log)
       tc_log = &mysql_bin_log;
@@ -6646,12 +6645,9 @@ static int init_server_components() {
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
+  RUN_HOOK(server_state, before_recovery, (nullptr));
   if (tc_log->open(opt_bin_log ? opt_bin_logname : opt_tc_log_file)) {
     LogErr(ERROR_LEVEL, ER_CANT_INIT_TC_LOG);
-    unireg_abort(MYSQLD_ABORT_EXIT);
-  }
-  (void)RUN_HOOK(server_state, before_recovery, (nullptr));
-  if (ha_recover(nullptr)) {
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 

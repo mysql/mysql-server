@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1980,6 +1980,7 @@ bool debug_sync_set_action(THD *thd, const char *action_str, size_t len) {
 }
 
 void conditional_sync_point(std::string name) {
+  if (current_thd == nullptr) return;
   const std::string debug_symbol = "syncpoint_" + name;
   DBUG_EXECUTE_IF(debug_symbol.c_str(), {
     DBUG_PRINT("info", ("reached sync point '%s' (enabled by debug symbol "
@@ -1995,6 +1996,7 @@ void conditional_sync_point(std::string name) {
 }
 
 void conditional_sync_point_for_timestamp(std::string name) {
+  if (current_thd == nullptr) return;
   conditional_sync_point(name + "_" +
                          std::to_string(current_thd->start_time.tv_sec));
 }

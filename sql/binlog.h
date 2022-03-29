@@ -757,6 +757,23 @@ class MYSQL_BIN_LOG : public TC_LOG {
   bool write_buffer(const char *buf, uint len, Master_info *mi);
   bool write_event(Log_event *ev, Master_info *mi);
 
+  /**
+     Logging XA commit/rollback of a prepared transaction.
+
+     It fills in the appropriate event in the statement cache whenever xid
+     state is marked with is_binlogged() flag that indicates the prepared
+     part of the transaction must've been logged.
+
+     About early returns from the function:
+     - ONE_PHASE option to XA-COMMIT is handled to skip writing XA-commit
+       event now.
+     - check is for the read-only XA that is not to be logged.
+
+     @param thd          THD handle
+     @return error code, 0 success
+  */
+  int write_xa_to_cache(THD *thd);
+
  private:
   bool after_write_to_relay_log(Master_info *mi);
 
@@ -974,7 +991,7 @@ int check_trx_rw_engines(THD *thd, Transaction_ctx::enum_trx_scope trx_scope);
 */
 bool is_empty_transaction_in_binlog_cache(const THD *thd);
 bool trans_has_updated_trans_table(const THD *thd);
-bool stmt_has_updated_trans_table(Ha_trx_info *ha_list);
+bool stmt_has_updated_trans_table(Ha_trx_info_list const &ha_list);
 bool ending_trans(THD *thd, const bool all);
 bool ending_single_stmt_trans(THD *thd, const bool all);
 bool trans_cannot_safely_rollback(const THD *thd);

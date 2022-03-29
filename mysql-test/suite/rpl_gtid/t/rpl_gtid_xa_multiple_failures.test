@@ -1,0 +1,349 @@
+# ==== Purpose ====
+#
+# The purpose of this test is to check that crashing the replica while there
+# are several XA transactions executing up until several points of `XA
+# PREPARE/COMMIT/ROLLBACK` statements, will result in consistency between
+# SE and TC after recovery is finished.
+#
+# ==== Requirements ====
+#
+# R1. When crashing in the middle of an XA transaction and after recovery,
+#     storage engine and transaction coordinator MUST be in sync.
+#
+# For a more detailed list of requirements for the expected state for each
+# of the sync points, check the `Requirements` section for the tests listed
+# in `Related tests` section of `extra/xa_crash_safe_tests/setup.inc`.
+#
+# ==== Implementation ====
+#
+# 1) Execute several `XA PREPARE` statements up until:
+#    a) Before preparing in the SEs.
+#    b) Before preparing in the TC.
+#    c) Before setting the transaction as prepared in TC.
+#    d) After writing to the TC log.
+# 2) Kill the replica and restart it.
+# 3) Check that:
+#    a) SE recovery rolled back the transaction executed in 1.a)
+#    b) XA recovery rolled back the transaction executed in 1.b)
+#    c) XA recovery left in prepared state transaction executed in 1.b) and
+#       1.c)
+# 4) Clean up pending transactions
+# 5) Execute several `XA COMMIT` statements up until:
+#    a) Before starting the commit process.
+#    b) Before invoking the before commit hook.
+#    c) Before committing in SEs.
+# 6) Kill the replica and restart it.
+# 7) Check that:
+#    a) XA recovery left in prepared state transaction executed in 5.a) and
+#       5.b)
+#    b) XA recovery committed the transaction executed in 5.c)
+# 8) Clean up pending transactions
+# 9) Execute several `XA ROLLBACK` statements up until:
+#    a) Before starting the rollback process.
+#    b) Before invoking the before commit hook.
+#    c) Before rolling back in SEs.
+# 10) Kill the replica and restart it.
+# 11) Check that:
+#    a) XA recovery left in prepared state transaction executed in 9.a) and
+#       9.b)
+#    b) XA recovery rlled back the transaction executed in 9.c)
+# 12) Clean up pending transactions
+# 13) Execute several `XA COMMIT ... ONE PHASE` statements up until:
+#    a) Before preparing in SEs.
+#    b) Before invoking the before commit hook.
+#    c) Before committing in SEs.
+# 14) Kill the replica and restart it.
+# 15) Check that:
+#    a) SE recovery rolled back the transaction executed in 13.a)
+#    b) XA recovery rolled back the transaction executed in 13.b)
+#    c) XA recovery committed transaction executed in 13.c)
+#
+# ==== References ====
+#
+# WL#11300: Crash-safe XA + binary log
+#
+# Related tests;
+#   see extra/xa_crash_safe_tests/setup.inc
+#
+--source include/have_binlog_format_row.inc
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--let $option_name = replica_parallel_type
+--let $option_value = 'LOGICAL_CLOCK'
+--source include/only_with_option.inc
+--let $option_name = replica_parallel_workers
+--let $option_operator = !=
+--let $option_value = 0
+--source include/only_with_option.inc
+# Sync point `after_writing_to_tc_log` only exercised when BCG is enabled
+--let $option_name = binlog_order_commits
+--let $option_value = 1
+--source include/only_with_option.inc
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+--let $rpl_skip_start_slave =
+
+--source include/rpl_connection_slave.inc
+let $sysvars_to_save = [
+  "GLOBAL.replica_preserve_commit_order",
+  "GLOBAL.replica_parallel_workers"
+];
+--source include/save_sysvars.inc
+SET @@GLOBAL.replica_preserve_commit_order = 0;
+SET @@GLOBAL.replica_parallel_workers = 4;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+--let $xid = 'xid0'
+--source extra/xa_crash_safe_tests/setup.inc
+# Include $exec_xa_transaction_body and $clean_up_xa_transactions
+--source extra/xa_crash_safe_tests/utility_functions.inc
+
+# 1) Execute several `XA PREPARE` statements up until:
+--let $debug_point = set_commit_parent_100
+--source include/add_debug_point.inc
+--let $iteration = 1
+while ($iteration != 5) {
+  --source $exec_xa_transaction_body
+  --let $timestamp = $iteration
+  --let $auxiliary_connection = slave
+  --let $statement_connection = con$iteration
+  --let $statement = XA PREPARE $xid
+  # 1.a) Before preparing in the SEs.
+  if ($iteration == 1) {
+    --let $sync_point = before_prepare_in_engines
+  }
+  # 1.b) Before preparing in the TC.
+  if ($iteration == 2) {
+    --let $sync_point = after_ha_prepare_low
+  }
+  # 1.c) Before setting the transaction as prepared in TC.
+
+  if ($iteration == 3) {
+    --let $sync_point = before_set_prepared_in_tc
+  }
+  # 1.d) After writing to the TC log.
+  #
+  if ($iteration == 4) {
+    --let $sync_point = after_writing_to_tc_log
+  }
+  --source include/execute_to_conditional_timestamp_sync_point.inc
+  --disconnect con$iteration
+  --inc $iteration
+}
+
+# 2) Kill the server and restart it.
+--source include/rpl_connection_slave.inc
+--source include/kill_mysqld.inc
+--let $restart_parameters=restart:--replica-preserve-commit-order=0
+--source include/start_mysqld.inc
+--source include/rpl_reconnect.inc
+
+# 3) Check that:
+# 3.a) SE recovery rolled back the transaction executed in 1.a)
+#
+--let $assert_select = Rolling back trx with id %, 1 rows to undo
+--source extra/xa_crash_safe_tests/assert_se_recovery_message.inc
+
+# 3.b) XA recovery rolled back the transaction executed in 1.b)
+# 3.c) XA recovery left in prepared state transaction executed in 1.b) and
+#       1.c)
+--let $assert_select = Successfully rolled back 1, prepared 2 XA transaction
+--source extra/xa_crash_safe_tests/assert_recovery_message.inc
+--let $expected_prepared_xa_count = 2
+--source extra/xa_crash_safe_tests/assert_xa_recover.inc
+
+# 4) Clean up pending transactions
+#
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_connection_master.inc
+--let $start = 1
+--let $stop = 5
+--source $clean_up_xa_transactions
+--source include/sync_slave_sql_with_master.inc
+
+# 5) Execute several `XA COMMIT` statements up until:
+#
+--source include/rpl_connection_master.inc
+while ($iteration != 8) {
+  --source $exec_xa_transaction_body
+  --eval XA PREPARE $xid
+  --inc $iteration
+}
+--source include/sync_slave_sql_with_master.inc
+--let $iteration = 5
+while ($iteration != 8) {
+  --let $xid = 'xid$iteration'
+  --let $timestamp = $iteration
+  --let $auxiliary_connection = slave
+  --let $statement_connection = con$iteration
+  --let $statement = XA COMMIT $xid
+  # 5.a) Before starting the commit process.
+  #
+  if ($iteration == 5) {
+    --let $sync_point = before_commit_xa_trx
+  }
+  # 5.b) Before invoking the before commit hook.
+  #
+  if ($iteration == 6) {
+    --let $sync_point = before_invoke_before_commit_hook
+  }
+  # 5.c) Before committing in SEs.
+  #
+  if ($iteration == 7) {
+    --let $sync_point = before_commit_in_engines
+  }
+  --source include/execute_to_conditional_timestamp_sync_point.inc
+  --disconnect con$iteration
+  --inc $iteration
+}
+
+# 6) Kill the server and restart it.
+#
+--source include/rpl_connection_slave.inc
+--source include/kill_mysqld.inc
+--let $restart_parameters=restart:--replica-preserve-commit-order=0
+--source include/start_mysqld.inc
+--source include/rpl_reconnect.inc
+
+# 7) Check that:
+# 7.a) XA recovery left in prepared state transaction executed in 5.a) and
+#      5.b)
+# 7.b) XA recovery committed the transaction executed in 5.c)
+#
+--let $assert_select = Successfully committed 1, prepared 2 XA transaction
+--source extra/xa_crash_safe_tests/assert_recovery_message.inc
+--let $expected_prepared_xa_count = 2
+--source extra/xa_crash_safe_tests/assert_xa_recover.inc
+
+# 8) Clean up pending transactions
+#
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+# 9) Execute several `XA ROLLBACK` statements up until:
+#
+while ($iteration != 11) {
+  --source $exec_xa_transaction_body
+  --eval XA PREPARE $xid
+  --inc $iteration
+}
+--source include/sync_slave_sql_with_master.inc
+--let $iteration = 8
+while ($iteration != 11) {
+  --let $xid = 'xid$iteration'
+  --let $timestamp = $iteration
+  --let $auxiliary_connection = slave
+  --let $statement_connection = con$iteration
+  --let $statement = XA ROLLBACK $xid
+  # 9.a) Before starting the rollback process.
+  #
+  if ($iteration == 8) {
+    --let $sync_point = before_rollback_xa_trx
+  }
+  # 9.b) Before invoking the before commit hook.
+  #
+  if ($iteration == 9) {
+    --let $sync_point = before_invoke_before_commit_hook
+  }
+  # 9.c) Before rolling back in SEs.
+  #
+  if ($iteration == 10) {
+    --let $sync_point = before_rollback_in_engines
+  }
+  --source include/execute_to_conditional_timestamp_sync_point.inc
+  --disconnect con$iteration
+  --inc $iteration
+}
+
+# 10) Kill the server and restart it.
+#
+--source include/rpl_connection_slave.inc
+--source include/kill_mysqld.inc
+--let $restart_parameters=restart:--replica-preserve-commit-order=0
+--source include/start_mysqld.inc
+--source include/rpl_reconnect.inc
+
+# 11) Check that:
+# 11.a) XA recovery left in prepared state transaction executed in 9.a) and
+#       9.b)
+# 11.b) XA recovery rlled back the transaction executed in 9.c)
+#
+--let $assert_select = Successfully rolled back 1, prepared 2 XA transaction
+--source extra/xa_crash_safe_tests/assert_recovery_message.inc
+--let $expected_prepared_xa_count = 2
+--source extra/xa_crash_safe_tests/assert_xa_recover.inc
+
+# 12) Clean up pending transactions
+#
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+# First event after replica start is executed by the coordinator thread,
+# force it
+UPDATE t1 SET c1 = 200 WHERE c1 = 2;
+--source include/sync_slave_sql_with_master.inc
+
+# 13) Execute several `XA COMMIT ... ONE PHASE` statements up until:
+#
+while ($iteration != 14) {
+  --source $exec_xa_transaction_body
+  --let $timestamp = $iteration
+  --let $auxiliary_connection = slave
+  --let $statement_connection = con$iteration
+  --let $statement = XA COMMIT $xid ONE PHASE
+  # 13.a) Before preparing in SEs.
+  #
+  if ($iteration == 11) {
+    --let $sync_point = before_prepare_in_engines
+  }
+  # 13.b) Before invoking the before commit hook.
+  #
+  if ($iteration == 12) {
+    --let $sync_point = before_invoke_before_commit_hook
+  }
+  # 13.c) Before committing in SEs.
+  #
+  if ($iteration == 13) {
+    --let $sync_point = before_commit_in_engines
+  }
+  --source include/execute_to_conditional_timestamp_sync_point.inc
+  --disconnect con$iteration
+  --inc $iteration
+}
+
+# 14) Kill the server and restart it.
+#
+--source include/rpl_connection_slave.inc
+--source include/kill_mysqld.inc
+--let $restart_parameters=restart:--replica-preserve-commit-order=0
+--source include/start_mysqld.inc
+--source include/rpl_reconnect.inc
+
+# 15) Check that:
+#
+# 15.a) SE recovery rolled back the transaction executed in 13.a)
+#
+--let $assert_select = Rolling back trx with id %, 1 rows to undo
+--source extra/xa_crash_safe_tests/assert_se_recovery_message.inc
+
+# 15.b) XA recovery rolled back the transaction executed in 13.b)
+# 15.c) XA recovery committed transaction executed in 13.c)
+#
+--let $assert_select =  Successfully committed 1, rolled back 1 XA transaction
+--source extra/xa_crash_safe_tests/assert_recovery_message.inc
+--let $expected_prepared_xa_count = 0
+--source extra/xa_crash_safe_tests/assert_xa_recover.inc
+
+--source include/restore_sysvars.inc
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+--let $debug_point = set_commit_parent_100
+--source include/remove_debug_point.inc
+DROP TABLE t1;
+--source extra/xa_crash_safe_tests/end_utility_functions.inc
+--source include/rpl_end.inc

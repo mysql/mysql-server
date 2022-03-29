@@ -1497,6 +1497,13 @@ static int innobase_xa_recover(
     XA_recover_txn *txn_list, /*!< in/out: prepared transactions */
     uint len,                 /*!< in: number of slots in xid_list */
     MEM_ROOT *mem_root);      /*!< in: memory for table names */
+/** Find prepared transactions that are marked as prepared in TC, for recovery
+purposes.
+@param[in]     hton    InnoDB handlerton
+@param[in,out] xa_list prepared transactions state
+@return 0 if successful or error number */
+static int innobase_xa_recover_prepared_in_tc(handlerton *hton,
+                                              Xa_state_list &xa_list);
 /** This function is used to commit one X/Open XA distributed transaction
  which is in the prepared state
  @return 0 or error number */
@@ -1511,6 +1518,21 @@ static xa_status_code innobase_rollback_by_xid(
     handlerton *hton, /*!< in: InnoDB handlerton */
     XID *xid);        /*!< in: X/Open XA transaction
                       identification */
+/** This function is used to write mark an X/Open XA distributed transaction
+as been prepared in the server transaction coordinator
+@param[in]     hton InnoDB handlerton
+@param[in]     thd  handle to the MySQL thread of the user whose XA transaction
+                    should be prepared
+@return 0 or error number */
+static int innobase_set_prepared_in_tc(handlerton *hton, THD *thd);
+/** Mark an X/Open XA distributed transaction
+as been prepared in the server transaction coordinator
+@param[in]     hton InnoDB handlerton
+@param[in]     xid  X/Open XA transaction identification the MySQL thread of the
+                    user whosefo the XA transaction that should be prepared
+@return XA_OK or error number */
+static xa_status_code innobase_set_prepared_in_tc_by_xid(handlerton *hton,
+                                                         XID *xid);
 /** Checks if the file name is reserved in InnoDB. Currently
 redo log file names from the old redo format (ib_logfile*)
 are reserved. There is no need to reserve file names from the
@@ -5099,8 +5121,11 @@ static int innodb_init(void *p) {
   innobase_hton->rollback = innobase_rollback;
   innobase_hton->prepare = innobase_xa_prepare;
   innobase_hton->recover = innobase_xa_recover;
+  innobase_hton->recover_prepared_in_tc = innobase_xa_recover_prepared_in_tc;
   innobase_hton->commit_by_xid = innobase_commit_by_xid;
   innobase_hton->rollback_by_xid = innobase_rollback_by_xid;
+  innobase_hton->set_prepared_in_tc = innobase_set_prepared_in_tc;
+  innobase_hton->set_prepared_in_tc_by_xid = innobase_set_prepared_in_tc_by_xid;
   innobase_hton->create = innobase_create_handler;
   innobase_hton->is_valid_tablespace_name = innobase_is_valid_tablespace_name;
   innobase_hton->alter_tablespace = innobase_alter_tablespace;
@@ -20007,6 +20032,13 @@ static int innobase_xa_recover(
   return (trx_recover_for_mysql(txn_list, len, mem_root));
 }
 
+static int innobase_xa_recover_prepared_in_tc(handlerton *hton,
+                                              Xa_state_list &xa_list) {
+  assert(hton == innodb_hton_ptr);
+
+  return (trx_recover_tc_for_mysql(xa_list));
+}
+
 /** This function is used to commit one X/Open XA distributed transaction
  which is in the prepared state
  @return 0 or error number */
@@ -20055,6 +20087,52 @@ static xa_status_code innobase_rollback_by_xid(
     trx_free_for_background(trx);
 
     return (ret != 0 ? XAER_RMERR : XA_OK);
+  } else {
+    return (XAER_NOTA);
+  }
+}
+
+static int innobase_set_prepared_in_tc(handlerton *hton, THD *thd) {
+  assert(hton == innodb_hton_ptr);
+  assert(thd != nullptr);
+
+  trx_t *trx = check_trx_exists(thd);
+  assert(trx != nullptr);
+
+  thd_get_xid(thd, (MYSQL_XID *)trx->xid);
+
+  innobase_srv_conc_force_exit_innodb(trx);
+
+  ut_ad(trx_is_registered_for_2pc(trx) || thd == nullptr);
+
+  dberr_t err = trx_set_prepared_in_tc_for_mysql(trx);
+  ut_ad(err != DB_FORCED_ABORT);
+
+  return convert_error_code_to_mysql(err, 0, thd);
+}
+
+static xa_status_code innobase_set_prepared_in_tc_by_xid(handlerton *hton,
+                                                         XID *xid) {
+  assert(hton == innodb_hton_ptr);
+  assert(xid != nullptr);
+
+  trx_t *trx = trx_get_trx_by_xid(xid);
+
+  if (trx != nullptr) {
+    /* Side effect of retrieving the transaction is XID being set to null */
+    *trx->xid = *xid;
+
+    if (trx_is_prepared_in_tc(trx)) {
+      return XA_OK;
+    }
+
+    innobase_srv_conc_force_exit_innodb(trx);
+
+    dberr_t err = trx_set_prepared_in_tc_for_mysql(trx);
+
+    ut_ad(err != DB_FORCED_ABORT);
+
+    return (err != DB_SUCCESS ? XAER_RMERR : XA_OK);
   } else {
     return (XAER_NOTA);
   }

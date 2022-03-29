@@ -106,6 +106,8 @@
 #include "sql/transaction.h"  // trans_rollback
 #include "sql/transaction_info.h"
 #include "sql/xa.h"
+#include "sql/xa/sql_cmd_xa.h"                   // Sql_cmd_xa_*
+#include "sql/xa/transaction_cache.h"            // xa::Transaction_cache
 #include "storage/perfschema/pfs_instr_class.h"  // PFS_CLASS_STAGE
 #include "storage/perfschema/terminology_use_previous.h"
 #include "template_utils.h"
@@ -1219,11 +1221,11 @@ void THD::cleanup(void) {
             &mdl_context, xs->get_xid()->key(), xs->get_xid()->key_length())) {
       LogErr(ERROR_LEVEL, ER_XA_CANT_CREATE_MDL_BACKUP);
     }
-    transaction_cache_detach(trn_ctx);
+    xa::Transaction_cache::detach(trn_ctx);
   } else {
     xs->set_state(XID_STATE::XA_NOTR);
     trans_rollback(this);
-    transaction_cache_delete(trn_ctx);
+    xa::Transaction_cache::remove(trn_ctx);
   }
 
   locked_tables_list.unlock_locked_tables(this);

@@ -2851,6 +2851,8 @@ int mysql_execute_command(THD *thd, bool first_level) {
 
   bool early_error_on_rep_command{false};
 
+  CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_execute_command");
+
   /*
     If there is a CREATE TABLE...START TRANSACTION command which
     is not yet committed or rollbacked, then we should allow only

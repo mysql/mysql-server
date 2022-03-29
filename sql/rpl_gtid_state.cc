@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -877,6 +877,7 @@ void Gtid_state::update_gtids_impl_own_gtid(THD *thd, bool is_commit) {
       SQL thread or slave worker thread adds transaction owned GTID
       into global executed_gtids, lost_gtids and gtids_only_in_table.
     */
+    CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_gtid_externalization");
     executed_gtids._add_gtid(thd->owned_gtid);
     thd->rpl_thd_ctx.session_gtids_ctx().notify_after_gtid_executed_update(thd);
     if (thd->slave_thread && opt_bin_log && !opt_log_replica_updates) {

@@ -124,6 +124,7 @@
 #include "sql/transaction.h"  // trans_commit_implicit
 #include "sql/transaction_info.h"
 #include "sql/xa.h"
+#include "sql/xa/sql_cmd_xa.h"  // Sql_cmd_xa_*
 #include "sql_string.h"
 #include "sql_tmp_table.h"  // free_tmp_table
 #include "template_utils.h"
@@ -1335,113 +1336,6 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
 #endif
 }
 
-/** XA Prepare one SE.
-@param[in]	thd	Session THD
-@param[in]	ht	SE handlerton
-@return 0 for success, 1 for error - entire transaction is rolled back. */
-static int prepare_one_ht(THD *thd, handlerton *ht) {
-  DBUG_TRACE;
-  assert(!thd->status_var_aggregated);
-  thd->status_var.ha_prepare_count++;
-  if (ht->prepare) {
-    DBUG_EXECUTE_IF("simulate_xa_failure_prepare", {
-      ha_rollback_trans(thd, true);
-      return 1;
-    });
-    if (ht->prepare(ht, thd, true)) {
-      ha_rollback_trans(thd, true);
-      return 1;
-    }
-  } else {
-    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_ILLEGAL_HA,
-                        ER_THD(thd, ER_ILLEGAL_HA),
-                        ha_resolve_storage_engine_name(ht));
-  }
-  return 0;
-}
-
-/**
-  @retval
-    0   ok
-  @retval
-    1   error, transaction was rolled back
-*/
-int ha_xa_prepare(THD *thd) {
-  int error = 0;
-  Transaction_ctx *trn_ctx = thd->get_transaction();
-  DBUG_TRACE;
-
-  if (trn_ctx->is_active(Transaction_ctx::SESSION)) {
-    const Ha_trx_info *ha_info = trn_ctx->ha_trx_info(Transaction_ctx::SESSION);
-    bool gtid_error = false;
-    bool need_clear_owned_gtid = false;
-    std::tie(gtid_error, need_clear_owned_gtid) = commit_owned_gtids(thd, true);
-    if (gtid_error) {
-      assert(need_clear_owned_gtid);
-
-      ha_rollback_trans(thd, true);
-      error = 1;
-      goto err;
-    }
-
-    /*
-      Ensure externalization order for applier threads.
-
-      Note: the calls to Commit_order_manager::wait/wait_and_finish() will be
-            no-op for threads other than replication applier threads.
-    */
-    if (Commit_order_manager::wait(thd)) {
-      thd->commit_error = THD::CE_NONE;
-      ha_rollback_trans(thd, true);
-      error = 1;
-      gtid_error = true;
-      goto err;
-    }
-
-    /* Allow GTID to be read by SE for XA prepare. */
-    {
-      Clone_handler::XA_Operation xa_guard(thd);
-
-      /* Prepare binlog SE first, if there. */
-      while (ha_info != nullptr && error == 0) {
-        auto ht = ha_info->ht();
-        if (ht->db_type == DB_TYPE_BINLOG) {
-          error = prepare_one_ht(thd, ht);
-          break;
-        }
-        ha_info = ha_info->next();
-      }
-      /* Prepare all SE other than binlog. */
-      ha_info = trn_ctx->ha_trx_info(Transaction_ctx::SESSION);
-      while (ha_info != nullptr && error == 0) {
-        auto ht = ha_info->ht();
-        error = prepare_one_ht(thd, ht);
-        if (error != 0) {
-          break;
-        }
-        ha_info = ha_info->next();
-      }
-    }
-
-    assert(error != 0 ||
-           thd->get_transaction()->xid_state()->has_state(XID_STATE::XA_IDLE));
-
-  err:
-    /*
-      After ensuring externalization order for applier thread, remove it
-      from waiting (Commit Order Queue) and allow next applier thread to
-      be ordered.
-
-      Note: the calls to Commit_order_manager::wait_and_finish() will be
-            no-op for threads other than replication applier threads.
-    */
-    Commit_order_manager::wait_and_finish(thd, error);
-    gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
-  }
-
-  return error;
-}
-
 /**
   Check if we can skip the two-phase commit.
 
@@ -1461,19 +1355,19 @@ int ha_xa_prepare(THD *thd) {
                 engines with read-write changes.
 */
 
-static uint ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
+static uint ha_check_and_coalesce_trx_read_only(THD *thd,
+                                                Ha_trx_info_list &ha_list,
                                                 bool all) {
   /* The number of storage engines that have actual changes. */
   unsigned rw_ha_count = 0;
-  Ha_trx_info *ha_info;
 
-  for (ha_info = ha_list; ha_info; ha_info = ha_info->next()) {
-    if (ha_info->is_trx_read_write()) ++rw_ha_count;
+  for (auto const &ha_info : ha_list) {
+    if (ha_info.is_trx_read_write()) ++rw_ha_count;
 
     if (!all) {
       Ha_trx_info *ha_info_all =
-          &thd->get_ha_data(ha_info->ht()->slot)->ha_info[1];
-      assert(ha_info != ha_info_all);
+          &thd->get_ha_data(ha_info.ht()->slot)->ha_info[1];
+      assert(&ha_info != ha_info_all);
       /*
         Merge read-only/read-write information about statement
         transaction to its enclosing normal transaction. Do this
@@ -1624,13 +1518,13 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock) {
     transaction_to_skip = is_already_logged_transaction(thd);
   });
 #endif  // NDEBUG
-  Ha_trx_info *ha_info = trn_ctx->ha_trx_info(trx_scope);
+  auto ha_info = trn_ctx->ha_trx_info(trx_scope);
   XID_STATE *xid_state = trn_ctx->xid_state();
 
   DBUG_TRACE;
 
   DBUG_PRINT("info", ("all=%d thd->in_sub_stmt=%d ha_info=%p is_real_trans=%d",
-                      all, thd->in_sub_stmt, ha_info, is_real_trans));
+                      all, thd->in_sub_stmt, ha_info.head(), is_real_trans));
   /*
     We must not commit the normal transaction if a statement
     transaction is pending. Otherwise statement transaction
@@ -1867,11 +1761,11 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
   Transaction_ctx *trn_ctx = thd->get_transaction();
   Transaction_ctx::enum_trx_scope trx_scope =
       all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
-  Ha_trx_info *ha_info = trn_ctx->ha_trx_info(trx_scope), *ha_info_next;
+  auto ha_list = trn_ctx->ha_trx_info(trx_scope);
 
   DBUG_TRACE;
 
-  if (ha_info) {
+  if (ha_list) {
     bool restore_backup_ha_data = false;
     /*
       At execution of XA COMMIT ONE PHASE binlog or slave applier
@@ -1940,9 +1834,9 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
       is_applier_wait_enabled = true;
     }
 
-    for (; ha_info; ha_info = ha_info_next) {
+    for (auto &ha_info : ha_list) {
       int err;
-      handlerton *ht = ha_info->ht();
+      auto ht = ha_info.ht();
       if ((err = ht->commit(ht, thd, all))) {
         char errbuf[MYSQL_ERRMSG_SIZE];
         my_error(ER_ERROR_DURING_COMMIT, MYF(0), err,
@@ -1951,8 +1845,7 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
       }
       assert(!thd->status_var_aggregated);
       thd->status_var.ha_commit_count++;
-      ha_info_next = ha_info->next();
-      ha_info->reset(); /* keep it conveniently zero-filled */
+      ha_info.reset(); /* keep it conveniently zero-filled */
     }
     if (restore_backup_ha_data) thd->rpl_reattach_engine_ha_data();
     trn_ctx->reset_scope(trx_scope);
@@ -1998,11 +1891,11 @@ int ha_rollback_low(THD *thd, bool all) {
   int error = 0;
   Transaction_ctx::enum_trx_scope trx_scope =
       all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
-  Ha_trx_info *ha_info = trn_ctx->ha_trx_info(trx_scope), *ha_info_next;
+  auto ha_list = trn_ctx->ha_trx_info(trx_scope);
 
   (void)RUN_HOOK(transaction, before_rollback, (thd, all));
 
-  if (ha_info) {
+  if (ha_list) {
     bool restore_backup_ha_data = false;
     /*
       Similarly to the commit case, the binlog or slave applier
@@ -2015,9 +1908,9 @@ int ha_rollback_low(THD *thd, bool all) {
       restore_backup_ha_data = true;
     }
 
-    for (; ha_info; ha_info = ha_info_next) {
+    for (auto &ha_info : ha_list) {
       int err;
-      handlerton *ht = ha_info->ht();
+      auto ht = ha_info.ht();
       if ((err = ht->rollback(ht, thd, all))) {  // cannot happen
         char errbuf[MYSQL_ERRMSG_SIZE];
         my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err,
@@ -2026,8 +1919,7 @@ int ha_rollback_low(THD *thd, bool all) {
       }
       assert(!thd->status_var_aggregated);
       thd->status_var.ha_rollback_count++;
-      ha_info_next = ha_info->next();
-      ha_info->reset(); /* keep it conveniently zero-filled */
+      ha_info.reset(); /* keep it conveniently zero-filled */
     }
     if (restore_backup_ha_data) thd->rpl_reattach_engine_ha_data();
     trn_ctx->reset_scope(trx_scope);
@@ -2038,18 +1930,20 @@ int ha_rollback_low(THD *thd, bool all) {
     transaction hasn't been started in any transactional storage engine.
 
     It is possible to have a call of ha_rollback_low() while handling
-    failure from ha_xa_prepare() and an error in Daignostics_area still
-    wasn't set. Therefore it is required to check that an error in
-    Diagnostics_area is set before calling the method XID_STATE::set_error().
+    failure from Sql_cmd_xa_prepare::process_xa_prepare() and an error in
+    Daignostics_area still wasn't set. Therefore it is required to check
+    that an error in Diagnostics_area is set before calling the method
+    XID_STATE::set_error().
 
     If it wasn't done it would lead to failure of the assertion
       assert(m_status == DA_ERROR)
     in the method Diagnostics_area::mysql_errno().
 
-    In case ha_xa_prepare is failed and an error wasn't set in Diagnostics_area
-    the error ER_XA_RBROLLBACK is set in the Diagnostics_area from
-    the method Sql_cmd_xa_prepare::trans_xa_prepare() when non-zero result code
-    returned by ha_xa_prepare() is handled.
+    In case Sql_cmd_xa_prepare::process_xa_prepare() has failed and an error
+    wasn't set in Diagnostics_area the error ER_XA_RBROLLBACK is set in the
+    Diagnostics_area from the method Sql_cmd_xa_prepare::trans_xa_prepare()
+    when non-zero result code returned by
+    Sql_cmd_xa_prepare::process_xa_prepare() is handled.
   */
   if (all && thd->transaction_rollback_request && thd->is_error())
     trn_ctx->xid_state()->set_error(thd);
@@ -2160,8 +2054,7 @@ int ha_rollback_trans(THD *thd, bool all) {
 int ha_commit_attachable(THD *thd) {
   int error = 0;
   Transaction_ctx *trn_ctx = thd->get_transaction();
-  Ha_trx_info *ha_info = trn_ctx->ha_trx_info(Transaction_ctx::STMT);
-  Ha_trx_info *ha_info_next;
+  auto ha_list = trn_ctx->ha_trx_info(Transaction_ctx::STMT);
 
   /* This function only handles attachable transactions. */
   assert(thd->is_attachable_ro_transaction_active());
@@ -2171,12 +2064,12 @@ int ha_commit_attachable(THD *thd) {
   */
   assert(!trn_ctx->is_active(Transaction_ctx::SESSION));
 
-  if (ha_info) {
-    for (; ha_info; ha_info = ha_info_next) {
+  if (ha_list) {
+    for (auto &ha_info : ha_list) {
       /* Attachable transaction is not supposed to modify anything. */
-      assert(!ha_info->is_trx_read_write());
+      assert(!ha_info.is_trx_read_write());
 
-      handlerton *ht = ha_info->ht();
+      auto ht = ha_info.ht();
       if (ht->commit(ht, thd, false)) {
         /*
           In theory this should not happen since attachable transactions
@@ -2189,9 +2082,7 @@ int ha_commit_attachable(THD *thd) {
       }
       assert(!thd->status_var_aggregated);
       thd->status_var.ha_commit_count++;
-      ha_info_next = ha_info->next();
-
-      ha_info->reset(); /* keep it conveniently zero-filled */
+      ha_info.reset(); /* keep it conveniently zero-filled */
     }
     trn_ctx->reset_scope(Transaction_ctx::STMT);
   }
@@ -2223,7 +2114,6 @@ int ha_commit_attachable(THD *thd) {
           false - If it is not.
 */
 bool ha_rollback_to_savepoint_can_release_mdl(THD *thd) {
-  Ha_trx_info *ha_info;
   Transaction_ctx *trn_ctx = thd->get_transaction();
   Transaction_ctx::enum_trx_scope trx_scope =
       thd->in_sub_stmt ? Transaction_ctx::STMT : Transaction_ctx::SESSION;
@@ -2234,9 +2124,8 @@ bool ha_rollback_to_savepoint_can_release_mdl(THD *thd) {
     Checking whether it is safe to release metadata locks after rollback to
     savepoint in all the storage engines that are part of the transaction.
   */
-  for (ha_info = trn_ctx->ha_trx_info(trx_scope); ha_info;
-       ha_info = ha_info->next()) {
-    handlerton *ht = ha_info->ht();
+  for (auto const &ha_info : trn_ctx->ha_trx_info(trx_scope)) {
+    auto ht = ha_info.ht();
     assert(ht);
 
     if (ht->savepoint_rollback_can_release_mdl == nullptr ||
@@ -2253,8 +2142,6 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv) {
   Transaction_ctx::enum_trx_scope trx_scope =
       !thd->in_sub_stmt ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
 
-  Ha_trx_info *ha_info, *ha_info_next;
-
   DBUG_TRACE;
 
   trn_ctx->set_rw_ha_count(trx_scope, 0);
@@ -2263,9 +2150,10 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv) {
     rolling back to savepoint in all storage engines that were part of the
     transaction when the savepoint was set
   */
-  for (ha_info = sv->ha_list; ha_info; ha_info = ha_info->next()) {
+  Ha_trx_info_list ha_list{sv->ha_list};
+  for (auto const &ha_info : ha_list) {
     int err;
-    handlerton *ht = ha_info->ht();
+    auto ht = ha_info.ht();
     assert(ht);
     assert(ht->savepoint_set != nullptr);
     if ((err = ht->savepoint_rollback(
@@ -2285,10 +2173,10 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv) {
     rolling back the transaction in all storage engines that were not part of
     the transaction when the savepoint was set
   */
-  for (ha_info = trn_ctx->ha_trx_info(trx_scope); ha_info != sv->ha_list;
-       ha_info = ha_info_next) {
+  ha_list = trn_ctx->ha_trx_info(trx_scope);
+  for (auto ha_info = ha_list.begin(); ha_info != sv->ha_list; ++ha_info) {
     int err;
-    handlerton *ht = ha_info->ht();
+    auto ht = ha_info->ht();
     if ((err = ht->rollback(ht, thd, !thd->in_sub_stmt))) {  // cannot happen
       char errbuf[MYSQL_ERRMSG_SIZE];
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err,
@@ -2297,7 +2185,6 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv) {
     }
     assert(!thd->status_var_aggregated);
     thd->status_var.ha_rollback_count++;
-    ha_info_next = ha_info->next();
     ha_info->reset(); /* keep it conveniently zero-filled */
   }
   trn_ctx->set_ha_trx_info(trx_scope, sv->ha_list);
@@ -2311,31 +2198,35 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv) {
 }
 
 int ha_prepare_low(THD *thd, bool all) {
+  DBUG_TRACE;
   int error = 0;
   Transaction_ctx::enum_trx_scope trx_scope =
       all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
-  Ha_trx_info *ha_info = thd->get_transaction()->ha_trx_info(trx_scope);
+  auto ha_list = thd->get_transaction()->ha_trx_info(trx_scope);
 
-  DBUG_TRACE;
+  if (ha_list) {
+    for (auto const &ha_info : ha_list) {
+      if (!ha_info.is_trx_read_write() &&  // Do not call two-phase commit if
+                                           // transaction is read-only
+          !thd_holds_xa_transaction(thd))  // but only if is not an XA
+                                           // transaction
+        continue;
 
-  if (ha_info) {
-    for (; ha_info && !error; ha_info = ha_info->next()) {
-      int err = 0;
-      handlerton *ht = ha_info->ht();
-      /*
-        Do not call two-phase commit if this particular
-        transaction is read-only. This allows for simpler
-        implementation in engines that are always read-only.
-      */
-      if (!ha_info->is_trx_read_write()) continue;
-      if ((err = ht->prepare(ht, thd, all))) {
-        char errbuf[MYSQL_ERRMSG_SIZE];
-        my_error(ER_ERROR_DURING_COMMIT, MYF(0), err,
-                 my_strerror(errbuf, MYSQL_ERRMSG_SIZE, err));
+      auto ht = ha_info.ht();
+      int err = ht->prepare(ht, thd, all);
+      if (err) {
+        if (!thd_holds_xa_transaction(
+                thd)) {  // If XA PREPARE, let error be handled by caller
+          char errbuf[MYSQL_ERRMSG_SIZE];
+          my_error(ER_ERROR_DURING_COMMIT, MYF(0), err,
+                   my_strerror(errbuf, MYSQL_ERRMSG_SIZE, err));
+        }
         error = 1;
       }
       assert(!thd->status_var_aggregated);
       thd->status_var.ha_prepare_count++;
+
+      if (error) break;
     }
     DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_SUICIDE(););
   }
@@ -2353,14 +2244,13 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv) {
   int error = 0;
   Transaction_ctx::enum_trx_scope trx_scope =
       !thd->in_sub_stmt ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
-  Ha_trx_info *ha_info = thd->get_transaction()->ha_trx_info(trx_scope);
-  Ha_trx_info *begin_ha_info = ha_info;
 
   DBUG_TRACE;
 
-  for (; ha_info; ha_info = ha_info->next()) {
+  auto ha_list = thd->get_transaction()->ha_trx_info(trx_scope);
+  for (auto const &ha_info : ha_list) {
     int err;
-    handlerton *ht = ha_info->ht();
+    auto ht = ha_info.ht();
     assert(ht);
     if (!ht->savepoint_set) {
       my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "SAVEPOINT");
@@ -2382,7 +2272,7 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv) {
     Remember the list of registered storage engines. All new
     engines are prepended to the beginning of the list.
   */
-  sv->ha_list = begin_ha_info;
+  sv->ha_list = ha_list.head();
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   if (!error && thd->m_transaction_psi != nullptr)
@@ -2394,12 +2284,12 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv) {
 
 int ha_release_savepoint(THD *thd, SAVEPOINT *sv) {
   int error = 0;
-  Ha_trx_info *ha_info = sv->ha_list;
   DBUG_TRACE;
 
-  for (; ha_info; ha_info = ha_info->next()) {
+  Ha_trx_info_list ha_list{sv->ha_list};
+  for (auto const &ha_info : ha_list) {
     int err;
-    handlerton *ht = ha_info->ht();
+    auto ht = ha_info.ht();
     /* Savepoint life time is enclosed into transaction life time. */
     assert(ht);
     if (!ht->savepoint_release) continue;
@@ -8751,4 +8641,58 @@ bool ha_check_reserved_db_name(const char *name) {
 */
 bool is_index_access_error(int error) {
   return (error != HA_ERR_END_OF_FILE && error != HA_ERR_KEY_NOT_FOUND);
+}
+
+Xa_state_list::Xa_state_list(Xa_state_list::list &populated_by_tc)
+    : m_underlying{populated_by_tc} {}
+
+enum_ha_recover_xa_state Xa_state_list::find(XID const &to_find) {
+  auto found = this->m_underlying.find(to_find);
+  if (found != this->m_underlying.end()) return found->second;
+  return enum_ha_recover_xa_state::NOT_FOUND;
+}
+
+enum_ha_recover_xa_state Xa_state_list::add(XID const &xid,
+                                            enum_ha_recover_xa_state state) {
+  auto previous_state = enum_ha_recover_xa_state::NOT_FOUND;
+
+  auto it = this->m_underlying.find(xid);
+  if (it != this->m_underlying.end()) previous_state = it->second;
+
+  switch (state) {
+    case enum_ha_recover_xa_state::PREPARED_IN_SE: {
+      if (previous_state == enum_ha_recover_xa_state::NOT_FOUND ||
+          previous_state == enum_ha_recover_xa_state::COMMITTED ||
+          previous_state == enum_ha_recover_xa_state::ROLLEDBACK)
+        this->m_underlying[xid] = state;
+      break;
+    }
+    case enum_ha_recover_xa_state::PREPARED_IN_TC: {
+      if (previous_state == enum_ha_recover_xa_state::NOT_FOUND ||
+          previous_state == enum_ha_recover_xa_state::PREPARED_IN_SE)
+        this->m_underlying[xid] = state;
+      break;
+    }
+    case enum_ha_recover_xa_state::NOT_FOUND:
+    case enum_ha_recover_xa_state::COMMITTED:
+    case enum_ha_recover_xa_state::COMMITTED_WITH_ONEPHASE:
+    case enum_ha_recover_xa_state::ROLLEDBACK: {
+      assert(false);
+      break;
+    }
+  }
+  return previous_state;
+}
+
+Xa_state_list::instantiation_tuple Xa_state_list::new_instance() {
+  auto mem_root =
+      std::make_unique<MEM_ROOT>(PSI_INSTRUMENT_ME, tc_log_page_size / 3);
+  auto map_alloc = std::make_unique<Xa_state_list::allocator>(mem_root.get());
+  auto xid_map = std::make_unique<Xa_state_list::list>(*map_alloc.get());
+  auto xa_list = std::make_unique<Xa_state_list>(*xid_map.get());
+  return std::make_tuple<
+      std::unique_ptr<MEM_ROOT>, std::unique_ptr<Xa_state_list::allocator>,
+      std::unique_ptr<Xa_state_list::list>, std::unique_ptr<Xa_state_list>>(
+      std::move(mem_root), std::move(map_alloc), std::move(xid_map),
+      std::move(xa_list));
 }

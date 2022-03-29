@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -583,6 +583,7 @@ class XA_prepare_event : public Binary_log_event {
   */
   static const int MY_XIDDATASIZE = 128;
 
+ public:
   struct MY_XID {
     long formatID;
     long gtrid_length;
@@ -624,6 +625,19 @@ class XA_prepare_event : public Binary_log_event {
   void print_event_info(std::ostream &) override {}
   void print_long_info(std::ostream &) override {}
 #endif
+  /**
+    Whether or not this `XA_prepare_event` represents an `XA COMMIT ONE
+    PHASE`.
+
+    @return true if it's an `XA COMMIT ONE PHASE`, false otherwise.
+   */
+  bool is_one_phase() const;
+  /**
+    Retrieves the content of `my_xid` member variable.
+
+    @return The const-reference to the `my_xid` member variable.
+   */
+  MY_XID const &get_xid() const;
 };
 
 /**

@@ -163,7 +163,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/thr_malloc.h"
 #include "sql/trigger_def.h"
 #include "sql/window_lex.h"
-#include "sql/xa.h"
+#include "sql/xa/sql_cmd_xa.h"                   // Sql_cmd_xa...
 #include "sql_chars.h"
 #include "sql_string.h"
 #include "thr_lock.h"

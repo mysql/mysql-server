@@ -300,6 +300,8 @@ SET(SERVER_TESTS
   value_map
   walk_access_paths
   wild_case_compare
+  ha_info_iterator
+  xid_extract
 )
 
 IF(WIN32)

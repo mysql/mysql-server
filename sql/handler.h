@@ -1217,6 +1217,112 @@ struct Ha_fk_column_type {
   bool is_unsigned;
 };
 
+typedef ulonglong my_xid;  // this line is the same as in log_event.h
+/**
+  Enumeration of possible states for externally coordinated transactions (XA).
+ */
+enum class enum_ha_recover_xa_state : int {
+  NOT_FOUND = -1,               // Trnasaction not found
+  PREPARED_IN_SE = 0,           // Transaction is prepared in SEs
+  PREPARED_IN_TC = 1,           // Transaction is prepared in SEs and TC
+  COMMITTED_WITH_ONEPHASE = 2,  // Transaction was one-phase committed
+  COMMITTED = 3,                // Transaction was committed
+  ROLLEDBACK = 4                // Transaction was rolled back
+};
+/**
+  Single occurrence set of XIDs of internally coordinated transactions
+  found as been committed in the transaction coordinator state.
+ */
+using Xid_commit_list =
+    std::unordered_set<my_xid, std::hash<my_xid>, std::equal_to<my_xid>,
+                       Mem_root_allocator<my_xid>>;
+
+/**
+  Class to maintain list of externally coordinated transactions and their
+  current state at recovery.
+ */
+class Xa_state_list {
+ public:
+  using pair = std::pair<const XID, enum_ha_recover_xa_state>;
+  using allocator = Mem_root_allocator<Xa_state_list::pair>;
+  using list = std::map<XID, enum_ha_recover_xa_state, std::less<XID>,
+                        Xa_state_list::allocator>;
+  using iterator = std::map<XID, enum_ha_recover_xa_state, std::less<XID>,
+                            Xa_state_list::allocator>::iterator;
+  using instantiation_tuple = std::tuple<
+      std::unique_ptr<MEM_ROOT>, std::unique_ptr<Xa_state_list::allocator>,
+      std::unique_ptr<Xa_state_list::list>, std::unique_ptr<Xa_state_list>>;
+
+  /**
+    Class constructor.
+
+    @param populated_by_tc The underlying list of XIDs and transaction
+                           states, after being populated by the transaction
+                           coodinator.
+   */
+  Xa_state_list(Xa_state_list::list &populated_by_tc);
+  virtual ~Xa_state_list() = default;
+
+  /**
+    Searches the underlying map to find an key that corresponds to the
+    parameter.
+
+    @param to_find The XID to find within the underlying map.
+
+    @return Ha_recover_states::NOT_FOUND if the transaction wasn't found,
+            the state of the transaction, otherwise.
+   */
+  enum_ha_recover_xa_state find(XID const &to_find);
+  /**
+    Adds a transaction and state to the underlying map. If the given XID
+    already exists in the underlying map, the associated state changes according
+    to the following rules:
+
+    - If the parameter state is `PREPARED_IN_SE` it means that the
+      transaction didn't reach PREPARED_IN_TC, COMMIT or ROLLBACK for
+      sure. In that case:
+      . If other participants state is `COMMITTED`/`ROLLEDBACK`, it would
+        mean that it's a state inherited from a previous execution with the
+        same XID and we should set the state to `PREPARED_IN_SE`.
+      . If other participants state is `PREPARED_IN_TC`/
+        `COMMITTED_WITH_ONEPHASE` it means that the current participant
+        didn't reach it but some other did so, keep the state as
+        `PREPARED_IN_TC`/`COMMITTED_WITH_ONEPHASE`.
+
+    - If the parameter state is `PREPARED_IN_TC`, it means that other
+      participants must have persisted either the PREPARE, the COMMIT or
+      the ROLLBACK. In that case, keep whatever state is already there and
+      ensure that is not `PREPARED_IN_SE`.
+
+    - If the parameter state is `COMMITTED_WITH_ONEPHASE`, `COMMITTED` or
+      `ROLLEDBACK`, do nothing, only the active transaction coordinator has
+      the ability, for now, to set the transaction state to those values.
+
+    @param xid The XID to be added (the key).
+    @param xid The state to be added (the value).
+
+    @return The current value of the transaction state if the XID has
+            already been added, Ha_recover_states::NOT_FOUND otherwise.
+   */
+  enum_ha_recover_xa_state add(XID const &xid, enum_ha_recover_xa_state state);
+  /**
+    Factory like method to instantiate all the infra-structure needed to
+    create an `Xa_state_list`. Since such infra-structuer is dependent on
+    `MEM_ROOT` and `Mem_root_allocator`, the method returns a tuple
+    containing unique pointers to all 4 objects needed: MEM_ROOT;
+    Mem_root_allocator; Xa_state_list::list; Xa_state_list.
+
+    @return An std::tuple containing unique pointers to all 4 objects
+            needed: MEM_ROOT; Mem_root_allocator; Xa_state_list::list;
+            Xa_state_list.
+   */
+  static Xa_state_list::instantiation_tuple new_instance();
+
+ private:
+  /** The underlying map holding the trx and states*/
+  Xa_state_list::list &m_underlying;
+};
+
 /* handlerton methods */
 
 /**
@@ -1274,6 +1380,18 @@ typedef int (*prepare_t)(handlerton *hton, THD *thd, bool all);
 
 typedef int (*recover_t)(handlerton *hton, XA_recover_txn *xid_list, uint len,
                          MEM_ROOT *mem_root);
+/**
+  Retrieves information about externally coordinated transactions for which
+  the two-phase prepare was finished and transactions were prepared in the
+  server TC.
+ */
+using recover_prepared_in_tc_t = int (*)(handlerton *hton,
+                                         Xa_state_list &xa_list);
+/**
+  Instructs the storage engine to mark the externally coordinated
+  transactions held by the THD parameters as prepared in the server TC.
+ */
+using set_prepared_in_tc_t = int (*)(handlerton *hton, THD *thd);
 
 /** X/Open XA distributed transaction status codes */
 enum xa_status_code {
@@ -1326,6 +1444,14 @@ enum xa_status_code {
 typedef xa_status_code (*commit_by_xid_t)(handlerton *hton, XID *xid);
 
 typedef xa_status_code (*rollback_by_xid_t)(handlerton *hton, XID *xid);
+
+/**
+  Instructs the storage engine to mark the externally coordinated
+  transactions identified by the XID parameters as prepared in the server
+  TC.
+ */
+using set_prepared_in_tc_by_xid_t = xa_status_code (*)(handlerton *hton,
+                                                       XID *xid);
 
 /**
   Create handler object for the table in the storage engine.
@@ -2458,8 +2584,11 @@ struct handlerton {
   rollback_t rollback;
   prepare_t prepare;
   recover_t recover;
+  recover_prepared_in_tc_t recover_prepared_in_tc;
   commit_by_xid_t commit_by_xid;
   rollback_by_xid_t rollback_by_xid;
+  set_prepared_in_tc_t set_prepared_in_tc;
+  set_prepared_in_tc_by_xid_t set_prepared_in_tc_by_xid;
   create_t create;
   drop_database_t drop_database;
   panic_t panic;
@@ -6972,28 +7101,55 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock = false);
 int ha_commit_attachable(THD *thd);
 int ha_rollback_trans(THD *thd, bool all);
 
-/* interface to handlerton function to prepare XA transaction */
-int ha_xa_prepare(THD *thd);
-
 /**
-  recover() step of xa.
+  Stage of the recovery process where information is collected from the
+  storage engines (SE), merged with information from the transaction
+  coordinator (TC) and transactions states are determined and enforced.
 
-  @note
-    there are three modes of operation:
-    - automatic recover after a crash
-    in this case commit_list != 0, tc_heuristic_recover==TC_HEURISTIC_NOT_USED
-    all xids from commit_list are committed, others are rolled back
-    - manual (heuristic) recover
-    in this case commit_list==0, tc_heuristic_recover != TC_HEURISTIC_NOT_USED
-    DBA has explicitly specified that all prepared transactions should
-    be committed (or rolled back).
-    - no recovery (MySQL did not detect a crash)
-    in this case commit_list==0, tc_heuristic_recover == TC_HEURISTIC_NOT_USED
-    there should be no prepared transactions in this case.
+  Implemented heuristics is as follows:
+
+  1. The `commit_list` parameter contains the set of internally coordinated
+     transactions that the TC ensures were marked as committed.
+
+  2. The `xa_state_list` parameter contains the list of externally
+     coordinated transactions and their states, as recorded by the TC.
+
+  3. For each SE:
+     a. Collect list of transactions found in `PREPARED_IN_TC` state in the
+        SE and merge it with the information collected from the TC, in
+        `xa_state_list`.
+     b. Retrieve the list of transactions found in prepared state in the
+        SE.
+
+     c. For each internally coordinated transactions found in prepared
+        state:
+        1. If the transaction is found in `commit_list`, commit it.
+        2. If the transaction is NOT found in `commit_list` but
+          `tc_heuristic_recover = TC_HEURISTIC_RECOVER_COMMIT`, commit it.
+        3. Otherwise, roll it back.
+
+     d. For each externally coordinated transactions found in prepared
+        state:
+        1. If the transaction isn't found in `xa_state_list`, roll it back.
+        2. If the transaction is found in `xa_state_list` in `COMMITTED`
+           state, commit it.
+        3. If the transaction is found in `xa_state_list` in `ROLLEDBACK`
+           state, roll it back.
+        4. If the transaction is found in `xa_state_list` in `PREPARED`
+           state, ensure that the transaction state in the SE is
+           `PREPARED_IN_TC`.
+
+  @param commit_list Set of XIDs of internally coordinated transactions
+                     found as been committed in the transaction coordinator
+                     state.
+  @param xa_state_list Map between XIDs and states of externally
+                       coordinated transactions as found in the internal
+                       transaction coordinator state.
+
+  @return 0 if recovery was successfull, non-zero otherwise.
 */
-
-typedef ulonglong my_xid;  // this line is the same as in log_event.h
-int ha_recover(const mem_root_unordered_set<my_xid> *commit_list);
+int ha_recover(Xid_commit_list *commit_list = nullptr,
+               Xa_state_list *xa_state_list = nullptr);
 
 /**
   Perform SE-specific cleanup after recovery of transactions.
@@ -7010,6 +7166,22 @@ void ha_post_recover();
  commit/prepare/rollback transactions in the engines.
 */
 int ha_commit_low(THD *thd, bool all, bool run_after_commit = true);
+/**
+  Prepares the underlying transaction of the THD session object parameter
+  in the storage engines that participate in the transaction.
+
+  In case of failure, an error will be emitted by the function in the case
+  of internally coordinated transactions. In the case of externally
+  coordinated transactions (XA), the error treatment must follow the
+  XA/Open specification and is handled by the `Sql_cmd_xa_prepare` class.
+
+  @param thd The THD session object holding the transaction to be prepared.
+  @param all Whether or not the prepare regards a full transaction or the
+             statement being executed..
+
+  @return 0 if the transaction was successfully prepared, non-zero
+          otherwise.
+ */
 int ha_prepare_low(THD *thd, bool all);
 int ha_rollback_low(THD *thd, bool all);
 

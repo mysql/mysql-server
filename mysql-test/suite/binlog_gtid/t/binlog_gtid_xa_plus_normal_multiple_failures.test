@@ -1,0 +1,438 @@
+# ==== Purpose ====
+#
+# The goal is to have a variety of different transaction types paused
+# at different phases of the commit pipeline, then crash and restart
+# the server, and verify that the recovery took the expected action
+# for each transaction.
+#
+# More precisely, we test the following 5 transaction types:
+# - COMMIT
+# - XA PREPARE
+# - XA COMMIT ... ONE PHASE,
+# - XA COMMIT
+# - XA ROLLBACK (for a prepared transaction)
+#
+# For each such transaction type, we execute 4 different transactions
+# of the type, each one paused on one of the following sync points:
+# - before_command_dispatch (no persistent changes yet)
+# - before_invoke_before_commit_hook (prepared in engine, not broadcast)
+# - bgc_after_enrolling_for_flush_stage (prepared in engine, broadcast,
+#   but not written to binlog)
+# - bgc_after_enrolling_for_sync_stage (prepared in engine, broadcast,
+#   written to binlog, but not committed in engine)
+#
+# After restart, we verify that:
+# - The table contains the rows that we expect have committed.
+# - XA RECOVER shows the transactino that we expect to have in
+#   prepared state.
+# - The error log contains a message that mentions the number
+#   internally coordinated and the number of externally coordinated
+#   transactions, that committed, rolled back, and prepared.
+# - gtid_executed contains the GTIDs of the transactions we expect
+#   to have rolled forward during recovery.
+#
+# ==== Implementation ====
+#
+# 1. Iterate over all 5*4 transactions; for those that are of type
+#    XA COMMIT or XA ROLLBACK, execute the preceding part of the
+#    transaction, up to XA PREPARE.
+#
+# 2. Iterate over all 4 sync points. In each iteration, execute one
+#    transaction of each kind, and wait for it to reach the sync
+#    point.
+#
+#    Also track the expected outcome of the transaction: if it is
+#    expected to commit, remember that the row shall be expected to be
+#    found in the table later.  If it is expected to be in prepared
+#    state after recovery, remember that the row shall be found in XA
+#    RECOVER later.  If recovery is expected to take action to commit,
+#    rollback, or prepare the transaction, increase a counter of
+#    committed, rolled back, or prepared transactions accordingly;
+#    these numbers will later be found in a log message.
+#
+# 3. Crash and restart.
+#
+# 4. Verify the prepared transactions are the expected ones: Use
+#    save_result_in_table.inc to store the resultset from XA RECOVER
+#    in a table; use GROUP_CONCAT to concatenate all the prepared XIDs
+#    into one string; compare this string with one prepared in step 2
+#    above.
+#
+# 5. Verify the table contents is the expected one: Use GROUP_CONCAT to
+#    concatenate all rows in the table to one string; compare this
+#    string with one prepared in step 2 above.
+#
+# 6. Verify the log messages are as expected: Use the counters
+#    computed in step 2 above to predict the summary message we expect
+#    to see in the log; verify that the message is actually there.
+#
+# 7. Verify the first five transactions are committed; by the way we
+#    iterate, we ensure that the first 5 transactions will be
+#    completed after recovery, and the others will not.  Therefore,
+#    the first 5 GTIDs are expected in gtid_executed, and the
+#    remaining ones are not.
+#
+# ==== References ====
+#
+# WL#11300: Crash-safe XA + binary log
+
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+
+--source include/gtid_utils.inc
+
+--echo ==== 0. Initialize ====
+
+let $messages = .*Crash recovery finished in InnoDB engine.*
+.*Found .* prepared XA transactions.*
+.*Storage engines failed to recover one or more transactions*;
+--source include/suppress_messages.inc
+
+RESET MASTER;
+
+CREATE TABLE t (a INT);
+
+# Setup all the connections
+--let $n = 1
+while ($n <= 21) {
+  --connect(con$n, localhost, root,,)
+  --inc $n
+}
+
+--echo ==== 1. Issue XA PREPARE preceding XA COMMIT/XA ROLLBACK ====
+
+# Issue the XA PREPARE transactions that precede the XA COMMIT and XA
+# ROLLBACK statements that we wish to pause.  We do it before starting to
+# execute transactions that pause on sync points, because those will block
+# the BGC pipeline.
+--let $n = 1
+--let $i = 0
+while ($i < 4) {
+
+  --inc $n
+  --inc $n
+  --inc $n
+
+  eval XA START '$n';
+  eval INSERT INTO t VALUES ($n);
+  eval XA END '$n';
+  eval XA PREPARE '$n';
+
+  --inc $n
+
+  eval XA START '$n';
+  eval INSERT INTO t VALUES ($n);
+  eval XA END '$n';
+  eval XA PREPARE '$n';
+
+  --inc $n
+  --inc $i
+}
+
+# ==== Purpose ====
+#
+# Execute one transaction and pause it at a given sync point during the
+# transaction-ending statement.
+#
+# ==== Usage ====
+#
+# --let $n = NUMBER
+# --let $pre_statement = <SQL>
+# --let $statement = <SQL>
+# --let $sync_point = NAME
+# --let $before = {R|P}
+# --let $after = {R|P|C}
+# --let $action = {complete|undo|none}
+#
+# Parameters:
+#   $n
+#     A sequence number; should be 1 before the first invocation,
+#     will be incremented by 1 by each invocation. This is used for
+#     the GTID, the XID, and the TIMESTAMP for the transaction.
+#
+#   $pre_statement
+#     Statement(s) to execute within the transaction, prior to the
+#     one that shall be paused.
+#
+#   $statement
+#     The statement that shall be paused on a sync point.
+#
+#   $sync_point
+#     The conditional timestamp sync point that $statement shall pause.
+#
+#   $before
+#     The state of the transaction before this script is invoked:
+#     R - the transaction is not started ("rollback")
+#     P - the transaction is prepared
+#
+#   $after
+#     The state of the transaction in case $statement would succeed:
+#     R - the transaction is rolled back
+#     P - the transaction is prepared
+#     C - the transaction is committed
+#
+#   $action
+#     The expected outcome of the transaction:
+#
+#     "complete" - the transaction will complete during recovery,
+#       reaching the state specified in $after.  This should be used
+#       if $sync_point occurs after the conceptual commit point.
+#
+#     "undo" - the transaction will be undone during recovery,
+#       reaching the state specified in $before.  This should be used
+#       if $sync_point occurs after the transaction has invoked the
+#       engine but before the conceptual commit point.
+#
+#     none - the transaction will not be found during recovery, and
+#       remain in the state specified in $before.  This should be used
+#       if $sync_point occurs before the transaction has invoked the
+#       engine.
+#
+#   $is_xa
+#     Should be set to 1 if this is an XA transaction, 0 if this is
+#     an internally coordinated transaction.
+#
+# Output variables:
+#   $n
+#     The number $n will be incremented by 1.
+#
+#   $expect_prepared
+#     String listing the transactions that we expect being in prepared
+#     state after recovery.  If this transaction should be in prepared
+#     state after recovery, as determined by $before, $after, and
+#     $action, the script will append a space character followed by $n
+#     to $expect_prepared.
+#
+#   $expect_rows
+#     String listing the transactions that we expect being in
+#     committed state after recovery.  If this transaction should be
+#     in committed after recovery, as determined by $before, $after,
+#     and $action, the script will append a space character followed
+#     by $n to $expect_rows.
+#
+#   $xa_committed, $xa_prepared, $xa_rolled_back
+#     If the current transaction is an XA transaction which we expect
+#     that the recovery procedure will take action to
+#     {commit|prepare|rollback}, this script increments
+#     {$xa_committed|$xa_prepared|$xa_rolled_back}.
+#
+#   $internal_committed, $internal_rolled_back
+#     If the current transaction is an internally coordinated (non-XA)
+#     transaction which we expect that the recovery procedure will
+#     take action to {commit|rollback}, this script increments
+#     {$xa_committed|$xa_rolled_back}.
+
+--let $scenario = $MYSQLTEST_VARDIR/tmp/xa_scenario.inc
+--write_file $scenario END_OF_PROCEDURE
+
+  --echo * $n: $statement @ $sync_point
+  --connection con$n
+
+  # Not required by the test, but we set the GTID just to make it
+  # easier to map GTID to $n while debugging.
+  eval SET @@session.gtid_next = '$uuida:$n';
+
+  # Execute the transaction body, if needed (e.g. XA START...XA END)
+  if ($pre_statement) {
+    --eval $pre_statement
+  }
+
+  # Execute the transaction-ending statement up to the specified sync point.
+  --let $statement_connection = con$n
+  --let $auxiliary_connection = default
+  --let $timestamp = $n
+  --source include/execute_to_conditional_timestamp_sync_point.inc
+
+  # Compute the expected outcome.
+  # "state" represents the state of each transaction after recovery,
+  # which is verified by inspecting the result from XA PREPARE and
+  # SELECT * FROM t after recovery:
+  #   R means it is not present
+  #   P means it is in prepared state
+  #   C means it has committed
+  # "transition" represents the action performed by the recovery process,
+  # which is verified by inspecting the error log:
+  #   R means the recovery took action to roll the transaction back
+  #   P means the recovery prepared the transaction
+  #     (due to the implementation of recovery, even if a transaction
+  #     is in a stationary "prepared" state and no action was
+  #     attempted to commit or rollback, recovery reports that it
+  #     actively moved it to prepared state)
+  #   C means the recovery took action to commit the transaction
+  #   none means the recovery did not take any action for this transaction.
+  if ($action == complete) {
+    --let $state = $after
+    --let $transition = $after
+  }
+  if ($action == undo) {
+    --let $state = $before
+    --let $transition = $before
+  }
+  if ($action == none) {
+    --let $state = $before
+    --let $transition = none
+    if ($before == P) {
+      --let $transition = $before
+    }
+  }
+
+  --echo Expected recovery action for $n: $transition
+  --echo Expected resulting transaction state for $n: $state
+
+  if ($state == C) { # Expect row to be committed after recovery.
+    --let $expect_rows = $expect_rows $n
+  }
+  if ($state == P) { # Expect row to be prepared after recovery.
+    --let $expect_prepared = $expect_prepared $n
+  }
+  if ($transition == C) { # Expect 'commit' action during recovery
+    if ($is_xa) { inc $xa_committed; }
+    if (!$is_xa) { inc $internal_committed; }
+  }
+  if ($transition == P) { # Expect 'prepare' action during recovery
+    inc $xa_prepared;
+  }
+  if ($transition == R) { # Expect 'rollback' action during recovery
+    if ($is_xa) { inc $xa_rolled_back; }
+    if (!$is_xa) { inc $internal_rolled_back; }
+  }
+
+  --inc $n
+
+END_OF_PROCEDURE
+
+# Expected contents of table
+--let $expect_rows =
+# Expected result from XA RECOVER
+--let $expect_prepared =
+# Expected counts of transactions in message in error log
+--let $xa_committed = 0
+--let $xa_prepared = 0
+--let $xa_rolled_back = 0
+--let $internal_committed = 0
+--let $internal_rolled_back = 0
+
+--echo ==== 2. Issue all the statements that hang on sync points ====
+
+--let $n = 1
+--let $i = 0
+while ($i < 4) {
+  if ($i == 0) {
+    # After write to binlog, before commit/prepare_in_tc
+    --let $sync_point = bgc_after_enrolling_for_sync_stage
+    --let $action = complete
+  }
+  if ($i == 1) {
+    # After broadcast, before write to binlog
+    --let $sync_point = bgc_after_enrolling_for_flush_stage
+    --let $action = undo
+  }
+  if ($i == 2) {
+    # After prepare, before broadcast
+    --let $sync_point = before_invoke_before_commit_hook
+    --let $action = undo
+  }
+  if ($i == 3) {
+    # Before prepare
+    --let $sync_point = before_execute_command
+    --let $action = none
+  }
+
+  --let $is_xa = 0
+
+  --let $pre_statement = BEGIN; INSERT INTO t VALUES ($n);
+  --let $statement = COMMIT
+  --let $before = R
+  --let $after = C
+  --source $scenario
+
+  --let $is_xa = 1
+
+  --let $pre_statement = XA START '$n'; INSERT INTO t VALUES ($n); XA END '$n';
+  --let $statement = XA PREPARE '$n'
+  --let $before = R
+  --let $after = P
+  --source $scenario
+
+  --let $pre_statement = XA START '$n'; INSERT INTO t VALUES ($n); XA END '$n';
+  --let $statement = XA COMMIT '$n' ONE PHASE
+  --let $before = R
+  --let $after = C
+  --source $scenario
+
+  # Already done: XA START '$n'; ... XA PREPARE '$n';
+  --let $pre_statement =
+  --let $statement = XA COMMIT '$n'
+  --let $before = P
+  --let $after = C
+  --source $scenario
+
+  # Already done: XA START '$n'; ... XA PREPARE '$n';
+  --let $pre_statement =
+  --let $statement = XA ROLLBACK '$n'
+  --let $before = P
+  --let $after = R
+  --source $scenario
+
+  --inc $i
+}
+
+# These will have a leading space. Remove that.
+--let $expect_prepared = `SELECT TRIM('$expect_prepared')`
+--let $expect_rows = `SELECT TRIM('$expect_rows')`
+
+--echo ==== 3. Crash and restart ====
+
+--source include/kill_mysqld.inc
+--connection default
+--source include/start_mysqld.inc
+
+--echo ==== 4. Verify the prepared transactions are as expected ====
+
+CREATE TABLE xa_recover (data INT PRIMARY KEY);
+--let $statement = XA RECOVER
+--let $table = xa_recover
+--let $select_columns = 4
+--source include/save_result_in_table.inc
+--let $table_contents = `SELECT GROUP_CONCAT(data ORDER BY data SEPARATOR ' ') FROM xa_recover GROUP BY NULL`
+--let $assert_text = Transactions $expect_prepared (and no others) should be prepared
+--let $assert_cond = "$table_contents" = "$expect_prepared"
+--source include/assert.inc
+DROP TABLE xa_recover;
+
+--echo ==== 5. Verify the table contents are as expected ====
+
+--let $table_contents = `SELECT GROUP_CONCAT(a ORDER BY a SEPARATOR ' ') FROM t GROUP BY NULL`
+--let $assert_text = Rows $expect_rows (and no others) should appear in table t
+--let $assert_cond = "$table_contents" = "$expect_rows"
+--source include/assert.inc
+
+--echo ==== 6. Verify the log messages are as expected ====
+
+--let $assert_select = Successfully committed $internal_committed, rolled back $internal_rolled_back internal transaction.* Successfully committed $xa_committed, rolled back $xa_rolled_back, prepared $xa_prepared XA transaction
+--source extra/xa_crash_safe_tests/assert_recovery_message.inc
+
+--echo ==== 7. Verify the first five transactions are committed ====
+
+# The first five transactions are the only ones that were driven long
+# enough through the commit process to roll forward during
+# recovery. Therefore, only their GTIDs are expected in gtid_executed.
+--let $assert_text = The first 5 transactions should be committed, not the rest
+--let $assert_cond = GTID_INTERSECTION_WITH_UUID(@@global.gtid_executed, "$uuida") = "$uuida:1-5"
+--source include/assert.inc
+
+--echo ==== 8. Clean up ====
+
+while ($expect_prepared) {
+  --let $n = `SELECT SUBSTRING_INDEX('$expect_prepared', ' ', 1)`
+  eval XA ROLLBACK '$n';
+  --let $expect_prepared = `SELECT SUBSTR('$expect_prepared', 1 + LENGTH('$n') + 1)`
+}
+
+--remove_file $scenario
+
+DROP TABLE t;
+
+--source include/gtid_utils_end.inc

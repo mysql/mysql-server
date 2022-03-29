@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -971,7 +971,9 @@ static void parse_page(const byte *page, FILE *file) {
           }
           break;
 
+        case TRX_UNDO_PREPARED_80028:
         case TRX_UNDO_PREPARED:
+        case TRX_UNDO_PREPARED_IN_TC:
           page_type.n_undo_state_prepared++;
           if (page_type_dump) {
             fprintf(file, ", %s",

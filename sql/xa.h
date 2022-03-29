@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include <mutex>
 
 #include "lex_string.h"
+#include "libbinlogevents/include/control_events.h"  // XA_prepare_event
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
@@ -43,6 +44,8 @@
 class Protocol;
 class THD;
 struct xid_t;
+class XID_STATE;
+class Transaction_ctx;
 
 typedef int64 query_id_t;
 
@@ -58,143 +61,6 @@ enum xa_option_words {
 static const int TC_HEURISTIC_NOT_USED = 0;
 static const int TC_HEURISTIC_RECOVER_COMMIT = 1;
 static const int TC_HEURISTIC_RECOVER_ROLLBACK = 2;
-
-/**
-  This class represents SQL statement which starts an XA transaction
-  with the given xid value.
-*/
-
-class Sql_cmd_xa_start : public Sql_cmd {
- public:
-  Sql_cmd_xa_start(xid_t *xid_arg, enum xa_option_words xa_option)
-      : m_xid(xid_arg), m_xa_opt(xa_option) {}
-
-  enum_sql_command sql_command_code() const override { return SQLCOM_XA_START; }
-
-  bool execute(THD *thd) override;
-
- private:
-  bool trans_xa_start(THD *thd);
-  xid_t *m_xid;
-  enum xa_option_words m_xa_opt;
-};
-
-/**
-  This class represents SQL statement which puts in the IDLE state
-  an XA transaction with the given xid value.
-*/
-
-class Sql_cmd_xa_end : public Sql_cmd {
- public:
-  Sql_cmd_xa_end(xid_t *xid_arg, enum xa_option_words xa_option)
-      : m_xid(xid_arg), m_xa_opt(xa_option) {}
-
-  enum_sql_command sql_command_code() const override { return SQLCOM_XA_END; }
-
-  bool execute(THD *thd) override;
-
- private:
-  bool trans_xa_end(THD *thd);
-
-  xid_t *m_xid;
-  enum xa_option_words m_xa_opt;
-};
-
-/**
-  This class represents SQL statement which puts in the PREPARED state
-  an XA transaction with the given xid value.
-*/
-
-class Sql_cmd_xa_prepare : public Sql_cmd {
- public:
-  explicit Sql_cmd_xa_prepare(xid_t *xid_arg) : m_xid(xid_arg) {}
-
-  enum_sql_command sql_command_code() const override {
-    return SQLCOM_XA_PREPARE;
-  }
-
-  bool execute(THD *thd) override;
-
- private:
-  bool trans_xa_prepare(THD *thd);
-
-  xid_t *m_xid;
-};
-
-/**
-  This class represents SQL statement which returns to a client
-  a list of XID's prepared to a XA commit/rollback.
-*/
-
-class Sql_cmd_xa_recover : public Sql_cmd {
- public:
-  explicit Sql_cmd_xa_recover(bool print_xid_as_hex)
-      : m_print_xid_as_hex(print_xid_as_hex) {}
-
-  enum_sql_command sql_command_code() const override {
-    return SQLCOM_XA_RECOVER;
-  }
-
-  bool execute(THD *thd) override;
-
- private:
-  bool check_xa_recover_privilege(THD *thd) const;
-  bool trans_xa_recover(THD *thd);
-
-  bool m_print_xid_as_hex;
-};
-
-class XID_STATE;
-/**
-  This class represents SQL statement which commits
-  and terminates an XA transaction with the given xid value.
-*/
-
-class Sql_cmd_xa_commit : public Sql_cmd {
- public:
-  Sql_cmd_xa_commit(xid_t *xid_arg, enum xa_option_words xa_option)
-      : m_xid(xid_arg), m_xa_opt(xa_option) {}
-
-  enum_sql_command sql_command_code() const override {
-    return SQLCOM_XA_COMMIT;
-  }
-
-  bool execute(THD *thd) override;
-
-  enum xa_option_words get_xa_opt() const { return m_xa_opt; }
-
- private:
-  bool trans_xa_commit(THD *thd);
-  bool process_external_xa_commit(THD *thd, xid_t *xid,
-                                  XID_STATE *thd_xid_state);
-  bool process_internal_xa_commit(THD *thd, XID_STATE *xid_state);
-
-  xid_t *m_xid;
-  enum xa_option_words m_xa_opt;
-};
-
-/**
-  This class represents SQL statement which rollbacks and
-  terminates an XA transaction with the given xid value.
-*/
-
-class Sql_cmd_xa_rollback : public Sql_cmd {
- public:
-  explicit Sql_cmd_xa_rollback(xid_t *xid_arg) : m_xid(xid_arg) {}
-
-  enum_sql_command sql_command_code() const override {
-    return SQLCOM_XA_ROLLBACK;
-  }
-
-  bool execute(THD *thd) override;
-
- private:
-  bool trans_xa_rollback(THD *thd);
-  bool process_external_xa_rollback(THD *thd, xid_t *xid, XID_STATE *xid_state);
-  bool process_internal_xa_rollback(THD *thd, XID_STATE *xid_state);
-
-  xid_t *m_xid;
-};
 
 typedef ulonglong my_xid;  // this line is the same as in log_event.h
 #define MYSQL_XID_PREFIX "MySQLXid"
@@ -342,6 +208,64 @@ typedef struct xid_t {
   }
 
   bool is_null() const { return formatID == -1; }
+
+  /**
+    Instantiates this object with the contents of the parameter of type
+    `XA_prepare_event::MY_XID`.
+
+    The `XA_prepare_event::MY_XID` is a mirror class of `xid_t` so the
+    instantiation is a direct instantiation relation of each class member
+    variables.
+
+    @param rhs The `XA_prepare_event::MY_XID` to instantiate from
+
+    @return This object reference.
+   */
+  xid_t &operator=(binary_log::XA_prepare_event::MY_XID const &rhs);
+  /**
+    Compares for equality two instances of `xid_t`.
+
+    @param rhs The instance to compare this object with.
+
+    @return true if both instance are equal, false otherwise.
+   */
+  bool operator==(struct xid_t const &rhs) const;
+  /**
+    Compares for inequality two instances of `xid_t`.
+
+    @param rhs The instance to compare this object with.
+
+    @return true if both instance are different, false otherwise.
+   */
+  bool operator!=(struct xid_t const &rhs) const;
+  /**
+    Compares for lower-than-inequality two instances of `xid_t`.
+
+    The lesser-than relation between two given XIDs, x1 and x2, is as
+    follows:
+
+    x1 < x2 if any of the following is true:
+    - x1[FORMAT_ID] < x2[FORMAT_ID]
+    - x1[strlen(GTRID)] < x2[strlen(GTRID)]
+    - x1[strlen(BQUAL)] < x2[strlen(BQUAL)]
+    - std::strncmp(x1[DATA], x2[DATA]) < 0
+
+    @param rhs The instance to compare this object with.
+
+    @return true if this instance is lesser than the parameter, false
+            otherwise.
+   */
+  bool operator<(struct xid_t const &rhs) const;
+  /**
+    Writes the parameter's `in` string representation to the `out` stream
+    parameter object.
+
+    @param out The stream to write the XID representation to
+    @param in  The XID for which the string representation should be written
+
+    @return The reference for the stream passed on as parameter.
+   */
+  friend std::ostream &operator<<(std::ostream &out, struct xid_t const &in);
 
  private:
   void set(const xid_t *xid) {
@@ -578,7 +502,7 @@ class Recovered_xa_transactions {
 
     @return false on success, else true
   */
-  bool add_prepared_xa_transaction(XA_recover_txn *prepared_xa_trn);
+  bool add_prepared_xa_transaction(XA_recover_txn const *prepared_xa_trn);
 
   /**
     Iterate along a list of prepared XA transactions, register every XA
@@ -606,49 +530,6 @@ class Recovered_xa_transactions {
   bool m_mem_root_inited;
   MEM_ROOT m_mem_root;
 };
-
-class Transaction_ctx;
-
-/**
-  Initialize a cache to store Transaction_ctx and a mutex to protect access
-  to the cache
-
-  @return        result of initialization
-    @retval false  success
-    @retval true   failure
-*/
-
-bool transaction_cache_init();
-
-/**
-  Transaction is marked in the cache as if it's recovered.
-  The method allows to sustain prepared transaction disconnection.
-
-  @param transaction
-                 Pointer to Transaction object that is replaced.
-
-  @return  operation result
-    @retval  false   success or a cache already contains XID_STATE
-                     for this XID value
-    @retval  true    failure
-*/
-
-bool transaction_cache_detach(Transaction_ctx *transaction);
-
-/**
-  Remove information about transaction from a cache.
-
-  @param transaction     Pointer to a Transaction_ctx that has to be removed
-                         from a cache.
-*/
-
-void transaction_cache_delete(Transaction_ctx *transaction);
-
-/**
-  Release resources occupied by transaction cache.
-*/
-
-void transaction_cache_free();
 
 /**
   This is a specific to "slave" applier collection of standard cleanup
@@ -709,6 +590,34 @@ bool reattach_native_trx(THD *thd, plugin_ref plugin, void *);
 void cleanup_trans_state(THD *thd);
 
 /**
+  Find XA transaction in cache by its xid value.
+
+  @param thd                     Thread context
+  @param xid_for_trn_in_recover  xid value to look for in transaction cache
+  @param xid_state               State of XA transaction in current session
+
+  @return Pointer to an instance of Transaction_ctx corresponding to a
+          xid in argument. If XA transaction not found returns nullptr and
+          sets an error in DA to specify a reason of search failure.
+*/
+std::shared_ptr<Transaction_ctx> find_trn_for_recover_and_check_its_state(
+    THD *thd, xid_t *xid_for_trn_in_recover, XID_STATE *xid_state);
+
+/**
+  Acquire Commit metadata lock and all locks acquired by a prepared XA
+  transaction before server was shutdown or terminated.
+
+  @param thd           Thread context
+  @param detached_xid  XID value specified by XA COMMIT or XA ROLLBACK that
+                       corresponds to a XA transaction generated outside
+                       current session context.
+
+  @retval false        Success
+  @retval true         Failure
+*/
+bool acquire_mandatory_metadata_locks(THD *thd, xid_t *detached_xid);
+
+/**
   Rollback the active XA transaction.
 
   @note Resets rm_error before calling ha_rollback(), so
@@ -721,4 +630,33 @@ void cleanup_trans_state(THD *thd);
 bool xa_trans_force_rollback(THD *thd);
 
 bool disconnect_native_trx(THD *, plugin_ref, void *);
+
+/**
+  Test if the THD session underlying transaction is an externally
+  coordinated (XA) transaction.
+
+  @param thd The session THD object holding the transaction to be tested.
+
+  @return true if the session underlying transaction is an XA transaction,
+          false otherwise.
+*/
+bool thd_holds_xa_transaction(THD *thd);
+/**
+  Checks whether or not the underlying statement is an `XA PREPARE`.
+
+  @param thd THD session object.
+
+  @return true if the underlying statment is an `XA PREPARE`, false
+          if not
+ */
+bool is_xa_prepare(THD *thd);
+/**
+  Checks whether or not the underlying statement is an `XA ROLLBACK`.
+
+  @param thd THD session object.
+
+  @return true if the underlying statment is an `XA ROLLBACK`, false
+          if not
+ */
+bool is_xa_rollback(THD *thd);
 #endif

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4365,6 +4365,21 @@ inline bool is_gtid_event(Log_event *evt) {
 }
 
 /**
+  Check if the given event is a session control event, one of
+  `User_var_event`, `Intvar_event` or `Rand_event`.
+
+  @param evt The event to check.
+
+  @return true if the given event is of type `User_var_event`,
+  `Intvar_event` or `Rand_event`, false otherwise.
+ */
+inline bool is_session_control_event(Log_event *evt) {
+  return (evt->get_type_code() == binary_log::USER_VAR_EVENT ||
+          evt->get_type_code() == binary_log::INTVAR_EVENT ||
+          evt->get_type_code() == binary_log::RAND_EVENT);
+}
+
+/**
   The function checks the argument event properties to deduce whether
   it represents an atomic DDL.
 
@@ -4372,9 +4387,9 @@ inline bool is_gtid_event(Log_event *evt) {
   @return true   when the DDL properties are found,
           false  otherwise
 */
-inline bool is_atomic_ddl_event(Log_event *evt) {
+inline bool is_atomic_ddl_event(Log_event const *evt) {
   return evt != nullptr && evt->get_type_code() == binary_log::QUERY_EVENT &&
-         static_cast<Query_log_event *>(evt)->ddl_xid !=
+         static_cast<Query_log_event const *>(evt)->ddl_xid !=
              binary_log::INVALID_XID;
 }
 
