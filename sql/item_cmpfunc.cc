@@ -2362,6 +2362,7 @@ longlong Item_in_optimizer::val_int() {
 void Item_in_optimizer::cleanup() {
   DBUG_TRACE;
   Item_bool_func::cleanup();
+  result_for_null_param = UNKNOWN;
 }
 
 bool Item_in_optimizer::is_null() {

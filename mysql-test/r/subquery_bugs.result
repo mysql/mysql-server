@@ -2094,3 +2094,24 @@ NULL
 NULL
 1230052719
 DROP TABLE t0;
+# Bug#33755139: prepare stmt query return error record
+CREATE TABLE t1(a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES(1, NULL);
+CREATE TABLE t2(c INTEGER, d INTEGER);
+INSERT INTO t2 VALUES(2, 2);
+SELECT a FROM t1 WHERE b =ALL (SELECT d FROM t2 WHERE c = 1);
+a
+1
+SELECT a FROM t1 WHERE b =ALL (SELECT d FROM t2 WHERE c = 2);
+a
+prepare ps FROM "
+SELECT a FROM t1 WHERE b =ALL (SELECT d FROM t2 WHERE c = ?)";
+SET @v = 1;
+execute ps using @v;
+a
+1
+SET @v = 2;
+execute ps using @v;
+a
+deallocate prepare ps;
+DROP TABLE t1, t2;
