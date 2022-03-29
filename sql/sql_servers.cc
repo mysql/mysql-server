@@ -956,14 +956,14 @@ FOREIGN_SERVER *get_server_by_name(MEM_ROOT *mem, const char *server_name,
   DBUG_PRINT("info", ("locking servers_cache"));
   mysql_rwlock_rdlock(&THR_LOCK_servers);
 
-  DBUG_EXECUTE_IF("bug33962357_simulate_null_cache",
-                  { servers_cache = nullptr; });
+  collation_unordered_map<std::string, FOREIGN_SERVER *> *cache = servers_cache;
+  DBUG_EXECUTE_IF("bug33962357_simulate_null_cache", { cache = nullptr; });
 
-  if (!servers_cache) {
+  if (!cache) {
     DBUG_PRINT("error", ("server_cache not initialized!"));
   } else {
-    const auto it = servers_cache->find(str_server);
-    if (it == servers_cache->end()) {
+    const auto it = cache->find(str_server);
+    if (it == cache->end()) {
       DBUG_PRINT("info", ("server_name %s length %u not found!", server_name,
                           (unsigned)server_name_length));
     }

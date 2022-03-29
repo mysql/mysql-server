@@ -71,8 +71,6 @@ eval CREATE TABLE federated.t1 (
 --error 1146
 SELECT * FROM federated.t1;
 
-# cleanup (restart to fix NULL cache pointer)
+# cleanup
 SET GLOBAL DEBUG= @debug_save;
 source suite/federated/include/federated_cleanup.inc;
---source include/force_restart.inc
-
