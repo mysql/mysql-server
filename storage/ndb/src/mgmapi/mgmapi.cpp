@@ -994,7 +994,6 @@ ndb_mgm_get_fd(NdbMgmHandle handle)
  * Should be used internally only.
  * e.g. on timeout, we leave NdbMgmHandle disconnected
  */
-extern "C"
 int
 ndb_mgm_disconnect_quiet(NdbMgmHandle handle)
 {
@@ -3008,7 +3007,6 @@ ndb_mgm_abort_backup(NdbMgmHandle handle, unsigned int backupId,
   DBUG_RETURN(0);
 }
 
-extern "C"
 struct ndb_mgm_configuration *
 ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
                            enum ndb_mgm_node_type nodetype, int from_node)
@@ -3500,7 +3498,6 @@ ndb_mgm_check_connection_error:
   DBUG_RETURN(-1);
 }
 
-extern "C"
 int
 ndb_mgm_set_connection_int_parameter(NdbMgmHandle handle,
 				     int node1,
@@ -3543,7 +3540,6 @@ ndb_mgm_set_connection_int_parameter(NdbMgmHandle handle,
   DBUG_RETURN(res);
 }
 
-extern "C"
 int
 ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
 				     int node1,
@@ -3590,7 +3586,6 @@ ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
   DBUG_RETURN(res);
 }
 
-extern "C"
 ndb_socket_t
 ndb_mgm_convert_to_transporter(NdbMgmHandle *handle)
 {
@@ -3875,7 +3870,6 @@ err:
   DBUG_RETURN(retval);
 }
 
-extern "C"
 int
 ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)
 {
@@ -4247,7 +4241,6 @@ set_dynamic_ports_batched(NdbMgmHandle handle, int nodeid,
 }
 
 
-extern "C"
 int
 ndb_mgm_set_dynamic_ports(NdbMgmHandle handle, int nodeid,
                           struct ndb_mgm_dynamic_port* ports,
