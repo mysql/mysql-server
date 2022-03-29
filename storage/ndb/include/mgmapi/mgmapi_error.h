@@ -56,6 +56,8 @@ extern "C" {
     NDB_MGM_BIND_ADDRESS = 1012,
     /** Supplied bind-address is illegal */
     NDB_MGM_ILLEGAL_BIND_ADDRESS = 1013,
+    /** Cannot convert TLS MGM connection to transporter */
+    NDB_MGM_CANNOT_CONVERT_TO_TRANSPORTER = 1014,
     
     /* Alloc node id failures */
     /** Generic error, retry may succeed */

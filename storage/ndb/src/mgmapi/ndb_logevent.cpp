@@ -551,7 +551,8 @@ int ndb_logevent_get_next2(const NdbLogEventHandle h,
     return res;
   }
 
-  SocketInputStream in(h->socket, timeout_in_milliseconds);
+  NdbSocket s(h->socket, NdbSocket::From::Existing);
+  SecureSocketInputStream in(s, timeout_in_milliseconds);
 
   /*
     Read log event header until header received
