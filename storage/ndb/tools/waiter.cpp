@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,24 +54,24 @@ static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_waiter"),
   { "no-contact", 'n', "Wait for cluster no contact",
-    (uchar**) &_no_contact, (uchar**) &_no_contact, 0,
+    &_no_contact, &_no_contact, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "not-started", NDB_OPT_NOSHORT, "Wait for cluster not started",
-    (uchar**) &_not_started, (uchar**) &_not_started, 0,
+    &_not_started, &_not_started, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "single-user", NDB_OPT_NOSHORT,
     "Wait for cluster to enter single user mode",
-    (uchar**) &_single_user, (uchar**) &_single_user, 0,
+    &_single_user, &_single_user, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "timeout", 't', "Timeout to wait in seconds",
-    (uchar**) &_timeout, (uchar**) &_timeout, 0,
+    &_timeout, &_timeout, 0,
     GET_INT, REQUIRED_ARG, 120, 0, 0, 0, 0, 0 }, 
   { "wait-nodes", 'w', "Node ids to wait on, e.g. '1,2-4'",
-    (uchar**) &_wait_nodes, (uchar**) &_wait_nodes, 0,
+    &_wait_nodes, &_wait_nodes, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "nowait-nodes", NDB_OPT_NOSHORT,
     "Nodes that will not be waited for, e.g. '2,3,4-7'",
-    (uchar**) &_nowait_nodes, (uchar**) &_nowait_nodes, 0,
+    &_nowait_nodes, &_nowait_nodes, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };

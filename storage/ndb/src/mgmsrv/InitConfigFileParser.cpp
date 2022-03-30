@@ -970,21 +970,21 @@ InitConfigFileParser::parse_mycnf(const char* cluster_config_suffix)
       const ConfigInfo::ParamInfo& param = ConfigInfo::m_ParamInfo[i];
       switch(param._type){
       case ConfigInfo::CI_BOOL:
-	opt.value = (uchar **)malloc(sizeof(bool));
+	opt.value = malloc(sizeof(bool));
 	opt.var_type = GET_BOOL;
 	break;
       case ConfigInfo::CI_INT: 
-	opt.value = (uchar**)malloc(sizeof(uint));
+	opt.value = malloc(sizeof(uint));
 	opt.var_type = GET_UINT;
 	break;
       case ConfigInfo::CI_INT64:
-	opt.value = (uchar**)malloc(sizeof(Uint64));
+	opt.value = malloc(sizeof(Uint64));
 	opt.var_type = GET_ULL;
 	break;
       case ConfigInfo::CI_ENUM:
       case ConfigInfo::CI_STRING: 
       case ConfigInfo::CI_BITMASK:
-        opt.value = (uchar**)malloc(sizeof(char *));
+        opt.value = malloc(sizeof(char *));
         *((char**)opt.value) = nullptr;
         opt.var_type = GET_STR_ALLOC;
         break;
@@ -1011,7 +1011,7 @@ InitConfigFileParser::parse_mycnf(const char* cluster_config_suffix)
     memset(&opt, 0, sizeof(opt));
     opt.name = "ndbd";
     opt.id = 256;
-    opt.value = (uchar**)malloc(sizeof(char*));
+    opt.value = malloc(sizeof(char*));
     *((char**)opt.value) = nullptr;
     opt.var_type = GET_STR_ALLOC;
     opt.arg_type = REQUIRED_ARG;
@@ -1019,7 +1019,7 @@ InitConfigFileParser::parse_mycnf(const char* cluster_config_suffix)
 
     opt.name = "ndb_mgmd";
     opt.id = 256;
-    opt.value = (uchar**)malloc(sizeof(char*));
+    opt.value = malloc(sizeof(char*));
     *((char**)opt.value) = nullptr;
     opt.var_type = GET_STR_ALLOC;
     opt.arg_type = REQUIRED_ARG;
@@ -1027,7 +1027,7 @@ InitConfigFileParser::parse_mycnf(const char* cluster_config_suffix)
 
     opt.name = "mysqld";
     opt.id = 256;
-    opt.value = (uchar**)malloc(sizeof(char*));
+    opt.value = malloc(sizeof(char*));
     *((char**)opt.value) = nullptr;
     opt.var_type = GET_STR_ALLOC;
     opt.arg_type = REQUIRED_ARG;
@@ -1035,7 +1035,7 @@ InitConfigFileParser::parse_mycnf(const char* cluster_config_suffix)
 
     opt.name = "ndbapi";
     opt.id = 256;
-    opt.value = (uchar**)malloc(sizeof(char*));
+    opt.value = malloc(sizeof(char*));
     *((char**)opt.value) = nullptr;
     opt.var_type = GET_STR_ALLOC;
     opt.arg_type = REQUIRED_ARG;
