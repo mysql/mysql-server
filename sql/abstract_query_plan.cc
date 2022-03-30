@@ -1049,7 +1049,7 @@ void Table_access::compute_type_and_index() const {
      */
     case AccessPath::INDEX_RANGE_SCAN: {
       const KEY *key_info = m_table->s->key_info;
-      DBUG_EXECUTE("info", dbug_dump(0, true, m_path););
+      DBUG_EXECUTE("info", dbug_dump(m_path, 0, true););
       m_index_no = used_index(m_path);
       if (key_info[m_index_no].algorithm == HA_KEY_ALG_HASH) {
         m_access_type =
