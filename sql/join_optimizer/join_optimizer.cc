@@ -421,7 +421,7 @@ class CostingReceiver {
   MEM_ROOT m_range_optimizer_mem_root;
 
   /// For trace use only.
-  std::string PrintSet(NodeMap x) {
+  string PrintSet(NodeMap x) const {
     std::string ret = "{";
     bool first = true;
     for (size_t node_idx : BitsSetIn(x)) {
@@ -433,6 +433,11 @@ class CostingReceiver {
     }
     return ret + "}";
   }
+
+  /// For trace use only.
+  string PrintSubgraphHeader(const JoinPredicate *edge,
+                             const AccessPath &join_path, NodeMap left,
+                             NodeMap right) const;
 
   /// Checks whether the given engine flag is active or not.
   bool SupportedEngineFlag(SecondaryEngineFlag flag) const {
@@ -491,7 +496,8 @@ class CostingReceiver {
                              AccessPath *right_path, const JoinPredicate *edge,
                              bool rewrite_semi_to_inner,
                              FunctionalDependencySet new_fd_set,
-                             OrderingSet new_obsolete_orderings);
+                             OrderingSet new_obsolete_orderings,
+                             bool *wrote_trace);
   void ProposeHashJoin(NodeMap left, NodeMap right, AccessPath *left_path,
                        AccessPath *right_path, const JoinPredicate *edge,
                        FunctionalDependencySet new_fd_set,
@@ -2855,12 +2861,12 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
 
       ProposeNestedLoopJoin(left, right, left_path, right_path, edge,
                             /*rewrite_semi_to_inner=*/false, new_fd_set,
-                            new_obsolete_orderings);
+                            new_obsolete_orderings, &wrote_trace);
       if (is_commutative || can_rewrite_semi_to_inner) {
         ProposeNestedLoopJoin(
             right, left, right_path, left_path, edge,
             /*rewrite_semi_to_inner=*/can_rewrite_semi_to_inner, new_fd_set,
-            new_obsolete_orderings);
+            new_obsolete_orderings, &wrote_trace);
       }
       m_overflow_bitset_mem_root.ClearForReuse();
     }
@@ -2894,6 +2900,21 @@ AccessPath *DeduplicateForSemijoin(THD *thd, AccessPath *path,
     dedup_path->cost += kAggregateOneRowCost * path->num_output_rows;
   }
   return dedup_path;
+}
+
+string CostingReceiver::PrintSubgraphHeader(const JoinPredicate *edge,
+                                            const AccessPath &join_path,
+                                            NodeMap left, NodeMap right) const {
+  string ret =
+      StringPrintf("\nFound sets %s and %s, connected by condition %s\n",
+                   PrintSet(left).c_str(), PrintSet(right).c_str(),
+                   GenerateExpressionLabel(edge->expr).c_str());
+  for (int pred_idx : BitsSetIn(join_path.filter_predicates)) {
+    ret += StringPrintf(
+        " - applied (delayed) predicate %s\n",
+        ItemToString(m_graph->predicates[pred_idx].condition).c_str());
+  }
+  return ret;
 }
 
 void CostingReceiver::ProposeHashJoin(
@@ -3040,15 +3061,7 @@ void CostingReceiver::ProposeHashJoin(
 
   // Only trace once; the rest ought to be identical.
   if (m_trace != nullptr && !*wrote_trace) {
-    *m_trace +=
-        StringPrintf("\nFound sets %s and %s, connected by condition %s\n",
-                     PrintSet(left).c_str(), PrintSet(right).c_str(),
-                     GenerateExpressionLabel(edge->expr).c_str());
-    for (int pred_idx : BitsSetIn(join_path.filter_predicates)) {
-      *m_trace += StringPrintf(
-          " - applied (delayed) predicate %s\n",
-          ItemToString(m_graph->predicates[pred_idx].condition).c_str());
-    }
+    *m_trace += PrintSubgraphHeader(edge, join_path, left, right);
     *wrote_trace = true;
   }
 
@@ -3354,7 +3367,8 @@ pair<bool, bool> CostingReceiver::AlreadyAppliedAsSargable(
 void CostingReceiver::ProposeNestedLoopJoin(
     NodeMap left, NodeMap right, AccessPath *left_path, AccessPath *right_path,
     const JoinPredicate *edge, bool rewrite_semi_to_inner,
-    FunctionalDependencySet new_fd_set, OrderingSet new_obsolete_orderings) {
+    FunctionalDependencySet new_fd_set, OrderingSet new_obsolete_orderings,
+    bool *wrote_trace) {
   if (!SupportedEngineFlag(SecondaryEngineFlag::SUPPORTS_NESTED_LOOP_JOIN))
     return;
 
@@ -3533,6 +3547,12 @@ void CostingReceiver::ProposeNestedLoopJoin(
     join_path.safe_for_rowid = AccessPath::UNSAFE;
   } else {
     join_path.safe_for_rowid = left_path->safe_for_rowid;
+  }
+
+  // Only trace once; the rest ought to be identical.
+  if (m_trace != nullptr && !*wrote_trace) {
+    *m_trace += PrintSubgraphHeader(edge, join_path, left, right);
+    *wrote_trace = true;
   }
 
   for (bool materialize_subqueries : {false, true}) {
