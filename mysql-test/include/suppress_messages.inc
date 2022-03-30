@@ -19,8 +19,13 @@
 # Parameters:
 #
 #   $messages
-#     List of messages to suppress. Each message should appear on a new line.
-#     Empty lines are allowed.
+#     List of messages to suppress. Each message should be a regular
+#     expression, and appear on a new line. Empty lines are allowed.
+#     Because of a bug in mtr, the number of quote characters must be
+#     even, or else mtr fails to parse the 'let' statement.  If the
+#     message contains an odd number of quote characters - e.g.,
+#     because of words like "don't" - replace the quote by a wildcard,
+#     i.e., by a single dot character ('.').
 #
 #   $suppress_on_current_connection
 #     By default, the script executes as follows:
@@ -109,6 +114,7 @@ while ($_sm_server_number <= $_sm_last_server_number) {
     }
 
     --let $_sm_message_tail = `SELECT SUBSTRING('$_sm_message_tail', LENGTH('$_sm_escaped_message') + 2)`
+    --let $_sm_message_tail = escape(\',$_sm_message_tail)
   }
 
   --source include/restore_binlog.inc
