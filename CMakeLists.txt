@@ -1639,7 +1639,7 @@ SET(SYSTEM_LIBRARIES
   LZ4       # Homebrew  lz4
   PROTOBUF  # Homebrew  protobuf
   SSL       # Homebrew  openssl@1.1
-  ZLIB      # Xcode
+# ZLIB      # Xcode                  Min required version is now 1.2.12
   ZSTD      # Homebrew  zstd
   FIDO      # Homebrew  libfido2
   )

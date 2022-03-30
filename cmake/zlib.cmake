@@ -29,7 +29,10 @@
 # all the platforms we need to support.
 
 # With earier versions, several compression tests fail.
-SET(MIN_ZLIB_VERSION_REQUIRED "1.2.11")
+# SET(MIN_ZLIB_VERSION_REQUIRED "1.2.11")
+
+# Security bug fixes required from:
+SET(MIN_ZLIB_VERSION_REQUIRED "1.2.12")
 
 MACRO(FIND_ZLIB_VERSION)
   FOREACH(version_part
@@ -83,17 +86,20 @@ MACRO (RESET_ZLIB_VARIABLES)
   UNSET(FIND_PACKAGE_MESSAGE_DETAILS_ZLIB CACHE)
 ENDMACRO()
 
+SET(ZLIB_VERSION_DIR "zlib-1.2.12")
+SET(BUNDLED_ZLIB_PATH ${CMAKE_SOURCE_DIR}/extra/zlib/${ZLIB_VERSION_DIR})
+
 MACRO (MYSQL_USE_BUNDLED_ZLIB)
   RESET_ZLIB_VARIABLES()
 
-  SET(ZLIB_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/extra/zlib)
+  SET(ZLIB_INCLUDE_DIR ${BUNDLED_ZLIB_PATH})
   SET(ZLIB_LIBRARY zlib CACHE INTERNAL "Bundled zlib library")
   SET(WITH_ZLIB "bundled" CACHE STRING "Use bundled zlib")
   INCLUDE_DIRECTORIES(BEFORE SYSTEM
-    ${CMAKE_SOURCE_DIR}/extra/zlib
-    ${CMAKE_BINARY_DIR}/extra/zlib
+    ${CMAKE_SOURCE_DIR}/extra/zlib/${ZLIB_VERSION_DIR}
+    ${CMAKE_BINARY_DIR}/extra/zlib/${ZLIB_VERSION_DIR}
     )
-  ADD_SUBDIRECTORY(extra/zlib)
+  ADD_SUBDIRECTORY(extra/zlib/${ZLIB_VERSION_DIR})
 
   # Add support for bundled curl.
   IF(NOT CMAKE_VERSION VERSION_LESS 3.4)

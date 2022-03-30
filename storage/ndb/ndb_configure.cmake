@@ -329,10 +329,7 @@ ADD_DEFINITIONS(-DHAVE_NDB_CONFIG_H)
 
 # check zlib
 IF(NOT DEFINED WITH_ZLIB)
-  # Hardcode use of the bundled zlib if not set by MySQL
-  MESSAGE(STATUS "Using bundled zlib (hardcoded)")
-  SET(ZLIB_LIBRARY zlib)
-  INCLUDE_DIRECTORIES(SYSTEM ${CMAKE_SOURCE_DIR}/extra/zlib)
+  MESSAGE(FATAL_ERROR "No WITH_ZLIB defined")
 ENDIF()
 NDB_REQUIRE_VARIABLE(ZLIB_LIBRARY)
 
