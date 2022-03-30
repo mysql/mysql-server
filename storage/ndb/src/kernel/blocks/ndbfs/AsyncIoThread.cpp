@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -138,8 +138,8 @@ AsyncIoThread::run()
   // Create theMemoryChannel in the thread that will wait for it
   NdbMutex_Lock(theStartMutexPtr);
   theStartFlag = true;
-  NdbMutex_Unlock(theStartMutexPtr);
   NdbCondition_Signal(theStartConditionPtr);
+  NdbMutex_Unlock(theStartMutexPtr);
 
   EmulatedJamBuffer jamBuffer;
   jamBuffer.theEmulatedJamIndex = 0;
