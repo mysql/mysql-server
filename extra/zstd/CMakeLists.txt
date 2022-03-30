@@ -51,6 +51,8 @@ ADD_CONVENIENCE_LIBRARY(zstd
   )
 
 # In case we have OPTIMIZE_DEBUG_BUILDS:BOOL=ON
+# This seems to be a gcc12 bug, the combination
+# FORCE_INLINE_TEMPLATE and -Og breaks the build.
 STRING(REPLACE " -Og " "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
 
 MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)
