@@ -3482,13 +3482,6 @@ static dberr_t row_discard_tablespace(trx_t *trx, dict_table_t *table,
 
       dict_table_change_id_in_cache(table, new_id);
 
-      /* Reset the root page numbers. */
-
-      for (auto index : table->indexes) {
-        index->page = FIL_NULL;
-        index->space = FIL_NULL;
-      }
-
       /* Set SDI tables that ibd is missing */
       {
         dict_table_t *sdi_table = dict_sdi_get_table(table->space, true, false);

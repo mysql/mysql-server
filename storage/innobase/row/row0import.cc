@@ -2758,7 +2758,8 @@ static void row_import_discard_changes(
   /* Since we update the index root page numbers on disk after
   we've done a successful import. The table will not be loadable.
   However, we need to ensure that the in memory root page numbers
-  are reset to "NULL". */
+  are reset to "NULL". We assume these indexes were not added to AHI, otherwise
+  the btr_search_drop_page_hash_index() will fail for these indexes. */
 
   for (auto index : table->indexes) {
     index->page = FIL_NULL;
