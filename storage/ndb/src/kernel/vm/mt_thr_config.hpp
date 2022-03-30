@@ -133,7 +133,7 @@ protected:
   BaseString m_print_string;
 
   void add(T_Type, unsigned realtime, unsigned spintime);
-  int handle_spec(char *ptr, unsigned real_time, unsigned spin_time);
+  int handle_spec(const char *ptr, unsigned real_time, unsigned spin_time);
 
   unsigned createCpuSet(const SparseBitmask&, bool permanent);
   void lock_io_threads();

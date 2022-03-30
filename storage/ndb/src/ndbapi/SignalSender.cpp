@@ -48,9 +48,10 @@ SimpleSignal::SimpleSignal(const SimpleSignal& src)
     ptr[i].p = 0;
     if (src.ptr[i].p != 0)
     {
-      ptr[i].p = new Uint32[src.ptr[i].sz];
+      Uint32* p = new Uint32[src.ptr[i].sz];
+      memcpy(p, src.ptr[i].p, 4 * src.ptr[i].sz);
+      ptr[i].p = p;
       ptr[i].sz = src.ptr[i].sz;
-      memcpy(ptr[i].p, src.ptr[i].p, 4 * src.ptr[i].sz);
     }
   }
 }
@@ -66,9 +67,10 @@ SimpleSignal::operator=(const SimpleSignal& src)
     ptr[i].p = 0;
     if (src.ptr[i].p != 0)
     {
-      ptr[i].p = new Uint32[src.ptr[i].sz];
+      Uint32* p = new Uint32[src.ptr[i].sz];
+      memcpy(p, src.ptr[i].p, 4 * src.ptr[i].sz);
+      ptr[i].p = p;
       ptr[i].sz = src.ptr[i].sz;
-      memcpy(ptr[i].p, src.ptr[i].p, 4 * src.ptr[i].sz);
     }
   }
   return * this;
@@ -103,7 +105,7 @@ SimpleSignal::print(FILE * out) const {
   for(Uint32 i = 0; i<header.m_noOfSections; i++){
     Uint32 len = ptr[i].sz;
     fprintf(out, " --- Section %d size=%d ---\n", i, len);
-    Uint32 * signalData = ptr[i].p;
+    const Uint32* signalData = ptr[i].p;
     while(len >= 7){
       fprintf(out, 
               " H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x\n",
@@ -333,9 +335,10 @@ SignalSender::trp_deliver_signal(const NdbApiSignal* signal,
   SimpleSignal * s = new SimpleSignal(true);
   s->header = * signal;
   for(Uint32 i = 0; i<s->header.m_noOfSections; i++){
-    s->ptr[i].p = new Uint32[ptr[i].sz];
+    Uint32* p = new Uint32[ptr[i].sz];
+    memcpy(p, ptr[i].p, 4 * ptr[i].sz);
+    s->ptr[i].p = p;
     s->ptr[i].sz = ptr[i].sz;
-    memcpy(s->ptr[i].p, ptr[i].p, 4 * ptr[i].sz);
   }
   m_jobBuffer.push_back(s);
   wakeup();

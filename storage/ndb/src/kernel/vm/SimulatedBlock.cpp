@@ -3904,7 +3904,7 @@ SimulatedBlock::sendNextLinearFragment(Signal* signal,
   
   enum { Unknown = 0, Full = 2 } loop = Unknown;
   for(; secNo >= 0 && secCount < 3; secNo--){
-    Uint32 * ptrP = info.m_sectionPtr[secNo].m_linear.p;
+    const Uint32* ptrP = info.m_sectionPtr[secNo].m_linear.p;
     if(ptrP == NULL)
       continue;
     

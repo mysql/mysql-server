@@ -699,7 +699,7 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
     Uint32 magicNumber = tCon->getMagicNumberFromObject();
     Uint32 num_sections = aSignal->m_noOfSections;
     Uint32 sz;
-    Uint32 *sig_ptr;
+    const Uint32* sig_ptr;
 
     if (unlikely(magicNumber != tCon->getMagicNumber()))
     {
@@ -712,7 +712,7 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
     }
     else
     {
-      sig_ptr = (Uint32*)tDataPtr + ScanTabConf::SignalLength, 
+      sig_ptr = tDataPtr + ScanTabConf::SignalLength,
       sz = tLen - ScanTabConf::SignalLength;
     }
     tReturnCode = tCon->receiveSCAN_TABCONF(aSignal, sig_ptr, sz);
@@ -724,7 +724,7 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
   }
   case GSN_TC_COMMITCONF:
   {
-    const TcCommitConf * const commitConf = (TcCommitConf *)tDataPtr;
+    const TcCommitConf* const commitConf = (const TcCommitConf*)tDataPtr;
     const BlockReference aTCRef = aSignal->theSendersBlockRef;
 
     if (tFirstDataPtr == 0)
