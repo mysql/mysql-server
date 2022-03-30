@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4357,7 +4357,11 @@ execute_signals(thr_data *selfptr,
         wakeup(&h->m_waiter);
       }
     }
-
+#if defined(__aarch64__)
+    // this is to address the missing memory barrier issue on Apple M1 platform
+    // regarding the bug#33650674 the less intrusive place should be found
+    rmb();
+#endif
     /*
      * These pre-fetching were found using OProfile to reduce cache misses.
      * (Though on Intel Core 2, they do not give much speedup, as apparently
