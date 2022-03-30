@@ -73,4 +73,5 @@ SELECT * FROM federated.t1;
 
 # cleanup
 SET GLOBAL DEBUG= @debug_save;
+DROP SERVER fedlink;
 source suite/federated/include/federated_cleanup.inc;
