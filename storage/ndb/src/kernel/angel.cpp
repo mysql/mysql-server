@@ -28,6 +28,7 @@
 
 #include "angel.hpp"
 #include "ndbd.hpp"
+#include "main.hpp"
 
 #include <NdbConfig.h>
 #include <NdbAutoPtr.hpp>
@@ -37,8 +38,9 @@
 
 #include <ConfigRetriever.hpp>
 
-#include <EventLogger.hpp>
 #include <NdbTCP.h>
+#include "util/ndb_opts.h"
+#include <EventLogger.hpp>
 
 static void
 angel_exit(int code)
@@ -206,6 +208,8 @@ int pipe(int pipefd[2]){
 
 #undef getpid
 #include <process.h>
+#include <io.h>
+#include <windows.h>
 
 typedef DWORD pid_t;
 
@@ -486,7 +490,7 @@ retry_spawn_process(const char* progname, const Vector<BaseString>& args)
 
 static Uint32 stop_on_error;
 static Uint32 config_max_start_fail_retries;
-static Uint32 config_restart_delay_secs; 
+static Uint32 config_restart_delay_secs;
 
 
 /*
@@ -532,7 +536,7 @@ configure(const ndb_mgm_configuration* conf, NodeId nodeid)
     /* Old Management node, use default value */
     config_restart_delay_secs = 0;
   }
-  
+
   const char * datadir;
   if (iter.get(CFG_NODE_DATADIR, &datadir))
   {
@@ -644,6 +648,10 @@ angel_run(const char* progname,
     }
   }
 
+  const bool have_password_option  =
+      g_filesystem_password_state.have_password_option();
+
+
   // Counter for consecutive failed startups
   Uint32 failed_startups_counter = 0;
   while (true)
@@ -664,6 +672,21 @@ angel_run(const char* progname,
       g_eventLogger->error("Failed to open stream for pipe, errno: %d (%s)",
                            errno, strerror(errno));
       angel_exit(1);
+    }
+
+    int fs_password_fds[2];
+    if(have_password_option) {
+      if (pipe(fs_password_fds))
+      {
+        g_eventLogger->error("Failed to create pipe, errno: %d (%s)",
+                             errno, strerror(errno));
+        angel_exit(1);
+      }
+      // Angel stdin is closed and attached to pipe, not strictly wanted,
+      // but to make it work on windows and spawn we need to reset the
+      // angels stdin since child inherits it as is.
+      dup2(fs_password_fds[0], 0);
+      close(fs_password_fds[0]);
     }
 
     // Build the args used to start ndbd by appending
@@ -691,7 +714,30 @@ angel_run(const char* progname,
     one_arg.assfmt("--angel-pid=%d", getpid());
     args.push_back(one_arg);
 
+
+    if(have_password_option) {
+      /**
+       * Removes all password opts and adds a new one
+       * (filesystem-password-from-stdin) to pass password to child always
+       * in same way.
+       * --skip-filesystem-password-from-stdin is not strictly needed,
+       * it is used just to clarify the way we are passing the password.
+       * Any future new filesystem-password option should also be skipped here.
+       */
+      args.push_back("--skip-filesystem-password");
+      args.push_back("--skip-filesystem-password-from-stdin");
+      args.push_back("--filesystem-password-from-stdin");
+    }
+
+    /**
+     * We need to set g_is_forked=true temporarily in order to make the
+     * forked child to inherit it. After fork we set g_is_forked to false
+     * again in parent (angel).
+     */
+
+    g_is_forked = true;
     pid_t child = retry_spawn_process(progname, args);
+    g_is_forked = false;
     if (child <= 0)
     {
       // safety, retry_spawn_process returns valid child or give up
@@ -706,6 +752,33 @@ angel_run(const char* progname,
                         getpid(), child);
 
     ignore_signals();
+
+    if(have_password_option)
+    {
+      const char *nul = IF_WIN("nul:", "/dev/null");
+      int fd = open(nul, O_RDONLY, 0);
+      if (fd == -1) {
+        g_eventLogger->error("Failed to open %s errno: %d (%s)",
+                             nul, errno, strerror(errno));
+        angel_exit(1);
+      }
+
+      // angel stdin reset to /dev/null
+      dup2(fd,0);
+      close(fd);
+
+      const Uint32 password_length = g_filesystem_password_state.get_password_length();
+      const char *state_password = g_filesystem_password_state.get_password();
+      char *password = new char[password_length+1]();
+      memcpy(password, state_password, password_length);
+      password[password_length] = '\n';
+      if (write(fs_password_fds[1], password, password_length + 1) == -1)
+      {
+        g_eventLogger->error("Failed to write to pipe, errno: %d (%s)",
+                             errno, strerror(errno));
+        angel_exit(1);
+      }
+    }
 
     int status=0, error_exit=0;
     while(true)
@@ -731,8 +804,9 @@ angel_run(const char* progname,
       NdbSleep_MilliSleep(100);
     }
 
-    // Close the write end of pipe
+    // Close the write end of pipes
     close(fds[1]);
+    close(fs_password_fds[1]);
 
     // Read info from the child's pipe
     char buf[128];
@@ -843,7 +917,7 @@ angel_run(const char* progname,
       }
       g_eventLogger->info("Angel detected startup failure, count: %u",
                           failed_startups_counter);
-      
+
       restart_delay_secs = config_restart_delay_secs;
     }
     else

@@ -201,6 +201,18 @@ bool ndb_is_load_default_arg_separator(const char* arg);
  * Options are post processed in the order they are parsed and registered in
  * the list.
  *
+ * In a similar way reset_option() function should be implemented if one need to
+ * reset the option state to its default.
+ *
+ * If any option need to be reset the application must call
+ * ndb_option::reset_options() after the call do Ndb_opts::handle_options().
+ *
+ * If an option need to be reset, the get_option() function must register
+ * option in a list by calling ndb_option::push_back().
+ *
+ * Options are reset in the order they are parsed and registered in
+ * the list.
+ *
  * See also ndb_password_option and ndb_password_option_from_stdin below.
  */
 
@@ -210,10 +222,12 @@ public:
   ndb_option();
   static bool get_one_option(int optid, const my_option *opt, char *arg);
   static bool post_process_options();
+  static void reset_options();
   virtual ~ndb_option() {}
 protected:
   virtual bool get_option(int optid, const my_option *opt, char *arg) = 0;
   virtual bool post_process() = 0;
+  virtual void reset() = 0;
   void push_back();
   void erase();
 private:
@@ -289,6 +303,7 @@ public:
   BaseString get_error_message() const;
   bool is_password() const { return (m_kind == PASSWORD); }
   bool is_key() const { return (m_kind == KEY); }
+  void reset();
 
 protected:
   enum kind_t { PASSWORD = 0, KEY = 1 };
@@ -335,7 +350,7 @@ private:
   int set_password(const char src[], size_t len);
   void clear_password();
   void add_option_usage() { m_option_count++; }
-  void remove_option_usage() { m_option_count--; }
+  void remove_option_usage();
   bool is_in_error() const { return m_status < 0; }
   void set_error(enum status err) { require(int{err} < 0); m_status = err; }
   void set_status(enum status s) { require(int{s} >= 0); m_status = s; }
@@ -368,6 +383,7 @@ public:
   ndb_password_option(ndb_password_state& pwd_buf);
   bool get_option(int optid, const my_option *opt, char *arg) override;
   bool post_process() override;
+  void reset() override;
 private:
   ndb_password_state& m_password_state;
   // One of PS_NONE, PS_ARG, PS_TTY
@@ -386,6 +402,7 @@ public:
   ndb_password_from_stdin_option(ndb_password_state& pwd_buf);
   bool get_option(int optid, const my_option *opt, char *arg) override;
   bool post_process() override;
+  void reset() override;
 
   bool opt_value;
 private:

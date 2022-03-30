@@ -57,6 +57,12 @@ static unsigned opt_allocated_nodeid;
 static int opt_angel_pid;
 static unsigned long opt_logbuffer_size;
 
+ndb_password_state g_filesystem_password_state("filesystem", nullptr);
+static ndb_password_option opt_filesystem_password(g_filesystem_password_state);
+static ndb_password_from_stdin_option opt_filesystem_password_from_stdin(
+    g_filesystem_password_state);
+
+bool g_is_forked = false;
 extern NdbNodeBitmask g_nowait_nodes;
 
 static struct my_option my_long_options[] =
@@ -113,6 +119,13 @@ static struct my_option my_long_options[] =
   { "report-fd", 256, "INTERNAL: fd where to write extra shutdown status",
     &opt_report_fd, nullptr, nullptr, GET_UINT, REQUIRED_ARG,
     0, 0, INT_MAX, nullptr, 0, nullptr },
+  { "filesystem-password", NDB_OPT_NOSHORT, "Filesystem password",
+    nullptr, nullptr, nullptr,
+    GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0, &opt_filesystem_password},
+  { "filesystem-password-from-stdin", NDB_OPT_NOSHORT,
+    "Read encryption/decryption password from stdin",
+    &opt_filesystem_password_from_stdin.opt_value, nullptr, nullptr,
+    GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, &opt_filesystem_password_from_stdin},
   { "allocated-nodeid", 256, "INTERNAL: nodeid allocated by angel process",
     &opt_allocated_nodeid, nullptr, nullptr, GET_UINT, REQUIRED_ARG,
     0, 0, UINT_MAX, nullptr, 0, nullptr },
@@ -182,6 +195,17 @@ real_main(int argc, char** argv)
     original_args.push_back(argv[i]);
   }
 
+  /**
+ * Running on forked child, reset password state to avoid invalid password
+ * source during ndb_password_from_stdin_option::post_process()
+ * Reset must be carried on before child's handle_options
+ */
+  if(g_is_forked)
+  {
+    g_filesystem_password_state.reset();
+    ndb_option::reset_options();
+  }
+
   int ho_error = opts.handle_options(ndb_std_get_one_option);
   if (ho_error != 0) {
     exit(ho_error);
@@ -213,7 +237,18 @@ real_main(int argc, char** argv)
     }
   }
 
- if(opt_angel_pid)
+  bool failed = ndb_option::post_process_options();
+  if (failed)
+  {
+    BaseString err_msg = g_filesystem_password_state.get_error_message();
+    if (!err_msg.empty())
+    {
+      g_eventLogger->error(err_msg);
+      exit(-1);
+    }
+  }
+
+  if(opt_angel_pid)
   {
     setOwnProcessInfoAngelPid(opt_angel_pid);
   }

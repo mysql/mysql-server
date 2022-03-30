@@ -1,4 +1,5 @@
-/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+/*
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18,32 +19,14 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
-#ifndef ANGEL_HPP
-#define ANGEL_HPP
-
+#ifndef NDB_KERNEL_MAIN_H
+#define NDB_KERNEL_MAIN_H
 #include "util/ndb_opts.h"
-#include <util/BaseString.hpp>
 
-#define JAM_FILE_ID 491
+extern ndb_password_state g_filesystem_password_state;
+extern bool g_is_forked;
 
-
-void
-angel_run(const char* progname,
-          const Vector<BaseString>& original_args,
-          const char* connect_str,
-          int force_nodeid,
-          const char* bind_address,
-          bool initial,
-          bool no_start,
-          bool daemon,
-          int connnect_retries,
-          int connect_delay);
-
-void
-angel_stop(void);
-
-#undef JAM_FILE_ID
-
-#endif
+#endif  // NDB_KERNEL_MAIN_H

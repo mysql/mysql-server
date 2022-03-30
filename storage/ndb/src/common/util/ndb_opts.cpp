@@ -265,6 +265,16 @@ bool ndb_option::post_process_options()
   return failed;
 }
 
+void ndb_option::reset_options()
+{
+  ndb_option* p = m_first;
+  while (p != nullptr)
+  {
+    p->reset();
+    p = p->m_next;
+  }
+}
+
 void ndb_option::push_back()
 {
   if (m_next != nullptr ||
@@ -330,6 +340,14 @@ ndb_password_state::ndb_password_state(const char prefix[],
   {
     m_prompt.assfmt("Enter %s: ", kind_str());
   }
+}
+void ndb_password_state::reset()
+{
+  m_password = nullptr;
+  m_status = NO_PASSWORD;
+  m_option_count = 0;
+  m_password_length = 0;
+  clear_password();
 }
 
 static unsigned char unhex_char(unsigned char ch)
@@ -559,6 +577,12 @@ bool ndb_password_state::verify_option_name(const char opt_name[],
   return true;
 }
 
+void ndb_password_state::remove_option_usage()
+{
+  require(m_option_count > 0);
+  m_option_count--;
+}
+
 // ndb_password_option
 
 ndb_password_option::ndb_password_option(ndb_password_state& password_state)
@@ -641,6 +665,11 @@ bool ndb_password_option::post_process()
   return false;
 }
 
+void ndb_password_option::reset()
+{
+  m_password_source = ndb_password_state::PS_NONE;
+}
+
 ndb_password_from_stdin_option::ndb_password_from_stdin_option(
                                     ndb_password_state& password_state)
 : opt_value(false),
@@ -698,4 +727,10 @@ bool ndb_password_from_stdin_option::post_process()
   }
   m_password_state.commit_password();
   return false;
+}
+
+void ndb_password_from_stdin_option::reset()
+{
+  opt_value  = false,
+  m_password_source = ndb_password_state::PS_NONE;
 }

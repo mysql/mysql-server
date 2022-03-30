@@ -57,5 +57,4 @@ enum class ndb_get_password_error : int {
 };
 int ndb_get_password_from_tty(const char prompt[], char buf[], size_t size);
 int ndb_get_password_from_stdin(const char prompt[], char buf[], size_t size);
-
 #endif
