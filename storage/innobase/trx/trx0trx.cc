@@ -3180,14 +3180,7 @@ int trx_recover_for_mysql(
   return (int(count));
 }
 
-/** Find prepared transactions that are marked as prepared in TC, for recovery
-purposes.
-@param[in,out] xa_list The list to hold the information about transaction that
-                       were marked as prepared in the TC.
-@return 0 if successful or error number */
-int trx_recover_tc_for_mysql(
-    Xa_state_list &xa_list) /*!< in/out: prepared transactions state */
-{
+int trx_recover_tc_for_mysql(Xa_state_list &xa_list) {
   /* We should set those transactions which are in the prepared state
   to the xid_list */
 
