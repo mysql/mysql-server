@@ -4536,7 +4536,7 @@ bool in_decimal::compare_elems(uint pos1, uint pos2) const {
   return base[pos1] != base[pos2];
 }
 
-cmp_item *cmp_item::get_comparator(Item_result result_type, const Item *item,
+cmp_item *cmp_item::get_comparator(Item_result result_type, Item *item,
                                    const CHARSET_INFO *cs) {
   switch (result_type) {
     case STRING_RESULT:
@@ -4553,11 +4553,11 @@ cmp_item *cmp_item::get_comparator(Item_result result_type, const Item *item,
     case REAL_RESULT:
       return new (*THR_MALLOC) cmp_item_real;
     case ROW_RESULT:
-      return new (*THR_MALLOC) cmp_item_row;
+      return new (*THR_MALLOC) cmp_item_row(current_thd, item);
     case DECIMAL_RESULT:
       return new (*THR_MALLOC) cmp_item_decimal;
     default:
-      assert(0);
+      assert(false);
       break;
   }
   return nullptr;  // to satisfy compiler :)
@@ -4666,10 +4666,6 @@ bool cmp_item_row::alloc_comparators(THD *thd, Item *item) {
     if (!(comparators[i] = cmp_item::get_comparator(
               item_i->result_type(), item_i, item_i->collation.collation)))
       return true;  // Allocation failed
-    if (item_i->result_type() == ROW_RESULT &&
-        static_cast<cmp_item_row *>(comparators[i])
-            ->alloc_comparators(thd, item_i))
-      return true;
   }
   return false;
 }
@@ -4988,7 +4984,6 @@ void Item_func_in::fix_after_pullout(Query_block *parent_query_block,
 
 bool Item_func_in::resolve_type(THD *thd) {
   if (Item_func_opt_neg::resolve_type(thd)) return true;
-  bool datetime_found = false;
   /* true <=> arguments values will be compared as DATETIMEs. */
   bool compare_as_datetime = false;
   Item *date_arg = nullptr;
@@ -5101,12 +5096,12 @@ bool Item_func_in::resolve_type(THD *thd) {
     }
     /* All DATE/DATETIME fields/functions has the STRING result type. */
     if (cmp_type == STRING_RESULT || cmp_type == ROW_RESULT) {
-      uint cols = args[0]->cols();
+      bool datetime_found = false;
+      uint num_cols = args[0]->cols();
       // Proper JSON comparison isn't yet supported if JSON is within a ROW
-      bool json_row_warning_printed = (cols > 1) ? false : true;
+      bool json_row_warning_printed = (num_cols == 1);
 
-      for (uint col = 0; col < cols; col++) {
-        bool skip_column = false;
+      for (uint col = 0; col < num_cols; col++) {
         /*
           Check that all items to be compared has the STRING result type and at
           least one of them is a DATE/DATETIME item.
@@ -5123,8 +5118,7 @@ bool Item_func_in::resolve_type(THD *thd) {
                 ER_THD(current_thd, ER_NOT_SUPPORTED_YET),
                 "comparison of JSON within a ROW in the IN operator");
           }
-          if (itm->result_type() != STRING_RESULT || skip_column) {
-            skip_column = true;
+          if (itm->result_type() != STRING_RESULT) {
             // If the warning wasn't printed yet, we need to continue scanning
             // through args to check whether one of them is JSON
             if (json_row_warning_printed)
@@ -5146,25 +5140,8 @@ bool Item_func_in::resolve_type(THD *thd) {
             }
           }
         }
-        if (skip_column) continue;
-        if (datetime_found) {
-          if (cmp_type == ROW_RESULT) {
-            cmp_item *cmp = new (thd->mem_root) cmp_item_datetime(date_arg);
-            if (cmp == nullptr) return true;
-            if (array) {
-              down_cast<in_row *>(array)->set_comparator(col, cmp);
-            } else {
-              down_cast<cmp_item_row *>(cmp_items[ROW_RESULT])
-                  ->set_comparator(col, cmp);
-            }
-
-            /* Reset variables for the next column. */
-            date_arg = nullptr;
-            datetime_found = false;
-          } else
-            compare_as_datetime = true;
-        }
       }
+      compare_as_datetime = (datetime_found && cmp_type != ROW_RESULT);
     }
   }
 

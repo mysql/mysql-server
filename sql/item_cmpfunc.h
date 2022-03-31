@@ -1784,7 +1784,7 @@ class cmp_item {
     @return
       New cmp_item_xxx object.
   */
-  static cmp_item *get_comparator(Item_result result_type, const Item *item,
+  static cmp_item *get_comparator(Item_result result_type, Item *item,
                                   const CHARSET_INFO *cs);
   virtual cmp_item *make_same() = 0;
   virtual void store_value_by_template(cmp_item *, Item *item) {
@@ -2135,8 +2135,12 @@ class cmp_item_row : public cmp_item {
   cmp_item **comparators;
   uint n;
 
- public:
+  // Only used for Mem_root_array::resize()
   cmp_item_row() : comparators(nullptr), n(0) {}
+
+  friend class Mem_root_array_YY<cmp_item_row>;
+
+ public:
   cmp_item_row(THD *thd, Item *item) : comparators(nullptr), n(item->cols()) {
     alloc_comparators(thd, item);
   }
@@ -2153,9 +2157,6 @@ class cmp_item_row : public cmp_item {
   int compare(const cmp_item *arg) const override;
   cmp_item *make_same() override;
   void store_value_by_template(cmp_item *tmpl, Item *) override;
-  void set_comparator(uint col, cmp_item *comparator) {
-    comparators[col] = comparator;
-  }
 
  private:
   bool alloc_comparators(THD *thd, Item *item);
@@ -2172,9 +2173,7 @@ class in_row final : public in_vector {
   bool is_row_result() const override { return true; }
   bool find_item(Item *item) override;
   bool compare_elems(uint pos1, uint pos2) const override;
-  void set_comparator(uint col, cmp_item *comparator) {
-    tmp->set_comparator(col, comparator);
-  }
+
   Item_basic_constant *create_item(MEM_ROOT *) const override {
     assert(false);
     return nullptr;
