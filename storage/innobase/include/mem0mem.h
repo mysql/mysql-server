@@ -297,11 +297,14 @@ void mem_heap_validate(const mem_heap_t *heap);
 
 /** The info structure stored at the beginning of a heap block */
 struct mem_block_info_t {
-  uint64_t magic_n; /* magic number for debugging */
+  /** magic number for debugging */
+  uint64_t magic_n;
 #ifdef UNIV_DEBUG
-  char file_name[16]; /* file name where the mem heap was created */
-  ulint line;         /*!< line number where the mem heap was created */
-#endif                /* UNIV_DEBUG */
+  /** file name where the mem heap was created */
+  char file_name[16];
+  /** line number where the mem heap was created */
+  ulint line;
+#endif /* UNIV_DEBUG */
   /** This contains pointers to next and prev in the list. The first block
   allocated to the heap is also the first block in this list,
   though it also contains the base node of the list.*/
@@ -309,26 +312,25 @@ struct mem_block_info_t {
   /** In the first block of the list this is the base node of the list of
   blocks; in subsequent blocks this is undefined */
   UT_LIST_BASE_NODE_T_EXTERN(mem_block_t, list) base;
-  ulint len;        /*!< physical length of this block in bytes */
-  ulint total_size; /*!< physical length in bytes of all blocks
-                in the heap. This is defined only in the base
-                node and is set to ULINT_UNDEFINED in others. */
-  ulint type;       /*!< type of heap: MEM_HEAP_DYNAMIC, or
-                    MEM_HEAP_BUF possibly ORed to MEM_HEAP_BTR_SEARCH */
-  ulint free;       /*!< offset in bytes of the first free position for
-                    user data in the block */
-  ulint start;      /*!< the value of the struct field 'free' at the
-                    creation of the block */
-  void *free_block;
-  /* if the MEM_HEAP_BTR_SEARCH bit is set in type,
-  and this is the heap root, this can contain an
-  allocated buffer frame, which can be appended as a
-  free block to the heap, if we need more space;
-  otherwise, this is NULL */
+  /** physical length of this block in bytes */
+  ulint len;
+  /** physical length in bytes of all blocks in the heap. This is defined only
+  in the base node and is set to ULINT_UNDEFINED in others. */
+  ulint total_size;
+  /** type of heap: MEM_HEAP_DYNAMIC, or MEM_HEAP_BUF possibly ORed to
+  MEM_HEAP_BTR_SEARCH */
+  ulint type;
+  /** offset in bytes of the first free position for user data in the block */
+  ulint free;
+  /** the value of the struct field 'free' at the creation of the block */
+  ulint start;
+  /** if the MEM_HEAP_BTR_SEARCH bit is set in type, and this is the heap root,
+  this can contain an allocated buffer frame, which can be appended as a free
+  block to the heap, if we need more space; otherwise, this is NULL */
+  std::atomic<void *> free_block;
+  /** if this block has been allocated from the buffer pool, this contains the
+  buf_block_t handle; otherwise, this is NULL */
   void *buf_block;
-  /* if this block has been allocated from the buffer
-  pool, this contains the buf_block_t handle;
-  otherwise, this is NULL */
 };
 /* We use the UT_LIST_BASE_NODE_T_EXTERN instead of simpler UT_LIST_BASE_NODE_T
 because DevStudio12.6 initializes the pointer-to-member offset to 0 otherwise.*/

@@ -641,81 +641,88 @@ constexpr uint32_t BTR_PATH_ARRAY_N_SLOTS = 250;
 
 /** Values for the flag documenting the used search method */
 enum btr_cur_method {
-  BTR_CUR_UNSET = 0,      /*!< Flag for initialization only,
-                          not in real use. */
-  BTR_CUR_HASH = 1,       /*!< successful shortcut using
-                          the hash index */
-  BTR_CUR_HASH_FAIL,      /*!< failure using hash, success using
-                          binary search: the misleading hash
-                          reference is stored in the field
-                          hash_node, and might be necessary to
-                          update */
-  BTR_CUR_BINARY,         /*!< success using the binary search */
-  BTR_CUR_INSERT_TO_IBUF, /*!< performed the intended insert to
-                          the insert buffer */
-  BTR_CUR_DEL_MARK_IBUF,  /*!< performed the intended delete
-                          mark in the insert/delete buffer */
-  BTR_CUR_DELETE_IBUF,    /*!< performed the intended delete in
-                          the insert/delete buffer */
-  BTR_CUR_DELETE_REF      /*!< row_purge_poss_sec() failed */
+  /** Flag for initialization only, not in real use.*/
+  BTR_CUR_UNSET = 0,
+  /** successful shortcut using the hash index */
+  BTR_CUR_HASH = 1,
+  /** a search using hash index was not performed. */
+  BTR_CUR_HASH_NOT_ATTEMPTED,
+  /** failure using hash, success using binary search. The record pointing by
+  the cursor may need to be updated in AHI. */
+  BTR_CUR_HASH_FAIL,
+  /** success using the binary search */
+  BTR_CUR_BINARY,
+  /** performed the intended insert to the insert buffer */
+  BTR_CUR_INSERT_TO_IBUF,
+  /** performed the intended delete mark in the insert/delete buffer */
+  BTR_CUR_DEL_MARK_IBUF,
+  /** performed the intended delete in the insert/delete buffer */
+  BTR_CUR_DELETE_IBUF,
+  /** row_purge_poss_sec() failed */
+  BTR_CUR_DELETE_REF
 };
 
 /** The tree cursor: the definition appears here only for the compiler
 to know struct size! */
 struct btr_cur_t {
-  /** index where positioned */
+  /** Index on which the cursor is positioned. */
   dict_index_t *index{nullptr};
-  /** page cursor */
+  /** Page cursor. */
   page_cur_t page_cur;
-  /** purge node, for BTR_DELETE */
+  /** Purge node, for BTR_DELETE */
   purge_node_t *purge_node{nullptr};
   /** this field is used to store a pointer to the left neighbor page, in the
-   cases BTR_SEARCH_PREV and BTR_MODIFY_PREV */
+  cases BTR_SEARCH_PREV and BTR_MODIFY_PREV */
   buf_block_t *left_block{nullptr};
-  /*------------------------------*/
+
   /** this field is only used when btr_cur_search_to_nth_level is called for an
-   index entry insertion: the calling query thread is passed here to be used
-   in the insert buffer */
+  index entry insertion: the calling query thread is passed here to be used in
+  the insert buffer */
   que_thr_t *thr{nullptr};
-  /*------------------------------*/
+
   /** The following fields are used in
-  btr_cur_search_to_nth_level to pass information: */
-  /** @{ */
-  /** Search method used */
+  btr_cur_search_to_nth_level to pass information:
+  @{ */
+  /** Search method used. */
   btr_cur_method flag{BTR_CUR_UNSET};
   /** Tree height if the search is done for a pessimistic insert or update
-   operation */
+  operation. */
   ulint tree_height{0};
   /** If the search mode was PAGE_CUR_LE, the number of matched fields to the
-   first user record to the right of the cursor record after
-   btr_cur_search_to_nth_level; for the mode PAGE_CUR_GE, the matched fields
-   to the first user record AT THE CURSOR or to the right of it; NOTE that the
-   up_match and low_match values may exceed the correct values for comparison
-   to the adjacent user record if that record is on a different leaf page!
-   (See the note in row_ins_duplicate_error_in_clust.) */
+  the first user record to the right of the cursor record after
+  btr_cur_search_to_nth_level; for the mode PAGE_CUR_GE, the matched fields to
+  the first user record AT THE CURSOR or to the right of it; NOTE that the
+  up_match and low_match values may exceed the correct values for comparison to
+  the adjacent user record if that record is on a different leaf page! See the
+  note in row_ins_duplicate_error_in_clust.  */
   ulint up_match{0};
-  /** number of matched bytes to the right at the time cursor positioned; only
-   used internally in searches: not defined after the search */
+  /** Number of matched bytes to the right at the time cursor positioned; only
+  used internally in searches: not defined after the search. */
   ulint up_bytes{0};
-  /** if search mode was PAGE_CUR_LE, the number of matched fields to the first
-   user record AT THE CURSOR or to the left of it after
-   btr_cur_search_to_nth_level; NOT defined for PAGE_CUR_GE or any other
-   search modes; see also the NOTE in up_match! */
+  /** If search mode was PAGE_CUR_LE, the number of matched fields to the first
+  user record AT THE CURSOR or to the left of it after
+  btr_cur_search_to_nth_level; NOT defined for PAGE_CUR_GE or any other search
+  modes; see also the NOTE in up_match! */
   ulint low_match{0};
-  /** number of matched bytes to the left at the time cursor positioned; only
-   used internally in searches: not defined after the search */
+  /** Number of matched bytes to the left at the time cursor positioned; only
+  used internally in searches: not defined after the search. */
   ulint low_bytes{0};
-  /** prefix length used in a hash search if hash_node != NULL */
+  /** Prefix length used in a hash search if flag is any of BTR_CUR_HASH,
+  BTR_CUR_HASH_FAIL or BTR_CUR_HASH_NOT_ATTEMPTED. */
   ulint n_fields{0};
-  /** hash prefix bytes if hash_node != NULL */
+  /** Hash prefix bytes if flag is any of BTR_CUR_HASH, BTR_CUR_HASH_FAIL or
+  BTR_CUR_HASH_NOT_ATTEMPTED. */
   ulint n_bytes{0};
-  /** fold value used in the search if flag is BTR_CUR_HASH */
+  /** fold value used in the search if flag is any of BTR_CUR_HASH,
+  BTR_CUR_HASH_FAIL or BTR_CUR_HASH_NOT_ATTEMPTED. */
   ulint fold{0};
   /** @} */
-  /** in estimating the number of rows in range, we store in this array
-   information of the path through the tree */
+
+  /** In estimating the number of rows in range, we store in this array
+  information of the path through the tree. */
   btr_path_t *path_arr{nullptr};
-  /** rtree search info */
+
+  /** rtree search info. */
   rtr_info_t *rtr_info{nullptr};
 
   /** Ownership of the above rtr_info member. */

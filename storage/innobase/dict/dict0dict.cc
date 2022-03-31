@@ -1295,7 +1295,7 @@ static bool dict_table_can_be_evicted(
 
       See also: dict_index_remove_from_cache_low() */
 
-      if (btr_search_info_get_ref_count(info, index) > 0) {
+      if (btr_search_info_get_ref_count(info) > 0) {
         return false;
       }
     }
@@ -2653,7 +2653,7 @@ static void dict_index_remove_from_cache_low(
   zero. See also: dict_table_can_be_evicted() */
 
   do {
-    ulint ref_count = btr_search_info_get_ref_count(info, index);
+    ulint ref_count = btr_search_info_get_ref_count(info);
 
     if (ref_count == 0) {
       break;

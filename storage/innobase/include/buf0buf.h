@@ -1690,18 +1690,18 @@ struct buf_block_t {
   /** @{ */
 
   /** Counter which controls building of a new hash index for the page */
-  uint32_t n_hash_helps;
+  std::atomic<uint32_t> n_hash_helps;
 
   /** Recommended prefix length for hash search: number of bytes in an
   incomplete last field */
-  volatile uint32_t n_bytes;
+  std::atomic<uint32_t> n_bytes;
 
   /** Recommended prefix length for hash search: number of full fields */
-  volatile uint32_t n_fields;
+  std::atomic<uint32_t> n_fields;
 
   /** true or false, depending on whether the leftmost record of several
   records with the same prefix should be indexed in the hash index */
-  volatile bool left_side;
+  std::atomic<bool> left_side;
   /** @} */
 
   /** @name Hash search fields

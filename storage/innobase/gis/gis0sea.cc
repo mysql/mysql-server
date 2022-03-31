@@ -1394,10 +1394,10 @@ static void rtr_copy_buf(matched_rec_t *matches, const buf_block_t *block) {
   /* Skip buf_block_t::lock as it was already initialized by rtr_create_rtr_info
    */
   ut_ad(rw_lock_validate(&matches->block.lock));
-  matches->block.n_hash_helps = block->n_hash_helps;
-  matches->block.n_bytes = block->n_bytes;
-  matches->block.n_fields = block->n_fields;
-  matches->block.left_side = block->left_side;
+  matches->block.n_hash_helps.store(block->n_hash_helps.load());
+  matches->block.n_bytes.store(block->n_bytes.load());
+  matches->block.n_fields.store(block->n_fields.load());
+  matches->block.left_side.store(block->left_side.load());
   matches->block.curr_n_fields = block->curr_n_fields;
   matches->block.curr_left_side = block->curr_left_side;
   matches->block.index = block->index;

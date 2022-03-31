@@ -685,7 +685,10 @@ could already be checked as a module group */
 /** Atomically increment a monitor counter.
 Use MONITOR_INC if appropriate mutex protection exists.
 @param monitor monitor to be incremented by 1 */
-#define MONITOR_ATOMIC_INC(monitor) monitor_atomic_inc(monitor)
+#define MONITOR_ATOMIC_INC(monitor) monitor_atomic_inc(monitor, 1)
+
+#define MONITOR_ATOMIC_INC_VALUE(monitor, value) \
+  monitor_atomic_inc(monitor, value)
 
 /** Atomically decrement a monitor counter.
 Use MONITOR_DEC if appropriate mutex protection exists.
@@ -704,9 +707,10 @@ inline void monitor_set_min_value(monitor_id_t monitor, mon_type_t value) {
   }
 }
 
-inline void monitor_atomic_inc(monitor_id_t monitor) {
+inline void monitor_atomic_inc(monitor_id_t monitor, mon_type_t inc_value) {
   if (MONITOR_IS_ON(monitor)) {
-    const mon_type_t value = ++MONITOR_VALUE(monitor);
+    const mon_type_t value =
+        MONITOR_VALUE(monitor).fetch_add(inc_value) + inc_value;
     /* Note: This is not 100% accurate because of the inherent race, we ignore
     it due to performance. */
     monitor_set_max_value(monitor, value);
