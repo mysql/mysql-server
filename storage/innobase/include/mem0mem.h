@@ -115,7 +115,6 @@ static inline uint64_t MEM_SPACE_NEEDED(uint64_t N) {
 }
 
 /** Creates a memory heap.
-NOTE: Use the corresponding macros instead of this function.
 A single user buffer of 'size' will fit in the block.
 0 creates a default size block.
 @param[in]      size            Desired start block size.
@@ -123,30 +122,10 @@ A single user buffer of 'size' will fit in the block.
 @param[in]      type            Heap type
 @return own: memory heap, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
-static inline mem_heap_t *mem_heap_create_func(ulint size,
-                                               IF_DEBUG(ut::Location loc, )
-                                                   ulint type);
-
-/** Macro for memory heap creation.
-@param[in]      size            Desired start block size.
-@param[in]      loc             Location where called. */
-static inline mem_heap_t *mem_heap_create(ulint size, ut::Location loc) {
-  return mem_heap_create_func(size, IF_DEBUG(loc, ) MEM_HEAP_DYNAMIC);
-}
-
-/** Macro for memory heap creation.
-@param[in]      size            Desired start block size.
-@param[in]      loc             Location where called
-@param[in]      type            Heap type */
-static inline mem_heap_t *mem_heap_create_typed(ulint size,
-                                                ut::Location loc
-                                                [[maybe_unused]],
-                                                ulint type) {
-  return mem_heap_create_func(size, IF_DEBUG(loc, ) type);
-}
+static inline mem_heap_t *mem_heap_create(ulint size, ut::Location loc,
+                                          ulint type = MEM_HEAP_DYNAMIC);
 
 /** Frees the space occupied by a memory heap.
-NOTE: Use the corresponding macro instead of this function.
 @param[in]      heap    Heap to be freed */
 static inline void mem_heap_free(mem_heap_t *heap);
 
@@ -459,8 +438,8 @@ struct Scoped_heap {
   /** Constructs heap with a free space of specified size.
   @param[in] n                  Initial size of the heap to allocate.
   @param[in] location           Location from where called. */
-  Scoped_heap(size_t n IF_DEBUG(, ut::Location location)) noexcept
-      : m_ptr(mem_heap_create_func(n, IF_DEBUG(location, ) MEM_HEAP_DYNAMIC)) {}
+  Scoped_heap(size_t n, ut::Location location) noexcept
+      : m_ptr(mem_heap_create(n, location, MEM_HEAP_DYNAMIC)) {}
 
   /** Destructor. */
   ~Scoped_heap() = default;
@@ -468,9 +447,9 @@ struct Scoped_heap {
   /** Create the heap, it must not already be created.
   @param[in] n                  Initial size of the heap to allocate.
   @param[in] location           Location from where called. */
-  void create(size_t n IF_DEBUG(, ut::Location location)) noexcept {
+  void create(size_t n, ut::Location location) noexcept {
     ut_a(get() == nullptr);
-    auto ptr = mem_heap_create_func(n, IF_DEBUG(location, ) MEM_HEAP_DYNAMIC);
+    auto ptr = mem_heap_create(n, location, MEM_HEAP_DYNAMIC);
     reset(ptr);
   }
 

@@ -1075,7 +1075,8 @@ rec_t *rec_convert_dtuple_to_rec(
     ulint i;
     rec_offs_init(offsets_);
 
-    offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
     ut_ad(rec_validate(rec, offsets));
     ut_ad(dtuple_get_n_fields(dtuple) == rec_offs_n_fields(offsets));
 
@@ -1143,7 +1144,8 @@ void rec_copy_prefix_to_dtuple(
   ulint *offsets = offsets_;
   rec_offs_init(offsets_);
 
-  offsets = rec_get_offsets(rec, index, offsets, n_fields, &heap);
+  offsets =
+      rec_get_offsets(rec, index, offsets, n_fields, UT_LOCATION_HERE, &heap);
 
   ut_ad(rec_validate(rec, offsets));
   ut_ad(dtuple_check_typed(tuple));
@@ -1720,9 +1722,9 @@ void rec_print(FILE *file, const rec_t *rec, const dict_index_t *index) {
     ulint offsets_[REC_OFFS_NORMAL_SIZE];
     rec_offs_init(offsets_);
 
-    rec_print_new(
-        file, rec,
-        rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED, &heap));
+    rec_print_new(file, rec,
+                  rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED,
+                                  UT_LOCATION_HERE, &heap));
     if (UNIV_LIKELY_NULL(heap)) {
       mem_heap_free(heap);
     }
@@ -1789,8 +1791,8 @@ void rec_print(std::ostream &o, const rec_t *rec, ulint info,
 @return the output stream */
 std::ostream &operator<<(std::ostream &o, const rec_index_print &r) {
   mem_heap_t *heap = nullptr;
-  ulint *offsets =
-      rec_get_offsets(r.m_rec, r.m_index, nullptr, ULINT_UNDEFINED, &heap);
+  ulint *offsets = rec_get_offsets(r.m_rec, r.m_index, nullptr, ULINT_UNDEFINED,
+                                   UT_LOCATION_HERE, &heap);
   rec_print(o, r.m_rec, rec_get_info_bits(r.m_rec, rec_offs_comp(offsets)),
             offsets);
   mem_heap_free(heap);
@@ -1831,7 +1833,8 @@ trx_id_t rec_get_trx_id(const rec_t *rec,          /*!< in: record */
   }
 #endif /* UNIV_DEBUG */
 
-  offsets = rec_get_offsets(rec, index, offsets, trx_id_col + 1, &heap);
+  offsets = rec_get_offsets(rec, index, offsets, trx_id_col + 1,
+                            UT_LOCATION_HERE, &heap);
 
   trx_id = rec_get_nth_field(index, rec, offsets, trx_id_col, &len);
 

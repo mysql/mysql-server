@@ -698,7 +698,7 @@ static recv_sys_t::Space *recv_get_page_map(space_id_t space_id, bool create) {
   } else if (create) {
     mem_heap_t *heap;
 
-    heap = mem_heap_create_typed(256, UT_LOCATION_HERE, MEM_HEAP_FOR_RECV_SYS);
+    heap = mem_heap_create(256, UT_LOCATION_HERE, MEM_HEAP_FOR_RECV_SYS);
 
     using Space = recv_sys_t::Space;
     using Value = recv_sys_t::Spaces::value_type;

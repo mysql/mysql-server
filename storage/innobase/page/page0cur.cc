@@ -111,8 +111,8 @@ static inline bool page_cur_try_search_shortcut(
   ut_ad(dtuple_check_typed(tuple));
 
   rec = page_header_get_ptr(page, PAGE_LAST_INSERT);
-  offsets =
-      rec_get_offsets(rec, index, offsets, dtuple_get_n_fields(tuple), &heap);
+  offsets = rec_get_offsets(rec, index, offsets, dtuple_get_n_fields(tuple),
+                            UT_LOCATION_HERE, &heap);
 
   ut_ad(rec);
   ut_ad(page_rec_is_user_rec(rec));
@@ -125,8 +125,9 @@ static inline bool page_cur_try_search_shortcut(
 
   next_rec = page_rec_get_next_const(rec);
   if (!page_rec_is_supremum(next_rec)) {
-    offsets = rec_get_offsets(next_rec, index, offsets,
-                              dtuple_get_n_fields(tuple), &heap);
+    offsets =
+        rec_get_offsets(next_rec, index, offsets, dtuple_get_n_fields(tuple),
+                        UT_LOCATION_HERE, &heap);
 
     if (tuple->compare(next_rec, index, offsets, &up_match) >= 0) {
       goto exit_func;
@@ -184,8 +185,8 @@ static inline bool page_cur_try_search_shortcut_bytes(
   ut_ad(dtuple_check_typed(tuple));
 
   rec = page_header_get_ptr(page, PAGE_LAST_INSERT);
-  offsets =
-      rec_get_offsets(rec, index, offsets, dtuple_get_n_fields(tuple), &heap);
+  offsets = rec_get_offsets(rec, index, offsets, dtuple_get_n_fields(tuple),
+                            UT_LOCATION_HERE, &heap);
 
   ut_ad(rec);
   ut_ad(page_rec_is_user_rec(rec));
@@ -205,8 +206,9 @@ static inline bool page_cur_try_search_shortcut_bytes(
 
   next_rec = page_rec_get_next_const(rec);
   if (!page_rec_is_supremum(next_rec)) {
-    offsets = rec_get_offsets(next_rec, index, offsets,
-                              dtuple_get_n_fields(tuple), &heap);
+    offsets =
+        rec_get_offsets(next_rec, index, offsets, dtuple_get_n_fields(tuple),
+                        UT_LOCATION_HERE, &heap);
 
     if (cmp_dtuple_rec_with_match_bytes(tuple, next_rec, index, offsets,
                                         &up_match, &up_bytes) >= 0) {
@@ -454,8 +456,8 @@ void page_cur_search_with_match(const buf_block_t *block,
 #ifdef UNIV_DEBUG
       {
         const size_t n = dtuple_get_n_fields_cmp(tuple);
-        const auto *const offsets =
-            rec_get_offsets(mid_rec, index, offsets_, n, &heap);
+        const auto *const offsets = rec_get_offsets(mid_rec, index, offsets_, n,
+                                                    UT_LOCATION_HERE, &heap);
         ut_a(n <= offsets[0]);
         ut_a(n <= offsets[1]);
         ut_a(n <= cached_offsets[0]);
@@ -475,7 +477,8 @@ void page_cur_search_with_match(const buf_block_t *block,
       return cached_offsets;
     }
     return rec_get_offsets(mid_rec, index, offsets_,
-                           dtuple_get_n_fields_cmp(tuple), &heap);
+                           dtuple_get_n_fields_cmp(tuple), UT_LOCATION_HERE,
+                           &heap);
   };
 
   /* Perform binary search until the lower and upper limit directory
@@ -706,7 +709,8 @@ void page_cur_search_with_match_bytes(
                 low_matched_bytes, up_matched_fields, up_matched_bytes);
 
     offsets = rec_get_offsets(mid_rec, index, offsets_,
-                              dtuple_get_n_fields_cmp(tuple), &heap);
+                              dtuple_get_n_fields_cmp(tuple), UT_LOCATION_HERE,
+                              &heap);
 
     cmp = cmp_dtuple_rec_with_match_bytes(tuple, mid_rec, index, offsets,
                                           &cur_matched_fields,
@@ -757,7 +761,8 @@ void page_cur_search_with_match_bytes(
                 low_matched_bytes, up_matched_fields, up_matched_bytes);
 
     offsets = rec_get_offsets(mid_rec, index, offsets_,
-                              dtuple_get_n_fields_cmp(tuple), &heap);
+                              dtuple_get_n_fields_cmp(tuple), UT_LOCATION_HERE,
+                              &heap);
 
     cmp = cmp_dtuple_rec_with_match_bytes(tuple, mid_rec, index, offsets,
                                           &cur_matched_fields,
@@ -886,10 +891,10 @@ static void page_cur_insert_rec_write_log(
     rec_offs_init(cur_offs_);
     rec_offs_init(ins_offs_);
 
-    cur_offs =
-        rec_get_offsets(cursor_rec, index, cur_offs_, ULINT_UNDEFINED, &heap);
-    ins_offs =
-        rec_get_offsets(insert_rec, index, ins_offs_, ULINT_UNDEFINED, &heap);
+    cur_offs = rec_get_offsets(cursor_rec, index, cur_offs_, ULINT_UNDEFINED,
+                               UT_LOCATION_HERE, &heap);
+    ins_offs = rec_get_offsets(insert_rec, index, ins_offs_, ULINT_UNDEFINED,
+                               UT_LOCATION_HERE, &heap);
 
     extra_size = rec_offs_extra_size(ins_offs);
     ut_ad(rec_size == rec_offs_size(ins_offs));
@@ -1146,8 +1151,8 @@ byte *page_cur_parse_insert_rec(
   if ((end_seg_len & 0x1UL) && mismatch_index == 0) {
     /* This is a record has nothing common to cursor record. */
   } else {
-    offsets =
-        rec_get_offsets(cursor_rec, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(cursor_rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
 
     if (!(end_seg_len & 0x1UL)) {
       info_and_status_bits =
@@ -1193,7 +1198,7 @@ byte *page_cur_parse_insert_rec(
   page_cur_position(cursor_rec, block, &cursor);
 
   offsets = rec_get_offsets(buf + origin_offset, index, offsets,
-                            ULINT_UNDEFINED, &heap);
+                            ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
   if (UNIV_UNLIKELY(!page_cur_rec_insert(&cursor, buf + origin_offset, index,
                                          offsets, mtr))) {
     /* The redo log record should only have been written
@@ -1274,8 +1279,8 @@ rec_t *page_cur_insert_rec_low(
 
     rec_offs_init(foffsets_);
 
-    foffsets =
-        rec_get_offsets(free_rec, index, foffsets, ULINT_UNDEFINED, &heap);
+    foffsets = rec_get_offsets(free_rec, index, foffsets, ULINT_UNDEFINED,
+                               UT_LOCATION_HERE, &heap);
 
     if (rec_offs_size(foffsets) < rec_size) {
       if (UNIV_LIKELY_NULL(heap)) {
@@ -1439,8 +1444,8 @@ rec_t *page_cur_direct_insert_rec_low(rec_t *current_rec, dict_index_t *index,
 
     rec_offs_init(foffsets_);
 
-    foffsets =
-        rec_get_offsets(free_rec, index, foffsets, ULINT_UNDEFINED, &heap);
+    foffsets = rec_get_offsets(free_rec, index, foffsets, ULINT_UNDEFINED,
+                               UT_LOCATION_HERE, &heap);
     if (rec_offs_size(foffsets) < rec_size) {
       if (heap != nullptr) {
         mem_heap_free(heap);
@@ -1793,8 +1798,8 @@ rec_t *page_cur_insert_rec_zip(
 
     rec_offs_init(foffsets_);
 
-    foffsets =
-        rec_get_offsets(free_rec, index, foffsets, ULINT_UNDEFINED, &heap);
+    foffsets = rec_get_offsets(free_rec, index, foffsets, ULINT_UNDEFINED,
+                               UT_LOCATION_HERE, &heap);
     if (rec_offs_size(foffsets) < rec_size) {
     too_small:
       if (UNIV_LIKELY_NULL(heap)) {
@@ -2124,7 +2129,8 @@ void page_copy_rec_list_end_to_created_page(
   n_recs = 0;
 
   do {
-    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
     insert_rec = rec_copy(heap_top, rec, offsets);
 
     if (page_is_comp(new_page)) {
@@ -2279,9 +2285,10 @@ byte *page_cur_parse_delete_rec(
 #endif /* UNIV_HOTBACKUP */
     ut_ad(!buf_block_get_page_zip(block) || page_is_comp(page));
 
-    page_cur_delete_rec(
-        &cursor, index,
-        rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED, &heap), mtr);
+    page_cur_delete_rec(&cursor, index,
+                        rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED,
+                                        UT_LOCATION_HERE, &heap),
+                        mtr);
     if (UNIV_LIKELY_NULL(heap)) {
       mem_heap_free(heap);
     }

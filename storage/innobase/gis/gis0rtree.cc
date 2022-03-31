@@ -95,7 +95,8 @@ static rtr_split_node_t *rtr_page_split_initialize_nodes(
   stop = task + n_recs;
 
   rec = page_rec_get_next(page_get_infimum_rec(page));
-  *offsets = rec_get_offsets(rec, cursor->index, *offsets, n_uniq, &heap);
+  *offsets = rec_get_offsets(rec, cursor->index, *offsets, n_uniq,
+                             UT_LOCATION_HERE, &heap);
 
   source_cur = rec_get_nth_field(cursor->index, rec, *offsets, 0, &len);
 
@@ -106,7 +107,8 @@ static rtr_split_node_t *rtr_page_split_initialize_nodes(
     memcpy(cur->coords, source_cur, DATA_MBR_LEN);
 
     rec = page_rec_get_next(rec);
-    *offsets = rec_get_offsets(rec, cursor->index, *offsets, n_uniq, &heap);
+    *offsets = rec_get_offsets(rec, cursor->index, *offsets, n_uniq,
+                               UT_LOCATION_HERE, &heap);
     source_cur = rec_get_nth_field(cursor->index, rec, *offsets, 0, &len);
   }
 
@@ -300,7 +302,7 @@ bool rtr_update_mbr_field(
   if (cursor2) {
     rec_t *del_rec = btr_cur_get_rec(cursor2);
     offsets2 = rec_get_offsets(btr_cur_get_rec(cursor2), index, nullptr,
-                               ULINT_UNDEFINED, &heap);
+                               ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
     del_page_no = btr_node_ptr_get_child_page_no(del_rec, offsets2);
     cur2_pos = page_rec_get_n_recs_before(btr_cur_get_rec(cursor2));
   }
@@ -315,13 +317,13 @@ bool rtr_update_mbr_field(
       if (!btr_cur_update_alloc_zip(page_zip, btr_cur_get_page_cur(cursor),
                                     index, offsets, rec_offs_size(offsets),
                                     false, mtr)) {
-        /* If there's not enought space for
+        /* If there's not enough space for
         inplace update zip page, we do delete
         insert. */
         ins_suc = false;
 
         /* Since btr_cur_update_alloc_zip could
-        reorganize the page, we need to repositon
+        reorganize the page, we need to reposition
         cursor2. */
         if (cursor2) {
           cursor2->page_cur.rec = page_rec_get_nth(page, cur2_pos);
@@ -353,7 +355,7 @@ bool rtr_update_mbr_field(
         cursor2->page_cur.rec = page_rec_get_nth(page, cur2_pos);
       }
       offsets2 = rec_get_offsets(btr_cur_get_rec(cursor2), index, nullptr,
-                                 ULINT_UNDEFINED, &heap);
+                                 ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
       ut_ad(del_page_no ==
             btr_node_ptr_get_child_page_no(cursor2->page_cur.rec, offsets2));
 
@@ -387,7 +389,8 @@ bool rtr_update_mbr_field(
     ut_ad(old_rec != insert_rec);
 
     page_cur_position(old_rec, block, &page_cur);
-    offsets2 = rec_get_offsets(old_rec, index, nullptr, ULINT_UNDEFINED, &heap);
+    offsets2 = rec_get_offsets(old_rec, index, nullptr, ULINT_UNDEFINED,
+                               UT_LOCATION_HERE, &heap);
     page_cur_delete_rec(&page_cur, index, offsets2, mtr);
 
   } else {
@@ -414,8 +417,8 @@ bool rtr_update_mbr_field(
       rec_t *cur2_rec;
 
       cur2_rec = cursor2->page_cur.rec;
-      offsets2 =
-          rec_get_offsets(cur2_rec, index, nullptr, ULINT_UNDEFINED, &heap);
+      offsets2 = rec_get_offsets(cur2_rec, index, nullptr, ULINT_UNDEFINED,
+                                 UT_LOCATION_HERE, &heap);
 
       cur2_rec_info = rec_get_info_bits(cur2_rec, rec_offs_comp(offsets2));
       if (cur2_rec_info & REC_INFO_MIN_REC_FLAG) {
@@ -463,8 +466,8 @@ bool rtr_update_mbr_field(
     /* Insert succeed, position cursor the inserted rec.*/
     if (ins_suc) {
       btr_cur_position(index, insert_rec, block, cursor);
-      offsets =
-          rec_get_offsets(insert_rec, index, offsets, ULINT_UNDEFINED, &heap);
+      offsets = rec_get_offsets(insert_rec, index, offsets, ULINT_UNDEFINED,
+                                UT_LOCATION_HERE, &heap);
     }
 
     /* Delete the rec which cursor2 point to. */
@@ -476,8 +479,8 @@ bool rtr_update_mbr_field(
 
       cur2_rec = btr_cur_get_rec(cursor2);
 
-      offsets2 =
-          rec_get_offsets(cur2_rec, index, nullptr, ULINT_UNDEFINED, &heap);
+      offsets2 = rec_get_offsets(cur2_rec, index, nullptr, ULINT_UNDEFINED,
+                                 UT_LOCATION_HERE, &heap);
 
       /* If the cursor2 position is on a wrong rec, we
       need to reposition it. */
@@ -486,8 +489,8 @@ bool rtr_update_mbr_field(
         cur2_rec = page_rec_get_next(page_get_infimum_rec(page));
 
         while (!page_rec_is_supremum(cur2_rec)) {
-          offsets2 =
-              rec_get_offsets(cur2_rec, index, nullptr, ULINT_UNDEFINED, &heap);
+          offsets2 = rec_get_offsets(cur2_rec, index, nullptr, ULINT_UNDEFINED,
+                                     UT_LOCATION_HERE, &heap);
           cur2_pno = btr_node_ptr_get_child_page_no(cur2_rec, offsets2);
           if (cur2_pno == del_page_no) {
             if (insert_rec != cur2_rec) {
@@ -783,7 +786,7 @@ static bool rtr_split_page_move_rec_list(
       lock_rec_store_on_page_infimum(block, cur_split_node->key);
 
       offsets = rec_get_offsets(cur_split_node->key, index, offsets,
-                                ULINT_UNDEFINED, &heap);
+                                ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
 
       ut_ad(cur_split_node->key != first_rec || !page_is_leaf(page));
 
@@ -862,7 +865,7 @@ static bool rtr_split_page_move_rec_list(
     if (cur_split_node->n_node != first_rec_group) {
       page_cur_position(cur_split_node->key, block, &page_cursor);
       offsets = rec_get_offsets(page_cur_get_rec(&page_cursor), index, offsets,
-                                ULINT_UNDEFINED, &heap);
+                                ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
       page_cur_delete_rec(&page_cursor, index, offsets, mtr);
     }
   }
@@ -1064,8 +1067,9 @@ func_start:
         ut_a(new_rec && page_rec_is_user_rec(new_rec));
         page_cur_position(new_rec, new_block, page_cursor);
 
-        *offsets = rec_get_offsets(page_cur_get_rec(page_cursor), cursor->index,
-                                   *offsets, ULINT_UNDEFINED, heap);
+        *offsets =
+            rec_get_offsets(page_cur_get_rec(page_cursor), cursor->index,
+                            *offsets, ULINT_UNDEFINED, UT_LOCATION_HERE, heap);
 
         page_cur_delete_rec(page_cursor, cursor->index, *offsets, mtr);
         n++;
@@ -1077,8 +1081,9 @@ func_start:
          cur_split_node < end_split_node - 1; ++cur_split_node) {
       if (cur_split_node->n_node != first_rec_group) {
         page_cur_position(cur_split_node->key, block, page_cursor);
-        *offsets = rec_get_offsets(page_cur_get_rec(page_cursor), cursor->index,
-                                   *offsets, ULINT_UNDEFINED, heap);
+        *offsets =
+            rec_get_offsets(page_cur_get_rec(page_cursor), cursor->index,
+                            *offsets, ULINT_UNDEFINED, UT_LOCATION_HERE, heap);
         page_cur_delete_rec(page_cursor, cursor->index, *offsets, mtr);
       }
     }
@@ -1324,14 +1329,14 @@ void rtr_page_copy_rec_list_end_no_locks(buf_block_t *new_block,
       cur_rec = page_rec_get_next(cur_rec);
     }
 
-    offsets1 =
-        rec_get_offsets(cur1_rec, index, offsets1, ULINT_UNDEFINED, &heap);
+    offsets1 = rec_get_offsets(cur1_rec, index, offsets1, ULINT_UNDEFINED,
+                               UT_LOCATION_HERE, &heap);
     while (!page_rec_is_supremum(cur_rec)) {
       ulint cur_matched_fields = 0;
       int cmp;
 
-      offsets2 =
-          rec_get_offsets(cur_rec, index, offsets2, ULINT_UNDEFINED, &heap);
+      offsets2 = rec_get_offsets(cur_rec, index, offsets2, ULINT_UNDEFINED,
+                                 UT_LOCATION_HERE, &heap);
       cmp = cmp_rec_rec_with_match(cur1_rec, cur_rec, offsets1, offsets2, index,
                                    page_is_spatial_non_leaf(cur1_rec, index),
                                    false, &cur_matched_fields);
@@ -1363,8 +1368,8 @@ void rtr_page_copy_rec_list_end_no_locks(buf_block_t *new_block,
 
     cur_rec = page_cur_get_rec(&page_cur);
 
-    offsets1 =
-        rec_get_offsets(cur1_rec, index, offsets1, ULINT_UNDEFINED, &heap);
+    offsets1 = rec_get_offsets(cur1_rec, index, offsets1, ULINT_UNDEFINED,
+                               UT_LOCATION_HERE, &heap);
 
     ins_rec = page_cur_insert_rec_low(cur_rec, index, cur1_rec, offsets1, mtr);
     if (UNIV_UNLIKELY(!ins_rec)) {
@@ -1436,15 +1441,15 @@ void rtr_page_copy_rec_list_start_no_locks(
       cur_rec = page_rec_get_next(cur_rec);
     }
 
-    offsets1 =
-        rec_get_offsets(cur1_rec, index, offsets1, ULINT_UNDEFINED, &heap);
+    offsets1 = rec_get_offsets(cur1_rec, index, offsets1, ULINT_UNDEFINED,
+                               UT_LOCATION_HERE, &heap);
 
     while (!page_rec_is_supremum(cur_rec)) {
       ulint cur_matched_fields = 0;
       int cmp;
 
-      offsets2 =
-          rec_get_offsets(cur_rec, index, offsets2, ULINT_UNDEFINED, &heap);
+      offsets2 = rec_get_offsets(cur_rec, index, offsets2, ULINT_UNDEFINED,
+                                 UT_LOCATION_HERE, &heap);
       cmp = cmp_rec_rec_with_match(cur1_rec, cur_rec, offsets1, offsets2, index,
                                    page_is_spatial_non_leaf(cur1_rec, index),
                                    false, &cur_matched_fields);
@@ -1477,8 +1482,8 @@ void rtr_page_copy_rec_list_start_no_locks(
 
     cur_rec = page_cur_get_rec(&page_cur);
 
-    offsets1 =
-        rec_get_offsets(cur1_rec, index, offsets1, ULINT_UNDEFINED, &heap);
+    offsets1 = rec_get_offsets(cur1_rec, index, offsets1, ULINT_UNDEFINED,
+                               UT_LOCATION_HERE, &heap);
 
     ins_rec = page_cur_insert_rec_low(cur_rec, index, cur1_rec, offsets1, mtr);
     if (UNIV_UNLIKELY(!ins_rec)) {
@@ -1599,7 +1604,8 @@ bool rtr_check_same_block(
       page_rec_get_next(page_get_infimum_rec(buf_block_get_frame(parentb)));
 
   while (!page_rec_is_supremum(rec)) {
-    offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
 
     if (btr_node_ptr_get_child_page_no(rec, offsets) == page_no) {
       btr_cur_position(index, rec, parentb, cursor);
@@ -1716,7 +1722,8 @@ int64_t rtr_estimate_n_rows_in_range(dict_index_t *index, const dtuple_t *tuple,
 
   heap = mem_heap_create(512, UT_LOCATION_HERE);
   rec = page_rec_get_next(page_get_infimum_rec(page));
-  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &heap);
 
   /* Scan records in root page and calculate area. */
   double area = 0;

@@ -364,7 +364,8 @@ static inline dtuple_t *row_build_low(ulint type, const dict_index_t *index,
   ut_ad(!col_map || col_table);
 
   if (!offsets) {
-    offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED, &tmp_heap);
+    offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &tmp_heap);
   } else {
     ut_ad(rec_offs_validate(rec, index, offsets));
   }
@@ -687,7 +688,8 @@ dtuple_t *row_build_row_ref(
   ut_ad(heap != nullptr);
   ut_ad(!index->is_clustered());
 
-  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &tmp_heap);
+  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &tmp_heap);
   /* Secondary indexes must not contain externally stored columns. */
   ut_ad(!rec_offs_any_extern(offsets));
 
@@ -772,7 +774,8 @@ void row_build_row_ref_in_tuple(dtuple_t *ref, const rec_t *rec,
   ut_ad(clust_index);
 
   if (!offsets) {
-    offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
   } else {
     ut_ad(rec_offs_validate(rec, index, offsets));
   }

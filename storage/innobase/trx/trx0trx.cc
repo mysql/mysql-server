@@ -265,7 +265,7 @@ struct TrxFactory {
         ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, MAX_DETAILED_ERROR_LEN));
 
     trx->lock.lock_heap =
-        mem_heap_create_typed(1024, UT_LOCATION_HERE, MEM_HEAP_FOR_LOCK_HEAP);
+        mem_heap_create(1024, UT_LOCATION_HERE, MEM_HEAP_FOR_LOCK_HEAP);
 
     mutex_create(LATCH_ID_TRX, &trx->mutex);
     mutex_create(LATCH_ID_TRX_UNDO, &trx->undo_mutex);

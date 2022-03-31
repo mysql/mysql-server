@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -59,7 +59,8 @@ static inline void rtr_page_cal_mbr(
   page = buf_block_get_frame(block);
 
   rec = page_rec_get_next(page_get_infimum_rec(page));
-  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &heap);
 
   do {
     /* The mbr address is in the first field. */

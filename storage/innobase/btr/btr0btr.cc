@@ -677,7 +677,8 @@ static ulint *btr_page_get_father_node_ptr_func(
   node_ptr = btr_cur_get_rec(cursor);
   ut_ad(!page_rec_is_comp(node_ptr) ||
         rec_get_status(node_ptr) == REC_STATUS_NODE_PTR);
-  offsets = rec_get_offsets(node_ptr, index, offsets, ULINT_UNDEFINED, &heap);
+  offsets = rec_get_offsets(node_ptr, index, offsets, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &heap);
 
   if (btr_node_ptr_get_child_page_no(node_ptr, offsets) != page_no) {
     rec_t *print_rec;
@@ -689,10 +690,11 @@ static ulint *btr_page_get_father_node_ptr_func(
         << ", child page no " << page_no;
 
     print_rec = page_rec_get_next(page_get_infimum_rec(page_align(user_rec)));
-    offsets =
-        rec_get_offsets(print_rec, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(print_rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
     page_rec_print(print_rec, offsets);
-    offsets = rec_get_offsets(node_ptr, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(node_ptr, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
     page_rec_print(node_ptr, offsets);
 
     ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_29)
@@ -1796,8 +1798,8 @@ static rec_t *btr_page_get_split_rec(
       /* Include tuple */
       incl_data += insert_size;
     } else {
-      offsets =
-          rec_get_offsets(rec, cursor->index, offsets, ULINT_UNDEFINED, &heap);
+      offsets = rec_get_offsets(rec, cursor->index, offsets, ULINT_UNDEFINED,
+                                UT_LOCATION_HERE, &heap);
       incl_data += rec_offs_size(offsets);
     }
 
@@ -1893,8 +1895,8 @@ func_exit:
     /* In this loop we calculate the amount of reserved
     space after rec is removed from page. */
 
-    *offsets =
-        rec_get_offsets(rec, cursor->index, *offsets, ULINT_UNDEFINED, heap);
+    *offsets = rec_get_offsets(rec, cursor->index, *offsets, ULINT_UNDEFINED,
+                               UT_LOCATION_HERE, heap);
 
     total_data -= rec_offs_size(*offsets);
     total_n_recs--;
@@ -2141,7 +2143,8 @@ static void btr_attach_half_pages(
   page_cur_move_to_next(&pcur);
   first_rec = page_cur_get_rec(&pcur);
 
-  *offsets = rec_get_offsets(first_rec, cursor->index, *offsets, n_uniq, heap);
+  *offsets = rec_get_offsets(first_rec, cursor->index, *offsets, n_uniq,
+                             UT_LOCATION_HERE, heap);
 
   return (cmp_dtuple_rec(tuple, first_rec, cursor->index, *offsets) < 0);
 }
@@ -2410,8 +2413,8 @@ func_start:
   if (split_rec) {
     first_rec = move_limit = split_rec;
 
-    *offsets =
-        rec_get_offsets(split_rec, cursor->index, *offsets, n_uniq, heap);
+    *offsets = rec_get_offsets(split_rec, cursor->index, *offsets, n_uniq,
+                               UT_LOCATION_HERE, heap);
 
     insert_left = cmp_dtuple_rec(tuple, split_rec, cursor->index, *offsets) < 0;
 
@@ -3131,7 +3134,7 @@ retry:
       cursor2.tree_height = cursor->tree_height;
 
       offsets2 = rec_get_offsets(btr_cur_get_rec(&cursor2), index, nullptr,
-                                 ULINT_UNDEFINED, &heap);
+                                 ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
 
       /* Check if parent entry needs to be updated */
       mbr_changed = rtr_merge_mbr_changed(&cursor2, &father_cursor, offsets2,
@@ -3291,7 +3294,7 @@ retry:
       ulint rec_info;
 
       offsets2 = rec_get_offsets(btr_cur_get_rec(&cursor2), index, nullptr,
-                                 ULINT_UNDEFINED, &heap);
+                                 ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
 
       ut_ad(btr_node_ptr_get_child_page_no(btr_cur_get_rec(&cursor2),
                                            offsets2) == right_page_no);
@@ -3880,7 +3883,8 @@ bool btr_index_rec_validate(const rec_t *rec,          /*!< in: index record */
     return false;
   }
 
-  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &heap);
 
   for (i = 0; i < n; i++) {
     dict_field_t *field = nullptr;
@@ -4117,14 +4121,15 @@ static bool btr_validate_level(
     page_cur_move_to_next(&cursor);
 
     node_ptr = page_cur_get_rec(&cursor);
-    offsets = rec_get_offsets(node_ptr, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(node_ptr, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
 
     savepoint2 = mtr_set_savepoint(&mtr);
     block = btr_node_ptr_get_child(node_ptr, index, offsets, &mtr);
     page = buf_block_get_frame(block);
 
     /* For R-Tree, since record order might not be the same as
-    linked index page in the lower level, we need to travers
+    linked index page in the lower level, we need to traverse
     backwards to get the first page rec in this level.
     This is only used for index validation. Spatial index
     does not use such scan for any of its DML or query
@@ -4237,9 +4242,10 @@ loop:
 
     rec = page_rec_get_prev(page_get_supremum_rec(page));
     right_rec = page_rec_get_next(page_get_infimum_rec(right_page));
-    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
-    offsets2 =
-        rec_get_offsets(right_rec, index, offsets2, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
+    offsets2 = rec_get_offsets(right_rec, index, offsets2, ULINT_UNDEFINED,
+                               UT_LOCATION_HERE, &heap);
 
     /* For spatial index, we cannot guarantee the key ordering
     across pages, so skip the record compare verification for

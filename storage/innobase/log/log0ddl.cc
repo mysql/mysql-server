@@ -644,7 +644,8 @@ dberr_t DDL_Log_Table::search_all(DDL_Records &records) {
       continue;
     }
 
-    offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, &m_heap);
+    offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &m_heap);
 
     if (rec_get_deleted_flag(rec, dict_table_is_comp(m_table))) {
       continue;
@@ -704,7 +705,8 @@ dberr_t DDL_Log_Table::search_by_id(ulint id, dict_index_t *index,
       continue;
     }
 
-    offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, &m_heap);
+    offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &m_heap);
 
     if (cmp_dtuple_rec(m_tuple, rec, index, offsets) != 0) {
       break;
@@ -760,7 +762,7 @@ dberr_t DDL_Log_Table::remove(ulint id) {
   }
 
   offsets = rec_get_offsets(pcur.get_rec(), clust_index, nullptr,
-                            ULINT_UNDEFINED, &m_heap);
+                            ULINT_UNDEFINED, UT_LOCATION_HERE, &m_heap);
 
   row = row_build(ROW_COPY_DATA, clust_index, pcur.get_rec(), offsets, nullptr,
                   nullptr, nullptr, nullptr, m_heap);

@@ -202,11 +202,10 @@ static const uint8_t REC_N_FIELDS_ONE_BYTE_MAX = 0x7F;
  @param[in] location location where called
  @param[in,out] heap memory heap
  @return the new offsets */
-[[nodiscard]] ulint *rec_get_offsets_func(const rec_t *rec,
-                                          const dict_index_t *index,
-                                          ulint *offsets, ulint n_fields,
-                                          IF_DEBUG(ut::Location location, )
-                                              mem_heap_t **heap);
+[[nodiscard]] ulint *rec_get_offsets(const rec_t *rec,
+                                     const dict_index_t *index, ulint *offsets,
+                                     ulint n_fields, ut::Location location,
+                                     mem_heap_t **heap);
 
 /** The following function determines the offsets to each field
  in the record.  It can reuse a previously allocated array. */
@@ -893,7 +892,7 @@ static inline uint16_t rec_init_null_and_len_comp(const rec_t *rec,
 
 /** Determine the offset to each field in a leaf-page record in
 ROW_FORMAT=COMPACT.  This is a special case of rec_init_offsets() and
-rec_get_offsets_func().
+rec_get_offsets().
 @param[in]      rec     physical record in ROW_FORMAT=COMPACT
 @param[in]      temp    whether to use the format for temporary files in index
                         creation

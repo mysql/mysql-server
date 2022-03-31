@@ -1301,7 +1301,8 @@ retry_page_get:
 
     node_ptr = page_cur_get_rec(page_cursor);
 
-    offsets = rec_get_offsets(node_ptr, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(node_ptr, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
 
     /* If the rec is the first or last in the page for
     pessimistic delete intention, it might cause node_ptr insert
@@ -1410,8 +1411,8 @@ retry_page_get:
       } else {
         matched_fields = 0;
 
-        offsets2 =
-            rec_get_offsets(first_rec, index, offsets2, ULINT_UNDEFINED, &heap);
+        offsets2 = rec_get_offsets(first_rec, index, offsets2, ULINT_UNDEFINED,
+                                   UT_LOCATION_HERE, &heap);
         cmp_rec_rec_with_match(node_ptr, first_rec, offsets, offsets2, index,
                                page_is_spatial_non_leaf(first_rec, index),
                                false, &matched_fields);
@@ -1426,7 +1427,7 @@ retry_page_get:
           matched_fields = 0;
 
           offsets2 = rec_get_offsets(last_rec, index, offsets2, ULINT_UNDEFINED,
-                                     &heap);
+                                     UT_LOCATION_HERE, &heap);
           cmp_rec_rec_with_match(node_ptr, last_rec, offsets, offsets2, index,
                                  page_is_spatial_non_leaf(last_rec, index),
                                  false, &matched_fields);
@@ -1573,7 +1574,7 @@ retry_page_get:
           rec_t *my_node_ptr = cur->get_rec();
 
           offsets = rec_get_offsets(my_node_ptr, index, offsets,
-                                    ULINT_UNDEFINED, &heap);
+                                    ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
 
           page_no_t my_page_no =
               btr_node_ptr_get_child_page_no(my_node_ptr, offsets);
@@ -1819,8 +1820,8 @@ void btr_cur_search_to_nth_level_with_no_latch(dict_index_t *index, ulint level,
 
       node_ptr = page_cur_get_rec(page_cursor);
 
-      offsets =
-          rec_get_offsets(node_ptr, index, offsets, ULINT_UNDEFINED, &heap);
+      offsets = rec_get_offsets(node_ptr, index, offsets, ULINT_UNDEFINED,
+                                UT_LOCATION_HERE, &heap);
 
       /* Go to the child node */
       page_id.reset(space, btr_node_ptr_get_child_page_no(node_ptr, offsets));
@@ -2080,7 +2081,7 @@ void btr_cur_open_at_index_side(bool from_left, dict_index_t *index,
 
     node_ptr = page_cur_get_rec(page_cursor);
     offsets = rec_get_offsets(node_ptr, cursor->index, offsets, ULINT_UNDEFINED,
-                              &heap);
+                              UT_LOCATION_HERE, &heap);
 
     /* If the rec is the first or last in the page for
     pessimistic delete intention, it might cause node_ptr insert
@@ -2235,7 +2236,7 @@ void btr_cur_open_at_index_side_with_no_latch(bool from_left,
 
     node_ptr = page_cur_get_rec(page_cursor);
     offsets = rec_get_offsets(node_ptr, cursor->index, offsets, ULINT_UNDEFINED,
-                              &heap);
+                              UT_LOCATION_HERE, &heap);
 
     /* Go to the child node */
     page_id.set_page_no(btr_node_ptr_get_child_page_no(node_ptr, offsets));
@@ -2425,7 +2426,7 @@ bool btr_cur_open_at_rnd_pos(dict_index_t *index, /*!< in: index */
 
     node_ptr = page_cur_get_rec(page_cursor);
     offsets = rec_get_offsets(node_ptr, cursor->index, offsets, ULINT_UNDEFINED,
-                              &heap);
+                              UT_LOCATION_HERE, &heap);
 
     /* If the rec is the first or last in the page for
     pessimistic delete intention, it might cause node_ptr insert
@@ -3233,7 +3234,8 @@ byte *btr_cur_parse_update_in_place(
   /* We do not need to reserve search latch, as the page is only
   being recovered, and there cannot be a hash index to it. */
 
-  offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, &heap);
+  offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &heap);
 
   if (!(flags & BTR_KEEP_SYS_FLAG)) {
     row_upd_rec_sys_fields_in_recovery(rec, page_zip, offsets, pos, trx_id,
@@ -3482,7 +3484,8 @@ dberr_t btr_cur_optimistic_update(ulint flags, btr_cur_t *cursor,
   ut_ad(fil_page_index_page_check(page));
   ut_ad(btr_page_get_index_id(page) == index->id);
 
-  *offsets = rec_get_offsets(rec, index, *offsets, ULINT_UNDEFINED, heap);
+  *offsets = rec_get_offsets(rec, index, *offsets, ULINT_UNDEFINED,
+                             UT_LOCATION_HERE, heap);
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
   ut_a(!rec_offs_any_null_extern(index, rec, *offsets) ||
        (flags & ~(BTR_KEEP_POS_FLAG | BTR_KEEP_IBUF_BITMAP)) ==
@@ -3804,8 +3807,8 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
   bool materialize_instant_default =
       !(index->has_instant_cols() && !index->has_row_versions());
 
-  *offsets =
-      rec_get_offsets(rec, index, *offsets, ULINT_UNDEFINED, offsets_heap);
+  *offsets = rec_get_offsets(rec, index, *offsets, ULINT_UNDEFINED,
+                             UT_LOCATION_HERE, offsets_heap);
 
   dtuple_t *new_entry =
       row_rec_to_index_entry(rec, index, *offsets, entry_heap);
@@ -4215,8 +4218,9 @@ byte *btr_cur_parse_del_mark_set_clust_rec(
 
       row_upd_rec_sys_fields_in_recovery(
           rec, page_zip,
-          rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED, &heap), pos,
-          trx_id, roll_ptr);
+          rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED,
+                          UT_LOCATION_HERE, &heap),
+          pos, trx_id, roll_ptr);
       if (UNIV_LIKELY_NULL(heap)) {
         mem_heap_free(heap);
       }
@@ -4506,8 +4510,8 @@ bool btr_cur_optimistic_delete_func(btr_cur_t *cursor,
         cursor->index->is_clustered() || (flags & BTR_CREATE_FLAG));
 
   rec = btr_cur_get_rec(cursor);
-  offsets =
-      rec_get_offsets(rec, cursor->index, offsets, ULINT_UNDEFINED, &heap);
+  offsets = rec_get_offsets(rec, cursor->index, offsets, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &heap);
 
   auto no_compress_needed =
       !rec_offs_any_extern(offsets) &&
@@ -4596,7 +4600,7 @@ bool btr_cur_pessimistic_delete(dberr_t *err, bool has_reserved_extents,
         index->table->is_intrinsic());
   ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
 
-  Scoped_heap heap_ptr(1024 IF_DEBUG(, UT_LOCATION_HERE));
+  Scoped_heap heap_ptr(1024, UT_LOCATION_HERE);
   mem_heap_t *heap = heap_ptr.get();
 
   rec = btr_cur_get_rec(cursor);
@@ -4605,7 +4609,8 @@ bool btr_cur_pessimistic_delete(dberr_t *err, bool has_reserved_extents,
   ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 
-  offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, &heap);
+  offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &heap);
 
   if (rec_offs_any_extern(offsets)) {
     lob::BtrContext btr_ctx(mtr, pcur, index, rec, offsets, block);
@@ -4705,7 +4710,7 @@ bool btr_cur_pessimistic_delete(dberr_t *err, bool has_reserved_extents,
       rtr_page_get_father_block(nullptr, heap, index, block, mtr, nullptr,
                                 &father_cursor);
       offsets = rec_get_offsets(btr_cur_get_rec(&father_cursor), index, nullptr,
-                                ULINT_UNDEFINED, &heap);
+                                ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
 
       father_rec = btr_cur_get_rec(&father_cursor);
       rtr_read_mbr(rec_get_nth_field(nullptr, father_rec, offsets, 0, &len),
@@ -5448,8 +5453,8 @@ bool btr_estimate_number_of_different_key_vals(
 
     if (!page_rec_is_supremum(rec)) {
       not_empty_flag = 1;
-      offsets_rec =
-          rec_get_offsets(rec, index, offsets_rec, ULINT_UNDEFINED, &heap);
+      offsets_rec = rec_get_offsets(rec, index, offsets_rec, ULINT_UNDEFINED,
+                                    UT_LOCATION_HERE, &heap);
 
       if (n_not_null != nullptr) {
         btr_record_not_null_field_in_rec(index, n_cols, offsets_rec,
@@ -5466,8 +5471,9 @@ bool btr_estimate_number_of_different_key_vals(
         break;
       }
 
-      offsets_next_rec = rec_get_offsets(next_rec, index, offsets_next_rec,
-                                         ULINT_UNDEFINED, &heap);
+      offsets_next_rec =
+          rec_get_offsets(next_rec, index, offsets_next_rec, ULINT_UNDEFINED,
+                          UT_LOCATION_HERE, &heap);
 
       cmp_rec_rec_with_match(rec, next_rec, offsets_rec, offsets_next_rec,
                              index, page_is_spatial_non_leaf(next_rec, index),
