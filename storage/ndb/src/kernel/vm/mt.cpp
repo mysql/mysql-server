@@ -6384,6 +6384,11 @@ read_all_jbb_state(thr_data *selfptr, bool check_before_sleep)
      * To reduce the mem-synch stalls, we do this once for all JBB's, just
      * before we execute_signals().
      */
+    if (r->is_empty()) {
+      require(num_words == 0);
+    } else {
+      require(num_words > 0);
+    }
   }
   selfptr->m_cpu_percentage_changed = true;
   /**
