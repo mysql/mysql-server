@@ -11820,6 +11820,50 @@ ER_BINLOG_CRASH_RECOVERY_ROLLBACK_FAILED
 
 ER_BINLOG_CRASH_RECOVERY_PREPARE_FAILED
   eng "Failed to prepare %s in %s, with failure code %s."
+ER_COMPONENT_EE_SYS_VAR_REGISTRATION_FAILURE
+  eng "Cannot register variable '%s'. Please check if it is not already registered by another component."
+
+ER_COMPONENT_EE_SYS_VAR_DEREGISTRATION_FAILURE
+  eng "Cannot unregister variable '%s'. Please check if it was registered properly in the first place."
+
+ER_COMPONENT_EE_FUNCTION_REGISTRATION_FAILURE
+  eng "Cannot register function '%s'. Please check if it is not already registered."
+
+ER_COMPONENT_EE_FUNCTION_DEREGISTRATION_FAILURE
+  eng "Cannot unregister function '%s'. Please check if it was registered properly in the first place."
+
+ER_COMPONENT_EE_FUNCTION_INVALID_ARGUMENTS
+  eng "Invalid arguments to function '%s'. Expected values: %s."
+
+ER_COMPONENT_EE_FUNCTION_INVALID_ALGORITHM
+  eng "Invalid algorithm value '%.20s' in function %s."
+
+ER_COMPONENT_EE_FUNCTION_KEY_LENGTH_OUT_OF_RANGE
+  eng "Invalid key length '%d' for function '%s' with algorithm '%.20s'. Please provide a value between [%d, %d]."
+
+ER_COMPONENT_EE_FUNCTION_PRIVATE_KEY_GENERATION_FAILURE
+  eng "Failed to generate private key of length '%d' with algorithm '%.20s' in function '%s'. More details about the error would have been logged before this message."
+
+ER_COMPONENT_EE_FUNCTION_PUBLIC_KEY_GENERATION_FAILURE
+  eng "Failed to generate public key with algorithm '%.20s' for given private key in function '%s'. More details about the error would have been logged before this message."
+
+ER_COMPONENT_EE_DATA_LENGTH_OUT_OF_RAGE
+  eng "Invalid data length '%d' (in bytes) for function '%s' with algorithm '%.20s'. The maximum support data length for given private key is %d (in bytes)."
+
+ER_COMPONENT_EE_DATA_ENCRYPTION_ERROR
+  eng "Could not encrypt data in function '%s' using algorithm '%.20s'. Data length was '%d' bytes. More details about the error would have been logged before this message."
+
+ER_COMPONENT_EE_DATA_DECRYPTION_ERROR
+  eng "Could not decrypt data in function '%s' using algorithm '%.20s'. Data length was '%d' bytes. More details about the error would have been logged before this message."
+
+ER_COMPONENT_EE_DATA_SIGN_ERROR
+  eng "Could not sign data in function '%s' using algorithm '%.20s' and digest type '%.20s'. More details about the error would have logged before this message."
+
+ER_COMPONENT_EE_OPENSSL_ERROR
+  eng "Received OpenSSL error in function '%s' for algorithm '%s': '%s'"
+
+ER_COMPONENT_EE_INSUFFICIENT_LENGTH
+  eng "In function '%s' with algorithm '%s': insufficient output buffer length '%zu'. Required length '%zu'."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

@@ -208,6 +208,7 @@ usr/lib/mysql/plugin/debug/thread_pool.so
 usr/lib/mysql/plugin/debug/firewall.so
 usr/lib/mysql/plugin/debug/authentication_fido.so
 usr/lib/mysql/plugin/debug/component_keyring_encrypted_file.so
+usr/lib/mysql/plugin/debug/component_enterprise_encryption.so
 ")
   ENDIF()
   IF (DEB_AWS_SDK)

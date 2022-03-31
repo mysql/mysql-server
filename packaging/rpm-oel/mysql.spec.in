@@ -1201,6 +1201,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_encrypted_file.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_enterprise_encryption.so
 %attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
 %attr(644, root, root) %{_datadir}/mysql-*/firewall_profile_migration.sql
 %if 0%{?aws_sdk}
@@ -1285,6 +1286,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_encrypted_file.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_enterprise_encryption.so
 %if 0%{?aws_sdk}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_aws.so
 %endif # aws_sdk
@@ -1789,6 +1791,9 @@ fi
 %endif # with_router
 
 %changelog
+* Wed Feb 02 2022 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.30-1
+- Added component_enterprise_encryption
+
 * Mon Jan 03 2022 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.29-1
 - Added component_test_sensitive_system_variables
 
