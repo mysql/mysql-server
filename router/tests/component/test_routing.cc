@@ -302,6 +302,43 @@ TEST_F(RouterRoutingTest, ConnectTimeoutShutdownEarly) {
 }
 
 /**
+ * check that the connection timeout Timer gets canceled after the connection
+ * and does not lead to Router crash when the connection object has been
+ * released
+ */
+TEST_F(RouterRoutingTest, ConnectTimeoutTimerCanceledCorrectly) {
+  const auto router_port = port_pool_.get_next_available();
+  const auto server_port = port_pool_.get_next_available();
+  const auto connect_timeout = 1s;
+
+  // launch the server mock
+  const std::string json_stmts = get_data_dir().join("my_port.js").str();
+  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS);
+
+  SCOPED_TRACE("// build router config with connect_timeout=" +
+               std::to_string(connect_timeout.count()));
+  const auto routing_section = mysql_harness::ConfigBuilder::build_section(
+      "routing:timeout",
+      {{"bind_port", std::to_string(router_port)},
+       {"mode", "read-write"},
+       {"connect_timeout", std::to_string(connect_timeout.count())},
+       {"destinations", "127.0.0.1:" + std::to_string(server_port)}});
+
+  TempDirectory conf_dir("conf");
+  std::string conf_file = create_config_file(conf_dir.name(), routing_section);
+
+  // launch the router with simple static routing configuration
+  launch_router({"-c", conf_file}, EXIT_SUCCESS);
+
+  // make the connection and close it right away
+  { auto con = make_new_connection_ok(router_port, server_port); }
+
+  // wait longer than connect timeout, the process manager will check at exit
+  // that the Router exits cleanly
+  std::this_thread::sleep_for(2 * connect_timeout);
+}
+
+/**
  * check connect-timeout doesn't block shutdown when using x-protocol
  * connection.
  */
