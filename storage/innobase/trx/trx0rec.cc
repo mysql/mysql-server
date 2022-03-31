@@ -2004,7 +2004,7 @@ byte *trx_undo_rec_get_partial_row(
       }
 
       /* This column shouldn't be dropped unless index on this column is
-       * dropped. */
+      dropped. */
       ut_ad(!col->is_instant_dropped() || !col->ord_part);
       if (col->is_instant_dropped()) {
         continue;
@@ -2601,7 +2601,8 @@ bool trx_undo_prev_version_build(
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
   ut_a(!rec_offs_any_null_extern(
       index, *old_vers,
-      rec_get_offsets(*old_vers, index, nullptr, ULINT_UNDEFINED, &heap)));
+      rec_get_offsets(*old_vers, index, nullptr, ULINT_UNDEFINED,
+                      UT_LOCATION_HERE, &heap)));
 #endif  // defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 
   /* If vrow is not NULL it means that the caller is interested in the values of

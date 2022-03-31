@@ -202,7 +202,8 @@ static inline rec_t *page_cur_tuple_insert(page_cur_t *cursor,
   rec = rec_convert_dtuple_to_rec((byte *)mem_heap_alloc(*heap, size), index,
                                   tuple);
 
-  *offsets = rec_get_offsets(rec, index, *offsets, ULINT_UNDEFINED, heap);
+  *offsets = rec_get_offsets(rec, index, *offsets, ULINT_UNDEFINED,
+                             UT_LOCATION_HERE, heap);
 
   ut_ad(cmp_dtuple_rec(tuple, rec, index, *offsets) == 0);
 

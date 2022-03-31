@@ -210,14 +210,6 @@ physical record are stored externally.
 [[nodiscard]] ulint rec_get_n_extern_new(const rec_t *rec,
                                          const dict_index_t *index, ulint n);
 
-#ifdef UNIV_DEBUG
-#define rec_get_offsets(rec, index, offsets, n, heap) \
-  rec_get_offsets_func(rec, index, offsets, n, UT_LOCATION_HERE, heap)
-#else /* UNIV_DEBUG */
-#define rec_get_offsets(rec, index, offsets, n, heap) \
-  rec_get_offsets_func(rec, index, offsets, n, heap)
-#endif /* UNIV_DEBUG */
-
 /** Gets the value of the specified field in the record in old style.
 This is only used for record from instant index, which is clustered
 index and has some instantly added columns.
@@ -322,8 +314,8 @@ class Rec_offsets : private ut::Non_copyable {
   call to compute() or end of this instance lifetime.
   */
   const ulint *compute(const rec_t *rec, const dict_index_t *index) {
-    m_offsets =
-        rec_get_offsets(rec, index, m_offsets, ULINT_UNDEFINED, &m_heap);
+    m_offsets = rec_get_offsets(rec, index, m_offsets, ULINT_UNDEFINED,
+                                UT_LOCATION_HERE, &m_heap);
     return m_offsets;
   }
   /** Deallocated dynamically allocated memory, if any. */

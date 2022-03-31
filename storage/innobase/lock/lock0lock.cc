@@ -2210,8 +2210,8 @@ static void lock_rec_grant_by_heap_no(lock_t *in_lock, ulint heap_no) {
 
   using LockDescriptorEx = std::pair<trx_schedule_weight_t, lock_t *>;
   /* Preallocate for 4 lists with 32 locks. */
-  Scoped_heap heap((sizeof(lock_t *) * 3 + sizeof(LockDescriptorEx)) *
-                   32 IF_DEBUG(, UT_LOCATION_HERE));
+  Scoped_heap heap((sizeof(lock_t *) * 3 + sizeof(LockDescriptorEx)) * 32,
+                   UT_LOCATION_HERE);
 
   RecID rec_id{in_lock, heap_no};
   Locks<lock_t *> low_priority_light{heap.get()};

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -205,10 +205,11 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
 
         auto heap = mem_heap_create(256, UT_LOCATION_HERE);
 
-        offsets1 =
-            rec_get_offsets(m_old_rec, index, nullptr, m_old_n_fields, &heap);
+        offsets1 = rec_get_offsets(m_old_rec, index, nullptr, m_old_n_fields,
+                                   UT_LOCATION_HERE, &heap);
 
-        offsets2 = rec_get_offsets(rec, index, nullptr, m_old_n_fields, &heap);
+        offsets2 = rec_get_offsets(rec, index, nullptr, m_old_n_fields,
+                                   UT_LOCATION_HERE, &heap);
 
         ut_ad(!cmp_rec_rec(m_old_rec, rec, offsets1, offsets2, index,
                            page_is_spatial_non_leaf(rec, index), nullptr,
@@ -262,7 +263,8 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
   if (m_rel_pos == BTR_PCUR_ON && is_on_user_rec() &&
       !cmp_dtuple_rec(
           tuple, get_rec(), index,
-          rec_get_offsets(get_rec(), index, nullptr, ULINT_UNDEFINED, &heap))) {
+          rec_get_offsets(get_rec(), index, nullptr, ULINT_UNDEFINED,
+                          UT_LOCATION_HERE, &heap))) {
     /* We have to store the NEW value for the modify clock,
     since the cursor can now be on a different page!
     But we can retain the value of old_rec */

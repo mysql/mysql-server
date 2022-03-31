@@ -58,11 +58,11 @@ hash_table_t *ib_create(ulint n, latch_id_t id, ulint n_sync_obj, ulint type) {
   but in practise it never should in this case, hence the asserts. */
 
   if (n_sync_obj == 0) {
-    table->heap = mem_heap_create_typed(
-        std::min(uint64_t{4096}, MEM_MAX_ALLOC_IN_BUF / 2 -
-                                     MEM_BLOCK_HEADER_SIZE -
-                                     MEM_SPACE_NEEDED(0)),
-        UT_LOCATION_HERE, type);
+    table->heap =
+        mem_heap_create(std::min(uint64_t{4096}, MEM_MAX_ALLOC_IN_BUF / 2 -
+                                                     MEM_BLOCK_HEADER_SIZE -
+                                                     MEM_SPACE_NEEDED(0)),
+                        UT_LOCATION_HERE, type);
     ut_a(table->heap);
 
     return table;

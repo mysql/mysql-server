@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -320,7 +320,8 @@ dberr_t Histogram_sampler::process_non_leaf_rec(
     rec_offs_init(offsets_);
 
     const rec_t *rec = page_cur_get_rec(&cur);
-    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
 
     if (ctx->is_rec_visible(rec, offsets, heap, &mtr)) {
       err = sample_rec(ctx, rec, offsets, index, prebuilt);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -251,7 +251,7 @@ File_cursor::File_cursor(Builder *builder,
 }
 
 dberr_t File_cursor::open() noexcept {
-  m_tuple_heap.create(2048 IF_DEBUG(, UT_LOCATION_HERE));
+  m_tuple_heap.create(2048, UT_LOCATION_HERE);
 
   return m_reader.prepare();
 }
@@ -518,7 +518,7 @@ dberr_t Key_sort_buffer_cursor::open() noexcept {
   {
     const auto i = 1 + REC_OFFS_HEADER_SIZE + n_fields;
 
-    m_heap.create(1024 + i * sizeof(ulint) IF_DEBUG(, UT_LOCATION_HERE));
+    m_heap.create(1024 + i * sizeof(ulint), UT_LOCATION_HERE);
 
     const size_t n = i * sizeof(*m_offsets);
 
@@ -535,7 +535,7 @@ dberr_t Key_sort_buffer_cursor::open() noexcept {
 
   dtuple_set_n_fields_cmp(m_dtuple, dict_index_get_n_unique_in_tree(index));
 
-  m_tuple_heap.create(2048 IF_DEBUG(, UT_LOCATION_HERE));
+  m_tuple_heap.create(2048, UT_LOCATION_HERE);
 
   return DB_SUCCESS;
 }
@@ -592,7 +592,7 @@ Builder::Builder(ddl::Context &ctx, Loader &loader, size_t i) noexcept
 
   if (dict_table_is_comp(m_ctx.m_old_table) &&
       !dict_table_is_comp(m_ctx.m_new_table)) {
-    m_conv_heap.create(sizeof(mrec_buf_t) IF_DEBUG(, UT_LOCATION_HERE));
+    m_conv_heap.create(sizeof(mrec_buf_t), UT_LOCATION_HERE);
   }
 }
 
@@ -723,7 +723,7 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
   }
 
   if (cursor.m_row_heap.get() == nullptr) {
-    cursor.m_row_heap.create(sizeof(mrec_buf_t) IF_DEBUG(, UT_LOCATION_HERE));
+    cursor.m_row_heap.create(sizeof(mrec_buf_t), UT_LOCATION_HERE);
 
     if (cursor.m_row_heap.get() == nullptr) {
       set_error(DB_OUT_OF_MEMORY);
@@ -1663,7 +1663,7 @@ dberr_t Builder::check_duplicates(Thread_ctxs &dupcheck, Dup *dup) noexcept {
 
   const auto n_compare = dict_index_get_n_unique_in_tree(m_index);
 
-  prev_tuple_heap.create(2048 IF_DEBUG(, UT_LOCATION_HERE));
+  prev_tuple_heap.create(2048, UT_LOCATION_HERE);
 
   while ((err = cursor.fetch(dtuple)) == DB_SUCCESS) {
     if (prev_dtuple != nullptr) {

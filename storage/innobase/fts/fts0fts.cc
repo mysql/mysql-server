@@ -3634,7 +3634,7 @@ static ulint fts_add_doc_by_id(fts_trx_table_t *ftt, doc_id_t doc_id,
     }
 
     offsets = rec_get_offsets(clust_rec, clust_index, nullptr, ULINT_UNDEFINED,
-                              &heap);
+                              UT_LOCATION_HERE, &heap);
 
     for (ulint i = 0; i < num_idx; ++i) {
       fts_doc_t doc;
@@ -3790,7 +3790,8 @@ doc_id_t fts_get_max_doc_id(dict_table_t *table) /*!< in: user table */
       goto func_exit;
     }
 
-    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
 
     data = rec_get_nth_field(nullptr, rec, offsets, 0, &len);
 
@@ -5189,7 +5190,8 @@ doc_id_t fts_get_doc_id_from_rec(dict_table_t *table, const rec_t *rec,
 
   rec_offs_init(offsets_);
 
-  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &my_heap);
+  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &my_heap);
 
   col_no = index->get_col_pos(table->fts->doc_col);
 

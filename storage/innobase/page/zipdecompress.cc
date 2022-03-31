@@ -493,7 +493,8 @@ static const byte *page_zip_apply_log(
       /* Clear the data bytes of the record. */
       mem_heap_t *heap = nullptr;
       ulint *offs;
-      offs = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+      offs = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                             UT_LOCATION_HERE, &heap);
       memset(rec, 0, rec_offs_data_size(offs));
 
       if (UNIV_LIKELY_NULL(heap)) {
@@ -672,7 +673,8 @@ static bool page_zip_decompress_node_ptrs(
     }
 
     /* Read the offsets. The status bits are needed here. */
-    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
 
     /* Non-leaf nodes should not have any externally
     stored columns. */
@@ -785,7 +787,8 @@ zlib_done:
   for (slot = 0; slot < n_dense; slot++) {
     rec_t *rec = recs[slot];
 
-    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
     /* Non-leaf nodes should not have any externally
     stored columns. */
     ut_ad(!rec_offs_any_extern(offsets));
@@ -1178,7 +1181,8 @@ static bool page_zip_decompress_clust(
     }
 
     /* Read the offsets. The status bits are needed here. */
-    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
 
     /* This is a leaf page in a clustered index. */
 
@@ -1332,7 +1336,8 @@ zlib_done:
     byte *dst;
     rec_t *rec = recs[slot];
     auto exists = !page_zip_dir_find_free(page_zip, page_offset(rec));
-    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
 
     dst = rec_get_nth_field(index, rec, offsets, trx_id_col, &len);
     ut_ad(len >= DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);

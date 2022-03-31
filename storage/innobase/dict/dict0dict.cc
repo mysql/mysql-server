@@ -2388,7 +2388,7 @@ static void dict_index_try_cache_rec_offsets(dict_index_t *index) {
       return;
     }
   }
-  /* inlined rec_get_offsets_func() and rec_init_offsets()'s fast-path without
+  /* inlined rec_get_offsets() and rec_init_offsets()'s fast-path without
   referencing rec follows: */
 
   const auto offsets_len = n_unique_in_tree + (1 + REC_OFFS_HEADER_SIZE);

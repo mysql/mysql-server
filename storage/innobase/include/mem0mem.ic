@@ -44,11 +44,6 @@ mem_block_t *mem_heap_create_block(mem_heap_t *heap, ulint n,
                                    IF_DEBUG(const char *file_name, ulint line, )
                                        ulint type);
 
-static inline mem_heap_t *mem_heap_create_at(
-    ulint N IF_DEBUG(, ut::Location loc)) {
-  return mem_heap_create_func(N, IF_DEBUG(loc, ) MEM_HEAP_DYNAMIC);
-}
-
 /** Frees a block from a memory heap. */
 void mem_heap_block_free(mem_heap_t *heap,    /*!< in: heap */
                          mem_block_t *block); /*!< in: block to free */
@@ -421,9 +416,9 @@ static inline void mem_heap_free_top(
   }
 }
 
-static inline mem_heap_t *mem_heap_create_func(ulint size,
-                                               IF_DEBUG(ut::Location loc, )
-                                                   ulint type) {
+static inline mem_heap_t *mem_heap_create(ulint size,
+                                          ut::Location loc [[maybe_unused]],
+                                          ulint type) {
   mem_block_t *block;
 
   if (!size) {

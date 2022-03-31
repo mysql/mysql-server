@@ -362,10 +362,9 @@ void rec_init_offsets(const rec_t *rec, const dict_index_t *index,
   }
 }
 
-ulint *rec_get_offsets_func(const rec_t *rec, const dict_index_t *index,
-                            ulint *offsets, ulint n_fields,
-                            IF_DEBUG(ut::Location location, )
-                                mem_heap_t **heap) {
+ulint *rec_get_offsets(const rec_t *rec, const dict_index_t *index,
+                       ulint *offsets, ulint n_fields, ut::Location location,
+                       mem_heap_t **heap) {
   ulint n;
 
   ut_ad(rec);
@@ -406,7 +405,7 @@ ulint *rec_get_offsets_func(const rec_t *rec, const dict_index_t *index,
   if (UNIV_UNLIKELY(!offsets) ||
       UNIV_UNLIKELY(rec_offs_get_n_alloc(offsets) < size)) {
     if (UNIV_UNLIKELY(!*heap)) {
-      *heap = mem_heap_create_at(size * sizeof(ulint) IF_DEBUG(, location));
+      *heap = mem_heap_create(size * sizeof(ulint), location);
     }
     offsets = static_cast<ulint *>(mem_heap_alloc(*heap, size * sizeof(ulint)));
 

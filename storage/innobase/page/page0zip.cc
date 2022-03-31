@@ -608,7 +608,8 @@ static int page_zip_compress_node_ptrs(
   do {
     const rec_t *rec = *recs++;
 
-    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
     /* Only leaf nodes may contain externally stored columns. */
     ut_ad(!rec_offs_any_extern(offsets));
 
@@ -823,7 +824,8 @@ static int page_zip_compress_clust(
   do {
     const rec_t *rec = *recs++;
 
-    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
     ut_ad(rec_offs_n_fields(offsets) == dict_index_get_n_fields(index));
     UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
     UNIV_MEM_ASSERT_RW(rec - rec_offs_extra_size(offsets),
@@ -1487,7 +1489,8 @@ bool page_zip_validate_low(
 
       if (index) {
         /* Compare the data. */
-        offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+        offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                                  UT_LOCATION_HERE, &heap);
 
         if (memcmp(rec - rec_offs_extra_size(offsets),
                    trec - rec_offs_extra_size(offsets),

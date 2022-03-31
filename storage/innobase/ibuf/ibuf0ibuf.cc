@@ -3557,7 +3557,8 @@ static void ibuf_insert_to_index_page(
     row_ins_sec_index_entry_by_modify(BTR_MODIFY_LEAF). */
     ut_ad(rec_get_deleted_flag(rec, page_is_comp(page)));
 
-    offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
     update = row_upd_build_sec_rec_difference_binary(rec, index, offsets, entry,
                                                      heap);
 
@@ -3728,7 +3729,8 @@ static void ibuf_delete(const dtuple_t *entry, /*!< in: entry */
 
     rec_offs_init(offsets_);
 
-    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
 
     if (page_get_n_recs(page) <= 1 ||
         !(REC_INFO_DELETED_FLAG & rec_get_info_bits(rec, page_is_comp(page)))) {

@@ -5327,7 +5327,7 @@ const char *dd_process_dd_tables_rec_and_mtr_commit(
   ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 
   ulint *offsets = rec_get_offsets(rec, dd_tables->first_index(), nullptr,
-                                   ULINT_UNDEFINED, &heap);
+                                   ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
 
   const dd::Object_table &dd_object_table = dd::get_dd_table<dd::Table>();
 
@@ -5398,7 +5398,7 @@ const char *dd_process_dd_partitions_rec_and_mtr_commit(
   ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_tables)));
 
   ulint *offsets = rec_get_offsets(rec, dd_tables->first_index(), nullptr,
-                                   ULINT_UNDEFINED, &heap);
+                                   ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
 
   const dd::Object_table &dd_object_table = dd::get_dd_table<dd::Partition>();
 
@@ -5475,7 +5475,7 @@ bool dd_process_dd_columns_rec(mem_heap_t *heap, const rec_t *rec,
   ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_columns)));
 
   ulint *offsets = rec_get_offsets(rec, dd_columns->first_index(), nullptr,
-                                   ULINT_UNDEFINED, &heap);
+                                   ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
 
   const dd::Object_table &dd_object_table = dd::get_dd_table<dd::Column>();
 
@@ -5629,7 +5629,7 @@ bool dd_process_dd_virtual_columns_rec(mem_heap_t *heap, const rec_t *rec,
   ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_columns)));
 
   ulint *offsets = rec_get_offsets(rec, dd_columns->first_index(), nullptr,
-                                   ULINT_UNDEFINED, &heap);
+                                   ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
 
   const dd::Object_table &dd_object_table = dd::get_dd_table<dd::Column>();
 
@@ -5753,7 +5753,7 @@ bool dd_process_dd_indexes_rec(mem_heap_t *heap, const rec_t *rec,
   ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_indexes)));
 
   ulint *offsets = rec_get_offsets(rec, dd_indexes->first_index(), nullptr,
-                                   ULINT_UNDEFINED, &heap);
+                                   ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
 
   const dd::Object_table &dd_object_table = dd::get_dd_table<dd::Index>();
 
@@ -5904,7 +5904,7 @@ bool dd_process_dd_indexes_rec_simple(mem_heap_t *heap, const rec_t *rec,
   ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_indexes)));
 
   ulint *offsets = rec_get_offsets(rec, dd_indexes->first_index(), nullptr,
-                                   ULINT_UNDEFINED, &heap);
+                                   ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
 
   const dd::Object_table &dd_object_table = dd::get_dd_table<dd::Index>();
 
@@ -5971,7 +5971,7 @@ bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
   ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_spaces)));
 
   ulint *offsets = rec_get_offsets(rec, dd_spaces->first_index(), nullptr,
-                                   ULINT_UNDEFINED, &heap);
+                                   ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
 
   const dd::Object_table &dd_object_table = dd::get_dd_table<dd::Tablespace>();
 

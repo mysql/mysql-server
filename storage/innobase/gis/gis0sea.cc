@@ -483,7 +483,8 @@ static bool rtr_compare_cursor_rec(
 
   rec = btr_cur_get_rec(cursor);
 
-  offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, heap);
+  offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, heap);
 
   return (btr_node_ptr_get_child_page_no(rec, offsets) == page_no);
 }
@@ -616,7 +617,8 @@ static ulint *rtr_page_get_father_node_ptr(
   user_rec = btr_cur_get_rec(cursor);
   ut_a(page_rec_is_user_rec(user_rec));
 
-  offsets = rec_get_offsets(user_rec, index, offsets, ULINT_UNDEFINED, &heap);
+  offsets = rec_get_offsets(user_rec, index, offsets, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &heap);
   rtr_get_mbr_from_rec(user_rec, offsets, &mbr);
 
   tuple = rtr_index_build_node_ptr(index, &mbr, user_rec, page_no, heap);
@@ -630,7 +632,8 @@ static ulint *rtr_page_get_father_node_ptr(
   node_ptr = btr_cur_get_rec(cursor);
   ut_ad(!page_rec_is_comp(node_ptr) ||
         rec_get_status(node_ptr) == REC_STATUS_NODE_PTR);
-  offsets = rec_get_offsets(node_ptr, index, offsets, ULINT_UNDEFINED, &heap);
+  offsets = rec_get_offsets(node_ptr, index, offsets, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &heap);
 
   page_no_t child_page = btr_node_ptr_get_child_page_no(node_ptr, offsets);
 
@@ -644,12 +647,13 @@ static ulint *rtr_page_get_father_node_ptr(
           << child_page;
 
     print_rec = page_rec_get_next(page_get_infimum_rec(page_align(user_rec)));
-    offsets =
-        rec_get_offsets(print_rec, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(print_rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
     error << "; child ";
     rec_print(error.m_oss, print_rec,
               rec_get_info_bits(print_rec, rec_offs_comp(offsets)), offsets);
-    offsets = rec_get_offsets(node_ptr, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(node_ptr, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
     error << "; parent ";
     rec_print(error.m_oss, print_rec,
               rec_get_info_bits(print_rec, rec_offs_comp(offsets)), offsets);
@@ -1167,10 +1171,11 @@ static bool rtr_cur_restore_position(
       rec = r_cursor->get_rec();
 
       heap = mem_heap_create(256, UT_LOCATION_HERE);
-      offsets1 = rec_get_offsets(r_cursor->m_old_rec, index, nullptr,
-                                 r_cursor->m_old_n_fields, &heap);
-      offsets2 =
-          rec_get_offsets(rec, index, nullptr, r_cursor->m_old_n_fields, &heap);
+      offsets1 =
+          rec_get_offsets(r_cursor->m_old_rec, index, nullptr,
+                          r_cursor->m_old_n_fields, UT_LOCATION_HERE, &heap);
+      offsets2 = rec_get_offsets(rec, index, nullptr, r_cursor->m_old_n_fields,
+                                 UT_LOCATION_HERE, &heap);
 
       comp = rec_offs_comp(offsets1);
 
@@ -1233,10 +1238,11 @@ search_again:
 
     rec = r_cursor->get_rec();
 
-    offsets1 = rec_get_offsets(r_cursor->m_old_rec, index, nullptr,
-                               r_cursor->m_old_n_fields, &heap);
-    offsets2 =
-        rec_get_offsets(rec, index, nullptr, r_cursor->m_old_n_fields, &heap);
+    offsets1 =
+        rec_get_offsets(r_cursor->m_old_rec, index, nullptr,
+                        r_cursor->m_old_n_fields, UT_LOCATION_HERE, &heap);
+    offsets2 = rec_get_offsets(rec, index, nullptr, r_cursor->m_old_n_fields,
+                               UT_LOCATION_HERE, &heap);
 
     comp = rec_offs_comp(offsets1);
 
@@ -1527,8 +1533,9 @@ bool rtr_cur_search_with_match(const buf_block_t *block, dict_index_t *index,
   if (mode == PAGE_CUR_RTREE_INSERT && !page_rec_is_supremum(rec)) {
     ulint new_rec_size = rec_get_converted_size(index, tuple);
 
-    offsets = rec_get_offsets(rec, index, offsets,
-                              dtuple_get_n_fields_cmp(tuple), &heap);
+    offsets =
+        rec_get_offsets(rec, index, offsets, dtuple_get_n_fields_cmp(tuple),
+                        UT_LOCATION_HERE, &heap);
 
     if (rec_offs_size(offsets) < new_rec_size) {
       first_rec = rec;
@@ -1546,8 +1553,9 @@ bool rtr_cur_search_with_match(const buf_block_t *block, dict_index_t *index,
   }
 
   while (!page_rec_is_supremum(rec)) {
-    offsets = rec_get_offsets(rec, index, offsets,
-                              dtuple_get_n_fields_cmp(tuple), &heap);
+    offsets =
+        rec_get_offsets(rec, index, offsets, dtuple_get_n_fields_cmp(tuple),
+                        UT_LOCATION_HERE, &heap);
     if (!is_leaf) {
       switch (mode) {
         case PAGE_CUR_CONTAIN:
@@ -1634,8 +1642,8 @@ bool rtr_cur_search_with_match(const buf_block_t *block, dict_index_t *index,
           is_loc = (orig_mode == PAGE_CUR_RTREE_LOCATE ||
                     orig_mode == PAGE_CUR_RTREE_GET_FATHER);
 
-          offsets =
-              rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+          offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                                    UT_LOCATION_HERE, &heap);
 
           page_no = btr_node_ptr_get_child_page_no(rec, offsets);
 
@@ -1667,8 +1675,8 @@ bool rtr_cur_search_with_match(const buf_block_t *block, dict_index_t *index,
           }
 
           /* Collect matched records on page */
-          offsets =
-              rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+          offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                                    UT_LOCATION_HERE, &heap);
           rtr_leaf_push_match_rec(rec, rtr_info, offsets, page_is_comp(page));
         }
 
@@ -1696,8 +1704,8 @@ bool rtr_cur_search_with_match(const buf_block_t *block, dict_index_t *index,
         if (mode == PAGE_CUR_RTREE_INSERT) {
           page_no_t child_no;
           ut_ad(least_inc < DBL_MAX);
-          offsets =
-              rec_get_offsets(best_rec, index, offsets, ULINT_UNDEFINED, &heap);
+          offsets = rec_get_offsets(best_rec, index, offsets, ULINT_UNDEFINED,
+                                    UT_LOCATION_HERE, &heap);
           child_no = btr_node_ptr_get_child_page_no(best_rec, offsets);
 
           rtr_non_leaf_insert_stack_push(index, rtr_info->parent_path, level,
@@ -1742,10 +1750,10 @@ bool rtr_cur_search_with_match(const buf_block_t *block, dict_index_t *index,
       /* Verify the record to be positioned is the same
       as the last record in matched_rec vector */
       offsets2 = rec_get_offsets(test_rec.r_rec, index, offsets2,
-                                 ULINT_UNDEFINED, &heap);
+                                 ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
 
       offsets = rec_get_offsets(last_match_rec, index, offsets, ULINT_UNDEFINED,
-                                &heap);
+                                UT_LOCATION_HERE, &heap);
 
       ut_ad(cmp_rec_rec(test_rec.r_rec, last_match_rec, offsets2, offsets,
                         index, false) == 0);
@@ -1759,7 +1767,8 @@ bool rtr_cur_search_with_match(const buf_block_t *block, dict_index_t *index,
       page_no_t child_no;
       ut_ad(!last_match_rec && rec);
 
-      offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+      offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                                UT_LOCATION_HERE, &heap);
 
       child_no = btr_node_ptr_get_child_page_no(rec, offsets);
 
@@ -1780,7 +1789,8 @@ bool rtr_cur_search_with_match(const buf_block_t *block, dict_index_t *index,
       mode != PAGE_CUR_RTREE_INSERT) {
     page_no_t page_no;
 
-    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
     page_no = btr_node_ptr_get_child_page_no(rec, offsets);
 
     if (rtr_info && found) {

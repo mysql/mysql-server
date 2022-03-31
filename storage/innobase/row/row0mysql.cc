@@ -1285,7 +1285,7 @@ static dberr_t row_explicit_rollback(dict_index_t *index, const dtuple_t *entry,
                                             &cursor, __FILE__, __LINE__, mtr);
 
   offsets = rec_get_offsets(btr_cur_get_rec(&cursor), index, offsets_,
-                            ULINT_UNDEFINED, &heap);
+                            ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
 
   if (index->is_clustered()) {
     err = btr_cur_del_mark_set_clust_rec(flags, btr_cur_get_block(&cursor),
@@ -1930,7 +1930,8 @@ static dberr_t row_update_inplace_for_intrinsic(const upd_node_t *node) {
   ut_ad(!page_rec_is_infimum(rec));
   ut_ad(!page_rec_is_supremum(rec));
 
-  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &heap);
 
   ut_ad(!cmp_dtuple_rec(entry, rec, index, offsets));
   ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(index->table)));
@@ -1994,8 +1995,9 @@ static dberr_t row_delete_for_mysql_using_cursor(const upd_node_t *node,
     ulint *offsets = offsets_;
     rec_offs_init(offsets_);
 
-    offsets = rec_get_offsets(btr_cur_get_rec(pcur.get_btr_cur()), index,
-                              offsets, ULINT_UNDEFINED, &heap);
+    offsets =
+        rec_get_offsets(btr_cur_get_rec(pcur.get_btr_cur()), index, offsets,
+                        ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
 
     ut_ad(!cmp_dtuple_rec(entry, btr_cur_get_rec(pcur.get_btr_cur()), index,
                           offsets));
@@ -4445,7 +4447,8 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
 
     auto prev_tuple = prev_tuples[id];
 
-    auto offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, &heap);
+    auto offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED,
+                                   UT_LOCATION_HERE, &heap);
 
     if (prev_tuple != nullptr) {
       ulint matched_fields = 0;
@@ -4489,7 +4492,8 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
 
     if (prev_blocks[id] != block || prev_blocks[id] == nullptr) {
       mem_heap_empty(heap);
-      offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, &heap);
+      offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED,
+                                UT_LOCATION_HERE, &heap);
 
       prev_blocks[id] = block;
     }
@@ -4667,7 +4671,8 @@ loop:
 
   rec = buf + mach_read_from_4(buf);
 
-  offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED, &heap);
+  offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &heap);
 
   if (prev_entry != nullptr) {
     matched_fields = 0;
