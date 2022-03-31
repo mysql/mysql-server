@@ -1662,6 +1662,7 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
       /* We did not request buffering. */
       break;
     case BTR_CUR_HASH:
+    case BTR_CUR_HASH_NOT_ATTEMPTED:
     case BTR_CUR_HASH_FAIL:
     case BTR_CUR_BINARY:
       goto flag_ok;
@@ -1836,6 +1837,7 @@ flag_ok:
       /* We did not request buffering. */
       break;
     case BTR_CUR_HASH:
+    case BTR_CUR_HASH_NOT_ATTEMPTED:
     case BTR_CUR_HASH_FAIL:
     case BTR_CUR_BINARY:
       goto flag_ok;
@@ -2057,6 +2059,7 @@ flag_ok:
     case BTR_CUR_INSERT_TO_IBUF:
       ut_d(ut_error); /* We did not request buffering. */
     case BTR_CUR_HASH:
+    case BTR_CUR_HASH_NOT_ATTEMPTED:
     case BTR_CUR_HASH_FAIL:
     case BTR_CUR_BINARY:
       break;

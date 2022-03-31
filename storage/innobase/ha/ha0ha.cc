@@ -257,13 +257,8 @@ bool ha_search_and_update_if_found_func(hash_table_t *table, ulint fold,
   return false;
 }
 
-/** Removes from the chain determined by fold all nodes whose data pointer
- points to the page given.
-@param[in] table Hash table
-@param[in] fold Fold value
-@param[in] page Buffer page */
-void ha_remove_all_nodes_to_page(hash_table_t *table, ulint fold,
-                                 const page_t *page) {
+void ha_remove_a_node_to_page(hash_table_t *table, ulint fold,
+                              const page_t *page) {
   ha_node_t *node;
 
   ut_ad(table);
@@ -275,30 +270,16 @@ void ha_remove_all_nodes_to_page(hash_table_t *table, ulint fold,
 
   while (node) {
     if (page_align(ha_node_get_data(node)) == page) {
-      /* Remove the hash node */
+      /* Remove the hash node. It may be a node with a different fold, but we
+      don't care about it - we delete any entry in this chain for the
+      specified page. */
 
       ha_delete_hash_node(table, node);
-
-      /* Start again from the first node in the chain
-      because the deletion may compact the heap of
-      nodes and move other nodes! */
-
-      node = ha_chain_get_first(table, fold);
+      break;
     } else {
       node = ha_chain_get_next(node);
     }
   }
-#ifdef UNIV_DEBUG
-  /* Check that all nodes really got deleted */
-
-  node = ha_chain_get_first(table, fold);
-
-  while (node) {
-    ut_a(page_align(ha_node_get_data(node)) != page);
-
-    node = ha_chain_get_next(node);
-  }
-#endif /* UNIV_DEBUG */
 }
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
@@ -381,7 +362,7 @@ builds, see http://bugs.mysql.com/36941 */
 
     n_bufs = UT_LIST_GET_LEN(table->heap->base) - 1;
 
-    if (table->heap->free_block) {
+    if (table->heap->free_block.load()) {
       n_bufs++;
     }
 

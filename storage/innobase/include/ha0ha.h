@@ -117,7 +117,7 @@ is inserted.
 static inline void ha_insert_for_fold(hash_table_t *t, ulint f, buf_block_t *b,
                                       const rec_t *d) {
   ha_insert_for_fold_func(t, f, IF_AHI_DEBUG(b, ) d);
-  MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_ADDED);
+  MONITOR_ATOMIC_INC(MONITOR_ADAPTIVE_HASH_ROW_ADDED);
 }
 
 /** Looks for an element when we know the pointer to the data and deletes it
@@ -131,13 +131,14 @@ static inline bool ha_search_and_delete_if_found(hash_table_t *table,
 
 #ifndef UNIV_HOTBACKUP
 
-/** Removes from the chain determined by fold all nodes whose data pointer
- points to the page given.
+/** Removes from the chain determined by fold a single node whose data pointer
+points to the page given. Note that the node deleted can have a different fold
+value.
 @param[in] table Hash table
 @param[in] fold Fold value
 @param[in] page Buffer page */
-void ha_remove_all_nodes_to_page(hash_table_t *table, ulint fold,
-                                 const page_t *page);
+void ha_remove_a_node_to_page(hash_table_t *table, ulint fold,
+                              const page_t *page);
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /** Validates a given range of the cells in hash table.

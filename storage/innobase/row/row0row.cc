@@ -966,6 +966,7 @@ enum row_search_result row_search_index_entry(
       return (ROW_BUFFERED);
 
     case BTR_CUR_HASH:
+    case BTR_CUR_HASH_NOT_ATTEMPTED:
     case BTR_CUR_HASH_FAIL:
     case BTR_CUR_BINARY:
       break;

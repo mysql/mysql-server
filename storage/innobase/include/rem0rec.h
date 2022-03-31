@@ -308,13 +308,15 @@ class Rec_offsets : private ut::Non_copyable {
   instance. You can use its value as long as this object does not go out of
   scope (which can free the buffer), and you don't call compute() again (which
   can overwrite the offsets).
-  @param[in]  rec   The record for which you want to compute the offsets
-  @param[in]  index The index which contains the record
+  @param[in]  rec      The record for which you want to compute the offsets
+  @param[in]  index    The index which contains the record
+  @param[in]  n_fields Number of columns to scan
   @return A pointer to offsets array owned by this instance. Valid till next
   call to compute() or end of this instance lifetime.
   */
-  const ulint *compute(const rec_t *rec, const dict_index_t *index) {
-    m_offsets = rec_get_offsets(rec, index, m_offsets, ULINT_UNDEFINED,
+  const ulint *compute(const rec_t *rec, const dict_index_t *index,
+                       const ulint n_fields = ULINT_UNDEFINED) {
+    m_offsets = rec_get_offsets(rec, index, m_offsets, n_fields,
                                 UT_LOCATION_HERE, &m_heap);
     return m_offsets;
   }

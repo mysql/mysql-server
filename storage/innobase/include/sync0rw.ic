@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -514,7 +514,7 @@ static inline void pfs_rw_lock_x_lock_func(rw_lock_t *lock, ulint pass,
  NOTE! Please use the corresponding macro rw_lock_x_lock_func(),
  not directly this function!
  @return true if success */
-static inline bool pfs_rw_lock_x_lock_func_nowait(
+[[nodiscard]] static inline bool pfs_rw_lock_x_lock_func_nowait(
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     ut::Location location) /*!< in: line where requested */
 {
@@ -622,8 +622,9 @@ static inline void pfs_rw_lock_sx_lock_func(rw_lock_t *lock, ulint pass,
 
   rw_lock_sx_lock_func(lock, pass, location);
 }
-static inline bool pfs_rw_lock_s_lock_low(rw_lock_t *lock, ulint pass,
-                                          ut::Location location) {
+[[nodiscard]] static inline bool pfs_rw_lock_s_lock_low(rw_lock_t *lock,
+                                                        ulint pass,
+                                                        ut::Location location) {
   bool ret;
 
   if (lock->pfs_psi != nullptr) {
@@ -658,8 +659,8 @@ static inline bool pfs_rw_lock_s_lock_low(rw_lock_t *lock, ulint pass,
  to unlock
  @param[in] location location where requested
  @return true if success */
-static inline bool pfs_rw_lock_sx_lock_low(rw_lock_t *lock, ulint pass,
-                                           ut::Location location) {
+[[nodiscard]] static inline bool pfs_rw_lock_sx_lock_low(
+    rw_lock_t *lock, ulint pass, ut::Location location) {
   bool ret;
 
   if (lock->pfs_psi != nullptr) {
