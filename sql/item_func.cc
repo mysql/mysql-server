@@ -1442,8 +1442,12 @@ bool Item_func_connection_id::resolve_type(THD *thd) {
 bool Item_func_connection_id::fix_fields(THD *thd, Item **ref) {
   if (Item_int_func::fix_fields(thd, ref)) return true;
   thd->thread_specific_used = true;
-  value = thd->variables.pseudo_thread_id;
   return false;
+}
+
+longlong Item_func_connection_id::val_int() {
+  assert(fixed);
+  return current_thd->variables.pseudo_thread_id;
 }
 
 /**

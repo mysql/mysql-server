@@ -955,19 +955,17 @@ class Item_int_func : public Item_func {
 class Item_func_connection_id final : public Item_int_func {
   typedef Item_int_func super;
 
-  longlong value;
-
  public:
   Item_func_connection_id(const POS &pos) : Item_int_func(pos) {}
 
+  table_map get_initial_pseudo_tables() const override {
+    return INNER_TABLE_BIT;
+  }
   bool itemize(Parse_context *pc, Item **res) override;
   const char *func_name() const override { return "connection_id"; }
   bool resolve_type(THD *thd) override;
   bool fix_fields(THD *thd, Item **ref) override;
-  longlong val_int() override {
-    assert(fixed);
-    return value;
-  }
+  longlong val_int() override;
   bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(
