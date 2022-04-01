@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -48,9 +48,9 @@
 // For instrumented code: Always use malloc(); never reuse a chunk.
 // This gives a lot more memory chunks, each with a red-zone around them.
 #if defined(HAVE_VALGRIND) || defined(HAVE_ASAN)
-#define MEM_ROOT_SINGLE_CHUNKS 1
+static constexpr bool MEM_ROOT_SINGLE_CHUNKS = true;
 #else
-#define MEM_ROOT_SINGLE_CHUNKS 0
+static constexpr bool MEM_ROOT_SINGLE_CHUNKS = false;
 #endif
 
 MEM_ROOT::Block *MEM_ROOT::AllocBlock(size_t wanted_length,
@@ -96,7 +96,9 @@ MEM_ROOT::Block *MEM_ROOT::AllocBlock(size_t wanted_length,
 
   // Make the default block size 50% larger next time.
   // This ensures O(1) total mallocs (assuming Clear() is not called).
-  m_block_size += m_block_size / 2;
+  if (!MEM_ROOT_SINGLE_CHUNKS) {
+    m_block_size += m_block_size / 2;
+  }
   return new_block;
 }
 
@@ -146,6 +148,9 @@ void *MEM_ROOT::AllocSlow(size_t length) {
 }
 
 bool MEM_ROOT::ForceNewBlock(size_t minimum_length) {
+  if (MEM_ROOT_SINGLE_CHUNKS) {
+    assert(m_block_size == m_orig_block_size);
+  }
   Block *new_block = AllocBlock(/*wanted_length=*/ALIGN_SIZE(m_block_size),
                                 minimum_length);  // Will modify block_size.
   if (new_block == nullptr) return true;
