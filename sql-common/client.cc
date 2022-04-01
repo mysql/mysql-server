@@ -4943,6 +4943,14 @@ static bool prep_client_reply_packet(MCPVIO_EXT *mpvio, const uchar *data,
                                      int *buff_len) {
   DBUG_TRACE;
   MYSQL *mysql = mpvio->mysql;
+  // Simulate mismatching ssl_charset_code number in handshake response
+  // In order to have different, but valid number using  my_charset_* objects
+  DBUG_EXECUTE_IF("simulate_bad_ssl_charset_code", {
+    if (mysql->charset->number != my_charset_bin.number)
+      mysql->charset->number = my_charset_bin.number;
+    else
+      mysql->charset->number = my_charset_latin1.number;
+  });
   char *buff, *end;
   size_t buff_size;
   size_t connect_attrs_len =

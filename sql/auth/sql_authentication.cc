@@ -2806,9 +2806,7 @@ skip_to_ssl:
   */
   if (protocol->has_client_capability(CLIENT_SSL)) {
     unsigned long errptr;
-#if !defined(NDEBUG)
     uint ssl_charset_code = 0;
-#endif
 
     /*
       We need to make sure that reference count for
@@ -2855,11 +2853,9 @@ skip_to_ssl:
     if (protocol->has_client_capability(CLIENT_PROTOCOL_41)) {
       packet_has_required_size =
           bytes_remaining_in_packet >= AUTH_PACKET_HEADER_SIZE_PROTO_41;
-#if !defined(NDEBUG)
       ssl_charset_code =
           (uint)(uchar) * ((char *)protocol->get_net()->read_pos + 8);
       DBUG_PRINT("info", ("client_character_set: %u", ssl_charset_code));
-#endif
       end = (char *)protocol->get_net()->read_pos +
             AUTH_PACKET_HEADER_SIZE_PROTO_41;
       bytes_remaining_in_packet -= AUTH_PACKET_HEADER_SIZE_PROTO_41;
@@ -2869,16 +2865,15 @@ skip_to_ssl:
       end = (char *)protocol->get_net()->read_pos +
             AUTH_PACKET_HEADER_SIZE_PROTO_40;
       bytes_remaining_in_packet -= AUTH_PACKET_HEADER_SIZE_PROTO_40;
-#if !defined(NDEBUG)
       /**
         Old clients didn't have their own charset. Instead the assumption
         was that they used what ever the server used.
       */
       ssl_charset_code = global_system_variables.character_set_client->number;
-#endif
     }
-    assert(charset_code == ssl_charset_code);
-    if (!packet_has_required_size) return packet_error;
+
+    if (charset_code != ssl_charset_code || !packet_has_required_size)
+      return packet_error;
   }
 
   DBUG_PRINT("info", ("client_character_set: %u", charset_code));
