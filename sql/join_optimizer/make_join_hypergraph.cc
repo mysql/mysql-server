@@ -2109,6 +2109,14 @@ void MakeHashJoinConditions(THD *thd, RelationalExpression *expr) {
       extra_conditions.push_back(item);
     }
 
+    // Put potentially expensive functions last: First everything normal,
+    // then subqueries (which can be expensive), then stored procedures
+    // (which are unknown, so potentially _very_ expensive).
+    std::stable_partition(extra_conditions.begin(), extra_conditions.end(),
+                          [](Item *item) { return !item->has_subquery(); });
+    std::stable_partition(extra_conditions.begin(), extra_conditions.end(),
+                          [](Item *item) { return !item->is_expensive(); });
+
     expr->join_conditions = std::move(extra_conditions);
   }
   MakeHashJoinConditions(thd, expr->left);
@@ -2147,8 +2155,6 @@ void CSEConditions(THD *thd, Mem_root_array<Item *> *conditions) {
 
 /**
   Do some constant conversion/folding work needed for correctness.
-  We also move more expensive functions last in the conjunction,
-  as a heuristic so that they are less likely to be evaluated.
  */
 bool EarlyNormalizeConditions(THD *thd, Mem_root_array<Item *> *conditions) {
   CSEConditions(thd, conditions);
@@ -2168,14 +2174,6 @@ bool EarlyNormalizeConditions(THD *thd, Mem_root_array<Item *> *conditions) {
       ++it;
     }
   }
-
-  // Put potentially expensive functions last: First everything normal,
-  // then subqueries (which can be expensive), then stored procedures
-  // (which are unknown, so potentially _very_ expensive).
-  std::stable_partition(conditions->begin(), conditions->end(),
-                        [](Item *item) { return !item->has_subquery(); });
-  std::stable_partition(conditions->begin(), conditions->end(),
-                        [](Item *item) { return !item->is_expensive(); });
 
   return false;
 }
@@ -2625,6 +2623,31 @@ size_t EstimateRowWidthForJoin(const JoinHypergraph &graph,
 }
 
 /**
+  Sorts the given range of predicates so that the most selective and least
+  expensive predicates come first, and the less selective and more expensive
+  ones come last.
+ */
+void SortPredicates(Predicate *begin, Predicate *end) {
+  // Move the most selective predicates first.
+  std::stable_sort(begin, end, [](const Predicate &p1, const Predicate &p2) {
+    return p1.selectivity < p2.selectivity;
+  });
+
+  // If the predicates contain subqueries, move them towards the end, regardless
+  // of their selectivity, since they could be expensive to evaluate. We could
+  // refine this by looking at the estimated cost of the contained subqueries.
+  std::stable_partition(begin, end, [](const Predicate &pred) {
+    return !pred.condition->has_subquery();
+  });
+
+  // UDFs and stored procedures have unknown and potentially very high cost.
+  // Move them last.
+  std::stable_partition(begin, end, [](const Predicate &pred) {
+    return !pred.condition->is_expensive();
+  });
+}
+
+/**
   Add the given predicate to the list of WHERE predicates, doing some
   bookkeeping that such predicates need.
  */
@@ -2898,6 +2921,8 @@ void PromoteCycleJoinPredicates(
                    root, graph, trace);
     }
     expr->join_predicate_last = graph->predicates.size();
+    SortPredicates(graph->predicates.begin() + expr->join_predicate_first,
+                   graph->predicates.begin() + expr->join_predicate_last);
   }
 }
 
@@ -3313,6 +3338,10 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
 
 #endif
 
+  // The predicates added so far are join conditions that have been promoted to
+  // WHERE predicates by PromoteCycleJoinPredicates().
+  const size_t num_cycle_predicates = graph->predicates.size();
+
   // Find TES and selectivity for each WHERE predicate that was not pushed
   // down earlier.
   for (Item *condition : where_conditions) {
@@ -3342,6 +3371,15 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
       return true;
     }
   }
+
+  // Sort the predicates so that filters created from them later automatically
+  // evaluate the most selective and least expensive predicates first. Don't
+  // touch the join (cycle) predicates at the beginning, as they are already
+  // sorted, and reordering them would make the join_predicate_first and
+  // join_predicate_last pointers in the corresponding RelationalExpression
+  // incorrect.
+  SortPredicates(graph->predicates.begin() + num_cycle_predicates,
+                 graph->predicates.end());
 
   graph->num_where_predicates = graph->predicates.size();
 

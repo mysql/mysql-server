@@ -96,6 +96,8 @@ using namespace std::literals;  // For operator""sv.
 static Query_block *ParseAndResolve(
     const char *query, bool nullable, const Server_initializer &initializer,
     unordered_map<string, Fake_TABLE *> *fake_tables);
+static void ResolveQueryBlock(THD *thd, Query_block *query_block, bool nullable,
+                              unordered_map<string, Fake_TABLE *> *fake_tables);
 static void ResolveFieldToFakeTable(
     Item *item, const unordered_map<string, Fake_TABLE *> &fake_tables);
 static void ResolveAllFieldsToFakeTable(
@@ -155,7 +157,16 @@ static Query_block *ParseAndResolve(
     const char *query, bool nullable, const Server_initializer &initializer,
     unordered_map<string, Fake_TABLE *> *fake_tables) {
   Query_block *query_block = ::parse(&initializer, query, 0);
-  THD *thd = initializer.thd();
+  ResolveQueryBlock(initializer.thd(), query_block, nullable, fake_tables);
+  return query_block;
+}
+
+static void ResolveQueryBlock(
+    THD *thd, Query_block *query_block, bool nullable,
+    unordered_map<string, Fake_TABLE *> *fake_tables) {
+  Query_block *const saved_current_query_block =
+      thd->lex->current_query_block();
+  thd->lex->set_current_query_block(query_block);
 
   // The hypergraph optimizer does not do const tables,
   // nor does it evaluate subqueries during optimization.
@@ -194,7 +205,9 @@ static Query_block *ParseAndResolve(
   // Also in any conditions and subqueries within the WHERE condition.
   if (query_block->where_cond() != nullptr) {
     WalkItem(query_block->where_cond(), enum_walk::POSTFIX, [&](Item *item) {
-      if (item->type() == Item::SUBSELECT_ITEM) {
+      if (item->type() == Item::SUBSELECT_ITEM &&
+          down_cast<Item_subselect *>(item)->substype() ==
+              Item_subselect::IN_SUBS) {
         Item_in_subselect *item_subselect =
             down_cast<Item_in_subselect *>(item);
         ResolveFieldToFakeTable(item_subselect->left_expr, *fake_tables);
@@ -254,7 +267,7 @@ static Query_block *ParseAndResolve(
         query_block->select_limit->val_int();
   }
 
-  return query_block;
+  thd->lex->set_current_query_block(saved_current_query_block);
 }
 
 static void ResolveFieldToFakeTable(
@@ -2307,6 +2320,93 @@ TEST_F(HypergraphOptimizerTest, InsertCastsInSelectExpressions) {
             ItemToString((*query_block->join->fields)[0]));
 }
 
+// Test that we evaluate the most selective and least expensive WHERE predicates
+// before the less selective and more expensive ones.
+TEST_F(HypergraphOptimizerTest, OrderingOfWherePredicates) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 WHERE "
+      "t1.x <> 10 AND t1.y = 123 AND "
+      "t1.z >= ALL (SELECT t2.x FROM t2) AND "
+      "t1.x + t1.y = t1.z + t1.w AND "
+      "t1.w = (SELECT MAX(t3.x) FROM t3) AND "
+      "t1.x > t1.z",
+      /*nullable=*/true);
+  ASSERT_NE(nullptr, query_block);
+
+  // Resolve the subqueries too.
+  for (Query_expression *expr = query_block->first_inner_query_expression();
+       expr != nullptr; expr = expr->next_query_expression()) {
+    Query_block *subquery = expr->first_query_block();
+    ResolveQueryBlock(m_thd, subquery, /*nullable=*/true, &m_fake_tables);
+    string trace;
+    AccessPath *subquery_path =
+        FindBestQueryPlanAndFinalize(m_thd, subquery, &trace);
+    SCOPED_TRACE(trace);  // Prints out the trace on failure.
+    ASSERT_NE(nullptr, subquery_path);
+  }
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::FILTER, root->type);
+  EXPECT_EQ(
+      // First the simple predicates, sorted by selectivity.
+      "((t1.y = 123) and (t1.x > t1.z) and (t1.x <> 10) and "
+      "((t1.x + t1.y) = (t1.z + t1.w)) and "
+      // Then the predicates which contain subqueries.
+      "<not>((t1.z < <max>(select #2))) and (t1.w = (select #3)))",
+      ItemToString(root->filter().condition));
+}
+
+TEST_F(HypergraphOptimizerTest, OrderingOfJoinPredicates) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2 WHERE "
+      "t1.x > t2.x AND t1.y = t2.y AND "
+      "t1.z + t2.z = (SELECT MAX(t3.x) FROM t3) AND "
+      "t1.w < t2.w",
+      /*nullable=*/true);
+  ASSERT_NE(nullptr, query_block);
+
+  // Resolve the subquery too.
+  {
+    Query_block *subquery =
+        query_block->first_inner_query_expression()->first_query_block();
+    ResolveQueryBlock(m_thd, subquery, /*nullable=*/true, &m_fake_tables);
+    string trace;
+    AccessPath *subquery_path =
+        FindBestQueryPlanAndFinalize(m_thd, subquery, &trace);
+    SCOPED_TRACE(trace);  // Prints out the trace on failure.
+    ASSERT_NE(nullptr, subquery_path);
+  }
+
+  // Use small tables so that a nested loop join is preferred.
+  m_fake_tables["t1"]->file->stats.records = 1;
+  m_fake_tables["t2"]->file->stats.records = 1;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
+  ASSERT_EQ(AccessPath::FILTER, root->nested_loop_join().inner->type);
+
+  // Expect the equijoin conditions to be evaluated before the non-equijoin
+  // conditions. Conditions with subqueries should be evaluated last.
+  EXPECT_EQ(
+      "((t1.y = t2.y) and (t1.x > t2.x) and (t1.w < t2.w) and "
+      "((t1.z + t2.z) = (select #2)))",
+      ItemToString(root->nested_loop_join().inner->filter().condition));
+}
+
 static string PrintSargablePredicate(const SargablePredicate &sp,
                                      const JoinHypergraph &graph) {
   return StringPrintf(
@@ -4001,7 +4101,7 @@ TEST_F(HypergraphOptimizerTest, ComplexMultipartRangeScan) {
   // scan (it gets truncated to just t1.x < 3 for the range), and thus,
   // t1.y >= 15 should also not be subsumed.
   ASSERT_EQ(AccessPath::FILTER, root->type);
-  EXPECT_EQ("((sqrt(t1.x) > 3) and (t1.y >= 15))",
+  EXPECT_EQ("((t1.y >= 15) and (sqrt(t1.x) > 3))",
             ItemToString(root->filter().condition));
 
   AccessPath *range_scan = root->filter().child;

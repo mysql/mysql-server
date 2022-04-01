@@ -894,7 +894,7 @@ const Item_field *Item_func::contributes_to_filter(
   assert(functype() != MULT_EQUAL_FUNC);
 
   /*
-    To contribute to filering effect, the condition must refer to
+    To contribute to filtering effect, the condition must refer to
     exactly one unread table: the table filtering is currently
     calculated for.
   */
