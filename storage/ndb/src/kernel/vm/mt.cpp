@@ -57,6 +57,7 @@
 #include "ThreadConfig.hpp"
 #include <signaldata/StartOrd.hpp>
 
+#include <Bitmask.hpp>
 #include <NdbTick.h>
 #include <NdbMutex.h>
 #include <NdbCondition.h>
@@ -1521,6 +1522,9 @@ struct alignas(NDB_CL) thr_data
 
   /* Thread-local read state of prio B buffer(s). */
   struct thr_jb_read_state m_jbb_read_state[NUM_JOB_BUFFERS_PER_THREAD];
+
+  /* Bitmask of thr_jb_read_state[] having data to read. */
+  Bitmask<(NUM_JOB_BUFFERS_PER_THREAD + 31)/32> m_jbb_read_mask;
 
   /**
    * Threads might need a wakeup() to be signalled before it can yield.
@@ -6322,6 +6326,16 @@ insert_prioa_signal(thr_job_queue *q,
 #define debug_load_indicator(x)
 #endif
 
+/**
+ * Check all incomming m_jbb[] instances for available signals.
+ * Set up the thread-local m_jbb_read_state[] to reflect JBB state.
+ * Also set jbb_read_mask to contain the JBBs containing data.
+ *
+ * As reading the m_jbb[] will access thread shared data, which is cache-line
+ * invalidated by the writer, we try to avoid loading read_state from shared
+ * data when the local read_state already contain a sufficient amount of
+ * signals to execute.
+ */
 static inline bool
 read_all_jbb_state(thr_data *selfptr, bool check_before_sleep)
 {
@@ -6343,6 +6357,8 @@ read_all_jbb_state(thr_data *selfptr, bool check_before_sleep)
     NDB_PREFETCH_READ(&jbb->m_write_index);
   }
 #endif
+
+  selfptr->m_jbb_read_mask.clear();
   Uint32 tot_num_words = 0;
   for (Uint32 jbb_instance = 0;
        jbb_instance < glob_num_job_buffers_per_thread;
@@ -6385,6 +6401,10 @@ read_all_jbb_state(thr_data *selfptr, bool check_before_sleep)
        * To reduce the mem-synch stalls, we do this once for all JBB's, just
        * before we execute_signals().
        */
+      if (!r->is_empty())
+      {
+        selfptr->m_jbb_read_mask.set(jbb_instance);
+      }
     }
     else
     {
@@ -6393,6 +6413,7 @@ read_all_jbb_state(thr_data *selfptr, bool check_before_sleep)
        * 'read_end' should already contain the end of current read_buffer.
        */
       r->m_write_index = write_index = jbb->m_write_index;
+      selfptr->m_jbb_read_mask.set(jbb_instance);
     }
 
     // Calculate / estimate 'num_words' being available
@@ -6424,11 +6445,6 @@ read_all_jbb_state(thr_data *selfptr, bool check_before_sleep)
       if (num_pages > 1) num_words += thr_job_buffer::SIZE/2;
     }
     tot_num_words += num_words;
-    if (r->is_empty()) {
-      require(num_words == 0);
-    } else {
-      require(num_words > 0);
-    }
   }
   selfptr->m_cpu_percentage_changed = true;
   /**
@@ -6443,13 +6459,13 @@ read_all_jbb_state(thr_data *selfptr, bool check_before_sleep)
    * empty that can happen either just before going to sleep or when
    * spinning.
    */
-  bool ret_state = (tot_num_words == 0);
+  const bool jbb_empty = selfptr->m_jbb_read_mask.isclear();
   if (!check_before_sleep)
   {
     selfptr->m_jbb_execution_steps++;
     selfptr->m_jbb_accumulated_queue_size += tot_num_words;
   }
-  else if (ret_state)
+  else if (jbb_empty)
   {
     if (selfptr->m_load_indicator > 1)
     {
@@ -6457,7 +6473,7 @@ read_all_jbb_state(thr_data *selfptr, bool check_before_sleep)
       debug_load_indicator(selfptr);
     }
   }
-  if (!ret_state || selfptr->m_jbb_estimate_next_set)
+  if (!jbb_empty || selfptr->m_jbb_estimate_next_set)
   {
     selfptr->m_jbb_estimate_next_set = false;
     Uint32 current_queue_size = selfptr->m_jbb_estimated_queue_size_in_words;
@@ -6510,8 +6526,8 @@ read_all_jbb_state(thr_data *selfptr, bool check_before_sleep)
 #ifdef DEBUG_SCHED_STATS
   selfptr->m_jbb_total_words += tot_num_words;
 #endif
-  selfptr->m_read_jbb_state_consumed = ret_state;
-  return ret_state;
+  selfptr->m_read_jbb_state_consumed = jbb_empty;
+  return jbb_empty;
 }
 
 static inline
@@ -6785,10 +6801,35 @@ run_job_buffers(thr_data *selfptr,
   Uint32 signal_count_since_last_zero_time_queue = 0;
   Uint32 perjb = selfptr->m_max_signals_per_jb;
 
-  if (read_all_jbb_state(selfptr, false) && read_jba_state(selfptr))
+  if (read_all_jbb_state(selfptr, false))
   {
-    return 0;
+    // JBB is empty, execute any JBA signals
+    while (!read_jba_state(selfptr))
+    {
+      rmb();  // See memory barrier reasoning right below
+      selfptr->m_sent_local_prioa_signal = false;
+      static Uint32 max_prioA = thr_job_queue::SIZE * thr_job_buffer::SIZE;
+      Uint32 num_signals = execute_signals(selfptr,
+                                           &(selfptr->m_jba),
+                                           &(selfptr->m_jba_read_state), sig,
+                                           max_prioA);
+      signal_count += num_signals;
+      send_sum += num_signals;
+      flush_sum += num_signals;
+      if (!selfptr->m_sent_local_prioa_signal)
+      {
+        /**
+         * Break out of loop if there was no prio A signals generated
+         * from the local execution.
+         */
+        break;
+      }
+    }
+    // As we had no JBB signals, we are done
+    assert(selfptr->m_jbb_read_mask.isclear());
+    return signal_count;
   }
+
   /*
    * A load memory barrier to ensure that we see the m_buffers[] content,
    * referred by the jbb_states, before we start executing signals.
@@ -6804,9 +6845,9 @@ run_job_buffers(thr_data *selfptr,
    */
   Uint32 first_jbb_no = selfptr->m_next_jbb_no;
   selfptr->m_watchdog_counter = 13;
-  for (Uint32 jbb_instance = first_jbb_no;
-       jbb_instance < glob_num_job_buffers_per_thread;
-       jbb_instance++)
+  for (unsigned jbb_instance = selfptr->m_jbb_read_mask.find_next(first_jbb_no);
+       jbb_instance != BitmaskImpl::NotFound;
+       jbb_instance = selfptr->m_jbb_read_mask.find_next(jbb_instance+1))
   {
     /* Read the prio A state often, to avoid starvation of prio A. */
     while (!read_jba_state(selfptr))
@@ -6936,8 +6977,9 @@ run_job_buffers(thr_data *selfptr,
          * important things by returning to checking scan_time_queues
          * more often.
          */
-        jbb_instance++;
-        if (jbb_instance >= glob_num_job_buffers_per_thread)
+        // We will resume execution from next jbb_instance later.
+        jbb_instance = selfptr->m_jbb_read_mask.find_next(jbb_instance+1);
+        if (jbb_instance == BitmaskImpl::NotFound)
         {
           jbb_instance = 0;
         }
