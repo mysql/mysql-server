@@ -6159,13 +6159,21 @@ publish_position(thr_job_buffer *write_buffer, Uint32 write_pos)
   write_buffer->m_len = write_pos;
 }
 
+/**
+ * Check, and if allowed, add the 'new_buffer' to our job_queue of
+ * buffer pages containing signals.
+ * If the 'job_queue' is full, we will crash.
+ *
+ * Note that the thread always hold a spare 'new_buffer' to be used if we
+ * filled the current buffer. Thus, we can always complete a flush/write of
+ * signals while holding the write_lock, without having to allocate
+ * a new buffer. (To reduce time the write_lock is held.)
+ * Another 'new_buffer' will be allocated after lock is released.
+ */
 static
 void
 check_next_index_position(thr_job_queue *q,
-                          Uint32 & write_pos,
-                          struct thr_job_buffer *write_buffer,
-                          struct thr_job_buffer *new_buffer,
-                          bool prioa)
+                          struct thr_job_buffer *new_buffer)
 {
   /**
    * We make sure that there is always room for at least one signal in the
@@ -6210,14 +6218,12 @@ check_next_index_position(thr_job_queue *q,
       q->m_cached_read_index = read_index;
     }
   }
-  new_buffer->m_len = 0;
-  new_buffer->m_prioa = prioa;
+  assert(new_buffer->m_len == 0);
   q->m_buffers[write_index] = new_buffer;
   wmb();
   q->m_write_index = write_index;
   q->m_current_write_buffer = new_buffer;
   q->m_current_write_buffer_len = 0;
-  write_pos = 0;
 }
 
 static inline
@@ -6229,14 +6235,11 @@ publish_signal(thr_job_queue *q,
                bool prioa)
 {
   publish_position(write_buffer, write_pos);
-  Uint32 max_size = MAX_SIGNAL_SIZE * MAX_SIGNALS_BEFORE_FLUSH_OTHER;
-  if (unlikely(write_pos + max_size > thr_job_buffer::SIZE))
+  if (unlikely(write_pos + MAX_SIGNAL_SIZE > thr_job_buffer::SIZE))
   {
-    check_next_index_position(q,
-                              write_pos,
-                              write_buffer,
-                              new_buffer,
-                              prioa);
+    // Not room for one more signal
+    new_buffer->m_prioa = true;
+    check_next_index_position(q, new_buffer);
     return true; // Buffer new_buffer used
   }
   return false; // Buffer new_buffer not used
@@ -8697,6 +8700,67 @@ handle_sent_signals(struct thr_data *selfptr,
                     struct thr_data *dstptr,
                     struct thr_job_queue *q);
 
+
+/**
+ * Copy out signals one-by-one from the 'm_local_buffer' into the thread-shared
+ * 'm_current_write_buffer'. If the write_buffer becomes full, the available
+ * 'm_next_buffer' will be used. The copied signals will be 'published'
+ * such that they becomes visible for the consumer side.
+ *
+ * Assumed to be called with write_lock held, if the ThreadConfig is
+ * such that multiple writer are possible.
+ */
+static Uint32
+copy_out_local_buffer(struct thr_data *selfptr,
+                      thr_job_queue *q,
+                      Uint32 next_signal)
+{
+  Uint32 num_signals = 0;
+  const thr_job_buffer *const local_buffer = selfptr->m_local_buffer;
+
+  thr_job_buffer *write_buffer = q->m_current_write_buffer;
+  Uint32 write_pos = q->m_current_write_buffer_len;
+  NDB_PREFETCH_WRITE(&write_buffer->m_len);
+  NDB_PREFETCH_WRITE(&write_buffer->m_data[write_pos]);
+  do
+  {
+    assert(next_signal != SIGNAL_RNIL);
+    const Uint32 *const signal_buffer = &local_buffer->m_data[next_signal];
+    const Uint32 siglen = signal_buffer[1];
+    if (unlikely(write_pos + siglen > thr_job_buffer::SIZE))
+    {
+      // job_buffer was filled & consumed.
+      if (num_signals > 0) {
+        publish_position(write_buffer, write_pos);
+      }
+      // Add a new job_buffer?
+      check_next_index_position(q, selfptr->m_next_buffer);
+      write_pos = 0;
+      write_buffer = selfptr->m_next_buffer;
+      selfptr->m_next_buffer = nullptr;
+    }
+    memcpy(write_buffer->m_data + write_pos, &signal_buffer[2], 4*siglen);
+    next_signal = signal_buffer[0];
+    /**
+     * We update write_pos without publishing the position until we're done
+     * with all writes. The reason is that the same job buffer page could be
+     * read by the executing thread and we want to avoid those from getting
+     * into cache line bouncing.
+     */
+    write_pos += siglen;
+    num_signals++;
+  } while (next_signal != SIGNAL_RNIL);
+
+  q->m_current_write_buffer_len = write_pos;
+  publish_position(write_buffer, write_pos);
+  return num_signals;
+}
+
+/**
+ * Copy signals to the specified 'dst' thread from m_local_buffer into
+ * the thread-shared signal buffer - Updates the write-indexes and wakeup
+ * the destination thread if needed.
+ */
 static
 void
 flush_local_signals(struct thr_data *selfptr,
@@ -8709,39 +8773,25 @@ flush_local_signals(struct thr_data *selfptr,
   struct thr_data *dstptr = &rep->m_thread[dst];
   thr_job_queue *q = dstptr->m_jbb + jbb_instance;
 
-  thr_job_buffer *write_buffer;
-  Uint32 write_pos;
   Uint32 num_signals = 0;
+  Uint32 next_signal = selfptr->m_first_local[dst].m_first_signal;
+
   if (likely(!glob_use_write_lock_mutex))
   {
     /**
      * No locking used, thus no need to perform extra copying step to
      * minimise the lock hold time.
      */
-    write_buffer = q->m_current_write_buffer;
-    write_pos = q->m_current_write_buffer_len;
-    Uint32 next_signal = selfptr->m_first_local[dst].m_first_signal;
-    NDB_PREFETCH_WRITE(&write_buffer->m_len);
-    NDB_PREFETCH_WRITE(&write_buffer->m_data[write_pos]);
-    do
-    {
-      assert(next_signal != SIGNAL_RNIL);
-      Uint32 *signal_buffer = &local_buffer->m_data[next_signal];
-      Uint32 siglen = signal_buffer[1];
-      memcpy(write_buffer->m_data + write_pos, &signal_buffer[2], 4*siglen);
-      next_signal = signal_buffer[0];
-      write_pos += siglen;
-      num_signals++;
-    } while (next_signal != SIGNAL_RNIL);
+    num_signals = copy_out_local_buffer(selfptr, q, next_signal);
   }
   else
   {
     /**
      * Copy data into local flush_buffer before grabbing the write mutex.
      * The purpose is to decrease the amount of time we spend holding the
-     * write mutex by ensuring that we copy from L1 cache.
+     * write mutex by 'loading' the flush_buffer into L1 cache.
      *
-     * For the same reason and also to improve performance we prefetch the
+     * For the same reason, and also to improve performance, we prefetch the
      * cache line that contains the m_write_index before taking the mutex.
      * We expect mutex contention on this mutex to be rare and when
      * contention arises we will only prefetch it for read and thus at most
@@ -8749,7 +8799,6 @@ flush_local_signals(struct thr_data *selfptr,
      * front of us.
      */
     Uint32 copy_len = 0;
-    Uint32 next_signal = selfptr->m_first_local[dst].m_first_signal;
     Uint64 flush_buffer[MAX_SIGNALS_BEFORE_FLUSH_OTHER * MAX_SIGNAL_SIZE / 2];
     Uint32 *flush_buffer_ptr = (Uint32*)&flush_buffer[0];
     do
@@ -8763,38 +8812,27 @@ flush_local_signals(struct thr_data *selfptr,
       copy_len += siglen;
       num_signals++;
     } while (next_signal != SIGNAL_RNIL);
-    assert(num_signals <= MAX_SIGNALS_BEFORE_FLUSH_OTHER);
-    require(num_signals == selfptr->m_first_local[dst].m_num_signals);
-    /**
-     * We update write_pos without publishing the position until we're done
-     * with all writes. The reason is that the same job buffer page could be
-     * read by the executing thread and we want to avoid those from getting
-     * into cache line bouncing.
-     */
+
     NDB_PREFETCH_READ(&q->m_write_index);
     lock(&q->m_write_lock);
-    write_buffer = q->m_current_write_buffer;
+    thr_job_buffer *write_buffer = q->m_current_write_buffer;
+    Uint32 write_pos = q->m_current_write_buffer_len;
     NDB_PREFETCH_WRITE(&write_buffer->m_len);
-    write_pos = q->m_current_write_buffer_len;
-    memcpy(write_buffer->m_data + write_pos, flush_buffer_ptr, 4*copy_len);
-    write_pos += copy_len;
-  }
-  q->m_current_write_buffer_len = write_pos;
-  publish_position(write_buffer, write_pos);
-  Uint32 max_size = MAX_SIGNAL_SIZE * MAX_SIGNALS_BEFORE_FLUSH_OTHER;
-  bool buf_used;
-  if (unlikely(write_pos + max_size > thr_job_buffer::SIZE))
-  {
-    check_next_index_position(q,
-                              write_pos,
-                              write_buffer,
-                              selfptr->m_next_buffer,
-                              false);
-   buf_used = true;
-  }
-  else
-  {
-    buf_used = false;
+    if (likely(write_pos+copy_len <= thr_job_buffer::SIZE)) {
+      memcpy(write_buffer->m_data + write_pos, flush_buffer_ptr, 4*copy_len);
+      write_pos += copy_len;
+      q->m_current_write_buffer_len = write_pos;
+      publish_position(write_buffer, write_pos);
+    } else {
+      /**
+       * We could not append the prepared set of signals in flush_buffer.
+       * Copy them one-by-one until full.
+       * Even if the memcpy into flush_buffer[] was wasted, the signals will
+       * now at least be in the cache.
+       */
+      next_signal = selfptr->m_first_local[dst].m_first_signal;
+      num_signals = copy_out_local_buffer(selfptr, q, next_signal);
+    }
   }
   require(num_signals == selfptr->m_first_local[dst].m_num_signals);
   handle_sent_signals(selfptr, dstptr, q);
@@ -8830,7 +8868,7 @@ flush_local_signals(struct thr_data *selfptr,
       selfptr->m_wake_threads_mask.set(dst);
     }
   }
-  if (buf_used)
+  if (unlikely(selfptr->m_next_buffer == nullptr))
   {
     selfptr->m_next_buffer = seize_buffer(rep, self, false);
   }
