@@ -71,7 +71,11 @@ int sha256_password_deinit(void) {
   return 0;
 }
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+static EVP_PKEY *g_public_key = nullptr;
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 static RSA *g_public_key = nullptr;
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
 /**
   Reads and parse RSA public key data from a file.
@@ -80,8 +84,13 @@ static RSA *g_public_key = nullptr;
 
   @return Pointer to the RSA public key storage buffer
 */
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+static EVP_PKEY *rsa_init(MYSQL *mysql) {
+  EVP_PKEY *key = nullptr;
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 static RSA *rsa_init(MYSQL *mysql) {
   RSA *key = nullptr;
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   mysql_mutex_lock(&g_public_key_mutex);
   key = g_public_key;
@@ -114,7 +123,11 @@ static RSA *rsa_init(MYSQL *mysql) {
 
   mysql_mutex_lock(&g_public_key_mutex);
   key = g_public_key =
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+      PEM_read_PUBKEY(pub_key_file, nullptr, nullptr, nullptr);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
       PEM_read_RSA_PUBKEY(pub_key_file, nullptr, nullptr, nullptr);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   mysql_mutex_unlock(&g_public_key_mutex);
   fclose(pub_key_file);
   if (g_public_key == nullptr) {
@@ -126,6 +139,32 @@ static RSA *rsa_init(MYSQL *mysql) {
 
   return key;
 }
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+static bool encrypt_RSA_public_key(const unsigned char *password,
+                                   int password_len, unsigned char *to,
+                                   size_t *to_len, EVP_PKEY *public_key) {
+  EVP_PKEY_CTX *key_ctx = EVP_PKEY_CTX_new(public_key, nullptr);
+  if (!key_ctx) return true;
+  if (EVP_PKEY_encrypt_init(key_ctx) <= 0 ||
+      EVP_PKEY_CTX_set_rsa_padding(key_ctx, RSA_PKCS1_OAEP_PADDING) <= 0 ||
+      EVP_PKEY_encrypt(key_ctx, to, to_len, password, password_len) <= 0) {
+    EVP_PKEY_CTX_free(key_ctx);
+    return true;
+  }
+  EVP_PKEY_CTX_free(key_ctx);
+  return false;
+}
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+static bool encrypt_RSA_public_key(const unsigned char *password,
+                                   int password_len, unsigned char *to,
+                                   RSA *public_key) {
+  if (RSA_public_encrypt(password_len, password, to, public_key,
+                         RSA_PKCS1_OAEP_PADDING) == -1)
+    return true;
+  return false;
+}
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
 /**
   Authenticate the client using the RSA or TLS and a SHA256 salted password.
@@ -142,7 +181,11 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   bool uses_password = mysql->passwd[0] != 0;
   unsigned char encrypted_password[MAX_CIPHER_LENGTH];
   static char request_public_key = '\1';
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  EVP_PKEY *public_key = nullptr;
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   RSA *public_key = nullptr;
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   bool got_public_key_from_server = false;
   bool connection_is_secure = false;
   unsigned char scramble_pkt[SCRAMBLE_LENGTH]{};
@@ -197,7 +240,11 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
         if ((packet_len = vio->read_packet(vio, &packet)) == -1)
           return CR_ERROR;
         BIO *bio = BIO_new_mem_buf(packet, packet_len);
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+        public_key = PEM_read_bio_PUBKEY(bio, nullptr, nullptr, nullptr);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
         public_key = PEM_read_bio_RSA_PUBKEY(bio, nullptr, nullptr, nullptr);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
         BIO_free(bio);
         if (public_key == nullptr) {
           ERR_clear_error();
@@ -218,8 +265,7 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 
       if (passwd_len > sizeof(passwd_scramble)) {
         /* password too long for the buffer */
-        if (got_public_key_from_server) RSA_free(public_key);
-        return CR_ERROR;
+        goto err;
       }
       memmove(passwd_scramble, mysql->passwd, passwd_len);
 
@@ -227,21 +273,37 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
       xor_string(passwd_scramble, passwd_len - 1, (char *)scramble_pkt,
                  SCRAMBLE_LENGTH);
       /* Encrypt the password and send it to the server */
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+      int cipher_length = EVP_PKEY_get_size(public_key);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
       int cipher_length = RSA_size(public_key);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
       /*
         When using RSA_PKCS1_OAEP_PADDING the password length must be less
         than RSA_size(rsa) - 41.
       */
       if (passwd_len + 41 >= (unsigned)cipher_length) {
         /* password message is to long */
-        if (got_public_key_from_server) RSA_free(public_key);
-        return CR_ERROR;
+        goto err;
       }
-      RSA_public_encrypt(passwd_len, (unsigned char *)passwd_scramble,
-                         encrypted_password, public_key,
-                         RSA_PKCS1_OAEP_PADDING);
-      if (got_public_key_from_server) RSA_free(public_key);
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+      {
+        size_t encrypted_password_len = sizeof(encrypted_password);
 
+        if (encrypt_RSA_public_key((unsigned char *)passwd_scramble, passwd_len,
+                                   encrypted_password, &encrypted_password_len,
+                                   public_key))
+          goto err;
+
+        if (got_public_key_from_server) EVP_PKEY_free(public_key);
+      }
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+      if (encrypt_RSA_public_key((unsigned char *)passwd_scramble, passwd_len,
+                                 encrypted_password, public_key))
+        goto err;
+
+      if (got_public_key_from_server) RSA_free(public_key);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
       if (vio->write_packet(vio, (uchar *)encrypted_password, cipher_length))
         return CR_ERROR;
     } else {
@@ -252,6 +314,15 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   }
 
   return CR_OK;
+
+err:
+  if (got_public_key_from_server)
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    EVP_PKEY_free(public_key);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+    RSA_free(public_key);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+  return CR_ERROR;
 }
 
 /**
@@ -264,7 +335,11 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
   net_async_status status = NET_ASYNC_NOT_READY;
   unsigned char encrypted_password[MAX_CIPHER_LENGTH];
   static char request_public_key = '\1';
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  static EVP_PKEY *public_key = nullptr;
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   static RSA *public_key = nullptr;
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   bool got_public_key_from_server = false;
   int io_result;
   bool connection_is_secure = (mysql_get_ssl_cipher(mysql) != nullptr);
@@ -335,7 +410,11 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
           return NET_ASYNC_COMPLETE;
         }
         BIO *bio = BIO_new_mem_buf(pkt, io_result);
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+        public_key = PEM_read_bio_PUBKEY(bio, nullptr, nullptr, nullptr);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
         public_key = PEM_read_bio_RSA_PUBKEY(bio, nullptr, nullptr, nullptr);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
         BIO_free(bio);
         if (public_key == nullptr) {
           ERR_clear_error();
@@ -354,9 +433,7 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
 
       if (passwd_len > sizeof(passwd_scramble)) {
         /* password too long for the buffer */
-        if (got_public_key_from_server) RSA_free(public_key);
-        *result = CR_ERROR;
-        return NET_ASYNC_COMPLETE;
+        goto err;
       }
       memmove(passwd_scramble, mysql->passwd, passwd_len);
 
@@ -364,21 +441,34 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
       xor_string(passwd_scramble, passwd_len - 1, (char *)scramble_pkt,
                  SCRAMBLE_LENGTH);
       /* Encrypt the password and send it to the server */
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+      int cipher_length = EVP_PKEY_get_size(public_key);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
       int cipher_length = RSA_size(public_key);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
       /*
         When using RSA_PKCS1_OAEP_PADDING the password length must be less
         than RSA_size(rsa) - 41.
       */
       if (passwd_len + 41 >= (unsigned)cipher_length) {
         /* password message is to long */
-        if (got_public_key_from_server) RSA_free(public_key);
-        *result = CR_ERROR;
-        return NET_ASYNC_COMPLETE;
+        goto err;
       }
-      RSA_public_encrypt(passwd_len, (unsigned char *)passwd_scramble,
-                         encrypted_password, public_key,
-                         RSA_PKCS1_OAEP_PADDING);
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+      {
+        size_t encrypted_password_len = sizeof(encrypted_password);
+        if (encrypt_RSA_public_key((unsigned char *)passwd_scramble, passwd_len,
+                                   encrypted_password, &encrypted_password_len,
+                                   public_key))
+          goto err;
+        if (got_public_key_from_server) EVP_PKEY_free(public_key);
+      }
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+      if (encrypt_RSA_public_key((unsigned char *)passwd_scramble, passwd_len,
+                                 encrypted_password, public_key))
+        goto err;
       if (got_public_key_from_server) RSA_free(public_key);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
       status = vio->write_packet_nonblocking(vio, (uchar *)encrypted_password,
                                              cipher_length, &io_result);
       if (status == NET_ASYNC_NOT_READY) {
@@ -405,6 +495,16 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
       assert(0);
   }
   *result = CR_OK;
+  return NET_ASYNC_COMPLETE;
+
+err:
+  if (got_public_key_from_server)
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    EVP_PKEY_free(public_key);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+    RSA_free(public_key);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+  result = CR_ERROR;
   return NET_ASYNC_COMPLETE;
 }
 /* caching_sha2_password */
@@ -448,7 +548,11 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   bool uses_password = mysql->passwd[0] != 0;
   unsigned char encrypted_password[MAX_CIPHER_LENGTH];
   // static char request_public_key= '\1';
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  EVP_PKEY *public_key = nullptr;
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   RSA *public_key = nullptr;
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   bool got_public_key_from_server = false;
   bool connection_is_secure = false;
   unsigned char scramble_pkt[SCRAMBLE_LENGTH]{};
@@ -528,7 +632,11 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 
         if ((pkt_len = vio->read_packet(vio, &pkt)) <= 0) return CR_ERROR;
         BIO *bio = BIO_new_mem_buf(pkt, pkt_len);
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+        public_key = PEM_read_bio_PUBKEY(bio, nullptr, nullptr, nullptr);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
         public_key = PEM_read_bio_RSA_PUBKEY(bio, nullptr, nullptr, nullptr);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
         BIO_free(bio);
         if (public_key == nullptr) {
           ERR_clear_error();
@@ -551,9 +659,8 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 
         if (passwd_len > sizeof(passwd_scramble)) {
           /* password too long for the buffer */
-          if (got_public_key_from_server) RSA_free(public_key);
           DBUG_PRINT("info", ("Password is too long."));
-          return CR_ERROR;
+          goto err;
         }
         memmove(passwd_scramble, mysql->passwd, passwd_len);
 
@@ -561,22 +668,38 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
         xor_string(passwd_scramble, passwd_len - 1, (char *)scramble_pkt,
                    SCRAMBLE_LENGTH);
         /* Encrypt the password and send it to the server */
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+        int cipher_length = EVP_PKEY_get_size(public_key);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
         int cipher_length = RSA_size(public_key);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
         /*
            When using RSA_PKCS1_OAEP_PADDING the password length must be less
            than RSA_size(rsa) - 41.
          */
         if (passwd_len + 41 >= (unsigned)cipher_length) {
           /* password message is to long */
-          if (got_public_key_from_server) RSA_free(public_key);
           DBUG_PRINT("info", ("Password is too long to be encrypted using "
                               "given public key."));
-          return CR_ERROR;
+          goto err;
         }
-        RSA_public_encrypt(passwd_len, (unsigned char *)passwd_scramble,
-                           encrypted_password, public_key,
-                           RSA_PKCS1_OAEP_PADDING);
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+        {
+          size_t encrypted_password_len = sizeof(encrypted_password);
+          if (encrypt_RSA_public_key((unsigned char *)passwd_scramble,
+                                     passwd_len, encrypted_password,
+                                     &encrypted_password_len, public_key))
+            goto err;
+
+          if (got_public_key_from_server) EVP_PKEY_free(public_key);
+        }
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+        if (encrypt_RSA_public_key((unsigned char *)passwd_scramble, passwd_len,
+                                   encrypted_password, public_key))
+          goto err;
+
         if (got_public_key_from_server) RSA_free(public_key);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
         if (vio->write_packet(vio, (uchar *)encrypted_password, cipher_length))
           return CR_ERROR;
@@ -595,6 +718,15 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   }
 
   return CR_OK;
+
+err:
+  if (got_public_key_from_server)
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    EVP_PKEY_free(public_key);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+    RSA_free(public_key);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+  return CR_ERROR;
 }
 
 /**
@@ -606,7 +738,11 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
   int io_result;
   net_async_status status = NET_ASYNC_NOT_READY;
   static unsigned char encrypted_password[MAX_CIPHER_LENGTH];
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  static EVP_PKEY *public_key = nullptr;
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   static RSA *public_key = nullptr;
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   bool connection_is_secure = is_secure_transport(mysql);
   bool got_public_key_from_server = false;
   static unsigned char scramble_pkt[SCRAMBLE_LENGTH]{};
@@ -756,7 +892,11 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
         }
         int pkt_len = 0;
         BIO *bio = BIO_new_mem_buf(pkt, pkt_len);
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+        public_key = PEM_read_bio_PUBKEY(bio, nullptr, nullptr, nullptr);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
         public_key = PEM_read_bio_RSA_PUBKEY(bio, nullptr, nullptr, nullptr);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
         BIO_free(bio);
         if (public_key == nullptr) {
           ERR_clear_error();
@@ -770,33 +910,52 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
         char passwd_scramble[512];
         if (passwd_len > sizeof(passwd_scramble)) {
           /* password too long for the buffer */
-          if (got_public_key_from_server) RSA_free(public_key);
           DBUG_PRINT("info", ("Password is too long."));
-          *result = CR_ERROR;
-          return NET_ASYNC_COMPLETE;
+          goto err;
         }
         memmove(passwd_scramble, mysql->passwd, passwd_len);
         /* Obfuscate the plain text password with the session scramble */
         xor_string(passwd_scramble, passwd_len - 1, (char *)scramble_pkt,
                    SCRAMBLE_LENGTH);
         /* Encrypt the password and send it to the server */
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+        cipher_length = EVP_PKEY_get_size(public_key);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
         cipher_length = RSA_size(public_key);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
         /*
           When using RSA_PKCS1_OAEP_PADDING the password length
           must be less than RSA_size(rsa) - 41.
         */
         if (passwd_len + 41 >= (unsigned)cipher_length) {
           /* password message is to long */
-          if (got_public_key_from_server) RSA_free(public_key);
           DBUG_PRINT("info", ("Password is too long to be encrypted using "
                               "given public key."));
-          *result = CR_ERROR;
-          return NET_ASYNC_COMPLETE;
+          goto err;
         }
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+        {
+          size_t encrypted_password_len = sizeof(encrypted_password);
+          EVP_PKEY_CTX *key_ctx = EVP_PKEY_CTX_new(public_key, nullptr);
+          if (!key_ctx) goto err;
+          if (EVP_PKEY_encrypt_init(key_ctx) <= 0 ||
+              EVP_PKEY_CTX_set_rsa_padding(key_ctx, RSA_PKCS1_OAEP_PADDING) <=
+                  0 ||
+              EVP_PKEY_encrypt(
+                  key_ctx, encrypted_password, &encrypted_password_len,
+                  (unsigned char *)passwd_scramble, passwd_len) <= 0) {
+            EVP_PKEY_CTX_free(key_ctx);
+            goto err;
+          }
+          EVP_PKEY_CTX_free(key_ctx);
+          if (got_public_key_from_server) EVP_PKEY_free(public_key);
+        }
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
         RSA_public_encrypt(passwd_len, (unsigned char *)passwd_scramble,
                            encrypted_password, public_key,
                            RSA_PKCS1_OAEP_PADDING);
         if (got_public_key_from_server) RSA_free(public_key);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
       } else {
         set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_ERR, unknown_sqlstate,
                                  ER_CLIENT(CR_AUTH_PLUGIN_ERR),
@@ -839,12 +998,27 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
   }
   *result = CR_OK;
   return NET_ASYNC_COMPLETE;
+
+err:
+  if (got_public_key_from_server)
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    EVP_PKEY_free(public_key);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+    RSA_free(public_key);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+  result = CR_ERROR;
+  return NET_ASYNC_COMPLETE;
 }
 
 void STDCALL mysql_reset_server_public_key(void) {
   DBUG_TRACE;
   mysql_mutex_lock(&g_public_key_mutex);
-  if (g_public_key) RSA_free(g_public_key);
+  if (g_public_key)
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    EVP_PKEY_free(g_public_key);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+    RSA_free(g_public_key);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   g_public_key = nullptr;
   mysql_mutex_unlock(&g_public_key_mutex);
 }

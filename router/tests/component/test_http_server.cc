@@ -1195,7 +1195,11 @@ class HttpServerSecureTest
   mysql_harness::Path ssl_cert_data_dir_;
 };
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+constexpr const char kErrmsgRegexWeakSslKey[]{"ca md too weak"};
+#else
 constexpr const char kErrmsgRegexWeakSslKey[]{"key-size too small"};
+#endif
 
 TEST_P(HttpServerSecureTest, ensure) {
   // const size_t placeholder_length = strlen(kPlaceholder);
@@ -1460,7 +1464,12 @@ const HttpServerSecureParams http_server_secure_params[]{
           kPlaceholderDatadir + std::string("/") + kDhParams4File},
      },
      false,
-     "key size of DH param"},
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+     "check of DH params failed"
+#else
+     "key size of DH param"
+#endif
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(

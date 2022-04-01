@@ -129,7 +129,11 @@ static void report_errors(SSL *ssl) {
 
   DBUG_TRACE;
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  while ((l = ERR_get_error_all(&file, &line, nullptr, &data, &flags))) {
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   while ((l = ERR_get_error_line_data(&file, &line, &data, &flags))) {
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
     DBUG_PRINT("error", ("OpenSSL: %s:%s:%d:%s\n", ERR_error_string(l, buf),
                          file, line, (flags & ERR_TXT_STRING) ? data : ""));
   }
@@ -262,6 +266,11 @@ size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size) {
 
   DBUG_TRACE;
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  // TODO: find out which of the openssl 3 functions makes this a requirement
+  ERR_clear_error();
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+
   while (true) {
     enum enum_vio_io_event event;
 
@@ -303,6 +312,11 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size) {
   unsigned long ssl_errno_not_used;
 
   DBUG_TRACE;
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  // TODO: find out which of the openssl 3 functions makes this a requirement
+  ERR_clear_error();
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   while (true) {
     enum enum_vio_io_event event;
@@ -415,6 +429,11 @@ static size_t ssl_handshake_loop(Vio *vio, SSL *ssl, ssl_handshake_func_t func,
   size_t ret = -1;
 
   vio->ssl_arg = ssl;
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  // TODO: find out which of the openssl 3 functions makes this a requirement
+  ERR_clear_error();
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   /* Initiate the SSL handshake. */
   while (true) {

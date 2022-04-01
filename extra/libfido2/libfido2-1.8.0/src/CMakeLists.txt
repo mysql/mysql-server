@@ -85,6 +85,52 @@ list(APPEND COMPAT_SOURCES
 	../openbsd-compat/timingsafe_bcmp.c
 )
 
+DOWNGRADE_OPENSSL3_DEPRECATION_WARNINGS(
+  assert.c
+  cbor.c
+  cred.c
+  es256.c
+  rs256.c
+  ecdh.c
+  )
+
+IF(OPENSSL_VERSION_MAJOR VERSION_EQUAL 3)
+  IF(MY_COMPILER_IS_GNU)
+    # Downgrade to warning, for now.
+    ADD_COMPILE_FLAGS(
+      assert.c
+      cbor.c
+      cred.c
+      es256.c
+      rs256.c
+      COMPILE_FLAGS "-Wno-error=discarded-qualifiers")
+    ADD_COMPILE_FLAGS(
+      ecdh.c
+      COMPILE_FLAGS "-Wno-error=pointer-sign")
+  ELSEIF(MY_COMPILER_IS_CLANG)
+    # Downgrade to warning, for now.
+    ADD_COMPILE_FLAGS(
+      assert.c
+      cbor.c
+      cred.c
+      es256.c
+      rs256.c
+      COMPILE_FLAGS
+      "-Wno-incompatible-pointer-types-discards-qualifiers")
+    ADD_COMPILE_FLAGS(
+      ecdh.c
+      COMPILE_FLAGS "-Wno-pointer-sign")
+  ELSEIF(MSVC)
+    ADD_COMPILE_FLAGS(
+      assert.c
+      cred.c
+      COMPILE_FLAGS "/wd4090")
+    ADD_COMPILE_FLAGS(
+      ecdh.c
+      COMPILE_FLAGS "/wd4057")
+  ENDIF()
+ENDIF()
+
 
 # Windows wants only major.minor
 IF(WIN32)

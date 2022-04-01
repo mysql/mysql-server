@@ -51,6 +51,7 @@ EOF
 --echo # Bug #33082255: SERVER EXIT TRYING TO SET FIPS MODE
 --echo #
 
+--replace_regex /SSL fips mode error: Openssl is not fips enabled.*/SSL fips mode error: Openssl is not fips enabled: openssl error/
 --error ER_DA_SSL_FIPS_MODE_ERROR
 SET @@global.ssl_fips_mode = 'ON';
 
@@ -65,7 +66,7 @@ let $restart_file = $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --source include/wait_until_disconnected.inc
 --error 1
 --exec $MYSQLD_CMD --loose-console --ssl-fips-mode=ON > $error_log 2>&1
-let SEARCH_PATTERN = (FIPS_mode_set:fips mode not supported|FIPS_module_mode_set:fingerprint does not match);
+let SEARCH_PATTERN = (FIPS_mode_set:fips mode not supported|FIPS_module_mode_set:fingerprint does not match|SSL fips mode error:);
 --source include/search_pattern.inc
 --remove_file $error_log
 

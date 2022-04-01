@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -53,6 +53,12 @@ IF(WIN32)
     windows/service_operations.cc
     )
 ENDIF()
+
+DOWNGRADE_OPENSSL3_DEPRECATION_WARNINGS(
+  certificate_generator.cc
+  certificate_handler.cc
+  config_generator.cc
+  )
 
 SET(source_files main.cc)
 

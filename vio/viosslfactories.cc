@@ -45,6 +45,7 @@
 #include <openssl/ec.h>
 #endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
 
+#include "my_openssl_fips.h"
 #define TLS_VERSION_OPTION_SIZE 256
 
 /*
@@ -138,6 +139,7 @@ static const char tls_cipher_blocked[] = {
 
 static bool ssl_initialized = false;
 
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
 /*
   Diffie-Hellman key.
   Generated using: >openssl dhparam -5 -C 2048
@@ -201,6 +203,7 @@ static DH *get_dh2048() {
   }
   return (dh);
 }
+#endif /* OPENSSL_VERSION_NUMBER < 0x30000000L */
 
 static void report_errors() {
   unsigned long l;
@@ -210,9 +213,13 @@ static void report_errors() {
 
   DBUG_TRACE;
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  while ((l = ERR_get_error_all(&file, &line, nullptr, &data, &flags))) {
+#else          /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   while ((l = ERR_get_error_line_data(&file, &line, &data, &flags)) > 0) {
+#endif         /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 #ifndef NDEBUG /* Avoid warning */
-    char buf[200];
+    char buf[512];
     DBUG_PRINT("error", ("OpenSSL: %s:%s:%d:%s\n", ERR_error_string(l, buf),
                          file, line, (flags & ERR_TXT_STRING) ? data : ""));
 #endif
@@ -437,6 +444,7 @@ static void deinit_lock_callback_functions() {
 
 void vio_ssl_end() {
   if (ssl_initialized) {
+    fips_deinit();
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
@@ -461,6 +469,7 @@ void ssl_start() {
   if (!ssl_initialized) {
     ssl_initialized = true;
 
+    fips_init();
     SSL_library_init();
     OpenSSL_add_all_algorithms();
     SSL_load_error_strings();
@@ -470,75 +479,6 @@ void ssl_start() {
     init_lock_callback_functions();
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   }
-}
-
-/**
-  Set fips mode in openssl library,
-  When we set fips mode ON/STRICT, it will perform following operations:
-  1. Check integrity of openssl library
-  2. Run fips related tests.
-  3. Disable non fips complaint algorithms
-  4. Should be set par process before openssl library initialization
-  5. When FIPs mode ON(1/2), calling weak algorithms  may results into process
-  abort.
-
-  @param [in]  fips_mode     0 for fips mode off, 1/2 for fips mode ON
-  @param [out] err_string    If fips mode set fails, err_string will have detail
-  failure reason.
-
-  @returns openssl set fips mode errors
-    @retval non 1 for Error
-    @retval 1 Success
-*/
-int set_fips_mode(const uint fips_mode, char err_string[OPENSSL_ERROR_LENGTH]) {
-  int rc = -1;
-  unsigned int fips_mode_old = -1;
-  unsigned long err_library = 0;
-  if (fips_mode > 2) {
-    goto EXIT;
-  }
-  fips_mode_old = FIPS_mode();
-  if (fips_mode_old == fips_mode) {
-    rc = 1;
-    goto EXIT;
-  }
-  if (!(rc = FIPS_mode_set(fips_mode))) {
-    /*
-      If OS doesn't have FIPS enabled openssl library and user sets FIPS mode
-      ON, It fails with proper error. But in the same time it doesn't allow to
-      perform any cryptographic operation. Now if FIPS mode set fails with
-      error, setting old working FIPS mode value in the OpenSSL library. It will
-      allow successful cryptographic operation and will not abort the server.
-    */
-    FIPS_mode_set(fips_mode_old);
-    err_library = ERR_get_error();
-    ERR_error_string_n(err_library, err_string, OPENSSL_ERROR_LENGTH - 1);
-    err_string[OPENSSL_ERROR_LENGTH - 1] = '\0';
-  }
-EXIT:
-  return rc;
-}
-
-/**
-  Get fips mode from openssl library,
-
-  @returns openssl current fips mode
-*/
-uint get_fips_mode() { return FIPS_mode(); }
-
-/**
-  Toggle FIPS mode, to see whether it is available with the current SSL library.
-  @retval 0 FIPS is not supported.
-  @retval non-zero: FIPS is supported.
-*/
-int test_ssl_fips_mode(char *err_string) {
-  int ret = FIPS_mode_set(FIPS_mode() == 0 ? 1 : 0);
-  unsigned long err = (ret == 0) ? ERR_get_error() : 0;
-
-  if (err != 0) {
-    ERR_error_string_n(err, err_string, OPENSSL_ERROR_LENGTH - 1);
-  }
-  return ret;
 }
 
 long process_tls_version(const char *tls_version) {
@@ -592,7 +532,6 @@ static struct st_VioSSLFd *new_VioSSLFd(
     const char *ciphersuites [[maybe_unused]], bool is_client,
     enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
     const long ssl_ctx_flags, const char *server_host [[maybe_unused]]) {
-  DH *dh;
   struct st_VioSSLFd *ssl_fd;
   long ssl_ctx_options =
       SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1;
@@ -736,13 +675,23 @@ static struct st_VioSSLFd *new_VioSSLFd(
   }
 
   /* DH stuff */
-  dh = get_dh2048();
-  if (SSL_CTX_set_tmp_dh(ssl_fd->ssl_context, dh) == 0) {
-    DH_free(dh);
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  if (SSL_CTX_set_dh_auto(ssl_fd->ssl_context, 1) != 1) {
     *error = SSL_INITERR_DHFAIL;
     goto error;
   }
-  DH_free(dh);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+  {
+    DH *dh = get_dh2048();
+
+    if (SSL_CTX_set_tmp_dh(ssl_fd->ssl_context, dh) == 0) {
+      DH_free(dh);
+      *error = SSL_INITERR_DHFAIL;
+      goto error;
+    }
+    DH_free(dh);
+  }
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   /* ECDH stuff */
 #if OPENSSL_VERSION_NUMBER < 0x10002000L
@@ -786,7 +735,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
       }
     }
   }
-#endif
+#endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
 
   SSL_CTX_set_options(ssl_fd->ssl_context, ssl_ctx_options);
 

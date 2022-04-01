@@ -927,8 +927,13 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   char scramble[SCRAMBLE_LENGTH + 1];
   int cipher_length = 0;
   unsigned char plain_text[MAX_CIPHER_LENGTH + 1];
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  EVP_PKEY *private_key = nullptr;
+  EVP_PKEY *public_key = nullptr;
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   RSA *private_key = nullptr;
   RSA *public_key = nullptr;
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   generate_user_salt(scramble, SCRAMBLE_LENGTH + 1);
 
@@ -1064,8 +1069,9 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     if (pkt_len != cipher_length) return CR_ERROR;
 
     /* Decrypt password */
-    RSA_private_decrypt(cipher_length, pkt, plain_text, private_key,
-                        RSA_PKCS1_OAEP_PADDING);
+    if (decrypt_RSA_private_key(pkt, cipher_length, plain_text,
+                                sizeof(plain_text) - 1, private_key))
+      return CR_ERROR;
 
     plain_text[cipher_length] = '\0';  // safety
     xor_string((char *)plain_text, cipher_length, (char *)scramble,

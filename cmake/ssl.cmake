@@ -65,6 +65,8 @@
 # pkg-config --cflags openssl11
 #    -I/usr/include/openssl11
 
+SET(MIN_OPENSSL_VERSION_REQUIRED "1.0.0")
+
 SET(WITH_SSL_DOC "\nsystem (use the OS openssl library)")
 SET(WITH_SSL_DOC "\nopenssl[0-9]+ (use alternative system library)")
 STRING_APPEND(WITH_SSL_DOC "\nyes (synonym for system)")
@@ -108,28 +110,55 @@ MACRO(RESET_SSL_VARIABLES)
   UNSET(HAVE_SHA512_DIGEST_LENGTH CACHE)
 ENDMACRO(RESET_SSL_VARIABLES)
 
+# Fetch OpenSSL version number.
+# OpenSSL < 3:
+# #define OPENSSL_VERSION_NUMBER 0x1000103fL
+# Encoded as MNNFFPPS: major minor fix patch status
+#
+# OpenSSL 3:
+# #define OPENSSL_VERSION_NUMBER
+#   ( (OPENSSL_VERSION_MAJOR<<28)
+#     |(OPENSSL_VERSION_MINOR<<20)
+#     |(OPENSSL_VERSION_PATCH<<4)
+#     |_OPENSSL_VERSION_PRE_RELEASE )
 MACRO(FIND_OPENSSL_VERSION)
-  # Verify version number. Version information looks like:
-  #   #define OPENSSL_VERSION_NUMBER 0x1000103fL
-  # Encoded as MNNFFPPS: major minor fix patch status
-  FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h"
-    OPENSSL_VERSION_NUMBER
-    REGEX "^#[ ]*define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x[0-9].*"
-    )
-  STRING(REGEX REPLACE
-    "^.*OPENSSL_VERSION_NUMBER[\t ]+0x([0-9]).*$" "\\1"
-    OPENSSL_MAJOR_VERSION "${OPENSSL_VERSION_NUMBER}"
-    )
-  STRING(REGEX REPLACE
-    "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9]([0-9][0-9]).*$" "\\1"
-    OPENSSL_MINOR_VERSION "${OPENSSL_VERSION_NUMBER}"
-    )
-  STRING(REGEX REPLACE
-    "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9][0-9][0-9]([0-9][0-9]).*$" "\\1"
-    OPENSSL_FIX_VERSION "${OPENSSL_VERSION_NUMBER}"
-    )
-  SET(OPENSSL_MAJOR_MINOR_FIX_VERSION "${OPENSSL_MAJOR_VERSION}")
-  STRING_APPEND(OPENSSL_MAJOR_MINOR_FIX_VERSION ".${OPENSSL_MINOR_VERSION}")
+  FOREACH(version_part
+      OPENSSL_VERSION_MAJOR
+      OPENSSL_VERSION_MINOR
+      OPENSSL_VERSION_PATCH
+      )
+    FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h" ${version_part}
+      REGEX "^#[\t ]*define[\t ]+${version_part}[\t ]+([0-9]+).*")
+    STRING(REGEX REPLACE
+      "^.*${version_part}[\t ]+([0-9]+).*" "\\1"
+      ${version_part} "${${version_part}}")
+  ENDFOREACH()
+  IF(OPENSSL_VERSION_MAJOR VERSION_EQUAL 3)
+    # OpenSSL 3
+    SET(OPENSSL_FIX_VERSION "${OPENSSL_VERSION_PATCH}")
+  ELSE()
+    # Verify version number. Version information looks like:
+    #   #define OPENSSL_VERSION_NUMBER 0x1000103fL
+    # Encoded as MNNFFPPS: major minor fix patch status
+    FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h"
+      OPENSSL_VERSION_NUMBER
+      REGEX "^#[ ]*define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x[0-9].*"
+      )
+    STRING(REGEX REPLACE
+      "^.*OPENSSL_VERSION_NUMBER[\t ]+0x([0-9]).*$" "\\1"
+      OPENSSL_VERSION_MAJOR "${OPENSSL_VERSION_NUMBER}"
+      )
+    STRING(REGEX REPLACE
+      "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9]([0-9][0-9]).*$" "\\1"
+      OPENSSL_VERSION_MINOR "${OPENSSL_VERSION_NUMBER}"
+      )
+    STRING(REGEX REPLACE
+      "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9][0-9][0-9]([0-9][0-9]).*$" "\\1"
+      OPENSSL_FIX_VERSION "${OPENSSL_VERSION_NUMBER}"
+      )
+  ENDIF()
+  SET(OPENSSL_MAJOR_MINOR_FIX_VERSION "${OPENSSL_VERSION_MAJOR}")
+  STRING_APPEND(OPENSSL_MAJOR_MINOR_FIX_VERSION ".${OPENSSL_VERSION_MINOR}")
   STRING_APPEND(OPENSSL_MAJOR_MINOR_FIX_VERSION ".${OPENSSL_FIX_VERSION}")
   MESSAGE(STATUS
     "OPENSSL_VERSION (${WITH_SSL}) is ${OPENSSL_MAJOR_MINOR_FIX_VERSION}")
@@ -327,25 +356,37 @@ MACRO (MYSQL_CHECK_SSL)
         HINTS ${OPENSSL_ROOT_DIR}/include
       )
       MESSAGE(STATUS "OPENSSL_APPLINK_C ${OPENSSL_APPLINK_C}")
+      IF(NOT OPENSSL_APPLINK_C)
+        RESET_SSL_VARIABLES()
+        FATAL_SSL_NOT_FOUND_ERROR(
+          "Cannot find applink.c for WITH_SSL=${WITH_SSL}.")
+      ENDIF()
     ENDIF()
 
     FIND_LIBRARY(OPENSSL_LIBRARY
                  NAMES ssl libssl ssleay32 ssleay32MD
-                 HINTS ${OPENSSL_ROOT_DIR}/lib)
+                 HINTS ${OPENSSL_ROOT_DIR}/lib ${OPENSSL_ROOT_DIR}/lib64)
     FIND_LIBRARY(CRYPTO_LIBRARY
                  NAMES crypto libcrypto libeay32
-                 HINTS ${OPENSSL_ROOT_DIR}/lib)
+                 HINTS ${OPENSSL_ROOT_DIR}/lib ${OPENSSL_ROOT_DIR}/lib64)
 
     IF(OPENSSL_INCLUDE_DIR)
       FIND_OPENSSL_VERSION()
     ENDIF()
+    IF (OPENSSL_MAJOR_MINOR_FIX_VERSION VERSION_LESS
+        ${MIN_OPENSSL_VERSION_REQUIRED})
+      RESET_SSL_VARIABLES()
+      FATAL_SSL_NOT_FOUND_ERROR(
+        "Not a supported openssl version in WITH_SSL=${WITH_SSL}.")
+    ENDIF()
+
     IF("${OPENSSL_MAJOR_MINOR_FIX_VERSION}" VERSION_GREATER "1.1.0")
        ADD_DEFINITIONS(-DHAVE_TLSv13)
     ENDIF()
+
     IF(OPENSSL_INCLUDE_DIR AND
-       OPENSSL_LIBRARY   AND
-       CRYPTO_LIBRARY      AND
-       OPENSSL_MAJOR_VERSION STREQUAL "1"
+       OPENSSL_LIBRARY     AND
+       CRYPTO_LIBRARY
       )
       SET(OPENSSL_FOUND TRUE)
       IF(WITH_SSL_PATH)
@@ -412,8 +453,8 @@ MACRO (MYSQL_CHECK_SSL)
     MESSAGE(STATUS "OPENSSL_LIBRARY = ${OPENSSL_LIBRARY}")
     MESSAGE(STATUS "CRYPTO_LIBRARY = ${CRYPTO_LIBRARY}")
     MESSAGE(STATUS "OPENSSL_LIB_DIR = ${OPENSSL_LIB_DIR}")
-    MESSAGE(STATUS "OPENSSL_MAJOR_VERSION = ${OPENSSL_MAJOR_VERSION}")
-    MESSAGE(STATUS "OPENSSL_MINOR_VERSION = ${OPENSSL_MINOR_VERSION}")
+    MESSAGE(STATUS "OPENSSL_VERSION_MAJOR = ${OPENSSL_VERSION_MAJOR}")
+    MESSAGE(STATUS "OPENSSL_VERSION_MINOR = ${OPENSSL_VERSION_MINOR}")
     MESSAGE(STATUS "OPENSSL_FIX_VERSION = ${OPENSSL_FIX_VERSION}")
 
     INCLUDE(CheckSymbolExists)
@@ -669,15 +710,21 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
       GET_FILENAME_COMPONENT(OPENSSL_NAME "${OPENSSL_LIBRARY}" NAME_WE)
 
       # Different naming scheme for the matching .dll as of SSL 1.1
+      # OpenSSL 3.x Look for libcrypto-3-x64.dll or libcrypto-3.dll
+      # OpenSSL 1.1 Look for libcrypto-1_1-x64.dll or libcrypto-1_1.dll
+      # OpenSSL 1.0 Look for libeay32.dll
       SET(SSL_MSVC_VERSION_SUFFIX)
       SET(SSL_MSVC_ARCH_SUFFIX)
-      IF(OPENSSL_MINOR_VERSION VERSION_EQUAL 1)
+      IF(OPENSSL_VERSION_MAJOR VERSION_EQUAL 1 AND
+         OPENSSL_VERSION_MINOR VERSION_EQUAL 1)
         SET(SSL_MSVC_VERSION_SUFFIX "-1_1")
         SET(SSL_MSVC_ARCH_SUFFIX "-x64")
       ENDIF()
+      IF(OPENSSL_VERSION_MAJOR VERSION_EQUAL 3)
+        SET(SSL_MSVC_VERSION_SUFFIX "-3")
+        SET(SSL_MSVC_ARCH_SUFFIX "-x64")
+      ENDIF()
 
-      # OpenSSL 1.1 Look for libcrypto-1_1-x64.dll or libcrypto-1_1.dll
-      # OpenSSL 1.0 Look for libeay32.dll
       FIND_FILE(HAVE_CRYPTO_DLL
         NAMES
         "${CRYPTO_NAME}${SSL_MSVC_VERSION_SUFFIX}${SSL_MSVC_ARCH_SUFFIX}.dll"
@@ -717,11 +764,25 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
         ADD_DEPENDENCIES(${openssl_exe_target} copy_openssl_dlls)
       ELSE()
         MESSAGE(STATUS "Cannot find SSL dynamic libraries")
-        IF(OPENSSL_MINOR_VERSION VERSION_EQUAL 1)
+        IF(OPENSSL_VERSION_MAJOR VERSION_EQUAL 1 AND
+           OPENSSL_VERSION_MINOR VERSION_EQUAL 1)
           SET(SSL_LIBRARIES ${SSL_LIBRARIES} crypt32.lib)
           MESSAGE(STATUS "SSL_LIBRARIES ${SSL_LIBRARIES}")
         ENDIF()
       ENDIF()
+    ENDIF()
+  ENDIF()
+ENDMACRO()
+
+# Downgrade OpenSSL 3 deprecation warnings.
+MACRO(DOWNGRADE_OPENSSL3_DEPRECATION_WARNINGS)
+  IF(OPENSSL_VERSION_MAJOR VERSION_EQUAL 3)
+    IF(MY_COMPILER_IS_GNU_OR_CLANG)
+      ADD_COMPILE_FLAGS(${ARGV}
+        COMPILE_FLAGS "-Wno-error=deprecated-declarations")
+    ELSEIF(WIN32)
+      ADD_COMPILE_FLAGS(${ARGV}
+        COMPILE_FLAGS "/wd4996")
     ENDIF()
   ENDIF()
 ENDMACRO()

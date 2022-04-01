@@ -86,6 +86,7 @@
 #include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "my_openssl_fips.h"
 #include "my_pointer_arithmetic.h"
 #include "my_stacktrace.h"
 #include "my_systime.h"  // my_sleep()

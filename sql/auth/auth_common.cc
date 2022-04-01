@@ -196,3 +196,42 @@ void set_connection_admin_flag(THD *thd,
             .first ||
         sctx->check_access(SUPER_ACL));
 }
+
+/**
+  Decrypt pkt data using RSA private key.
+  @param [in] pkt            Data to decrypt.
+  @param [in] cipher_length  Length of the data.
+  @param [in] plain_text     Buffer to store result.
+  @param [in] plain_text_len size of buffer
+  @param [in] private_key    Private key to use.
+  @return                    Error status.
+    @retval false            Success.
+    @retval true             Failure.
+*/
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+bool decrypt_RSA_private_key(uchar *pkt, int cipher_length,
+                             unsigned char *plain_text, size_t plain_text_len,
+                             EVP_PKEY *private_key) {
+  EVP_PKEY_CTX *key_ctx = EVP_PKEY_CTX_new(private_key, nullptr);
+  if (!key_ctx) return true;
+  if (EVP_PKEY_decrypt_init(key_ctx) <= 0 ||
+      EVP_PKEY_CTX_set_rsa_padding(key_ctx, RSA_PKCS1_OAEP_PADDING) <= 0 ||
+      EVP_PKEY_decrypt(key_ctx, plain_text, &plain_text_len, pkt,
+                       cipher_length) <= 0) {
+    EVP_PKEY_CTX_free(key_ctx);
+    return true;
+  }
+  EVP_PKEY_CTX_free(key_ctx);
+  return false;
+}
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+bool decrypt_RSA_private_key(uchar *pkt, int cipher_length,
+                             unsigned char *plain_text,
+                             size_t plain_text_len [[maybe_unused]],
+                             RSA *private_key) {
+  if (RSA_private_decrypt(cipher_length, pkt, plain_text, private_key,
+                          RSA_PKCS1_OAEP_PADDING) == -1)
+    return true;
+  return false;
+}
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */

@@ -34,6 +34,8 @@
 #include <openssl/opensslv.h>
 #include <openssl/x509v3.h>
 
+#include <my_openssl_fips.h>
+
 #ifndef XCOM_STANDALONE
 #include "my_compiler.h"
 #endif
@@ -90,6 +92,7 @@ static const char *tls_cipher_blocked =
     "!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:"
     "!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:";
 
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
 /*
   Diffie-Hellman key.
   Generated using: >openssl dhparam -5 -C 2048
@@ -150,6 +153,7 @@ static DH *get_dh2048(void) {
   }
   return (dh);
 }
+#endif /* OPENSSL_VERSION_NUMBER < 0x30000000L */
 
 static char *ssl_pw = nullptr;
 static int ssl_init_done = 0;
@@ -226,7 +230,6 @@ static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
                                     const char *tls_version,
                                     const char *tls_ciphersuites
                                     [[maybe_unused]]) {
-  DH *dh = nullptr;
   long ssl_ctx_options =
       SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1;
   char cipher_list[SSL_CIPHER_LIST_SIZE] = {0};
@@ -241,7 +244,7 @@ static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
   ssl_ctx_flags = process_tls_version(tls_version);
   if (ssl_ctx_flags < 0) {
     G_ERROR("TLS version is invalid: %s", tls_version);
-    goto error;
+    return 1;
   }
 
 #ifdef HAVE_TLSv13
@@ -274,14 +277,14 @@ static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
             "Failed to set the list of ciphersuites. Check if the values "
             "configured for ciphersuites are correct and valid and if the list "
             "is not empty");
-        goto error;
+        return 1;
       }
     }
   } else {
     /* Disable OpenSSL TLS v1.3 ciphersuites. */
     if (SSL_CTX_set_ciphersuites(ssl_ctx, "") == 0) {
       G_DEBUG("Failed to set empty ciphersuites with TLS v1.3 disabled.");
-      goto error;
+      return 1;
     }
   }
 #endif /* HAVE_TLSv13 */
@@ -299,44 +302,35 @@ static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
 
   if (SSL_CTX_set_cipher_list(ssl_ctx, cipher_list) == 0) {
     G_ERROR("Failed to set the list of chipers.");
-    goto error;
+    return 1;
   }
 
-  dh = get_dh2048();
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  if (SSL_CTX_set_dh_auto(ssl_ctx, 1) != 1) return true;
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+  DH *dh = get_dh2048();
   if (SSL_CTX_set_tmp_dh(ssl_ctx, dh) == 0) {
     G_ERROR("Error setting up Diffie-Hellman key exchange");
-    goto error;
+    DH_free(dh);
+    return 1;
   }
   DH_free(dh);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   return 0;
-
-error:
-  if (dh) DH_free(dh);
-  return 1;
 }
 
-#define OPENSSL_ERROR_LENGTH 512
-static int configure_ssl_fips_mode(const int fips_mode) {
-  int rc = -1;
-  int fips_mode_old = -1;
+/**
+  @retval true     for error
+  @retval false    for success
+*/
+static bool configure_ssl_fips_mode(const int fips_mode) {
+  bool rc = false;
   char err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
-  unsigned long err_library = 0;
-  if (fips_mode > 2) {
-    goto EXIT;
-  }
-  fips_mode_old = FIPS_mode();
-  if (fips_mode_old == fips_mode) {
-    rc = 1;
-    goto EXIT;
-  }
-  if (!(rc = FIPS_mode_set(fips_mode))) {
-    err_library = ERR_get_error();
-    ERR_error_string_n(err_library, err_string, sizeof(err_string) - 1);
-    err_string[sizeof(err_string) - 1] = '\0';
+  if (set_fips_mode(fips_mode, err_string)) {
     G_ERROR("openssl fips mode set failed: %s", err_string);
+    rc = true;
   }
-EXIT:
   return rc;
 }
 
@@ -479,8 +473,7 @@ int Xcom_network_provider_ssl_library::xcom_init_ssl(
   int verify_client = SSL_VERIFY_NONE;
 
   if (configure_ssl_fips_mode(
-          Network_provider_manager::getInstance().xcom_get_ssl_fips_mode()) !=
-      1) {
+          Network_provider_manager::getInstance().xcom_get_ssl_fips_mode())) {
     G_ERROR("Error setting the ssl fips mode");
     goto error;
   }

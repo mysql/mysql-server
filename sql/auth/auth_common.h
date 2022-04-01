@@ -42,6 +42,8 @@
 #include "mysql_com.h"  // USERNAME_LENGTH
 #include "template_utils.h"
 
+#include <openssl/rsa.h>
+
 /* Forward Declarations */
 class Alter_info;
 class Field_iterator_table_ref;
@@ -1125,4 +1127,15 @@ bool mysql_alter_user_comment(THD *thd, const List<LEX_USER> *users,
 
 /* helper method to check if sandbox mode should be turned off or not */
 bool turn_off_sandbox_mode(THD *thd, LEX_USER *user);
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+bool decrypt_RSA_private_key(uchar *pkt, int cipher_length,
+                             unsigned char *plain_text, size_t plain_text_len,
+                             EVP_PKEY *private_key);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+bool decrypt_RSA_private_key(uchar *pkt, int cipher_length,
+                             unsigned char *plain_text, size_t plain_text_len,
+                             RSA *private_key);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+
 #endif /* AUTH_COMMON_INCLUDED */

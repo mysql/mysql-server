@@ -1159,8 +1159,14 @@ void Rsa_authentication_keys::get_key_file_path(char *key,
                                are.
     @retval true               Failure : An appropriate error is raised.
 */
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+bool Rsa_authentication_keys::read_key_file(EVP_PKEY **key_ptr,
+                                            bool is_priv_key,
+                                            char **key_text_buffer) {
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 bool Rsa_authentication_keys::read_key_file(RSA **key_ptr, bool is_priv_key,
                                             char **key_text_buffer) {
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   String key_file_path;
   char *key;
   const char *key_type;
@@ -1180,8 +1186,13 @@ bool Rsa_authentication_keys::read_key_file(RSA **key_ptr, bool is_priv_key,
            key_file_path.c_ptr());
   } else {
     *key_ptr = is_priv_key
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+                   ? PEM_read_PrivateKey(key_file, nullptr, nullptr, nullptr)
+                   : PEM_read_PUBKEY(key_file, nullptr, nullptr, nullptr);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
                    ? PEM_read_RSAPrivateKey(key_file, nullptr, nullptr, nullptr)
                    : PEM_read_RSA_PUBKEY(key_file, nullptr, nullptr, nullptr);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
     if (!(*key_ptr)) {
       char error_buf[MYSQL_ERRMSG_SIZE];
@@ -1222,10 +1233,19 @@ bool Rsa_authentication_keys::read_key_file(RSA **key_ptr, bool is_priv_key,
 }
 
 void Rsa_authentication_keys::free_memory() {
-  if (m_private_key) RSA_free(m_private_key);
+  if (m_private_key)
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    EVP_PKEY_free(m_private_key);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+    RSA_free(m_private_key);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   if (m_public_key) {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    EVP_PKEY_free(m_public_key);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
     RSA_free(m_public_key);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
     m_cipher_len = 0;
   }
 
@@ -1238,7 +1258,11 @@ void *Rsa_authentication_keys::allocate_pem_buffer(size_t buffer_len) {
 }
 
 int Rsa_authentication_keys::get_cipher_length() {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  return (m_cipher_len = EVP_PKEY_get_size(m_public_key));
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   return (m_cipher_len = RSA_size(m_public_key));
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 }
 
 /**
@@ -1251,8 +1275,13 @@ int Rsa_authentication_keys::get_cipher_length() {
     @retval true         Failure : An appropriate error is raised.
 */
 bool Rsa_authentication_keys::read_rsa_keys() {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  EVP_PKEY *rsa_private_key_ptr = nullptr;
+  EVP_PKEY *rsa_public_key_ptr = nullptr;
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   RSA *rsa_private_key_ptr = nullptr;
   RSA *rsa_public_key_ptr = nullptr;
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   char *pub_key_buff = nullptr;
 
   if ((strlen(*m_private_key_path) == 0) && (strlen(*m_public_key_path) == 0)) {
@@ -1269,7 +1298,12 @@ bool Rsa_authentication_keys::read_rsa_keys() {
     Read public key in RSA format.
   */
   if (read_key_file(&rsa_public_key_ptr, false, &pub_key_buff)) {
-    if (rsa_private_key_ptr) RSA_free(rsa_private_key_ptr);
+    if (rsa_private_key_ptr)
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+      EVP_PKEY_free(rsa_private_key_ptr);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+      RSA_free(rsa_private_key_ptr);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
     return true;
   }
 
@@ -1293,11 +1327,19 @@ bool Rsa_authentication_keys::read_rsa_keys() {
 
     delete[] pub_key_buff;
   } else {
-    if (rsa_private_key_ptr) RSA_free(rsa_private_key_ptr);
-
+    if (rsa_private_key_ptr)
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+      EVP_PKEY_free(rsa_private_key_ptr);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+      RSA_free(rsa_private_key_ptr);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
     if (rsa_public_key_ptr) {
       delete[] pub_key_buff;
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+      EVP_PKEY_free(rsa_public_key_ptr);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
       RSA_free(rsa_public_key_ptr);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
     }
   }
   return false;
@@ -4661,8 +4703,13 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   String scramble_response_packet;
   int cipher_length = 0;
   unsigned char plain_text[MAX_CIPHER_LENGTH + 1];
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  EVP_PKEY *private_key = nullptr;
+  EVP_PKEY *public_key = nullptr;
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   RSA *private_key = nullptr;
   RSA *public_key = nullptr;
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   DBUG_TRACE;
 
@@ -4771,8 +4818,9 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     if (pkt_len != cipher_length) return CR_ERROR;
 
     /* Decrypt password */
-    RSA_private_decrypt(cipher_length, pkt, plain_text, private_key,
-                        RSA_PKCS1_OAEP_PADDING);
+    if (decrypt_RSA_private_key(pkt, cipher_length, plain_text,
+                                sizeof(plain_text) - 1, private_key))
+      return CR_ERROR;
 
     plain_text[cipher_length] = '\0';  // safety
     xor_string((char *)plain_text, cipher_length, (char *)scramble,
@@ -5087,8 +5135,30 @@ class RSA_gen {
     but it at the same time increases usefulness of this class when used
     stand alone.
    */
+  /* generate RSA keys */
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  EVP_PKEY *operator()(void) {
+    EVP_PKEY *rsa = nullptr;
+    BIGNUM *exponent = BN_new();
+    if (!exponent) return nullptr;
+    EVP_PKEY_CTX *rsa_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr);
+    if (!rsa_ctx) {
+      BN_free(exponent);
+      return nullptr;
+    }
+    if (BN_set_word(exponent, m_exponent) != 1 ||
+        EVP_PKEY_keygen_init(rsa_ctx) <= 0 ||
+        EVP_PKEY_CTX_set_rsa_keygen_bits(rsa_ctx, m_key_size) <= 0 ||
+        EVP_PKEY_CTX_set1_rsa_keygen_pubexp(rsa_ctx, exponent) <= 0 ||
+        EVP_PKEY_keygen(rsa_ctx, &rsa) <= 0) {
+      BN_free(exponent);
+      EVP_PKEY_CTX_free(rsa_ctx);
+      return nullptr;
+    }
+    BN_free(exponent);
+    EVP_PKEY_CTX_free(rsa_ctx);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   RSA *operator()(void) {
-    /* generate RSA keys */
     RSA *rsa = RSA_new();
     if (!rsa) return nullptr;
     BIGNUM *e = BN_new();
@@ -5103,6 +5173,7 @@ class RSA_gen {
       return nullptr;
     }
     BN_free(e);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
     return rsa;  // pass ownership
   }
@@ -5112,6 +5183,7 @@ class RSA_gen {
   uint32_t m_exponent;
 };
 
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
 static EVP_PKEY *evp_pkey_generate(RSA *rsa) {
   if (rsa) {
     EVP_PKEY *pkey = EVP_PKEY_new();
@@ -5120,6 +5192,7 @@ static EVP_PKEY *evp_pkey_generate(RSA *rsa) {
   }
   return nullptr;
 }
+#endif /* OPENSSL_VERSION_NUMBER < 0x30000000L */
 
 /**
   Write private key in a string buffer
@@ -5128,12 +5201,22 @@ static EVP_PKEY *evp_pkey_generate(RSA *rsa) {
 
   @returns Sql_string_t object with private key stored in it.
 */
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+static Sql_string_t rsa_priv_key_write(EVP_PKEY *rsa) {
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 static Sql_string_t rsa_priv_key_write(RSA *rsa) {
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   assert(rsa);
   BIO *buf = BIO_new(BIO_s_mem());
   Sql_string_t read_buffer;
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  if (PEM_write_bio_PrivateKey(buf, rsa, nullptr, nullptr, 0, nullptr,
+                               nullptr)) {
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   if (PEM_write_bio_RSAPrivateKey(buf, rsa, nullptr, nullptr, 0, nullptr,
                                   nullptr)) {
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
     size_t len = BIO_pending(buf);
     if (resize_no_exception(read_buffer, len + 1) == true) {
       BIO_read(buf, const_cast<char *>(read_buffer.c_str()), len);
@@ -5151,11 +5234,19 @@ static Sql_string_t rsa_priv_key_write(RSA *rsa) {
 
   @returns Sql_string_t object with public key stored in it.
 */
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+static Sql_string_t rsa_pub_key_write(EVP_PKEY *rsa) {
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 static Sql_string_t rsa_pub_key_write(RSA *rsa) {
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   assert(rsa);
   BIO *buf = BIO_new(BIO_s_mem());
   Sql_string_t read_buffer;
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  if (PEM_write_bio_PUBKEY(buf, rsa)) {
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   if (PEM_write_bio_RSA_PUBKEY(buf, rsa)) {
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
     size_t len = BIO_pending(buf);
     if (resize_no_exception(read_buffer, len + 1) == true) {
       BIO_read(buf, const_cast<char *>(read_buffer.c_str()), len);
@@ -5295,14 +5386,17 @@ static Sql_string_t x509_cert_write(X509 *cert) {
 */
 static EVP_PKEY *x509_key_read(const Sql_string_t &input_string) {
   EVP_PKEY *pkey = nullptr;
-  RSA *rsa = nullptr;
 
   if (!input_string.size()) return pkey;
 
   BIO *buf = BIO_new(BIO_s_mem());
   BIO_write(buf, input_string.c_str(), input_string.size());
-  rsa = PEM_read_bio_RSAPrivateKey(buf, nullptr, nullptr, nullptr);
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  pkey = PEM_read_bio_PrivateKey(buf, nullptr, nullptr, nullptr);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+  RSA *rsa = PEM_read_bio_RSAPrivateKey(buf, nullptr, nullptr, nullptr);
   pkey = evp_pkey_generate(rsa);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   BIO_free(buf);
   return pkey;
 }
@@ -5317,10 +5411,16 @@ static EVP_PKEY *x509_key_read(const Sql_string_t &input_string) {
 static Sql_string_t x509_key_write(EVP_PKEY *pkey) {
   assert(pkey);
   BIO *buf = BIO_new(BIO_s_mem());
-  RSA *rsa = EVP_PKEY_get1_RSA(pkey);
   Sql_string_t read_buffer;
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  if (PEM_write_bio_PrivateKey(buf, pkey, nullptr, nullptr, 10, nullptr,
+                               nullptr)) {
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+  RSA *rsa = EVP_PKEY_get1_RSA(pkey);
   if (PEM_write_bio_RSAPrivateKey(buf, rsa, nullptr, nullptr, 10, nullptr,
                                   nullptr)) {
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
     size_t len = BIO_pending(buf);
     if (resize_no_exception(read_buffer, len + 1) == true) {
       BIO_read(buf, const_cast<char *>(read_buffer.c_str()), len);
@@ -5328,7 +5428,9 @@ static Sql_string_t x509_key_write(EVP_PKEY *pkey) {
     }
   }
   BIO_free(buf);
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
   RSA_free(rsa);
+#endif /* OPENSSL_VERSION_NUMBER < 0x30000000L */
   return read_buffer;
 }
 
@@ -5366,7 +5468,11 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen, const Sql_string_t cn,
   bool self_sign = true;
   Sql_string_t ca_key_str;
   Sql_string_t ca_cert_str;
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  EVP_PKEY *rsa = nullptr;
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   RSA *rsa = nullptr;
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   EVP_PKEY *pkey = nullptr;
   EVP_PKEY *ca_key = nullptr;
   X509 *x509 = nullptr;
@@ -5382,10 +5488,17 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen, const Sql_string_t cn,
 
   /* Generate private key for X509 certificate */
   rsa = rsa_gen();
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  DBUG_EXECUTE_IF("null_rsa_error", {
+    EVP_PKEY_free(rsa);
+    rsa = nullptr;
+  });
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   DBUG_EXECUTE_IF("null_rsa_error", {
     RSA_free(rsa);
     rsa = nullptr;
   });
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   if (!rsa) {
     LogErr(ERROR_LEVEL, ER_X509_NEEDS_RSA_PRIVKEY);
@@ -5394,7 +5507,11 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen, const Sql_string_t cn,
   }
 
   /* Obtain EVP_PKEY */
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  pkey = rsa;
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   pkey = evp_pkey_generate(rsa);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   /* Write private key information to file and set file permission */
   (*x509_key_file_ostream) << x509_key_write(pkey);
@@ -5511,11 +5628,24 @@ bool create_RSA_key_pair(RSA_generator_func &rsa_gen,
 
   assert(priv_key_filename.size() && pub_key_filename.size());
 
-  RSA *rsa = rsa_gen();
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  EVP_PKEY *rsa;
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+  RSA *rsa;
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+  rsa = rsa_gen();
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  DBUG_EXECUTE_IF("null_rsa_error", {
+    EVP_PKEY_free(rsa);
+    rsa = nullptr;
+  });
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   DBUG_EXECUTE_IF("null_rsa_error", {
     RSA_free(rsa);
     rsa = nullptr;
   });
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   if (!rsa) {
     LogErr(ERROR_LEVEL, ER_AUTH_CANT_CREATE_RSA_PAIR);
@@ -5559,7 +5689,12 @@ bool create_RSA_key_pair(RSA_generator_func &rsa_gen,
   }
 
 end:
-  if (rsa) RSA_free(rsa);
+  if (rsa)
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    EVP_PKEY_free(rsa);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+    RSA_free(rsa);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   umask(saved_umask);
   return ret_val;
