@@ -218,7 +218,6 @@ let $wait_condition=
 
 --echo # Check that con2 has been reconnected.
 connection con2;
---error ER_CLIENT_INTERACTION_TIMEOUT,CR_SERVER_LOST
 SELECT "Unix domain socket will hit wait_timeout with reconnect";
 SELECT @is_old_connection;
 connection default;

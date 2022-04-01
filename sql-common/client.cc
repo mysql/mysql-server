@@ -1386,10 +1386,10 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
           and we are already in error state.
         */
         if (cli_safe_read(mysql, nullptr) == packet_error) {
-          goto end;
+          if (!mysql->reconnect) goto end;
         }
         /* Can this happen in any other case than COM_QUIT? */
-        assert(command == COM_QUIT);
+        if (!mysql->reconnect) assert(command == COM_QUIT);
       }
     }
     end_server(mysql);

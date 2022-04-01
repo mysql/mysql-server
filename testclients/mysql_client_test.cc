@@ -23017,6 +23017,74 @@ static void test_wl13075() {
   }
 }
 
+static void finish_with_error(MYSQL *con) {
+  fprintf(stderr, "[%i] %s\n", mysql_errno(con), mysql_error(con));
+  mysql_close(con);
+  exit(1);
+}
+
+static bool send_query(MYSQL *mysql_con, const char *query) {
+  printf("Sending query: %s\n", query);
+
+  int res = mysql_query(mysql_con, query);
+  if (res != 0) {
+    fprintf(stderr, "mysql_query error: %i\n", res);
+    return false;
+  }
+  MYSQL_RES *result = mysql_store_result(mysql_con);
+  if (result == NULL) {
+    printf("No result-set\n");
+  } else {
+    MYSQL_ROW row = mysql_fetch_row(result);
+    printf("Result: %s\n", row[0]);
+    mysql_free_result(result);
+  }
+  printf("\n");
+  return true;
+}
+
+static void test_bug34007830() {
+  myheader("test_bug34007830");
+  MYSQL *lmysql;
+  bool reconnect = 1;
+
+  lmysql = mysql_client_init(nullptr);
+  DIE_UNLESS(lmysql);
+
+  /* enable auto-reconnect */
+  if (mysql_options(lmysql, MYSQL_OPT_RECONNECT, &reconnect)) {
+    fprintf(stderr, "mysql_options failed.");
+  }
+
+  if (!mysql_real_connect(lmysql, opt_host, opt_user, opt_password, current_db,
+                          opt_port, opt_unix_socket, 0)) {
+    fprintf(stderr, "Failed to connect to the database\n");
+    DIE_UNLESS(0);
+  }
+  /* set session wait_timeout */
+  if (!send_query(lmysql, "SET SESSION wait_timeout=5")) {
+    finish_with_error(lmysql);
+  }
+
+  /* send query #1 */
+  if (!send_query(lmysql, "SELECT 1")) {
+    finish_with_error(lmysql);
+  }
+
+  /* wait until connection times-out */
+  printf("Waiting for 10s\n");
+  sleep(10);
+
+  /* send query #2 */
+  if (!send_query(lmysql, "SELECT 2")) {
+    finish_with_error(lmysql);
+  }
+
+  printf("Test successfully completed\n");
+
+  mysql_close(lmysql);
+}
+
 static struct my_tests_st my_tests[] = {
     {"test_bug5194", test_bug5194},
     {"disable_query_logs", disable_query_logs},
@@ -23327,6 +23395,7 @@ static struct my_tests_st my_tests[] = {
     {"test_bug33164347", test_bug33164347},
     {"test_bug32915973", test_bug32915973},
     {"test_wl13075", test_wl13075},
+    {"test_bug34007830", test_bug34007830},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }
