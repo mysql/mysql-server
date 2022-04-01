@@ -1003,6 +1003,13 @@ struct alignas(NDB_CL) thr_job_queue
   alignas(NDB_CL) unsigned m_read_index;
   alignas(NDB_CL) unsigned m_write_index;
   unsigned m_cached_read_index;
+
+  /**
+   * Producer thread-local shortcuts to current write pos:
+   * NOT under memory barrier control - Cant be consistently read by consumer!
+   * (When adding a new write_buffer, the consumer could see either the 'end'
+   * of the previous, the new one, or a mix.)
+   */
   struct thr_job_buffer *m_current_write_buffer;
   unsigned m_current_write_buffer_len;
 
@@ -6220,8 +6227,14 @@ check_next_index_position(thr_job_queue *q,
   }
   assert(new_buffer->m_len == 0);
   q->m_buffers[write_index] = new_buffer;
+
+  // Memory barrier ensures that m_buffers[] contain new_buffer
+  // before 'write_index' referring it is written.
   wmb();
   q->m_write_index = write_index;
+
+  // Note that m_current_write_* is only intended for use by the *writer*.
+  // Thus, there are no memory barriers protecting the buffer vs len conistency.
   q->m_current_write_buffer = new_buffer;
   q->m_current_write_buffer_len = 0;
 }
@@ -6337,21 +6350,22 @@ read_all_jbb_state(thr_data *selfptr, bool check_before_sleep)
   {
     const thr_job_queue *jbb = selfptr->m_jbb + jbb_instance;
     thr_jb_read_state *r = selfptr->m_jbb_read_state + jbb_instance;
+
+    /**
+     * We avoid reading the cache-shared write-pointers until the
+     * thread local thr_jb_read_state indicate a possibly empty read queue.
+     * Writer side might have updated write pointer, thus invalidating our
+     * cache line for it. We will like to avoid memory stalls reading these
+     * until we really need to refresh the written positions.
+     */
     const Uint32 read_index = r->m_read_index;
     const Uint32 read_pos = r->m_read_pos;
-    const Uint32 write_index = jbb->m_write_index;
-    const Uint32 write_buffer_len = jbb->m_current_write_buffer_len;
-    Uint32 num_words;
-    if (write_index == read_index)
+    Uint32 write_index = r->m_write_index;
+    Uint32 read_end = r->m_read_end;
+
+    if (write_index == read_index)  // Possibly empty, reload thread-local state
     {
-      num_words = 0;
-      if (write_buffer_len >= read_pos)
-      {
-        num_words = write_buffer_len - read_pos;
-      }
-    }
-    else
-    {
+      write_index = jbb->m_write_index;
       if (write_index != r->m_write_index)
       {
         /**
@@ -6360,30 +6374,56 @@ read_all_jbb_state(thr_data *selfptr, bool check_before_sleep)
          */
         rmb();
       }
-      if (write_index > read_index)
-      {
-        num_words = write_index - read_index;
-      }
-      else
-      {
-        num_words = read_index - write_index;
-      }
-      num_words *= thr_job_buffer::SIZE;
-      num_words += write_buffer_len;
-      num_words -= read_pos;
+      r->m_write_index = write_index;
+      r->m_read_end = read_end = r->m_read_buffer->m_len;
+      /**
+       * Note ^^ that we will need a later rmb() before we can safely read the
+       * m_buffer[] contents upto 'm_read_end': We need to synch on the wmb()
+       * in publish_position(), such that the m_buffer[] contents itself
+       * has been fully written before we can start executing from it.
+       *
+       * To reduce the mem-synch stalls, we do this once for all JBB's, just
+       * before we execute_signals().
+       */
+    }
+    else
+    {
+      /**
+       * Only update the thread-local 'write_index'.
+       * 'read_end' should already contain the end of current read_buffer.
+       */
+      r->m_write_index = write_index = jbb->m_write_index;
+    }
+
+    // Calculate / estimate 'num_words' being available
+    Uint32 num_pages;
+    if (likely(write_index >= read_index))
+    {
+      num_pages = write_index - read_index;
+    }
+    else
+    {
+      num_pages = read_index - write_index;
+    }
+
+    assert(read_end >= read_pos);
+    Uint32 num_words = read_end - read_pos;  // Remaining on current page
+    if (num_pages > 0)
+    {
+      // Rest of the pages will be (almost) full:
+      num_words += (num_pages-1) * thr_job_buffer::SIZE;
+
+      /**
+       * Estimate the written size in the 'current_write_buffer':
+       * Although producer set the 'm_current_write_buffer_len', it is not
+       * intended to be used by the consumer (No concurrency control).
+       * We just assume as an estimate:
+       *  - if num_pages==1 we just wrapped to a new page which is ~empty.
+       *  - if multiple pages, the last is assumed half-filled.
+       */
+      if (num_pages > 1) num_words += thr_job_buffer::SIZE/2;
     }
     tot_num_words += num_words;
-    r->m_write_index = write_index;
-    r->m_read_end = r->m_read_buffer->m_len;
-    /**
-     * Note ^^ that we will need a later rmb() before we can safely read the
-     * m_buffer[] contents upto 'm_read_end': We need to synch on the wmb()
-     * in publish_position(), such that the m_buffer[] contents itself
-     * has been fully written before we can start executing from it.
-     *
-     * To reduce the mem-synch stalls, we do this once for all JBB's, just
-     * before we execute_signals().
-     */
     if (r->is_empty()) {
       require(num_words == 0);
     } else {
