@@ -1021,12 +1021,9 @@ struct alignas(NDB_CL) thr_job_queue
   unsigned m_pending_signals;
 
   /**
-   * This cacheline is read-only, so don't share it with others that are
-   * updated.
-   *
-   * Job buffer size is set at startup and never changed.
+   * Job buffer size is const: Max number of JB-pages allowed
    */
-  alignas(NDB_CL) unsigned m_size;         // Job queue size (SIZE)
+  static constexpr unsigned m_size = SIZE;  // Job queue size (SIZE)
 
   /**
    * Ensure that the busy cache line isn't shared with job buffers.
@@ -9348,7 +9345,6 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
     selfptr->m_jba.m_cached_read_index = 0;
     selfptr->m_jba.m_write_index = 0;
     selfptr->m_jba.m_pending_signals = 0;
-    selfptr->m_jba.m_size = thr_job_queue::SIZE;
     thr_job_buffer *buffer = seize_buffer(rep, thr_no, true);
     selfptr->m_jba.m_buffers[0] = buffer;
     selfptr->m_jba.m_current_write_buffer = buffer;
@@ -9383,7 +9379,6 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
     selfptr->m_jbb[i].m_current_write_buffer_len = 0;
     selfptr->m_jbb[i].m_pending_signals = 0;
     selfptr->m_jbb[i].m_cached_read_index = 0;
-    selfptr->m_jbb[i].m_size = thr_job_queue::SIZE;
     selfptr->m_jbb[i].m_buffers[0] = buffer;
 
     selfptr->m_jbb_read_state[i].m_read_index = 0;
