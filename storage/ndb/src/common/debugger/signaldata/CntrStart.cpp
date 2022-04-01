@@ -37,7 +37,7 @@ bool printCNTR_START_REQ(FILE *output,
     return false;
   }
 
-  const CntrStartReq * const sig = (CntrStartReq *)theData;
+  const CntrStartReq *const sig = (const CntrStartReq *)theData;
   fprintf(output, " nodeId: %x\n", sig->nodeId);
   fprintf(output, " startType: %x\n", sig->startType);
   fprintf(output, " lastGci: %x\n", sig->lastGci);
@@ -55,7 +55,7 @@ bool printCNTR_START_REF(FILE *output,
     return false;
   }
 
-  const CntrStartRef * const sig = (CntrStartRef *)theData;
+  const CntrStartRef *const sig = (const CntrStartRef *)theData;
   fprintf(output, " errorCode: %x\n", sig->errorCode);
   fprintf(output, " masterNodeId: %x\n", sig->masterNodeId);
   return true;
@@ -66,7 +66,7 @@ bool printCNTR_START_CONF(FILE *output,
                           Uint32 len,
                           Uint16 /*receiverBlockNo*/)
 {
-  const CntrStartConf * const sig = (CntrStartConf *)theData;
+  const CntrStartConf *const sig = (const CntrStartConf *)theData;
   fprintf(output, " startType: %x\n", sig->startType);
   fprintf(output, " startGci: %x\n", sig->startGci);
   fprintf(output, " masterNodeId: %x\n", sig->masterNodeId);

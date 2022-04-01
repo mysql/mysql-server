@@ -35,7 +35,8 @@ bool printCREATE_FRAGMENTATION_REQ(FILE *output,
     return false;
   }
 
-  const CreateFragmentationReq * const sig = (CreateFragmentationReq *)theData;
+  const CreateFragmentationReq *const sig =
+      (const CreateFragmentationReq *)theData;
   fprintf(output, " senderRef: %x\n", sig->senderRef);
   fprintf(output, " senderData: %x\n", sig->senderData);
   fprintf(output, " fragmentationType: %x\n", sig->fragmentationType);
@@ -60,7 +61,8 @@ bool printCREATE_FRAGMENTATION_REF(FILE *output,
     return false;
   }
 
-  const CreateFragmentationRef * const sig = (CreateFragmentationRef *)theData;
+  const CreateFragmentationRef *const sig =
+      (const CreateFragmentationRef *)theData;
   fprintf(output, " senderRef: %x\n", sig->senderRef);
   fprintf(output, " senderData: %x\n", sig->senderData);
   fprintf(output, " errorCode: %x\n", sig->errorCode);
@@ -78,8 +80,8 @@ bool printCREATE_FRAGMENTATION_CONF(FILE *output,
     return false;
   }
 
-  const CreateFragmentationConf * const sig = 
-    (CreateFragmentationConf *)theData;
+  const CreateFragmentationConf *const sig =
+      (const CreateFragmentationConf *)theData;
   fprintf(output, " senderRef: %x\n", sig->senderRef);
   fprintf(output, " senderData: %x\n", sig->senderData);
   fprintf(output, " noOfReplicas: %x\n", sig->noOfReplicas);

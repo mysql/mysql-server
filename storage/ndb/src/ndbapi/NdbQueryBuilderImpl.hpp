@@ -764,7 +764,8 @@ private:
   }
 
   NdbQueryBuilder m_interface;
-  NdbError m_error;
+  // Allow update error from const methods
+  mutable NdbError m_error;
 
   Vector<NdbQueryOperationDefImpl*> m_operations;
   Vector<NdbQueryOperandImpl*> m_operands;

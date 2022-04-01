@@ -1557,8 +1557,7 @@ NdbEventBuffer::remove_op()
 void
 NdbEventBuffer::init_gci_containers()
 {
-  Gci_container_pod empty_gci_container;
-  new(&empty_gci_container) Gci_container(this);
+  Gci_container empty_gci_container(this);
 
   m_startup_hack = true;
   m_active_gci.clear();
@@ -2016,15 +2015,6 @@ operator<<(NdbOut& out, const Gci_container& bucket)
       << "]";
   return out;
 }
-
-static
-NdbOut&
-operator<<(NdbOut& out, const Gci_container_pod& gci)
-{
-  Gci_container* ptr = (Gci_container*)&gci;
-  out << *ptr;
-  return out;
-}
 #endif
 
 void
@@ -2194,7 +2184,7 @@ NdbEventBuffer::find_bucket_chained(Uint64 gci)
 
   Uint32 pos = Uint32(gci & ACTIVE_GCI_MASK);
   Uint32 size = m_active_gci.size();
-  Gci_container *buckets = (Gci_container*)(m_active_gci.getBase());
+  Gci_container* buckets = m_active_gci.getBase();
   while (pos < size)
   {
     Uint64 cmp = (buckets + pos)->m_gci;
@@ -2241,10 +2231,11 @@ NdbEventBuffer::find_bucket_chained(Uint64 gci)
    */
   if (0) g_eventLogger->info("new (with expand) ");
 
-  Gci_container_pod empty_gci_container;
-  new(&empty_gci_container) Gci_container(this);
-  m_active_gci.fill(pos + 1, empty_gci_container);
-  buckets = (Gci_container*)(m_active_gci.getBase());
+  {
+    Gci_container empty_gci_container(this);
+    m_active_gci.fill(pos + 1, empty_gci_container);
+  }
+  buckets = m_active_gci.getBase();
 
 newbucket:
   Gci_container* bucket = buckets + pos;
@@ -4725,7 +4716,7 @@ EventBufData_hash::getpkhash(NdbEventOperationImpl* op,
   Uint32 nkey = tab->m_noOfKeys;
   assert(nkey != 0 && nkey <= ptr[0].sz);
   const Uint32* hptr = ptr[0].p;
-  const uchar* dptr = (uchar*)ptr[1].p;
+  const uchar* dptr = (const uchar*)ptr[1].p;
 
   // hash registers
   uint64 nr1 = 0;
@@ -4734,7 +4725,7 @@ EventBufData_hash::getpkhash(NdbEventOperationImpl* op,
   {
     AttributeHeader ah(*hptr++);
     Uint32 bytesize = ah.getByteSize();
-    assert(dptr + bytesize <= (uchar*)(ptr[1].p + ptr[1].sz));
+    assert(dptr + bytesize <= (const uchar*)(ptr[1].p + ptr[1].sz));
 
     Uint32 i = ah.getAttributeId();
     const NdbColumnImpl* col = tab->getColumn(i);
@@ -4765,10 +4756,10 @@ EventBufData_hash::getpkequal(NdbEventOperationImpl* op,
                               const LinearSectionPtr ptr2[3])
 {
   DBUG_ENTER_EVENT("EventBufData_hash::getpkequal");
-  DBUG_DUMP_EVENT("ah1", (char*)ptr1[0].p, ptr1[0].sz << 2);
-  DBUG_DUMP_EVENT("pk1", (char*)ptr1[1].p, ptr1[1].sz << 2);
-  DBUG_DUMP_EVENT("ah2", (char*)ptr2[0].p, ptr2[0].sz << 2);
-  DBUG_DUMP_EVENT("pk2", (char*)ptr2[1].p, ptr2[1].sz << 2);
+  DBUG_DUMP_EVENT("ah1", (const char*)ptr1[0].p, ptr1[0].sz << 2);
+  DBUG_DUMP_EVENT("pk1", (const char*)ptr1[1].p, ptr1[1].sz << 2);
+  DBUG_DUMP_EVENT("ah2", (const char*)ptr2[0].p, ptr2[0].sz << 2);
+  DBUG_DUMP_EVENT("pk2", (const char*)ptr2[1].p, ptr2[1].sz << 2);
 
   const NdbTableImpl* tab = op->m_eventImpl->m_tableImpl;
 
@@ -4776,8 +4767,8 @@ EventBufData_hash::getpkequal(NdbEventOperationImpl* op,
   assert(nkey != 0 && nkey <= ptr1[0].sz && nkey <= ptr2[0].sz);
   const Uint32* hptr1 = ptr1[0].p;
   const Uint32* hptr2 = ptr2[0].p;
-  const uchar* dptr1 = (uchar*)ptr1[1].p;
-  const uchar* dptr2 = (uchar*)ptr2[1].p;
+  const uchar* dptr1 = (const uchar*)ptr1[1].p;
+  const uchar* dptr2 = (const uchar*)ptr2[1].p;
 
   bool equal = true;
 
@@ -4788,8 +4779,8 @@ EventBufData_hash::getpkequal(NdbEventOperationImpl* op,
     // sizes can differ on update of varchar endspace
     Uint32 bytesize1 = ah1.getByteSize();
     Uint32 bytesize2 = ah2.getByteSize();
-    assert(dptr1 + bytesize1 <= (uchar*)(ptr1[1].p + ptr1[1].sz));
-    assert(dptr2 + bytesize2 <= (uchar*)(ptr2[1].p + ptr2[1].sz));
+    assert(dptr1 + bytesize1 <= (const uchar*)(ptr1[1].p + ptr1[1].sz));
+    assert(dptr2 + bytesize2 <= (const uchar*)(ptr2[1].p + ptr2[1].sz));
 
     assert(ah1.getAttributeId() == ah2.getAttributeId());
     Uint32 i = ah1.getAttributeId();
@@ -4847,5 +4838,4 @@ EventBufData_hash::search(Pos& hpos,
   DBUG_RETURN_EVENT(nullptr);
 }
 
-
-template class Vector<Gci_container_pod>;
+template class Vector<Gci_container>;

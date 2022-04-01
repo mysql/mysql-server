@@ -38,8 +38,8 @@ bool printFSREF(FILE *output,
 
   bool ret = true;
 
-  const FsRef * const sig = (FsRef *) theData;
-  
+  const FsRef *const sig = (const FsRef *)theData;
+
   fprintf(output, " UserPointer: %d\n", 
 	  sig->userPointer);
 

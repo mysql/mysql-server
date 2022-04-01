@@ -36,7 +36,7 @@ bool printDEFINE_BACKUP_REQ(FILE* out,
     return false;
   }
 
-  DefineBackupReq* sig = (DefineBackupReq*)data;
+  const DefineBackupReq* sig = (const DefineBackupReq*)data;
   fprintf(out, " backupPtr: %d backupId: %d clientRef: %d clientData: %d\n",
 	  sig->backupPtr, sig->backupId, sig->clientRef, sig->clientData);
   fprintf(out, " backupKey: [ %08x%08x ] DataLength: %d\n",
@@ -55,7 +55,7 @@ bool printDEFINE_BACKUP_REF(FILE* out,
     return false;
   }
 
-  DefineBackupRef* sig = (DefineBackupRef*)data;
+  const DefineBackupRef* sig = (const DefineBackupRef*)data;
   fprintf(out, " backupPtr: %d backupId: %d errorCode: %d\n",
 	  sig->backupPtr, sig->backupId, sig->errorCode);
   return true;
@@ -71,7 +71,7 @@ bool printDEFINE_BACKUP_CONF(FILE* out,
     assert(false);
     return false;
   }
-  DefineBackupConf* sig = (DefineBackupConf*)data;
+  const DefineBackupConf* sig = (const DefineBackupConf*)data;
   fprintf(out, " backupPtr: %d backupId: %d\n",
 	  sig->backupPtr, sig->backupId);
   return true;
@@ -87,7 +87,7 @@ bool printSTART_BACKUP_REQ(FILE* out,
     assert(false);
     return false;
   }
-  StartBackupReq* sig = (StartBackupReq*)data;
+  const StartBackupReq* sig = (const StartBackupReq*)data;
   fprintf(out, " backupPtr: %d backupId: %d\n",
 	  sig->backupPtr, sig->backupId);
   return true;
@@ -104,7 +104,7 @@ bool printSTART_BACKUP_REF(FILE* out,
     return false;
   }
 
-  StartBackupRef* sig = (StartBackupRef*)data;
+  const StartBackupRef* sig = (const StartBackupRef*)data;
   fprintf(out, " backupPtr: %d backupId: %d errorCode: %d\n",
 	  sig->backupPtr, sig->backupId, sig->errorCode);
   return true;
@@ -121,7 +121,7 @@ bool printSTART_BACKUP_CONF(FILE* out,
     return false;
   }
 
-  StartBackupConf* sig = (StartBackupConf*)data;
+  const StartBackupConf* sig = (const StartBackupConf*)data;
   fprintf(out, " backupPtr: %d backupId: %d\n",
 	  sig->backupPtr, sig->backupId);
   return true;
@@ -138,7 +138,7 @@ bool printBACKUP_FRAGMENT_REQ(FILE* out,
     return false;
   }
 
-  BackupFragmentReq* sig = (BackupFragmentReq*)data;
+  const BackupFragmentReq* sig = (const BackupFragmentReq*)data;
   fprintf(out, " backupPtr: %d backupId: %d\n",
 	  sig->backupPtr, sig->backupId);
   fprintf(out, " tableId: %d fragmentNo: %d (count = %d)\n",
@@ -157,7 +157,7 @@ bool printBACKUP_FRAGMENT_REF(FILE* out,
     return false;
   }
 
-  BackupFragmentRef* sig = (BackupFragmentRef*)data;
+  const BackupFragmentRef* sig = (const BackupFragmentRef*)data;
   fprintf(out, " backupPtr: %d backupId: %d nodeId: %d errorCode: %d\n",
 	  sig->backupPtr, sig->backupId, sig->nodeId, sig->errorCode);
   return true;
@@ -174,7 +174,7 @@ bool printBACKUP_FRAGMENT_CONF(FILE* out,
     return false;
   }
 
-  BackupFragmentConf* sig = (BackupFragmentConf*)data;
+  const BackupFragmentConf* sig = (const BackupFragmentConf*)data;
   fprintf(out, " backupPtr: %d backupId: %d\n",
 	  sig->backupPtr, sig->backupId);
   fprintf(out, " tableId: %d fragmentNo: %d records: %llu bytes: %llu\n",
@@ -195,7 +195,7 @@ bool printSTOP_BACKUP_REQ(FILE* out,
     return false;
   }
 
-  StopBackupReq* sig = (StopBackupReq*)data;
+  const StopBackupReq* sig = (const StopBackupReq*)data;
   fprintf(out, " backupPtr: %d backupId: %d\n",
 	  sig->backupPtr, sig->backupId);
   return true;
@@ -212,7 +212,7 @@ bool printSTOP_BACKUP_REF(FILE* out,
     return false;
   }
 
-  StopBackupRef* sig = (StopBackupRef*)data;
+  const StopBackupRef* sig = (const StopBackupRef*)data;
   fprintf(out, " backupPtr: %d backupId: %d errorCode: %d\n",
 	  sig->backupPtr, sig->backupId, sig->errorCode);
   return true;
@@ -229,7 +229,7 @@ bool printSTOP_BACKUP_CONF(FILE* out,
     return false;
   }
 
-  StopBackupConf* sig = (StopBackupConf*)data;
+  const StopBackupConf* sig = (const StopBackupConf*)data;
   fprintf(out, " backupPtr: %d backupId: %d\n",
 	  sig->backupPtr, sig->backupId);
   return true;

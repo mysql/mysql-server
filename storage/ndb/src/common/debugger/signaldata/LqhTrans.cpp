@@ -36,7 +36,7 @@ bool printLQH_TRANSCONF(FILE *output,
     return false;
   }
 
-  const LqhTransConf * const sig = (LqhTransConf *)theData;
+  const LqhTransConf *const sig = (const LqhTransConf *)theData;
   fprintf(output, " tcRef: %x\n", sig->tcRef);
   fprintf(output, " lqhNodeId: %x\n", sig->lqhNodeId);
   fprintf(output, " operationStatus: %x\n", sig->operationStatus);

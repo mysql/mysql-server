@@ -377,7 +377,7 @@ void getTextArbitState(char *m_text,
   // REPORT arbitrator found or lost.
   //-----------------------------------------------------------------------
   {
-    const ArbitSignalData* sd = (ArbitSignalData*)theData;
+    const ArbitSignalData *sd = (const ArbitSignalData *)theData;
     char ticketText[ArbitTicket::TextLength + 1];
     char errText[ArbitCode::ErrTextLength + 1];
     const unsigned code = sd->code & 0xFFFF;
@@ -435,7 +435,7 @@ void getTextArbitResult(char *m_text,
   // REPORT arbitration result (the failures may not reach us).
   //-----------------------------------------------------------------------
   {
-    const ArbitSignalData* sd = (ArbitSignalData*)theData;
+    const ArbitSignalData *sd = (const ArbitSignalData *)theData;
     char errText[ArbitCode::ErrTextLength + 1];
     const unsigned code = sd->code & 0xFFFF;
     const unsigned state = sd->code >> 16;
@@ -994,7 +994,7 @@ void getTextInfoEvent(char *m_text,
                       const Uint32 *theData,
                       Uint32 /*len*/)
 {
-  BaseString::snprintf(m_text, m_text_len, "%s", (char *)&theData[1]);
+  BaseString::snprintf(m_text, m_text_len, "%s", (const char *)&theData[1]);
 }
 const char bytes_unit[]= "B";
 const char kbytes_unit[]= "KB";
@@ -1210,7 +1210,7 @@ void getTextWarningEvent(char *m_text,
                          const Uint32 *theData,
                          Uint32 /*len*/)
 {
-  BaseString::snprintf(m_text, m_text_len, "%s", (char *)&theData[1]);
+  BaseString::snprintf(m_text, m_text_len, "%s", (const char *)&theData[1]);
 }
 void getTextGCP_TakeoverStarted(char *m_text,
                                 size_t m_text_len,

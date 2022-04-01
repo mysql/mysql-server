@@ -47,7 +47,7 @@ bool printFIRE_TRIG_ORD(FILE* output,
                         Uint32 len,
                         Uint16 /*receiverBlockNo*/)
 {
-  const FireTrigOrd * const sig = (FireTrigOrd *) theData;
+  const FireTrigOrd* const sig = (const FireTrigOrd*)theData;
 
   fprintf(output, " TriggerId: %d TriggerEvent: %s\n",
 	  sig->getTriggerId(),

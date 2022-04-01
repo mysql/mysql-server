@@ -37,8 +37,8 @@ bool printSTART_LCP_REQ(FILE *output,
     return false;
   }
 
-  const StartLcpReq * const sig = (StartLcpReq *) theData;
- 
+  const StartLcpReq *const sig = (const StartLcpReq *)theData;
+
   char buf1[NdbNodeBitmask48::TextLength + 1];
   char buf2[NdbNodeBitmask48::TextLength + 1];
 
@@ -70,8 +70,8 @@ bool printSTART_LCP_CONF(FILE *output,
     return false;
   }
 
-  const StartLcpConf * const sig = (StartLcpConf *) theData;
-  
+  const StartLcpConf *const sig = (const StartLcpConf *)theData;
+
   fprintf(output, " Sender: %d LcpId: %d\n",
 	  refToNode(sig->senderRef), sig->lcpId);
   
@@ -89,8 +89,8 @@ bool printLCP_FRAG_ORD(FILE *output,
     return false;
   }
 
-  const LcpFragOrd * const sig = (LcpFragOrd *) theData;
-  
+  const LcpFragOrd *const sig = (const LcpFragOrd *)theData;
+
   fprintf(output, " LcpId: %d LcpNo: %d Table: %d Fragment: %d\n",
 	  sig->lcpId, sig->lcpNo, sig->tableId, sig->fragmentId);
   
@@ -110,8 +110,8 @@ bool printLCP_FRAG_REP(FILE *output,
     return false;
   }
 
-  const LcpFragRep * const sig = (LcpFragRep *) theData;
-  
+  const LcpFragRep *const sig = (const LcpFragRep *)theData;
+
   fprintf(output, " LcpId: %d LcpNo: %d NodeId: %d Table: %d Fragment: %d\n",
 	  sig->lcpId, sig->lcpNo, sig->nodeId, sig->tableId, sig->fragId);
   fprintf(output, " Max GCI Started: %d Max GCI Completed: %d\n",
@@ -130,8 +130,8 @@ bool printLCP_COMPLETE_REP(FILE *output,
     return false;
   }
 
-  const LcpCompleteRep * const sig = (LcpCompleteRep *) theData;
-  
+  const LcpCompleteRep *const sig = (const LcpCompleteRep *)theData;
+
   fprintf(output, " LcpId: %d NodeId: %d Block: %s\n",
 	  sig->lcpId, sig->nodeId, getBlockName(sig->blockNo));
   return true;
@@ -148,8 +148,8 @@ bool printLCP_STATUS_REQ(FILE *output,
     return false;
   }
 
-  const LcpStatusReq* const sig = (LcpStatusReq*) theData;
-  
+  const LcpStatusReq *const sig = (const LcpStatusReq *)theData;
+
   fprintf(output, " SenderRef : %x SenderData : %u\n", 
           sig->senderRef, sig->senderData);
   return true;
@@ -166,8 +166,8 @@ bool printLCP_STATUS_CONF(FILE *output,
     return false;
   }
 
-  const LcpStatusConf* const sig = (LcpStatusConf*) theData;
-  
+  const LcpStatusConf *const sig = (const LcpStatusConf *)theData;
+
   fprintf(output, " SenderRef : %x SenderData : %u LcpState : %u tableId : %u fragId : %u\n",
           sig->senderRef, sig->senderData, sig->lcpState, sig->tableId, sig->fragId);
   fprintf(output, " replica(Progress : %llu), lcpDone (Rows : %llu, Bytes : %llu)\n",
@@ -189,8 +189,8 @@ bool printLCP_STATUS_REF(FILE *output,
     return false;
   }
 
-  const LcpStatusRef* const sig = (LcpStatusRef*) theData;
-  
+  const LcpStatusRef *const sig = (const LcpStatusRef *)theData;
+
   fprintf(output, " SenderRef : %x, SenderData : %u Error : %u\n", 
           sig->senderRef, sig->senderData, sig->error);
   return true;
@@ -207,7 +207,7 @@ bool printLCP_PREPARE_REQ(FILE *output,
     return false;
   }
 
-  const LcpPrepareReq* const sig = (LcpPrepareReq*)theData;
+  const LcpPrepareReq *const sig = (const LcpPrepareReq *)theData;
 
   fprintf(output, "senderData: %x, senderRef: %x, lcpNo: %u, tableId: %u, "
                   "fragmentId: %u\n"
@@ -237,7 +237,7 @@ bool printLCP_PREPARE_CONF(FILE *output,
     return false;
   }
 
-  const LcpPrepareConf* const sig = (LcpPrepareConf*)theData;
+  const LcpPrepareConf *const sig = (const LcpPrepareConf *)theData;
 
   fprintf(output, "senderData: %x, senderRef: %x, tableId: %u, fragmentId: %u\n",
           sig->senderData,
@@ -258,7 +258,7 @@ bool printLCP_PREPARE_REF(FILE *output,
     return false;
   }
 
-  const LcpPrepareRef* const sig = (LcpPrepareRef*)theData;
+  const LcpPrepareRef *const sig = (const LcpPrepareRef *)theData;
 
   fprintf(output, "senderData: %x, senderRef: %x, tableId: %u, fragmentId: %u"
                   ", errorCode: %u\n",
@@ -281,7 +281,7 @@ bool printSYNC_PAGE_CACHE_REQ(FILE *output,
     return false;
   }
 
-  const SyncPageCacheReq* const sig = (SyncPageCacheReq*)theData;
+  const SyncPageCacheReq *const sig = (const SyncPageCacheReq *)theData;
   fprintf(output, "senderData: %x, senderRef: %x, tableId: %u, fragmentId: %u\n",
           sig->senderData,
           sig->senderRef,
@@ -301,7 +301,7 @@ bool printSYNC_PAGE_CACHE_CONF(FILE *output,
     return false;
   }
 
-  const SyncPageCacheConf* const sig = (SyncPageCacheConf*)theData;
+  const SyncPageCacheConf *const sig = (const SyncPageCacheConf *)theData;
   fprintf(output, "senderData: %x, senderRef: %x, tableId: %u, fragmentId: %u\n"
                   "diskDataExistFlag: %u\n",
           sig->senderData,
@@ -323,7 +323,7 @@ bool printEND_LCPREQ(FILE *output,
     return false;
   }
 
-  const EndLcpReq* const sig = (EndLcpReq*)theData;
+  const EndLcpReq *const sig = (const EndLcpReq *)theData;
   fprintf(output, "senderData: %x, senderRef: %x, backupPtr: %u, backupId: %u\n"
                   "proxyBlockNo: %u\n",
                   sig->senderData,
@@ -345,7 +345,7 @@ bool printEND_LCPCONF(FILE *output,
     return false;
   }
 
-  const EndLcpConf* const sig = (EndLcpConf*)theData;
+  const EndLcpConf *const sig = (const EndLcpConf *)theData;
   fprintf(output, "senderData: %x, senderRef: %x\n",
           sig->senderData,
           sig->senderRef);

@@ -1088,8 +1088,7 @@ NdbOperation::branch_col(Uint32 type,
   DBUG_ENTER("NdbOperation::branch_col");
   DBUG_PRINT("enter", ("type: %u  col:%u  val: %p  len: %u  label: %u",
                        type, ColId, val, len, Label));
-  if (val != NULL)
-    DBUG_DUMP("value", (uchar*)val, len);
+  if (val != NULL) DBUG_DUMP("value", (const uchar*)val, len);
 
   if (initial_interpreterCheck() == -1)
     DBUG_RETURN(-1);
@@ -1164,14 +1163,14 @@ NdbOperation::branch_col(Uint32 type,
   Uint32 len2 = Interpreter::mod4(len);
   if((len2 == len) &&
      (lastWordMask == (Uint32)~0)){
-    insertATTRINFOloop((Uint32*)val, len2 >> 2);
+    insertATTRINFOloop((const Uint32*)val, len2 >> 2);
   } else {
     len2 -= 4;
-    insertATTRINFOloop((Uint32*)val, len2 >> 2);
+    insertATTRINFOloop((const Uint32*)val, len2 >> 2);
     Uint32 tmp = 0;
     for (Uint32 i = 0; i < len-len2; i++) {
       char* p = (char*)&tmp;
-      p[i] = ((char*)val)[len2+i];
+      p[i] = ((const char*)val)[len2 + i];
     }
     insertATTRINFO(tmp & lastWordMask);
   }

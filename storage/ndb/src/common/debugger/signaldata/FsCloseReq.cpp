@@ -30,8 +30,8 @@ bool printFSCLOSEREQ(FILE *output,
                      Uint32 len,
                      Uint16 /*receiverBlockNo*/)
 {
-  const FsCloseReq * const sig = (FsCloseReq *) theData;
-  
+  const FsCloseReq *const sig = (const FsCloseReq *)theData;
+
   fprintf(output, " UserPointer: %d\n", 
 	  sig->userPointer);
   fprintf(output, " FilePointer: %d\n", 

@@ -32,7 +32,7 @@ bool printSYSTEM_ERROR(FILE *output,
                        Uint32 len,
                        Uint16 /*receiverBlockNo*/)
 {
-  const SystemError * const sig = (SystemError *) theData;
+  const SystemError *const sig = (const SystemError *)theData;
 
   fprintf(output, "errorRef: H\'%.8x\n", 
 	  sig->errorRef);   

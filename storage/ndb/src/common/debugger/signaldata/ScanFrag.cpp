@@ -37,7 +37,7 @@ bool printSCAN_FRAGREQ(FILE *output,
     return false;
   }
 
-  const ScanFragReq * const sig = (ScanFragReq *)theData;
+  const ScanFragReq *const sig = (const ScanFragReq *)theData;
   fprintf(output, " senderData: 0x%x\n", sig->senderData);
   fprintf(output, " resultRef: 0x%x\n", sig->resultRef);
   fprintf(output, " savePointId: %u\n", sig->savePointId);

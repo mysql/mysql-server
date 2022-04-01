@@ -47,8 +47,8 @@ bool printTRIG_ATTRINFO(FILE *output,
                         Uint32 len,
                         Uint16 /*receiverBlockNo*/)
 {
-  const TrigAttrInfo * const sig = (TrigAttrInfo *) theData;
-  
+  const TrigAttrInfo *const sig = (const TrigAttrInfo *)theData;
+
   fprintf(output, " TriggerId: %d Type: %s ConnectPtr: %x\n",
 	  sig->getTriggerId(),
 	  tatype(sig->getAttrInfoType()),

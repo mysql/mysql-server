@@ -31,8 +31,8 @@ bool printISOLATE_ORD(FILE *output,
                       Uint32 len,
                       Uint16 /*receiverBlockNo*/)
 {
-  const IsolateOrd * const sig = (IsolateOrd *) theData;
-  
+  const IsolateOrd *const sig = (const IsolateOrd *)theData;
+
   fprintf(output, " senderRef : %x step : %s delayMillis : %u, nodesToIsolate :",
           sig->senderRef,
           (sig->isolateStep == IsolateOrd::IS_REQ?"Request" :

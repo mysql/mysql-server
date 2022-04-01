@@ -231,8 +231,7 @@ NdbInterpretedCode::add3(Uint32 x1, Uint32 x2, Uint32 x3)
   return 0;
 }
 
-inline int 
-NdbInterpretedCode::addN(Uint32 *data, Uint32 length)
+inline int NdbInterpretedCode::addN(const Uint32 *data, Uint32 length)
 {
   if (likely(length > 0))
   {
@@ -537,7 +536,7 @@ NdbInterpretedCode::branch_col_val(Uint32 branch_type,
   DBUG_PRINT("enter", ("type: %u  col:%u  val: %p  len: %u  label: %u",
                        branch_type, attrId, val, len, label));
   if (val != NULL)
-    DBUG_DUMP("value", (uchar*)val, len);
+    DBUG_DUMP("value", (const uchar *)val, len);
   else
     DBUG_PRINT("info", ("value == NULL"));
 
@@ -613,20 +612,19 @@ NdbInterpretedCode::branch_col_val(Uint32 branch_type,
   if((len2 == len)  && (lastWordMask == (Uint32)~0))
   {
     /* Whole number of 32-bit words */
-    DBUG_RETURN(addN((Uint32*)val, len2 >> 2));
+    DBUG_RETURN(addN((const Uint32 *)val, len2 >> 2));
   } 
 
   /* else */
   /* Partial last word */
   len2 -= 4;
-  if (addN((Uint32*)val, len2 >> 2) != 0)
-    DBUG_RETURN(-1);
-  
+  if (addN((const Uint32 *)val, len2 >> 2) != 0) DBUG_RETURN(-1);
+
   /* Zero insignificant bytes in last word */
   Uint32 tmp = 0;
   for (Uint32 i = 0; i < len-len2; i++) {
     char* p = (char*)&tmp;
-    p[i] = ((char*)val)[len2+i];
+    p[i] = ((const char *)val)[len2 + i];
   }
   DBUG_RETURN(add1((tmp & lastWordMask)));
 }
@@ -1152,9 +1150,8 @@ NdbInterpretedCode::getInfo(Uint32 number, CodeMetaInfo &info) const
 }
 
 /* Update internal NdbError object based on its code */
-static void
-update(const NdbError & _err){
-  NdbError & error = (NdbError &) _err;
+static void update(NdbError &error)
+{
   ndberror_struct ndberror = (ndberror_struct)error;
   ndberror_update(&ndberror);
   error = NdbError(ndberror);
@@ -1243,8 +1240,8 @@ int
 NdbInterpretedCode::compareMetaInfo(const void *va, 
                                     const void *vb)
 {
-  Uint32 aWord= *(((Uint32 *) va) + 1); // number || type
-  Uint32 bWord= *(((Uint32 *) vb) + 1); // number || type
+  Uint32 aWord = *(((const Uint32 *)va) + 1);  // number || type
+  Uint32 bWord = *(((const Uint32 *)vb) + 1);  // number || type
   Uint16 aType= aWord & 0xffff;
   Uint16 bType= bWord & 0xffff;
   const int AFirst= -1;

@@ -3550,7 +3550,7 @@ NdbDictionary::printFormattedValue(NdbOut& out,
       break;
     }
     case NdbDictionary::Column::Int:
-      out << *((Int32*)val);
+      out << *((const Int32*)val);
       break;
     case NdbDictionary::Column::Mediumint:
       out << sint3korr(val_p);
@@ -3559,7 +3559,7 @@ NdbDictionary::printFormattedValue(NdbOut& out,
       out << *((const short*) val);
       break;
     case NdbDictionary::Column::Tinyint:
-      out << *((Int8*) val);
+      out << *((const Int8*)val);
       break;
     case NdbDictionary::Column::Binary:
       if (!format.hex_format)

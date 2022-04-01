@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -134,7 +134,7 @@ public:
    * @return Number of characters appended on success and
    * 0 if there's insufficient space in the log buffer.
    */
-  size_t append(void* buf, size_t size);
+  size_t append(const void* buf, size_t size);
 
   /**
    * Remove data from the log buffer and copy to "buf".

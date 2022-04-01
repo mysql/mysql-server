@@ -2811,7 +2811,7 @@ from other transactions.
     const Uint32 tNoOfOperations = TcKeyConf::getNoOfOperations(tTemp);
     const Uint32 tCommitFlag = TcKeyConf::getCommitFlag(tTemp);
 
-    const Uint32* tPtr = (Uint32 *)&keyConf->operations[0];
+    const Uint32* tPtr = (const Uint32*)&keyConf->operations[0];
     Uint32 tNoComp = theNoOfOpCompleted;
     for (Uint32 i = 0; i < tNoOfOperations ; i++) {
       NdbReceiver* const tReceiver = 

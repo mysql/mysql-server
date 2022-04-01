@@ -36,8 +36,8 @@ bool printPREP_DROP_TAB_REQ(FILE *output,
     return false;
   }
 
-  const PrepDropTabReq * const sig = (PrepDropTabReq *) theData;
-  
+  const PrepDropTabReq *const sig = (const PrepDropTabReq *)theData;
+
   fprintf(output, 
 	  " senderRef: %x senderData: %d TableId: %d\n",
 	  sig->senderRef, sig->senderData, sig->tableId);
@@ -55,7 +55,7 @@ bool printPREP_DROP_TAB_CONF(FILE *output,
     return false;
   }
 
-  const PrepDropTabConf * const sig = (PrepDropTabConf *) theData;
+  const PrepDropTabConf *const sig = (const PrepDropTabConf *)theData;
 
   fprintf(output, 
 	  " senderRef: %x senderData: %d TableId: %d\n",
@@ -75,8 +75,8 @@ bool printPREP_DROP_TAB_REF(FILE *output,
     return false;
   }
 
-  const PrepDropTabRef * const sig = (PrepDropTabRef *) theData;
-  
+  const PrepDropTabRef *const sig = (const PrepDropTabRef *)theData;
+
   fprintf(output, 
 	  " senderRef: %x senderData: %d TableId: %d errorCode: %d\n",
 	  sig->senderRef, sig->senderData, sig->tableId, sig->errorCode);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
-
 
 /******************************************************************************
 Name:          NdbOperationSearch.C
@@ -210,7 +209,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
       }
       
       insertATTRINFO( ahValue );
-      insertATTRINFOloop((Uint32*)aValue, totalSizeInWords);
+      insertATTRINFOloop((const Uint32*)aValue, totalSizeInWords);
     }//if
     
     /**************************************************************************
@@ -352,9 +351,9 @@ NdbOperation::insertKEYINFO(const char* aValue,
   tEndPos = aStartPosition + anAttrSizeInWords - 1;
 
   if ((tEndPos < 9)) {
-    Uint32 tkeyData = *(Uint32*)aValue;
+    Uint32 tkeyData = *(const Uint32*)aValue;
     //TcKeyReq* tcKeyReq = CAST_PTR(TcKeyReq, tTCREQ->getDataPtrSend());
-    Uint32* tDataPtr = (Uint32*)aValue;
+    const Uint32* tDataPtr = (const Uint32*)aValue;
     tAttrPos = 1;
     Uint32* tkeyDataPtr = theKEYINFOptr + aStartPosition - 1;
     // (Uint32*)&tcKeyReq->keyInfo[aStartPosition - 1];
@@ -418,7 +417,7 @@ NdbOperation::insertKEYINFO(const char* aValue,
  *****************************************************************************/
   while (tPosition < 9)
   {
-    theKEYINFOptr[tPosition-1] = * (Uint32*)(aValue + (tAttrPos << 2));
+    theKEYINFOptr[tPosition - 1] = *(const Uint32*)(aValue + (tAttrPos << 2));
     tAttrPos++;
     if (anAttrSizeInWords == tAttrPos)
       goto LastWordLabel;
@@ -453,8 +452,8 @@ NdbOperation::insertKEYINFO(const char* aValue,
       tCurrentKEYINFO = tCurrentKEYINFO->next();
       signalCounter = 4;
     }
-    tCurrentKEYINFO->setData(*(Uint32*)(aValue + (tAttrPos << 2)), 
-			     signalCounter);
+    tCurrentKEYINFO->setData(*(const Uint32*)(aValue + (tAttrPos << 2)),
+                             signalCounter);
     tAttrPos++;
     if (anAttrSizeInWords == tAttrPos)
       goto LastWordLabel;

@@ -134,7 +134,7 @@ bool printDICTTABINFO(FILE* output,
                       Uint32 len,
                       Uint16 /*receiverBlockNo*/)
 {
-//  const DictTabInfo * const sig = (DictTabInfo *) theData;
+  //  const DictTabInfo * const sig = (const DictTabInfo *) theData;
 
   fprintf(output, "Signal data: ");
   Uint32 i = 0;

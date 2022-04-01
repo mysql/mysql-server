@@ -35,7 +35,7 @@ bool printREAD_NODES_CONF(FILE *output,
     return false;
   }
 
-  const ReadNodesConf * const sig = (ReadNodesConf *)theData;
+  const ReadNodesConf *const sig = (const ReadNodesConf *)theData;
   fprintf(output, " noOfNodes: %x\n", sig->noOfNodes);
   fprintf(output, " ndynamicId: %x\n", sig->ndynamicId);
   fprintf(output, " masterNodeId: %x\n", sig->masterNodeId);

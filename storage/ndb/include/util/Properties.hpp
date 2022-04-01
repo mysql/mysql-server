@@ -171,15 +171,16 @@ public:
   Uint32 getPropertiesErrno() const { return propErrno; }
   Uint32 getOSErrno() const { return osErrno; }
 
-private:
-  Uint32 propErrno;
-  Uint32 osErrno;
+ private:
+  //  Get methods that fail may set error code without changing property
+  mutable Uint32 propErrno;
+  mutable Uint32 osErrno;
 
   friend class PropertiesImpl;
-  class PropertiesImpl * impl;
-  class Properties * parent;
+  class PropertiesImpl *impl;
+  class Properties *parent;
 
-  void setErrno(Uint32 pErr, Uint32 osErr = 0) const ;
+  void setErrno(Uint32 pErr, Uint32 osErr = 0) const;
 };
 
 /**

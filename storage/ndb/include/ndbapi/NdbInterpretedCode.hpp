@@ -713,7 +713,8 @@ private:
   };
   Uint32 m_flags;
 
-  NdbError m_error;
+  // Allow m_error to be updated even for read only methods
+  mutable NdbError m_error;
 
   UnknownHandling m_unknown_action;
 
@@ -769,7 +770,7 @@ private:
   int add1(Uint32 x1);
   int add2(Uint32 x1, Uint32 x2);
   int add3(Uint32 x1, Uint32 x2, Uint32 x3);
-  int addN(Uint32 *data, Uint32 length);
+  int addN(const Uint32 *data, Uint32 length);
   int addMeta(CodeMetaInfo& info);
 
   int add_branch(Uint32 instruction, Uint32 label);

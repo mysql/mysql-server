@@ -36,8 +36,8 @@ bool printFAIL_REP(FILE *output,
     return false;
   }
 
-  const FailRep * const sig = (FailRep *) theData;
-  
+  const FailRep *const sig = (const FailRep *)theData;
+
   fprintf(output, " FailedNode: %d, FailCause: %d\n", 
 	  sig->failNodeId, sig->failCause);
 
