@@ -133,7 +133,7 @@ GlobalData::mt_getBlock(BlockNumber blockNo, Uint32 instanceNo)
  * Max. signals to execute from one job buffer before considering other
  * possible stuff to do.
  */
-static constexpr  Uint32 MAX_SIGNALS_PER_JB = 75;
+static constexpr Uint32 MAX_SIGNALS_PER_JB = 75;
 
 /**
  * Max signals written to other thread before calling wakeup_pending_signals
@@ -6226,13 +6226,21 @@ check_next_index_position(thr_job_queue *q,
   q->m_current_write_buffer_len = 0;
 }
 
+/**
+ * insert_prioa_signal and publish_prioa_signal:
+ * As naming suggest, these are for JBA signals only.
+ * There is a similar insert_local_signal() for JBB signals,
+ * which 'flush' and 'publish' chunks of signals.
+ *
+ * prioa_signals are effectively flushed and published for
+ * each signal.
+ */
 static inline
 bool
-publish_signal(thr_job_queue *q,
-               Uint32 write_pos,
-               struct thr_job_buffer *write_buffer,
-               struct thr_job_buffer *new_buffer,
-               bool prioa)
+publish_prioa_signal(thr_job_queue *q,
+                     Uint32 write_pos,
+                     struct thr_job_buffer *write_buffer,
+                     struct thr_job_buffer *new_buffer)
 {
   publish_position(write_buffer, write_pos);
   if (unlikely(write_pos + MAX_SIGNAL_SIZE > thr_job_buffer::SIZE))
@@ -6265,11 +6273,11 @@ copy_signal(Uint32 *dst,
 
 static
 bool
-insert_signal(thr_job_queue *q,
-              const SignalHeader* sh,
-              const Uint32 *data,
-              const Uint32 secPtr[3],
-              thr_job_buffer *new_buffer)
+insert_prioa_signal(thr_job_queue *q,
+                    const SignalHeader* sh,
+                    const Uint32 *data,
+                    const Uint32 secPtr[3],
+                    thr_job_buffer *new_buffer)
 {
   thr_job_buffer *write_buffer = q->m_current_write_buffer;
   Uint32 write_pos = q->m_current_write_buffer_len;
@@ -6285,11 +6293,10 @@ insert_signal(thr_job_queue *q,
   write_pos= (write_pos+1) & ~((Uint32)1);
 #endif
   q->m_current_write_buffer_len = write_pos;
-  return publish_signal(q,
-                        write_pos,
-                        write_buffer,
-                        new_buffer,
-                        true);
+  return publish_prioa_signal(q,
+                              write_pos,
+                              write_buffer,
+                              new_buffer);
 }
 
 //#define DEBUG_LOAD_INDICATOR 1
@@ -9143,11 +9150,8 @@ sendprioa(Uint32 self, const SignalHeader *s, const uint32 *data,
   }
 
   lock(&dstptr->m_jba.m_write_lock);
-  const bool buf_used = insert_signal(q,
-                                      s,
-                                      data,
-                                      secPtr,
-                                      selfptr->m_next_buffer);
+  const bool buf_used =
+      insert_prioa_signal(q, s, data, secPtr, selfptr->m_next_buffer);
   unlock(&dstptr->m_jba.m_write_lock);
   if (selfptr != dstptr)
   {
@@ -9302,7 +9306,7 @@ sendprioa_STOP_FOR_CRASH(const struct thr_data *selfptr, Uint32 dst)
       loop_count = 0;
     }
   }
-  insert_signal(q, &signalT.header, signalT.theData, NULL, &dummy_buffer);
+  insert_prioa_signal(q, &signalT.header, signalT.theData, NULL, &dummy_buffer);
   unlock(&dstptr->m_jba.m_write_lock);
   {
     loop_count = 0;
