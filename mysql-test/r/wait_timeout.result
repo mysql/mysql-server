@@ -69,7 +69,8 @@ SET @@SESSION.wait_timeout = 2;
 # Wait for con2 to be disconnected.
 # Check that con2 has been reconnected.
 SELECT "Unix domain socket will hit wait_timeout with reconnect";
-Got one of the listed errors
+Unix domain socket will hit wait_timeout with reconnect
+Unix domain socket will hit wait_timeout with reconnect
 SELECT @is_old_connection;
 @is_old_connection
 NULL
