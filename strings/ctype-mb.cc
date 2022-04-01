@@ -327,8 +327,8 @@ size_t my_numchars_mb(const CHARSET_INFO *cs, const char *pos,
   return count;
 }
 
-size_t my_charpos_mb(const CHARSET_INFO *cs, const char *pos, const char *end,
-                     size_t length) {
+size_t my_charpos_mb3(const CHARSET_INFO *cs, const char *pos, const char *end,
+                      size_t length) {
   const char *start = pos;
 
   while (length && pos < end) {

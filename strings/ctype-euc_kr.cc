@@ -9431,7 +9431,7 @@ static MY_CHARSET_HANDLER my_charset_handler = {
     ismbchar_euc_kr,
     mbcharlen_euc_kr,
     my_numchars_mb,
-    my_charpos_mb,
+    my_charpos_mb3,
     my_well_formed_len_euckr,
     my_lengthsp_8bit,
     my_numcells_8bit,

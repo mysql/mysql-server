@@ -559,8 +559,8 @@ int my_wildcmp_mb(const CHARSET_INFO *, const char *str, const char *str_end,
                   int w_one, int w_many);
 size_t my_numchars_mb(const CHARSET_INFO *, const char *b, const char *e);
 size_t my_numcells_mb(const CHARSET_INFO *, const char *b, const char *e);
-size_t my_charpos_mb(const CHARSET_INFO *, const char *b, const char *e,
-                     size_t pos);
+size_t my_charpos_mb3(const CHARSET_INFO *, const char *b, const char *e,
+                      size_t pos);
 size_t my_well_formed_len_mb(const CHARSET_INFO *, const char *b, const char *e,
                              size_t pos, int *error);
 uint my_instr_mb(const CHARSET_INFO *, const char *b, size_t b_length,
