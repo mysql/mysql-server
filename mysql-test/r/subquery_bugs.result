@@ -2011,6 +2011,9 @@ DROP TABLE t1;
 # Bug#33952115: Semijoin may give wrong result
 CREATE TABLE t1(c0 int);
 INSERT INTO t1 VALUES(NULL), (1), (NULL), (2), (NULL), (3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain SELECT t1.c0 AS ref0
 FROM t1
 WHERE t1.c0 IN (SELECT t2.c0 AS ref1
@@ -2047,6 +2050,9 @@ c0 INTEGER
 INSERT INTO t0 VALUES
 (321108437), (-64596961), (329053785), (1983), (NULL), (NULL),
 (1936), (-543970881), (NULL), (NULL), (-1945919442), (NULL), (1230052719);
+ANALYZE TABLE t0;
+Table	Op	Msg_type	Msg_text
+test.t0	analyze	status	OK
 explain SELECT t0.c0
 FROM t0
 WHERE t0.c0 NOT IN (SELECT t0.c0 AS ref1
