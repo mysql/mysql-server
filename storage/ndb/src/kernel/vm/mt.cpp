@@ -894,6 +894,9 @@ private:
  */
 struct thr_job_buffer // 32k
 {
+  thr_job_buffer()  // Construct an empty thr_job_buffer
+    : m_len(0), m_prioa(false) {}
+
   static const unsigned SIZE = 8190;
 
   /*
@@ -912,6 +915,9 @@ struct thr_job_buffer // 32k
     thr_job_buffer * m_next; // For free-list
   };
 };
+
+// The 'empty_job_buffer' is a sentinel for a job_queue possibly never used.
+static thr_job_buffer empty_job_buffer;
 
 static
 inline
@@ -6681,7 +6687,10 @@ execute_signals(thr_data *selfptr,
         /* Move to next buffer. */
         const unsigned queue_size = q->m_size;
         read_index = (read_index + 1) & (queue_size - 1);
-        release_buffer(g_thr_repository, selfptr->m_thr_no, read_buffer);
+        NDB_PREFETCH_READ (q->m_buffers[read_index]->m_data);
+        if (likely(read_buffer != &empty_job_buffer)) {
+          release_buffer(g_thr_repository, selfptr->m_thr_no, read_buffer);
+        }
         read_buffer = q->m_buffers[read_index];
         read_pos = 0;
         read_end = read_buffer->m_len;
@@ -9596,18 +9605,26 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
     BaseString::snprintf(buf, sizeof(buf), "jbblock(%u)", i);
     register_lock(&selfptr->m_jbb[i].m_write_lock, buf);
 
-    thr_job_buffer *buffer = seize_buffer(rep, thr_no, true);
     selfptr->m_congestion_level[i] = thr_job_queue::NO_CONGESTION;
     selfptr->m_jbb[i].m_read_index = 0;
     selfptr->m_jbb[i].m_write_index = 0;
-    selfptr->m_jbb[i].m_current_write_buffer = buffer;
-    selfptr->m_jbb[i].m_current_write_buffer_len = 0;
     selfptr->m_jbb[i].m_pending_signals = 0;
     selfptr->m_jbb[i].m_cached_read_index = 0;
-    selfptr->m_jbb[i].m_buffers[0] = buffer;
+
+    /**
+     * Initially no job_buffers are assigned and 'len' set to 'full',
+     * such that we will not write into the null-buffer.
+     * First write into the buffer will detect current as 'full',
+     * and assign a real job_buffer.
+     */
+    selfptr->m_jbb[i].m_buffers[0] = nullptr;
+    selfptr->m_jbb[i].m_current_write_buffer = nullptr;
+    selfptr->m_jbb[i].m_current_write_buffer_len = thr_job_buffer::SIZE;
+
+    // jbb_read_state is inited to an empty sentinel -> no signals
+    selfptr->m_jbb_read_state[i].m_read_buffer = &empty_job_buffer;
 
     selfptr->m_jbb_read_state[i].m_read_index = 0;
-    selfptr->m_jbb_read_state[i].m_read_buffer = buffer;
     selfptr->m_jbb_read_state[i].m_read_pos = 0;
     selfptr->m_jbb_read_state[i].m_read_end = 0;
     selfptr->m_jbb_read_state[i].m_write_index = 0;
@@ -9853,26 +9870,11 @@ compute_jb_pages(struct EmulatorData * ed)
     tot += num_main_threads *
            cnt *
            thr_job_queue::SIZE;
-    /**
-     * Add one buffer also for all communication links not used. This
-     * ensures that we don't need any special if-statements to check if
-     * the job buffer exists or not. Since the communication link is
-     * never used, it will never have anything there to check and we
-     * can avoid the extra if-statement in the read_all_jbb_state.
-     *
-     * So for those links where we cannot communicate we add one extra
-     * job buffer.
-     */
-    tot += num_receive_threads * (num_receive_threads - 1);
-    tot += num_tc_threads * num_receive_threads;
-    tot += (num_lqh_threads - 1) *
-             (num_receive_threads + num_lqh_threads - 1);
-    tot += num_receive_threads;
   }
 
   /**
    * Each thread keeps a available free page in 'm_next_buffer'
-   * in case it is required by insert_signal() into JBA or JBB.
+   * in case it is required by insert_*_signal() into JBA or JBB.
    */
   perthread += 1;
 
