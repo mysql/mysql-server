@@ -5865,18 +5865,13 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
     ctx.reportError("NoOfLogParts must be 4,6,8,10,12,16,20,24 or 32");
     return false;
   }
-  Uint32 dummy;
   if (auto_thread_config)
   {
     ;
   }
   else if (ctx.m_currentSection->get("ThreadConfig", &thrconfig))
   {
-    int ret = tmp.do_parse(thrconfig,
-                           realtimeScheduler,
-                           spinTimer,
-                           dummy,
-                           true);
+    int ret = tmp.do_parse(thrconfig, realtimeScheduler, spinTimer);
     if (ret)
     {
       ctx.reportError("Unable to parse ThreadConfig: %s",
@@ -5901,13 +5896,8 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
   }
   else if (maxExecuteThreads || lqhThreads || classic)
   {
-    int ret = tmp.do_parse(maxExecuteThreads,
-                           lqhThreads,
-                           classic,
-                           realtimeScheduler,
-                           spinTimer,
-                           dummy,
-                           true);
+    int ret = tmp.do_parse(
+        maxExecuteThreads, lqhThreads, classic, realtimeScheduler, spinTimer);
     if (ret)
     {
       ctx.reportError("Unable to set thread configuration: %s",
