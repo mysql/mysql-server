@@ -6173,7 +6173,9 @@ publish_position(thr_job_buffer *write_buffer, Uint32 write_pos)
 /**
  * Check, and if allowed, add the 'new_buffer' to our job_queue of
  * buffer pages containing signals.
- * If the 'job_queue' is full, we will crash.
+ * If the 'job_queue' is full, the new buffer is not inserted,
+ * and 'true' is returned. It is upto the caller to handle 'full'.
+ * (In many cases it can be a critical error)
  *
  * Note that the thread always hold a spare 'new_buffer' to be used if we
  * filled the current buffer. Thus, we can always complete a flush/write of
@@ -6182,7 +6184,7 @@ publish_position(thr_job_buffer *write_buffer, Uint32 write_pos)
  * Another 'new_buffer' will be allocated after lock is released.
  */
 static
-void
+bool
 check_next_index_position(thr_job_queue *q,
                           struct thr_job_buffer *new_buffer)
 {
@@ -6199,15 +6201,7 @@ check_next_index_position(thr_job_queue *q,
   write_index = (write_index + 1) & (queue_size - 1);
   NDB_PREFETCH_WRITE(&q->m_buffers[write_index]);
 
-  /**
-   * Full job buffer is fatal.
-   *
-   * ToDo: should we wait for it to become non-full? There is no guarantee
-   * that this will actually happen...
-   *
-   * Or alternatively, ndbrequire() ?
-   */
-  if (unlikely(write_index == q->m_cached_read_index))
+  if (unlikely(write_index == q->m_cached_read_index))  // Is full?
   {
     /**
      * We use local cached copy of m_read_index for JBB handling.
@@ -6220,14 +6214,11 @@ check_next_index_position(thr_job_queue *q,
      * as m_write_index which we are sure we have access to here.
      */
     Uint32 read_index = q->m_read_index;
-    if (write_index == read_index)
+    if (write_index == read_index)  // Is really full?
     {
-      job_buffer_full(0);
+      return true;
     }
-    else
-    {
-      q->m_cached_read_index = read_index;
-    }
+    q->m_cached_read_index = read_index;
   }
   assert(new_buffer->m_len == 0);
   q->m_buffers[write_index] = new_buffer;
@@ -6241,6 +6232,7 @@ check_next_index_position(thr_job_queue *q,
   // Thus, there are no memory barriers protecting the buffer vs len conistency.
   q->m_current_write_buffer = new_buffer;
   q->m_current_write_buffer_len = 0;
+  return false;
 }
 
 /**
@@ -6264,7 +6256,13 @@ publish_prioa_signal(thr_job_queue *q,
   {
     // Not room for one more signal
     new_buffer->m_prioa = true;
-    check_next_index_position(q, new_buffer);
+    const bool jba_full = check_next_index_position(q, new_buffer);
+    if (jba_full) {
+      // Assume rather low trafic on JBA.
+      // Contrary to JBB, signals are not first stored in a local_buffer.
+      // Thus a full JBA is always immediately critical.
+      job_buffer_full(0);
+    }
     return true; // Buffer new_buffer used
   }
   return false; // Buffer new_buffer not used
@@ -8807,10 +8805,11 @@ handle_sent_signals(struct thr_data *selfptr,
 static Uint32
 copy_out_local_buffer(struct thr_data *selfptr,
                       thr_job_queue *q,
-                      Uint32 next_signal)
+                      Uint32 &next)
 {
   Uint32 num_signals = 0;
   const thr_job_buffer *const local_buffer = selfptr->m_local_buffer;
+  Uint32 next_signal = next;
 
   thr_job_buffer *write_buffer = q->m_current_write_buffer;
   Uint32 write_pos = q->m_current_write_buffer_len;
@@ -8828,7 +8827,10 @@ copy_out_local_buffer(struct thr_data *selfptr,
         publish_position(write_buffer, write_pos);
       }
       // Add a new job_buffer?
-      check_next_index_position(q, selfptr->m_next_buffer);
+      const bool full = check_next_index_position(q, selfptr->m_next_buffer);
+      if (unlikely(full)) {
+        break;
+      }
       write_pos = 0;
       write_buffer = selfptr->m_next_buffer;
       selfptr->m_next_buffer = nullptr;
@@ -8847,6 +8849,7 @@ copy_out_local_buffer(struct thr_data *selfptr,
 
   q->m_current_write_buffer_len = write_pos;
   publish_position(write_buffer, write_pos);
+  next = next_signal;
   return num_signals;
 }
 
@@ -8858,7 +8861,7 @@ copy_out_local_buffer(struct thr_data *selfptr,
 static
 void
 flush_local_signals(struct thr_data *selfptr,
-                   Uint32 dst)
+                    Uint32 dst)
 {
   struct thr_job_buffer * const local_buffer = selfptr->m_local_buffer;
   Uint32 self = selfptr->m_thr_no;
@@ -8878,7 +8881,8 @@ flush_local_signals(struct thr_data *selfptr,
      */
     num_signals = copy_out_local_buffer(selfptr, q, next_signal);
   }
-  else
+  else if (selfptr->m_first_local[dst].m_num_signals <=
+	     MAX_SIGNALS_BEFORE_FLUSH_OTHER)
   {
     /**
      * Copy data into local flush_buffer before grabbing the write mutex.
@@ -8899,8 +8903,6 @@ flush_local_signals(struct thr_data *selfptr,
     {
       Uint32 *signal_buffer = &local_buffer->m_data[next_signal];
       Uint32 siglen = signal_buffer[1];
-      assert((siglen + copy_len) <= (MAX_SIGNALS_BEFORE_FLUSH_OTHER *
-                                     MAX_SIGNAL_SIZE));
       memcpy(&flush_buffer_ptr[copy_len], &signal_buffer[2], 4*siglen);
       next_signal = signal_buffer[0];
       copy_len += siglen;
@@ -8928,7 +8930,15 @@ flush_local_signals(struct thr_data *selfptr,
       num_signals = copy_out_local_buffer(selfptr, q, next_signal);
     }
   }
-  require(num_signals == selfptr->m_first_local[dst].m_num_signals);
+  else  // unlikely case:
+  {
+    // Too many signals to fit the flush_buffer[]. Will only
+    // happen when we previouly hit a full out-queue.
+    // (Will likely happen again now, but we need to keep trying)
+    lock(&q->m_write_lock);
+    num_signals = copy_out_local_buffer(selfptr, q, next_signal);
+  }
+
   handle_sent_signals(selfptr, dstptr, q);
 
   // Check *total* pending_signals in this queue, wakeup consumer?
@@ -8966,11 +8976,72 @@ flush_local_signals(struct thr_data *selfptr,
   {
     selfptr->m_next_buffer = seize_buffer(rep, self, false);
   }
-  selfptr->m_first_local[dst].m_num_signals = 0;
-  selfptr->m_first_local[dst].m_first_signal = SIGNAL_RNIL;
-  selfptr->m_first_local[dst].m_last_signal = SIGNAL_RNIL;
+  selfptr->m_first_local[dst].m_num_signals -= num_signals;
+  selfptr->m_first_local[dst].m_first_signal = next_signal;
+  if (next_signal == SIGNAL_RNIL)
+  {
+    selfptr->m_first_local[dst].m_last_signal = SIGNAL_RNIL;
+    selfptr->m_local_signals_mask.clear(dst);
+  }
 }
 
+/**
+ * 'Pack' the signal contents in 'm_local_buffer' in order to make any
+ * fragmented free space inbetween the signals available. We use the
+ * already pre-allocated (and unused) 'm_next_buffer' to copy the signals
+ * into, and just swap m_local_buffer with m_next_buffer when completed.
+ */
+static
+void
+pack_local_signals(struct thr_data *selfptr)
+{
+  thr_job_buffer *const local_buffer = selfptr->m_local_buffer;
+  thr_job_buffer *write_buffer = selfptr->m_next_buffer;
+  Uint32 write_pos = 0;
+  for (Uint32 dst = selfptr->m_local_signals_mask.find_first();
+       dst != BitmaskImpl::NotFound;
+       dst = selfptr->m_local_signals_mask.find_next(dst+1))
+  {
+    Uint32 siglen = 0;
+    Uint32 next_signal  = selfptr->m_first_local[dst].m_first_signal;
+    selfptr->m_first_local[dst].m_first_signal = write_pos;
+    do
+    {
+      assert(next_signal != SIGNAL_RNIL);
+      Uint32 *signal_buffer = &local_buffer->m_data[next_signal];
+      next_signal = signal_buffer[0];
+      siglen = signal_buffer[1];
+      write_buffer->m_data[write_pos] = write_pos + siglen + 2;
+      memcpy(&write_buffer->m_data[write_pos+1], &signal_buffer[1], 4*(siglen+1));
+      write_pos += siglen + 2;
+    } while (next_signal != SIGNAL_RNIL);
+    Uint32 last_pos = write_pos - siglen - 2;
+    write_buffer->m_data[last_pos] = SIGNAL_RNIL;
+    selfptr->m_first_local[dst].m_last_signal = last_pos;
+  }
+  write_buffer->m_len = write_pos;
+
+  // Swap m_next_buffer / selfptr->m_local_buffer
+  thr_job_buffer *const tmp = selfptr->m_local_buffer;
+  selfptr->m_local_buffer = write_buffer;
+  selfptr->m_next_buffer = tmp;
+
+  // Reset the swapped m_next_buffer:
+  selfptr->m_next_buffer->m_len = 0;
+  selfptr->m_next_buffer->m_prioa = false;
+}
+
+/**
+ * flush_all_local_signals copy signals from thread local buffer
+ * into the job-buffer queues to the destination thread(s).
+ *  It is typically called when:
+ *   - The local buffer is full.
+ *   - run_job_buffers executed a round of signals.
+ *   - We prepare to yield the CPU.
+ *
+ * A 'flush' might not complete entirely if all page slots in the
+ * out-queue is full. We will then have a 'critical' JB congestion.
+ */
 static
 void
 flush_all_local_signals(struct thr_data *selfptr)
@@ -8982,9 +9053,30 @@ flush_all_local_signals(struct thr_data *selfptr)
     assert(selfptr->m_local_signals_mask.get(thr_no));
     flush_local_signals(selfptr, thr_no);
   }
-  selfptr->m_local_signals_mask.clear();
-  struct thr_job_buffer * const local_buffer = selfptr->m_local_buffer;
-  local_buffer->m_len = 0;
+
+  if (likely(selfptr->m_local_signals_mask.isclear()))
+  {
+    // Normal exit: Flushed all local signals.
+    selfptr->m_local_buffer->m_len = 0;
+    return;
+  }
+  /**
+   * Failed to flush all signals - This is a CRITICAL JBB state:
+   *
+   * Having remaining local_signals is only expected when a JBB queue
+   * has been completely filled - Even the SAFETY limit has been consumed.
+   * We can still continue though, as long as we have remaining
+   * m_local_buffer.
+   */
+  if (unlikely(selfptr->m_local_buffer->m_len > MAX_LOCAL_BUFFER_USAGE)) {
+    // Try to free up some space
+    pack_local_signals(selfptr);
+    if (selfptr->m_local_buffer->m_len > MAX_LOCAL_BUFFER_USAGE) {
+      // Still full
+      job_buffer_full(0);  // -> WILL CRASH
+    }
+  }
+  return;  // We survived this time ... for a while
 }
 
 /**
@@ -9042,9 +9134,10 @@ insert_local_signal(struct thr_data *selfptr,
   Uint32 num_signals = selfptr->m_first_local[dst].m_num_signals;
   Uint32 write_pos = local_buffer->m_len;
   Uint32 *buffer_data = &local_buffer->m_data[write_pos];
+  num_signals++;
   buffer_data[0] = SIGNAL_RNIL;
   selfptr->m_first_local[dst].m_last_signal = write_pos;
-  selfptr->m_first_local[dst].m_num_signals = num_signals + 1;
+  selfptr->m_first_local[dst].m_num_signals = num_signals;
   if (first_signal == SIGNAL_RNIL)
   {
     selfptr->m_first_local[dst].m_first_signal = write_pos;
@@ -9074,10 +9167,13 @@ insert_local_signal(struct thr_data *selfptr,
   {
     flush_all_local_signals(selfptr);
   }
-  else if (unlikely((num_signals + 1) >= MAX_SIGNALS_BEFORE_FLUSH))
+  else if (unlikely(num_signals >= MAX_SIGNALS_BEFORE_FLUSH))
   {
     flush_local_signals(selfptr, dst);
-    selfptr->m_local_signals_mask.clear(dst);
+    if (selfptr->m_local_signals_mask.isclear()) {
+      // All signals flushed, we have an empty local_buffer.
+      selfptr->m_local_buffer->m_len = 0;
+    }
   }
 }
 
