@@ -102,6 +102,7 @@ Vendor:         %{mysql_vendor}
 Source10:       @BOOST_DOWNLOAD_URL@
 BuildRequires:  cmake >= 2.8.2
 BuildRequires:  bison >= 2.1
+BuildRequires:  elfutils
 BuildRequires:  perl
 BuildRequires:  perl(Config)
 BuildRequires:  perl(Cwd)

@@ -301,6 +301,10 @@ extern char *opt_init_file;
 extern const char *opt_tc_log_file;
 extern char server_uuid[UUID_LENGTH + 1];
 extern const char *server_uuid_ptr;
+#if defined(HAVE_BUILD_ID_SUPPORT)
+extern char server_build_id[42];
+extern const char *server_build_id_ptr;
+#endif
 extern const double log_10[309];
 extern ulong binlog_cache_use, binlog_cache_disk_use;
 extern ulong binlog_stmt_cache_use, binlog_stmt_cache_disk_use;

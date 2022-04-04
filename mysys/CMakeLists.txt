@@ -156,6 +156,10 @@ IF (WIN32)
   )
 ENDIF()
 
+IF(HAVE_BUILD_ID_SUPPORT)
+  LIST(APPEND MYSYS_SOURCES build_id.cc)
+ENDIF()
+
 IF(HAVE_POSIX_TIMERS)
   LIST(APPEND MYSYS_SOURCES posix_timers.cc)
 ENDIF()
@@ -225,3 +229,22 @@ MYSQL_ADD_EXECUTABLE(mf_iocache_test
   SKIP_INSTALL
   )
 SET_TARGET_PROPERTIES(mf_iocache_test PROPERTIES COMPILE_FLAGS "-DMAIN")
+
+IF(HAVE_BUILD_ID_SUPPORT)
+  MYSQL_ADD_EXECUTABLE(build_id_test
+    build_id_test.cc build_id.cc
+    SKIP_INSTALL
+    )
+  # Verify that we can read our own build-id:
+  ADD_CUSTOM_COMMAND(TARGET build_id_test POST_BUILD
+#   COMMAND ./build_id_test
+#   COMMAND ${READELF_EXECUTABLE} -n ./build_id_test | grep "Build ID:"
+    COMMAND ./build_id_test      | egrep -o "[0-9a-f]{40}" > build_id_test_1
+    COMMAND ${READELF_EXECUTABLE} -n ./build_id_test | grep "Build ID:" |
+                                   egrep -o "[0-9a-f]{40}" > build_id_test_2
+    COMMAND diff build_id_test_1 build_id_test_2
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
+    COMMENT "Verifying build-id"
+    VERBATIM
+    )
+ENDIF()

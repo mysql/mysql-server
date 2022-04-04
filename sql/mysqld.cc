@@ -756,6 +756,7 @@ MySQL clients support the protocol:
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"  // EXIT_OUT_OF_MEMORY
+#include "mysys/build_id.h"
 #include "pfs_thread_provider.h"
 #include "print_version.h"
 #include "scope_guard.h"                           // create_scope_guard()
@@ -1451,6 +1452,10 @@ time_t server_start_time, flush_status_time;
 
 char server_uuid[UUID_LENGTH + 1];
 const char *server_uuid_ptr;
+#if defined(HAVE_BUILD_ID_SUPPORT)
+char server_build_id[42];
+const char *server_build_id_ptr;
+#endif
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN];
 char system_time_zone_dst_on[30], system_time_zone_dst_off[30];
 char default_logfile_name[FN_REFLEN];
@@ -4709,6 +4714,10 @@ static inline const char *rpl_make_log_name(PSI_memory_key key, const char *opt,
 }
 
 int init_common_variables() {
+#if defined(HAVE_BUILD_ID_SUPPORT)
+  my_find_build_id(server_build_id);
+#endif
+
   my_decimal_set_zero(&decimal_zero);  // set decimal_zero constant;
   tzset();                             // Set tzname
 
@@ -4896,6 +4905,11 @@ int init_common_variables() {
   }
   set_server_version();
 
+#if defined(HAVE_BUILD_ID_SUPPORT)
+  if (!is_help_or_validate_option()) {
+    LogErr(INFORMATION_LEVEL, ER_BUILD_ID, server_build_id);
+  }
+#endif
   if (!is_help_or_validate_option()) {
     LogErr(INFORMATION_LEVEL, ER_BASEDIR_SET_TO, mysql_home);
   }
@@ -9869,6 +9883,11 @@ static void usage(void) {
     my_progname = my_progname + dirname_length(my_progname);
   }
   print_server_version();
+#if defined(HAVE_BUILD_ID_SUPPORT)
+  char build_id[42];
+  my_find_build_id(build_id);
+  printf("BuildID[sha1]=%s\n", build_id);
+#endif
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   puts("Starts the MySQL database server.\n");
   printf("Usage: %s [OPTIONS]\n", my_progname);

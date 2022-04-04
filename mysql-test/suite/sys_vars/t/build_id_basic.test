@@ -1,0 +1,34 @@
+--source include/have_build_id.inc
+
+SELECT COUNT(@@GLOBAL.build_id);
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.build_id=1;
+
+SELECT COUNT(@@GLOBAL.build_id);
+
+--disable_warnings
+SELECT @@GLOBAL.build_id = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='build_id';
+--enable_warnings
+
+SELECT COUNT(@@GLOBAL.build_id);
+
+--disable_warnings
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='build_id';
+--enable_warnings
+
+SELECT @@build_id = @@GLOBAL.datadir;
+
+SELECT COUNT(@@build_id);
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.build_id);
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.build_id);
+
+SELECT COUNT(@@GLOBAL.build_id);

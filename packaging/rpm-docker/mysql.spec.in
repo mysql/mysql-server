@@ -87,6 +87,7 @@ BuildRequires:  cmake3 >= 3.6.1
 %{?el8:BuildRequires:  gcc-toolset-10-gcc}
 %{?el8:BuildRequires:  gcc-toolset-10-gcc-c++}
 BuildRequires:  bison >= 2.1
+BuildRequires:  elfutils
 BuildRequires:  time
 BuildRequires:  cyrus-sasl-devel
 BuildRequires:  libaio-devel

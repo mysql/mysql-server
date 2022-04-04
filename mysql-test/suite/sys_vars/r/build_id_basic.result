@@ -1,0 +1,34 @@
+SELECT COUNT(@@GLOBAL.build_id);
+COUNT(@@GLOBAL.build_id)
+1
+SET @@GLOBAL.build_id=1;
+ERROR HY000: Variable 'build_id' is a read only variable
+SELECT COUNT(@@GLOBAL.build_id);
+COUNT(@@GLOBAL.build_id)
+1
+SELECT @@GLOBAL.build_id = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='build_id';
+@@GLOBAL.build_id = VARIABLE_VALUE
+1
+SELECT COUNT(@@GLOBAL.build_id);
+COUNT(@@GLOBAL.build_id)
+1
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='build_id';
+COUNT(VARIABLE_VALUE)
+1
+SELECT @@build_id = @@GLOBAL.datadir;
+@@build_id = @@GLOBAL.datadir
+0
+SELECT COUNT(@@build_id);
+COUNT(@@build_id)
+1
+SELECT COUNT(@@local.build_id);
+ERROR HY000: Variable 'build_id' is a GLOBAL variable
+SELECT COUNT(@@SESSION.build_id);
+ERROR HY000: Variable 'build_id' is a GLOBAL variable
+SELECT COUNT(@@GLOBAL.build_id);
+COUNT(@@GLOBAL.build_id)
+1

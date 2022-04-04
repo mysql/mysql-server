@@ -137,6 +137,10 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
       "LINKER:--compress-debug-sections=zlib")
   ENDIF()
 
+  IF(HAVE_BUILD_ID_SUPPORT)
+    MY_TARGET_LINK_OPTIONS(${target} "LINKER:--build-id=sha1")
+  ENDIF()
+
   # tell CPack where to install
   IF(NOT ARG_SKIP_INSTALL)
     IF(NOT ARG_DESTINATION)

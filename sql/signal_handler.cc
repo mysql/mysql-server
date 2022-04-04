@@ -112,6 +112,10 @@ void print_fatal_signal(int sig) {
       "Most likely, you have hit a bug, but this error can also "
       "be caused by malfunctioning hardware.\n");
 
+#if defined(HAVE_BUILD_ID_SUPPORT)
+  my_safe_printf_stderr("BuildID[sha1]=%s\n", server_build_id);
+#endif
+
 #ifdef HAVE_STACKTRACE
   THD *thd = current_thd;
 

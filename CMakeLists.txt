@@ -751,6 +751,20 @@ IF(WITH_DEFAULT_COMPILER_OPTIONS)
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/compiler_options.cmake)
 ENDIF()
 
+# Assume, for now at least, that we want build-id for all kinds of Linux builds.
+IF(LINUX)
+  OPTION(WITH_BUILD_ID "Add --build-id=sha1 to all executables." ON)
+  IF(WITH_BUILD_ID)
+    SET(HAVE_BUILD_ID_SUPPORT 1)
+    FIND_PROGRAM(READELF_EXECUTABLE
+      NAMES eu-readelf readelf
+      )
+    IF(NOT READELF_EXECUTABLE)
+      MESSAGE(FATAL_ERROR "Cannot find eu-readelf or readelf")
+    ENDIF()
+  ENDIF()
+ENDIF()
+
 INCLUDE(CMakePushCheckState)
 
 # Add macros
@@ -1418,12 +1432,6 @@ IF(REPRODUCIBLE_BUILD)
 
   STRING_APPEND(CMAKE_C_FLAGS   " ${DEBUG_PREFIX_FLAGS}")
   STRING_APPEND(CMAKE_CXX_FLAGS " ${DEBUG_PREFIX_FLAGS}")
-
-  # DEB/RPM will want to set build id.
-  IF(INSTALL_LAYOUT MATCHES "STANDALONE" OR INSTALL_LAYOUT MATCHES "TARGZ")
-    STRING_APPEND(CMAKE_C_LINK_FLAGS " -Wl,--build-id=none")
-    STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--build-id=none")
-  ENDIF()
 
   SET(BISON_NO_LINE_OPT "--no-lines")
 
@@ -2291,6 +2299,10 @@ MY_ADD_CUSTOM_TARGET(INFO_BIN ALL
   COMMAND ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/cmake/info_bin.cmake
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
+
+IF(HAVE_BUILD_ID_SUPPORT AND NOT WITHOUT_SERVER)
+  ADD_DEPENDENCIES(INFO_BIN mysqld)
+ENDIF()
 
 # Packaging
 IF(WIN32)

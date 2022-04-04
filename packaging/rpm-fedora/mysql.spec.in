@@ -71,6 +71,7 @@ Vendor:         %{mysql_vendor}
 BuildRequires:  bison >= 2.1
 BuildRequires:  cmake
 BuildRequires:  cyrus-sasl-devel
+BuildRequires:  elfutils
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
 BuildRequires:  libaio-devel
