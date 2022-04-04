@@ -304,7 +304,21 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator* mgm_cfg,
 		  sizeof(LogFileOperationRecord),
 		  clfoFileSize);
 
-    const Uint32 target_pages_per_logpart = logPageFileSize / clogPartFileSize;
+    if (clogPartFileSize == 0)
+    {
+      /*
+       * If the number of fragment log parts are fewer than number of LDMs,
+       * some LDM will not own any log part.
+       */
+      ndbrequire(logPageFileSize == 0);
+      ndbrequire(clogFileFileSize == 0);
+    }
+    else
+    {
+      ndbrequire(logPageFileSize % clogPartFileSize == 0);
+    }
+    const Uint32 target_pages_per_logpart =
+        clogPartFileSize > 0 ? logPageFileSize / clogPartFileSize : 0;
     Uint32 total_logpart_pages = 0;
     LogPartRecordPtr logPartPtr;
     for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
