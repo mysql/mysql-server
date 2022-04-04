@@ -1842,7 +1842,7 @@ struct NdbThread* NdbThread_GetNdbThread()
 #endif
 
 bool
-NdbThread_IsCPUAvailable(Uint32 cpu_id)
+NdbThread_IsCPUAvailable(Uint32 cpu_id [[maybe_unused]])
 {
   if (!cpu_set_working)
     return true;
