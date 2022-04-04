@@ -353,6 +353,7 @@ class ProcessManager {
    */
   std::map<std::string, std::string> get_DEFAULT_defaults() const;
 
+ public:
   class ConfigWriter {
    public:
     using section_type = std::map<std::string, std::string>;
@@ -414,6 +415,7 @@ class ProcessManager {
    */
   ConfigWriter config_writer(const std::string &directory);
 
+ protected:
   /** @brief create config file
    *
    * @param directory directory in which the config file will be created
