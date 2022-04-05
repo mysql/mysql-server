@@ -22,7 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #include "util/require.h"
 #include <ndb_global.h>
 #include <cstring>
@@ -708,53 +707,43 @@ NdbThread_SetThreadPrio(struct NdbThread *pThread,
   int ret;
   int error_no = 0;
   int solaris_prio;
-  if (prio < 10)
+  switch (prio)
   {
-    switch (prio)
-    {
-      case 0:
-        solaris_prio = 15;
-        break;
-      case 1:
-        solaris_prio = 20;
-        break;
-      case 2:
-        solaris_prio = 25;
-        break;
-      case 3:
-        solaris_prio = 30;
-        break;
-      case 4:
-        solaris_prio = 35;
-        break;
-      case 5:
-        solaris_prio = 40;
-        break;
-      case 6:
-        solaris_prio = 45;
-        break;
-      case 7:
-        solaris_prio = 50;
-        break;
-      case 8:
-        solaris_prio = 55;
-        break;
-      case 9:
-        solaris_prio = 59;
-        break;
-      default:
-        /* Will never end up here */
-        require(false);
-        break;
-    }
-  }
-  else if (prio == 10)
-  {
-    solaris_prio = 60;
-  }
-  else
-  {
-    return SET_THREAD_PRIO_OUT_OF_RANGE_ERROR;
+    case 0:
+      solaris_prio = 15;
+      break;
+    case 1:
+      solaris_prio = 20;
+      break;
+    case 2:
+      solaris_prio = 25;
+      break;
+    case 3:
+      solaris_prio = 30;
+      break;
+    case 4:
+      solaris_prio = 35;
+      break;
+    case 5:
+      solaris_prio = 40;
+      break;
+    case 6:
+      solaris_prio = 45;
+      break;
+    case 7:
+      solaris_prio = 50;
+      break;
+    case 8:
+      solaris_prio = 55;
+      break;
+    case 9:
+      solaris_prio = 59;
+      break;
+    case 10:
+      solaris_prio = 60;
+      break;
+    default:
+      return SET_THREAD_PRIO_OUT_OF_RANGE_ERROR;
   }
   ret = priocntl(P_LWPID,
                  tid,

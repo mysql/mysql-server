@@ -1187,13 +1187,13 @@ class BackupIdTable : public VirtualTable
       return false;
     }
 
-    NdbRecAttr* nextid;
-    NdbRecAttr *frag;
-    NdbRecAttr *row;
+    NdbRecAttr *nextid = op->getValue("NEXTID");
+    NdbRecAttr *frag = op->getValue(NdbDictionary::Column::FRAGMENT);
+    NdbRecAttr *row = op->getValue(NdbDictionary::Column::ROWID);
+
     // Specify columns to reads, the backup id and two pseudo columns
-    if ((nextid = op->getValue("NEXTID")) == nullptr ||
-        (frag = op->getValue(NdbDictionary::Column::FRAGMENT)) == nullptr ||
-        (row = op->getValue(NdbDictionary::Column::ROWID)) == nullptr) {
+    if ((nextid == nullptr) || (frag == nullptr) || (row == nullptr))
+    {
       assert(false);
       return false;
     }

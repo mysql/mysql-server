@@ -378,8 +378,7 @@ int ndbxfrm_file::flush_payload()
   else if (!m_encrypted || !m_decrypted_buffer.last())
   {
     // Mark that there will be no more payload.
-    byte dummy[1];
-    ndbxfrm_input_iterator in(dummy, dummy, true);
+    ndbxfrm_input_iterator in(nullptr, nullptr, true);
     int r = write_forward(&in);
     if (r == -1) return -1;
     require(m_decrypted_buffer.read_size() == 0);
