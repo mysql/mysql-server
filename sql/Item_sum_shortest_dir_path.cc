@@ -59,42 +59,47 @@
 
 Item_sum_shortest_dir_path::Item_sum_shortest_dir_path(
     THD *thd, Item_sum *item, unique_ptr_destroy_only<Json_wrapper> wrapper)
-    : Item_sum_json(std::move(wrapper), thd, item) {}
+    : Item_sum_json(std::move(wrapper), thd, item), m_edge_map(key_memory_Dijkstra) {}
 
 Item_sum_shortest_dir_path::Item_sum_shortest_dir_path(
     const POS &pos, PT_item_list *args, PT_window *w,
     unique_ptr_destroy_only<Json_wrapper> wrapper)
-    : Item_sum_json(std::move(wrapper), pos, args, w) {}
+    : Item_sum_json(std::move(wrapper), pos, args, w), m_edge_map(key_memory_Dijkstra) {}
 
 bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
   assert(!m_is_window_function);
-
-  Json_array_ptr arr(new (std::nothrow) Json_array());
-  if (arr == nullptr) return true;
-  Dijkstra dijkstra(&m_edge_map);
-  double cost;
-  // jsonifying path from dijkstra into arr
-  for (const Edge* edge : dijkstra(m_begin_node, m_end_node, cost)) {
-    Json_object_ptr json_edge(new (std::nothrow) Json_object());
+  try {
+    Json_array_ptr arr(new (std::nothrow) Json_array());
+    if (arr == nullptr)
+      return error_json();
+    Dijkstra dijkstra(&m_edge_map, [](const int&) -> double { return 0.0; }, key_memory_Dijkstra);
+    double cost;
+    // jsonifying path from dijkstra into arr
+    for (const Edge* edge : dijkstra(m_begin_node, m_end_node, cost)) {
+      Json_object_ptr json_edge(new (std::nothrow) Json_object());
+      if (
+        json_edge == nullptr ||
+        json_edge->add_alias("id", jsonify_to_heap(edge->id)) ||
+        json_edge->add_alias("cost", jsonify_to_heap(edge->cost)) ||
+        //json_edge->add_alias("from", jsonify_to_heap(edge->from)) ||
+        //json_edge->add_alias("to", jsonify_to_heap(edge->to)) ||
+        arr->append_alias(std::move(json_edge)))
+          return error_json();
+    }
+    // inserting path and cost into obj
+    Json_object_ptr obj = Json_object_ptr(new (std::nothrow) Json_object());
     if (
-      json_edge == nullptr ||
-      json_edge->add_alias("id", jsonify_to_heap(edge->id)) ||
-      json_edge->add_alias("cost", jsonify_to_heap(edge->cost)) ||
-      //json_edge->add_alias("from", jsonify_to_heap(edge->from)) ||
-      //json_edge->add_alias("to", jsonify_to_heap(edge->to)) ||
-      arr->append_alias(std::move(json_edge)))
-        return true;
+      obj == nullptr ||
+      obj->add_alias("path", std::move(arr)) ||
+      obj->add_alias("cost", jsonify_to_heap(cost)))
+        return error_json();
+    
+    *wr = Json_wrapper(std::move(obj));
+    return false;
+  } catch(...) { // expects to catch std::bad_alloc
+    handle_std_exception(func_name());
+    return error_json();
   }
-  // inserting path and cost into obj
-  Json_object_ptr obj = Json_object_ptr(new (std::nothrow) Json_object());
-  if (
-    obj == nullptr ||
-    obj->add_alias("path", std::move(arr)) ||
-    obj->add_alias("cost", jsonify_to_heap(cost)))
-      return true;
-
-  *wr = Json_wrapper(std::move(obj));
-  return false;
 }
 String *Item_sum_shortest_dir_path::val_str(String *str) {
   assert(!m_is_window_function);
@@ -164,9 +169,13 @@ bool Item_sum_shortest_dir_path::add() {
 
   // store edge
   Edge *edge = new (thd->mem_root, std::nothrow) Edge{ id, from_id, to_id, cost };
-  if (edge == nullptr) return false;
-  m_edge_map.insert(std::pair(from_id, edge));
-
+  if (edge == nullptr) return true;
+  try {
+    m_edge_map.insert(std::pair(from_id, edge));
+  } catch (...) { // expects to catch std::bad_alloc
+    handle_std_exception(func_name());
+    return true;
+  }
   return false;
 }
 

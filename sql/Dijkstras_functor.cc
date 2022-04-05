@@ -1,5 +1,12 @@
 #include "sql/Dijkstras_functor.h"
 
+Dijkstra::Dijkstra(const malloc_unordered_multimap<int, const Edge*>* edges,
+  const std::function<double(const int& point_id)>& heu_func,
+  PSI_memory_key psi_key)
+  : m_edges(edges), m_heu(heu_func),
+    m_point_map(psi_key), heap_cmp{ &m_point_map },
+    point_heap(Malloc_allocator<int>(psi_key)) {}
+
 std::vector<const Edge*> Dijkstra::operator()(const int& start_point_id, const int& end_point_id, double& total_cost) {
     m_point_map.clear();
     point_heap.clear();

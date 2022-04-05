@@ -7,6 +7,8 @@
 #include <algorithm>        // std::push_heap & std::reverse
 #include <cmath>            // INFINITY
 
+#include "include/map_helpers.h"
+
 /**
  * @brief Edge data for Dijkstra functor
  * 
@@ -24,10 +26,11 @@ struct Edge {
  * 
  */
 class Dijkstra {
-  typedef std::unordered_multimap<int, const Edge*>::const_iterator edge_iterator;
+  PSI_memory_key psi_key;
+  typedef malloc_unordered_multimap<int, const Edge*>::const_iterator edge_iterator;
 
   // key = Edge.from
-  const std::unordered_multimap<int, const Edge*>* m_edges;
+  const malloc_unordered_multimap<int, const Edge*>* m_edges;
   const std::function<double(const int& point_id)> m_heu;
 
   /**
@@ -43,14 +46,14 @@ class Dijkstra {
       // linked list in Edge would speed up retrace(), but also mutate m_edges
       const Edge* path = nullptr;
   };
-  std::unordered_map<int, Point> m_point_map;
+  malloc_unordered_map<int, Point> m_point_map;
 
   // comparator used for point_heap sorting to make min heap based on m_point_map.cost_heu
   struct greater_point_heuristic_comparator {
-    bool operator()(const int& a, const int& b) { return point_map.at(a).cost_heu > point_map.at(b).cost_heu; }
-    const std::unordered_map<int, Point>& point_map;
-  } heap_cmp{ m_point_map };
-  std::deque<int> point_heap;
+    bool operator()(const int& a, const int& b) { return point_map->at(a).cost_heu > point_map->at(b).cost_heu; }
+    const malloc_unordered_map<int, Point>* point_map = nullptr;
+  } heap_cmp;
+  std::deque<int, Malloc_allocator<int>> point_heap;
 
  public:
   /**
@@ -59,9 +62,9 @@ class Dijkstra {
    * @param edges_lookup_from key must equal edge start node id (i.e. Edge.from)
    * @param heu_func A* heuristic. If not supplied normal dijkstra will be used
    */
-  Dijkstra(const std::unordered_multimap<int, const Edge*>* edges,
-           const std::function<double(const int& point_id)>& heu_func = [](const int&) -> double { return 0.0; })
-    : m_edges(edges), m_heu(heu_func) {}
+  Dijkstra(const malloc_unordered_multimap<int, const Edge*>* edges,
+           const std::function<double(const int& point_id)>& heu_func = [](const int&) -> double { return 0.0; },
+           PSI_memory_key psi_key = PSI_NOT_INSTRUMENTED);
   /**
    * @brief runs A* to find shortest path through m_edges
    * 

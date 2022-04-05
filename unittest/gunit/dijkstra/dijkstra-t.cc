@@ -32,6 +32,7 @@
 #include "unittest/gunit/gunit_test_main.h"
 
 #include "sql/Dijkstras_functor.h"
+#include "include/map_helpers.h"
 
 namespace dijkstra_unittest {
 
@@ -68,7 +69,7 @@ TEST_F(DijkstraTest, NullHeuristic) {
   };
   size_t n_edges = sizeof(edges) / sizeof(Edge);
   
-  std::unordered_multimap<int, const Edge*> edge_map;
+  malloc_unordered_multimap<int, const Edge*> edge_map(PSI_NOT_INSTRUMENTED);
   for (size_t i = 0; i < n_edges; i++) {
       Edge& e = edges[i];
       edge_map.insert(std::pair(e.from, &e));

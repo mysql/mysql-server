@@ -39,6 +39,7 @@ PSI_memory_key key_memory_DD_default_values;
 PSI_memory_key key_memory_DD_import;
 PSI_memory_key key_memory_DD_objects;
 PSI_memory_key key_memory_DD_String_type;
+PSI_memory_key key_memory_Dijkstra;
 PSI_memory_key key_memory_Event_queue_element_for_exec_names;
 PSI_memory_key key_memory_Event_scheduler_scheduler_param;
 PSI_memory_key key_memory_File_query_log_name;
@@ -324,6 +325,8 @@ static PSI_memory_info all_server_memory[] = {
      "File name of slow log and general log."},
     {&key_memory_DD_String_type, "dd::String_type", 0, 0,
      "Character strings used by data dictionary objects."},
+    {&key_memory_Dijkstra, "shortest_dir_path::dijkstra", 0, 0,
+      "Memory used by st_shortest_dir_path"},
     {&key_memory_ST_SCHEMA_TABLE, "ST_SCHEMA_TABLE", 0, 0,
      "Structure describing an information schema table implemented by a "
      "plugin."},

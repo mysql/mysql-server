@@ -4,11 +4,13 @@
 #include "sql/item_sum.h"
 #include "sql/Dijkstras_functor.h"
 #include "sql/json_dom.h"
+#include "include/map_helpers.h"
+#include "sql/psi_memory_key.h"
 
 class Item_sum_shortest_dir_path final : public Item_sum_json {
   int m_begin_node, m_end_node;
   // * accumulated edges from ::add. map key = node id of edge origin (i.e. Edge.from)
-  std::unordered_multimap<int, const Edge*> m_edge_map;
+  malloc_unordered_multimap<int, const Edge*> m_edge_map;
  public:
  /**
   * @brief Construct a new Item_sum_shortest_dir_path object
