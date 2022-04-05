@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -679,5 +679,43 @@ TEST_F(ut0lock_free_hash, multi_threaded_100r0w) {
       256 /* n_priv_per_thread */, 64 /* n_threads */,
       thread_100r0w /* thr func */
   );
+}
+TEST_F(ut0lock_free_hash, too_relaxed) {
+  /* Tests race conditions between writer (the main thread) and readers.
+  The writer puts T*CAPACITY elements into the hashmap, which has a smallest
+  possible capacity (2k) of a single node, to force frequent allocation of new
+  nodes. If the capacity was smaller than 2k, then the hashmap would keep
+  doubling the size of new nodes until it reached 2k. Also, there's a heuristic
+  to not double the size if the old node contained lots of deleted elements,
+  thus our writer will mark all inserted elements as deleted. The goal of all
+  this is to execute node allocation logic as often as possible, while the
+  readers are busy calling get(), which will fail with NOT_FOUND for the
+  duration of whole test, until the writer finally calls set(T*CAPACITY,42).
+  Note that due to the way get() implements probing, it takes linear time when
+  a node is full of elements (even deleted), thus these get()s are slow.
+  */
+  constexpr uint64_t CAPACITY = 2048;
+  constexpr uint64_t T = 10000;
+  constexpr uint64_t READERS = 10;
+  ut_lock_free_hash_t hash_table{CAPACITY, false};
+  const auto reading = [&]() {
+    while (hash_table.get(T * CAPACITY) == ut_lock_free_hash_t::NOT_FOUND) {
+      // whatever
+    }
+  };
+  std::vector<std::thread> readers;
+  for (uint64_t i = 0; i < READERS; ++i) {
+    readers.emplace_back(reading);
+  }
+  for (uint64_t i = 0; i < T; ++i) {
+    for (uint64_t j = 0; j < CAPACITY; ++j) {
+      hash_table.set(i * CAPACITY + j, 17);
+      hash_table.del(i * CAPACITY + j);
+    }
+  }
+  hash_table.set(T * CAPACITY, 42);
+  for (auto &reader : readers) {
+    reader.join();
+  }
 }
 }  // namespace innodb_lock_free_hash_unittest

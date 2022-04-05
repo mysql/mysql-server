@@ -53,10 +53,20 @@ not handle over-aligned types.
 template <typename T>
 struct Cacheline_padded : public T {
   char pad[INNODB_CACHE_LINE_SIZE];
-
-  template <class... Args>
-  Cacheline_padded(Args &&... args) : T{std::forward<Args>(args)...} {}
+  // "Inherit" constructors
+  using T::T;
 };
+
+/**
+A utility wrapper class, which aligns T to cacheline boundary.
+This is to avoid false-sharing.
+*/
+template <typename T>
+struct alignas(INNODB_CACHE_LINE_SIZE) Cacheline_aligned : public T {
+  // "Inherit" constructors
+  using T::T;
+};
+
 } /* namespace ut */
 
 #endif /* ut0cpu_cache_h */
