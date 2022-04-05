@@ -169,7 +169,7 @@ TEST(NetTS_io_context, run_one_until_leave_early) {
   using namespace std::chrono_literals;
 
   net::steady_timer t(io_ctx);
-  t.expires_after(1ms);
+  t.expires_after(100ms);
 
   bool is_run{false};
   t.async_wait([&](std::error_code ec) {
@@ -215,7 +215,7 @@ TEST(NetTS_io_context, run_one_for_leave_early) {
   using namespace std::chrono_literals;
 
   net::steady_timer t(io_ctx);
-  t.expires_after(1ms);
+  t.expires_after(100ms);
 
   bool is_run{false};
   t.async_wait([&](std::error_code ec) {
@@ -261,7 +261,7 @@ TEST(NetTS_io_context, run_until_leave_early) {
   using namespace std::chrono_literals;
 
   net::steady_timer t(io_ctx);
-  t.expires_after(1ms);
+  t.expires_after(100ms);
 
   bool is_run{false};
   t.async_wait([&](std::error_code ec) {
