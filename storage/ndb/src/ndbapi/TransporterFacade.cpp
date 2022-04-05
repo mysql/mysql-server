@@ -247,7 +247,8 @@ TRACE_GSN(Uint32 gsn)
 /**
  * The execute function : Handle received signal
  */
-bool TransporterFacade::deliver_signal(SignalHeader* const header, Uint8 prio,
+bool TransporterFacade::deliver_signal(SignalHeader* const header,
+                                       Uint8 prio [[maybe_unused]],
                                        TransporterError& /*error_code*/,
                                        Uint32* const theData,
                                        LinearSectionPtr ptr[3])
