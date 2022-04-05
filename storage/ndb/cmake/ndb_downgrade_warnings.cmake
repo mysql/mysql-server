@@ -24,7 +24,6 @@
 # if the compiler supports the flag
 FOREACH(warning
     "strict-aliasing"
-    "unused-parameter"
     # Downgrade -Werror=deprecated-copy to warning for gcc 9
     "error=deprecated-copy"
     # Downgrade -Werror to warning for "may be used uninitialized"
