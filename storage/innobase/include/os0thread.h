@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -66,6 +66,12 @@ class IB_thread {
 
 /** Operating system thread native handle */
 using os_thread_id_t = std::thread::native_handle_type;
+
+namespace ut {
+/** The hash value of the current thread's id */
+const inline thread_local size_t this_thread_hash =
+    std::hash<std::thread::id>{}(std::this_thread::get_id());
+}  // namespace ut
 
 /** Returns the string representation of the thread ID supplied. It uses the
  only standard-compliant way of printing the thread ID.
