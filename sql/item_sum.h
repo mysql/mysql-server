@@ -1434,8 +1434,9 @@ class Item_sum_variance : public Item_sum_num {
   /**
     Used in recurrence relation.
   */
-  double recurrence_m, recurrence_s;
-  double recurrence_s2;
+  double recurrence_m{0.0};
+  double recurrence_s{0.0};
+  double recurrence_s2{0.0};
   ulonglong count;
   uint sample;
   uint prec_increment;

@@ -1465,3 +1465,42 @@ SELECT val, COUNT(*) FROM (SELECT FLOOR(seq_1_to_2())+1 val FROM t1) x
 
 DROP TABLE t1, tr;
 DROP FUNCTION seq_1_to_2;
+
+--echo #
+--echo # Bug #34030363 virtual double Item_sum_std::val_real():
+--echo #               Assertion `nr >= 0.0' failed
+--echo #
+
+CREATE TABLE t1(value double);
+
+INSERT INTO t1 VALUES
+(9.33174e+07),
+(4.5e+95),
+(7.31463e+09),
+(1.79769e+308),
+(-2.59078e+12),
+(2.34165e+21),
+(-1.79769e+308),
+(0.0);
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT STDDEV(value) from t1;
+
+DROP TABLE t1;
+
+CREATE TABLE t2(grp int, value double);
+
+INSERT INTO t2 VALUES
+(0, 9.33174e+07),
+(1, 4.5e+95),
+(0, 7.31463e+09),
+(1, 1.79769e+308),
+(0, -2.59078e+12),
+(1, 2.34165e+21),
+(0, -1.79769e+308),
+(1, 0.0);
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT VARIANCE(value) FROM t2 GROUP BY grp;
+
+DROP TABLE t2;
