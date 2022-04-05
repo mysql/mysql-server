@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +70,7 @@ public:
    *   Context = Which section in init config file we are currently parsing
    */
   struct Context {
-    Context(const ConfigInfo *);
+    Context();
     ~Context();
 
     ContextSectionType  type; ///< Section type (e.g. default section,section)
