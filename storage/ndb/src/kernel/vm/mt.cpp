@@ -4664,7 +4664,7 @@ dumpJobQueues(void)
       const unsigned used = q->used();
       if (used > 0)
       {
-        tmp.appfmt(" job buffer %d --> %d, used %d",
+        tmp.appfmt("\n job buffer %d --> %d, used %d",
                    from, to, used);
         unsigned free = compute_free_buffers_in_queue(q);
         if (free <= 0)
@@ -7862,6 +7862,7 @@ update_sched_config(struct thr_data* selfptr,
                     Uint32 & flush_sum)
 {
   Uint32 sleeploop = 0;
+  Uint32 loops = 0;
   selfptr->m_watchdog_counter = 16;
 loop:
   Uint32 minfree = compute_min_free_out_buffers(selfptr->m_thr_no);
@@ -7924,6 +7925,11 @@ loop:
       selfptr->m_buffer_full_micros_sleep +=
         NdbTick_Elapsed(before, after).microSec();
       sleeploop++;
+    }
+    else if (++loops > 1000) {
+      printf("BUSY WAIT: thr:%u, sleeploop:%u\n", selfptr->m_thr_no, sleeploop);
+      dumpJobQueues();
+      require(false);
     }
     goto loop;
   }

@@ -1,0 +1,57 @@
+##################################################################
+# Test intended for provoking 'Job buffer full'.
+#
+##################################################################
+--source include/have_ndb.inc
+
+
+create table t1 (a int primary key) engine=ndb;
+create table t2 (a int primary key) engine=ndb;
+
+delimiter %;
+
+# Insert batches of 32 rows, just to speed up test
+create procedure do_insert(count int)
+begin
+  set @x = 0;
+  repeat
+    insert into t1 values
+      (@x+0),  (@x+1),  (@x+2),  (@x+3),
+      (@x+4),  (@x+5),  (@x+6),  (@x+7),
+      (@x+8),  (@x+9),  (@x+10), (@x+11),
+      (@x+12), (@x+13), (@x+14), (@x+15),
+      (@x+16), (@x+17), (@x+18), (@x+19),
+      (@x+20), (@x+21), (@x+22), (@x+23),
+      (@x+24), (@x+25), (@x+26), (@x+27),
+      (@x+28), (@x+29), (@x+30), (@x+31);
+  set @x = @x + 32;
+  until @x >= count
+  end repeat;
+end %
+
+
+delimiter ;%
+
+# Generate large transactions, abort or commit them:
+set autocommit=off;
+call do_insert(500000);
+rollback;
+
+set autocommit=off;
+call do_insert(500000);
+commit;
+
+insert into t2 select * from t1;
+rollback;
+
+insert into t2 select * from t1;
+commit;
+
+delete from t2;
+commit;
+
+delete from t1;
+commit;
+
+drop procedure do_insert;
+drop table t1,t2;
