@@ -1417,10 +1417,15 @@ static void btr_search_build_page_hash_index(dict_index_t *index,
       return;
     }
   }
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
   auto x_latch_guard = create_scope_guard([block, index]() {
     assert_block_ahi_valid(block);
     btr_search_x_unlock(index);
   });
+#else
+  auto x_latch_guard =
+      create_scope_guard([index]() { btr_search_x_unlock(index); });
+#endif
 
   if (!btr_search_enabled) {
     return;
@@ -1602,10 +1607,15 @@ void btr_search_update_hash_node_on_insert(btr_cur_t *cursor) {
     return;
   }
 
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
   auto x_latch_guard = create_scope_guard([index, block] {
     assert_block_ahi_valid(block);
     btr_search_x_unlock(index);
   });
+#else
+  auto x_latch_guard =
+      create_scope_guard([index] { btr_search_x_unlock(index); });
+#endif
 
   if (!block->index) {
     return;
