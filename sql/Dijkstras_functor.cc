@@ -2,6 +2,7 @@
 
 std::vector<const Edge*> Dijkstra::operator()(const int& start_point_id, const int& end_point_id, double& total_cost) {
     m_point_map.clear();
+    point_heap.clear();
     int point = start_point_id; // node id
     Point& node = m_point_map[point] = Point{ 0, m_heu(point), nullptr };
     // A*
