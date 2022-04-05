@@ -586,7 +586,7 @@ typedef void *os_thread_ret_t;
   do {                                \
     void *p = (addr);                 \
     ut_d(memset(p, c, size));         \
-    UNIV_MEM_INVALID(addr, size);     \
+    UNIV_MEM_INVALID(p, size);        \
   } while (0)
 #else
 #define UNIV_MEM_VALID(addr, size) \
