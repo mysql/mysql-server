@@ -1752,7 +1752,7 @@ Mem_root_array<Item *> PushDownAsMuchAsPossible(
     Mem_root_array<Item *> *cycle_inducing_edges, string *trace) {
   Mem_root_array<Item *> remaining_parts(thd->mem_root);
   for (Item *item : conditions) {
-    if (IsSingleBitSet(item->used_tables() & ~PSEUDO_TABLE_BITS) &&
+    if (!AreMultipleBitsSet(item->used_tables() & ~PSEUDO_TABLE_BITS) &&
         !is_join_condition_for_expr) {
       // Simple filters will stay in WHERE; we go through them with
       // AddPredicate() (in MakeJoinHypergraph()) and convert them into
@@ -1849,7 +1849,7 @@ void PushDownJoinConditionsForSargable(THD *thd, RelationalExpression *expr) {
     // These are the same conditions as PushDownAsMuchAsPossible();
     // not filters (which shouldn't be here anyway), and not tables
     // outside the subtree.
-    if (!IsSingleBitSet(item->used_tables() & ~PSEUDO_TABLE_BITS) &&
+    if (AreMultipleBitsSet(item->used_tables() & ~PSEUDO_TABLE_BITS) &&
         IsSubset(item->used_tables() & ~PSEUDO_TABLE_BITS,
                  expr->tables_in_subtree)) {
       PushDownToSargableCondition(item, expr,

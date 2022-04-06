@@ -560,7 +560,7 @@ void LogicalOrderings::AddFDsFromComputedItems(THD *thd) {
     Item *item = m_items[item_idx].item;
     const table_map used_tables = item->used_tables();
     if (item->type() == Item::FIELD_ITEM || item->has_aggregation() ||
-        used_tables == 0 || Overlaps(used_tables, PSEUDO_TABLE_BITS) ||
+        Overlaps(used_tables, PSEUDO_TABLE_BITS) ||
         !IsSingleBitSet(used_tables)) {
       continue;
     }

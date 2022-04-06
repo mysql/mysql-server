@@ -2712,8 +2712,7 @@ NodeMap FindReachableTablesFrom(NodeMap tables, const JoinHypergraph &graph) {
     for (int edge_idx : nodes[node_idx].complex_edges) {
       if (IsSubset(edges[edge_idx].left, tables)) {
         NodeMap others = edges[edge_idx].right & ~tables;
-        if (others != 0 && IsSingleBitSet(others) &&
-            !Overlaps(others, reachable) &&
+        if (IsSingleBitSet(others) && !Overlaps(others, reachable) &&
             PassesConflictRules(tables, graph.edges[edge_idx / 2].expr) &&
             LateralDependenciesAreSatisfied(FindLowestBitSet(others), tables,
                                             graph)) {
