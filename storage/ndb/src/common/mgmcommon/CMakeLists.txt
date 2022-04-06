@@ -23,18 +23,23 @@
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmsrv
   )
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_mgmapiclient.cmake)
 
 ADD_CONVENIENCE_LIBRARY(ndbmgmcommon
+  Config.cpp
+  ConfigInfo.cpp
   ConfigObject.cpp
   ConfigRetriever.cpp
   ConfigSection.cpp
+  InitConfigFileParser.cpp
   IPCConfig.cpp
   DnsCache.cpp
   thr_config.cpp
+  LINK_LIBRARIES ndbmgmapi
   )
 
 NDB_ADD_TEST(thr_config-t thr_config.cpp LIBS ndbgeneral ndbportlib)
+NDB_ADD_TEST(InitConfigFileParser-t InitConfigFileParser.cpp
+          LIBS ndbmgmcommon ndbgeneral ndbportlib)

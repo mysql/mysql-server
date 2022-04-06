@@ -75,8 +75,8 @@
 #include <mgmapi.h>
 #include "storage/ndb/include/mgmcommon/NdbMgm.hpp"
 #include "../src/mgmapi/mgmapi_configuration.hpp"
-#include "../src/mgmsrv/ConfigInfo.hpp"
-#include "../src/mgmsrv/InitConfigFileParser.hpp"
+#include "mgmcommon/ConfigInfo.hpp"
+#include "mgmcommon/InitConfigFileParser.hpp"
 #include <NdbAutoPtr.hpp>
 #include <NdbTCP.h>
 #include <inttypes.h>
@@ -854,7 +854,7 @@ noconnect:
   return conf;
 }
 
-#include "../src/mgmsrv/Config.hpp"
+#include "mgmcommon/Config.hpp"
 #include <EventLogger.hpp>
 
 
