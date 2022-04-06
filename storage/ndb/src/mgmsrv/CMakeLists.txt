@@ -43,8 +43,7 @@ ADD_CONVENIENCE_LIBRARY(ndbconf
   InitConfigFileParser.cpp
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon/ConfigObject.cpp
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon/ConfigSection.cpp
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/vm/mt_thr_config.cpp
-  LINK_LIBRARIES ndbmgmapi
+  LINK_LIBRARIES ndbmgmapi ndbmgmcommon
   )
 
 IF(WITHOUT_SERVER)
@@ -92,7 +91,7 @@ MYSQL_ADD_EXECUTABLE(ndb_mgmd
   )
 
 NDB_ADD_TEST(MgmConfig-t testConfig.cpp
-  LIBS ndbmgmapi ndbtrace ndbconf ndblogger ndbgeneral ndbportlib
+  LIBS ndbmgmapi ndbmgmcommon ndbtrace ndbconf ndblogger ndbgeneral ndbportlib
   )
 NDB_ADD_TEST(InitConfigFileParser-t InitConfigFileParser.cpp
   LIBS ndbconf ndbgeneral ndbportlib)
