@@ -40,6 +40,6 @@ ADD_CONVENIENCE_LIBRARY(ndbmgmcommon
   LINK_LIBRARIES ndbmgmapi
   )
 
-NDB_ADD_TEST(thr_config-t thr_config.cpp LIBS ndbgeneral ndbportlib)
+NDB_ADD_TEST(thr_config-t thr_config.cpp LIBS ndbmgmapi ndbgeneral ndbportlib)
 NDB_ADD_TEST(InitConfigFileParser-t InitConfigFileParser.cpp
           LIBS ndbmgmcommon ndbgeneral ndbportlib)

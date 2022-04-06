@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -70,8 +70,8 @@ ADD_CONVENIENCE_LIBRARY(ndbportlib
   LINK_LIBRARIES mysys ${LIBSOCKET}
   )
 
-NDB_ADD_TEST(NdbHW-t NdbHW.cpp LIBS ndbgeneral ndbportlib)
+NDB_ADD_TEST(NdbHW-t NdbHW.cpp LIBS ndbmgmapi ndbgeneral ndbportlib)
 
-NDB_ADD_TEST(NdbDir-t NdbDir.cpp LIBS ndbgeneral ndbportlib)
+NDB_ADD_TEST(NdbDir-t NdbDir.cpp LIBS ndbmgmapi ndbgeneral ndbportlib)
 
 NDB_ADD_TEST(NdbGetInAddr-t NdbTCP.cpp LIBS ${LIBSOCKET} ${LIBNSL})

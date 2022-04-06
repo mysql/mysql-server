@@ -141,7 +141,7 @@ NDB_ADD_EXECUTABLE(ndb_select_count
 NDB_ADD_EXECUTABLE(ndb_perror
   ndb_perror.cpp
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi/mgmapi_error.cpp
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/error/ndbd_exit_codes.cpp
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi/ndbd_exit_codes.cpp
   COMPONENT ClusterTools
   ${LINK_NDBCLIENT}
   ENABLE_EXPORTS
@@ -210,7 +210,7 @@ NDB_ADD_EXECUTABLE(ndbxfrm
   ndbxfrm.cpp
   COMPONENT ClusterTools
   ENABLE_EXPORTS
-  LINK_LIBRARIES ndbgeneral ndbportlib
+  LINK_LIBRARIES ndbmgmapi ndbgeneral ndbportlib
   )
 
 IF(NOT WIN32 AND NOT SOLARIS)

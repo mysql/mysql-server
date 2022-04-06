@@ -33,7 +33,7 @@ ADD_CONVENIENCE_LIBRARY(ndbmgmapi
   ndb_logevent.cpp
   mgmapi_configuration.cpp
   LocalConfig.cpp
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/error/ndbd_exit_codes.cpp
+  ndbd_exit_codes.cpp
   LINK_LIBRARIES ndbmgmcommon ndbportlib ndbgeneral
   )
 

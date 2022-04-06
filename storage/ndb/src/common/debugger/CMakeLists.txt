@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,5 @@ ADD_CONVENIENCE_LIBRARY(ndbtrace
   DebuggerNames.cpp
   EventLogger.cpp
   SignalLoggerManager.cpp
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/error/ndbd_exit_codes.cpp
-  LINK_LIBRARIES ndbsignaldata ndblogger ndbgeneral
+  LINK_LIBRARIES ndbmgmapi ndbsignaldata ndblogger ndbgeneral
   )
