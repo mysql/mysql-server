@@ -69,7 +69,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /* ut::vector */
 #include "ut0new.h"
 
-/* ut_rnd_interval */
+/* ut::random_from_interval */
 #include "ut0rnd.h"
 
 Log_checksum_algorithm_atomic_ptr log_checksum_algorithm_ptr;
@@ -1220,7 +1220,7 @@ dberr_t log_collect_existing_files(const Log_files_context &ctx, bool read_only,
 }
 
 Log_uuid log_generate_uuid() {
-  return ut_rnd_interval(1, std::numeric_limits<Log_uuid>::max());
+  return ut::random_from_interval(1, std::numeric_limits<Log_uuid>::max());
 }
 
 /** @} */

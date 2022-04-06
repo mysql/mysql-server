@@ -53,7 +53,7 @@ uint32_t buf_calc_page_crc32(const byte *page,
  to a file. Note that we must be careful to calculate the same value on
  32-bit and 64-bit architectures.
  @return checksum */
-ulint buf_calc_page_new_checksum(const byte *page); /*!< in: buffer page */
+uint32_t buf_calc_page_new_checksum(const byte *page); /*!< in: buffer page */
 
 /** In versions < 4.0.14 and < 4.1.1 there was a bug that the checksum only
  looked at the first few bytes of the page. This calculates that old
@@ -62,7 +62,7 @@ ulint buf_calc_page_new_checksum(const byte *page); /*!< in: buffer page */
  FIL_PAGE_SPACE_OR_CHKSUM before calculating and storing this old checksum
  because this takes that field as an input!
  @return checksum */
-ulint buf_calc_page_old_checksum(const byte *page); /*!< in: buffer page */
+uint32_t buf_calc_page_old_checksum(const byte *page); /*!< in: buffer page */
 
 /** Return a printable string describing the checksum algorithm.
  @return algorithm name */
@@ -109,8 +109,10 @@ class BlockReporter {
   @param[in]    checksum_field2 Checksum in page trailer
   @param[in]    crc32           Calculated crc32 checksum
   @param[in]    algo            Current checksum algorithm */
-  virtual inline void print_strict_crc32(ulint checksum_field1 [[maybe_unused]],
-                                         ulint checksum_field2 [[maybe_unused]],
+  virtual inline void print_strict_crc32(uint32_t checksum_field1
+                                         [[maybe_unused]],
+                                         uint32_t checksum_field2
+                                         [[maybe_unused]],
                                          uint32_t crc32 [[maybe_unused]],
                                          srv_checksum_algorithm_t algo
                                          [[maybe_unused]]) const {}
@@ -118,17 +120,19 @@ class BlockReporter {
   /** Print innodb checksum and the checksum fields in page.
   @param[in]    checksum_field1 Checksum in page header
   @param[in]    checksum_field2 Checksum in page trailer */
-  virtual inline void print_strict_innodb(ulint checksum_field1
+  virtual inline void print_strict_innodb(uint32_t checksum_field1
                                           [[maybe_unused]],
-                                          ulint checksum_field2
+                                          uint32_t checksum_field2
                                           [[maybe_unused]]) const {}
 
   /** Print none checksum and the checksum fields in page.
   @param[in]    checksum_field1 Checksum in page header
   @param[in]    checksum_field2 Checksum in page trailer
   @param[in]    algo            Current checksum algorithm */
-  virtual inline void print_strict_none(ulint checksum_field1 [[maybe_unused]],
-                                        ulint checksum_field2 [[maybe_unused]],
+  virtual inline void print_strict_none(uint32_t checksum_field1
+                                        [[maybe_unused]],
+                                        uint32_t checksum_field2
+                                        [[maybe_unused]],
                                         srv_checksum_algorithm_t algo
                                         [[maybe_unused]]) const {}
 
@@ -139,9 +143,10 @@ class BlockReporter {
   @param[in]    checksum_field2 Checksum in page trailer
   @param[in]    algo            current checksum algorithm */
   virtual inline void print_innodb_checksum(
-      ulint old_checksum [[maybe_unused]], ulint new_checksum [[maybe_unused]],
-      ulint checksum_field1 [[maybe_unused]],
-      ulint checksum_field2 [[maybe_unused]],
+      uint32_t old_checksum [[maybe_unused]],
+      uint32_t new_checksum [[maybe_unused]],
+      uint32_t checksum_field1 [[maybe_unused]],
+      uint32_t checksum_field2 [[maybe_unused]],
       srv_checksum_algorithm_t algo [[maybe_unused]]) const {}
 
   /** Print the message that checksum mismatch happened in
@@ -151,9 +156,9 @@ class BlockReporter {
   /** Print both new-style, old-style & crc32 checksum values.
   @param[in]    checksum_field1 Checksum in page header
   @param[in]    checksum_field2 Checksum in page trailer */
-  virtual inline void print_crc32_checksum(ulint checksum_field1
+  virtual inline void print_crc32_checksum(uint32_t checksum_field1
                                            [[maybe_unused]],
-                                           ulint checksum_field2
+                                           uint32_t checksum_field2
                                            [[maybe_unused]]) const {}
 
   /** Print a message that crc32 check failed. */
@@ -200,7 +205,8 @@ class BlockReporter {
   @param[in]    checksum_field2 old checksum field
   @param[in]    algo            current checksum algorithm
   @return true if the page is in innodb checksum format. */
-  bool is_checksum_valid_innodb(ulint checksum_field1, ulint checksum_field2,
+  bool is_checksum_valid_innodb(uint32_t checksum_field1,
+                                uint32_t checksum_field2,
                                 const srv_checksum_algorithm_t algo) const;
 
   /** Checks if the page is in none checksum format.
@@ -208,7 +214,8 @@ class BlockReporter {
   @param[in]    checksum_field2 old checksum field
   @param[in]    algo            current checksum algorithm
   @return true if the page is in none checksum format. */
-  bool is_checksum_valid_none(ulint checksum_field1, ulint checksum_field2,
+  bool is_checksum_valid_none(uint32_t checksum_field1,
+                              uint32_t checksum_field2,
                               const srv_checksum_algorithm_t algo) const;
 
   /** Checks if the page is in crc32 checksum format.
@@ -217,7 +224,8 @@ class BlockReporter {
   @param[in]    algo                    current checksum algorithm
   @param[in]    use_legacy_big_endian   big endian algorithm
   @return true if the page is in crc32 checksum format. */
-  bool is_checksum_valid_crc32(ulint checksum_field1, ulint checksum_field2,
+  bool is_checksum_valid_crc32(uint32_t checksum_field1,
+                               uint32_t checksum_field2,
                                const srv_checksum_algorithm_t algo,
                                bool use_legacy_big_endian) const;
 

@@ -859,7 +859,7 @@ the memory pointed by it. Thus calling this function requires holding at least
 one of the latches which prevent freeing memory from buffer pool for the
 duration of the call and until you pin the block in some other way, as otherwise
 the result of this function might be obsolete by the time you dereference the
-block (an s-latch on buf_page_hash_lock_get for any bucket is enough).
+block (an s-latch on buf_page_hash_lock_get for any hash cell is enough).
 @param  buf_pool    The buffer pool instance to search in.
 @param  ptr         A pointer which you want to check. This function will not
                     dereference it.
@@ -1728,7 +1728,7 @@ struct buf_block_t {
   assigning block->index = NULL (and block->n_pointers = 0)
   is allowed whenever btr_search_own_all(RW_LOCK_X).
 
-  Another exception is that ha_insert_for_fold_func() may
+  Another exception is that ha_insert_for_hash_func() may
   decrement n_pointers without holding the appropriate latch
   in btr_search_latches[]. Thus, n_pointers must be
   protected by atomic memory access.
@@ -1877,13 +1877,14 @@ inline bool buf_block_state_valid(buf_block_t *block) {
          buf_block_get_state(block) <= BUF_BLOCK_REMOVE_HASH;
 }
 
-/** Compute the hash fold value for blocks in buf_pool->zip_hash. */
+/** Compute the hash value for blocks in buf_pool->zip_hash. */
 /** @{ */
-inline ulint BUF_POOL_ZIP_FOLD_PTR(void *ptr) {
-  return (ulint)(ptr) / UNIV_PAGE_SIZE;
+static inline uint64_t buf_pool_hash_zip_frame(void *ptr) {
+  return ut::hash_uint64(reinterpret_cast<uintptr_t>(ptr) >>
+                         UNIV_PAGE_SIZE_SHIFT);
 }
-inline ulint BUF_POOL_ZIP_FOLD(buf_block_t *b) {
-  return BUF_POOL_ZIP_FOLD_PTR(b->frame);
+static inline uint64_t buf_pool_hash_zip(buf_block_t *b) {
+  return buf_pool_hash_zip_frame(b->frame);
 }
 /** @} */
 
@@ -2442,20 +2443,20 @@ Use these instead of accessing buffer pool mutexes directly. */
 /** Get appropriate page_hash_lock. */
 inline rw_lock_t *buf_page_hash_lock_get(const buf_pool_t *buf_pool,
                                          const page_id_t page_id) {
-  return hash_get_lock(buf_pool->page_hash, page_id.fold());
+  return hash_get_lock(buf_pool->page_hash, page_id.hash());
 }
 
 /** If not appropriate page_hash_lock, relock until appropriate. */
 inline rw_lock_t *buf_page_hash_lock_s_confirm(rw_lock_t *hash_lock,
                                                const buf_pool_t *buf_pool,
                                                const page_id_t page_id) {
-  return hash_lock_s_confirm(hash_lock, buf_pool->page_hash, page_id.fold());
+  return hash_lock_s_confirm(hash_lock, buf_pool->page_hash, page_id.hash());
 }
 
 inline rw_lock_t *buf_page_hash_lock_x_confirm(rw_lock_t *hash_lock,
                                                buf_pool_t *buf_pool,
                                                const page_id_t &page_id) {
-  return hash_lock_x_confirm(hash_lock, buf_pool->page_hash, page_id.fold());
+  return hash_lock_x_confirm(hash_lock, buf_pool->page_hash, page_id.hash());
 }
 #endif /* !UNIV_HOTBACKUP */
 

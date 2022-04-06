@@ -1299,7 +1299,7 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
         ib_create(2 * buf_pool->curr_size, LATCH_ID_HASH_TABLE_RW_LOCK,
                   srv_n_page_hash_locks, MEM_HEAP_FOR_PAGE_HASH);
 
-    buf_pool->zip_hash = hash_create(2 * buf_pool->curr_size);
+    buf_pool->zip_hash = ut::new_<hash_table_t>(2 * buf_pool->curr_size);
 
     buf_pool->last_printout_time = std::chrono::steady_clock::now();
   }
@@ -1411,8 +1411,8 @@ static void buf_pool_free_instance(buf_pool_t *buf_pool) {
   mutex_exit(&buf_pool->chunks_mutex);
   mutex_free(&buf_pool->chunks_mutex);
   ha_clear(buf_pool->page_hash);
-  hash_table_free(buf_pool->page_hash);
-  hash_table_free(buf_pool->zip_hash);
+  ut::delete_(buf_pool->page_hash);
+  ut::delete_(buf_pool->zip_hash);
 }
 
 /** Frees the buffer pool global data structures. */
@@ -1603,10 +1603,11 @@ static bool buf_page_realloc(buf_pool_t *buf_pool, buf_block_t *block) {
     ut_ad(block->page.in_page_hash);
     ut_ad(&block->page == buf_page_hash_get_low(buf_pool, block->page.id));
     ut_d(block->page.in_page_hash = false);
-    ulint fold = block->page.id.fold();
-    ut_ad(fold == new_block->page.id.fold());
-    HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, fold, (&block->page));
-    HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, fold,
+    const auto hash_value = block->page.id.hash();
+    ut_ad(hash_value == new_block->page.id.hash());
+    HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, hash_value,
+                (&block->page));
+    HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, hash_value,
                 (&new_block->page));
 
     ut_ad(new_block->page.in_page_hash);
@@ -1897,7 +1898,7 @@ static void buf_pool_resize_hash(buf_pool_t *buf_pool) {
   ut_ad(mutex_own(&buf_pool->zip_hash_mutex));
 
   /* create a temporary hash_table with twice larger cells[]  */
-  new_hash_table = hash_create(2 * buf_pool->curr_size);
+  new_hash_table = ut::new_<hash_table_t>(2 * buf_pool->curr_size);
   /* Only the current thread will use this temporary hash table, so no need for
   latching */
   ut_ad(new_hash_table->type == HASH_TABLE_SYNC_NONE);
@@ -1907,19 +1908,19 @@ static void buf_pool_resize_hash(buf_pool_t *buf_pool) {
   for (ulint i = 0; i < hash_get_n_cells(buf_pool->page_hash); i++) {
     buf_page_t *bpage;
 
-    bpage = static_cast<buf_page_t *>(HASH_GET_FIRST(buf_pool->page_hash, i));
+    bpage = static_cast<buf_page_t *>(hash_get_first(buf_pool->page_hash, i));
 
     while (bpage) {
       buf_page_t *prev_bpage = bpage;
-      ulint fold;
 
       bpage = static_cast<buf_page_t *>(HASH_GET_NEXT(hash, prev_bpage));
 
-      fold = prev_bpage->id.fold();
+      const auto hash_value = prev_bpage->id.hash();
 
-      HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, fold, prev_bpage);
+      HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, hash_value,
+                  prev_bpage);
 
-      HASH_INSERT(buf_page_t, hash, new_hash_table, fold, prev_bpage);
+      HASH_INSERT(buf_page_t, hash, new_hash_table, hash_value, prev_bpage);
     }
   }
   /* Concurrent threads may be accessing buf_pool->page_hash->n_cells,
@@ -1939,31 +1940,31 @@ static void buf_pool_resize_hash(buf_pool_t *buf_pool) {
     new_hash_table->set_n_cells(buf_pool->page_hash->get_n_cells());
     buf_pool->page_hash->set_n_cells(new_n_cells);
   }
-  hash_table_free(new_hash_table);
+  ut::delete_(new_hash_table);
 
   /* recreate zip_hash */
-  new_hash_table = hash_create(2 * buf_pool->curr_size);
+  new_hash_table = ut::new_<hash_table_t>(2 * buf_pool->curr_size);
 
   for (ulint i = 0; i < hash_get_n_cells(buf_pool->zip_hash); i++) {
     buf_page_t *bpage;
 
-    bpage = static_cast<buf_page_t *>(HASH_GET_FIRST(buf_pool->zip_hash, i));
+    bpage = static_cast<buf_page_t *>(hash_get_first(buf_pool->zip_hash, i));
 
     while (bpage) {
       buf_page_t *prev_bpage = bpage;
-      ulint fold;
 
       bpage = static_cast<buf_page_t *>(HASH_GET_NEXT(hash, prev_bpage));
 
-      fold = BUF_POOL_ZIP_FOLD(reinterpret_cast<buf_block_t *>(prev_bpage));
+      const auto hash_value =
+          buf_pool_hash_zip(reinterpret_cast<buf_block_t *>(prev_bpage));
 
-      HASH_DELETE(buf_page_t, hash, buf_pool->zip_hash, fold, prev_bpage);
+      HASH_DELETE(buf_page_t, hash, buf_pool->zip_hash, hash_value, prev_bpage);
 
-      HASH_INSERT(buf_page_t, hash, new_hash_table, fold, prev_bpage);
+      HASH_INSERT(buf_page_t, hash, new_hash_table, hash_value, prev_bpage);
     }
   }
 
-  hash_table_free(buf_pool->zip_hash);
+  ut::delete_(buf_pool->zip_hash);
   buf_pool->zip_hash = new_hash_table;
 }
 
@@ -2655,10 +2656,10 @@ static void buf_relocate(buf_page_t *bpage, buf_page_t *dpage) {
   ut_d(CheckInLRUList::validate(buf_pool));
 
   /* relocate buf_pool->page_hash */
-  ulint fold = bpage->id.fold();
-  ut_ad(fold == dpage->id.fold());
-  HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, fold, bpage);
-  HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, fold, dpage);
+  const auto hash_value = bpage->id.hash();
+  ut_ad(hash_value == dpage->id.hash());
+  HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, hash_value, bpage);
+  HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, hash_value, dpage);
 }
 
 /* Hazard Pointer implementation. */
@@ -2846,7 +2847,7 @@ static buf_page_t *buf_pool_watch_set(const page_id_t &page_id,
         bpage->buf_pool_index = buf_pool_index(buf_pool);
 
         ut_d(bpage->in_page_hash = true);
-        HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, page_id.fold(),
+        HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, page_id.hash(),
                     bpage);
 
         mutex_exit(&buf_pool->LRU_list_mutex);
@@ -2881,14 +2882,14 @@ that the block has been replaced with the real block.
 */
 static void buf_pool_watch_remove(buf_pool_t *buf_pool, buf_page_t *watch) {
 #ifdef UNIV_DEBUG
-  /* We must also own the appropriate hash_bucket mutex. */
+  /* We must also own the appropriate hash cell's mutex. */
   rw_lock_t *hash_lock = buf_page_hash_lock_get(buf_pool, watch->id);
   ut_ad(rw_lock_own(hash_lock, RW_LOCK_X));
 #endif /* UNIV_DEBUG */
 
   ut_ad(buf_page_get_state(watch) == BUF_BLOCK_ZIP_PAGE);
 
-  HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, watch->id.fold(), watch);
+  HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, watch->id.hash(), watch);
   ut_d(watch->in_page_hash = false);
   watch->buf_fix_count.store(0);
   watch->state = BUF_BLOCK_POOL_WATCH;
@@ -4645,7 +4646,7 @@ static void buf_page_init(buf_pool_t *buf_pool, const page_id_t &page_id,
   ut_a(block->page.id == page_id);
   block->page.size.copy_from(page_size);
 
-  HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, page_id.fold(),
+  HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, page_id.hash(),
               &block->page);
 
   if (page_size.is_compressed()) {
@@ -4845,7 +4846,7 @@ buf_page_t *buf_page_init_for_read(dberr_t *err, ulint mode,
       buf_pool_watch_remove(buf_pool, watch_page);
     }
 
-    HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, bpage->id.fold(), bpage);
+    HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, bpage->id.hash(), bpage);
 
     rw_lock_x_unlock(hash_lock);
 
@@ -5228,7 +5229,7 @@ bool buf_page_free_stale(buf_pool_t *buf_pool, buf_page_t *bpage,
   /* This method's task is to acquire the LRU mutex so that the LRU version of
    this method can be called.*/
 
-  /* hash_lock protects access to bpage's bucket, so it could not be freed in
+  /* hash_lock protects access to bpage's cell, so it could not be freed in
   meantime by someone else. */
   ut_ad(hash_lock == buf_page_hash_lock_get(buf_pool, bpage->id));
   /* the lock is taken in S-mode */

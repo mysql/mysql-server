@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -57,11 +57,11 @@ void Block_hint::buffer_fix_block_if_still_valid() {
   page_no == m_page_id.m_page_no is minimal as compilers emit a single 8-byte
   comparison instruction to compare both at the same time atomically, and f()
   will probably double-check the block->page.id again, anyway.
-  Finally, assuming that we have correct hash bucket latched, we should check if
+  Finally, assuming that we have correct hash cell latched, we should check if
   the state of the block is BUF_BLOCK_FILE_PAGE before buffer-fixing the block,
   as otherwise we risk buffer-fixing and operating on a block, which is already
   meant to be freed. In particular, buf_LRU_free_page() first calls
-  buf_LRU_block_remove_hashed() under hash bucket latch protection to change the
+  buf_LRU_block_remove_hashed() under hash cell latch protection to change the
   state to BUF_BLOCK_REMOVE_HASH and then releases the latch. Later it calls
   buf_LRU_block_free_hashed_page() without any latch to change the state to
   BUF_BLOCK_MEMORY and reset the page's id, which means buf_resize() can free it

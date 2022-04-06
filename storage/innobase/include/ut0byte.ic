@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -31,7 +31,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  *******************************************************************/
 
 constexpr uint64_t ut_ull_create(uint32_t high, uint32_t low) {
-  return (((uint64_t)high) << 32 | low);
+  return (uint64_t{high} << 32) | low;
 }
 
 static inline uint64_t ut_uint64_align_down(uint64_t n, ulint align_no) {

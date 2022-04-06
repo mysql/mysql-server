@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -46,18 +46,18 @@ static const void *ha_storage_get(
     ulint data_len)        /*!< in: data length */
 {
   ha_storage_node_t *node;
-  ulint fold;
 
-  /* avoid repetitive calls to ut_fold_binary() in the HASH_SEARCH
+  /* avoid repetitive calls to ut::hash_binary() in the HASH_SEARCH
   macro */
-  fold = ut_fold_binary(static_cast<const byte *>(data), data_len);
+  const auto hash_value =
+      ut::hash_binary(static_cast<const byte *>(data), data_len);
 
 #define IS_FOUND \
   node->data_len == data_len &&memcmp(node->data, data, data_len) == 0
 
   HASH_SEARCH(next,                /* node->"next" */
               storage->hash,       /* the hash table */
-              fold,                /* key */
+              hash_value,          /* key */
               ha_storage_node_t *, /* type of node->next */
               node,                /* auxiliary variable */
               ,                    /* assertion */
@@ -88,7 +88,6 @@ const void *ha_storage_put_memlim(
   void *raw;
   ha_storage_node_t *node;
   const void *data_copy;
-  ulint fold;
 
   /* check if data chunk is already present */
   data_copy = ha_storage_get(storage, data, data_len);
@@ -115,14 +114,15 @@ const void *ha_storage_put_memlim(
   node->data_len = data_len;
   node->data = data_copy;
 
-  /* avoid repetitive calls to ut_fold_binary() in the HASH_INSERT
+  /* avoid repetitive calls to ut::hash_binary() in the HASH_INSERT
   macro */
-  fold = ut_fold_binary(static_cast<const byte *>(data), data_len);
+  const auto hash_value =
+      ut::hash_binary(static_cast<const byte *>(data), data_len);
 
   HASH_INSERT(ha_storage_node_t, /* type used in the hash chain */
               next,              /* node->"next" */
               storage->hash,     /* the hash table */
-              fold,              /* key */
+              hash_value,        /* key */
               node);             /* add this data to the hash */
 
   /* the output should not be changed because it will spoil the

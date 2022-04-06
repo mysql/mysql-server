@@ -294,12 +294,12 @@ static inline ulint dtuple_get_data_size(const dtuple_t *tuple, ulint comp);
 /** Compute a hash value of a prefix of an index record.
 @param[in]      tuple           index record
 @param[in]      n_fields        number of fields to include
-@param[in]      n_bytes         number of bytes to fold in the last field
-@param[in]      fold            fold value of the index identifier
-@return the folded value */
-[[nodiscard]] static inline ulint dtuple_fold(const dtuple_t *tuple,
-                                              ulint n_fields, ulint n_bytes,
-                                              ulint fold);
+@param[in]      n_bytes         number of bytes to hash in the last field
+@param[in]      hash_value      hash value of the index identifier
+@return the hashed value */
+[[nodiscard]] static inline uint64_t dtuple_hash(const dtuple_t *tuple,
+                                                 ulint n_fields, ulint n_bytes,
+                                                 uint64_t hash_value);
 
 /** Sets types of fields binary in a tuple.
 @param[in]      tuple   data tuple

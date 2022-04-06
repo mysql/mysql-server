@@ -359,7 +359,9 @@ struct Char_Ptr_Hash {
   /** Hashing function
   @param[in]    ptr             NUL terminated string to hash
   @return the hash */
-  size_t operator()(const char *ptr) const { return ut_fold_string(ptr); }
+  size_t operator()(const char *ptr) const {
+    return static_cast<size_t>(ut::hash_string(ptr));
+  }
 };
 
 /** Compare two 'strings' */
@@ -8567,7 +8569,7 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
   DBUG_EXECUTE_IF("fil_tablespace_iterate_failure", {
     static bool once;
 
-    if (!once || ut_rnd_interval(0, 10) == 5) {
+    if (!once || ut::random_from_interval(0, 10) == 5) {
       once = true;
       success = false;
       os_file_close(file);

@@ -115,7 +115,7 @@ void Log_test::purge(lsn_t max_dirty_page_age) {
 }
 
 byte *Log_test::create_mlog_rec(byte *rec, Key key, Value value) {
-  const size_t payload = ut_rnd_interval(0, MLOG_TEST_PAYLOAD_MAX_LEN);
+  const size_t payload = ut::random_from_interval(0, MLOG_TEST_PAYLOAD_MAX_LEN);
   return create_mlog_rec(rec, key, value, payload);
 }
 

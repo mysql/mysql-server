@@ -446,15 +446,16 @@ rec_t *rec_copy_prefix_to_buf(const rec_t *rec, const dict_index_t *index,
 /** Compute a hash value of a prefix of a leaf page record.
 @param[in]      rec             leaf page record
 @param[in]      offsets         rec_get_offsets(rec)
-@param[in]      n_fields        number of complete fields to fold
-@param[in]      n_bytes         number of bytes to fold in the last field
-@param[in]      fold            fold value of the index identifier
+@param[in]      n_fields        number of complete fields to hash
+@param[in]      n_bytes         number of bytes to hash in the last field
+@param[in]      hashed_value    hash value of the index identifier
 @param[in]      index           index where the record resides
-@return the folded value */
-[[nodiscard]] static inline ulint rec_fold(const rec_t *rec,
-                                           const ulint *offsets, ulint n_fields,
-                                           ulint n_bytes, ulint fold,
-                                           const dict_index_t *index);
+@return the hashed value */
+[[nodiscard]] static inline uint64_t rec_hash(const rec_t *rec,
+                                              const ulint *offsets,
+                                              ulint n_fields, ulint n_bytes,
+                                              uint64_t hashed_value,
+                                              const dict_index_t *index);
 #endif /* !UNIV_HOTBACKUP */
 
 /** Builds a physical record out of a data tuple and stores it into the given

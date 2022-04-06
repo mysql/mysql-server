@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,17 +33,21 @@ this program; if not, write to the Free Software Foundation, Inc.,
 namespace locksys {
 
 size_t Latches::Page_shards::get_shard(const page_id_t &page_id) {
-  /* We always use lock_rec_hash regardless of the exact type of the lock.
-  It may happen that the lock is a predicate lock, in which case,
-  it would make more sense to use hash_calc_hash with proper hash table
-  size. The current implementation works, because the size of all three
-  hashmaps is always the same. This allows an interface with less arguments.
-  */
+  /* We always use lock_sys->rec_hash regardless of the exact type of the
+  lock. It may happen that the lock is a predicate lock, in which case, it would
+  make more sense to use hash_calc_cell_id with proper hash table size. The
+  current implementation works, because the size of all three hashmaps is always
+  the same. This allows an interface with less arguments. */
   ut_ad(lock_sys->rec_hash->get_n_cells() ==
         lock_sys->prdt_hash->get_n_cells());
   ut_ad(lock_sys->rec_hash->get_n_cells() ==
         lock_sys->prdt_page_hash->get_n_cells());
-  return lock_rec_hash(page_id) % SHARDS_COUNT;
+  /* We need a property that if two pages are mapped to the same bucket of the
+  hash table, and thus their lock queues are merged, then these two lock queues
+  are protected by the same shard. This is why to compute the shard we use the
+  cell_id as the input and not the original lock_rec_hash_value's result. */
+  return hash_calc_cell_id(lock_rec_hash_value(page_id), lock_sys->rec_hash) %
+         SHARDS_COUNT;
 }
 
 const Lock_mutex &Latches::Page_shards::get_mutex(
