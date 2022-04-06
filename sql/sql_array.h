@@ -62,6 +62,10 @@ class Bounds_checked_array {
   // constructors (allocates new memory instead of wrapping existing memory),
   // and also because nullptr for the first argument be ambiguous. The latter
   // could be solved with an explicit nullptr_t overload, though.
+  //
+  // The elements of the array are initialized with value initialization. For
+  // primitive types, like int and pointers, this means the elements will be set
+  // to the equivalent of 0 (or false or nullptr).
   static Bounds_checked_array Alloc(MEM_ROOT *mem_root, size_t size) {
     return {mem_root->ArrayAlloc<Element_type>(size), size};
   }

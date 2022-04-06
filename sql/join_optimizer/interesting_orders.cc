@@ -236,6 +236,23 @@ int LogicalOrderings::AddFunctionalDependency(THD *thd,
 }
 
 void LogicalOrderings::Build(THD *thd, string *trace) {
+  // If we have no interesting orderings or groupings, just create a DFSM
+  // directly with a single state for the empty ordering.
+  if (m_orderings.size() == 1) {
+    m_dfsm_states.reserve(1);
+    m_dfsm_states.emplace_back();
+    DFSMState &initial = m_dfsm_states.back();
+    initial.nfsm_states.init(thd->mem_root);
+    initial.nfsm_states.reserve(1);
+    initial.nfsm_states.push_back(0);
+    initial.next_state =
+        Bounds_checked_array<int>::Alloc(thd->mem_root, m_fds.size());
+    m_optimized_ordering_mapping =
+        Bounds_checked_array<int>::Alloc(thd->mem_root, 1);
+    m_built = true;
+    return;
+  }
+
   BuildEquivalenceClasses();
   RecanonicalizeGroupings();
   AddFDsFromComputedItems(thd);
