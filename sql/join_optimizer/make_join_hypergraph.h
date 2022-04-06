@@ -56,6 +56,10 @@ struct SargablePredicate {
   // greater-than.
   Field *field;
   Item *other_side;
+
+  /// True if "other_side" is constant during execution. (And true const; no
+  /// execution of queries or stored procedures during optimization.)
+  bool is_constant;
 };
 
 /**

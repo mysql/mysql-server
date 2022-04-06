@@ -507,6 +507,7 @@ class CostingReceiver {
   bool ProposeRefAccess(TABLE *table, int node_idx, unsigned key_idx,
                         double force_num_output_rows_after_filter, bool reverse,
                         table_map allowed_parameter_tables, int ordering_idx);
+  bool ProposeAllUniqueIndexLookupsWithConstantKey(int node_idx, bool *found);
   bool RedundantThroughSargable(
       OverflowBitset redundant_against_sargable_predicates,
       const AccessPath *left_path, const AccessPath *right_path, NodeMap left,
@@ -677,6 +678,26 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
                              table->file->stats.records);
   }
 
+  // First look for unique index lookups that use only constants.
+  {
+    bool found_eq_ref = false;
+    if (ProposeAllUniqueIndexLookupsWithConstantKey(node_idx, &found_eq_ref)) {
+      return true;
+    }
+
+    // If we found an unparameterized EQ_REF path, we can skip looking for
+    // alternative access methods, like parameterized or non-unique index
+    // lookups, index range scans or table scans, as they are unlikely to be any
+    // better. Returning early to reduce time spent planning the query, which is
+    // especially beneficial for point selects.
+    if (found_eq_ref) {
+      if (m_trace != nullptr) {
+        TraceAccessPaths(TableBitmap(node_idx));
+      }
+      return false;
+    }
+  }
+
   // We run the range optimizer before anything else, because we can use
   // its estimates to adjust predicate selectivity, giving us consistent
   // row count estimation between the access paths. (It is also usually
@@ -694,7 +715,7 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
         m_range_optimizer_mem_root.ClearForReuse();
       }
     });
-    if (!tl->is_recursive_reference()) {
+    if (!tl->is_recursive_reference() && m_graph->num_where_predicates > 0) {
       // Note that true error returns in itself is not enough to fail the query;
       // the range optimizer could be out of RAM easily enough, which is
       // nonfatal. That just means we won't be using it for this table.
@@ -801,11 +822,8 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
       // possible subsets of table parameters that may be useful, to make sure
       // we don't miss any such paths.
       table_map want_parameter_tables = 0;
-      for (unsigned pred_idx = 0;
-           pred_idx < m_graph->nodes[node_idx].sargable_predicates.size();
-           ++pred_idx) {
-        const SargablePredicate &sp =
-            m_graph->nodes[node_idx].sargable_predicates[pred_idx];
+      for (const SargablePredicate &sp :
+           m_graph->nodes[node_idx].sargable_predicates) {
         if (sp.field->table == table &&
             sp.field->part_of_key.is_set(order_info.key_idx) &&
             !Overlaps(sp.other_side->used_tables(),
@@ -1792,18 +1810,9 @@ bool CostingReceiver::ProposeRefAccess(
       }
       Item_func_eq *item = down_cast<Item_func_eq *>(
           m_graph->predicates[sp.predicate_index].condition);
-      if (sp.field->eq(keyinfo.field) &&
-          comparable_in_index(item, sp.field, Field::itRAW, item->functype(),
-                              sp.other_side) &&
-          !(sp.field->cmp_type() == STRING_RESULT &&
-            sp.field->match_collation_to_optimize_range() &&
-            sp.field->charset() != item->compare_collation())) {
-        // x = const. (And true const; no execution of queries
-        // or stored procedures during optimization.)
-        if ((sp.other_side->const_for_execution() &&
-             !sp.other_side->has_subquery() &&
-             !sp.other_side->is_expensive()) ||
-            sp.other_side->used_tables() == OUTER_REF_TABLE_BIT) {
+      if (sp.field->eq(keyinfo.field)) {
+        // x = const.
+        if (sp.is_constant) {
           matched_this_keypart = true;
           keyparts[keypart_idx].field = sp.field;
           keyparts[keypart_idx].condition = item;
@@ -2047,6 +2056,81 @@ bool CostingReceiver::ProposeRefAccess(
   ProposeAccessPathForIndex(
       node_idx, std::move(applied_predicates), std::move(subsumed_predicates),
       force_num_output_rows_after_filter, key->name, &path);
+  return false;
+}
+
+/**
+  Do we have a sargable predicate which checks if "field" is equal to a
+  constant?
+ */
+bool HasConstantEqualityForField(
+    const Mem_root_array<SargablePredicate> &sargable_predicates,
+    const Field *field) {
+  return std::any_of(sargable_predicates.begin(), sargable_predicates.end(),
+                     [field](const SargablePredicate &sp) {
+                       return sp.is_constant && field->eq(sp.field);
+                     });
+}
+
+/**
+  Proposes all possible unique index lookups using only constants on the given
+  table. This is done before exploring any other plans for the table, in order
+  to allow early return for point selects, which do not benefit from using other
+  access methods.
+
+  @param node_idx    The table to propose index lookups for.
+  @param[out] found  Set to true if a unique index lookup is proposed.
+  @return True on error.
+ */
+bool CostingReceiver::ProposeAllUniqueIndexLookupsWithConstantKey(int node_idx,
+                                                                  bool *found) {
+  const Mem_root_array<SargablePredicate> &sargable_predicates =
+      m_graph->nodes[node_idx].sargable_predicates;
+
+  if (sargable_predicates.empty()) {
+    return false;
+  }
+
+  TABLE *const table = m_graph->nodes[node_idx].table;
+  if (table->pos_in_table_list->is_recursive_reference() ||
+      Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS)) {
+    return false;
+  }
+
+  for (const ActiveIndexInfo &index_info : *m_active_indexes) {
+    if (index_info.table != table) {
+      continue;
+    }
+
+    const KEY *const key = &table->key_info[index_info.key_idx];
+
+    // EQ_REF is only possible on UNIQUE non-FULLTEXT indexes.
+    if (!Overlaps(key->flags, HA_NOSAME) || Overlaps(key->flags, HA_FULLTEXT)) {
+      continue;
+    }
+
+    const size_t num_key_parts = key->user_defined_key_parts;
+    if (num_key_parts > sargable_predicates.size()) {
+      // There are not enough predicates to satisfy this key with constants.
+      continue;
+    }
+
+    if (std::all_of(key->key_part, key->key_part + num_key_parts,
+                    [&sargable_predicates](const KEY_PART_INFO &key_part) {
+                      return HasConstantEqualityForField(sargable_predicates,
+                                                         key_part.field);
+                    })) {
+      *found = true;
+      if (ProposeRefAccess(
+              table, node_idx, index_info.key_idx,
+              /*force_num_output_rows_after_filter=*/-1.0, /*reverse=*/false,
+              /*allowed_parameter_tables=*/0,
+              m_orderings->RemapOrderingIndex(index_info.forward_order))) {
+        return true;
+      }
+    }
+  }
+
   return false;
 }
 
@@ -5562,8 +5646,6 @@ AccessPath MakeSortPathForDistinct(
   return sort_path;
 }
 
-}  // namespace
-
 JoinHypergraph::Node *FindNodeWithTable(JoinHypergraph *graph, TABLE *table) {
   for (JoinHypergraph::Node &node : graph->nodes) {
     if (node.table == table) {
@@ -5985,8 +6067,6 @@ static int FindBestOrderingForWindow(
   return best_ordering_idx;
 }
 
-namespace {
-
 AccessPath *MakeSortPathAndApplyWindows(
     THD *thd, JOIN *join, AccessPath *root_path, int ordering_idx, ORDER *order,
     const LogicalOrderings &orderings,
@@ -6226,8 +6306,7 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
                                          int predicate_index,
                                          bool is_join_condition,
                                          JoinHypergraph *graph, string *trace) {
-  if (item->type() != Item::FUNC_ITEM ||
-      down_cast<Item_func *>(item)->functype() != Item_bool_func2::EQ_FUNC) {
+  if (!is_function_of_type(item, Item_func::EQ_FUNC)) {
     return;
   }
   Item_func_eq *eq_item = down_cast<Item_func_eq *>(item);
@@ -6252,6 +6331,19 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
     JoinHypergraph::Node *node = FindNodeWithTable(graph, field->table);
     if (node == nullptr) {
       // A field in a different query block, so not sargable for us.
+      continue;
+    }
+
+    if (!comparable_in_index(eq_item, field, Field::itRAW, eq_item->functype(),
+                             right)) {
+      // The types are not comparable in the index, so it's not sargable.
+      continue;
+    }
+
+    if (field->cmp_type() == STRING_RESULT &&
+        field->match_collation_to_optimize_range() &&
+        field->charset() != item->compare_collation()) {
+      // The collations don't match, so it's not sargable.
       continue;
     }
 
@@ -6284,7 +6376,16 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
       graph->sargable_join_predicates.emplace(eq_item, predicate_index);
     }
 
-    node->sargable_predicates.push_back({predicate_index, field, right});
+    // Remember if this predicate is field = const. Don't consider items with
+    // subqueries or stored procedures constant, as we don't want to execute
+    // them during optimization.
+    const bool is_constant =
+        (right->const_for_execution() && !right->has_subquery() &&
+         !right->is_expensive()) ||
+        right->used_tables() == OUTER_REF_TABLE_BIT;
+
+    node->sargable_predicates.push_back(
+        {predicate_index, field, right, is_constant});
   }
 }
 

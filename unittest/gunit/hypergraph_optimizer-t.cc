@@ -1902,6 +1902,42 @@ TEST_F(HypergraphOptimizerTest, JoinConditionToRef) {
                   root->num_output_rows());
 }
 
+TEST_F(HypergraphOptimizerTest, PreferWidestEqRefKey) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT 1 FROM t1 WHERE t1.x = 1 AND t1.y = 2",
+                      /*nullable=*/true);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+
+  // Create three unique indexes.
+  const int key_x =
+      t1->create_index(t1->field[0], /*column2=*/nullptr, /*unique=*/true);
+  const int key_xy =
+      t1->create_index(t1->field[0], t1->field[1], /*unique=*/true);
+  const int key_y =
+      t1->create_index(t1->field[1], /*column2=*/nullptr, /*unique=*/true);
+
+  EXPECT_EQ(0, key_x);
+  EXPECT_EQ(1, key_xy);
+  EXPECT_EQ(2, key_y);
+
+  t1->file->stats.records = 10000;
+  t1->file->stats.data_file_length = 1e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // Expect that we use the widest key. That is, we should pick an EQ_REF on the
+  // (x, y) index with no filter, not an EQ_REF on the single-column indexes
+  // with a filter on top.
+  ASSERT_EQ(AccessPath::EQ_REF, root->type);
+  EXPECT_EQ(key_xy, root->eq_ref().ref->key);
+}
+
 // Verify that we can push ref access into a hash join's hash table.
 TEST_F(HypergraphOptimizerTest, RefIntoHashJoin) {
   Query_block *query_block = ParseAndResolve(
