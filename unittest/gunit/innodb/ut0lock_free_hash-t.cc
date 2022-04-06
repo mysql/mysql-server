@@ -83,9 +83,6 @@ unittest/gunit/innodb/CMakeLists.txt */
 #include "storage/innobase/include/ut0lock_free_hash.h"
 #include "storage/innobase/include/ut0mutex.h" /* SysMutex, mutex_enter() */
 
-/* Thread local counter variable for random backoff for spinlocks */
-extern thread_local ulint ut_rnd_ulint_counter;
-
 namespace innodb_lock_free_hash_unittest {
 
 #if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
@@ -426,7 +423,7 @@ static void run_multi_threaded(const char *label, size_t initial_hash_size,
 
   ut_hash_interface_t *hash;
 
-  ut_rnd_ulint_counter = 0;
+  ut::detail::random_seed = 0;
 
 #if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
   hash = new std_hash_t();

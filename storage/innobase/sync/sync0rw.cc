@@ -288,7 +288,7 @@ lock_loop:
   os_rmb;
   while (i < srv_n_spin_wait_rounds && lock->lock_word <= 0) {
     if (srv_spin_wait_delay) {
-      ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
+      ut_delay(ut::random_from_interval(0, srv_spin_wait_delay));
     }
 
     i++;
@@ -384,7 +384,7 @@ static inline void rw_lock_x_lock_wait_func(rw_lock_t *lock,
 
   while (lock->lock_word < threshold) {
     if (srv_spin_wait_delay) {
-      ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
+      ut_delay(ut::random_from_interval(0, srv_spin_wait_delay));
     }
 
     if (i < srv_n_spin_wait_rounds) {
@@ -600,7 +600,7 @@ lock_loop:
     os_rmb;
     while (i < srv_n_spin_wait_rounds && lock->lock_word <= X_LOCK_HALF_DECR) {
       if (srv_spin_wait_delay) {
-        ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
+        ut_delay(ut::random_from_interval(0, srv_spin_wait_delay));
       }
 
       i++;
@@ -668,7 +668,7 @@ lock_loop:
     os_rmb;
     while (i < srv_n_spin_wait_rounds && lock->lock_word <= X_LOCK_HALF_DECR) {
       if (srv_spin_wait_delay) {
-        ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
+        ut_delay(ut::random_from_interval(0, srv_spin_wait_delay));
       }
 
       i++;

@@ -288,8 +288,6 @@ static ulong innobase_commit_concurrency = 0;
 /* Boolean @@innodb_buffer_pool_in_core_file. */
 bool srv_buffer_pool_in_core_file = true;
 
-extern thread_local ulint ut_rnd_ulint_counter;
-
 /** Percentage of the buffer pool to reserve for 'old' blocks.
 Connected to buf_LRU_old_ratio. */
 static uint innobase_old_blocks_pct;
@@ -1446,7 +1444,7 @@ static int innodb_shutdown(handlerton *, ha_panic_function) {
 
   if (innodb_inited) {
     innodb_inited = false;
-    hash_table_free(innobase_open_tables);
+    ut::delete_(innobase_open_tables);
     innobase_open_tables = nullptr;
 
     for (auto file : innobase_sys_files) {
@@ -5419,7 +5417,7 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
 
   ibuf_max_size_update(srv_change_buffer_max_size);
 
-  innobase_open_tables = hash_create(200);
+  innobase_open_tables = ut::new_<hash_table_t>(200);
   mysql_mutex_init(innobase_share_mutex_key.m_value, &innobase_share_mutex,
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(commit_cond_mutex_key.m_value, &commit_cond_m,
@@ -19142,10 +19140,10 @@ static INNOBASE_SHARE *get_share(const char *table_name) {
 
   mysql_mutex_lock(&innobase_share_mutex);
 
-  ulint fold = ut_fold_string(table_name);
+  const auto hash_value = ut::hash_string(table_name);
 
-  HASH_SEARCH(table_name_hash, innobase_open_tables, fold, INNOBASE_SHARE *,
-              share, ut_ad(share->use_count > 0),
+  HASH_SEARCH(table_name_hash, innobase_open_tables, hash_value,
+              INNOBASE_SHARE *, share, ut_ad(share->use_count > 0),
               !strcmp(share->table_name, table_name));
 
   if (share == nullptr) {
@@ -19161,8 +19159,8 @@ static INNOBASE_SHARE *get_share(const char *table_name) {
     share->table_name =
         reinterpret_cast<char *>(memcpy(share + 1, table_name, length + 1));
 
-    HASH_INSERT(INNOBASE_SHARE, table_name_hash, innobase_open_tables, fold,
-                share);
+    HASH_INSERT(INNOBASE_SHARE, table_name_hash, innobase_open_tables,
+                hash_value, share);
 
     /* Index translation table initialization */
     share->idx_trans_tbl.index_mapping = nullptr;
@@ -19185,10 +19183,10 @@ static void free_share(
 
 #ifdef UNIV_DEBUG
   INNOBASE_SHARE *share2;
-  ulint fold = ut_fold_string(share->table_name);
+  const auto hash_value = ut::hash_string(share->table_name);
 
-  HASH_SEARCH(table_name_hash, innobase_open_tables, fold, INNOBASE_SHARE *,
-              share2, ut_ad(share->use_count > 0),
+  HASH_SEARCH(table_name_hash, innobase_open_tables, hash_value,
+              INNOBASE_SHARE *, share2, ut_ad(share->use_count > 0),
               !strcmp(share->table_name, share2->table_name));
 
   ut_a(share2 == share);
@@ -19197,10 +19195,10 @@ static void free_share(
   --share->use_count;
 
   if (share->use_count == 0) {
-    ulint fold = ut_fold_string(share->table_name);
+    const auto hash_value = ut::hash_string(share->table_name);
 
-    HASH_DELETE(INNOBASE_SHARE, table_name_hash, innobase_open_tables, fold,
-                share);
+    HASH_DELETE(INNOBASE_SHARE, table_name_hash, innobase_open_tables,
+                hash_value, share);
 
     /* Free any memory from index translation table */
     ut::free(share->idx_trans_tbl.index_mapping);

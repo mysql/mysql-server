@@ -225,7 +225,7 @@ static void dict_index_remove_from_cache_low(
     dict_table_t *table, /*!< in/out: table */
     dict_index_t *index, /*!< in, own: index */
     bool lru_evict);     /*!< in: true if page being evicted
-                          to make room in the table LRU list */
+                         to make room in the table LRU list */
 
 /** Calculate and update the redo log margin for current tables which
 have some changed dynamic metadata in memory and have not been written
@@ -465,8 +465,8 @@ static void dict_table_try_drop_aborted(
 static void dict_table_try_drop_aborted_and_mutex_exit(
     dict_table_t *table, /*!< in: table (may be NULL) */
     bool try_drop)       /*!< in: false if should try to
-                          drop indexes whose online creation
-                          was aborted */
+                         drop indexes whose online creation
+                         was aborted */
 {
   if (try_drop && table != nullptr && table->drop_aborted &&
       table->get_ref_count() == 1 && table->first_index()) {
@@ -1014,10 +1014,10 @@ void dict_init(void) {
 
   mutex_create(LATCH_ID_DICT_SYS, &dict_sys->mutex);
 
-  dict_sys->table_hash = hash_create(
+  dict_sys->table_hash = ut::new_<hash_table_t>(
       buf_pool_get_curr_size() / (DICT_POOL_PER_TABLE_HASH * UNIV_WORD_SIZE));
 
-  dict_sys->table_id_hash = hash_create(
+  dict_sys->table_id_hash = ut::new_<hash_table_t>(
       buf_pool_get_curr_size() / (DICT_POOL_PER_TABLE_HASH * UNIV_WORD_SIZE));
 
   rw_lock_create(dict_operation_lock_key, dict_operation_lock,
@@ -1059,8 +1059,8 @@ dict_table_t *dict_table_open_on_name(
     const char *table_name,       /*!< in: table name */
     bool dict_locked,             /*!< in: true=data dictionary locked */
     bool try_drop,                /*!< in: true=try to drop any orphan
-                                   indexes after an aborted online
-                                   index creation */
+                                  indexes after an aborted online
+                                  index creation */
     dict_err_ignore_t ignore_err) /*!< in: error to be ignored when
                                   loading a table definition */
 {
@@ -1185,24 +1185,21 @@ void dict_table_set_big_rows(dict_table_t *table) {
 }
 
 void dict_table_add_to_cache(dict_table_t *table, bool can_be_evicted) {
-  ulint fold;
-  ulint id_fold;
-
   ut_ad(dict_lru_validate());
   ut_ad(dict_sys_mutex_own());
 
   table->cached = true;
 
-  fold = ut_fold_string(table->name.m_name);
-  id_fold = ut_fold_ull(table->id);
+  const auto name_hash_value = ut::hash_string(table->name.m_name);
+  const auto index_id_hash_value = ut::hash_uint64(table->id);
 
   dict_table_set_big_rows(table);
 
   /* Look for a table with the same name: error if such exists */
   {
     dict_table_t *table2;
-    HASH_SEARCH(name_hash, dict_sys->table_hash, fold, dict_table_t *, table2,
-                ut_ad(table2->cached),
+    HASH_SEARCH(name_hash, dict_sys->table_hash, name_hash_value,
+                dict_table_t *, table2, ut_ad(table2->cached),
                 !strcmp(table2->name.m_name, table->name.m_name));
     ut_a(table2 == nullptr);
 
@@ -1217,8 +1214,9 @@ void dict_table_add_to_cache(dict_table_t *table, bool can_be_evicted) {
   /* Look for a table with the same id: error if such exists */
   {
     dict_table_t *table2;
-    HASH_SEARCH(id_hash, dict_sys->table_id_hash, id_fold, dict_table_t *,
-                table2, ut_ad(table2->cached), table2->id == table->id);
+    HASH_SEARCH(id_hash, dict_sys->table_id_hash, index_id_hash_value,
+                dict_table_t *, table2, ut_ad(table2->cached),
+                table2->id == table->id);
     ut_a(table2 == nullptr);
 
 #ifdef UNIV_DEBUG
@@ -1230,10 +1228,12 @@ void dict_table_add_to_cache(dict_table_t *table, bool can_be_evicted) {
   }
 
   /* Add table to hash table of tables */
-  HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash, fold, table);
+  HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash, name_hash_value,
+              table);
 
   /* Add table to hash table of tables based on table id */
-  HASH_INSERT(dict_table_t, id_hash, dict_sys->table_id_hash, id_fold, table);
+  HASH_INSERT(dict_table_t, id_hash, dict_sys->table_id_hash,
+              index_id_hash_value, table);
 
   table->can_be_evicted = can_be_evicted;
 
@@ -1467,7 +1467,6 @@ dberr_t dict_table_rename_in_cache(
   dberr_t err;
   dict_foreign_t *foreign;
   dict_index_t *index;
-  ulint fold;
   char old_name[MAX_FULL_NAME_LEN + 1];
 
   ut_ad(dict_sys_mutex_own());
@@ -1481,12 +1480,12 @@ dberr_t dict_table_rename_in_cache(
         << MAX_FULL_NAME_LEN;
   }
 
-  fold = ut_fold_string(new_name);
+  const auto hash_value = ut::hash_string(new_name);
 
   /* Look for a table with the same name: error if such exists */
   dict_table_t *table2;
-  HASH_SEARCH(name_hash, dict_sys->table_hash, fold, dict_table_t *, table2,
-              ut_ad(table2->cached),
+  HASH_SEARCH(name_hash, dict_sys->table_hash, hash_value, dict_table_t *,
+              table2, ut_ad(table2->cached),
               (ut_strcmp(table2->name.m_name, new_name) == 0));
 
   DBUG_EXECUTE_IF(
@@ -1600,7 +1599,7 @@ dberr_t dict_table_rename_in_cache(
 
   /* Remove table from the hash tables of tables */
   HASH_DELETE(dict_table_t, name_hash, dict_sys->table_hash,
-              ut_fold_string(old_name), table);
+              ut::hash_string(old_name), table);
 
   if (strlen(new_name) > strlen(table->name.m_name)) {
     /* We allocate MAX_FULL_NAME_LEN + 1 bytes here to avoid
@@ -1614,7 +1613,7 @@ dberr_t dict_table_rename_in_cache(
   strcpy(table->name.m_name, new_name);
 
   /* Add table to hash table of tables */
-  HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash, fold, table);
+  HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash, hash_value, table);
 
   dict_sys->size += strlen(new_name) - strlen(old_name);
   ut_a(dict_sys->size > 0);
@@ -1846,19 +1845,19 @@ void dict_table_change_id_in_cache(
   /* Remove the table from the hash table of id's */
 
   HASH_DELETE(dict_table_t, id_hash, dict_sys->table_id_hash,
-              ut_fold_ull(table->id), table);
+              ut::hash_uint64(table->id), table);
   table->id = new_id;
 
   /* Add the table back to the hash table */
   HASH_INSERT(dict_table_t, id_hash, dict_sys->table_id_hash,
-              ut_fold_ull(table->id), table);
+              ut::hash_uint64(table->id), table);
 }
 
 /** Removes a table object from the dictionary cache. */
 static void dict_table_remove_from_cache_low(
     dict_table_t *table, /*!< in, own: table */
     bool lru_evict)      /*!< in: true if table being evicted
-                          to make room in the table LRU list */
+                         to make room in the table LRU list */
 {
   dict_foreign_t *foreign;
   dict_index_t *index;
@@ -1915,10 +1914,10 @@ static void dict_table_remove_from_cache_low(
   /* Remove table from the hash tables of tables */
 
   HASH_DELETE(dict_table_t, name_hash, dict_sys->table_hash,
-              ut_fold_string(table->name.m_name), table);
+              ut::hash_string(table->name.m_name), table);
 
   HASH_DELETE(dict_table_t, id_hash, dict_sys->table_id_hash,
-              ut_fold_ull(table->id), table);
+              ut::hash_uint64(table->id), table);
 
   /* Remove table from LRU or non-LRU list. */
   if (table->can_be_evicted) {
@@ -1964,7 +1963,7 @@ void dict_partitioned_table_remove_from_cache(const char *name) {
     dict_table_t *table;
 
     table =
-        static_cast<dict_table_t *>(HASH_GET_FIRST(dict_sys->table_hash, i));
+        static_cast<dict_table_t *>(hash_get_first(dict_sys->table_hash, i));
 
     while (table != nullptr) {
       dict_table_t *prev_table = table;
@@ -2619,7 +2618,7 @@ static void dict_index_remove_from_cache_low(
     dict_table_t *table, /*!< in/out: table */
     dict_index_t *index, /*!< in, own: index */
     bool lru_evict)      /*!< in: true if index being evicted
-                          to make room in the table LRU list */
+                         to make room in the table LRU list */
 {
   lint size;
   ulint retries = 0;
@@ -4604,36 +4603,40 @@ void dict_fs2utf8(const char *db_and_table, char *db_utf8, size_t db_utf8_size,
   }
 }
 
-/** Resize the hash tables besed on the current buffer pool size. */
+/** Resize the hash tables based on the current buffer pool size. */
 void dict_resize() {
   dict_sys_mutex_enter();
 
   /* all table entries are in table_LRU and table_non_LRU lists */
-  hash_table_free(dict_sys->table_hash);
-  hash_table_free(dict_sys->table_id_hash);
+  ut::delete_(dict_sys->table_hash);
+  ut::delete_(dict_sys->table_id_hash);
 
-  dict_sys->table_hash = hash_create(
+  dict_sys->table_hash = ut::new_<hash_table_t>(
       buf_pool_get_curr_size() / (DICT_POOL_PER_TABLE_HASH * UNIV_WORD_SIZE));
 
-  dict_sys->table_id_hash = hash_create(
+  dict_sys->table_id_hash = ut::new_<hash_table_t>(
       buf_pool_get_curr_size() / (DICT_POOL_PER_TABLE_HASH * UNIV_WORD_SIZE));
 
   for (auto table : dict_sys->table_LRU) {
-    ulint fold = ut_fold_string(table->name.m_name);
-    ulint id_fold = ut_fold_ull(table->id);
+    const auto name_hash_value = ut::hash_string(table->name.m_name);
+    const auto index_id_hash_value = ut::hash_uint64(table->id);
 
-    HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash, fold, table);
+    HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash, name_hash_value,
+                table);
 
-    HASH_INSERT(dict_table_t, id_hash, dict_sys->table_id_hash, id_fold, table);
+    HASH_INSERT(dict_table_t, id_hash, dict_sys->table_id_hash,
+                index_id_hash_value, table);
   }
 
   for (auto table : dict_sys->table_non_LRU) {
-    ulint fold = ut_fold_string(table->name.m_name);
-    ulint id_fold = ut_fold_ull(table->id);
+    const auto name_hash_value = ut::hash_string(table->name.m_name);
+    const auto index_id_hash_value = ut::hash_uint64(table->id);
 
-    HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash, fold, table);
+    HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash, name_hash_value,
+                table);
 
-    HASH_INSERT(dict_table_t, id_hash, dict_sys->table_id_hash, id_fold, table);
+    HASH_INSERT(dict_table_t, id_hash, dict_sys->table_id_hash,
+                index_id_hash_value, table);
   }
 
   dict_sys_mutex_exit();
@@ -4677,7 +4680,7 @@ void dict_close(void) {
     dict_table_t *table;
 
     table =
-        static_cast<dict_table_t *>(HASH_GET_FIRST(dict_sys->table_hash, i));
+        static_cast<dict_table_t *>(hash_get_first(dict_sys->table_hash, i));
 
     while (table) {
       dict_table_t *prev_table = table;
@@ -4689,11 +4692,11 @@ void dict_close(void) {
   }
 #endif /* !UNIV_HOTBACKUP */
 
-  hash_table_free(dict_sys->table_hash);
+  ut::delete_(dict_sys->table_hash);
 
   /* The elements are the same instance as in dict_sys->table_hash,
   therefore we don't delete the individual elements. */
-  hash_table_free(dict_sys->table_id_hash);
+  ut::delete_(dict_sys->table_id_hash);
 
 #ifndef UNIV_HOTBACKUP
   dict_ind_free();

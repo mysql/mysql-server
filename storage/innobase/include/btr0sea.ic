@@ -152,20 +152,21 @@ static inline bool btr_search_own_any(ulint mode) {
 }
 #endif /* UNIV_DEBUG */
 
+static inline size_t btr_get_search_slot(const space_index_t index_id,
+                                         const space_id_t space_id) {
+  return static_cast<size_t>(ut::hash_uint64_pair(index_id, space_id) %
+                             btr_ahi_parts_fast_modulo);
+}
+
 static inline rw_lock_t *btr_get_search_latch(const dict_index_t *index) {
   ut_ad(index != nullptr);
 
-  ulint ifold = ut_fold_ulint_pair(static_cast<ulint>(index->id),
-                                   static_cast<ulint>(index->space));
-
-  return (btr_search_latches[ifold % btr_ahi_parts]);
+  return btr_search_latches[btr_get_search_slot(index->id, index->space)];
 }
 
 static inline hash_table_t *btr_get_search_table(const dict_index_t *index) {
   ut_ad(index != nullptr);
 
-  ulint ifold = ut_fold_ulint_pair(static_cast<ulint>(index->id),
-                                   static_cast<ulint>(index->space));
-
-  return (btr_search_sys->hash_tables[ifold % btr_ahi_parts]);
+  return btr_search_sys
+      ->hash_tables[btr_get_search_slot(index->id, index->space)];
 }

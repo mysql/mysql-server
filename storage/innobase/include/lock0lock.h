@@ -99,7 +99,7 @@ queue corresponds to a whole page, and not to a single row.
 Also, each predicate lock (from GIS) is tied to a page, not a record.
 Finally, the lock queue is implemented by reusing chain links in the hash table,
 which means that pages with equal hash are held together in a single linked
-list for their hash bucket.
+list for their hash cell.
 Therefore care must be taken to filter the subset of locks which refer to a
 given resource when accessing these data structures.
 
@@ -680,17 +680,11 @@ void lock_remove_all_on_table(
     bool remove_also_table_sx_locks); /*!< in: also removes
                                    table S and X locks */
 
-/** Calculates the fold value of a page file address: used in inserting or
- searching for a lock in the hash table.
- @param  page_id    specifies the page
- @return folded value */
-static inline ulint lock_rec_fold(const page_id_t page_id);
-
 /** Calculates the hash value of a page file address: used in inserting or
-searching for a lock in the hash table.
+searching for a lock in the hash table or getting global shard index.
 @param  page_id    specifies the page
-@return hashed value */
-static inline ulint lock_rec_hash(const page_id_t &page_id);
+@return hash value */
+static inline uint64_t lock_rec_hash_value(const page_id_t &page_id);
 
 /** Get the lock hash table */
 static inline hash_table_t *lock_hash_get(ulint mode); /*!< in: lock mode */

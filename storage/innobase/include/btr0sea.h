@@ -225,6 +225,15 @@ static inline void btr_search_s_lock_all(ut::Location location);
 /** Unlock all search latches from shared mode. */
 static inline void btr_search_s_unlock_all();
 
+/** Get the adaptive hash search index slot ID for a b-tree specified by its IDs
+of index and space.
+@param[in] index_id Index of the b-tree index
+@param[in] space_id Index of the tablespace the index is in.
+@return Index of the slot for btr_search_sys->hash_tables and btr_search_latches
+arrays. */
+static inline size_t btr_get_search_slot(const space_index_t index_id,
+                                         const space_id_t space_id);
+
 /** Get the latch based on index attributes.
 A latch is selected from an array of latches using pair of index-id, space-id.
 @param[in]      index   index handler
@@ -294,7 +303,7 @@ constexpr uint32_t BTR_SEARCH_MAGIC_N = 1112765;
 
 /** The hash index system */
 struct btr_search_sys_t {
-  /** the adaptive hash tables, mapping dtuple_fold values to rec_t pointers on
+  /** the adaptive hash tables, mapping dtuple_hash values to rec_t pointers on
   index pages */
   hash_table_t **hash_tables;
 };

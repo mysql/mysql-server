@@ -391,14 +391,14 @@ int dd_table_open_on_dd_obj(THD *thd, dd::cache::Dictionary_client *client,
   int error = 0;
   const table_id_t table_id =
       dd_part == nullptr ? dd_table.se_private_id() : dd_part->se_private_id();
-  const ulint fold = ut_fold_ull(table_id);
+  const auto hash_value = ut::hash_uint64(table_id);
 
   ut_ad(table_id != dd::INVALID_OBJECT_ID);
 
   dict_sys_mutex_enter();
 
-  HASH_SEARCH(id_hash, dict_sys->table_id_hash, fold, dict_table_t *, table,
-              ut_ad(table->cached), table->id == table_id);
+  HASH_SEARCH(id_hash, dict_sys->table_id_hash, hash_value, dict_table_t *,
+              table, ut_ad(table->cached), table->id == table_id);
 
   if (table != nullptr) {
     table->acquire();
@@ -692,15 +692,15 @@ dict_table_t *dd_table_open_on_id(table_id_t table_id, THD *thd,
                                   MDL_ticket **mdl, bool dict_locked,
                                   bool check_corruption) {
   dict_table_t *ib_table;
-  const ulint fold = ut_fold_ull(table_id);
+  const auto hash_value = ut::hash_uint64(table_id);
   char full_name[MAX_FULL_NAME_LEN + 1];
 
   if (!dict_locked) {
     dict_sys_mutex_enter();
   }
 
-  HASH_SEARCH(id_hash, dict_sys->table_id_hash, fold, dict_table_t *, ib_table,
-              ut_ad(ib_table->cached), ib_table->id == table_id);
+  HASH_SEARCH(id_hash, dict_sys->table_id_hash, hash_value, dict_table_t *,
+              ib_table, ut_ad(ib_table->cached), ib_table->id == table_id);
 
 reopen:
   if (ib_table == nullptr) {
@@ -709,7 +709,7 @@ reopen:
       /* The table is SDI table */
       space_id_t space_id = dict_sdi_get_space_id(table_id);
 
-      /* Create in-memory table oject for SDI table */
+      /* Create in-memory table object for SDI table */
       dict_index_t *sdi_index =
           dict_sdi_create_idx_in_mem(space_id, false, 0, false);
 
@@ -788,7 +788,7 @@ reopen:
       /* Re-lookup the table after acquiring MDL. */
       dict_sys_mutex_enter();
 
-      HASH_SEARCH(id_hash, dict_sys->table_id_hash, fold, dict_table_t *,
+      HASH_SEARCH(id_hash, dict_sys->table_id_hash, hash_value, dict_table_t *,
                   ib_table, ut_ad(ib_table->cached), ib_table->id == table_id);
 
       if (ib_table != nullptr) {

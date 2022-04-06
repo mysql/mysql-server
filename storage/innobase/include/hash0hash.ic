@@ -32,17 +32,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "ut0rnd.h"
 
-/** Gets the nth cell in a hash table.
- @return pointer to cell */
-static inline hash_cell_t *hash_get_nth_cell(
-    hash_table_t *table, /*!< in: hash table */
-    ulint n)             /*!< in: cell index */
-{
+static inline hash_cell_t *hash_get_nth_cell(hash_table_t *table, size_t n) {
   ut_ad(table);
-  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+  ut_ad(table->magic_n == hash_table_t::HASH_TABLE_MAGIC_N);
   ut_ad(n < table->get_n_cells());
 
-  return (table->cells + n);
+  return &table->cells[n];
 }
 
 /** Clears a hash table so that all the cells become empty. */
@@ -50,129 +45,124 @@ static inline void hash_table_clear(
     hash_table_t *table) /*!< in/out: hash table */
 {
   ut_ad(table);
-  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-  memset(table->cells, 0x0, table->get_n_cells() * sizeof(*table->cells));
+  ut_ad(table->magic_n == hash_table_t::HASH_TABLE_MAGIC_N);
+  memset(table->cells.get(), 0x0, table->get_n_cells() * sizeof(hash_cell_t));
 }
 
-/** Returns the number of cells in a hash table.
- @return number of cells */
-static inline ulint hash_get_n_cells(hash_table_t *table) /*!< in: table */
-{
+static inline size_t hash_get_n_cells(hash_table_t *table) {
   ut_ad(table);
-  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-  return (table->get_n_cells());
+  ut_ad(table->magic_n == hash_table_t::HASH_TABLE_MAGIC_N);
+  return table->get_n_cells();
 }
 
-/** Calculates the hash value from a folded value.
- @return hashed value */
-static inline ulint hash_calc_hash(ulint fold,          /*!< in: folded value */
-                                   hash_table_t *table) /*!< in: hash table */
-{
+static inline uint64_t hash_calc_cell_id(uint64_t hash_value,
+                                         hash_table_t *table) {
   ut_ad(table);
-  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-  return (ut_hash_ulint(fold, table->get_n_cells()));
+  ut_ad(table->magic_n == hash_table_t::HASH_TABLE_MAGIC_N);
+  return hash_value % table->get_n_cells_fast_modulo();
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Gets the sync object index for a fold value in a hash table.
+/** Gets the sync object index for a hash value in a hash table.
  @return index */
-static inline ulint hash_get_sync_obj_index(
+static inline uint64_t hash_get_sync_obj_index(
     hash_table_t *table, /*!< in: hash table */
-    ulint fold)          /*!< in: fold */
+    uint64_t hash_value) /*!< in: hash value */
 {
   ut_ad(table);
-  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+  ut_ad(table->magic_n == hash_table_t::HASH_TABLE_MAGIC_N);
   ut_ad(table->type != HASH_TABLE_SYNC_NONE);
   ut_ad(ut_is_2pow(table->n_sync_obj));
-  return (ut_2pow_remainder(hash_calc_hash(fold, table), table->n_sync_obj));
+  return ut_2pow_remainder(hash_calc_cell_id(hash_value, table),
+                           table->n_sync_obj);
 }
 
-/** Gets the heap for a fold value in a hash table.
+/** Gets the heap for a hash value in a hash table.
  @return mem heap */
 static inline mem_heap_t *hash_get_heap(
     hash_table_t *table) /*!< in: hash table */
 {
   ut_ad(table);
-  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+  ut_ad(table->magic_n == hash_table_t::HASH_TABLE_MAGIC_N);
   ut_ad(table->n_sync_obj == 0);
   ut_ad(table->type == HASH_TABLE_SYNC_NONE);
   ut_ad(table->heap != nullptr);
-  return (table->heap);
+  return table->heap;
 }
 
 /** Gets the nth rw_lock in a hash table.
  @return rw_lock */
 static inline rw_lock_t *hash_get_nth_lock(
     hash_table_t *table, /*!< in: hash table */
-    ulint i)             /*!< in: index of the rw_lock */
+    size_t i)            /*!< in: index of the rw_lock */
 {
   ut_ad(table);
-  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+  ut_ad(table->magic_n == hash_table_t::HASH_TABLE_MAGIC_N);
   ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
   ut_ad(i < table->n_sync_obj);
 
-  return (table->rw_locks + i);
+  return table->rw_locks + i;
 }
 
-/** Gets the rw_lock for a fold value in a hash table.
+/** Gets the rw_lock for a hash value in a hash table.
  @return rw_lock */
 static inline rw_lock_t *hash_get_lock(
     hash_table_t *table, /*!< in: hash table */
-    ulint fold)          /*!< in: fold */
+    uint64_t hash_value) /*!< in: hash value */
 {
-  ulint i;
-
   ut_ad(table);
   ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
-  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+  ut_ad(table->magic_n == hash_table_t::HASH_TABLE_MAGIC_N);
 
-  i = hash_get_sync_obj_index(table, fold);
+  const auto i = hash_get_sync_obj_index(table, hash_value);
 
-  return (hash_get_nth_lock(table, i));
+  return hash_get_nth_lock(table, i);
 }
 
-/** If not appropriate rw_lock for a fold value in a hash table,
-relock S-lock the another rw_lock until appropriate for a fold value.
+/** If not appropriate rw_lock for a hash value in a hash table,
+relock S-lock the another rw_lock until appropriate for a hash value.
 @param[in]      hash_lock       latched rw_lock to be confirmed
 @param[in]      table           hash table
-@param[in]      fold            fold value
+@param[in]      hash_value      hash value
 @return latched rw_lock */
 static inline rw_lock_t *hash_lock_s_confirm(rw_lock_t *hash_lock,
-                                             hash_table_t *table, ulint fold) {
+                                             hash_table_t *table,
+                                             uint64_t hash_value) {
   ut_ad(rw_lock_own(hash_lock, RW_LOCK_S));
 
-  rw_lock_t *hash_lock_tmp = hash_get_lock(table, fold);
+  rw_lock_t *hash_lock_tmp = hash_get_lock(table, hash_value);
 
   while (hash_lock_tmp != hash_lock) {
     rw_lock_s_unlock(hash_lock);
     hash_lock = hash_lock_tmp;
     rw_lock_s_lock(hash_lock, UT_LOCATION_HERE);
-    hash_lock_tmp = hash_get_lock(table, fold);
+    hash_lock_tmp = hash_get_lock(table, hash_value);
   }
 
-  return (hash_lock);
+  return hash_lock;
 }
 
-/** If not appropriate rw_lock for a fold value in a hash table,
-relock X-lock the another rw_lock until appropriate for a fold value.
+/** If not appropriate rw_lock for a hash value in a hash table,
+relock X-lock the another rw_lock until appropriate for a hash value.
 @param[in]      hash_lock       latched rw_lock to be confirmed
 @param[in]      table           hash table
-@param[in]      fold            fold value
+@param[in]      hash_value      hash value
 @return latched rw_lock */
 static inline rw_lock_t *hash_lock_x_confirm(rw_lock_t *hash_lock,
-                                             hash_table_t *table, ulint fold) {
+                                             hash_table_t *table,
+                                             uint64_t hash_value) {
   ut_ad(rw_lock_own(hash_lock, RW_LOCK_X));
 
-  rw_lock_t *hash_lock_tmp = hash_get_lock(table, fold);
+  rw_lock_t *hash_lock_tmp = hash_get_lock(table, hash_value);
 
   while (hash_lock_tmp != hash_lock) {
     rw_lock_x_unlock(hash_lock);
     hash_lock = hash_lock_tmp;
     rw_lock_x_lock(hash_lock, UT_LOCATION_HERE);
-    hash_lock_tmp = hash_get_lock(table, fold);
+    hash_lock_tmp = hash_get_lock(table, hash_value);
   }
 
-  return (hash_lock);
+  return hash_lock;
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -180,13 +170,14 @@ static inline rw_lock_t *hash_lock_x_confirm(rw_lock_t *hash_lock,
  possible change in the hash table is held.
  We assert that the specific rw_lock is held in exclusive mode.
  @param[in] table   The hash table
- @param[in] fold    The fold value for which the modification is performed
+ @param[in] hash_value    The hash value for which the modification is performed
  */
-static inline void hash_assert_can_modify(hash_table_t *table, ulint fold) {
+static inline void hash_assert_can_modify(hash_table_t *table,
+                                          uint64_t hash_value) {
 #ifdef UNIV_DEBUG
   if (table->type == HASH_TABLE_SYNC_RW_LOCK) {
 #ifndef UNIV_HOTBACKUP
-    rw_lock_t *lock = hash_get_lock(table, fold);
+    rw_lock_t *lock = hash_get_lock(table, hash_value);
     ut_ad(rw_lock_own(lock, RW_LOCK_X));
 #endif /*!UNIV_HOTBACKUP*/
   } else {
@@ -198,13 +189,14 @@ static inline void hash_assert_can_modify(hash_table_t *table, ulint fold) {
 /** Assert that the synchronization object in a hash search operation is held.
  We assert that the specific rw_lock is held either in x-mode or s-mode.
  @param[in] table   The hash table
- @param[in] fold    The fold value for which the search is performed
+ @param[in] hash_value    The hash value for which the search is performed
  */
-static inline void hash_assert_can_search(hash_table_t *table, ulint fold) {
+static inline void hash_assert_can_search(hash_table_t *table,
+                                          uint64_t hash_value) {
 #ifdef UNIV_DEBUG
   if (table->type == HASH_TABLE_SYNC_RW_LOCK) {
 #ifndef UNIV_HOTBACKUP
-    rw_lock_t *lock = hash_get_lock(table, fold);
+    rw_lock_t *lock = hash_get_lock(table, hash_value);
     ut_ad(rw_lock_own(lock, RW_LOCK_X) || rw_lock_own(lock, RW_LOCK_S));
 #endif /*!UNIV_HOTBACKUP*/
   } else {

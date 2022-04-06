@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -79,17 +79,7 @@ static void pick_seeds(
 
 /** Generates a random boolean value.
  @return the random value */
-static bool ut_rnd_gen_bool(void) {
-  ulint x;
-
-  x = ut_rnd_gen_ulint();
-
-  if (((x >> 20) + (x >> 15)) & 1) {
-    return true;
-  }
-
-  return false;
-}
+static bool ut_rnd_gen_bool(void) { return ut::random_64() & 1; }
 
 /** Select next node and group where to add. */
 static void pick_next(

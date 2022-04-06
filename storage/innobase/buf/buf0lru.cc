@@ -1911,7 +1911,7 @@ bool buf_LRU_free_page(buf_page_t *bpage, bool zip) {
     ut_ad(b->in_page_hash);
     ut_ad(b->in_LRU_list);
 
-    HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, b->id.fold(), b);
+    HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, b->id.hash(), b);
 
     /* Insert b where bpage was in the LRU list. */
     if (prev_b != nullptr) {
@@ -2254,7 +2254,7 @@ static bool buf_LRU_block_remove_hashed(buf_page_t *bpage, bool zip,
   ut_ad(bpage->in_page_hash);
   ut_d(bpage->in_page_hash = false);
 
-  HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, bpage->id.fold(), bpage);
+  HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, bpage->id.hash(), bpage);
 
   switch (buf_page_get_state(bpage)) {
     case BUF_BLOCK_ZIP_PAGE:

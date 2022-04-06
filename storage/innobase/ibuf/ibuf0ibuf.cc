@@ -2481,15 +2481,14 @@ static bool ibuf_get_volume_buffered_hash(
     ulint size)        /*!< in: number of elements in hash array */
 {
   ulint len;
-  ulint fold;
   ulint bitmask;
 
   len = ibuf_rec_get_size(
       rec, types, rec_get_n_fields_old_raw(rec) - IBUF_REC_FIELD_USER, comp);
-  fold = ut_fold_binary(data, len);
+  const auto hash_value = ut::hash_binary(data, len);
 
-  hash += (fold / (CHAR_BIT * sizeof *hash)) % size;
-  bitmask = static_cast<ulint>(1) << (fold % (CHAR_BIT * sizeof(*hash)));
+  hash += (hash_value / (CHAR_BIT * sizeof *hash)) % size;
+  bitmask = static_cast<ulint>(1) << (hash_value % (CHAR_BIT * sizeof(*hash)));
 
   if (*hash & bitmask) {
     return false;

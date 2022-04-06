@@ -172,7 +172,7 @@ static inline int ut_ulint_cmp(ulint a, ulint b);
 /** Calculates fast the 2-logarithm of a number, rounded upward to an
  integer.
  @return logarithm in the base 2, rounded upward */
-static inline ulint ut_2_log(ulint n); /*!< in: number */
+constexpr ulint ut_2_log(ulint n); /*!< in: number */
 
 /** Calculates 2 to power n.
 @param[in]      n       power of 2

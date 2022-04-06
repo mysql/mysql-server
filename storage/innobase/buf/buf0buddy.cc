@@ -330,7 +330,7 @@ static buf_buddy_free_t *buf_buddy_alloc_zip(buf_pool_t *buf_pool, ulint i) {
 @param[in]      buf_pool        buffer pool instance
 @param[in]      buf             buffer frame to deallocate */
 static void buf_buddy_block_free(buf_pool_t *buf_pool, void *buf) {
-  const ulint fold = BUF_POOL_ZIP_FOLD_PTR(buf);
+  const auto hash_value = buf_pool_hash_zip_frame(buf);
   buf_page_t *bpage;
 
   ut_ad(!mutex_own(&buf_pool->zip_mutex));
@@ -338,7 +338,7 @@ static void buf_buddy_block_free(buf_pool_t *buf_pool, void *buf) {
 
   mutex_enter(&buf_pool->zip_hash_mutex);
 
-  HASH_SEARCH(hash, buf_pool->zip_hash, fold, buf_page_t *, bpage,
+  HASH_SEARCH(hash, buf_pool->zip_hash, hash_value, buf_page_t *, bpage,
               ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_MEMORY &&
                     bpage->in_zip_hash && !bpage->in_page_hash),
               ((buf_block_t *)bpage)->frame == buf);
@@ -347,7 +347,7 @@ static void buf_buddy_block_free(buf_pool_t *buf_pool, void *buf) {
   ut_ad(!bpage->in_page_hash);
   ut_ad(bpage->in_zip_hash);
   ut_d(bpage->in_zip_hash = false);
-  HASH_DELETE(buf_page_t, hash, buf_pool->zip_hash, fold, bpage);
+  HASH_DELETE(buf_page_t, hash, buf_pool->zip_hash, hash_value, bpage);
 
   ut_ad(buf_pool->buddy_n_frames > 0);
   ut_d(buf_pool->buddy_n_frames--);
@@ -364,7 +364,7 @@ static void buf_buddy_block_free(buf_pool_t *buf_pool, void *buf) {
 @param[in]      block   buffer frame to allocate */
 static void buf_buddy_block_register(buf_block_t *block) {
   buf_pool_t *buf_pool = buf_pool_from_block(block);
-  const ulint fold = BUF_POOL_ZIP_FOLD(block);
+  const auto hash_value = buf_pool_hash_zip(block);
   ut_ad(!mutex_own(&buf_pool->zip_mutex));
   ut_ad(buf_block_get_state(block) == BUF_BLOCK_READY_FOR_USE);
 
@@ -378,7 +378,7 @@ static void buf_buddy_block_register(buf_block_t *block) {
   ut_d(block->page.in_zip_hash = true);
 
   mutex_enter(&buf_pool->zip_hash_mutex);
-  HASH_INSERT(buf_page_t, hash, buf_pool->zip_hash, fold, &block->page);
+  HASH_INSERT(buf_page_t, hash, buf_pool->zip_hash, hash_value, &block->page);
 
   ut_d(buf_pool->buddy_n_frames++);
   mutex_exit(&buf_pool->zip_hash_mutex);

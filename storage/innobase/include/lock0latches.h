@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -82,8 +82,8 @@ This his how this conceptually looks like:
 So, for example access two queues for two records involves following steps:
 1. s-latch the global_latch
 2. identify the 2 pages to which the records belong
-3. identify the lock_sys 2 hash buckets which contain the queues for given pages
-4. identify the 2 shard ids which contain these two buckets
+3. identify the lock_sys 2 hash cells which contain the queues for given pages
+4. identify the 2 shard ids which contain these two cells
 5. latch mutexes for the two shards in the order of their addresses
 
 All of the steps above (except 2, as we usually know the page already) are

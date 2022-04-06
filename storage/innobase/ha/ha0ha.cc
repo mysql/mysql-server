@@ -45,17 +45,18 @@ this program; if not, write to the Free Software Foundation, Inc.,
 static const ulint MAX_N_POINTERS = UNIV_PAGE_SIZE_MAX / REC_N_NEW_EXTRA_BYTES;
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
-hash_table_t *ib_create(ulint n, latch_id_t id, ulint n_sync_obj, ulint type) {
+hash_table_t *ib_create(size_t n, latch_id_t id, size_t n_sync_obj,
+                        uint32_t type) {
   hash_table_t *table;
 
   ut_a(type == MEM_HEAP_FOR_BTR_SEARCH || type == MEM_HEAP_FOR_PAGE_HASH);
 
   ut_ad(ut_is_2pow(n_sync_obj));
-  table = hash_create(n);
+  table = ut::new_<hash_table_t>(n);
   ut_ad(table->heap == nullptr);
 
   /* Creating MEM_HEAP_BTR_SEARCH type heaps can potentially fail,
-  but in practise it never should in this case, hence the asserts. */
+  but in practice it never should in this case, hence the asserts. */
 
   if (n_sync_obj == 0) {
     table->heap =
@@ -76,12 +77,12 @@ hash_table_t *ib_create(ulint n, latch_id_t id, ulint n_sync_obj, ulint type) {
 /** Empties a hash table and frees the memory heaps. */
 void ha_clear(hash_table_t *table) /*!< in, own: hash table */
 {
-  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+  ut_ad(table->magic_n == hash_table_t::HASH_TABLE_MAGIC_N);
   ut_ad(!table->adaptive || btr_search_own_all(RW_LOCK_X));
   ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
   ut_ad(table->heap == nullptr);
 
-  for (ulint i = 0; i < table->n_sync_obj; ++i) {
+  for (size_t i = 0; i < table->n_sync_obj; ++i) {
     rw_lock_free(&table->rw_locks[i]);
   }
 
@@ -92,38 +93,35 @@ void ha_clear(hash_table_t *table) /*!< in, own: hash table */
   table->type = HASH_TABLE_SYNC_NONE;
 
   /* Clear the hash table. */
-  ulint n = hash_get_n_cells(table);
+  size_t n = hash_get_n_cells(table);
 
-  for (ulint i = 0; i < n; i++) {
+  for (size_t i = 0; i < n; i++) {
     hash_get_nth_cell(table, i)->node = nullptr;
   }
 }
 
-bool ha_insert_for_fold_func(hash_table_t *table, ulint fold,
+bool ha_insert_for_hash_func(hash_table_t *table, uint64_t hash_value,
                              IF_AHI_DEBUG(buf_block_t *block, )
                                  const rec_t *data) {
-  hash_cell_t *cell;
   ha_node_t *node;
   ha_node_t *prev_node;
-  ulint hash;
 
   ut_ad(data);
   ut_ad(table);
-  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+  ut_ad(table->magic_n == hash_table_t::HASH_TABLE_MAGIC_N);
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
   ut_a(block->frame == page_align(data));
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-  hash_assert_can_modify(table, fold);
+  hash_assert_can_modify(table, hash_value);
   ut_ad(btr_search_enabled);
 
-  hash = hash_calc_hash(fold, table);
+  auto &first_node =
+      hash_get_first(table, hash_calc_cell_id(hash_value, table));
 
-  cell = hash_get_nth_cell(table, hash);
-
-  prev_node = static_cast<ha_node_t *>(cell->node);
+  prev_node = static_cast<ha_node_t *>(first_node);
 
   while (prev_node != nullptr) {
-    if (prev_node->fold == fold) {
+    if (prev_node->hash_value == hash_value) {
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
       if (table->adaptive) {
         buf_block_t *prev_block = prev_node->block;
@@ -164,14 +162,14 @@ bool ha_insert_for_fold_func(hash_table_t *table, ulint fold,
   }
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
-  node->fold = fold;
+  node->hash_value = hash_value;
 
   node->next = nullptr;
 
-  prev_node = static_cast<ha_node_t *>(cell->node);
+  prev_node = static_cast<ha_node_t *>(first_node);
 
   if (prev_node == nullptr) {
-    cell->node = node;
+    first_node = node;
 
     return true;
   }
@@ -189,7 +187,7 @@ bool ha_insert_for_fold_func(hash_table_t *table, ulint fold,
 /** Verify if latch corresponding to the hash table is x-latched
 @param[in]      table           hash table */
 static void ha_btr_search_latch_x_locked(const hash_table_t *table) {
-  ulint i;
+  ulong i;
   for (i = 0; i < btr_ahi_parts; ++i) {
     if (btr_search_sys->hash_tables[i] == table) {
       break;
@@ -206,7 +204,7 @@ void ha_delete_hash_node(hash_table_t *table, /*!< in: hash table */
                          ha_node_t *del_node) /*!< in: node to be deleted */
 {
   ut_ad(table);
-  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+  ut_ad(table->magic_n == hash_table_t::HASH_TABLE_MAGIC_N);
   ut_d(ha_btr_search_latch_x_locked(table));
   ut_ad(btr_search_enabled);
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
@@ -219,15 +217,15 @@ void ha_delete_hash_node(hash_table_t *table, /*!< in: hash table */
   HASH_DELETE_AND_COMPACT(ha_node_t, next, table, del_node);
 }
 
-bool ha_search_and_update_if_found_func(hash_table_t *table, ulint fold,
-                                        const rec_t *data,
+bool ha_search_and_update_if_found_func(hash_table_t *table,
+                                        uint64_t hash_value, const rec_t *data,
                                         IF_AHI_DEBUG(buf_block_t *new_block, )
                                             const rec_t *new_data) {
   ha_node_t *node;
 
   ut_ad(table);
-  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-  hash_assert_can_modify(table, fold);
+  ut_ad(table->magic_n == hash_table_t::HASH_TABLE_MAGIC_N);
+  hash_assert_can_modify(table, hash_value);
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
   ut_a(new_block->frame == page_align(new_data));
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -238,7 +236,7 @@ bool ha_search_and_update_if_found_func(hash_table_t *table, ulint fold,
     return false;
   }
 
-  node = ha_search_with_data(table, fold, data);
+  node = ha_search_with_data(table, hash_value, data);
 
   if (node) {
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
@@ -257,16 +255,16 @@ bool ha_search_and_update_if_found_func(hash_table_t *table, ulint fold,
   return false;
 }
 
-void ha_remove_a_node_to_page(hash_table_t *table, ulint fold,
+void ha_remove_a_node_to_page(hash_table_t *table, uint64_t hash_value,
                               const page_t *page) {
   ha_node_t *node;
 
   ut_ad(table);
-  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-  hash_assert_can_modify(table, fold);
+  ut_ad(table->magic_n == hash_table_t::HASH_TABLE_MAGIC_N);
+  hash_assert_can_modify(table, hash_value);
   ut_ad(btr_search_enabled);
 
-  node = ha_chain_get_first(table, fold);
+  node = ha_chain_get_first(table, hash_value);
 
   while (node) {
     if (page_align(ha_node_get_data(node)) == page) {
@@ -283,22 +281,18 @@ void ha_remove_a_node_to_page(hash_table_t *table, ulint fold,
 }
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-/** Validates a given range of the cells in hash table.
- @return true if ok */
-bool ha_validate(hash_table_t *table, /*!< in: hash table */
-                 ulint start_index,   /*!< in: start index */
-                 ulint end_index)     /*!< in: end index */
-{
+
+bool ha_validate(hash_table_t *table, uint64_t start_index,
+                 uint64_t end_index) {
   bool ok = true;
-  ulint i;
 
   ut_ad(table);
-  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+  ut_ad(table->magic_n == hash_table_t::HASH_TABLE_MAGIC_N);
   ut_a(start_index <= end_index);
   ut_a(start_index < hash_get_n_cells(table));
   ut_a(end_index < hash_get_n_cells(table));
 
-  for (i = start_index; i <= end_index; i++) {
+  for (uint64_t i = start_index; i <= end_index; i++) {
     ha_node_t *node;
     hash_cell_t *cell;
 
@@ -306,11 +300,12 @@ bool ha_validate(hash_table_t *table, /*!< in: hash table */
 
     for (node = static_cast<ha_node_t *>(cell->node); node != nullptr;
          node = node->next) {
-      if (hash_calc_hash(node->fold, table) != i) {
-        ib::error(ER_IB_MSG_522) << "Hash table node fold value " << node->fold
-                                 << " does not match the"
-                                    " cell number "
-                                 << i << ".";
+      if (hash_calc_cell_id(node->hash_value, table) != i) {
+        ib::error(ER_IB_MSG_522)
+            << "Hash table node hash value " << node->hash_value
+            << " does not match the"
+               " cell number "
+            << i << ".";
 
         ok = false;
       }
@@ -333,13 +328,13 @@ builds, see http://bugs.mysql.com/36941 */
 
 #ifdef PRINT_USED_CELLS
   hash_cell_t *cell;
-  ulint cells = 0;
-  ulint i;
+  size_t cells = 0;
+  size_t i;
 #endif /* PRINT_USED_CELLS */
-  ulint n_bufs;
+  size_t n_bufs;
 
   ut_ad(table);
-  ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+  ut_ad(table->magic_n == hash_table_t::HASH_TABLE_MAGIC_N);
 #ifdef PRINT_USED_CELLS
   for (i = 0; i < hash_get_n_cells(table); i++) {
     cell = hash_get_nth_cell(table, i);
@@ -350,7 +345,7 @@ builds, see http://bugs.mysql.com/36941 */
   }
 #endif /* PRINT_USED_CELLS */
 
-  fprintf(file, "Hash table size %lu", (ulong)hash_get_n_cells(table));
+  fprintf(file, "Hash table size %zu", hash_get_n_cells(table));
 
 #ifdef PRINT_USED_CELLS
   fprintf(file, ", used cells %lu", (ulong)cells);
@@ -366,6 +361,6 @@ builds, see http://bugs.mysql.com/36941 */
       n_bufs++;
     }
 
-    fprintf(file, ", node heap has %lu buffer(s)\n", (ulong)n_bufs);
+    fprintf(file, ", node heap has %zu buffer(s)\n", n_bufs);
   }
 }

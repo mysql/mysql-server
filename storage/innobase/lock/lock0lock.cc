@@ -316,9 +316,9 @@ void lock_sys_create(
 
   lock_sys->timeout_event = os_event_create();
 
-  lock_sys->rec_hash = hash_create(n_cells);
-  lock_sys->prdt_hash = hash_create(n_cells);
-  lock_sys->prdt_page_hash = hash_create(n_cells);
+  lock_sys->rec_hash = ut::new_<hash_table_t>(n_cells);
+  lock_sys->prdt_hash = ut::new_<hash_table_t>(n_cells);
+  lock_sys->prdt_page_hash = ut::new_<hash_table_t>(n_cells);
 
   if (!srv_read_only_mode) {
     lock_latest_err_file = os_file_create_tmpfile();
@@ -326,27 +326,28 @@ void lock_sys_create(
   }
 }
 
-/** Calculates the fold value of a lock: used in migrating the hash table.
-@param[in]      lock    record lock object
-@return folded value */
-static ulint lock_rec_lock_fold(const lock_t *lock) {
-  return (lock_rec_fold(lock->rec_lock.page_id));
+/** Calculates the hash value of a lock: used in migrating the hash table.
+@param[in]	lock	record lock object
+@return	hashed value */
+static uint64_t lock_rec_lock_hash_value(const lock_t *lock) {
+  return lock_rec_hash_value(lock->rec_lock.page_id);
 }
 
 /** Resize the lock hash tables.
-@param[in]      n_cells number of slots in lock hash table */
+@param[in]	n_cells	number of slots in lock hash table */
 void lock_sys_resize(ulint n_cells) {
   hash_table_t *old_hash;
 
-  /* We will rearrange locks between buckets and change the parameters of hash
+  /* We will rearrange locks between cells and change the parameters of hash
   function used in sharding of latches, so we have to prevent everyone from
   accessing lock sys queues, or even computing shard id. */
   locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
 
   old_hash = lock_sys->rec_hash;
-  lock_sys->rec_hash = hash_create(n_cells);
-  HASH_MIGRATE(old_hash, lock_sys->rec_hash, lock_t, hash, lock_rec_lock_fold);
-  hash_table_free(old_hash);
+  lock_sys->rec_hash = ut::new_<hash_table_t>(n_cells);
+  HASH_MIGRATE(old_hash, lock_sys->rec_hash, lock_t, hash,
+               lock_rec_lock_hash_value);
+  ut::delete_(old_hash);
 
   DBUG_EXECUTE_IF("syncpoint_after_lock_sys_resize_rec_hash", {
     /* A workaround for buf_resize_thread() not using create_thd().
@@ -361,15 +362,16 @@ void lock_sys_resize(ulint n_cells) {
   });
 
   old_hash = lock_sys->prdt_hash;
-  lock_sys->prdt_hash = hash_create(n_cells);
-  HASH_MIGRATE(old_hash, lock_sys->prdt_hash, lock_t, hash, lock_rec_lock_fold);
-  hash_table_free(old_hash);
+  lock_sys->prdt_hash = ut::new_<hash_table_t>(n_cells);
+  HASH_MIGRATE(old_hash, lock_sys->prdt_hash, lock_t, hash,
+               lock_rec_lock_hash_value);
+  ut::delete_(old_hash);
 
   old_hash = lock_sys->prdt_page_hash;
-  lock_sys->prdt_page_hash = hash_create(n_cells);
+  lock_sys->prdt_page_hash = ut::new_<hash_table_t>(n_cells);
   HASH_MIGRATE(old_hash, lock_sys->prdt_page_hash, lock_t, hash,
-               lock_rec_lock_fold);
-  hash_table_free(old_hash);
+               lock_rec_lock_hash_value);
+  ut::delete_(old_hash);
 }
 
 /** Closes the lock system at database shutdown. */
@@ -379,9 +381,9 @@ void lock_sys_close(void) {
     lock_latest_err_file = nullptr;
   }
 
-  hash_table_free(lock_sys->rec_hash);
-  hash_table_free(lock_sys->prdt_hash);
-  hash_table_free(lock_sys->prdt_page_hash);
+  ut::delete_(lock_sys->rec_hash);
+  ut::delete_(lock_sys->prdt_hash);
+  ut::delete_(lock_sys->prdt_page_hash);
 
   os_event_destroy(lock_sys->timeout_event);
 
@@ -1211,8 +1213,7 @@ static void lock_rec_insert_to_waiting(hash_table_t *lock_hash, lock_t *lock,
   ut_ad(locksys::owns_page_shard(lock->rec_lock.page_id));
   ut_ad(locksys::owns_page_shard(rec_id.get_page_id()));
 
-  const ulint fold = rec_id.fold();
-  HASH_INSERT(lock_t, hash, lock_hash, fold, lock);
+  HASH_INSERT(lock_t, hash, lock_hash, rec_id.hash_value(), lock);
 }
 
 /** Insert lock record to the head of the queue where the GRANTED locks reside.
@@ -1227,14 +1228,14 @@ static void lock_rec_insert_to_granted(hash_table_t *lock_hash, lock_t *lock,
   ut_ad(!lock->is_waiting());
 
   /* Move the target lock to the head of the list. */
-  auto cell =
-      hash_get_nth_cell(lock_hash, hash_calc_hash(rec_id.fold(), lock_hash));
+  auto &first_node = hash_get_first(
+      lock_hash, hash_calc_cell_id(rec_id.hash_value(), lock_hash));
 
-  ut_ad(lock != cell->node);
+  ut_ad(lock != first_node);
 
-  auto next = reinterpret_cast<lock_t *>(cell->node);
+  auto next = reinterpret_cast<lock_t *>(first_node);
 
-  cell->node = lock;
+  first_node = lock;
   lock->hash = next;
 }
 namespace locksys {
@@ -1503,9 +1504,10 @@ dberr_t RecLock::add_to_waitq(const lock_t *wait_for, const lock_prdt_t *prdt) {
 }
 /** Moves a granted lock to the front of the queue for a given record by
 removing it adding it to the front. As a single lock can correspond to multiple
-rows (and thus: queues) this function moves it to the front of whole bucket.
+rows (and thus: queues) this function moves it to the front of whole hash cell.
 @param  [in]    lock    a granted lock to be moved
-@param  [in]    rec_id  record id which specifies particular queue and bucket */
+@param  [in]    rec_id  record id which specifies particular queue and hash
+cell */
 static void lock_rec_move_granted_to_front(lock_t *lock, const RecID &rec_id) {
   ut_ad(!lock->is_waiting());
   ut_ad(rec_id.matches(lock));
@@ -1513,7 +1515,7 @@ static void lock_rec_move_granted_to_front(lock_t *lock, const RecID &rec_id) {
   ut_ad(locksys::owns_page_shard(lock->rec_lock.page_id));
 
   const auto hash_table = lock->hash_table();
-  HASH_DELETE(lock_t, hash, hash_table, rec_id.fold(), lock);
+  HASH_DELETE(lock_t, hash, hash_table, rec_id.hash_value(), lock);
   lock_rec_insert_to_granted(hash_table, lock, rec_id);
 }
 
@@ -1626,8 +1628,9 @@ static void lock_rec_add_to_queue(ulint type_mode, const buf_block_t *block,
         Moving a lock to the front of its queue can create endless loop in the
         caller if it is iterating over the queue.
         Fortunately, the only situation in which a GRANTED lock can be after a
-        WAITING lock in the bucket is if it was WAITING in the past and the only
-        bit for the heap_no was cleared, so it no longer belongs to any queue.*/
+        WAITING lock in the hash cell is if it was WAITING in the past and the
+        only bit for the heap_no was cleared, so it no longer belongs to any
+        queue.*/
         ut_ad(!found_waiter_before_lock ||
               (ULINT_UNDEFINED == lock_rec_find_set_bit(lock)));
 
@@ -2360,7 +2363,7 @@ static void lock_grant_or_update_wait_for_edge_if_waiting(
 /** Grant lock to waiting requests that no longer conflicts.
 The in_lock might be modified before call to this function by clearing some flag
 (see for example lock_trx_release_read_locks). It also might already be removed
-from the hash bucket (a.k.a. waiting queue) or still reside in it. However the
+from the hash cell (a.k.a. waiting queue) or still reside in it. However the
 content of bitmap should not be changed prior to calling this function, as the
 bitmap will be inspected to see which heap_no at all were blocked by this
 in_lock, and only locks waiting for those heap_no's will be checked.
@@ -2436,7 +2439,7 @@ void lock_rec_discard(lock_t *in_lock) {
   locksys::remove_from_trx_locks(in_lock);
 
   HASH_DELETE(lock_t, hash, lock_hash_get(in_lock->type_mode),
-              lock_rec_fold(page_id), in_lock);
+              lock_rec_hash_value(page_id), in_lock);
 
   MONITOR_INC(MONITOR_RECLOCK_REMOVED);
   MONITOR_DEC(MONITOR_NUM_RECLOCK);
@@ -4643,14 +4646,14 @@ static ulint lock_get_n_rec_locks(void) {
   ulint n_locks = 0;
   ulint i;
 
-  /* We need exclusive access to lock_sys to iterate over all buckets */
+  /* We need exclusive access to lock_sys to iterate over all hash cells. */
   ut_ad(locksys::owns_exclusive_global_latch());
 
   for (i = 0; i < hash_get_n_cells(lock_sys->rec_hash); i++) {
     const lock_t *lock;
 
     for (lock =
-             static_cast<const lock_t *>(HASH_GET_FIRST(lock_sys->rec_hash, i));
+             static_cast<const lock_t *>(hash_get_first(lock_sys->rec_hash, i));
          lock != nullptr;
          lock = static_cast<const lock_t *>(HASH_GET_NEXT(hash, lock))) {
       n_locks++;
@@ -5353,7 +5356,7 @@ bool lock_validate() {
 
     for (ulint i = 0; i < hash_get_n_cells(lock_sys->rec_hash); i++) {
       for (const lock_t *lock = static_cast<const lock_t *>(
-               HASH_GET_FIRST(lock_sys->rec_hash, i));
+               hash_get_first(lock_sys->rec_hash, i));
            lock != nullptr;
            lock = static_cast<const lock_t *>(HASH_GET_NEXT(hash, lock))) {
         ut_ad(!trx_is_ac_nl_ro(lock->trx));
@@ -6217,7 +6220,7 @@ void lock_trx_release_locks(trx_t *trx) /*!< in/out: transaction */
 
       /** Doing an implicit to explicit conversion
       should not be expensive. */
-      ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
+      ut_delay(ut::random_from_interval(0, srv_spin_wait_delay));
 
       trx_mutex_enter(trx);
     }

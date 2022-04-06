@@ -1050,7 +1050,7 @@ struct dict_sys_t {
     const auto n_cells = hash->get_n_cells();
     for (ulint i = 0; i < n_cells; i++) {
       for (dict_table_t *table =
-               static_cast<dict_table_t *>(HASH_GET_FIRST(hash, i));
+               static_cast<dict_table_t *>(hash_get_first(hash, i));
            table;
            table = static_cast<dict_table_t *>(HASH_GET_NEXT(id_hash, table))) {
         functor(table);

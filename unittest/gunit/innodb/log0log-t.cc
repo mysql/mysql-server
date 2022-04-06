@@ -395,7 +395,7 @@ static lsn_t write_multi_mlog_tests(Log_test::Key key, size_t n) {
       value = 0;
       value_left = MLOG_TEST_VALUE;
     } else if (i > 1) {
-      value = ut_rnd_interval(1, 100);
+      value = ut::random_from_interval(1, 100);
       ut_a(value < value_left);
       value_left -= value;
     } else {
@@ -492,12 +492,11 @@ static void log_test_run() {
 
         for (int j = 0; j < LOG_TEST_N_STEPS; ++j) {
           int64_t value;
-          ulint ppb;
           lsn_t end_lsn;
 
           value = int64_t{j} * LOG_TEST_N_THREADS + thread_no;
 
-          ppb = ut_rnd_interval(0, 100);
+          const auto ppb = ut::random_from_interval(0, 100);
 
           if (ppb <= 50) {
             /* Single MLOG_TEST */
@@ -511,7 +510,7 @@ static void log_test_run() {
             /* Random number of more than 2 MLOG_TEST */
             size_t n;
 
-            n = ut_rnd_interval(3, MLOG_TEST_GROUP_MAX_REC_N);
+            n = ut::random_from_interval(3, MLOG_TEST_GROUP_MAX_REC_N);
 
             end_lsn = write_multi_mlog_tests(value, n);
           }
@@ -637,8 +636,8 @@ for context switch. However that's good enough for now. */
       if (m_max_us == 0) {
         std::this_thread::yield();
       } else {
-        std::this_thread::sleep_for(
-            std::chrono::microseconds(ut_rnd_interval(m_min_us, m_max_us)));
+        std::this_thread::sleep_for(std::chrono::microseconds(
+            ut::random_from_interval(m_min_us, m_max_us)));
       }
     }
 
@@ -719,7 +718,7 @@ void Log_background_disturber::run() {
   while (m_is_active) {
     m_disturber->disturb();
 
-    const auto sleep_time = ut_rnd_interval(0, 300 * 1000);
+    const auto sleep_time = ut::random_from_interval(0, 300 * 1000);
 
     std::this_thread::sleep_for(std::chrono::microseconds(sleep_time));
   }
@@ -731,7 +730,7 @@ class Log_buf_resizer : public Log_test_disturber {
       : m_min_size(min_size), m_max_size(max_size) {}
 
   void disturb() override {
-    size_t new_size = ut_rnd_interval(m_min_size, m_max_size);
+    size_t new_size = ut::random_from_interval(m_min_size, m_max_size);
 
     new_size = ut_uint64_align_down(new_size, OS_FILE_LOG_BLOCK_SIZE);
 
@@ -748,7 +747,7 @@ class Log_write_ahead_resizer : public Log_test_disturber {
       : m_min_k(min_k), m_max_k(max_k) {}
 
   void disturb() override {
-    const auto new_size = 1 << ut_rnd_interval(m_min_k, m_max_k);
+    const auto new_size = 1 << ut::random_from_interval(m_min_k, m_max_k);
 
     log_write_ahead_resize(*log_sys, new_size);
   }
@@ -774,7 +773,8 @@ TEST(log0log, log_random_disturb) {
   disturber.reset(new Log_buf_resizer{256 * 1024, 1024 * 1024});
   execute_disturbed_test(std::move(disturber));
 
-  disturber.reset(new Log_write_ahead_resizer{9, 14});
+  disturber.reset(new Log_write_ahead_resizer{
+      9, ut_2_log(INNODB_LOG_WRITE_AHEAD_SIZE_MAX)});
   execute_disturbed_test(std::move(disturber));
 }
 

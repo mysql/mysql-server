@@ -41,38 +41,39 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "rem0types.h"
 
 /** Looks for an element in a hash table.
-@param[in]      table   hash table
-@param[in]      fold    folded value of the searched data
+@param[in]      table       hash table
+@param[in]      hash_value  hashed value of the searched data
 @return pointer to the data of the first hash table node in chain
-having the fold number, NULL if not found */
+having the hash number, NULL if not found */
 static inline const rec_t *ha_search_and_get_data(hash_table_t *table,
-                                                  ulint fold);
+                                                  uint64_t hash_value);
 
 /** Looks for an element when we know the pointer to the data and updates
  the pointer to data if found.
  @param[in,out] table hash table
- @param[in] fold folded value of the searched data
+ @param[in] hash_value hashed value of the searched data
  @param[in] data pointer to the data
  @param[in] new_block block containing new data
  @param[in] new_data new pointer to the data
-@return true if found */
-bool ha_search_and_update_if_found_func(hash_table_t *table, ulint fold,
-                                        const rec_t *data,
+ @return true if found */
+bool ha_search_and_update_if_found_func(hash_table_t *table,
+                                        uint64_t hash_value, const rec_t *data,
                                         IF_AHI_DEBUG(buf_block_t *new_block, )
                                             const rec_t *new_data);
 
 /** Looks for an element when we know the pointer to the data and
 updates the pointer to data if found.
 @param table in/out: hash table
-@param fold in: folded value of the searched data
+@param hash_value in: hashed value of the searched data
 @param data in: pointer to the data
 @param new_block in: block containing new_data
 @param new_data in: new pointer to the data */
 static inline bool ha_search_and_update_if_found(hash_table_t *table,
-                                                 ulint fold, const rec_t *data,
+                                                 uint64_t hash_value,
+                                                 const rec_t *data,
                                                  buf_block_t *new_block,
                                                  const rec_t *new_data) {
-  return ha_search_and_update_if_found_func(table, fold, data,
+  return ha_search_and_update_if_found_func(table, hash_value, data,
                                             IF_AHI_DEBUG(new_block, ) new_data);
 }
 /** Creates a hash table with at least n array cells.  The actual number
@@ -86,66 +87,69 @@ static inline bool ha_search_and_update_if_found(hash_table_t *table,
                         MEM_HEAP_FOR_BTR_SEARCH or
                         MEM_HEAP_FOR_PAGE_HASH
  @return own: created table */
-hash_table_t *ib_create(ulint n, latch_id_t id, ulint n_sync_obj, ulint type);
+hash_table_t *ib_create(size_t n, latch_id_t id, size_t n_sync_obj,
+                        uint32_t type);
 
 /** Empties a hash table and frees the memory heaps. */
 void ha_clear(hash_table_t *table); /*!< in, own: hash table */
 
-/** Inserts an entry into a hash table. If an entry with the same fold number
+/** Inserts an entry into a hash table. If an entry with the same hash number
  is found, its node is updated to point to the new data, and no new node
  is inserted. If btr_search_enabled is set to false, we will only allow
  updating existing nodes, but no new node is allowed to be added.
  @param[in] table hash table
- @param[in] fold folded value of data; if a node with the same fold value
+ @param[in] hash_value hashed value of data; if a node with the same hash value
  already exists, it is updated to point to the same data, and no new node is
  created!
  @param[in] block buffer block containing the data
  @param[in] data data, must not be NULL
  @return true if succeeded, false if no more memory could be allocated */
-bool ha_insert_for_fold_func(hash_table_t *table, ulint fold,
+bool ha_insert_for_hash_func(hash_table_t *table, uint64_t hash_value,
                              IF_AHI_DEBUG(buf_block_t *block, )
                                  const rec_t *data);
 
 /**
-Inserts an entry into a hash table. If an entry with the same fold number
+Inserts an entry into a hash table. If an entry with the same hash number
 is found, its node is updated to point to the new data, and no new node
 is inserted.
 @param[in] t  hash table
-@param[in] f  folded value of data
+@param[in] f  hashed value of data
 @param[in] b  buffer block containing the data
 @param[in] d  data, must not be NULL */
-static inline void ha_insert_for_fold(hash_table_t *t, ulint f, buf_block_t *b,
-                                      const rec_t *d) {
-  ha_insert_for_fold_func(t, f, IF_AHI_DEBUG(b, ) d);
+static inline void ha_insert_for_hash(hash_table_t *t, uint64_t f,
+                                      buf_block_t *b, const rec_t *d) {
+  ha_insert_for_hash_func(t, f, IF_AHI_DEBUG(b, ) d);
   MONITOR_ATOMIC_INC(MONITOR_ADAPTIVE_HASH_ROW_ADDED);
 }
 
 /** Looks for an element when we know the pointer to the data and deletes it
 from the hash table if found.
-@param[in]      table   hash table
-@param[in]      fold    folded value of the searched data
-@param[in]      data    pointer to the data
+@param[in]      table       hash table
+@param[in]      hash_value  hashed value of the searched data
+@param[in]      data        pointer to the data
 @return true if found */
 static inline bool ha_search_and_delete_if_found(hash_table_t *table,
-                                                 ulint fold, const rec_t *data);
+                                                 uint64_t hash_value,
+                                                 const rec_t *data);
 
 #ifndef UNIV_HOTBACKUP
 
-/** Removes from the chain determined by fold a single node whose data pointer
-points to the page given. Note that the node deleted can have a different fold
-value.
+/** Removes from the chain determined by hash value a single node whose data
+pointer points to the page given. Note that the node deleted can have a
+different hash value.
 @param[in] table Hash table
-@param[in] fold Fold value
+@param[in] hash_value Hash value
 @param[in] page Buffer page */
-void ha_remove_a_node_to_page(hash_table_t *table, ulint fold,
+void ha_remove_a_node_to_page(hash_table_t *table, uint64_t hash_value,
                               const page_t *page);
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /** Validates a given range of the cells in hash table.
- @return true if ok */
-bool ha_validate(hash_table_t *table, /*!< in: hash table */
-                 ulint start_index,   /*!< in: start index */
-                 ulint end_index);    /*!< in: end index */
+@param[in] table Hash table
+@param[in] start_index Start index
+@param[in] end_index End index
+@return true if ok */
+bool ha_validate(hash_table_t *table, uint64_t start_index, uint64_t end_index);
 #endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 
 /** Prints info of a hash table.
@@ -157,8 +161,8 @@ void ha_print_info(FILE *file, hash_table_t *table);
 
 /** The hash table external chain node */
 struct ha_node_t {
-  /** fold value for the data  */
-  ulint fold;
+  /** hash value for the data  */
+  uint64_t hash_value;
   /** next chain node or NULL if none */
   ha_node_t *next;
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG

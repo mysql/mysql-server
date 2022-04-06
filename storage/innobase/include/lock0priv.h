@@ -609,7 +609,9 @@ struct RecID {
   @param[in]    page_id         Tablespace ID and page number within space
   @param[in]    heap_no         Heap number in the page */
   RecID(page_id_t page_id, uint32_t heap_no)
-      : m_page_id(page_id), m_heap_no(heap_no), m_fold(lock_rec_fold(page_id)) {
+      : m_page_id(page_id),
+        m_heap_no(heap_no),
+        m_hash_value(lock_rec_hash_value(page_id)) {
     ut_ad(m_page_id.space() < UINT32_MAX);
     ut_ad(m_page_id.page_no() < UINT32_MAX);
     ut_ad(m_heap_no < UINT32_MAX);
@@ -622,8 +624,8 @@ struct RecID {
       : RecID(block->get_page_id(), heap_no) {}
 
   /**
-  @return the "folded" value of {space, page_no} */
-  ulint fold() const { return (m_fold); }
+  @return the hashed value of {space, page_no} */
+  uint64_t hash_value() const { return (m_hash_value); }
 
   /** @return true if it's the supremum record */
   bool is_supremum() const { return (m_heap_no == PAGE_HEAP_NO_SUPREMUM); }
@@ -643,8 +645,9 @@ struct RecID {
   uint32_t m_heap_no;
 
   /**
-  Hashed key value */
-  ulint m_fold;
+  Hash generated from record's location which will be used to get lock queue for
+  this record. */
+  uint64_t m_hash_value;
 };
 
 /**
@@ -1073,8 +1076,8 @@ struct Lock_iter {
                                 hash_table_t *hash_table = lock_sys->rec_hash) {
     ut_ad(locksys::owns_page_shard(rec_id.get_page_id()));
 
-    auto list = hash_get_nth_cell(hash_table,
-                                  hash_calc_hash(rec_id.m_fold, hash_table));
+    auto list = hash_get_nth_cell(
+        hash_table, hash_calc_cell_id(rec_id.m_hash_value, hash_table));
 
     for (auto lock = first(list, rec_id); lock != nullptr;
          lock = advance(rec_id, lock)) {

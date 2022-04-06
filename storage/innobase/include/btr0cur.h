@@ -443,7 +443,7 @@ bool btr_cur_compress_if_useful(
                        cursor does not stay valid if compression
                        occurs */
     bool adjust,       /*!< in: true if should adjust the
-                        cursor position even if compression occurs */
+                       cursor position even if compression occurs */
     mtr_t *mtr);       /*!< in/out: mini-transaction */
 
 [[nodiscard]] bool btr_cur_optimistic_delete_func(btr_cur_t *cursor,
@@ -713,9 +713,9 @@ struct btr_cur_t {
   /** Hash prefix bytes if flag is any of BTR_CUR_HASH, BTR_CUR_HASH_FAIL or
   BTR_CUR_HASH_NOT_ATTEMPTED. */
   ulint n_bytes{0};
-  /** fold value used in the search if flag is any of BTR_CUR_HASH,
+  /** hash value used in the search if flag is any of BTR_CUR_HASH,
   BTR_CUR_HASH_FAIL or BTR_CUR_HASH_NOT_ATTEMPTED. */
-  ulint fold{0};
+  uint64_t hash_value{0};
   /** @} */
 
   /** In estimating the number of rows in range, we store in this array

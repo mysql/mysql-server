@@ -45,7 +45,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0cpu_cache.h" /* Cache_aligned<T> */
 #include "ut0mutex.h"     /* ib_mutex_t */
 #include "ut0new.h"       /* UT_NEW*(), ut::delete_*() */
-#include "ut0rnd.h"       /* ut_fold_ull() */
+#include "ut0rnd.h"       /* ut::hash_uint64() */
 
 /** An interface class to a basic hash table, that ut_lock_free_hash_t is. */
 class ut_hash_interface_t {
@@ -641,7 +641,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
     out to generate too many collisions. */
 
     /* arr_size is a power of 2. */
-    return (static_cast<size_t>(ut_fold_ull(key) & (arr_size - 1)));
+    return (static_cast<size_t>(ut::hash_uint64(key) & (arr_size - 1)));
   }
 
   /** Get the array cell of a key from a given array.

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -44,12 +44,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0sys.h"
 #include "trx0trx.h"
 
-static inline ulint lock_rec_fold(const page_id_t page_id) {
-  return (ut_fold_ulint_pair(page_id.space(), page_id.page_no()));
-}
-
-static inline ulint lock_rec_hash(const page_id_t &page_id) {
-  return (hash_calc_hash(lock_rec_fold(page_id), lock_sys->rec_hash));
+static inline uint64_t lock_rec_hash_value(const page_id_t &page_id) {
+  return page_id.hash();
 }
 
 /** Gets the heap_no of the smallest user record on a page.

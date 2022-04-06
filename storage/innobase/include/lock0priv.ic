@@ -93,8 +93,9 @@ static inline lock_t *lock_rec_get_first_on_page_addr(
     hash_table_t *lock_hash, const page_id_t &page_id) {
   ut_ad(locksys::owns_page_shard(page_id));
 
-  for (lock_t *lock = static_cast<lock_t *>(
-           HASH_GET_FIRST(lock_hash, lock_rec_hash(page_id)));
+  for (lock_t *lock = static_cast<lock_t *>(hash_get_first(
+           lock_hash,
+           hash_calc_cell_id(lock_rec_hash_value(page_id), lock_hash)));
        lock != nullptr;
        lock = static_cast<lock_t *>(HASH_GET_NEXT(hash, lock))) {
     if (page_id == lock->rec_lock.page_id) {
