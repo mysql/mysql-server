@@ -1,0 +1,33 @@
+#
+# Bug#33616174: Querying data dictionary table KEY_COLUMN_USAGE is
+#               slow with hypergraph enabled
+#
+CREATE TABLE t1(x INT);
+CREATE TABLE t2(pk INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT 1 FROM t1, LATERAL (SELECT DISTINCT t1.x) AS dt, t2
+WHERE t2.pk = dt.x;
+EXPLAIN
+-> Nested loop inner join  (cost=0.50..0.50 rows=1)
+    -> Table scan on t1  (cost=0.25..0.25 rows=1)
+    -> Nested loop inner join  (cost=0.25..0.25 rows=1)
+        -> Stream results  (cost=0.00..0.00 rows=1)
+            -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+        -> Single-row index lookup on t2 using PRIMARY (pk=dt.x)  (cost=0.25..0.25 rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1
+SELECT 1 FROM
+t1,
+LATERAL (SELECT DISTINCT t1.x) AS dt1,
+LATERAL (SELECT DISTINCT dt1.x) AS dt2
+WHERE dt1.x = dt2.x;
+1
+1
+DROP TABLE t1, t2;

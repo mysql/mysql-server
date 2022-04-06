@@ -2664,6 +2664,26 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
 }
 
 /**
+  Checks if the table given by "node_idx" has all its lateral dependencies
+  satisfied by the set of tables given by "tables".
+ */
+bool LateralDependenciesAreSatisfied(int node_idx, NodeMap tables,
+                                     const JoinHypergraph &graph) {
+  const TABLE_LIST *table_ref = graph.nodes[node_idx].table->pos_in_table_list;
+
+  if (table_ref->is_derived()) {
+    const NodeMap lateral_deps = GetNodeMapFromTableMap(
+        table_ref->derived_query_expression()->m_lateral_deps,
+        graph.table_num_to_node_num);
+    return IsSubset(lateral_deps, tables);
+  }
+
+  // Not a lateral derived table, so there are no lateral dependencies, and
+  // hence all lateral dependencies are satisfied.
+  return true;
+}
+
+/**
   Find the set of tables we can join directly against, given that we have the
   given set of tables on one of the sides (effectively the same concept as
   DPhyp's “neighborhood”). Note that having false negatives here is fine
@@ -2683,12 +2703,20 @@ NodeMap FindReachableTablesFrom(NodeMap tables, const JoinHypergraph &graph) {
 
   NodeMap reachable = 0;
   for (int node_idx : BitsSetIn(tables)) {
-    reachable |= nodes[node_idx].simple_neighborhood;
+    for (int neighbor_idx :
+         BitsSetIn(nodes[node_idx].simple_neighborhood & ~reachable)) {
+      if (LateralDependenciesAreSatisfied(neighbor_idx, tables, graph)) {
+        reachable |= TableBitmap(neighbor_idx);
+      }
+    }
     for (int edge_idx : nodes[node_idx].complex_edges) {
       if (IsSubset(edges[edge_idx].left, tables)) {
         NodeMap others = edges[edge_idx].right & ~tables;
-        if (IsSingleBitSet(others) && !Overlaps(others, reachable) &&
-            PassesConflictRules(tables, graph.edges[edge_idx / 2].expr)) {
+        if (others != 0 && IsSingleBitSet(others) &&
+            !Overlaps(others, reachable) &&
+            PassesConflictRules(tables, graph.edges[edge_idx / 2].expr) &&
+            LateralDependenciesAreSatisfied(FindLowestBitSet(others), tables,
+                                            graph)) {
           reachable |= others;
         }
       }
