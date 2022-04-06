@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,31 +50,31 @@ static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("hugoJoin"),
   { "database", 'd', "Database",
-    (uchar**) &_db, (uchar**) &_db,
+    &_db, &_db,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "options", 'o', "comma separated list of options",
-    (uchar**) &_options, (uchar**) &_options,
+    &_options, &_options,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "loops", 'l', "Loops",
-    (uchar**) &_loops, 0,
+    &_loops, 0,
     0, GET_INT, REQUIRED_ARG, _loops, 0, 0, 0, 0, 0},
   { "verbose", 'v', "verbosity",
-    (uchar**) &_verbose, 0,
+    &_verbose, 0,
     0, GET_INT, REQUIRED_ARG, _verbose, 0, 0, 0, 0, 0},
   { "loops_per_query", 'q', "Recreate query each #loops",
-    (uchar**) &_loops_per_query, 0,
+    &_loops_per_query, 0,
     0, GET_INT, REQUIRED_ARG, _loops_per_query, 0, 0, 0, 0, 0},
   { "batch", 'b', "Batch size (for lookups)",
-    (uchar**) &_batch, 0,
+    &_batch, 0,
     0, GET_INT, REQUIRED_ARG, _batch, 0, 0, 0, 0, 0},
   { "records", 'r', "Records (for lookups)",
-    (uchar**) &_records, 0,
+    &_records, 0,
     0, GET_INT, REQUIRED_ARG, _records, 0, 0, 0, 0, 0},
   { "join-depth", 'j', "Join depth",
-    (uchar**) &_depth, 0,
+    &_depth, 0,
     0, GET_INT, REQUIRED_ARG, _depth, 0, 0, 0, 0, 0},
   { "seed", NDB_OPT_NOSHORT, "Random seed",
-    (uchar **) &_seed, (uchar **) &_seed, 0,
+    &_seed, &_seed, 0,
     GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };

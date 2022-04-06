@@ -239,6 +239,26 @@ Config::pack(UtilBuffer& buf, bool v2) const
 
 #include <ndb_base64.h>
 
+bool Config::pack64_encode(BaseString& encoded, const UtilBuffer& buf) const
+{
+  const uint64 encoded_length = base64_needed_encoded_length(buf.length());
+  require(encoded_length > 0);  // Always need room for null termination
+  if (encoded_length > UINT32_MAX) return false;
+
+  // Make BaseString internal buffer correct size by filling with space.
+  encoded.assign(encoded_length - 1, ' ');
+  /*
+   * Ok to cast away const, we have made sure buffer is writable and correct
+   * size above, and we now that base64_encode will write exactly that much
+   * including null termination.
+   */
+  char* encoded_buf = const_cast<char*>(encoded.c_str());
+
+  if (base64_encode(buf.get_data(), buf.length(), encoded_buf)) return false;
+  assert(strlen(encoded.c_str()) == encoded_length - 1);
+  return true;
+}
+
 bool
 Config::pack64_v1(BaseString& encoded) const
 {
@@ -246,20 +266,7 @@ Config::pack64_v1(BaseString& encoded) const
   if (m_configuration->m_config_values.pack_v1(buf) == 0)
     return false;
 
-  /*
-    Expand the string to correct length by filling with Z.
-    The base64 encoded data of UtilBuffer can be of max length (1024*1024)/3*4
-    hence using int to store the length.
-  */
-  encoded.assfmt("%*s",
-                 (int)base64_needed_encoded_length(buf.length()),
-                 "Z");
-
-  if (base64_encode(buf.get_data(),
-                    buf.length(),
-                    (char*)encoded.c_str()))
-    return false;
-  return true;
+  return pack64_encode(encoded, buf);
 }
 
 bool
@@ -269,20 +276,7 @@ Config::pack64_v2(BaseString& encoded, Uint32 node_id) const
   if (m_configuration->m_config_values.pack_v2(buf, node_id) == 0)
     return false;
 
-  /*
-    Expand the string to correct length by filling with Z.
-    The base64 encoded data of UtilBuffer can be of max length (1024*1024)/3*4
-    hence using int to store the length.
-  */
-  encoded.assfmt("%*s",
-                 (int)base64_needed_encoded_length(buf.length()),
-                 "Z");
-
-  if (base64_encode(buf.get_data(),
-                    buf.length(),
-                    (char*)encoded.c_str()))
-    return false;
-  return true;
+  return pack64_encode(encoded, buf);
 }
 
 
@@ -868,7 +862,7 @@ Config::checksum(bool v2) const {
   // Checksum is the last 4 bytes in buffer
   const char* chk_ptr = (const char*)buf.get_data();
   chk_ptr += buf.length() - sizeof(Uint32);
-  chk = *(Uint32*) chk_ptr;
+  chk = *(const Uint32*)chk_ptr;
 
   return chk;
 }

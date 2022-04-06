@@ -1030,7 +1030,7 @@ MgmtSrvr::~MgmtSrvr()
   delete m_local_config;
 
   if (m_opts.bind_address != nullptr)
-    free((void*)m_opts.bind_address);
+    free(const_cast<char*>(m_opts.bind_address));
   NdbMutex_Destroy(m_local_config_mutex);
   NdbMutex_Destroy(m_reserved_nodes_mutex);
 }
@@ -4666,8 +4666,8 @@ MgmtSrvr::eventReport(const Uint32 *theSignalData,
                       Uint32 len,
                       const Uint32 *theData)
 {
-  const EventReport * const eventReport = (EventReport *)&theSignalData[0];
-  
+  const EventReport* const eventReport = (const EventReport*)&theSignalData[0];
+
   NodeId nodeId = eventReport->getNodeId();
   Ndb_logevent_type type = eventReport->getEventType();
   // Log event

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -776,7 +776,13 @@ static
 bool 
 parse_mycnf_opt(int, const struct my_option * opt, char * value)
 {
-  long *app_type= (long*) &opt->app_type;
+  /*
+   * Ok to cast away const since parse_mycnf_opt is always called with a non
+   * const my_option object.
+   * See load_defaults(Vector<struct my_option>& options, const char* groups[])
+   */
+  my_option* mutable_opt = const_cast<my_option*>(opt);
+  long* app_type = (long*)&mutable_opt->app_type;
   if(opt->comment)
     (*app_type)++;
   else
@@ -896,7 +902,13 @@ load_defaults(Vector<struct my_option>& options, const char* groups[])
     argv[argc++] = group_suffix.c_str();
   }
 
-  char ** tmp = (char**)argv;
+  /*
+   * Cast away const from argv is most probably ok.
+   * The load_defaults function can modify an argv option, but should do it
+   * only for unknown options.  And the options added to argv above should
+   * always be valid.
+   */
+  char** tmp = const_cast<char**>(argv);
   MEM_ROOT alloc;
   int ret = load_defaults("my", groups, &argc, &tmp, &alloc);
 
@@ -958,21 +970,21 @@ InitConfigFileParser::parse_mycnf(const char* cluster_config_suffix)
       const ConfigInfo::ParamInfo& param = ConfigInfo::m_ParamInfo[i];
       switch(param._type){
       case ConfigInfo::CI_BOOL:
-	opt.value = (uchar **)malloc(sizeof(bool));
+	opt.value = malloc(sizeof(bool));
 	opt.var_type = GET_BOOL;
 	break;
       case ConfigInfo::CI_INT: 
-	opt.value = (uchar**)malloc(sizeof(uint));
+	opt.value = malloc(sizeof(uint));
 	opt.var_type = GET_UINT;
 	break;
       case ConfigInfo::CI_INT64:
-	opt.value = (uchar**)malloc(sizeof(Uint64));
+	opt.value = malloc(sizeof(Uint64));
 	opt.var_type = GET_ULL;
 	break;
       case ConfigInfo::CI_ENUM:
       case ConfigInfo::CI_STRING: 
       case ConfigInfo::CI_BITMASK:
-        opt.value = (uchar**)malloc(sizeof(char *));
+        opt.value = malloc(sizeof(char *));
         *((char**)opt.value) = nullptr;
         opt.var_type = GET_STR_ALLOC;
         break;
@@ -999,7 +1011,7 @@ InitConfigFileParser::parse_mycnf(const char* cluster_config_suffix)
     memset(&opt, 0, sizeof(opt));
     opt.name = "ndbd";
     opt.id = 256;
-    opt.value = (uchar**)malloc(sizeof(char*));
+    opt.value = malloc(sizeof(char*));
     *((char**)opt.value) = nullptr;
     opt.var_type = GET_STR_ALLOC;
     opt.arg_type = REQUIRED_ARG;
@@ -1007,7 +1019,7 @@ InitConfigFileParser::parse_mycnf(const char* cluster_config_suffix)
 
     opt.name = "ndb_mgmd";
     opt.id = 256;
-    opt.value = (uchar**)malloc(sizeof(char*));
+    opt.value = malloc(sizeof(char*));
     *((char**)opt.value) = nullptr;
     opt.var_type = GET_STR_ALLOC;
     opt.arg_type = REQUIRED_ARG;
@@ -1015,7 +1027,7 @@ InitConfigFileParser::parse_mycnf(const char* cluster_config_suffix)
 
     opt.name = "mysqld";
     opt.id = 256;
-    opt.value = (uchar**)malloc(sizeof(char*));
+    opt.value = malloc(sizeof(char*));
     *((char**)opt.value) = nullptr;
     opt.var_type = GET_STR_ALLOC;
     opt.arg_type = REQUIRED_ARG;
@@ -1023,7 +1035,7 @@ InitConfigFileParser::parse_mycnf(const char* cluster_config_suffix)
 
     opt.name = "ndbapi";
     opt.id = 256;
-    opt.value = (uchar**)malloc(sizeof(char*));
+    opt.value = malloc(sizeof(char*));
     *((char**)opt.value) = nullptr;
     opt.var_type = GET_STR_ALLOC;
     opt.arg_type = REQUIRED_ARG;

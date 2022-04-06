@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -154,6 +154,7 @@ private:
   bool illegal_change(const Properties&) const;
   bool equal(const Properties&) const;
   const char* diff2str(const Properties&, BaseString& str) const;
+  bool pack64_encode(BaseString& encoded, const UtilBuffer& buf) const;
 };
 
 class ConfigIter : public ndb_mgm_configuration_iterator {

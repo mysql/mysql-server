@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,7 @@ static struct my_option my_long_options[] =
 
   // Specific options
   { "compress", 'c', "Compress file",
-    (uchar**) &g_compress, (uchar**) &g_compress, 0,
+    &g_compress, &g_compress, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "decrypt-password", NDB_OPT_NOSHORT, "Decryption password",
     nullptr, nullptr, 0,
@@ -104,11 +104,11 @@ static struct my_option my_long_options[] =
     GET_INT, REQUIRED_ARG, 512, 0, INT_MAX,
     0, 0, 0 },
   { "info", 'i', "Print info about file",
-    (uchar**) &g_info, (uchar**) &g_info, 0,
+    &g_info, &g_info, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
 #if defined(TODO_READ_REVERSE)
   { "read-reverse", 'R', "Read file in reverse",
-    (uchar**) &g_read_reverse, (uchar**) &g_read_reverse, 0,
+    &g_read_reverse, &g_read_reverse, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
 #endif
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}

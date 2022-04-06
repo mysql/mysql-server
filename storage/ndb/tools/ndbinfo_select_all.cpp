@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,10 +41,10 @@ static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndbinfo_select_all"),
   { "loops", 'l', "Run same select several times",
-    (uchar**) &loops, (uchar**) &loops, 0,
+    &loops, &loops, 0,
     GET_INT, REQUIRED_ARG, loops, 0, 0, 0, 0, 0 },
   { "delay", 256, "Delay between loops (in seconds)",
-    (uchar**) &delay, (uchar**) &delay, 0,
+    &delay, &delay, 0,
     GET_INT, REQUIRED_ARG, delay, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
