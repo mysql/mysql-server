@@ -2050,8 +2050,7 @@ void ExtractCycleMultipleEqualities(
     Mem_root_array<Item_equal *> *multiple_equalities) {
   for (Item *item : conditions) {
     assert(!IsMultipleEquals(item));  // Should have been canonicalized earlier.
-    if (item->type() == Item::FUNC_ITEM &&
-        down_cast<Item_func *>(item)->functype() == Item_func::EQ_FUNC) {
+    if (is_function_of_type(item, Item_func::EQ_FUNC)) {
       Item_func_eq *eq_item = down_cast<Item_func_eq *>(item);
       if (eq_item->source_multiple_equality != nullptr &&
           ShouldCompleteMeshForCondition(eq_item->source_multiple_equality,
@@ -2747,6 +2746,8 @@ size_t EstimateRowWidthForJoin(const JoinHypergraph &graph,
   ones come last.
  */
 void SortPredicates(Predicate *begin, Predicate *end) {
+  if (std::distance(begin, end) <= 1) return;  // Nothing to sort.
+
   // Move the most selective predicates first.
   std::stable_sort(begin, end, [](const Predicate &p1, const Predicate &p2) {
     return p1.selectivity < p2.selectivity;
@@ -3293,6 +3294,48 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
   if (graph->nodes.reserve(num_tables) ||
       graph->graph.nodes.reserve(num_tables)) {
     return true;
+  }
+
+  // Fast path for single-table queries. We can skip all the logic that analyzes
+  // join conditions, as there is no join.
+  if (num_tables == 1) {
+    TABLE_LIST *const table_ref = query_block->leaf_tables;
+    table_ref->fetch_number_of_rows();
+
+    RelationalExpression *root = MakeRelationalExpression(thd, table_ref);
+    MakeJoinGraphFromRelationalExpression(thd, root, trace, graph);
+
+    if (join->where_cond != nullptr) {
+      const table_map tables_in_tree = table_ref->map();
+      Item *where_cond =
+          EarlyExpandMultipleEquals(join->where_cond, tables_in_tree);
+      Mem_root_array<Item *> where_conditions(thd->mem_root);
+      ExtractConditions(where_cond, &where_conditions);
+
+      if (EarlyNormalizeConditions(thd, tables_in_tree, &where_conditions,
+                                   where_is_always_false)) {
+        return true;
+      }
+
+      if (CanonicalizeConditions(thd, tables_in_tree, &where_conditions)) {
+        return true;
+      }
+
+      for (Item *item : where_conditions) {
+        AddPredicate(thd, item, /*was_join_condition=*/false,
+                     /*source_multiple_equality_idx=*/-1, root, graph, trace);
+      }
+      graph->num_where_predicates = graph->predicates.size();
+
+      SortPredicates(graph->predicates.begin(), graph->predicates.end());
+    }
+
+    if (trace != nullptr) {
+      *trace += "\nConstructed hypergraph:\n";
+      *trace += PrintDottyHypergraph(*graph);
+    }
+
+    return false;
   }
 
   RelationalExpression *root =

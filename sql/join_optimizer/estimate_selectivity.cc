@@ -146,8 +146,7 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
   // for why).
   // TODO(khatlen): Do the same for field <=> field?
   double selectivity_cap = 1.0;
-  if (condition->type() == Item::FUNC_ITEM &&
-      down_cast<Item_func *>(condition)->functype() == Item_func::EQ_FUNC) {
+  if (is_function_of_type(condition, Item_func::EQ_FUNC)) {
     Item_func_eq *eq = down_cast<Item_func_eq *>(condition);
     if (eq->source_multiple_equality != nullptr &&
         eq->source_multiple_equality->get_const() == nullptr) {
@@ -224,9 +223,7 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
   // If we get more sophisticated cardinality estimation, e.g. by histograms
   // or the likes, we need to revisit this assumption, and potentially adjust
   // our model here.
-  if (condition->type() == Item::FUNC_ITEM &&
-      down_cast<Item_func *>(condition)->functype() ==
-          Item_func::MULT_EQUAL_FUNC) {
+  if (is_function_of_type(condition, Item_func::MULT_EQUAL_FUNC)) {
     Item_equal *equal = down_cast<Item_equal *>(condition);
 
     // These should have been expanded early, before we get here.
