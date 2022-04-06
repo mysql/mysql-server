@@ -26,8 +26,11 @@ struct Edge {
  * 
  */
 class Dijkstra {
-  PSI_memory_key psi_key;
   typedef malloc_unordered_multimap<int, const Edge*>::const_iterator edge_iterator;
+
+  // #iterations/#nodes popped in Dijkstra::operator() before callback param stop is called
+  static constexpr unsigned int iters_per_callback = 255;
+  PSI_memory_key psi_key;
 
   // key = Edge.from
   const malloc_unordered_multimap<int, const Edge*>* m_edges;
@@ -71,10 +74,12 @@ class Dijkstra {
    * @param start_point_id node id of path start
    * @param end_point_id node if of path end
    * @param total_cost l-val-ref returns total cost of found path (if path exists)
+   * @param stop callback for exiting function. called every ...
    * @return std::vector<const Edge*> vector of pointers, pointing to edges in
-   *  m_edges, representing found path
+   *  m_edges, representing found path, or empty vector if stoped by param stop or no path exists
    */
-  std::vector<const Edge*> operator()(const int& start_point_id, const int& end_point_id, double& total_cost);
+  std::vector<const Edge*> operator()(const int& start_point_id, const int& end_point_id, double& total_cost,
+                                      const std::function<bool()>& stop = []() -> bool { return false; });
  private:
   /**
    * @brief finds path by accumulating Point.path from m_point_map and reverting their order

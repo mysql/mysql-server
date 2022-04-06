@@ -11,6 +11,9 @@ class Item_sum_shortest_dir_path final : public Item_sum_json {
   int m_begin_node, m_end_node;
   // * accumulated edges from ::add. map key = node id of edge origin (i.e. Edge.from)
   malloc_unordered_multimap<int, const Edge*> m_edge_map;
+  // * accumulated points from ::add. map key = node id
+  // TODO use
+  malloc_unordered_map<int, const gis::Point*> m_point_map;
  public:
  /**
   * @brief Construct a new Item_sum_shortest_dir_path object

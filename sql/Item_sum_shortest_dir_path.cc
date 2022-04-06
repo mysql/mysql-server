@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 #include <utility>  // std::forward
+#include <functional>
 
 #include "decimal.h"
 #include "my_alloc.h"
@@ -59,23 +60,41 @@
 
 Item_sum_shortest_dir_path::Item_sum_shortest_dir_path(
     THD *thd, Item_sum *item, unique_ptr_destroy_only<Json_wrapper> wrapper)
-    : Item_sum_json(std::move(wrapper), thd, item), m_edge_map(key_memory_Dijkstra) {}
+    : Item_sum_json(std::move(wrapper), thd, item),
+      m_edge_map(key_memory_Dijkstra), m_point_map(key_memory_Dijkstra) {}
 
 Item_sum_shortest_dir_path::Item_sum_shortest_dir_path(
     const POS &pos, PT_item_list *args,
     unique_ptr_destroy_only<Json_wrapper> wrapper)
-    : Item_sum_json(std::move(wrapper), pos, args, nullptr), m_edge_map(key_memory_Dijkstra) {}
+    : Item_sum_json(std::move(wrapper), pos, args, nullptr),
+      m_edge_map(key_memory_Dijkstra), m_point_map(key_memory_Dijkstra) {}
 
 bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
   assert(!m_is_window_function);
+
+  const THD *thd = base_query_block->parent_lex->thd;
+  static std::function stop_dijkstra = [&thd]() -> bool {
+    return thd->is_error() || thd->is_fatal_error() || thd->is_killed();
+  };
+  static std::function null_heuristic = [](const int&) -> double {
+    return 0.0;
+  };
+  static std::function geom_heuristic = [](const int&) -> double {
+    return 0.0; // TODO implement
+  };
+  std::function<double(const int&)>& heuristic = true ? null_heuristic : geom_heuristic;
+
   try {
     Json_array_ptr arr(new (std::nothrow) Json_array());
     if (arr == nullptr)
       return error_json();
-    Dijkstra dijkstra(&m_edge_map, [](const int&) -> double { return 0.0; }, key_memory_Dijkstra);
+    Dijkstra dijkstra(&m_edge_map, heuristic, key_memory_Dijkstra);
     double cost;
+    std::vector<const Edge*> path = dijkstra(m_begin_node, m_end_node, cost, stop_dijkstra);
+    if (stop_dijkstra())
+      return error_json();
     // jsonifying path from dijkstra into arr
-    for (const Edge* edge : dijkstra(m_begin_node, m_end_node, cost)) {
+    for (const Edge* edge : path) {
       Json_object_ptr json_edge(new (std::nothrow) Json_object());
       if (
         json_edge == nullptr ||
