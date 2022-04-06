@@ -991,7 +991,6 @@ int ndb_openssl_evp::operation::decrypt_reverse(output_reverse_iterator* out,
                                                 input_reverse_iterator* in)
 {
   require(m_op_mode == DECRYPT);
-  bool progress = false;
   const size_t data_unit_size = m_context->m_data_unit_size;
   require(m_reverse);
   require(data_unit_size == 0);
@@ -1084,7 +1083,6 @@ int ndb_openssl_evp::operation::decrypt_reverse(output_reverse_iterator* out,
   m_output_position -= real_outl + final_outl;
   in->advance(inl);
   out->advance(real_outl + final_outl);
-  progress = true;
   m_at_padding_end = false;
  
   if (in->empty() && in->last()) out->set_last();

@@ -145,8 +145,13 @@ class BlobBatchChecker
   /**
    * Check whether the batch contains another blob
    * operation with the same table, index + key
+   *
+   * Returns:
+   * 0 - found
+   * 1 - not found
+   * -1 - error
    */
-  bool findKey(NdbBlob* blob) const
+  int findKey(NdbBlob* blob) const
   {
     DBUG_ENTER("BlobBatchChecker::findKey");
     const Uint32 hash = blob->getBlobKeyHash();
@@ -157,10 +162,11 @@ class BlobBatchChecker
     {
       if (candidate->getBlobKeyHash() == hash)
       {
-        if (candidate->getBlobKeysEqual(blob) == 0)
+        int ret = candidate->getBlobKeysEqual(blob);
+        if (ret <= 0)
         {
-          /* Found */
-          DBUG_RETURN(true);
+          /* Found or error */
+          DBUG_RETURN(ret);
         }
       }
 
@@ -168,7 +174,7 @@ class BlobBatchChecker
     }
 
     /* Not found */
-    DBUG_RETURN(false);
+    DBUG_RETURN(1);
   }
 
   /**
@@ -292,7 +298,7 @@ public:
           if (singleIndex)
           {
             /* Check whether key has been seen before */
-            include = !findKey(firstBlob);
+            include = (findKey(firstBlob) == 1);  // Not found, ok to include
             DBUG_PRINT("info", ("Checked key : include : %u", include));
           }
         }

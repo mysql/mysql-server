@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,7 @@
 # Disable specific types of warnings for current directory
 # if the compiler supports the flag
 FOREACH(warning
-    "unused-but-set-variable"
+    "error=unused-but-set-variable"
     "strict-aliasing"
     "unused-parameter"
     # Downgrade -Werror to warning for "may be used uninitialized"

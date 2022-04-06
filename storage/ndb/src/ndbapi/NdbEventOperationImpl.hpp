@@ -590,7 +590,6 @@ public:
   NdbDictionary::Event::TableEvent getEventType2();
 
   void print();
-  void printAll();
 
   NdbEventOperation *m_facade;
   Uint32 m_magic_number;

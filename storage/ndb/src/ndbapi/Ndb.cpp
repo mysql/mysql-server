@@ -2441,7 +2441,6 @@ Ndb::printState(const char* fmt, ...)
   vsprintf(buf, fmt, ap);
   va_end(ap);
   NdbMutex_Lock(ndb_print_state_mutex);
-  bool dups = false;
   unsigned i;
   ndbout << buf << " ndb=" << hex << (void*)this << endl;
   for (unsigned n = 0; n < MAX_NDB_NODES; n++) {
@@ -2457,21 +2456,18 @@ Ndb::printState(const char* fmt, ...)
   ndbout << "prepared: " << theNoOfPreparedTransactions<< endl;
   if (checkdups(thePreparedTransactionsArray, theNoOfPreparedTransactions)) {
     ndbout << "!! DUPS !!" << endl;
-    dups = true;
   }
   for (i = 0; i < theNoOfPreparedTransactions; i++)
     thePreparedTransactionsArray[i]->printState();
   ndbout << "sent: " << theNoOfSentTransactions<< endl;
   if (checkdups(theSentTransactionsArray, theNoOfSentTransactions)) {
     ndbout << "!! DUPS !!" << endl;
-    dups = true;
   }
   for (i = 0; i < theNoOfSentTransactions; i++)
     theSentTransactionsArray[i]->printState();
   ndbout << "completed: " << theNoOfCompletedTransactions<< endl;
   if (checkdups(theCompletedTransactionsArray, theNoOfCompletedTransactions)) {
     ndbout << "!! DUPS !!" << endl;
-    dups = true;
   }
   for (i = 0; i < theNoOfCompletedTransactions; i++)
     theCompletedTransactionsArray[i]->printState();

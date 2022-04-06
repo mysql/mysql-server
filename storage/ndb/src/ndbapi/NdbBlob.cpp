@@ -962,6 +962,12 @@ NdbBlob::getBlobKeyHash()
   DBUG_RETURN(m_keyHash);
 }
 
+/*
+ * Returns:
+ *  0 - if keys are equal for this and other
+ *  1 - if keys are different for this and other
+ *  -1 - on error
+ */
 int
 NdbBlob::getBlobKeysEqual(NdbBlob* other)
 {
@@ -1007,6 +1013,11 @@ NdbBlob::getBlobKeysEqual(NdbBlob* other)
                                       lbA,
                                       lenA);
       assert(ok);
+      if (unlikely(!ok))
+      {
+        DBUG_PRINT("error", ("Corrupt length of key column %u", i));
+        DBUG_RETURN(-1);
+      }
       Uint32 lbB, lenB;
       ok = NdbSqlUtil::get_var_length(colImpl->m_type,
                                       dataPtrB,
@@ -1014,8 +1025,12 @@ NdbBlob::getBlobKeysEqual(NdbBlob* other)
                                       lbB,
                                       lenB);
       assert(ok);
+      if (unlikely(!ok))
+      {
+        DBUG_PRINT("error", ("Corrupt length of key column %u", i));
+        DBUG_RETURN(-1);
+      }
       assert(lbA == lbB);
-
       CHARSET_INFO* cs = colImpl->m_cs ? colImpl->m_cs : &my_charset_bin;
       int res = (cs->coll->strnncollsp)(cs,
                                         dataPtrA + lbA,

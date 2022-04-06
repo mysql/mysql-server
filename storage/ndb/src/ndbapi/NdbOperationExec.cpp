@@ -1250,9 +1250,9 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
            */
           assert(!col->is_null(key_row));
           length= 0;
-          
-          bool len_ok;
-          
+
+          bool len_ok [[maybe_unused]];
+
           if (col->flags & NdbRecord::IsMysqldShrinkVarchar)
           {
             /* Used to support special varchar format for mysqld keys. 

@@ -2112,7 +2112,7 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
   {
     NdbIndexScanOperation* tOp = (NdbIndexScanOperation*)this;
 
-    bool ret = true;
+    bool ret [[maybe_unused]];
     if (theStatus != WaitResponse)
     {
       /**
