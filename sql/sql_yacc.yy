@@ -11105,7 +11105,7 @@ sum_expr:
             $$ = NEW_PTN Item_sum_json_object(
                 @$, $3, $5, $7, std::move(wrapper), std::move(object));
           }
-        | ST_SHORTEST_DIR_PATH_SYM '(' in_sum_expr ',' in_sum_expr ',' in_sum_expr ',' in_sum_expr ',' expr ',' expr ')' opt_windowing_clause
+        | ST_SHORTEST_DIR_PATH_SYM '(' in_sum_expr ',' in_sum_expr ',' in_sum_expr ',' in_sum_expr ',' expr ',' expr ')'
           {
             auto wrapper = make_unique_destroy_only<Json_wrapper>(YYMEM_ROOT);
             if (wrapper == nullptr) YYABORT;
@@ -11114,7 +11114,7 @@ sum_expr:
             args->push_back($3);args->push_back($5);args->push_back($7);args->push_back($9);
             args->push_back($11);args->push_back($13);
             
-            $$ = NEW_PTN Item_sum_shortest_dir_path(@$, args, $15, std::move(wrapper));
+            $$ = NEW_PTN Item_sum_shortest_dir_path(@$, args, std::move(wrapper));
           }
         | ST_COLLECT_SYM '(' in_sum_expr ')' opt_windowing_clause
           {

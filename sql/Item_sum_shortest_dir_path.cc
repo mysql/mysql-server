@@ -62,9 +62,9 @@ Item_sum_shortest_dir_path::Item_sum_shortest_dir_path(
     : Item_sum_json(std::move(wrapper), thd, item), m_edge_map(key_memory_Dijkstra) {}
 
 Item_sum_shortest_dir_path::Item_sum_shortest_dir_path(
-    const POS &pos, PT_item_list *args, PT_window *w,
+    const POS &pos, PT_item_list *args,
     unique_ptr_destroy_only<Json_wrapper> wrapper)
-    : Item_sum_json(std::move(wrapper), pos, args, w), m_edge_map(key_memory_Dijkstra) {}
+    : Item_sum_json(std::move(wrapper), pos, args, nullptr), m_edge_map(key_memory_Dijkstra) {}
 
 bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
   assert(!m_is_window_function);
@@ -169,7 +169,8 @@ bool Item_sum_shortest_dir_path::add() {
 
   // store edge
   Edge *edge = new (thd->mem_root, std::nothrow) Edge{ id, from_id, to_id, cost };
-  if (edge == nullptr) return true;
+  if (edge == nullptr)
+    return true;
   try {
     m_edge_map.insert(std::pair(from_id, edge));
   } catch (...) { // expects to catch std::bad_alloc

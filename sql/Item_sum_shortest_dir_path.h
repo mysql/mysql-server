@@ -31,7 +31,7 @@ class Item_sum_shortest_dir_path final : public Item_sum_json {
    * ! wrapper not needed
    * TODO inherit from Item_sum?
    */
-  Item_sum_shortest_dir_path(const POS &pos, PT_item_list *args, PT_window *w,
+  Item_sum_shortest_dir_path(const POS &pos, PT_item_list *args,
                        unique_ptr_destroy_only<Json_wrapper> wrapper);
 
   ~Item_sum_shortest_dir_path() override = default;
