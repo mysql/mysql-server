@@ -73,6 +73,7 @@
 #include <ndb_global.h>
 #include "BlockThreadBitmask.hpp"
 #include <NdbHW.hpp>
+#include "portlib/mt-asm.h"
 
 struct CHARSET_INFO;
 

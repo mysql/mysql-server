@@ -96,6 +96,7 @@
 #include <signaldata/DihRestart.hpp>
 #include <signaldata/IsolateOrd.hpp>
 #include <ndb_constants.h>
+#include "portlib/mt-asm.h"
 
 #include <EventLogger.hpp>
 
@@ -17199,14 +17200,6 @@ void Dbdih::initialiseFragstore()
     cremainingfrags += NO_OF_FRAGS_PER_CHUNK;
   }//for    
 }//Dbdih::initialiseFragstore()
-
-#ifndef NDB_HAVE_RMB
-#define rmb() do { } while (0)
-#endif
-
-#ifndef NDB_HAVE_WMB
-#define wmb() do { } while (0)
-#endif
 
 inline
 bool

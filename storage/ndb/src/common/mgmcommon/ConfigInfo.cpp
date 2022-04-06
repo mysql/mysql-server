@@ -36,7 +36,6 @@
 #include <Bitmask.hpp>
 #include <ndb_opts.h>
 #include <ndb_version.h>
-#include "../src/kernel/vm/mt-asm.h"
 
 #include <portlib/ndb_localtime.h>
 #include <NdbTCP.h>
