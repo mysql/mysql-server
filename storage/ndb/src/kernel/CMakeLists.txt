@@ -36,6 +36,7 @@ FOREACH(warning
     # Warnings in Dbtup.hpp
     "error=class-memaccess"
     "error=unused-but-set-variable"
+    "error=unused-parameter"
     )
   MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -837,7 +837,6 @@ create_min_virt_l3_cache_list(struct ndb_hwinfo *hwinfo,
 static int
 create_virt_l3_cache_list(struct ndb_hwinfo *hwinfo,
                           Uint32 optimal_group_size,
-                          Uint32 optimal_num_ldm_groups,
                           Uint32 min_group_size,
                           Uint32 max_num_groups,
                           Uint32 ldm_group_size,
@@ -996,7 +995,6 @@ Ndb_CreateCPUMap(Uint32 num_ldm_instances,
             num_cpus_per_ldm_group));
   Uint32 num_rr_groups = create_virt_l3_cache_list(hwinfo,
                                                    optimal_group_size,
-                                                   optimal_num_ldm_groups,
                                                    min_group_size,
                                                    max_num_groups,
                                                    num_cpus_per_ldm_group,

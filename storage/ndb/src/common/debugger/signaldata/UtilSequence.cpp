@@ -42,8 +42,16 @@ type2string(UtilSequenceReq::RequestType type){
   }
 }
 
-bool 
-printUTIL_SEQUENCE_REQ(FILE * out, const Uint32 * data, Uint32 l, Uint16 b){
+bool printUTIL_SEQUENCE_REQ(FILE* out,
+                            const Uint32* data,
+                            Uint32 l,
+                            Uint16 /*b*/)
+{
+  if (l < UtilSequenceReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
   const UtilSequenceReq* sig = (const UtilSequenceReq*)data;
   fprintf(out, " senderData: %d sequenceId: %d RequestType: %s\n",
 	  sig->senderData,
@@ -52,8 +60,16 @@ printUTIL_SEQUENCE_REQ(FILE * out, const Uint32 * data, Uint32 l, Uint16 b){
   return true;
 }
 
-bool 
-printUTIL_SEQUENCE_CONF(FILE * out, const Uint32 * data, Uint32 l, Uint16 b){
+bool printUTIL_SEQUENCE_CONF(FILE* out,
+                             const Uint32* data,
+                             Uint32 l,
+                             Uint16 /*b*/)
+{
+  if (l < UtilSequenceConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
   const UtilSequenceConf* sig = (const UtilSequenceConf*)data;
   fprintf(out, " senderData: %d sequenceId: %d RequestType: %s\n",
 	  sig->senderData,
@@ -65,8 +81,16 @@ printUTIL_SEQUENCE_CONF(FILE * out, const Uint32 * data, Uint32 l, Uint16 b){
   return true;
 }
 
-bool 
-printUTIL_SEQUENCE_REF(FILE * out, const Uint32 * data, Uint32 l, Uint16 b){
+bool printUTIL_SEQUENCE_REF(FILE* out,
+                            const Uint32* data,
+                            Uint32 l,
+                            Uint16 /*b*/)
+{
+  if (l < UtilSequenceRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
   const UtilSequenceRef* sig = (const UtilSequenceRef*)data;
   fprintf(out, " senderData: %d sequenceId: %d RequestType: %s\n",
 	  sig->senderData,

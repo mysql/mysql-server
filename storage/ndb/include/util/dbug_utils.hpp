@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -66,9 +66,7 @@
  */
 
 /** Push the state of the DBUG package */
-inline
-void
-dbugPush(const char * state)
+inline void dbugPush(const char* state [[maybe_unused]])
 {
     MY_DBUG_PUSH(state);
 }
@@ -82,17 +80,10 @@ dbugPop()
 }
 
 /** Set the state of the DBUG package */
-inline
-void
-dbugSet(const char * state)
-{
-    MY_DBUG_SET(state);
-}
+inline void dbugSet(const char* state [[maybe_unused]]) { MY_DBUG_SET(state); }
 
 /** Return the state of the DBUG package */
-inline
-const char *
-dbugExplain(char * buffer, int length)
+inline const char* dbugExplain(char* buffer, int length [[maybe_unused]])
 {
     if (!MY_DBUG_EXPLAIN(buffer, length)) {
         return buffer;
@@ -101,9 +92,8 @@ dbugExplain(char * buffer, int length)
 }
 
 /** Print a message */
-inline
-void
-dbugPrint(const char * keyword, const char * message)
+inline void dbugPrint(const char* keyword [[maybe_unused]],
+                      const char* message [[maybe_unused]])
 {
     MY_DBUG_PRINT(keyword, ("%s", message));
 }

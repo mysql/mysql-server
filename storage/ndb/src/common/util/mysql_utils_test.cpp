@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -130,14 +130,23 @@ int test_decimal(const char *s, int prec, int scale, int expected_rv)
 {
     char bin_buff[128], str_buff[128];
     int r1, r2 = 0;
+    int bin_len;
+    /*
+     * If scale is negative, set bin_len to zero to pass following checks.
+     * Call to decimal_bin2str is expected to fail with E_DEC_BAD_SCALE.
+     */
+    if (scale < 0) bin_len = 0;
+    else bin_len = decimal_bin_size(prec, scale);
+    CHECK(bin_len >= 0);
+    CHECK((unsigned)bin_len <= sizeof(bin_buff));
 
     str_buff[0] = 0;
 
     // cast: decimal_str2bin expects 'int' for size_t strlen()
     r1 = decimal_str2bin(s, (int)strlen(s), prec, scale, bin_buff, 128);
     if(r1 <= E_DEC_OVERFLOW) {
-        r2 = decimal_bin2str(bin_buff, 128, prec, scale, str_buff, 128);
-        CHECK(r2 == E_DEC_OK);
+      r2 = decimal_bin2str(bin_buff, bin_len, prec, scale, str_buff, 128);
+      CHECK(r2 == E_DEC_OK);
     }
     printf("[%-2d,%-2d] %-29s => res=%d,%d     %s\n",
            prec, scale, s, r1, r2, str_buff);
@@ -310,7 +319,7 @@ int test_charset_map()
     return 0;
 }
 
-int main(int argc, const char** argv)
+int main()
 {
     ndb_init();
     // TAP: print number of tests to run

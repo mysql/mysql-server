@@ -56,8 +56,8 @@ InitConfigFileParser::~InitConfigFileParser() {
 //****************************************************************************
 //  Read Config File
 //****************************************************************************
-InitConfigFileParser::Context::Context(const ConfigInfo * info)
-  :  m_userProperties(true), m_configValues()
+InitConfigFileParser::Context::Context()
+    : m_info(nullptr), m_userProperties(true), m_configValues()
 {
   m_config = new Properties(true);
   m_defaults = new Properties(true);
@@ -89,7 +89,7 @@ InitConfigFileParser::parseConfig(FILE * file) {
 
   char line[MAX_LINE_LENGTH];
 
-  Context ctx(m_info);
+  Context ctx;
   ctx.m_lineno = 0;
   ctx.m_currentSection = 0;
 
@@ -772,9 +772,7 @@ InitConfigFileParser::Context::reportWarning(const char * fmt, ...){
 #include "my_default.h"
 
 static int order = 1;
-static 
-bool 
-parse_mycnf_opt(int, const struct my_option * opt, char * value)
+static bool parse_mycnf_opt(int, const struct my_option* opt, char*)
 {
   /*
    * Ok to cast away const since parse_mycnf_opt is always called with a non
@@ -1049,8 +1047,8 @@ InitConfigFileParser::parse_mycnf(const char* cluster_config_suffix)
     mysqld = &options[idx + 2];
     api = &options[idx + 3];
   }
-  
-  Context ctx(m_info);
+
+  Context ctx;
   const char *groups[]= { "cluster_config", 0 };
   const char *save_group_suffix = my_defaults_group_suffix;
   if (cluster_config_suffix != nullptr)

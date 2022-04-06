@@ -72,8 +72,7 @@ class TransporterReceiveWatchdog
 {
 public:
 #ifdef NDEBUG
-  TransporterReceiveWatchdog(TransporterReceiveHandle& recvdata)
-  {}
+ TransporterReceiveWatchdog(TransporterReceiveHandle & /*recvdata*/) {}
 
 #else
   TransporterReceiveWatchdog(TransporterReceiveHandle& recvdata)
@@ -2392,9 +2391,9 @@ TransporterRegistry::isSendBlocked(NodeId nodeId) const
   return m_sendBlocked.get(nodeId);
 }
 
-void
-TransporterRegistry::blockSend(TransporterReceiveHandle& recvdata,
-                               NodeId nodeId)
+void TransporterRegistry::blockSend(TransporterReceiveHandle &recvdata
+                                    [[maybe_unused]],
+                                    NodeId nodeId)
 {
 #ifdef VM_TRACE
   TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
@@ -2407,9 +2406,9 @@ TransporterRegistry::blockSend(TransporterReceiveHandle& recvdata,
   m_sendBlocked.set(nodeId);
 }
 
-void
-TransporterRegistry::unblockSend(TransporterReceiveHandle& recvdata,
-                                 NodeId nodeId)
+void TransporterRegistry::unblockSend(TransporterReceiveHandle &recvdata
+                                      [[maybe_unused]],
+                                      NodeId nodeId)
 {
 #ifdef VM_TRACE
   TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];

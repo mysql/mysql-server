@@ -73,18 +73,12 @@ public:
                unsigned spintime,
                unsigned num_cpus,
                unsigned &num_rr_groups);
-  int do_parse(const char * ThreadConfig,
-               unsigned realtime,
-               unsigned spintime,
-               unsigned &num_rr_groups,
-               bool check);
+  int do_parse(const char *ThreadConfig, unsigned realtime, unsigned spintime);
   int do_parse(unsigned MaxNoOfExecutionThreads,
                unsigned __ndbmt_lqh_threads,
                unsigned __ndbmt_classic,
                unsigned realtime,
-               unsigned spintime,
-               unsigned &num_rr_groups,
-               bool check);
+               unsigned spintime);
 
   const char * getConfigString();
 

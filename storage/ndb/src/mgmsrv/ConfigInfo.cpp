@@ -188,9 +188,6 @@ static bool sanity_checks(Vector<ConfigInfo::ConfigRuleSection>&sections,
 static bool add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 				 struct InitConfigFileParser::Context &ctx, 
 				 const char * rule_data);
-static bool set_connection_priorities(Vector<ConfigInfo::ConfigRuleSection>&sections, 
-				 struct InitConfigFileParser::Context &ctx, 
-				 const char * rule_data);
 static bool check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 			    struct InitConfigFileParser::Context &ctx, 
 			    const char * rule_data);
@@ -211,7 +208,6 @@ ConfigInfo::m_ConfigRules[] = {
   { add_system_section, 0 },
   { sanity_checks, 0 },
   { add_node_connections, 0 },
-  { set_connection_priorities, 0 },
   { check_node_vs_replicas, 0 },
   { check_mutually_exclusive, 0 },
   { validate_unique_mgm_ports, 0 },
@@ -4692,14 +4688,19 @@ public:
   virtual void start() {}
   virtual void end() {}
 
-  virtual void section_start(const char* name, const char* alias,
-                             const char* primarykeys = NULL) {}
-  virtual void section_end(const char* name) {}
+  virtual void section_start(const char* /*name*/,
+                             const char* /*alias*/,
+                             const char* /*primarykeys*/ = nullptr)
+  {
+  }
+  virtual void section_end(const char* /*name*/) {}
 
-  virtual void parameter(const char* section_name,
-                         const Properties* section,
-                         const char* param_name,
-                         const ConfigInfo& info){}
+  virtual void parameter(const char* /*section_name*/,
+                         const Properties* /*section*/,
+                         const char* /*param_name*/,
+                         const ConfigInfo& /*info*/)
+  {
+  }
 };
 
 
@@ -4708,15 +4709,17 @@ public:
   PrettyPrinter(FILE* out = stdout) : ConfigPrinter(out) {}
   ~PrettyPrinter() override {}
 
-  void section_start(const char* name, const char* alias,
-                     const char* primarykeys = NULL) override {
+  void section_start(const char* name,
+                     const char*,
+                     const char* = nullptr) override
+  {
     fprintf(m_out, "****** %s ******\n\n", name);
   }
 
-  void parameter(const char* section_name,
-                         const Properties* section,
-                         const char* param_name,
-                         const ConfigInfo& info) override
+  void parameter(const char*,
+                 const Properties* section,
+                 const char* param_name,
+                 const ConfigInfo& info) override
   {
     // Don't print deprecated parameters
     const Uint32 status = info.getStatus(section, param_name);
@@ -4867,16 +4870,18 @@ public:
     print_xml("section", pairs, false);
     m_indent++;
   }
-  void section_end(const char* name) override {
+  void section_end(const char*) override
+  {
     m_indent--;
     Properties pairs;
     print_xml("/section", pairs, false);
   }
 
-  void parameter(const char* section_name,
+  void parameter(const char*,
                  const Properties* section,
                  const char* param_name,
-                 const ConfigInfo& info) override{
+                 const ConfigInfo& info) override
+  {
     BaseString buf;
     Properties pairs;
     pairs.put("name", param_name);
@@ -5060,9 +5065,8 @@ void ConfigInfo::print_impl(const char* section_filter,
 /**
  * Node rule: Add "Type" and update "NoOfNodes"
  */
-bool
-transformNode(InitConfigFileParser::Context & ctx, const char * data){
-
+bool transformNode(InitConfigFileParser::Context& ctx, const char*)
+{
   Uint32 id, line;
   if(!ctx.m_currentSection->get("NodeId", &id) && !ctx.m_currentSection->get("Id", &id)){
     Uint32 nextNodeId= 1;
@@ -5119,7 +5123,8 @@ transformNode(InitConfigFileParser::Context & ctx, const char * data){
   return true;
 }
 
-static bool checkLocalhostHostnameMix(InitConfigFileParser::Context & ctx, const char * data)
+static bool checkLocalhostHostnameMix(InitConfigFileParser::Context& ctx,
+                                      const char*)
 {
   DBUG_ENTER("checkLocalhostHostnameMix");
   const char * hostname= 0;
@@ -5149,8 +5154,7 @@ static bool checkLocalhostHostnameMix(InitConfigFileParser::Context & ctx, const
   DBUG_RETURN(true);
 }
 
-bool
-fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data)
+bool fixNodeHostname(InitConfigFileParser::Context& ctx, const char*)
 {
   const char * hostname;
   DBUG_ENTER("fixNodeHostname");
@@ -5183,8 +5187,8 @@ fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data)
   DBUG_RETURN(checkLocalhostHostnameMix(ctx,0));
 }
 
-bool
-fixFileSystemPath(InitConfigFileParser::Context & ctx, const char * data){
+bool fixFileSystemPath(InitConfigFileParser::Context& ctx, const char*)
+{
   DBUG_ENTER("fixFileSystemPath");
 
   const char * path;
@@ -5200,9 +5204,8 @@ fixFileSystemPath(InitConfigFileParser::Context & ctx, const char * data){
   DBUG_RETURN(false);
 }
 
-bool
-fixBackupDataDir(InitConfigFileParser::Context & ctx, const char * data){
-  
+bool fixBackupDataDir(InitConfigFileParser::Context& ctx, const char*)
+{
   const char * path;
   if (ctx.m_currentSection->get("BackupDataDir", &path))
     return true;
@@ -5219,8 +5222,7 @@ fixBackupDataDir(InitConfigFileParser::Context & ctx, const char * data){
 /**
  * Connection rule: Check support of connection
  */
-bool
-checkConnectionSupport(InitConfigFileParser::Context & ctx, const char * data)
+bool checkConnectionSupport(InitConfigFileParser::Context& ctx, const char*)
 {
   int error= 0;
   if (native_strcasecmp("TCP",ctx.fname) == 0)
@@ -5245,8 +5247,7 @@ checkConnectionSupport(InitConfigFileParser::Context & ctx, const char * data)
 /**
  * Connection rule: Update "NoOfConnections"
  */
-bool
-transformConnection(InitConfigFileParser::Context & ctx, const char * data)
+bool transformConnection(InitConfigFileParser::Context& ctx, const char*)
 {
   Uint32 connections = 0;
   ctx.m_userProperties.get("NoOfConnections", &connections);
@@ -5260,9 +5261,8 @@ transformConnection(InitConfigFileParser::Context & ctx, const char * data)
 /**
  * System rule: Just add it
  */
-bool
-transformSystem(InitConfigFileParser::Context & ctx, const char * data){
-
+bool transformSystem(InitConfigFileParser::Context& ctx, const char*)
+{
   const char * name;
   if(!ctx.m_currentSection->get("Name", &name)){
     ctx.reportError("Mandatory parameter Name missing from section "
@@ -5278,8 +5278,8 @@ transformSystem(InitConfigFileParser::Context & ctx, const char * data){
 /**
  * Computer rule: Update "NoOfComputers", add "Type"
  */
-bool
-transformComputer(InitConfigFileParser::Context & ctx, const char * data){
+bool transformComputer(InitConfigFileParser::Context& ctx, const char*)
+{
   const char * id;
   if(!ctx.m_currentSection->get("Id", &id)){
     ctx.reportError("Mandatory parameter Id missing from section "
@@ -5396,9 +5396,8 @@ applyDefaultValues(InitConfigFileParser::Context & ctx, const char * data){
 /**
  * Check that a section contains all MANDATORY parameters
  */
-bool
-checkMandatory(InitConfigFileParser::Context & ctx, const char * data){
-
+bool checkMandatory(InitConfigFileParser::Context& ctx, const char*)
+{
   Properties::Iterator it(ctx.m_currentInfo);
   for(const char * name = it.first(); name != NULL; name = it.next()){
     const Properties * info = NULL;
@@ -5520,9 +5519,8 @@ fixHostname(InitConfigFileParser::Context & ctx, const char * data){
 /**
  * Connection rule: Fix port number (using a port number adder)
  */
-static bool
-fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
-
+static bool fixPortNumber(InitConfigFileParser::Context& ctx, const char*)
+{
   DBUG_ENTER("fixPortNumber");
 
   Uint32 id1, id2;
@@ -5631,8 +5629,7 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
   DBUG_RETURN(true);
 }
 
-static bool 
-fixShmUniqueId(InitConfigFileParser::Context & ctx, const char * data)
+static bool fixShmUniqueId(InitConfigFileParser::Context& ctx, const char*)
 {
   DBUG_ENTER("fixShmUniqueId");
   Uint32 nodes= 0;
@@ -5868,18 +5865,13 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
     ctx.reportError("NoOfLogParts must be 4,6,8,10,12,16,20,24 or 32");
     return false;
   }
-  Uint32 dummy;
   if (auto_thread_config)
   {
     ;
   }
   else if (ctx.m_currentSection->get("ThreadConfig", &thrconfig))
   {
-    int ret = tmp.do_parse(thrconfig,
-                           realtimeScheduler,
-                           spinTimer,
-                           dummy,
-                           true);
+    int ret = tmp.do_parse(thrconfig, realtimeScheduler, spinTimer);
     if (ret)
     {
       ctx.reportError("Unable to parse ThreadConfig: %s",
@@ -5904,13 +5896,8 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
   }
   else if (maxExecuteThreads || lqhThreads || classic)
   {
-    int ret = tmp.do_parse(maxExecuteThreads,
-                           lqhThreads,
-                           classic,
-                           realtimeScheduler,
-                           spinTimer,
-                           dummy,
-                           true);
+    int ret = tmp.do_parse(
+        maxExecuteThreads, lqhThreads, classic, realtimeScheduler, spinTimer);
     if (ret)
     {
       ctx.reportError("Unable to set thread configuration: %s",
@@ -6078,8 +6065,8 @@ transform(InitConfigFileParser::Context & ctx,
   return true;
 }
 
-static bool
-fixDeprecated(InitConfigFileParser::Context & ctx, const char * data){
+static bool fixDeprecated(InitConfigFileParser::Context& ctx, const char*)
+{
   const char * name;
   /**
    * Transform old values to new values
@@ -6138,9 +6125,7 @@ fixDeprecated(InitConfigFileParser::Context & ctx, const char * data){
   return true;
 }
 
-static bool
-saveInConfigValues(InitConfigFileParser::Context & ctx,
-                   const char * data)
+static bool saveInConfigValues(InitConfigFileParser::Context& ctx, const char*)
 {
   const Properties * sec;
   if(!ctx.m_currentInfo->get(ctx.fname, &sec)){
@@ -6210,11 +6195,9 @@ saveInConfigValues(InitConfigFileParser::Context & ctx,
   return true;
 }
 
-
-static bool
-add_system_section(Vector<ConfigInfo::ConfigRuleSection>&sections,
-                   struct InitConfigFileParser::Context &ctx,
-                   const char * rule_data)
+static bool add_system_section(Vector<ConfigInfo::ConfigRuleSection>& sections,
+                               struct InitConfigFileParser::Context& ctx,
+                               const char*)
 {
   if (!ctx.m_config->contains("SYSTEM")) {
     ConfigInfo::ConfigRuleSection s;
@@ -6248,11 +6231,9 @@ add_system_section(Vector<ConfigInfo::ConfigRuleSection>&sections,
   return true;
 }
 
-
-static bool
-sanity_checks(Vector<ConfigInfo::ConfigRuleSection>&sections, 
-	      struct InitConfigFileParser::Context &ctx, 
-	      const char * rule_data)
+static bool sanity_checks(Vector<ConfigInfo::ConfigRuleSection>&,
+                          struct InitConfigFileParser::Context& ctx,
+                          const char*)
 {
   Uint32 db_nodes = 0;
   Uint32 mgm_nodes = 0;
@@ -6397,10 +6378,10 @@ add_a_connection(Vector<ConfigInfo::ConfigRuleSection>&sections,
   return true;
 }
 
-static bool
-add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
-  struct InitConfigFileParser::Context &ctx, 
-  const char * rule_data)
+static bool add_node_connections(
+    Vector<ConfigInfo::ConfigRuleSection>& sections,
+    struct InitConfigFileParser::Context& ctx,
+    const char*)
 {
   DBUG_ENTER("add_node_connections");
   Uint32 i;
@@ -6514,18 +6495,9 @@ err:
   DBUG_RETURN(false);
 }
 
-static bool set_connection_priorities(Vector<ConfigInfo::ConfigRuleSection>&sections, 
-				 struct InitConfigFileParser::Context &ctx, 
-				 const char * rule_data)
-{
-  DBUG_ENTER("set_connection_priorities");
-  DBUG_RETURN(true);
-}
-
-static bool
-check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections, 
-		       struct InitConfigFileParser::Context &ctx, 
-		       const char * rule_data)
+static bool check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&,
+                                   struct InitConfigFileParser::Context& ctx,
+                                   const char*)
 {
   Uint32 i, n;
   Uint32 n_nodes;
@@ -6749,10 +6721,9 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
   return true;
 }
 
-static bool
-check_mutually_exclusive(Vector<ConfigInfo::ConfigRuleSection>&sections, 
-                         struct InitConfigFileParser::Context &ctx, 
-                         const char * rule_data)
+static bool check_mutually_exclusive(Vector<ConfigInfo::ConfigRuleSection>&,
+                                     struct InitConfigFileParser::Context& ctx,
+                                     const char*)
 {
   /* This rule checks for configuration settings that are 
    * mutually exclusive and rejects them
@@ -6818,9 +6789,10 @@ check_mutually_exclusive(Vector<ConfigInfo::ConfigRuleSection>&sections,
   return true;
 }
 
-static bool validate_unique_mgm_ports(
-    Vector<ConfigInfo::ConfigRuleSection>& sections,
-    struct InitConfigFileParser::Context& ctx, const char* rule_data) {
+static bool validate_unique_mgm_ports(Vector<ConfigInfo::ConfigRuleSection>&,
+                                      struct InitConfigFileParser::Context& ctx,
+                                      const char*)
+{
   /* This rule checks for unique ports in mgm config for nodes on
    * same Host.
    */
@@ -6935,12 +6907,10 @@ is_name_in_list(const char* name, Vector<BaseString>& list)
   return false;
 }
 
-
-static
-bool
-saveSectionsInConfigValues(Vector<ConfigInfo::ConfigRuleSection>& notused,
-                           struct InitConfigFileParser::Context &ctx,
-                           const char * rule_data)
+static bool saveSectionsInConfigValues(
+    Vector<ConfigInfo::ConfigRuleSection>&,
+    struct InitConfigFileParser::Context& ctx,
+    const char* rule_data)
 {
   if (rule_data == 0)
     return true;

@@ -512,7 +512,7 @@ void fun(const char* fmt, ...)
   va_end(arguments);
 }
 
-void* thread_producer1(void* dummy)
+void* thread_producer1(void*)
 {
   BaseString string;
   for(int i = 1; i <= 1000; i++)
@@ -528,7 +528,7 @@ void* thread_producer1(void* dummy)
   return NULL;
 }
 
-void* thread_producer2(void* dummy)
+void* thread_producer2(void*)
 {
   for(int i = 1;i <= 1000; i++)
   {
@@ -542,7 +542,7 @@ void* thread_producer2(void* dummy)
   return NULL;
 }
 
-void* thread_producer3(void* dummy)
+void* thread_producer3(void*)
 {
   char buf[10];
   memset(buf, '$', 10);
@@ -574,7 +574,7 @@ void* thread_producer3(void* dummy)
   return NULL;
 }
 
-void* thread_consumer1(void* dummy)
+void* thread_consumer1(void*)
 {
   char buf[256];
   size_t bytes = 0;
@@ -612,7 +612,7 @@ void* thread_consumer1(void* dummy)
   return NULL;
 }
 
-void* thread_consumer2(void* dummy)
+void* thread_consumer2(void*)
 {
   total_bytes_read_t3 = 0;
   char buf[10];
