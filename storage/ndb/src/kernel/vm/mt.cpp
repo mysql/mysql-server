@@ -920,9 +920,11 @@ struct thr_job_buffer // 32k
 // The 'empty_job_buffer' is a sentinel for a job_queue possibly never used.
 static thr_job_buffer empty_job_buffer;
 
+
 static
 inline
 Uint32
+// calc_fifo_used() to be deprecated in later patches
 calc_fifo_used(Uint32 ri, Uint32 wi, Uint32 sz)
 {
   return (wi >= ri) ? wi - ri : (sz - ri) + wi;
@@ -959,16 +961,40 @@ struct alignas(NDB_CL) thr_job_queue
    * There is a SAFETY limit on free buffers we never allocate,
    * but may allow these to be implicitly used as a last resort
    * when job scheduler is really stuck. ('sleeploop 10')
+   *
+   * Note that 'free' calculations are with the SAFETY limit
+   * subtracted, such that max-free is 'SIZE - SAFETY' (30).
+   *
+   * In addition there is an additional 'safety' in that all partially
+   * filled JB-pages are counted as completely used when calculating 'free'.
+   *
+   * There is also an implicit safety limit in allowing 'flush' from
+   * m_local_buffer to fail, and execution to continue until even that
+   * buffer is full. In such cases we are in a CRITICAL JB-state.
    */
   static constexpr unsigned SAFETY = 2;
 
   /**
-   * Some more free buffers are RESERVED to be used to avoid
-   * or resolve circular wait-locks between threads waiting
-   * for buffers to become available.
+   * Some more free buffers on top of SAFETY are RESERVED. Normally the JB's
+   * are regarded being 'full' when reaching the RESERVED limit. However, they
+   * are allowed to be used to avoid or resolve circular wait-locks between
+   * threads waiting for buffers to become available. In such cases these are
+   * allocated as 'extra_signals' allowed to execute.
    */
-  static constexpr unsigned RESERVED = 4;
+  static constexpr unsigned RESERVED = 4; // In addition to 'SAFETY'
 
+  /**
+   * We start being CONGESTED a bit before reaching the RESERVED limit.
+   * We will then start reducing quota of signals run_job_buffers may
+   * execute in each round, giving a tighter control of job-buffer overruns.
+   *
+   * Note that there will be some execution overhead when running in a
+   * congested state (Smaller JB quotas, tighter checking of JB-state,
+   * optionally requiring the write_lock to be taken.)
+   */
+  static constexpr unsigned CONGESTED = RESERVED + 4;  // 4+4
+
+  /////// 'limits' and 'levels' below will be deprecated in later patches ////
   /**
    * When free buffer count drops below ALMOST_FULL, we
    * are allowed to start using RESERVED buffers to prevent
@@ -1053,6 +1079,33 @@ struct alignas(NDB_CL) thr_job_queue
     return (m_size - used());
   }
 };
+
+
+/**
+ * Calculate remaining free slots in the job_buffer queue.
+ * The SAFETY limit is subtracted from the 'free'.
+ *
+ * Note that calc free considder a JB-page as non-free as soon as it
+ * has been allocated to the JB-queue.
+ *  -> A partial filled 'write-page', or even empty page, is non-free.
+ *  -> A partial consumed 'read-page is non-free, until fully consumed
+ *     and released back to the page pool
+ *
+ * This also implies that max- 'fifo_free' is 'SIZE-SAFETY-1'.
+ * (We do not care to handle the special initial case where
+ *  there is just an empty_job_buffer/nullptr in the JB-queue)
+ */
+static inline
+unsigned
+calc_fifo_free(Uint32 ri, Uint32 wi, Uint32 sz)
+{
+  // Note: The 'wi' 'write-in-progress' page is not 'free, thus 'wi+1'
+  const unsigned free = (ri > wi) ? ri - (wi+1) : (sz - (wi+1)) + ri;
+  if (likely(free >= thr_job_queue::SAFETY))
+    return free - thr_job_queue::SAFETY;
+  else
+    return 0;
+}
 
 /**
  * Identify type of thread.
@@ -1545,6 +1598,11 @@ struct alignas(NDB_CL) thr_data
    * reached we will send those signals.
    */
   BlockThreadBitmask m_local_signals_mask;
+
+  /**
+   * Set of outgoing JB's which are CONGESTED.
+   */
+  BlockThreadBitmask m_congested_signals_mask;
 
   /* Jam buffers for making trace files at crashes. */
   EmulatedJamBuffer m_jam;
@@ -4774,6 +4832,51 @@ trp_callback::unlock_send_transporter(NodeId node, TrpId trp_id)
   unlock(&rep->m_send_buffers[trp_id].m_send_lock);
 }
 
+/**
+ * Provide a producer side estimate for number of free JB-pages
+ * in a specific 'out-'thr_job_queue.
+ *
+ * Is an 'estimate' as if we are in a non-congested state, we use the
+ * 'cached_read_index' to calculate the 'used'. This may return a too high,
+ * but still 'uncongested', value of used pages, as the 'dst' consumer might
+ * have moved the read_index since cached_read_index was updated. This is ok
+ * as the upper levels should only use this function to check for congestions.
+ *
+ * If the cached_read indicate congestion, we check the non-cached read_index
+ * to get a more accurate estimate - Possible uncongested if read_index was
+ * moved since we updated the cached_read_index
+ *
+ * Rational is to avoid reading the read_index-cache-line, which was
+ * likely invalidated by the consumer, too frequently.
+ *
+ * Need to be called with the m_write_lock held if there are
+ * multiple writers. (glob_use_write_lock_mutex==true)
+ */
+static
+unsigned get_free_estimate_out_queue(thr_job_queue *q)
+{
+  const Uint32 cached_read_index = q->m_cached_read_index;
+  const Uint32 write_index = q->m_write_index;
+  const unsigned free = calc_fifo_free(cached_read_index,
+                                       write_index,
+                                       q->m_size);
+
+  if (free > thr_job_queue::CONGESTED)
+    // As long as we are unCONGESTED, we do not care about exact free-amount
+    return free;
+
+  /**
+   * NOTE: m_read_index is read wo/ lock (and updated by different thread(s))
+   *       but since the different thread can only consume
+   *       signals this means that the value returned from this
+   *       function is always conservative (i.e it can be better than
+   *       returned value, if read-index has moved but we didnt see it)
+   */
+  const Uint32 read_index = q->m_read_index;
+  q->m_cached_read_index = read_index;
+  return calc_fifo_free(read_index, write_index, q->m_size);
+}
+
 static bool
 get_congested_recv_queue(struct thr_repository* rep)
 {
@@ -6647,6 +6750,9 @@ void handle_scheduling_decisions(thr_data *selfptr,
 #if defined(USE_INIT_GLOBAL_VARIABLES)
   void mt_clear_global_variables(thr_data*);
 #endif
+
+static void recheck_congested_job_buffers(thr_data *selfptr);
+
 /*
  * Execute at most MAX_SIGNALS signals from one job queue, updating local read
  * state as appropriate.
@@ -6840,7 +6946,7 @@ run_job_buffers(thr_data *selfptr,
     return signal_count;
   }
 
-  /*
+  /**
    * A load memory barrier to ensure that we see the m_buffers[] content,
    * referred by the jbb_states, before we start executing signals.
    * See comments in read_all_jbb_state() and read_jba_state as well.
@@ -6948,7 +7054,7 @@ run_job_buffers(thr_data *selfptr,
     Uint32 num_signals = execute_signals(selfptr, queue, read_state,
                                          sig, perjb+extra);
 
-    if (num_signals > 0)
+    if (likely(num_signals > 0))
     {
       signal_count += num_signals;
       send_sum += num_signals;
@@ -7758,6 +7864,11 @@ mt_receiver_thread_main(void *thr_arg)
           selfptr->m_buffer_full_micros_sleep +=
             NdbTick_Elapsed(before, after).microSec();
         }
+        /**
+         * We waited due to congestion, or didn't find the expected congestion.
+         * Recheck if it cleared while we (not-)waited.
+         */
+        recheck_congested_job_buffers(selfptr);
       }
     }
     selfptr->m_stat.m_loop_cnt++;
@@ -7931,6 +8042,11 @@ loop:
       dumpJobQueues();
       require(false);
     }
+    /**
+     * We waited due to congestion, or didn't find the expected congestion.
+     * Recheck if it cleared while we (not-)waited.
+     */
+    recheck_congested_job_buffers(selfptr);
     goto loop;
   }
 
@@ -8891,6 +9007,12 @@ flush_local_signals(struct thr_data *selfptr,
   Uint32 num_signals = 0;
   Uint32 next_signal = selfptr->m_first_local[dst].m_first_signal;
 
+  if (unlikely(selfptr->m_congested_signals_mask.get(dst)))
+  {
+    // Assume uncongested, set again further below if still congested
+    selfptr->m_congested_signals_mask.clear(dst);
+  }
+
   if (likely(!glob_use_write_lock_mutex))
   {
     /**
@@ -8950,9 +9072,11 @@ flush_local_signals(struct thr_data *selfptr,
   }
   else  // unlikely case:
   {
-    // Too many signals to fit the flush_buffer[]. Will only
-    // happen when we previouly hit a full out-queue.
-    // (Will likely happen again now, but we need to keep trying)
+    /**
+     * Too many signals to fit the flush_buffer[]. Will only
+     * happen when we previously hit a full out-queue.
+     * (Will likely happen again now, but we need to keep trying)
+     */
     lock(&q->m_write_lock);
     num_signals = copy_out_local_buffer(selfptr, q, next_signal);
   }
@@ -8971,10 +9095,17 @@ flush_local_signals(struct thr_data *selfptr,
       need_wakeup = true;
     }
   }
+  const unsigned free = get_free_estimate_out_queue(q);
   if (unlikely(glob_use_write_lock_mutex))
   {
     unlock(&q->m_write_lock);
   }
+
+  if (unlikely(free <= thr_job_queue::CONGESTED))
+  {
+    selfptr->m_congested_signals_mask.set(dst);
+  }
+
   // Handle wakeup decision taken above
   if (dst != self)
   {
@@ -9000,6 +9131,51 @@ flush_local_signals(struct thr_data *selfptr,
   {
     selfptr->m_first_local[dst].m_last_signal = SIGNAL_RNIL;
     selfptr->m_local_signals_mask.clear(dst);
+  }
+}
+
+/**
+ * recheck_congested_job_buffers is intended to be used after
+ * we slept for a while, waiting for some JB-congestion to be cleared.
+ * It recheck the known congested buffers.
+ *
+ * In a well behaved system where there are no congestions, it is expected
+ * to be called very infrequently. Thus, the locks taken by the congestion
+ * check should not really be a performance problem.
+ */
+static
+void
+recheck_congested_job_buffers(struct thr_data *selfptr)
+{
+  Uint32 self = selfptr->m_thr_no;
+  const Uint32 self_jbb = self % NUM_JOB_BUFFERS_PER_THREAD;
+  struct thr_repository *rep = g_thr_repository;
+
+  for (Uint32 congested = selfptr->m_congested_signals_mask.find_first();
+       congested != BitmaskImpl::NotFound;
+       congested = selfptr->m_congested_signals_mask.find_next(congested+1))
+  {
+    struct thr_data *thrptr = &rep->m_thread[congested];
+    thr_job_queue *q = &thrptr->m_jbb[self_jbb];
+
+    // Assume congestion cleared, set again if needed
+    selfptr->m_congested_signals_mask.clear(congested);
+
+    unsigned free;
+    if (unlikely(glob_use_write_lock_mutex))
+    {
+      lock(&q->m_write_lock);
+      free = get_free_estimate_out_queue(q);
+      unlock(&q->m_write_lock);
+    } else {
+      free = get_free_estimate_out_queue(q);
+    }
+
+    if (unlikely(free <= thr_job_queue::CONGESTED))
+    {
+      // JB-page usage is still congested
+      selfptr->m_congested_signals_mask.set(congested);
+    }
   }
 }
 
@@ -9567,6 +9743,7 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
   selfptr->m_send_instance = NULL;
   selfptr->m_nosend = 1;
   selfptr->m_local_signals_mask.clear();
+  selfptr->m_congested_signals_mask.clear();
   selfptr->m_wake_threads_mask.clear();
   selfptr->m_jbb_estimated_queue_size_in_words = 0;
   selfptr->m_ldm_multiplier = 1;
