@@ -909,7 +909,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
       and therefore pass in a null-pointer instead of a pointer to
       state at the beginning of execution.
     */
-    log_slow_do(thd, nullptr);
+    log_slow_do(thd);
   }
 
   /*

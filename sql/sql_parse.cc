@@ -1163,6 +1163,13 @@ void execute_init_command(THD *thd, LEX_STRING *init_command,
   */
   thd->get_stmt_da()->reset_diagnostics_area();
 
+  /* For per-query performance counters with log_slow_statement */
+  struct System_status_var query_start_status;
+  thd->clear_copy_status_var();
+  if (opt_log_slow_extra) {
+    thd->copy_status_var(&query_start_status);
+  }
+
   THD_STAGE_INFO(thd, stage_execution_of_init_command);
   save_client_capabilities = protocol->get_client_capabilities();
   protocol->add_client_capability(CLIENT_MULTI_QUERIES);
@@ -1277,6 +1284,13 @@ bool do_command(THD *thd) {
     matter here, because the read/recv() below doesn't use it.
   */
   DEBUG_SYNC(thd, "before_do_command_net_read");
+
+  /* For per-query performance counters with log_slow_statement */
+  struct System_status_var query_start_status;
+  thd->clear_copy_status_var();
+  if (opt_log_slow_extra) {
+    thd->copy_status_var(&query_start_status);
+  }
 
   rc = thd->m_mem_cnt.reset();
   if (rc)
@@ -1613,14 +1627,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   DBUG_PRINT("info", ("command: %d", command));
 
   Sql_cmd_clone *clone_cmd = nullptr;
-
-  /* For per-query performance counters with log_slow_statement */
-  struct System_status_var query_start_status;
-  struct System_status_var *query_start_status_ptr = nullptr;
-  if (opt_log_slow_extra) {
-    query_start_status_ptr = &query_start_status;
-    query_start_status = thd->status_var;
-  }
 
   /* SHOW PROFILE instrumentation, begin */
 #if defined(ENABLED_PROFILING)
@@ -1991,11 +1997,9 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         size_t length =
             static_cast<size_t>(packet_end - beginning_of_next_stmt);
 
-        log_slow_statement(thd, query_start_status_ptr);
-        if (query_start_status_ptr) {
-          /* Reset for values at start of next statement */
-          query_start_status = thd->status_var;
-        }
+        log_slow_statement(thd);
+
+        thd->reset_copy_status_var();
 
         /* Remove garbage at start of query */
         while (length > 0 &&
@@ -2376,7 +2380,7 @@ done:
   mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_COMMAND_END), command,
                      cn.c_str());
 
-  log_slow_statement(thd, query_start_status_ptr);
+  log_slow_statement(thd);
 
   THD_STAGE_INFO(thd, stage_cleaning_up);
 
