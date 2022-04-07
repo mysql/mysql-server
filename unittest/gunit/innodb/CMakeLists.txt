@@ -45,6 +45,11 @@ SET(TESTS
   ut0rnd
 )
 
+ADD_COMPILE_FLAGS(
+  ut0rnd-t.cc
+  COMPILE_FLAGS -I${CMAKE_SOURCE_DIR}/extra/lz4 -I${BUNDLED_LZ4_PATH}
+  )
+
 # Treat warnings as errors on MSVC for InnoDB's unittests
 IF(MSVC AND NOT WIN32_CLANG)
   ADD_COMPILE_OPTIONS("/WX")
