@@ -11105,14 +11105,18 @@ sum_expr:
             $$ = NEW_PTN Item_sum_json_object(
                 @$, $3, $5, $7, std::move(wrapper), std::move(object));
           }
-        | ST_SHORTEST_DIR_PATH_SYM '(' in_sum_expr ',' in_sum_expr ',' in_sum_expr ',' in_sum_expr ',' expr ',' expr ')'
+        | ST_SHORTEST_DIR_PATH_SYM '(' in_sum_expr ',' in_sum_expr ',' in_sum_expr ',' in_sum_expr ',' in_sum_expr ',' expr ',' expr ')'
           {
             auto wrapper = make_unique_destroy_only<Json_wrapper>(YYMEM_ROOT);
             if (wrapper == nullptr) YYABORT;
             
             PT_item_list *args= NEW_PTN PT_item_list;
+            // Edge {id, from_id, to_id, cost}
             args->push_back($3);args->push_back($5);args->push_back($7);args->push_back($9);
-            args->push_back($11);args->push_back($13);
+            // Point gis::point
+            args->push_back($11);
+            // Path start & Path end
+            args->push_back($13);args->push_back($15);
             
             $$ = NEW_PTN Item_sum_shortest_dir_path(@$, args, std::move(wrapper));
           }

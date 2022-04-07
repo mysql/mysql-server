@@ -4,7 +4,7 @@
 --echo # |[0] creating tables|
 --echo # ---------------------
 
-CREATE TABLE paths (
+CREATE TABLE edges (
   id INT PRIMARY KEY,
   from_id INT,
   to_id INT,
@@ -16,7 +16,7 @@ CREATE TABLE paths (
 --echo # |[1] testing Dijkstra i.e. without geometry|
 --echo # --------------------------------------------
 
-INSERT INTO paths VALUES
+INSERT INTO edges VALUES
 (50, 0, 1, 3.0, "undefined"),
 (51, 0, 2, 5.0, "undefined"),
 (52, 0, 3, 8.0, "undefined"),
@@ -27,9 +27,9 @@ INSERT INTO paths VALUES
 (57, 4, 5, 10.0, "undefined")
 ;
 
-SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, 0, 5) FROM paths;
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 5) FROM edges;
 
-INSERT INTO paths VALUES
+INSERT INTO edges VALUES
 (10, 0, 1, 2.0, "car"),
 (11, 1, 2, 3.0, "car"),
 (12, 0, 2, 8.0, "car"),
@@ -45,10 +45,36 @@ INSERT INTO paths VALUES
 (34, 3, 2, 20.0, "pedestrian")
 ;
 
-SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, 0, 2) FROM paths GROUP BY type;
-
-DROP TABLE paths;
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 2) FROM edges GROUP BY type;
 
 --echo # -----------------------------------
 --echo # |[2] testing A* i.e. with geometry|
 --echo # -----------------------------------
+
+DROP TABLE edges;
+
+CREATE TABLE points (
+  id INT PRIMARY KEY,
+  p POINT NOT NULL SRID 0
+);
+
+INSERT INTO points VALUES
+(  0, POINT(  0,  0 ) ),
+(  1, POINT(  2,  1 ) ),
+(  2, POINT( -1, -1 ) ),
+(  3, POINT(  2, -2 ) ),
+(  4, POINT(  1,  3 ) ),
+(  5, POINT(  4,  3 ) ),
+(  6, POINT(  4,  1 ) ),
+(  7, POINT(  3, -1 ) ),
+(  8, POINT(  6,  2 ) ),
+(  9, POINT( -2,  1 ) ),
+( 10, POINT( -3, -2 ) ),
+( 11, POINT( -1,  3 ) )
+;
+
+--echo # -------------
+--echo # |[3] cleanup|
+--echo # -------------
+
+DROP TABLE points;

@@ -150,7 +150,7 @@ void Item_sum_shortest_dir_path::clear() {
 
 bool Item_sum_shortest_dir_path::add() {
   assert(fixed);
-  assert(arg_count == 6);
+  assert(arg_count == 7);
   assert(!m_is_window_function);
 
   const THD *thd = base_query_block->parent_lex->thd;
@@ -171,9 +171,10 @@ bool Item_sum_shortest_dir_path::add() {
   // verify arg 3
   if (verify_cost_argument(args[3]))
     return true;
-  // verify arg 4, 5
-  // TODO only once per agg
-  for (size_t i = 4; i < 6; i++)
+  // verify arg 4
+  // TODO verify point
+  // verify arg 5, 6
+  for (size_t i = 5; i < 7; i++)
     if (verify_const_id_argument(args[i]))
       return true;
 
@@ -182,9 +183,9 @@ bool Item_sum_shortest_dir_path::add() {
   from_id = args[1]->val_int();
   to_id = args[2]->val_int();
   cost = args[3]->val_real();
-  // TODO only once per agg
-  m_begin_node = args[4]->val_int();
-  m_end_node = args[5]->val_int();
+  // TODO get point
+  m_begin_node = args[5]->val_int();
+  m_end_node = args[6]->val_int();
 
   if (m_begin_node == m_end_node)
   {
