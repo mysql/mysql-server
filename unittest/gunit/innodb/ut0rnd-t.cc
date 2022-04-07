@@ -64,16 +64,6 @@ static inline ulint ut_rnd_gen_next_ulint(ulint rnd) {
   return (rnd);
 }
 
-static inline ulint ut_rnd_gen_ulint(ulint &rnd) {
-  if (rnd == 0) {
-    rnd = 65654363;
-  }
-
-  rnd = UT_RND1 * rnd + UT_RND2;
-
-  return (ut_rnd_gen_next_ulint(rnd));
-}
-
 thread_local ulint ut_rnd_ulint_counter;
 
 static inline ulint ut_rnd_gen_ulint() {
@@ -133,45 +123,6 @@ TEST(ut0rnd, hash_binary_ib_basic) {
   /* This value is used in page checksum for innodb algorithm, if chosen. This
   can't ever change to not make existing databases invalid. */
   EXPECT_EQ(58956420, ut::hash_binary_ib((const byte *)"innodb", 6));
-}
-
-TEST(ut0rnd, rnd_gen_cycle) {
-  init();
-
-  uint32_t a = 0;
-  uint32_t b = 0;
-  uint64_t i = 0;
-  do {
-    i++;
-    a = ut::hash_uint64(a);
-    b = ut::hash_uint64(ut::hash_uint64(b));
-  } while (a != b && i < 500000000);
-
-  if (i < 500000000) {
-    std::cout << std::dec << "ut_rnd_gen cycle size is at least: " << i
-              << std::endl;
-  }
-  /* Random generator is bad if the cycle is short. Good generator has a 1<<32
-  cycle. */
-  EXPECT_EQ(i, 500000000);
-}
-
-TEST(ut0rnd, rnd_gen_cycle_old) {
-  init();
-
-  ulint a = 0;
-  ulint b = 0;
-  uint64_t i = 0;
-  do {
-    old_impl::ut_rnd_gen_ulint(a);
-    old_impl::ut_rnd_gen_ulint(b);
-    old_impl::ut_rnd_gen_ulint(b);
-    i++;
-  } while (a != b && i < 500000000);
-  if (i < 500000000) {
-    std::cout << "ut_rnd_gen_old cycle size is: " << i << std::endl;
-  }
-  EXPECT_EQ(i, 500000000);
 }
 
 static double calculate_limit_variance_from_expected(uint32_t n) {
