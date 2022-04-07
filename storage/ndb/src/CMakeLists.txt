@@ -27,14 +27,6 @@ INCLUDE(ndb_downgrade_warnings)
 # Disable specific types of warnings for current directory
 # if the compiler supports the flag
 FOREACH(warning
-    # Downgrade -Werror=format-overflow to warning
-    "error=format-overflow"
-    # Downgrade -Werror=stringop-overflow to warning
-    "error=stringop-overflow"
-    # Downgrade -Werror=shadow-field
-    "error=shadow-field"
-    # Downgrade -Werror=null-pointer-subtraction
-    "error=null-pointer-subtraction"
     )
   MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)

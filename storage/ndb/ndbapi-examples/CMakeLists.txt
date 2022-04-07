@@ -23,11 +23,10 @@
 # Disable specific types of warnings for current directory
 # if the compiler supports the flag
 FOREACH(warning
-    "error=unused-but-set-variable"
+    "unused-but-set-variable"
     "strict-aliasing"
     "unused-parameter"
-    # Downgrade -Werror to warning for "may be used uninitialized"
-    "error=maybe-uninitialized"
+    "maybe-uninitialized"
     )
   MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)

@@ -28,11 +28,10 @@ INCLUDE(ndb_downgrade_warnings)
 IF(MY_COMPILER_IS_GNU_OR_CLANG)
   INCLUDE(CheckCXXCompilerFlag)
   FOREACH(warning
-      "error=cast-qual"
-      # Downgrade -Werror=restrict for gcc10 optimized build
-      "error=restrict"
-      "error=unused-but-set-variable"
-      "error=unused-parameter"
+      "cast-qual"
+      "restrict"
+      "unused-but-set-variable"
+      "unused-parameter"
       )
     MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
     IF(HAS_WARN_FLAG)
