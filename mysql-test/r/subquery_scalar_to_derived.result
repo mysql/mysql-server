@@ -1,4 +1,5 @@
 SET optimizer_switch='subquery_to_derived=on';
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 #
 # Tests for WL#12885 Add ability to transform scalar subqueries to inner
 # derived table
