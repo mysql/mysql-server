@@ -9,7 +9,7 @@ CREATE TABLE edges (
   from_id INT,
   to_id INT,
   cost DOUBLE,
-  type ENUM("undefined", "car", "bike", "pedestrian")
+  type ENUM("undefined", "car", "bike", "pedestrian", "spatial")
 );
 
 --echo # --------------------------------------------
@@ -51,12 +51,14 @@ SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 2) FROM edges GRO
 --echo # |[2] testing A* i.e. with geometry|
 --echo # -----------------------------------
 
-DROP TABLE edges;
+DELETE FROM edges;
 
 CREATE TABLE points (
   id INT PRIMARY KEY,
-  p POINT NOT NULL SRID 0
+  point POINT NOT NULL SRID 0
 );
+ALTER TABLE edges
+ADD CONSTRAINT point_ref FOREIGN KEY (to_id) REFERENCES points(id);
 
 INSERT INTO points VALUES
 (  0, POINT(  0,  0 ) ),
@@ -73,8 +75,32 @@ INSERT INTO points VALUES
 ( 11, POINT( -1,  3 ) )
 ;
 
+INSERT INTO edges VALUES
+(  0,  0,  2,  1.5 , "spatial" ),
+(  1,  0,  3,  2.9 , "spatial" ),
+(  2,  0,  5,  5.0 , "spatial" ),
+(  3,  3,  1,  3.0 , "spatial" ),
+(  4,  2, 11,  2.0 , "spatial" ),
+(  5,  2, 10,  2.4 , "spatial" ),
+(  6,  2,  9,  2.4 , "spatial" ),
+(  7,  9,  4,  3.65, "spatial" ),
+(  8,  4,  5,  4.0 , "spatial" ),
+(  9,  5,  8,  2.4 , "spatial" ),
+( 10,  5,  6,  2.0 , "spatial" ),
+( 11,  0,  7,  3.2 , "spatial" ),
+( 12,  7,  6,  2.3 , "spatial" ),
+( 13,  8,  6,  2.3 , "spatial" ),
+( 14,  1,  6,  2.0 , "spatial" )
+;
+
+SELECT ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 6)
+FROM edges
+JOIN points ON points.id = edges.to_id
+;
+
 --echo # -------------
 --echo # |[3] cleanup|
 --echo # -------------
 
+DROP TABLE edges;
 DROP TABLE points;

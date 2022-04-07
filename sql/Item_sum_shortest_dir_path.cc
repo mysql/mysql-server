@@ -58,6 +58,8 @@
 #include "sql/uniques.h"           // Unique
 #include "sql/window.h"
 
+// PUBLIC:
+
 Item_sum_shortest_dir_path::Item_sum_shortest_dir_path(
     THD *thd, Item_sum *item, unique_ptr_destroy_only<Json_wrapper> wrapper)
     : Item_sum_json(std::move(wrapper), thd, item),
@@ -121,7 +123,7 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
     
     *wr = Json_wrapper(std::move(obj));
     return false;
-  } catch(...) { // expects to catch std::bad_alloc
+  } catch(...) { // handles std::bad_alloc
     handle_std_exception(func_name());
     return error_json();
   }
@@ -148,21 +150,12 @@ void Item_sum_shortest_dir_path::clear() {
   m_edge_map.clear();
 }
 
-bool Item_sum_shortest_dir_path::add() {
-  assert(fixed);
-  assert(arg_count == 7);
+bool Item_sum_shortest_dir_path::fix_fields(THD *thd, Item **pItem) {
+  assert(!fixed);
   assert(!m_is_window_function);
-
-  const THD *thd = base_query_block->parent_lex->thd;
-  /*
-     Checking if an error happened inside one of the functions that have no
-     way of returning an error status. (reset_field(), update_field() or
-     clear())
-   */
-  if (thd->is_error()) return error_json();
-
-  int id, from_id, to_id;
-  double cost;
+  
+  if (Item_sum_json::fix_fields(thd, pItem))
+    return true;
 
   // verify arg 0, 1, 2
   for (size_t i = 0; i < 3; i++)
@@ -178,14 +171,33 @@ bool Item_sum_shortest_dir_path::add() {
     if (verify_const_id_argument(args[i]))
       return true;
 
+  return false;
+}
+
+bool Item_sum_shortest_dir_path::add() {
+  assert(arg_count == 7);
+
+  THD *thd = base_query_block->parent_lex->thd;
+  if (thd->is_error())
+    return error_json();
+
+  int id, from_id, to_id;
+  double cost;
+
   // get data
   id = args[0]->val_int();
   from_id = args[1]->val_int();
   to_id = args[2]->val_int();
   cost = args[3]->val_real();
-  // TODO get point
-  m_begin_node = args[5]->val_int();
-  m_end_node = args[6]->val_int();
+  add_geom(args[4], to_id, thd);
+  if (m_edge_map.empty()){
+    m_begin_node = args[5]->val_int();
+    m_end_node = args[6]->val_int();
+  }
+  else if (m_begin_node != args[5]->val_int() || m_end_node != args[6]->val_int()){
+    // TODO my_error
+    return true;
+  }
 
   if (m_begin_node == m_end_node)
   {
@@ -194,9 +206,10 @@ bool Item_sum_shortest_dir_path::add() {
   }
   
   // catch any leftover type errors
+  // TODO evaluate necessity
   if (thd->is_error()) return true;
-  for (int i = 0; i < 4; i++)
-    if (args[i]->null_value)
+  for (int i = 0; i < 7; i++)
+    if (i != 4 && args[i]->null_value)
       return true;
 
   // store edge
@@ -205,7 +218,7 @@ bool Item_sum_shortest_dir_path::add() {
     return true;
   try {
     m_edge_map.insert(std::pair(from_id, edge));
-  } catch (...) { // expects to catch std::bad_alloc
+  } catch (...) { // handles std::bad_alloc
     handle_std_exception(func_name());
     return true;
   }
@@ -222,6 +235,47 @@ Item *Item_sum_shortest_dir_path::copy_or_same(THD *thd) {
 bool Item_sum_shortest_dir_path::check_wf_semantics1(THD *thd, Query_block *select,
                                         Window_evaluation_requirements *reqs) {
   return Item_sum::check_wf_semantics1(thd, select, reqs);
+}
+
+// PRIVATE:
+
+inline bool Item_sum_shortest_dir_path::add_geom(Item *arg, const int& node_id, THD *thd) {
+  GeometryExtractionResult geomRes = ExtractGeometry(arg, thd, func_name());
+
+  switch (geomRes.GetResultType()) {
+    case ResultType::Error:
+      return true;
+    case ResultType::NullValue:
+      if (!m_point_map.empty()){
+        //TODO my_error(ER_ALL_OR_NONE_MUST_BE_NULL)
+      }
+      return false;
+    default: break;
+  }
+
+  gis::srid_t srid = geomRes.GetSrid();
+
+  if (m_point_map.empty())
+    m_srid = srid;
+  else if (m_srid != srid){
+    my_error(ER_GIS_DIFFERENT_SRIDS_AGGREGATION, MYF(0), func_name(), m_srid, srid);
+    return true;
+  }
+
+  std::unique_ptr<gis::Geometry> geom = geomRes.GetValue();
+
+  if (geom.get()->type() != gis::Geometry_type::kPoint){
+    // TODO make error my_error(ER_GIS_WRONG_GEOM_TYPE, MYF(0), func_name(), "Point");
+    return true;
+  }
+
+  try {
+    m_point_map.insert(std::pair(node_id, std::move(geom)));
+  } catch (...) { // handles std::bad_alloc
+    handle_std_exception(func_name());
+    return true;
+  }
+  return false;
 }
 
 inline bool Item_sum_shortest_dir_path::verify_const_id_argument(Item *item) {

@@ -12,8 +12,9 @@ class Item_sum_shortest_dir_path final : public Item_sum_json {
   // * accumulated edges from ::add. map key = node id of edge origin (i.e. Edge.from)
   malloc_unordered_multimap<int, const Edge*> m_edge_map;
   // * accumulated points from ::add. map key = node id
-  // TODO use
-  malloc_unordered_map<int, const gis::Point*> m_point_map;
+  malloc_unordered_map<int, std::unique_ptr<gis::Geometry>> m_point_map;
+  // coord type of points in m_point_map
+  gis::srid_t m_srid;
  public:
  /**
   * @brief Construct a new Item_sum_shortest_dir_path object
@@ -46,12 +47,23 @@ class Item_sum_shortest_dir_path final : public Item_sum_json {
   String *val_str(String *str) override;
 
   void clear() override;
+  bool fix_fields(THD *thd, Item **pItem) override;
   bool add() override;
   Item *copy_or_same(THD *thd) override;
   bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
 
  private:
+  /**
+   * @brief inserts geometry from arg into m_point_map
+   * 
+   * @param arg with geom
+   * @param node_id id of node associated with arg
+   * @param thd 
+   * @return true if invalid or not geom
+   * @return false if NULL or valid geom
+   */
+  inline bool add_geom(Item *arg, const int& node_id, THD *thd);
   /**
    * @brief verifies that item is a valid const id
    * 

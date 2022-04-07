@@ -484,9 +484,9 @@ bool Item_sum::resolve_type(THD *thd) {
 
   const Sumfunctype t = sum_func();
 
-  // None except these 4 types are allowed for geometry arguments.
+  // None except these 5 types are allowed for geometry arguments.
   if (!(t == COUNT_FUNC || t == COUNT_DISTINCT_FUNC || t == SUM_BIT_FUNC ||
-        t == GEOMETRY_AGGREGATE_FUNC))
+        t == GEOMETRY_AGGREGATE_FUNC || t == SHORTEST_DIR_PATH_FUNC))
     return reject_geometry_args(arg_count, args, this);
   return false;
 }
