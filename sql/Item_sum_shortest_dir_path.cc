@@ -185,6 +185,12 @@ bool Item_sum_shortest_dir_path::add() {
   // TODO only once per agg
   m_begin_node = args[4]->val_int();
   m_end_node = args[5]->val_int();
+
+  if (m_begin_node == m_end_node)
+  {
+    my_error(ER_START_AND_END_NODE_CONFLICT, MYF(0), func_name());
+    return true;
+  }
   
   // catch any leftover type errors
   if (thd->is_error()) return true;

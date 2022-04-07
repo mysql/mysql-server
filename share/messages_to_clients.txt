@@ -9703,6 +9703,8 @@ ER_CANT_EXECUTE_COMMAND_WITH_ASSIGNED_GTID_NEXT
 ER_NO_PATH_FOUND
   eng "No path found on %s"
 
+ER_START_AND_END_NODE_CONFLICT
+  eng "End node can't be equals to start node on %s"
 
 #
 #  End of 8.0 error messages (server-to-client).
