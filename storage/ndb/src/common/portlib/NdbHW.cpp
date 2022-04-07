@@ -2288,24 +2288,22 @@ static void NdbHW_End_platform()
 {
 }
 
-static int init_cpudata(struct ndb_hwinfo * hwinfo)
-{
-  (void)hwinfo;
-  return 0;
-}
-
-static int Ndb_ReloadCPUData(struct ndb_hwinfo *hwinfo)
-{
-  (void)hwinfo;
-  return 0;
-}
-
-static int init_hwinfo(struct ndb_hwinfo * hwinfo)
+static int init_cpudata(struct ndb_hwinfo *)
 {
   return 0;
 }
 
-static int Ndb_ReloadHWInfo(struct ndb_hwinfo *hwinfo)
+static int Ndb_ReloadCPUData(struct ndb_hwinfo *)
+{
+  return 0;
+}
+
+static int init_hwinfo(struct ndb_hwinfo *)
+{
+  return 0;
+}
+
+static int Ndb_ReloadHWInfo(struct ndb_hwinfo * hwinfo)
 {
   hwinfo->cpu_cnt_max = ncpu;
   hwinfo->cpu_cnt = ncpu;
@@ -2324,27 +2322,23 @@ static void NdbHW_End_platform()
 {
 }
 
-static int init_hwinfo(struct ndb_hwinfo * hwinfo)
+static int init_hwinfo(struct ndb_hwinfo *)
 {
-  (void)hwinfo;
   return -1;
 }
 
-static int init_cpudata(struct ndb_hwinfo * hwinfo)
+static int init_cpudata(struct ndb_hwinfo *)
 {
-  (void)hwinfo;
   return -1;
 }
 
-static int Ndb_ReloadHWInfo(struct ndb_hwinfo * hwinfo)
+static int Ndb_ReloadHWInfo(struct ndb_hwinfo *)
 {
-  (void)hwinfo;
   return -1;
 }
 
-static int Ndb_ReloadCPUData(struct ndb_hwinfo *hwinfo)
+static int Ndb_ReloadCPUData(struct ndb_hwinfo *)
 {
-  (void)hwinfo;
   return -1;
 }
 
