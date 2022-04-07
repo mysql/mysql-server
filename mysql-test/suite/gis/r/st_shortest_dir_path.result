@@ -15,6 +15,5 @@ insert into paths values
 ;
 select st_shortest_dir_path(id, from_id, to_id, cost, 0, 2) from paths group by type;
 st_shortest_dir_path(id, from_id, to_id, cost, 0, 2)
-{"cost": 40.0, "path": [{"id": 22, "cost": 40.0}]}
 {"cost": 5.0, "path": [{"id": 10, "cost": 2.0}, {"id": 11, "cost": 3.0}]}
 drop table paths;

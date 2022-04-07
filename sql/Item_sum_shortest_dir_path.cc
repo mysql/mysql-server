@@ -7,7 +7,7 @@
 #include <optional>
 #include <string>
 #include <utility>  // std::forward
-
+#include <stdlib.h>
 #include "decimal.h"
 #include "my_alloc.h"
 #include "my_base.h"
