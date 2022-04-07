@@ -9700,6 +9700,9 @@ ER_DEFINITION_CONTAINS_INVALID_STRING
 ER_CANT_EXECUTE_COMMAND_WITH_ASSIGNED_GTID_NEXT
   eng "Can't execute the given command when @@SESSION.GTID_NEXT == 'UUID:NUMBER'."
 
+ER_NO_PATH_FOUND
+  eng "No path found on %s"
+
 
 #
 #  End of 8.0 error messages (server-to-client).

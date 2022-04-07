@@ -91,6 +91,12 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
     Dijkstra dijkstra(&m_edge_map, heuristic, key_memory_Dijkstra);
     double cost;
     std::vector<const Edge*> path = dijkstra(m_begin_node, m_end_node, cost, stop_dijkstra);
+
+    if (path.empty()) {
+      my_error(ER_NO_PATH_FOUND, MYF(0), func_name());
+      return true;
+    }
+    
     if (stop_dijkstra())
       return error_json();
     // jsonifying path from dijkstra into arr

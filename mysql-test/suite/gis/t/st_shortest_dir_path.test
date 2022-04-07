@@ -27,7 +27,7 @@ INSERT INTO paths VALUES
 (57, 4, 5, 10.0, "undefined")
 ;
 
-SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, 0, 6) FROM paths;
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, 0, 5) FROM paths;
 
 INSERT INTO paths VALUES
 (10, 0, 1, 2.0, "car"),
