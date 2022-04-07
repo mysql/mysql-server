@@ -3182,7 +3182,8 @@ int Log_event::apply_event(Relay_log_info *rli) {
                    rli->get_event_relay_log_name(), llbuff,
                    "possible malformed group of events from an old master");
 
-          /* Coordinator can't continue, it marks MTS group status accordingly */
+          /* Coordinator cant continue, it marks MTS group status accordingly
+           */
           rli->mts_group_status = Relay_log_info::MTS_KILLED_GROUP;
 
           goto err;
@@ -4826,10 +4827,9 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
         struct System_status_var query_start_status;
-        struct System_status_var *query_start_status_ptr = nullptr;
+        thd->clear_copy_status_var();
         if (opt_log_slow_extra) {
-          query_start_status_ptr = &query_start_status;
-          query_start_status = thd->status_var;
+          thd->copy_status_var(&query_start_status);
         }
 
         dispatch_sql_command(thd, &parser_state);
@@ -4879,7 +4879,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         }
         /* Finalize server status flags after executing a statement. */
         thd->update_slow_query_status();
-        log_slow_statement(thd, query_start_status_ptr);
+        log_slow_statement(thd);
       }
 
       thd->variables.option_bits &= ~OPTION_MASTER_SQL_ERROR;

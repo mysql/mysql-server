@@ -1111,9 +1111,12 @@ class THD : public MDL_context_owner,
   */
   collation_unordered_map<std::string, unique_ptr_with_deleter<user_var_entry>>
       user_vars{system_charset_info, key_memory_user_var_entry};
-  struct rand_struct rand;                      // used for authentication
-  struct System_variables variables;            // Changeable local variables
-  struct System_status_var status_var;          // Per thread statistic vars
+  struct rand_struct rand;              // used for authentication
+  struct System_variables variables;    // Changeable local variables
+  struct System_status_var status_var;  // Per thread statistic vars
+  struct System_status_var
+      *copy_status_var_ptr;  // A copy of the statistic vars asof the start of
+                             // the query
   struct System_status_var *initial_status_var; /* used by show status */
   // has status_var already been added to global_status_var?
   bool status_var_aggregated;
@@ -1156,6 +1159,34 @@ class THD : public MDL_context_owner,
     assert(!status_var_aggregated);
     status_var.last_query_cost = m_current_query_cost;
     status_var.last_query_partial_plans = m_current_query_partial_plans;
+  }
+
+  /**
+    Clear copy of the status variables.
+  */
+  void clear_copy_status_var() { copy_status_var_ptr = nullptr; }
+
+  /**
+    Copy status variables into a structure pointed by the specified pointer and
+    keep track of the pointer internally.
+
+    @param dst_var status variable structure pointer, where internal status
+                   variables are copied into.
+  */
+  void copy_status_var(System_status_var *dst_var) {
+    *dst_var = status_var;
+    copy_status_var_ptr = dst_var;
+  }
+
+  /**
+    Copy status variables into a structure pointed by the specified pointer
+    passed into copy_status_var method call.
+  */
+  void reset_copy_status_var() {
+    if (copy_status_var_ptr) {
+      /* Reset for values at start of next statement */
+      *copy_status_var_ptr = status_var;
+    }
   }
 
   THR_LOCK_INFO lock_info;  // Locking info of this thread

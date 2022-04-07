@@ -636,6 +636,7 @@ THD::THD(bool enable_plugins)
       m_db(NULL_CSTR),
       rli_fake(nullptr),
       rli_slave(nullptr),
+      copy_status_var_ptr(nullptr),
       initial_status_var(nullptr),
       status_var_aggregated(false),
       m_connection_attributes(),

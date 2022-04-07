@@ -1113,6 +1113,13 @@ int Srv_session::execute_command(enum enum_server_command command,
   */
   if (command != COM_QUERY) thd.reset_for_next_command();
 
+  /* For per-query performance counters with log_slow_statement */
+  struct System_status_var query_start_status;
+  thd.clear_copy_status_var();
+  if (opt_log_slow_extra) {
+    thd.copy_status_var(&query_start_status);
+  }
+
   mysql_thread_set_secondary_engine(false);
 
   assert(thd.m_statement_psi == nullptr);
