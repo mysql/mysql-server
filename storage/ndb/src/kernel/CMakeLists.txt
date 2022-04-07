@@ -32,11 +32,13 @@ IF(CMAKE_COMPILER_IS_GNUCXX
 ENDIF()
 
 FOREACH(warning
-    "error=cast-qual"
+    "cast-qual"
     # Warnings in Dbtup.hpp
-    "error=class-memaccess"
-    "error=unused-but-set-variable"
-    "error=unused-parameter"
+    "class-memaccess"
+    "format-overflow"
+    "maybe-uninitialized"
+    "unused-but-set-variable"
+    "unused-parameter"
     )
   MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)

@@ -26,7 +26,7 @@
 FOREACH(warning
     "strict-aliasing"
     "unused-parameter"
-    "error=maybe-uninitialized"
+    "maybe-uninitialized"
     )
   MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)
