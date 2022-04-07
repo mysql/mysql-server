@@ -193,7 +193,7 @@ fallback:
 }
 
 bool
-TransporterReceiveData::epoll_add(Transporter *t)
+TransporterReceiveData::epoll_add(Transporter *t [[maybe_unused]])
 {
   assert(m_transporters.get(t->getTransporterIndex()));
 #if defined(HAVE_EPOLL_CREATE)
