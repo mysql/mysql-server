@@ -490,6 +490,22 @@ int bytes_lost_t3 = 0;
 int bytes_written_t3 = 0;
 int total_to_write_t3 = 0;
 
+// Helper function to test va_list version of append
+static int append_fmt(LogBuffer* log_buffer,
+                      size_t len,
+                      bool append_ln,
+                      const char* fmt,
+                      ...) ATTRIBUTE_FORMAT(printf, 4, 5);
+
+int append_fmt(
+    LogBuffer* log_buffer, size_t len, bool append_ln, const char* fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+  int rc = log_buffer->append(fmt, ap, len, append_ln);
+  va_end(ap);
+  return rc;
+}
 
 void clearbuf(char* buf, uint size)
 {
@@ -682,11 +698,9 @@ TAPTEST(LogBuffer)
   printf("Sub-test 2 OK\n");
 
 
-  va_list empty_ap;
-  va_end(empty_ap);
   // append string of max. length that the log buffer can hold
   // **********#
-  OK(buf_t1->append("123456789", empty_ap, 9) == 9);
+  OK(append_fmt(buf_t1, 9, false, "123456789") == 9);
   // 123456789*#
   bytes = buf_t1->get(buf1, 10);
   // **********#
@@ -752,13 +766,13 @@ TAPTEST(LogBuffer)
 
 
   // **********#
-  OK(buf_t1->append("01234567", empty_ap, 8) == 8);
+  OK(append_fmt(buf_t1, 8, false, "01234567") == 8);
   // 01234567**#
   bytes = buf_t1->get(buf1, 4);
   // ****4567**#
   buf1[bytes] = '\0';
   OK(strcmp(buf1, "0123") == 0);
-  OK(buf_t1->append("012", empty_ap, 3) == 3); // w > r, wrap
+  OK(append_fmt(buf_t1, 3, false, "012") == 3);  // w > r, wrap
   // 012*4567**#
   OK(buf_t1->append("3", 1) == 1);  // w < r
   // 01234567**#
@@ -774,7 +788,7 @@ TAPTEST(LogBuffer)
   //check functionality after reading in parts
   //append string of length = size_of_buf - 1
   // **********#
-  OK(buf_t1->append("123456789", empty_ap, 9) == 9);
+  OK(append_fmt(buf_t1, 9, false, "123456789") == 9);
   // 123456789*#
   bytes = buf_t1->get(buf1, 9);
   OK(bytes == 9);
@@ -790,14 +804,14 @@ TAPTEST(LogBuffer)
   // 012345678*#
   buf_t1->get(buf1, 4);
   // ****45678*#
-  OK(buf_t1->append("90a", empty_ap, 3) == 3); // append in the beginning
+  OK(append_fmt(buf_t1, 3, false, "90a") == 3);  // append in the beginning
   // 90a*45678*#
   OK(buf_t1->get(buf1, 8) == 8); // read in parts
   // **********#
   buf1[8] = '\0';
   OK(strcmp(buf1, "4567890a") == 0);
   OK(buf_t1->append("123", 0) == 0);           // length zero
-  OK(buf_t1->append("123", empty_ap, 0) == 0); // length zero
+  OK(append_fmt(buf_t1, 0, false, "123") == 0);  // length zero
   assert(buf_t1->getSize() == 0);
   printf("Sub-test 8 OK\n");
   clearbuf(buf1, bufsize);
@@ -808,9 +822,9 @@ TAPTEST(LogBuffer)
   // 01234*****#
   buf_t1->append("56789", 5);
   // 0123456789#
-  OK(buf_t1->append("will fail", empty_ap, 9) == 0); // full log buffer
+  OK(append_fmt(buf_t1, 9, false, "will fail") == 0);  // full log buffer
   // 0123456789#
-  OK(buf_t1->append("will fail", empty_ap, 9) == 0); // ,,
+  OK(append_fmt(buf_t1, 9, false, "will fail") == 0);  // ,,
   // 0123456789#
   OK(buf_t1->getLostCount() == 18);
   clearbuf(buf1, bufsize);
