@@ -57,6 +57,7 @@
 #include "sql/temp_table_param.h"  // Temp_table_param
 #include "sql/uniques.h"           // Unique
 #include "sql/window.h"
+#include "sql/gis/distance_functor.h"
 
 // PUBLIC:
 
@@ -81,10 +82,14 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
   static std::function null_heuristic = [](const int&) -> double {
     return 0.0;
   };
-  static std::function geom_heuristic = [](const int&) -> double {
-    return 0.0; // TODO implement
+  // m_point_map.at() should always find something (enforced in ::add_geom())
+  gis::Geometry* end_geom = m_point_map.empty() ? nullptr : &*m_point_map.at(m_end_node);
+  std::function geom_heuristic = [this, &end_geom](const int& node) -> double {
+    static gis::Distance dst(NAN, NAN);
+    std::unique_ptr<gis::Geometry>& geom = this->m_point_map.at(node);
+    return dst(end_geom, &*geom);
   };
-  std::function<double(const int&)>& heuristic = true ? null_heuristic : geom_heuristic;
+  std::function<double(const int&)>& heuristic = m_point_map.empty() ? null_heuristic : geom_heuristic;
 
   try {
     Json_array_ptr arr(new (std::nothrow) Json_array());
@@ -123,8 +128,9 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
     
     *wr = Json_wrapper(std::move(obj));
     return false;
-  } catch(...) { // handles std::bad_alloc
+  } catch(...) { // handles std::bad_alloc and gis_exceptions from gis::Distance
     handle_std_exception(func_name());
+    handle_gis_exception(func_name());
     return error_json();
   }
 }
@@ -148,6 +154,7 @@ void Item_sum_shortest_dir_path::clear() {
   null_value = true;
 
   m_edge_map.clear();
+  m_point_map.clear();
 }
 
 bool Item_sum_shortest_dir_path::fix_fields(THD *thd, Item **pItem) {
@@ -164,8 +171,7 @@ bool Item_sum_shortest_dir_path::fix_fields(THD *thd, Item **pItem) {
   // verify arg 3
   if (verify_cost_argument(args[3]))
     return true;
-  // verify arg 4
-  // TODO verify point
+  // * skips arg 4 (geom)
   // verify arg 5, 6
   for (size_t i = 5; i < 7; i++)
     if (verify_const_id_argument(args[i]))
@@ -247,7 +253,7 @@ inline bool Item_sum_shortest_dir_path::add_geom(Item *arg, const int& node_id, 
       return true;
     case ResultType::NullValue:
       if (!m_point_map.empty()){
-        //TODO my_error(ER_ALL_OR_NONE_MUST_BE_NULL)
+        // TODO my_error(ER_ALL_OR_NONE_MUST_BE_NULL)
       }
       return false;
     default: break;

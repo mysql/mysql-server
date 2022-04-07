@@ -156,14 +156,14 @@ TEST_F(DijkstraTest, EuclideanHeuristic) {
   EXPECT_EQ(cost, 5.5);
 
   // test 2
-  edges[12].cost = 999.9; // disables prev best path (fine since heu <= cost)
+  edges[12].cost = INFINITY; // disables prev best path (fine since heu <= cost)
   path = dijkstra(0, target_point, cost);
   expected_path = { &edges[2], &edges[10] };
   EXPECT_EQ(path, expected_path);
   EXPECT_EQ(cost, 7.0);
 
   // test 3
-  edges[10].cost = 999.9; // disables prev best path
+  edges[10].cost = INFINITY; // disables prev best path
   path = dijkstra(0, target_point, cost);
   expected_path = { &edges[1], &edges[3], &edges[14] };
   EXPECT_EQ(path, expected_path);

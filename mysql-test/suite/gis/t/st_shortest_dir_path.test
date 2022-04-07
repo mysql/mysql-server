@@ -93,6 +93,22 @@ INSERT INTO edges VALUES
 ( 14,  1,  6,  2.0 , "spatial" )
 ;
 
+# Same test as in dijkstra-t.cc se dijkstra-t.cc for more details TODO try other bigger dataset
+
+SELECT ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 6)
+FROM edges
+JOIN points ON points.id = edges.to_id
+;
+
+UPDATE edges SET cost = 1000.0 where id = 12;
+
+SELECT ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 6)
+FROM edges
+JOIN points ON points.id = edges.to_id
+;
+
+UPDATE edges SET cost = 1000.0 where id = 10;
+
 SELECT ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 6)
 FROM edges
 JOIN points ON points.id = edges.to_id

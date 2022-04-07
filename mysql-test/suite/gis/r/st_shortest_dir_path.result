@@ -90,6 +90,20 @@ JOIN points ON points.id = edges.to_id
 ;
 ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 6)
 {"cost": 5.5, "path": [{"id": 11, "cost": 3.2}, {"id": 12, "cost": 2.3}]}
+UPDATE edges SET cost = 1000.0 where id = 12;
+SELECT ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 6)
+FROM edges
+JOIN points ON points.id = edges.to_id
+;
+ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 6)
+{"cost": 7.0, "path": [{"id": 2, "cost": 5.0}, {"id": 10, "cost": 2.0}]}
+UPDATE edges SET cost = 1000.0 where id = 10;
+SELECT ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 6)
+FROM edges
+JOIN points ON points.id = edges.to_id
+;
+ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 6)
+{"cost": 7.9, "path": [{"id": 1, "cost": 2.9}, {"id": 3, "cost": 3.0}, {"id": 14, "cost": 2.0}]}
 # -------------
 # |[3] cleanup|
 # -------------
