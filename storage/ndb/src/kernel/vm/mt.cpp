@@ -156,6 +156,7 @@ static Uint32 max_send_delay = 0;
 static Uint32 glob_ndbfs_thr_no = 0;
 static Uint32 glob_wakeup_latency = 25;
 static Uint32 glob_num_job_buffers_per_thread = 0;
+static Uint32 glob_num_writers_per_job_buffers = 0;
 static bool glob_use_write_lock_mutex = false;
 /**
  * Ensure that the above variables that are read-only after startup are
@@ -4623,17 +4624,17 @@ compute_free_buffers_in_queue(const thr_job_queue *q)
 }
 
 /**
- * Compute max signals that thr_no can execute wo/ risking
- *   job-buffer-full
+ *  Compute *total* max signals that this thread can execute wo/ risking
+ *  job-buffer-full.
  *
- *  see-also update_sched_config
+ * 1) min_free_buffers are number of free job-buffer pages in (one of) the
+ *    job buffer queues this thread may send signals to.
+ * 2) Compute how many signals this corresponds to.
+ * 3) Divide 'max_signals' among the threads writing to each 'queue'.
  *
- *
- * 1) compute free-slots in ring-buffer from self to each thread in system
- * 2) pick smallest value
- * 3) compute how many signals this corresponds to
- * 4) compute how many signals self can execute if all were to be to
- *    the thread with the fullest ring-buffer (i.e the worst case)
+ *  Note, that there might be multiple threads writing to each job-buffer,
+ *  each seeing the same number of initial min_free_buffers. Thus, we need
+ *  to divide the 'free_buffers' between these threads.
  *
  *   Assumption: each signal may send *at most* 4 signals
  *     - this assumption is made the same in ndbd and ndbmtd and is
@@ -4643,7 +4644,9 @@ static
 Uint32
 compute_max_signals_to_execute(Uint32 min_free_buffers)
 {
-  return ((min_free_buffers * MIN_SIGNALS_PER_PAGE) + 3) / 4;
+  const Uint32 max_signals_to_execute =
+    ((min_free_buffers * MIN_SIGNALS_PER_PAGE) + 3) / 4;
+  return max_signals_to_execute / glob_num_writers_per_job_buffers;
 }
 
 static
@@ -9960,6 +9963,9 @@ ThreadConfig::init()
   require(glob_num_threads <= MAX_BLOCK_THREADS);
   glob_num_job_buffers_per_thread =
       MIN(glob_num_threads, NUM_JOB_BUFFERS_PER_THREAD);
+  glob_num_writers_per_job_buffers =
+      (glob_num_threads + NUM_JOB_BUFFERS_PER_THREAD-1) /
+       NUM_JOB_BUFFERS_PER_THREAD;
   if (glob_num_job_buffers_per_thread < glob_num_threads)
   {
     glob_use_write_lock_mutex = true;
