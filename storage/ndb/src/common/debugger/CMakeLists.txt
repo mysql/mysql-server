@@ -25,6 +25,8 @@ ADD_SUBDIRECTORY(signaldata)
 
 ADD_CONVENIENCE_LIBRARY(ndbtrace
   BlockNames.cpp
+  DblqhStateDesc.cpp
+  DbtcStateDesc.cpp
   DebuggerNames.cpp
   EventLogger.cpp
   NdbinfoTables.cpp
