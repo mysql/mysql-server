@@ -331,17 +331,6 @@ void Plugin_gcs_events_handler::handle_recovery_message(
         member_uuid, Group_member_info::MEMBER_ONLINE, m_notification_ctx);
 
     /*
-     Take View_change_log_event transaction into account, that
-     despite being queued on applier channel was applied through
-     recovery channel.
-    */
-    if (group_member_mgr->get_number_of_members() != 1) {
-      Pipeline_stats_member_collector *pipeline_stats =
-          applier_module->get_pipeline_stats_member_collector();
-      pipeline_stats->decrement_transactions_waiting_apply();
-    }
-
-    /*
       unblock threads waiting for the member to become ONLINE
     */
     terminate_wait_on_start_process();

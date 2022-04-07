@@ -346,12 +346,6 @@ Pipeline_stats_member_collector::~Pipeline_stats_member_collector() {
   mysql_mutex_destroy(&m_transactions_waiting_apply_lock);
 }
 
-void Pipeline_stats_member_collector::clear_transactions_waiting_apply() {
-  mysql_mutex_lock(&m_transactions_waiting_apply_lock);
-  m_transactions_waiting_apply = 0;
-  mysql_mutex_unlock(&m_transactions_waiting_apply_lock);
-}
-
 void Pipeline_stats_member_collector::increment_transactions_waiting_apply() {
   mysql_mutex_lock(&m_transactions_waiting_apply_lock);
   assert(m_transactions_waiting_apply.load() >= 0);
@@ -362,6 +356,7 @@ void Pipeline_stats_member_collector::increment_transactions_waiting_apply() {
 void Pipeline_stats_member_collector::decrement_transactions_waiting_apply() {
   mysql_mutex_lock(&m_transactions_waiting_apply_lock);
   if (m_transactions_waiting_apply.load() > 0) --m_transactions_waiting_apply;
+  assert(m_transactions_waiting_apply.load() >= 0);
   mysql_mutex_unlock(&m_transactions_waiting_apply_lock);
 }
 
