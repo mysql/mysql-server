@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,8 +107,6 @@ class Gtid_set_ref : public Gtid_set {
   negatively certified. Otherwise, this transaction is marked
   certified and goes into applier.
 */
-typedef std::unordered_map<std::string, Gtid_set_ref *> Certification_info;
-
 class Certifier_broadcast_thread {
  public:
   /**
@@ -194,6 +192,12 @@ class Certifier_interface : public Certifier_stats {
 
 class Certifier : public Certifier_interface {
  public:
+  typedef std::unordered_map<
+      std::string, Gtid_set_ref *, std::hash<std::string>,
+      std::equal_to<std::string>,
+      Malloc_allocator<std::pair<const std::string, Gtid_set_ref *>>>
+      Certification_info;
+
   Certifier();
   ~Certifier() override;
 

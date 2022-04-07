@@ -156,7 +156,7 @@ int Remote_clone_handler::extract_donor_info(
   uint valid_recovering_donors = 0;
   bool clone_activation_threshold_breach = false;
 
-  std::vector<Group_member_info *> *all_members_info =
+  Group_member_info_list *all_members_info =
       group_member_mgr->get_all_members();
 
   Sid_map local_sid_map(nullptr);
@@ -343,7 +343,7 @@ end:
 
 void Remote_clone_handler::get_clone_donors(
     std::list<Group_member_info *> &suitable_donors) {
-  std::vector<Group_member_info *> *all_members_info =
+  Group_member_info_list *all_members_info =
       group_member_mgr->get_all_members();
   if (all_members_info->size() > 1) {
     vector_random_shuffle(all_members_info);

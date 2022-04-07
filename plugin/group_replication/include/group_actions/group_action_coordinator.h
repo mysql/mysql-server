@@ -178,7 +178,7 @@ class Group_action_coordinator : public Group_event_observer {
     @param all_members_info the list of info objects for all members
     @return true if yes, false if no member is in recovery
   */
-  bool member_in_recovery(std::vector<Group_member_info *> *all_members_info);
+  bool member_in_recovery(Group_member_info_list *all_members_info);
 
   /**
     This method checks if there is a member from a version that does not allow
@@ -186,8 +186,7 @@ class Group_action_coordinator : public Group_event_observer {
     @param all_members_info the list of info objects for all members
     @return true if yes, false if all members are valid
   */
-  bool member_from_invalid_version(
-      std::vector<Group_member_info *> *all_members_info);
+  bool member_from_invalid_version(Group_member_info_list *all_members_info);
 
   /**
     Set an error message and awake the coordinator

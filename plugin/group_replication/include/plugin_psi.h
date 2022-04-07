@@ -225,6 +225,21 @@ extern PSI_stage_info info_GR_STAGE_autorejoin,
     info_GR_STAGE_clone_prepare,
     info_GR_STAGE_clone_execute;
 
+extern PSI_memory_key key_write_set_encoded,
+    key_certification_data,
+    key_certification_data_gc,
+    key_certification_info,
+    key_transaction_data,
+    key_sql_service_command_data,
+    key_mysql_thread_queued_task,
+    key_message_service_queue,
+    key_message_service_received_message,
+    key_group_member_info,
+    key_consistent_members_that_must_prepare_transaction,
+    key_consistent_transactions,
+    key_consistent_transactions_prepared,
+    key_consistent_transactions_waiting,
+    key_consistent_transactions_delayed_view_change;
 /* clang-format on */
 
 #endif /* PLUGIN_PSI_INCLUDED */

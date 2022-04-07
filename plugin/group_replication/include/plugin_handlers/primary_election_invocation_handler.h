@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -134,7 +134,7 @@ class Primary_election_handler {
     @return true if a primary is found, false otherwise
   */
   bool pick_primary_member(std::string &primary_uuid,
-                           std::vector<Group_member_info *> *all_members_info);
+                           Group_member_info_list *all_members_info);
 
   /**
   Execute the standard primary election algorithm (that supports primary
@@ -175,8 +175,8 @@ class Primary_election_handler {
                              increases.
 */
 void sort_members_for_election(
-    std::vector<Group_member_info *> *all_members_info,
-    std::vector<Group_member_info *>::iterator lowest_version_end);
+    Group_member_info_list *all_members_info,
+    Group_member_info_list_iterator lowest_version_end);
 
 /**
   Sort members based on member_version and get first iterator position
@@ -189,8 +189,7 @@ void sort_members_for_election(
   @note from the start of the list to the returned iterator, all members have
         the lowest version in the group.
  */
-std::vector<Group_member_info *>::iterator
-sort_and_get_lowest_version_member_position(
-    std::vector<Group_member_info *> *all_members_info);
+Group_member_info_list_iterator sort_and_get_lowest_version_member_position(
+    Group_member_info_list *all_members_info);
 
 #endif /* PRIMARY_ELECTION_INVOCATION_HANDLER_INCLUDED */

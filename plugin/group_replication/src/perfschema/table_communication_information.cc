@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,8 +48,29 @@ static constexpr unsigned long long NR_ROWS{1};
 static unsigned long long s_current_pos{0};
 static uint32_t s_write_concurrency{0};
 static Member_version s_mysql_version{0x00000};
-static std::vector<Group_member_info *> s_preferred_leaders;
-static std::vector<Group_member_info *> s_actual_leaders;
+
+/**
+  Fetch preferred leaders instance.
+
+  @return Reference to the Group_member_info_list instance.
+*/
+Group_member_info_list &get_preferred_leaders() {
+  static Group_member_info_list s_preferred_leaders(
+      (Malloc_allocator<Group_member_info *>(key_group_member_info)));
+  return s_preferred_leaders;
+}
+
+/**
+  Fetch actual leaders instance.
+  The actual leaders are members which is carrying out leader at this moment.
+
+  @return Reference to the Group_member_info_list instance.
+*/
+Group_member_info_list &get_actual_leaders() {
+  static Group_member_info_list s_actual_leaders(
+      (Malloc_allocator<Group_member_info *>(key_group_member_info)));
+  return s_actual_leaders;
+}
 
 static bool fetch_row_data() {
   bool constexpr ERROR = true;
@@ -78,21 +99,23 @@ static bool fetch_row_data() {
     return ERROR;
   }
 
-  std::vector<Group_member_info *> found_preferred_leaders;
+  Group_member_info_list found_preferred_leaders(
+      (Malloc_allocator<Group_member_info *>(key_group_member_info)));
   for (const auto &preferred_leader : preferred_leaders) {
     auto member_id =
         group_member_mgr->get_group_member_info_by_member_id(preferred_leader);
     if (member_id) found_preferred_leaders.emplace_back(member_id);
   }
-  s_preferred_leaders = found_preferred_leaders;
+  get_preferred_leaders() = found_preferred_leaders;
 
-  std::vector<Group_member_info *> found_actual_leaders;
+  Group_member_info_list found_actual_leaders(
+      (Malloc_allocator<Group_member_info *>(key_group_member_info)));
   for (const auto &actual_leader : actual_leaders) {
     auto member_id =
         group_member_mgr->get_group_member_info_by_member_id(actual_leader);
     if (member_id) found_actual_leaders.emplace_back(member_id);
   }
-  s_actual_leaders = found_actual_leaders;
+  get_actual_leaders() = found_actual_leaders;
 
   return OK;
 }
@@ -148,9 +171,9 @@ static int read_column_value(PSI_table_handle *handle MY_ATTRIBUTE((unused)),
     }
     case 2: {  // WRITE_CONSENSUS_LEADERS_PREFERRED
       std::stringstream ss;
-      for (std::size_t i = 0; i < s_preferred_leaders.size(); i++) {
-        ss << s_preferred_leaders.at(i)->get_uuid();
-        if (i < s_preferred_leaders.size() - 1) {
+      for (std::size_t i = 0; i < get_preferred_leaders().size(); i++) {
+        ss << get_preferred_leaders().at(i)->get_uuid();
+        if (i < get_preferred_leaders().size() - 1) {
           ss << ',';
         }
       }
@@ -159,9 +182,9 @@ static int read_column_value(PSI_table_handle *handle MY_ATTRIBUTE((unused)),
     }
     case 3: {  // WRITE_CONSENSUS_LEADERS_ACTUAL
       std::stringstream ss;
-      for (std::size_t i = 0; i < s_actual_leaders.size(); i++) {
-        ss << s_actual_leaders.at(i)->get_uuid();
-        if (i < s_actual_leaders.size() - 1) {
+      for (std::size_t i = 0; i < get_actual_leaders().size(); i++) {
+        ss << get_actual_leaders().at(i)->get_uuid();
+        if (i < get_actual_leaders().size() - 1) {
           ss << ',';
         }
       }
@@ -180,11 +203,11 @@ static PSI_table_handle *open_table(PSI_pos **pos MY_ATTRIBUTE((unused))) {
 }
 
 static void close_table(PSI_table_handle *handle MY_ATTRIBUTE((unused))) {
-  for (auto &it : s_preferred_leaders) delete it;
-  s_preferred_leaders.clear();
+  for (auto &it : get_preferred_leaders()) delete it;
+  get_preferred_leaders().clear();
 
-  for (auto &it : s_actual_leaders) delete it;
-  s_actual_leaders.clear();
+  for (auto &it : get_actual_leaders()) delete it;
+  get_actual_leaders().clear();
 }
 
 }  // namespace pfs_table_communication_information

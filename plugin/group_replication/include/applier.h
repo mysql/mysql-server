@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -267,7 +267,8 @@ class Applier_module_interface {
       Leaving_members_action_packet *packet) = 0;
   virtual int handle(const uchar *data, ulong len,
                      enum_group_replication_consistency_level consistency_level,
-                     std::list<Gcs_member_identifier> *online_members) = 0;
+                     std::list<Gcs_member_identifier> *online_members,
+                     PSI_memory_key key) = 0;
   virtual int handle_pipeline_action(Pipeline_action *action) = 0;
   virtual Flow_control_module *get_flow_control_module() = 0;
   virtual void run_flow_control_step() = 0;
@@ -381,6 +382,7 @@ class Applier_module : public Applier_module_interface {
     @param[in]  consistency_level  the transaction consistency level
     @param[in]  online_members     the ONLINE members when the transaction
                                    message was delivered
+    @param[in]  key       the memory instrument key
 
     @return the operation status
       @retval 0      OK
@@ -388,9 +390,10 @@ class Applier_module : public Applier_module_interface {
   */
   int handle(const uchar *data, ulong len,
              enum_group_replication_consistency_level consistency_level,
-             std::list<Gcs_member_identifier> *online_members) override {
+             std::list<Gcs_member_identifier> *online_members,
+             PSI_memory_key key) override {
     this->incoming->push(
-        new Data_packet(data, len, consistency_level, online_members));
+        new Data_packet(data, len, key, consistency_level, online_members));
     return 0;
   }
 

@@ -67,11 +67,12 @@ int add_write_set(Transaction_context_log_event *tcle,
     uint64 const tmp_str_sz =
         base64_needed_encoded_length((uint64)BUFFER_READ_PKE);
     char *write_set_value =
-        (char *)my_malloc(PSI_NOT_INSTRUMENTED, tmp_str_sz, MYF(MY_WME));
+        (char *)my_malloc(key_write_set_encoded, tmp_str_sz, MYF(MY_WME));
     if (!write_set_value) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL,
                    ER_GRP_RPL_OOM_FAILED_TO_GENERATE_IDENTIFICATION_HASH);
+      my_free(write_set_value);
       return 1;
       /* purecov: end */
     }
@@ -80,6 +81,7 @@ int add_write_set(Transaction_context_log_event *tcle,
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL,
                    ER_GRP_RPL_WRITE_IDENT_HASH_BASE64_ENCODING_FAILED);
+      my_free(write_set_value);
       return 1;
       /* purecov: end */
     }
@@ -388,6 +390,13 @@ int group_replication_trans_before_commit(Trans_param *param) {
       may_have_sbr_stmts = true;
     }
 
+    DBUG_EXECUTE_IF("group_replication_after_add_write_set", {
+      const char act[] =
+          "now signal signal.group_replication_after_add_write_set_reached "
+          "wait_for signal.group_replication_after_add_write_set_continue";
+      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    });
+
     /*
       'CREATE TABLE ... AS SELECT' is considered a DML, though in reality it
       is DDL + DML, which write-sets do not capture all dependencies.
@@ -521,7 +530,9 @@ int group_replication_trans_before_commit(Trans_param *param) {
   };);
 
   DBUG_EXECUTE_IF("group_replication_before_message_broadcast", {
-    const char act[] = "now wait_for waiting";
+    const char act[] =
+        "now signal signal.group_replication_before_message_broadcast_reached "
+        "wait_for waiting";
     assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 #endif
@@ -583,7 +594,9 @@ err:
   }
 
   DBUG_EXECUTE_IF("group_replication_after_before_commit_hook", {
-    const char act[] = "now wait_for signal.commit_continue";
+    const char act[] =
+        "now SIGNAL signal.group_replication_after_before_commit_hook_reached "
+        "WAIT_FOR signal.group_replication_after_before_commit_hook_continue";
     assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
   return error;

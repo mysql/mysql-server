@@ -248,6 +248,9 @@ int Certifier_broadcast_thread::broadcast_gtid_executed() {
 
 Certifier::Certifier()
     : initialized(false),
+      certification_info(
+          Malloc_allocator<std::pair<const std::string, Gtid_set_ref *>>(
+              key_certification_info)),
       positive_cert(0),
       negative_cert(0),
       parallel_applier_last_committed_global(1),
@@ -276,7 +279,7 @@ Certifier::Certifier()
 #endif
 
   certification_info_sid_map = new Sid_map(nullptr);
-  incoming = new Synchronized_queue<Data_packet *>();
+  incoming = new Synchronized_queue<Data_packet *>(key_certification_data_gc);
 
   stable_gtid_set_lock = new Checkable_rwlock(
 #ifdef HAVE_PSI_INTERFACE
@@ -1100,6 +1103,15 @@ bool Certifier::add_item(const char *item, Gtid_set_ref *snapshot_version,
     error = false;
   }
 
+  DBUG_EXECUTE_IF("group_replication_certifier_after_add_item", {
+    const char act[] =
+        "now signal "
+        "signal.group_replication_certifier_after_add_item_reached "
+        "wait_for "
+        "signal.group_replication_certifier_after_add_item_continue";
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
+
   return error;
 }
 
@@ -1302,7 +1314,8 @@ int Certifier::handle_certifier_data(
       Since member is not present we can queue this message.
     */
     if (!member_message_received) {
-      this->incoming->push(new Data_packet(data, len));
+      this->incoming->push(
+          new Data_packet(data, len, key_certification_data_gc));
     }
     // else: ignore the message, no point in alerting the user about this.
   }
@@ -1467,7 +1480,7 @@ void Certifier::get_certification_info(
     assert(key.compare(GTID_EXTRACTED_NAME) != 0);
 
     size_t len = it->second->get_encoded_length();
-    uchar *buf = (uchar *)my_malloc(PSI_NOT_INSTRUMENTED, len, MYF(0));
+    uchar *buf = (uchar *)my_malloc(key_certification_data, len, MYF(0));
     it->second->encode(buf);
     std::string value(reinterpret_cast<const char *>(buf), len);
     my_free(buf);
@@ -1477,7 +1490,7 @@ void Certifier::get_certification_info(
 
   // Add the group_gtid_executed to certification info sent to joiners.
   size_t len = group_gtid_executed->get_encoded_length();
-  uchar *buf = (uchar *)my_malloc(PSI_NOT_INSTRUMENTED, len, MYF(0));
+  uchar *buf = (uchar *)my_malloc(key_certification_data, len, MYF(0));
   group_gtid_executed->encode(buf);
   std::string value(reinterpret_cast<const char *>(buf), len);
   my_free(buf);

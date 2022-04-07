@@ -1,0 +1,81 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Restart the server with start on boot enabled
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_start_on_boot=1 --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --performance-schema-instrument='memory/group_rpl/%=OFF'
+include/rpl_reconnect.inc
+include/gr_wait_for_member_state.inc
+
+############################################################
+# 2. Verify following for all Group Replication Event Names:
+# i.  Event name is disabled on mysql server start.
+# ii. Event name can be enabled by updating ENABLED column
+#     of setup_instruments table.
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/write_set_encoded in the setup_instruments table for ENABLED=NO']
+UPDATE performance_schema.setup_instruments SET ENABLED='YES' WHERE NAME LIKE "memory/group_rpl/write_set_encoded";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/write_set_encoded in the setup_instruments table for ENABLED=YES']
+UPDATE performance_schema.setup_instruments SET ENABLED='NO' WHERE NAME LIKE "memory/group_rpl/write_set_encoded";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/Gcs_message_data::m_buffer in the setup_instruments table for ENABLED=NO']
+UPDATE performance_schema.setup_instruments SET ENABLED='YES' WHERE NAME LIKE "memory/group_rpl/Gcs_message_data::m_buffer";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/Gcs_message_data::m_buffer in the setup_instruments table for ENABLED=YES']
+UPDATE performance_schema.setup_instruments SET ENABLED='NO' WHERE NAME LIKE "memory/group_rpl/Gcs_message_data::m_buffer";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/certification_data in the setup_instruments table for ENABLED=NO']
+UPDATE performance_schema.setup_instruments SET ENABLED='YES' WHERE NAME LIKE "memory/group_rpl/certification_data";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/certification_data in the setup_instruments table for ENABLED=YES']
+UPDATE performance_schema.setup_instruments SET ENABLED='NO' WHERE NAME LIKE "memory/group_rpl/certification_data";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/certification_data_gc in the setup_instruments table for ENABLED=NO']
+UPDATE performance_schema.setup_instruments SET ENABLED='YES' WHERE NAME LIKE "memory/group_rpl/certification_data_gc";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/certification_data_gc in the setup_instruments table for ENABLED=YES']
+UPDATE performance_schema.setup_instruments SET ENABLED='NO' WHERE NAME LIKE "memory/group_rpl/certification_data_gc";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/certification_info in the setup_instruments table for ENABLED=NO']
+UPDATE performance_schema.setup_instruments SET ENABLED='YES' WHERE NAME LIKE "memory/group_rpl/certification_info";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/certification_info in the setup_instruments table for ENABLED=YES']
+UPDATE performance_schema.setup_instruments SET ENABLED='NO' WHERE NAME LIKE "memory/group_rpl/certification_info";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/transaction_data in the setup_instruments table for ENABLED=NO']
+UPDATE performance_schema.setup_instruments SET ENABLED='YES' WHERE NAME LIKE "memory/group_rpl/transaction_data";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/transaction_data in the setup_instruments table for ENABLED=YES']
+UPDATE performance_schema.setup_instruments SET ENABLED='NO' WHERE NAME LIKE "memory/group_rpl/transaction_data";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/message_service_received_message in the setup_instruments table for ENABLED=NO']
+UPDATE performance_schema.setup_instruments SET ENABLED='YES' WHERE NAME LIKE "memory/group_rpl/message_service_received_message";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/message_service_received_message in the setup_instruments table for ENABLED=YES']
+UPDATE performance_schema.setup_instruments SET ENABLED='NO' WHERE NAME LIKE "memory/group_rpl/message_service_received_message";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/sql_service_command_data in the setup_instruments table for ENABLED=NO']
+UPDATE performance_schema.setup_instruments SET ENABLED='YES' WHERE NAME LIKE "memory/group_rpl/sql_service_command_data";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/sql_service_command_data in the setup_instruments table for ENABLED=YES']
+UPDATE performance_schema.setup_instruments SET ENABLED='NO' WHERE NAME LIKE "memory/group_rpl/sql_service_command_data";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/mysql_thread_queued_task in the setup_instruments table for ENABLED=NO']
+UPDATE performance_schema.setup_instruments SET ENABLED='YES' WHERE NAME LIKE "memory/group_rpl/mysql_thread_queued_task";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/mysql_thread_queued_task in the setup_instruments table for ENABLED=YES']
+UPDATE performance_schema.setup_instruments SET ENABLED='NO' WHERE NAME LIKE "memory/group_rpl/mysql_thread_queued_task";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/message_service_queue in the setup_instruments table for ENABLED=NO']
+UPDATE performance_schema.setup_instruments SET ENABLED='YES' WHERE NAME LIKE "memory/group_rpl/message_service_queue";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/message_service_queue in the setup_instruments table for ENABLED=YES']
+UPDATE performance_schema.setup_instruments SET ENABLED='NO' WHERE NAME LIKE "memory/group_rpl/message_service_queue";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/consistent_members_that_must_prepare_transaction in the setup_instruments table for ENABLED=NO']
+UPDATE performance_schema.setup_instruments SET ENABLED='YES' WHERE NAME LIKE "memory/group_rpl/consistent_members_that_must_prepare_transaction";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/consistent_members_that_must_prepare_transaction in the setup_instruments table for ENABLED=YES']
+UPDATE performance_schema.setup_instruments SET ENABLED='NO' WHERE NAME LIKE "memory/group_rpl/consistent_members_that_must_prepare_transaction";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/consistent_transactions in the setup_instruments table for ENABLED=NO']
+UPDATE performance_schema.setup_instruments SET ENABLED='YES' WHERE NAME LIKE "memory/group_rpl/consistent_transactions";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/consistent_transactions in the setup_instruments table for ENABLED=YES']
+UPDATE performance_schema.setup_instruments SET ENABLED='NO' WHERE NAME LIKE "memory/group_rpl/consistent_transactions";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/consistent_transactions_prepared in the setup_instruments table for ENABLED=NO']
+UPDATE performance_schema.setup_instruments SET ENABLED='YES' WHERE NAME LIKE "memory/group_rpl/consistent_transactions_prepared";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/consistent_transactions_prepared in the setup_instruments table for ENABLED=YES']
+UPDATE performance_schema.setup_instruments SET ENABLED='NO' WHERE NAME LIKE "memory/group_rpl/consistent_transactions_prepared";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/consistent_transactions_waiting in the setup_instruments table for ENABLED=NO']
+UPDATE performance_schema.setup_instruments SET ENABLED='YES' WHERE NAME LIKE "memory/group_rpl/consistent_transactions_waiting";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/consistent_transactions_waiting in the setup_instruments table for ENABLED=YES']
+UPDATE performance_schema.setup_instruments SET ENABLED='NO' WHERE NAME LIKE "memory/group_rpl/consistent_transactions_waiting";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/consistent_transactions_delayed_view_change in the setup_instruments table for ENABLED=NO']
+UPDATE performance_schema.setup_instruments SET ENABLED='YES' WHERE NAME LIKE "memory/group_rpl/consistent_transactions_delayed_view_change";;
+include/assert.inc ['There should be 1 entry corresponding to the memory/group_rpl/consistent_transactions_delayed_view_change in the setup_instruments table for ENABLED=YES']
+UPDATE performance_schema.setup_instruments SET ENABLED='NO' WHERE NAME LIKE "memory/group_rpl/consistent_transactions_delayed_view_change";;
+
+############################################################
+# 3. Cleanup
+include/group_replication_end.inc

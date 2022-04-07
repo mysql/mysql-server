@@ -178,7 +178,7 @@ static bool group_replication_set_as_primary_init(UDF_INIT *init_id,
   }
 
   if (args->arg_count >= 2) {
-    std::vector<Group_member_info *> *all_members_info =
+    Group_member_info_list *all_members_info =
         (group_member_mgr == nullptr ? nullptr
                                      : group_member_mgr->get_all_members());
     bool is_version_lower_for_running_transactions_timeout = false;

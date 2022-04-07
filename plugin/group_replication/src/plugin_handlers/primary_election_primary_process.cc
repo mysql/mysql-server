@@ -68,7 +68,7 @@ bool Primary_election_primary_process::is_election_process_terminating() {
 
 int Primary_election_primary_process::launch_primary_election_process(
     enum_primary_election_mode mode, std::string &primary_to_elect,
-    std::vector<Group_member_info *> *group_members_info) {
+    Group_member_info_list *group_members_info) {
   DBUG_TRACE;
 
   mysql_mutex_lock(&election_lock);

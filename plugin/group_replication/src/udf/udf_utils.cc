@@ -264,8 +264,7 @@ bool group_contains_member_older_than(
   bool constexpr ALL_MEMBERS_OK = false;
   bool result = OLDER_MEMBER_EXISTS;
 
-  std::vector<Group_member_info *> *members =
-      group_member_mgr->get_all_members();
+  Group_member_info_list *members = group_member_mgr->get_all_members();
   auto it =
       std::find_if(members->begin(), members->end(),
                    [&min_required_version](Group_member_info *member) {

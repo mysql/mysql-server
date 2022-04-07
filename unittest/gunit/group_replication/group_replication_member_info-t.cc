@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -244,7 +244,7 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDAfterEncodingTest) {
   vector<uchar> *encoded = new vector<uchar>();
   cluster_member_mgr->encode(encoded);
 
-  vector<Group_member_info *> *decoded_members =
+  Group_member_info_list *decoded_members =
       cluster_member_mgr->decode(&encoded->front(), encoded->size());
 
   cluster_member_mgr->update(decoded_members);
@@ -293,7 +293,7 @@ TEST_F(ClusterMemberInfoManagerTest,
   vector<uchar> *encoded = new vector<uchar>();
   cluster_member_mgr->encode(encoded);
 
-  vector<Group_member_info *> *decoded_members =
+  Group_member_info_list *decoded_members =
       cluster_member_mgr->decode(&encoded->front(), encoded->size());
 
   cluster_member_mgr->update(decoded_members);
@@ -378,7 +378,7 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets) {
   vector<uchar> *encoded = new vector<uchar>();
   cluster_member_mgr->encode(encoded);
 
-  vector<Group_member_info *> *decoded_members =
+  Group_member_info_list *decoded_members =
       cluster_member_mgr->decode(&encoded->front(), encoded->size());
   delete encoded;
 

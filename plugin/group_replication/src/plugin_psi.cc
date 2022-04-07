@@ -22,6 +22,7 @@
 
 #include "plugin/group_replication/include/plugin_psi.h"
 #include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_thread.h"
@@ -154,6 +155,22 @@ PSI_rwlock_key key_GR_RWLOCK_cert_stable_gtid_set,
     key_GR_RWLOCK_transaction_consistency_manager_prepared_transactions_on_my_applier,
     key_GR_RWLOCK_flow_control_module_info,
     key_GR_RWLOCK_transaction_consistency_info_members_that_must_prepare_the_transaction;
+
+PSI_memory_key key_write_set_encoded,
+    key_certification_data,
+    key_certification_data_gc,
+    key_certification_info,
+    key_transaction_data,
+    key_sql_service_command_data,
+    key_mysql_thread_queued_task,
+    key_message_service_queue,
+    key_message_service_received_message,
+    key_group_member_info,
+    key_consistent_members_that_must_prepare_transaction,
+    key_consistent_transactions,
+    key_consistent_transactions_prepared,
+    key_consistent_transactions_waiting,
+    key_consistent_transactions_delayed_view_change;
 /* clang-format on */
 
 #ifdef HAVE_PSI_INTERFACE
@@ -552,6 +569,73 @@ static PSI_stage_info *all_group_replication_stages_keys[] = {
     &info_GR_STAGE_clone_prepare,
     &info_GR_STAGE_clone_execute};
 
+static PSI_memory_info all_group_replication_psi_memory_keys[] = {
+    {&key_write_set_encoded, "write_set_encoded", PSI_FLAG_ONLY_GLOBAL_STAT,
+     PSI_VOLATILITY_UNKNOWN,
+     "Memory used to encode write set before getting broadcasted to group "
+     "members."},
+    {&key_certification_data, "certification_data", PSI_FLAG_ONLY_GLOBAL_STAT,
+     PSI_VOLATILITY_UNKNOWN,
+     "Memory gets allocated for this Event name when new incoming transaction "
+     "is received for certification."},
+    {&key_certification_data_gc, "certification_data_gc",
+     PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN,
+     "Memory used to hold the GTID_EXECUTED sent by each member for garbage "
+     "collection."},
+    {&key_certification_info, "certification_info", PSI_FLAG_ONLY_GLOBAL_STAT,
+     PSI_VOLATILITY_UNKNOWN,
+     "Memory used to store certification information which is used to handle"
+     " conflict resolution between transactions that execute concurrently."},
+    {&key_transaction_data, "transaction_data", PSI_FLAG_ONLY_GLOBAL_STAT,
+     PSI_VOLATILITY_UNKNOWN,
+     "Memory gets allocated for this Event name when the incoming transaction "
+     "is queued to be handled by the plugin pipeline."},
+    {&key_sql_service_command_data, "sql_service_command_data",
+     PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN,
+     "Memory gets allocated when internal sql service commands is added to "
+     "queue to process in orderly manner."},
+    {&key_mysql_thread_queued_task, "mysql_thread_queued_task",
+     PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN,
+     "Memory gets allocated when a Mysql_thread dependent task is added to "
+     "queue to process in orderly manner."},
+    {&key_message_service_queue, "message_service_queue",
+     PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN,
+     "Memory gets allocated when messages of Group Replication: delivery "
+     "message service are added to deliver them in orderly manner."},
+    {&key_message_service_received_message, "message_service_received_message",
+     PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN,
+     "Memory used to receive messages for Group Replication: delivery "
+     "message service."},
+    {&key_group_member_info, "group_member_info", PSI_FLAG_ONLY_GLOBAL_STAT,
+     PSI_VOLATILITY_UNKNOWN,
+     "Memory used to hold properties of a group member like hostname, port, "
+     "member weight, member role (primary/secondary)"},
+    {&key_consistent_members_that_must_prepare_transaction,
+     "consistent_members_that_must_prepare_transaction",
+     PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN,
+     "Memory used to hold list of members that must prepare the transaction "
+     "for the Group Replication Transaction Consistency Guarantees."},
+    {&key_consistent_transactions, "consistent_transactions",
+     PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN,
+     "Memory used to hold transaction and list of members that must prepare "
+     "that transaction for the Group Replication Transaction Consistency "
+     "Guarantees."},
+    {&key_consistent_transactions_prepared, "consistent_transactions_prepared",
+     PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN,
+     "Memory used to hold list of transaction info which are prepared for the "
+     "Group Replication Transaction Consistency Guarantees."},
+    {&key_consistent_transactions_waiting, "consistent_transactions_waiting",
+     PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN,
+     "Memory used to hold list of transaction info if there are precedent "
+     "prepared transactions with consistency AFTER and BEFORE_AND_AFTER to hold"
+     " the transaction until the prepared are committed."},
+    {&key_consistent_transactions_delayed_view_change,
+     "consistent_transactions_delayed_view_change", PSI_FLAG_ONLY_GLOBAL_STAT,
+     PSI_VOLATILITY_UNKNOWN,
+     "Memory used to hold list of View_change_log_event which are delayed "
+     "after the prepared consistent transactions waiting for the prepare "
+     "acknowledge."}};
+
 void register_group_replication_mutex_psi_keys(PSI_mutex_info mutexes[],
                                                size_t mutex_count) {
   const char *category = "group_rpl";
@@ -591,6 +675,18 @@ void register_group_replication_stage_psi_keys(PSI_stage_info **keys
 #endif
 }
 
+/*
+  Register the psi keys for memory
+
+  @param[in]  keys           PSI memory info
+  @param[in]  count          The number of elements in keys
+*/
+void register_group_replication_memory_psi_keys(PSI_memory_info *keys,
+                                                size_t count) {
+  const char *category = "group_rpl";
+  mysql_memory_register(category, keys, static_cast<int>(count));
+}
+
 void register_all_group_replication_psi_keys() {
   register_group_replication_mutex_psi_keys(
       all_group_replication_psi_mutex_keys,
@@ -607,6 +703,9 @@ void register_all_group_replication_psi_keys() {
   register_group_replication_stage_psi_keys(
       all_group_replication_stages_keys,
       array_elements(all_group_replication_stages_keys));
+  register_group_replication_memory_psi_keys(
+      all_group_replication_psi_memory_keys,
+      array_elements(all_group_replication_psi_memory_keys));
 }
 
 #endif

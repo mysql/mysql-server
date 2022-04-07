@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #include "my_dbug.h"
 #include "my_systime.h"
 #include "plugin/group_replication/include/plugin_psi.h"
+#include "sql/malloc_allocator.h"
 
 void log_primary_member_details();
 
@@ -178,7 +179,7 @@ class Synchronized_queue_interface {
 template <typename T>
 class Synchronized_queue : public Synchronized_queue_interface<T> {
  public:
-  Synchronized_queue() {
+  Synchronized_queue(PSI_memory_key key) : queue(Malloc_allocator<T>(key)) {
     mysql_mutex_init(key_GR_LOCK_synchronized_queue, &lock, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_GR_COND_synchronized_queue, &cond);
   }
@@ -247,7 +248,7 @@ class Synchronized_queue : public Synchronized_queue_interface<T> {
  protected:
   mysql_mutex_t lock;
   mysql_cond_t cond;
-  std::queue<T> queue;
+  std::queue<T, std::list<T, Malloc_allocator<T>>> queue;
 };
 
 /**
@@ -258,7 +259,8 @@ class Synchronized_queue : public Synchronized_queue_interface<T> {
 template <typename T>
 class Abortable_synchronized_queue : public Synchronized_queue<T> {
  public:
-  Abortable_synchronized_queue() : Synchronized_queue<T>(), m_abort(false) {}
+  Abortable_synchronized_queue(PSI_memory_key key)
+      : Synchronized_queue<T>(key), m_abort(false) {}
 
   ~Abortable_synchronized_queue() override = default;
 
@@ -892,11 +894,10 @@ void plugin_escape_string(std::string &string_to_escape);
 
 /**
   Rearranges the given vector elements randomly.
-
   @param[in,out] v the vector to shuffle
 */
 template <typename T>
-void vector_random_shuffle(std::vector<T> *v) {
+void vector_random_shuffle(std::vector<T, Malloc_allocator<T>> *v) {
   auto seed{std::chrono::system_clock::now().time_since_epoch().count()};
   std::shuffle(v->begin(), v->end(),
                std::default_random_engine(
