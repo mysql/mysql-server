@@ -4981,10 +4981,19 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
       root_path = GetSafePathToSort(thd, join, root_path, need_rowid);
 
       // We need to sort. Try all sort-ahead, not just the one directly
-      // derived from DISTINCT clause, because a broader one might help us
-      // elide ORDER BY later.
+      // derived from DISTINCT clause, because the DISTINCT clause might
+      // help us elide the sort for ORDER BY later, if the DISTINCT clause
+      // is broader than the ORDER BY clause"
       for (const SortAheadOrdering &sort_ahead_ordering :
            sort_ahead_orderings) {
+        // A broader DISTINCT could help elide ORDER BY. Not vice versa. Note
+        // that ORDER BY would generally be subset of DISTINCT, but not always.
+        // E.g. using ANY_VALUE() in ORDER BY would allow it to be not part of
+        // DISTINCT.
+        if (grouping.size() <
+            orderings.ordering(sort_ahead_ordering.ordering_idx).size()) {
+          continue;
+        }
         LogicalOrderings::StateIndex ordering_state = orderings.ApplyFDs(
             orderings.SetOrder(sort_ahead_ordering.ordering_idx), fd_set);
         if (!orderings.DoesFollowOrder(ordering_state, distinct_ordering_idx)) {
