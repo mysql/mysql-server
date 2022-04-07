@@ -1593,14 +1593,15 @@ struct alignas(NDB_CL) thr_data
   BlockThreadBitmask m_wake_threads_mask;
 
   /**
-   * We have signals buffered for each of the threads in the
-   * m_local_signals_mask. When buffer is full or when the flush level is
-   * reached we will send those signals.
+   * We have signals buffered for each of the threads in the thread-local
+   * m_local_signals_mask. When buffer is full, or when the flush level is
+   * reached, we will flush those signals to the thread-shared m_buffer[]
    */
   BlockThreadBitmask m_local_signals_mask;
 
   /**
-   * Set of outgoing JB's which are CONGESTED.
+   * Set of outgoing JB's which are CONGESTED *and* contributed to
+   * a reduction in 'm_max_signals_per_jb' to be executed.
    */
   BlockThreadBitmask m_congested_signals_mask;
 
@@ -4694,6 +4695,13 @@ compute_free_buffers_in_queue(const thr_job_queue *q)
  *  each seeing the same number of initial min_free_buffers. Thus, we need
  *  to divide the 'free_buffers' between these threads.
  *
+ *  Note, that min_free_buffers is updated when we last flushed thread-local
+ *  signals to the job-buffer queue. It might be outdated if other threads
+ *  flushed to the same job-buffer queue inbetween. Thus, there are no
+ *  guarantees that we do not compute a too large max_signals-quota. However,
+ *  we have a 'RESERVED' area to provide for this, and we will flush and update
+ *  the free_buffers view every MAX_SIGNALS_BEFORE_FLUSH_*.
+ *
  *   Assumption: each signal may send *at most* 4 signals
  *     - this assumption is made the same in ndbd and ndbmtd and is
  *       mostly followed by block-code, although not it all places :-(
@@ -4706,6 +4714,71 @@ compute_max_signals_to_execute(Uint32 min_free_buffers)
     ((min_free_buffers * MIN_SIGNALS_PER_PAGE) + 3) / 4;
   return max_signals_to_execute / glob_num_writers_per_job_buffers;
 }
+
+/**
+ * Compute max signals to execute from a single job buffer.
+ * ... Note that MAX_SIGNALS_PER_JB also applies, not checked here.
+ *
+ * Assumption is that we have a total quota of max_signals_to_execute
+ * by this thread (see above) in a round of run_job_buffers. We are limited
+ * by the worst case scenarion, where all signals executed from the incomming
+ * 'glob_num_job_buffers_per_thread' job-buffers, produce their max quota of
+ * 4 outgoing signals to the same job-buffer out-queue.
+ */
+static
+Uint32
+compute_max_signals_per_jb(Uint32 max_signals_to_execute)
+{
+  const Uint32 per_jb =
+      (max_signals_to_execute + glob_num_job_buffers_per_thread - 1) /
+       glob_num_job_buffers_per_thread;
+  return per_jb;
+}
+
+/**
+ * Out queue to 'congested' has reached a CONGESTED level.
+ *
+ * Reduce the 'm_max_signals_per_jb' execute quota to account for this.
+ * In case we have reached the 'RESERVED' congestion level, we stop the
+ * 'normal' execute paths by setting 'm_max_signals_per_jb = 0'. In this
+ * state we can only execute extra signals from the 'm_max_extra_signals'
+ * quota. These are assigned to drain from in-queues which at detected
+ * to be comgested as well.
+ *
+ * Note that we only handle quota reduction due to the specified 'congested'
+ * queue. There may be other congestions as well, thus we take MIN's of
+ *  the calculated quotas below.
+ */
+static
+void
+set_congested_jb_quotas(thr_data *selfptr, Uint32 congested, Uint32 free)
+{
+  assert(free <= thr_job_queue::CONGESTED);
+  // JB-page usage is congested, reduce execution quota
+  if (unlikely(free <= thr_job_queue::RESERVED))
+  {
+    // Can't do 'normal' JB-execute anymore, only 'extra' signals
+    const Uint32 reserved = free;
+    const Uint32 extra = compute_max_signals_to_execute(reserved);
+    selfptr->m_congested_signals_mask.set(congested);
+    selfptr->m_max_signals_per_jb = 0;
+    selfptr->m_max_extra_signals  = MIN(extra, selfptr->m_max_extra_signals);
+  }
+  else
+  {
+    // Might need to reduce JB-quota. As we have not reached the 'RESERVED',
+    // this congestion does not affect amount of extra signals.
+    const Uint32 avail =
+        compute_max_signals_to_execute(free - thr_job_queue::RESERVED);
+    const Uint32 perjb = compute_max_signals_per_jb(avail);
+    if (perjb < MAX_SIGNALS_PER_JB)
+    {
+      selfptr->m_congested_signals_mask.set(congested);
+      selfptr->m_max_signals_per_jb = MIN(perjb, selfptr->m_max_signals_per_jb);
+    }
+  }
+}
+
 
 static
 void
@@ -6915,7 +6988,6 @@ run_job_buffers(thr_data *selfptr,
 {
   Uint32 signal_count = 0;
   Uint32 signal_count_since_last_zero_time_queue = 0;
-  Uint32 perjb = selfptr->m_max_signals_per_jb;
 
   if (read_all_jbb_state(selfptr, false))
   {
@@ -7014,10 +7086,15 @@ run_job_buffers(thr_data *selfptr,
      * Exclude receiver threads, as there can't be a
      * circular wait between recv-thread and workers.
      */
+    Uint32 perjb = selfptr->m_max_signals_per_jb;
     Uint32 extra = 0;
 
     if (perjb < MAX_SIGNALS_PER_JB)  //Job buffer contention
     {
+      // Prefer a tighter JB-quota control when executing in congested state:
+      recheck_congested_job_buffers(selfptr);
+      perjb = selfptr->m_max_signals_per_jb;
+
       const Uint32 free = compute_free_buffers_in_queue(queue);
       if (free <= thr_job_queue::ALMOST_FULL)
       {
@@ -7982,16 +8059,9 @@ loop:
                    : minfree;
 
   Uint32 avail = compute_max_signals_to_execute(minfree - reserved);
-  Uint32 perjb = (avail + glob_num_job_buffers_per_thread - 1) /
-                  glob_num_job_buffers_per_thread;
-  if (perjb > MAX_SIGNALS_PER_JB)
-    perjb = MAX_SIGNALS_PER_JB;
-
   selfptr->m_max_exec_signals = avail;
-  selfptr->m_max_signals_per_jb = perjb;
-  selfptr->m_max_extra_signals =
-    compute_max_signals_to_execute(reserved);
 
+  Uint32 perjb = selfptr->m_max_signals_per_jb;
   if (unlikely(perjb == 0))
   {
     if (sleeploop != 0)
@@ -9011,6 +9081,13 @@ flush_local_signals(struct thr_data *selfptr,
   {
     // Assume uncongested, set again further below if still congested
     selfptr->m_congested_signals_mask.clear(dst);
+    if (selfptr->m_congested_signals_mask.isclear())
+    {
+      // Last congestion cleared, assume full JB quotas
+      selfptr->m_max_signals_per_jb = MAX_SIGNALS_PER_JB;
+      selfptr->m_max_extra_signals =
+          compute_max_signals_to_execute(thr_job_queue::RESERVED);
+    }
   }
 
   if (likely(!glob_use_write_lock_mutex))
@@ -9103,7 +9180,7 @@ flush_local_signals(struct thr_data *selfptr,
 
   if (unlikely(free <= thr_job_queue::CONGESTED))
   {
-    selfptr->m_congested_signals_mask.set(dst);
+    set_congested_jb_quotas(selfptr, dst, free);
   }
 
   // Handle wakeup decision taken above
@@ -9151,6 +9228,11 @@ recheck_congested_job_buffers(struct thr_data *selfptr)
   const Uint32 self_jbb = self % NUM_JOB_BUFFERS_PER_THREAD;
   struct thr_repository *rep = g_thr_repository;
 
+  // Assume full JB quotas, reduce below if congested
+  selfptr->m_max_signals_per_jb = MAX_SIGNALS_PER_JB;
+  selfptr->m_max_extra_signals =
+      compute_max_signals_to_execute(thr_job_queue::RESERVED);
+
   for (Uint32 congested = selfptr->m_congested_signals_mask.find_first();
        congested != BitmaskImpl::NotFound;
        congested = selfptr->m_congested_signals_mask.find_next(congested+1))
@@ -9173,8 +9255,8 @@ recheck_congested_job_buffers(struct thr_data *selfptr)
 
     if (unlikely(free <= thr_job_queue::CONGESTED))
     {
-      // JB-page usage is still congested
-      selfptr->m_congested_signals_mask.set(congested);
+      // JB-page usage is congested, reduce execution quota
+      set_congested_jb_quotas(selfptr, congested, free);
     }
   }
 }
@@ -9235,6 +9317,13 @@ pack_local_signals(struct thr_data *selfptr)
  *
  * A 'flush' might not complete entirely if all page slots in the
  * out-queue is full. We will then have a 'critical' JB congestion.
+ *
+ * For each destination JB flushed to, it will also check for JB's
+ * being congested, and if needed reduce the 'max_signals_per_jb' quota
+ * each round of run_job_buffers is allowed to execute.
+ *
+ * If 'max_signals_per_jb' became '0', we are blocked from further
+ * signal execution. (Except where 'extra' signals are assigned).
  */
 static
 void
@@ -9736,7 +9825,8 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
   selfptr->m_next_jbb_no = 0;
   selfptr->m_max_signals_per_jb = MAX_SIGNALS_PER_JB;
   selfptr->m_max_exec_signals = 0;
-  selfptr->m_max_extra_signals = 0;
+  selfptr->m_max_extra_signals =
+      compute_max_signals_to_execute(thr_job_queue::RESERVED);
   selfptr->m_first_free = 0;
   selfptr->m_first_unused = 0;
   selfptr->m_send_instance_no = 0;
