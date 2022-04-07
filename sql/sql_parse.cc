@@ -1278,9 +1278,9 @@ bool do_command(THD *thd) {
   */
   DEBUG_SYNC(thd, "before_do_command_net_read");
 
-  rc = thd->mem_cnt->reset();
+  rc = thd->m_mem_cnt.reset();
   if (rc)
-    thd->mem_cnt->set_thd_error_status();
+    thd->m_mem_cnt.set_thd_error_status();
   else {
     /*
       Because of networking layer callbacks in place,

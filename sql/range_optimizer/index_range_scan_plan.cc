@@ -1182,7 +1182,7 @@ static bool get_ranges_from_tree_given_base(
       flag |= DESC_FLAG;
     }
 
-    assert(!thd->mem_cnt->is_error());
+    assert(!thd->m_mem_cnt.is_error());
     /* Get range for retrieving rows in RowIterator::Read() */
     QUICK_RANGE *range = new (return_mem_root) QUICK_RANGE(
         return_mem_root, base_min_key, (uint)(tmp_min_key - base_min_key),
