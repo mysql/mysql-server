@@ -899,9 +899,9 @@ int ha_warp::write_row(uchar *buf) {
     current_trx->write_insert_log_rowid(current_rowid);
   } else
   */
-  auto thd = current_thd;
-  auto sql_command = (enum_sql_command)thd_sql_command(thd);
-  if(writer->mRows() >= my_write_cache_size && (sql_command == SQLCOM_INSERT || sql_command == SQLCOM_LOAD || sql_command == SQLCOM_ALTER_TABLE)) {
+ auto thd = current_thd;
+auto sql_command = (enum_sql_command)thd_sql_command(thd);
+if(writer->mRows() >= my_write_cache_size && sql_command == SQLCOM_INSERT) {
     // write the rows to disk and destroy the writer (a new one will be created)
     write_buffered_rows_to_disk();
   }
@@ -2811,8 +2811,7 @@ int ha_warp::append_column_filter(const Item *cond,
 
       // find the field in the fact table
       for(fact_field = fact_table->fields; *fact_field; fact_field++) {
-        //std::cerr << std::string((*fact_field)->field_name) << " == " << std::string(fact_field_mysql_name) << "\n";
-        if(strcasecmp((*fact_field)->field_name, fact_field_mysql_name) == 0) {
+        if(strcmp((*fact_field)->field_name, fact_field_mysql_name) == 0) {
           break;
         }
       }
@@ -2821,8 +2820,7 @@ int ha_warp::append_column_filter(const Item *cond,
 
       // find the field in the dimension table
       for(dim_field = dim_table->fields; *dim_field; dim_field++) {
-        //std::cerr << std::string((*dim_field)->field_name) << " == " << std::string(dim_field_mysql_name) << "\n";
-        if(strcasecmp((*dim_field)->field_name, dim_field_mysql_name) == 0) {    
+        if(strcmp((*dim_field)->field_name, dim_field_mysql_name) == 0) {    
           break;
         }
       } 
