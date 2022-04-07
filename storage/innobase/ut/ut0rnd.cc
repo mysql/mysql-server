@@ -809,8 +809,5 @@ alignas(ut::INNODB_CACHE_LINE_SIZE)
           0xe9017ea12949f4f8, 0x6a85b2eaf2b1a6ce, 0x8f40bf255ec40fd,
           0xbcdf289447b489fb, 0x3388ea2716b0361c}},
     }};
-;
-;
-;
 
 }  // namespace ut::detail
