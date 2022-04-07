@@ -1,6 +1,0 @@
-# Test clone with concurrent encrypted UNDO tablespace
-
---source include/big_test.inc
-
---let undo_encryption = 1
---source ddl_undo.test

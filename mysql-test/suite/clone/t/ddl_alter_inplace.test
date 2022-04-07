@@ -1,4 +1,0 @@
-## Test clone with concurrent alter ADD and DROP INPLACE
-
---let $in_place_ddl = 1
---source ddl_alter_copy.test

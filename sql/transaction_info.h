@@ -218,7 +218,7 @@ class Transaction_ctx {
   void store_commit_parent(int64 last_arg) { last_committed = last_arg; }
 
   Transaction_ctx();
-  virtual ~Transaction_ctx() { m_mem_root.Clear(); }
+  virtual ~Transaction_ctx() { free_root(&m_mem_root, MYF(0)); }
 
   void cleanup() {
     DBUG_TRACE;
@@ -227,7 +227,7 @@ class Transaction_ctx {
     m_rpl_transaction_ctx.cleanup();
     m_transaction_write_set_ctx.reset_state();
     trans_begin_hook_invoked = false;
-    m_mem_root.ClearForReuse();
+    free_root(&m_mem_root, MYF(MY_KEEP_PREALLOC));
     return;
   }
 
@@ -258,7 +258,9 @@ class Transaction_ctx {
 
   void claim_memory_ownership(bool claim) { m_mem_root.Claim(claim); }
 
-  void free_memory() { m_mem_root.Clear(); }
+  void free_memory(myf root_alloc_flags) {
+    free_root(&m_mem_root, root_alloc_flags);
+  }
 
   char *strmake(const char *str, size_t len) {
     return strmake_root(&m_mem_root, str, len);

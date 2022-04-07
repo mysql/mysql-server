@@ -34,7 +34,6 @@
 #include "plugin/x/src/interface/listener_factory.h"
 #include "plugin/x/src/interface/server_task.h"
 #include "plugin/x/src/interface/socket_events.h"
-#include "plugin/x/src/server/server_properties.h"
 
 namespace ngs {
 
@@ -76,7 +75,6 @@ class Socket_acceptors_task : public xpl::iface::Server_task {
   std::vector<std::unique_ptr<xpl::iface::Listener>> m_tcp_socket;
   std::unique_ptr<xpl::iface::Listener> m_unix_socket;
   const uint32_t m_backlog;
-  Server_properties m_properties;
 
   xpl::iface::Listener::Sync_variable_state m_time_and_event_state;
 };

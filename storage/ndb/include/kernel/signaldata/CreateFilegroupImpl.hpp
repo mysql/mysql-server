@@ -43,9 +43,9 @@ struct CreateFilegroupImplReq {
    */
   friend bool printCREATE_FILEGROUP_IMPL_REQ(FILE*, const Uint32*, Uint32, Uint16);
   
-  static constexpr Uint32 SignalLength = 5; // DICT2DICT
-  static constexpr Uint32 TablespaceLength = 7;
-  static constexpr Uint32 LogfileGroupLength = 6;
+  STATIC_CONST( SignalLength = 5 ); // DICT2DICT
+  STATIC_CONST( TablespaceLength = 7 );
+  STATIC_CONST( LogfileGroupLength = 6 );
   
   Uint32 senderData;
   Uint32 senderRef;  
@@ -77,7 +77,7 @@ struct CreateFilegroupImplRef {
    */
   friend bool printCREATE_FILEGROUP_IMPL_REF(FILE*, const Uint32*, Uint32, Uint16);
   
-  static constexpr Uint32 SignalLength = 3;
+  STATIC_CONST( SignalLength = 3 );
 
   enum ErrorCode {
     NoError = 0,
@@ -105,7 +105,7 @@ struct CreateFilegroupImplConf {
    */
   friend bool printCREATE_FILEGROUP_IMPL_CONF(FILE*, const Uint32*, Uint32, Uint16);
   
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
 
   Uint32 senderData;
   Uint32 senderRef;
@@ -124,11 +124,11 @@ struct CreateFileImplReq {
    */
   friend bool printCREATE_FILE_IMPL_REQ(FILE*, const Uint32*, Uint32, Uint16);
 
-  static constexpr Uint32 SignalLength = 11; // DICT2DICT
-  static constexpr Uint32 DatafileLength = 10;
-  static constexpr Uint32 UndofileLength = 9;
-  static constexpr Uint32 CommitLength = 7;
-  static constexpr Uint32 AbortLength = 7;
+  STATIC_CONST( SignalLength = 11 ); // DICT2DICT
+  STATIC_CONST( DatafileLength = 10 );
+  STATIC_CONST( UndofileLength = 9 );
+  STATIC_CONST( CommitLength = 7 );
+  STATIC_CONST( AbortLength = 7 );
   SECTION( FILENAME = 0 );
   
   enum RequestInfo {
@@ -167,7 +167,7 @@ struct CreateFileImplRef {
    */
   friend bool printCREATE_FILE_IMPL_REF(FILE*, const Uint32*, Uint32, Uint16);
   
-  static constexpr Uint32 SignalLength = 5;
+  STATIC_CONST( SignalLength = 5 );
 
   enum ErrorCode {
     NoError = 0,
@@ -203,7 +203,7 @@ struct CreateFileImplConf {
    */
   friend bool printCREATE_FILE_IMPL_CONF(FILE*, const Uint32*, Uint32, Uint16);
   
-  static constexpr Uint32 SignalLength = 4;
+  STATIC_CONST( SignalLength = 4 );
 
   Uint32 senderData;
   Uint32 senderRef;

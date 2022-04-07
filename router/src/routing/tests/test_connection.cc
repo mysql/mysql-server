@@ -72,7 +72,7 @@ class MockProtocol : public BaseProtocol {
 class TestRoutingConnection : public testing::Test {
  public:
   // context
-  ::testing::StrictMock<MockSocketOperations> socket_operations_;
+  MockSocketOperations socket_operations_;
   const std::string name_{"routing_name"};
   const unsigned int net_buffer_length_{routing::kDefaultNetBufferLength};
   const std::chrono::milliseconds destination_connect_timeout_{10ms};
@@ -99,11 +99,10 @@ TEST_F(TestRoutingConnection, IsCallbackCalledAtRunExit) {
   ASSERT_TRUE(io_ctx.open_res());
 
   MySQLRoutingContext context(
-      new ::testing::StrictMock<MockProtocol>, &socket_operations_, name_,
-      net_buffer_length_, destination_connect_timeout_, client_connect_timeout_,
-      bind_address_, bind_named_socket_, max_connect_errors_,
-      thread_stack_size_, SslMode::kPassthrough, nullptr, SslMode::kAsClient,
-      nullptr);
+      new MockProtocol, &socket_operations_, name_, net_buffer_length_,
+      destination_connect_timeout_, client_connect_timeout_, bind_address_,
+      bind_named_socket_, max_connect_errors_, thread_stack_size_,
+      SslMode::kPassthrough, nullptr, SslMode::kAsClient, nullptr);
 
   auto &sock_ops = *dynamic_cast<MockSocketService *>(io_ctx.socket_service());
   auto &io_ops = *dynamic_cast<MockIoService *>(io_ctx.io_service());

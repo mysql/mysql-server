@@ -145,10 +145,17 @@ NdbConnection.prototype.connect = function(properties, callback) {
 NdbConnection.prototype.getAsyncContext = function() {
   var AsyncNdbContext = adapter.ndb.impl.AsyncNdbContext;
 
-  if(! this.asyncNdbContext) {
-    this.asyncNdbContext = new AsyncNdbContext(this.ndb_cluster_connection);
+  if(adapter.ndb.impl.MULTIWAIT_ENABLED) {
+    if(! this.asyncNdbContext) {
+      this.asyncNdbContext = new AsyncNdbContext(this.ndb_cluster_connection);
+    }
   }
-
+  else if(this.asyncNdbContext == null) {
+    udebug.log_notice("NDB Async API support is disabled at build-time for " +
+                      "MySQL Cluster 7.3.1 - 7.3.2.  Async API will not be used."
+                     );
+    this.asyncNdbContext = false;
+  }
   return this.asyncNdbContext;
 };
 

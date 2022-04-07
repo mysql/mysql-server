@@ -48,12 +48,10 @@ static const char *query_attribute_return_charset = "utf8mb4";
 
 static PSI_memory_key KEY_memory;
 
-static char *mysql_query_attribute_string(UDF_INIT *initid, UDF_ARGS *args,
-                                          char *result [[maybe_unused]],
-                                          unsigned long *length,
-                                          unsigned char *is_null,
-                                          unsigned char *error
-                                          [[maybe_unused]]) {
+static char *mysql_query_attribute_string(
+    UDF_INIT *initid, UDF_ARGS *args, char *result MY_ATTRIBUTE((unused)),
+    unsigned long *length, unsigned char *is_null,
+    unsigned char *error MY_ATTRIBUTE((unused))) {
   const char *name = args->args[0];
   mysqlh_query_attributes_iterator iter = nullptr;
   char *ret = nullptr;
@@ -122,8 +120,8 @@ static bool mysql_query_attribute_string_init(UDF_INIT *initid, UDF_ARGS *args,
   return false;
 }
 
-static void mysql_query_attribute_string_deinit(UDF_INIT *initid
-                                                [[maybe_unused]]) {
+static void mysql_query_attribute_string_deinit(
+    UDF_INIT *initid MY_ATTRIBUTE((unused))) {
   if (initid->ptr) my_free(initid->ptr);
 }
 

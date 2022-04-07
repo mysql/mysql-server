@@ -1,0 +1,3 @@
+--slave-parallel-workers=6 --slave-parallel-type='LOGICAL_CLOCK'
+--slave-preserve-commit-order=1 --binlog_transaction_dependency_tracking='COMMIT_ORDER'
+--skip-log-bin --log-slave-updates=0

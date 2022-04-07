@@ -22,9 +22,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "components/libminchassis/my_metadata.h"
 
-my_metadata::my_metadata() = default;
+my_metadata::my_metadata() {}
 
-my_metadata::my_metadata(my_metadata &) = default;
+my_metadata::my_metadata(my_metadata &other) : data(other.data) {}
 
 my_metadata::const_iterator::const_iterator(
     my_unordered_string_to_string_map::const_iterator iter,

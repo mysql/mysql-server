@@ -65,7 +65,7 @@ class Foreign_key : virtual public Entity_object {
   };
 
  public:
-  ~Foreign_key() override = default;
+  ~Foreign_key() override {}
 
   /////////////////////////////////////////////////////////////////////////
   // parent table.

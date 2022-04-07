@@ -33,8 +33,8 @@
  */
 struct DihScanTabReq
 {
-  static constexpr Uint32 SignalLength = 6;
-  static constexpr Uint32 RetryInterval = 5;
+  STATIC_CONST( SignalLength = 6 );
+  STATIC_CONST( RetryInterval = 5 );
 
   Uint32 tableId;
   Uint32 senderData;
@@ -51,8 +51,8 @@ struct DihScanTabReq
  */
 struct DihScanTabConf
 {
-  static constexpr Uint32 SignalLength = 6;
-  static constexpr Uint32 InvalidCookie = RNIL;
+  STATIC_CONST( SignalLength = 6 );
+  STATIC_CONST( InvalidCookie = RNIL );
 
   Uint32 tableId;
   Uint32 senderData;
@@ -71,7 +71,7 @@ struct DihScanTabRef
     ErroneousState = 0,
     ErroneousTableState = 1
   };
-  static constexpr Uint32 SignalLength = 5;
+  STATIC_CONST( SignalLength = 5 );
 
   Uint32 tableId;
   Uint32 senderData;
@@ -82,7 +82,7 @@ struct DihScanTabRef
 
 struct DihScanTabCompleteRep
 {
-  static constexpr Uint32 SignalLength = 4;
+  STATIC_CONST( SignalLength = 4 );
 
   Uint32 tableId;
   Uint32 scanCookie;

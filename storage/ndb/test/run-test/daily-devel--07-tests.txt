@@ -47,7 +47,7 @@ args: -n DropTableWithFKDuringRestart T1
 max-time : 300
 
 cmd: test_event
-args: -n getEventBufferUsage3 T1
+args: -n getEventBufferUsage2 T1
 max-time : 300
 
 cmd: testNdbApi
@@ -244,10 +244,3 @@ cmd: testBlobs
 args : -bug 27772916 -skip p
 max-time: 120
 
-cmd: testNodeRestart
-args: -n pnr_lcp D2 D3
-max-time: 2000
-
-cmd: testRedo
-args: -n RedoStallRecover T1
-max-time : 180

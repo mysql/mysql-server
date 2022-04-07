@@ -1174,15 +1174,17 @@ static ulong sum = 0;
 
 /* The following functions is for WRITE_CONCURRENT_INSERT */
 
-static void test_get_status(void *param [[maybe_unused]],
-                            int concurrent_insert [[maybe_unused]]) {}
+static void test_get_status(void *param MY_ATTRIBUTE((unused)),
+                            int concurrent_insert MY_ATTRIBUTE((unused))) {}
 
-static void test_update_status(void *param [[maybe_unused]]) {}
+static void test_update_status(void *param MY_ATTRIBUTE((unused))) {}
 
-static void test_copy_status(void *to [[maybe_unused]],
-                             void *from [[maybe_unused]]) {}
+static void test_copy_status(void *to MY_ATTRIBUTE((unused)),
+                             void *from MY_ATTRIBUTE((unused))) {}
 
-static bool test_check_status(void *param [[maybe_unused]]) { return false; }
+static bool test_check_status(void *param MY_ATTRIBUTE((unused))) {
+  return false;
+}
 
 static void *test_thread(void *arg) {
   int i, j, param = *((int *)arg);
@@ -1190,7 +1192,7 @@ static void *test_thread(void *arg) {
   THR_LOCK_INFO lock_info;
   THR_LOCK_DATA *multi_locks[MAX_LOCK_COUNT];
   my_thread_id id;
-  mysql_cond_t COND_thr_lock{};
+  mysql_cond_t COND_thr_lock;
 
   id = param + 1; /* Main thread uses value 0. */
   mysql_cond_init(0, &COND_thr_lock);

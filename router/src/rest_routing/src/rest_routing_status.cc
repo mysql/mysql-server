@@ -27,6 +27,8 @@
 #include <ctime>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
+// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
+// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -40,25 +42,38 @@ constexpr const char RestRoutingStatus::path_regex[];
 
 bool RestRoutingStatus::on_handle_request(
     HttpRequest &req, const std::string & /* base_path */,
-    const std::vector<std::string> & /*path_matches*/) {
+    const std::vector<std::string> &path_matches) {
   if (!ensure_no_params(req)) return true;
 
-  auto &routing_component = MySQLRoutingComponent::get_instance();
+  MySQLRoutingAPI inst =
+      MySQLRoutingComponent::get_instance().api(path_matches[1]);
+
+  if (!inst) {
+    send_rfc7807_not_found_error(req);
+    return true;
+  }
 
   auto out_hdrs = req.get_output_headers();
   out_hdrs.add("Content-Type", "application/json");
+
+#if 0
+  // handle If-Modified-Since
+
+  last_modified_ = ::time(nullptr);
+
+  if (!ensure_modified_since(req, last_modified_)) return true;
+#endif
 
   rapidjson::Document json_doc;
   {
     rapidjson::Document::AllocatorType &allocator = json_doc.GetAllocator();
 
     json_doc.SetObject()
-        .AddMember<uint64_t>("maxTotalConnections",
-                             routing_component.max_total_connections(),
-                             allocator)
-        .AddMember<uint64_t>("currentTotalConnections",
-                             routing_component.current_total_connections(),
-                             allocator);
+        .AddMember("activeConnections", inst.get_active_connections(),
+                   allocator)
+        .AddMember("totalConnections", inst.get_total_connections(), allocator)
+        .AddMember<uint64_t>("blockedHosts",
+                             inst.get_blocked_client_hosts().size(), allocator);
   }
   send_json_document(req, HttpStatusCode::Ok, json_doc);
 

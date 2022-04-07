@@ -24,7 +24,7 @@
 
 #include "plugin/group_replication/include/plugin.h"
 
-Applier_channel_state_observer::Applier_channel_state_observer() = default;
+Applier_channel_state_observer::Applier_channel_state_observer() {}
 
 int Applier_channel_state_observer::thread_start(Binlog_relay_IO_param *) {
   return 0;

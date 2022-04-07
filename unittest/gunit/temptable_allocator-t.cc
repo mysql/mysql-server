@@ -20,6 +20,9 @@ You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
+
 #include <gtest/gtest.h>
 #include <array>
 
@@ -152,11 +155,9 @@ class TempTableAllocator : public ::testing::Test {
 };
 
 TEST_F(TempTableAllocator, basic) {
-  temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
   temptable::Block shared_block;
   EXPECT_TRUE(shared_block.is_empty());
-  temptable::Allocator<uint8_t> allocator(&shared_block,
-                                          table_resource_monitor);
+  temptable::Allocator<uint8_t> allocator(&shared_block);
 
   constexpr size_t n_allocate = 128;
   std::array<uint8_t *, n_allocate> a;
@@ -185,9 +186,8 @@ TEST_F(TempTableAllocator, basic) {
 
 TEST_F(TempTableAllocator,
        allocation_successful_when_shared_block_is_not_available) {
-  temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
   // No shared-block is available to be used by the allocator
-  temptable::Allocator<uint8_t> allocator(nullptr, table_resource_monitor);
+  temptable::Allocator<uint8_t> allocator(nullptr);
   uint32_t n_elements = 16;
 
   // Trigger the allocation
@@ -200,11 +200,9 @@ TEST_F(TempTableAllocator,
 }
 
 TEST_F(TempTableAllocator, shared_block_is_kept_after_last_deallocation) {
-  temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
   temptable::Block shared_block;
   EXPECT_TRUE(shared_block.is_empty());
-  temptable::Allocator<uint8_t> allocator(&shared_block,
-                                          table_resource_monitor);
+  temptable::Allocator<uint8_t> allocator(&shared_block);
 
   uint8_t *ptr = allocator.allocate(16);
   EXPECT_FALSE(shared_block.is_empty());
@@ -219,11 +217,9 @@ TEST_F(TempTableAllocator, shared_block_is_kept_after_last_deallocation) {
 }
 
 TEST_F(TempTableAllocator, rightmost_chunk_deallocated_reused_for_allocation) {
-  temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
   temptable::Block shared_block;
   EXPECT_TRUE(shared_block.is_empty());
-  temptable::Allocator<uint8_t> allocator(&shared_block,
-                                          table_resource_monitor);
+  temptable::Allocator<uint8_t> allocator(&shared_block);
 
   // Allocate first Chunk which is less than the 1MB
   size_t first_chunk_size = 512 * 1024;
@@ -271,11 +267,9 @@ TEST_F(TempTableAllocator, rightmost_chunk_deallocated_reused_for_allocation) {
 
 TEST_F(TempTableAllocator,
        will_increment_ram_consumption_when_shared_block_is_allocated) {
-  temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
   temptable::Block shared_block;
   EXPECT_TRUE(shared_block.is_empty());
-  temptable::Allocator<uint8_t> allocator(&shared_block,
-                                          table_resource_monitor);
+  temptable::Allocator<uint8_t> allocator(&shared_block);
 
   // RAM consumption is 0 at the start
   EXPECT_EQ(MemoryMonitorReadOnlyProbe::ram_consumption(), 0);
@@ -302,11 +296,9 @@ TEST_F(TempTableAllocator,
 
 TEST_F(TempTableAllocator,
        will_not_decrement_ram_consumption_when_shared_block_is_deallocated) {
-  temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
   temptable::Block shared_block;
   EXPECT_TRUE(shared_block.is_empty());
-  temptable::Allocator<uint8_t> allocator(&shared_block,
-                                          table_resource_monitor);
+  temptable::Allocator<uint8_t> allocator(&shared_block);
 
   // RAM consumption is 0 at the start
   EXPECT_EQ(MemoryMonitorReadOnlyProbe::ram_consumption(), 0);
@@ -338,11 +330,9 @@ TEST_F(TempTableAllocator,
 TEST_F(
     TempTableAllocator,
     ram_consumption_does_not_drop_to_zero_when_last_non_shared_block_is_destroyed) {
-  temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
   temptable::Block shared_block;
   EXPECT_TRUE(shared_block.is_empty());
-  temptable::Allocator<uint8_t> allocator(&shared_block,
-                                          table_resource_monitor);
+  temptable::Allocator<uint8_t> allocator(&shared_block);
 
   // RAM consumption should be greater or equal than
   // shared_block_n_elements bytes at this point
@@ -392,11 +382,9 @@ TEST_F(
 TEST_F(
     TempTableAllocator,
     shared_block_allocated_from_ram_when_ram_threshold_is_not_hit_for_given_block_size) {
-  temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
   temptable::Block shared_block;
   EXPECT_TRUE(shared_block.is_empty());
-  temptable::Allocator<uint8_t> allocator(&shared_block,
-                                          table_resource_monitor);
+  temptable::Allocator<uint8_t> allocator(&shared_block);
 
   // Size of the shared_block we will request must fit (not hit the
   // threshold)
@@ -427,11 +415,9 @@ TEST_F(
 TEST_F(
     TempTableAllocator,
     shared_block_allocated_from_mmap_when_ram_threshold_is_hit_for_given_block_size) {
-  temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
   temptable::Block shared_block;
   EXPECT_TRUE(shared_block.is_empty());
-  temptable::Allocator<uint8_t> allocator(&shared_block,
-                                          table_resource_monitor);
+  temptable::Allocator<uint8_t> allocator(&shared_block);
 
   // Set some artificially low RAM threshold
   MemoryMonitorHijackProbe::max_ram_set(128);
@@ -464,18 +450,14 @@ TEST_F(
 }
 
 TEST_F(TempTableAllocator, zero_size_allocation_returns_nullptr) {
-  temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
-  temptable::Allocator<uint8_t> allocator(nullptr, table_resource_monitor);
+  temptable::Allocator<uint8_t> allocator(nullptr);
   EXPECT_EQ(nullptr, allocator.allocate(0));
 }
 
 TEST_F(TempTableAllocator, block_size_cap) {
   temptable::Block shared_block;
   EXPECT_TRUE(shared_block.is_empty());
-  temptable::TableResourceMonitor table_resource_monitor(
-      std::numeric_limits<size_t>::max());
-  temptable::Allocator<uint8_t> allocator(&shared_block,
-                                          table_resource_monitor);
+  temptable::Allocator<uint8_t> allocator(&shared_block);
 
   using namespace temptable;
 
@@ -500,156 +482,11 @@ TEST_F(TempTableAllocator, block_size_cap) {
   EXPECT_TRUE(shared_block.is_empty());
 }
 
-TEST_F(
-    TempTableAllocator,
-    table_resource_monitor_increases_then_drops_to_0_when_allocation_is_backed_by_shared_block) {
-  temptable::TableResourceMonitor table_resource_monitor(16_MiB);
-  temptable::Block shared_block;
-  EXPECT_TRUE(shared_block.is_empty());
-  temptable::Allocator<uint8_t> allocator(&shared_block,
-                                          table_resource_monitor);
-
-  // Make sure table resource monitor is set
-  EXPECT_EQ(table_resource_monitor.consumption(), 0);
-  EXPECT_EQ(table_resource_monitor.threshold(), 16_MiB);
-
-  // Allocate a chunk
-  auto chunk_from_shared_block = allocator.allocate(5_KiB);
-
-  // Make sure that the chunk is fed by the shared_block
-  temptable::Block block =
-      temptable::Block(temptable::Chunk(chunk_from_shared_block));
-  EXPECT_EQ(block, shared_block);
-  EXPECT_EQ(block.size(), shared_block.size());
-
-  // Check that the table resource monitor increased accordingly
-  EXPECT_EQ(table_resource_monitor.consumption(), 5_KiB);
-
-  // Deallocate and check that the table resource monitor decreased accordingly
-  allocator.deallocate(chunk_from_shared_block, 5_KiB);
-  EXPECT_EQ(table_resource_monitor.consumption(), 0_KiB);
-}
-
-TEST_F(
-    TempTableAllocator,
-    table_resource_monitor_increases_then_drops_to_0_when_allocation_is_not_backed_by_shared_block) {
-  temptable::TableResourceMonitor table_resource_monitor(16_MiB);
-  temptable::Allocator<uint8_t> allocator(nullptr, table_resource_monitor);
-
-  // Make sure table resource monitor is set
-  EXPECT_EQ(table_resource_monitor.consumption(), 0);
-  EXPECT_EQ(table_resource_monitor.threshold(), 16_MiB);
-
-  // Allocate a chunk
-  auto chunk = allocator.allocate(5_KiB);
-
-  // Check that the table resource monitor increased accordingly
-  EXPECT_EQ(table_resource_monitor.consumption(), 5_KiB);
-
-  // Deallocate and check that the table resource monitor decreased accordingly
-  allocator.deallocate(chunk, 5_KiB);
-  EXPECT_EQ(table_resource_monitor.consumption(), 0_KiB);
-}
-
-TEST_F(
-    TempTableAllocator,
-    table_resource_monitor_increases_then_drops_to_0_when_there_are_multitude_of_allocations) {
-  temptable::TableResourceMonitor table_resource_monitor(16_MiB);
-  temptable::Block shared_block;
-  EXPECT_TRUE(shared_block.is_empty());
-  temptable::Allocator<uint8_t> allocator(&shared_block,
-                                          table_resource_monitor);
-
-  // Make sure table resource monitor is set
-  EXPECT_EQ(table_resource_monitor.consumption(), 0);
-  EXPECT_EQ(table_resource_monitor.threshold(), 16_MiB);
-
-  // Allocate a chunk
-  auto chunk1 = allocator.allocate(5_KiB);
-
-  // Check that the table resource monitor increased accordingly
-  EXPECT_EQ(table_resource_monitor.consumption(), 5_KiB);
-
-  // Allocate another chunk
-  auto chunk2 = allocator.allocate(10_KiB);
-
-  // Check that the table resource monitor increased accordingly
-  EXPECT_EQ(table_resource_monitor.consumption(), 15_KiB);
-
-  // Deallocate the first chunk and check that the table resource monitor
-  // decreased accordingly
-  allocator.deallocate(chunk1, 5_KiB);
-  EXPECT_EQ(table_resource_monitor.consumption(), 10_KiB);
-
-  // Allocate another chunk
-  auto chunk3 = allocator.allocate(50_KiB);
-
-  // Check that the table resource monitor increased accordingly
-  EXPECT_EQ(table_resource_monitor.consumption(), 60_KiB);
-
-  // Deallocate the second chunk and check that the table resource monitor
-  // decreased accordingly
-  allocator.deallocate(chunk2, 10_KiB);
-  EXPECT_EQ(table_resource_monitor.consumption(), 50_KiB);
-
-  // Deallocate the third chunk and check that the table resource monitor
-  // decreased accordingly
-  allocator.deallocate(chunk3, 50_KiB);
-  EXPECT_EQ(table_resource_monitor.consumption(), 0_KiB);
-}
-
-TEST_F(
-    TempTableAllocator,
-    table_resource_monitor_limit_is_respected_and_record_file_full_is_thrown) {
-  temptable::TableResourceMonitor table_resource_monitor(2_MiB);
-  temptable::Block shared_block;
-  EXPECT_TRUE(shared_block.is_empty());
-  temptable::Allocator<uint8_t> allocator(&shared_block,
-                                          table_resource_monitor);
-
-  // Make sure table resource monitor is set
-  EXPECT_EQ(table_resource_monitor.consumption(), 0);
-  EXPECT_EQ(table_resource_monitor.threshold(), 2_MiB);
-
-  // Allocate a chunk
-  auto chunk1 = allocator.allocate(792_KiB);
-
-  // Check that the table resource monitor increased accordingly
-  EXPECT_EQ(table_resource_monitor.consumption(), 792_KiB);
-
-  // Allocate another chunk
-  auto chunk2 = allocator.allocate(512_KiB);
-
-  // Check that the table resource monitor increased accordingly
-  EXPECT_EQ(table_resource_monitor.consumption(), 792_KiB + 512_KiB);
-
-  try {
-    // Allocate another chunk
-    auto chunk3 = allocator.allocate(520_KiB);
-    (void)chunk3;
-  } catch (std::exception &) {
-    EXPECT_TRUE(false);
-  } catch (temptable::Result r) {
-    EXPECT_EQ(r, temptable::Result::RECORD_FILE_FULL);
-  }
-
-  // Deallocate the second chunk and check that the table resource monitor
-  // decreased accordingly
-  allocator.deallocate(chunk2, 512_KiB);
-  EXPECT_EQ(table_resource_monitor.consumption(), 792_KiB);
-
-  // Deallocate the third chunk and check that the table resource monitor
-  // decreased accordingly
-  allocator.deallocate(chunk1, 792_KiB);
-  EXPECT_EQ(table_resource_monitor.consumption(), 0_KiB);
-}
-
 TEST_F(TempTableAllocator,
        shared_block_utilization_shall_not_impact_the_block_size_growth_policy) {
-  temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
   temptable::Block shared_block;
-  temptable::Allocator<uint8_t> a1(&shared_block, table_resource_monitor);
-  temptable::Allocator<uint8_t> a2(&shared_block, table_resource_monitor);
+  temptable::Allocator<uint8_t> a1(&shared_block);
+  temptable::Allocator<uint8_t> a2(&shared_block);
   auto r11 = a1.allocate(512_KiB);
   temptable::Block b11 = temptable::Block(temptable::Chunk(r11));
   EXPECT_EQ(b11, shared_block);
@@ -773,8 +610,7 @@ TEST_P(AllocatesSuccessfully,
                : MemoryMonitorHijackProbe::mmap_disable();
 
   // Trigger the allocation
-  temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
-  temptable::Allocator<uint8_t> allocator(nullptr, table_resource_monitor);
+  temptable::Allocator<uint8_t> allocator(nullptr);
   uint8_t *chunk = nullptr;
   EXPECT_NO_THROW(chunk = allocator.allocate(n_elements));
   EXPECT_NE(chunk, nullptr);
@@ -813,8 +649,7 @@ TEST_P(ThrowsRecordFileFull,
                : MemoryMonitorHijackProbe::mmap_disable();
 
   // Trigger the allocation
-  temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
-  temptable::Allocator<uint8_t> allocator(nullptr, table_resource_monitor);
+  temptable::Allocator<uint8_t> allocator(nullptr);
   uint8_t *chunk = nullptr;
   EXPECT_THROW_WITH_VALUE(chunk = allocator.allocate(n_elements),
                           temptable::Result,

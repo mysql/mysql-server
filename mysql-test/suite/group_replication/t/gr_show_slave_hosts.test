@@ -37,12 +37,12 @@ STOP SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
-# save the value of replica_net_timeout
-SET @restore_replica_net_timeout=@@global.replica_net_timeout;
+# save the value of slave_net_timeout
+SET @restore_slave_net_timeout=@@global.slave_net_timeout;
 
-# Set replica_net_timeout to lower value so that the master(M2) detects
+# Set slave_net_timeout to lower value so that the master(M2) detects
 # that the slave host(M1) has gone sooner.
-SET @@global.replica_net_timeout=20;
+SET @@global.slave_net_timeout=20;
 --let $server1_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 
 # Wait until M1 is in recovering state
@@ -79,8 +79,8 @@ let $condition= = 'No such row';
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
-# Restore the value of replica_net_timeout
-SET @@global.replica_net_timeout=@restore_replica_net_timeout;
+# Restore the value of slave_net_timeout
+SET @@global.slave_net_timeout=@restore_slave_net_timeout;
 DROP TABLE t1;
 
 --source include/group_replication_end.inc

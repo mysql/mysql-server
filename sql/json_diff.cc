@@ -97,8 +97,7 @@ static bool write_length_and_string(String *to, const String &from) {
     // Instead of "some text", write "\xffsome tex"
     // This is sure to corrupt both JSON paths and
     // binary JSON.
-    return to->append(length_buf, length_length) ||
-           to->append(static_cast<char>(0xff)) ||
+    return to->append(length_buf, length_length) || to->append(0xff) ||
            to->append(from.ptr(), from.length() - 1);
   });
   // Allocate memory and append

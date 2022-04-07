@@ -26,6 +26,7 @@
 #include "Dbqacc.hpp"
 
 #include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 522
 

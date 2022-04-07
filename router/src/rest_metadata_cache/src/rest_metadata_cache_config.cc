@@ -25,6 +25,8 @@
 #include "rest_metadata_cache_config.h"
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
+// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
+// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -61,7 +63,7 @@ bool RestMetadataCacheConfig::on_handle_request(
     rapidjson::Document::AllocatorType &allocator = json_doc.GetAllocator();
 
     auto md_api = metadata_cache::MetadataCacheAPI::instance();
-    auto group_members = md_api->get_cluster_nodes();
+    auto group_members = md_api->lookup_replicaset("");
 
     rapidjson::Value members(rapidjson::kArrayType);
 
@@ -79,8 +81,7 @@ bool RestMetadataCacheConfig::on_handle_request(
 
     json_doc.SetObject()
         .AddMember("clusterName",
-                   json_value_from_string(md_api->target_cluster().to_string(),
-                                          allocator),
+                   json_value_from_string(md_api->cluster_name(), allocator),
                    allocator)
         .AddMember<uint64_t>("timeRefreshInMs",
                              static_cast<uint64_t>(md_api->ttl().count()),

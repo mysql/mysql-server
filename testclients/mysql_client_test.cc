@@ -36,7 +36,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#include <memory>
 
 #include "my_byteorder.h"
 #include "my_compiler.h"
@@ -6015,73 +6014,6 @@ static void test_temporal_param() {
   mysql_stmt_close(stmt);
 }
 
-static void test_temporal_functions() {
-  MYSQL_STMT *stmt = nullptr;
-  uint rc;
-  ulong length = 0;
-  MYSQL_BIND bind_date{};
-  MYSQL_BIND bind_result{};
-  bool is_null = false;
-  MYSQL_TIME date, result;
-
-  /* Initialize the temporal parameters */
-  bind_date.buffer_type = MYSQL_TYPE_DATE;
-  bind_date.buffer = (void *)&date;
-  bind_date.is_null = &is_null;
-  bind_date.length = &length;
-  bind_date.buffer_length = (ulong)sizeof(date);
-
-  bind_result.buffer_type = MYSQL_TYPE_TIMESTAMP;
-  bind_result.buffer = (void *)&result;
-  bind_result.is_null = &is_null;
-  bind_result.length = &length;
-  bind_result.buffer_length = (ulong)sizeof(result);
-
-  /* Initialize the temporal values */
-  date.neg = false;
-  date.time_type = MYSQL_TIMESTAMP_DATE;
-  date.year = 2000;
-  date.month = 1;
-  date.day = 1;
-  date.hour = 0;
-  date.minute = 0;
-  date.second = 0;
-  date.second_part = 0;
-
-  /* Prepare and bind input and output parameters */
-  stmt = mysql_simple_prepare(mysql, "SELECT ADDDATE(?, INTERVAL 1 MONTH)");
-  check_stmt(stmt);
-  verify_param_count(stmt, 1);
-
-  rc = mysql_stmt_bind_param(stmt, &bind_date);
-  check_execute(stmt, rc);
-
-  rc = mysql_stmt_bind_result(stmt, &bind_result);
-  check_execute(stmt, rc);
-
-  /* Execute and fetch */
-  rc = mysql_stmt_execute(stmt);
-  check_execute(stmt, rc);
-
-  rc = mysql_stmt_store_result(stmt);
-  check_execute(stmt, rc);
-
-  rc = mysql_stmt_fetch(stmt);
-  check_execute(stmt, rc);
-
-  /* Execute and fetch */
-  rc = mysql_stmt_execute(stmt);
-  check_execute(stmt, rc);
-
-  rc = mysql_stmt_store_result(stmt);
-  check_execute(stmt, rc);
-
-  rc = mysql_stmt_fetch(stmt);
-  check_execute(stmt, rc);
-
-  mysql_stmt_close(stmt);
-}
-
 /* Misc tests to keep pure coverage happy */
 
 static void test_pure_coverage() {
@@ -7146,7 +7078,7 @@ static void test_explain_bug() {
   no = 0;
 
   verify_prepare_field(result, no++, "id", "", MYSQL_TYPE_LONGLONG, "", "", "",
-                       4, 0);
+                       3, 0);
 
   verify_prepare_field(result, no++, "select_type", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", 19, 0);
@@ -7177,7 +7109,7 @@ static void test_explain_bug() {
                        "", NAME_CHAR_LEN * 16, 0);
 
   verify_prepare_field(result, no++, "rows", "", MYSQL_TYPE_LONGLONG, "", "",
-                       "", 11, 0);
+                       "", 10, 0);
 
   if (mysql_get_server_version(mysql) > 50702) no++;
 
@@ -8223,7 +8155,7 @@ static void test_ts() {
   char query[MAX_TEST_QUERY_LENGTH];
   const char *queries[3] = {
       "SELECT a, b, c FROM test_ts WHERE %c=?",
-      "SELECT a, b, c FROM test_ts WHERE %c=CAST(? AS TIME)",
+      "SELECT a, b, c FROM test_ts WHERE %c=?",
       "SELECT a, b, c FROM test_ts WHERE %c=CAST(? AS DATE)"};
   myheader("test_ts");
 
@@ -11587,7 +11519,6 @@ static void test_datetime_ranges() {
 
   myheader("test_datetime_ranges");
 
-  rc = mysql_real_query(mysql, STRING_WITH_LEN("set sql_mode=''"));
   stmt_text = "drop table if exists t1";
   rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
@@ -20409,61 +20340,6 @@ static void test_bug27443252() {
   myquery(rc);
 }
 
-static void test_bug32391415() {
-  MYSQL *lmysql;
-  MYSQL_ROW row;
-  MYSQL_RES *res;
-  int rc;
-
-  myheader("test_bug32391415");
-
-  lmysql = mysql_client_init(NULL);
-  DIE_UNLESS(lmysql != NULL);
-
-  lmysql = mysql_real_connect(lmysql, opt_host, opt_user, opt_password,
-                              current_db, opt_port, opt_unix_socket, 0);
-  DIE_UNLESS(lmysql != 0);
-  if (!opt_silent) fprintf(stdout, "Established a test connection\n");
-
-  rc = mysql_query(lmysql, "CREATE USER b32391415@localhost");
-  myquery2(lmysql, rc);
-  rc =
-      mysql_query(lmysql, "GRANT ALL PRIVILEGES ON *.* TO b32391415@localhost");
-  myquery2(lmysql, rc);
-
-  if (!opt_silent) fprintf(stdout, "Created the user\n");
-
-  /* put in an attr */
-  rc = mysql_options4(lmysql, MYSQL_OPT_CONNECT_ATTR_ADD, "key1", "value1");
-  DIE_UNLESS(rc == 0);
-
-  rc = mysql_change_user(lmysql, "b32391415", NULL, NULL);
-  myquery2(lmysql, rc);
-
-  /* success: the query attribute should be present */
-  rc = mysql_query(lmysql,
-                   "SELECT ATTR_NAME, ATTR_VALUE "
-                   " FROM performance_schema.session_account_connect_attrs"
-                   " WHERE ATTR_NAME IN ('key1') AND"
-                   "  PROCESSLIST_ID = CONNECTION_ID() ORDER BY ATTR_NAME");
-  myquery2(lmysql, rc);
-  res = mysql_use_result(lmysql);
-  DIE_UNLESS(res);
-
-  row = mysql_fetch_row(res);
-  DIE_UNLESS(row);
-  DIE_UNLESS(0 == strcmp(row[0], "key1"));
-  DIE_UNLESS(0 == strcmp(row[1], "value1"));
-  if (!opt_silent) fprintf(stdout, "Checked the query attribute\n");
-
-  mysql_free_result(res);
-
-  mysql_close(lmysql);
-
-  rc = mysql_query(mysql, "DROP USER b32391415@localhost");
-  myquery2(mysql, rc);
-}
-
 void perform_arithmatic() { fprintf(stdout, "\n Do some other stuff.\n"); }
 
 /* test mysql_fetch_row_nonblocking */
@@ -20883,7 +20759,6 @@ static void test_wl11772() {
     char user[32];
     char host[255];
     char password[255];
-    char authfactor[2];
   } Userhostpass;
 
   Userhostpass userhostpass[3];
@@ -20892,7 +20767,6 @@ static void test_wl11772() {
     strcpy(userhostpass[i].user, row[0]);
     strcpy(userhostpass[i].host, row[1]);
     strcpy(userhostpass[i].password, row[2]);
-    strcpy(userhostpass[i].authfactor, row[3]);
     ++i;
   }
   mysql_free_result(result);
@@ -20920,7 +20794,6 @@ static void test_wl11772() {
     strcpy(userhostpass[i].user, row[0]);
     strcpy(userhostpass[i].host, row[1]);
     strcpy(userhostpass[i].password, row[2]);
-    strcpy(userhostpass[i].authfactor, row[3]);
     ++i;
   }
   mysql_free_result(result);
@@ -22162,418 +22035,6 @@ static void test_bug31691060_2() {
   rc = mysql_stmt_close(stmt);
 }
 
-static void test_bug32372038() {
-  myheader("bug32372038");
-#ifndef NDEBUG
-  MYSQL *mysql_local;
-  DBUG_SET("+d,bug32372038");
-
-  if (!(mysql_local = mysql_client_init(NULL))) {
-    fprintf(stderr, "\n mysql_client_init() failed");
-    exit(1);
-  }
-
-  net_async_status status;
-  bool exit_loop = false;
-  do {
-    status = mysql_real_connect_nonblocking(
-        mysql_local, opt_host, opt_user, opt_password, current_db, opt_port,
-        opt_unix_socket, CLIENT_MULTI_STATEMENTS);
-    DBUG_EXECUTE_IF("bug32372038_ssl_started", { exit_loop = true; });
-  } while (status == NET_ASYNC_NOT_READY && !exit_loop);
-
-  mysql_close(mysql_local);
-  DBUG_SET("-d,bug32372038");
-  DBUG_SET("-d,bug32372038_ssl_started");
-#endif
-}
-
-static void test_bug32558782() {
-  myheader("test_bug32558782");
-  int rc;
-
-  rc = mysql_query(mysql, "DROP TABLE IF EXISTS test_tab");
-  myquery(rc);
-
-  rc = mysql_query(mysql,
-                   "CREATE TABLE test_tab("
-                   "col1 MEDIUMBLOB NOT NULL,"
-                   "col2 TINYINT DEFAULT NULL"
-                   ") Engine=InnoDB;");
-  myquery(rc);
-
-  MYSQL_STMT *stmt = mysql_stmt_init(mysql);
-  const char *query = "INSERT INTO test_tab (col1, col2) VALUES (?,?)";
-  rc = mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
-  check_execute(stmt, rc);
-
-  MYSQL_BIND bind[2];
-  memset(bind, 0, sizeof(bind));
-
-  long int_data = 0;
-  bool is_null = true;
-  /* should be longer than initial NET buffer size of 8k */
-  unsigned long buflen = 20000;
-  unsigned long len = buflen;
-  auto data_buf = std::make_unique<char[]>(buflen);
-  memset(data_buf.get(), 'A', buflen);
-
-  /* BLOB COLUMN */
-  bind[0].buffer_type = MYSQL_TYPE_BLOB;  // Same thing with MYSQL_TYPE_STRING
-  bind[0].buffer = data_buf.get();
-  bind[0].buffer_length = buflen;
-  bind[0].is_null = 0;
-  bind[0].length = &len;
-
-  /* INT COLUMN */
-  bind[1].buffer_type = MYSQL_TYPE_LONG;
-  bind[1].buffer = (char *)&int_data;
-  bind[1].is_null = &is_null;
-
-  rc = mysql_stmt_bind_param(stmt, bind);
-  check_execute(stmt, rc);
-
-  /* success criteria: should complete */
-  rc = mysql_stmt_execute(stmt);
-  check_execute(stmt, rc);
-
-  /* cleanup */
-  mysql_stmt_close(stmt);
-  rc = mysql_query(mysql, "DROP TABLE test_tab");
-  myquery(rc);
-}
-
-static void test_bug32847269() {
-  myheader("test_bug32847269");
-
-  /* init phase */
-  myquery(mysql_query(mysql,
-                      "INSTALL COMPONENT 'file://component_query_attributes'"));
-
-  MYSQL_BIND p1;
-  const char *name = "param1";
-  MYSQL_ROW row;
-  MYSQL_RES *res;
-  bool is_null_arg = false;
-  wl12542_test_numeric_type(MYSQL_TYPE_LONGLONG, long long int,
-                            9223372036854775807L, atoll, is_null_arg);
-
-  /* cleanup phase */
-  myquery(mysql_query(
-      mysql, "UNINSTALL COMPONENT 'file://component_query_attributes'"));
-}
-
-static void test_bug32892045() {
-  myheader("test_bug32892045");
-
-  char command[100];
-  strcpy(command, "USE ");
-  strcat(command, current_db);
-
-  int rc = mysql_query(mysql, command);
-  myquery(rc);
-
-  rc = mysql_query(mysql,
-                   "CREATE TABLE t1 (AAA INT, BBB INT, CCC INT, DDD INT)");
-  myquery(rc);
-
-  MYSQL_STMT *stmt =
-      mysql_simple_prepare(mysql, "SELECT AAA, bbb, cCc, ddd AS eEe FROM t1");
-  check_stmt(stmt);
-
-  MYSQL_RES *result = mysql_stmt_result_metadata(stmt);
-  mytest(result);
-
-  verify_prepare_field(result, 0, "AAA", "AAA", MYSQL_TYPE_LONG, "t1", "t1",
-                       current_db, 11, 0);
-
-  verify_prepare_field(result, 1, "bbb", "BBB", MYSQL_TYPE_LONG, "t1", "t1",
-                       current_db, 11, 0);
-
-  verify_prepare_field(result, 2, "cCc", "CCC", MYSQL_TYPE_LONG, "t1", "t1",
-                       current_db, 11, 0);
-
-  verify_prepare_field(result, 3, "eEe", "DDD", MYSQL_TYPE_LONG, "t1", "t1",
-                       current_db, 11, 0);
-  mysql_free_result(result);
-
-  result = mysql_stmt_result_metadata(stmt);
-  mytest(result);
-
-  my_print_result_metadata(result);
-  mysql_free_result(result);
-  mysql_stmt_close(stmt);
-
-  myquery(mysql_query(mysql, "DROP TABLE t1"));
-}
-
-static void test_bug33164347() {
-  int rc = 0;
-  bool opt = true;
-  struct st_mysql_client_plugin *plugin;
-
-  DBUG_TRACE;
-  myheader("test_bug33164347");
-
-  plugin = mysql_load_plugin(mysql, "qa_auth_client", -1, 0);
-  DIE_UNLESS(plugin == nullptr);
-
-  rc = mysql_plugin_get_option(plugin, "plugin_option", &opt);
-  DIE_UNLESS(rc != 0);
-}
-
-static void test_bug32915973() {
-  DBUG_TRACE;
-  myheader("test_bug32915973");
-
-  int rc = 0;
-  MYSQL_STMT *stmt;
-  MYSQL_RES *result;
-
-  const char *query1 = "select ADDDATE(?, INTERVAL 1 DAY) AS c";
-  const char *query2 = "select ADDDATE(?, INTERVAL 1 HOUR) AS c";
-
-  stmt = mysql_stmt_init(mysql);
-  DIE_UNLESS(stmt != nullptr);
-
-  ulong length[2];
-  bool is_null[2] = {false, false};
-  MYSQL_TIME tm[2];
-
-  MYSQL_BIND bind[2];
-  memset(bind, 0, sizeof(bind));
-
-  bind[0].buffer_type = MYSQL_TYPE_DATE;
-  bind[0].buffer = (void *)&tm[0];
-  bind[0].is_null = &is_null[0];
-  bind[0].length = &length[0];
-  bind[0].buffer_length = 30;
-  length[0] = 20;
-
-  bind[1].buffer_type = MYSQL_TYPE_DATE;
-  bind[1].buffer = (void *)&tm[1];
-  bind[1].is_null = &is_null[1];
-  bind[1].length = &length[1];
-  bind[1].buffer_length = 30;
-  length[1] = 20;
-
-  tm[0].neg = false;
-  tm[0].year = 2021;
-  tm[0].month = 2;
-  tm[0].day = 3;
-  tm[0].hour = 1;
-  tm[0].minute = 2;
-  tm[0].second = 3;
-  tm[0].second_part = 0;
-  tm[0].time_type = MYSQL_TIMESTAMP_NONE;
-
-  // Test 1: ADDDATE with date interval and date parameter, result date
-
-  rc = mysql_stmt_prepare(stmt, query1, strlen(query1));
-  check_execute(stmt, rc);
-
-  rc = mysql_stmt_bind_param(stmt, bind);
-  check_execute(stmt, rc);
-
-  rc = mysql_stmt_execute(stmt);
-  check_execute(stmt, rc);
-
-  result = mysql_stmt_result_metadata(stmt);
-  mytest(result);
-
-  verify_prepare_field(result, 0, "c",
-                       "",               // field and its org name
-                       MYSQL_TYPE_DATE,  // field type
-                       "", "",           // table and its org name
-                       "", 10, 0);       // db name, length(its bool flag)
-
-  rc = mysql_stmt_bind_result(stmt, bind + 1);
-  check_execute(stmt, rc);
-
-  rc = mysql_stmt_fetch(stmt);
-  DIE_UNLESS(rc == 0);
-
-  DIE_UNLESS(tm[1].year == 2021 && tm[1].month == 2 && tm[1].day == 4);
-
-  mysql_free_result(result);
-
-  // Test 2: ADDDATE with date interval and time parameter, result datetime
-
-  rc = mysql_stmt_prepare(stmt, query1, strlen(query1));
-  check_execute(stmt, rc);
-
-  bind[0].buffer_type = MYSQL_TYPE_TIME;
-
-  bind[1].buffer_type = MYSQL_TYPE_DATETIME;
-
-  rc = mysql_stmt_bind_param(stmt, bind);
-  check_execute(stmt, rc);
-
-  rc = mysql_stmt_execute(stmt);
-  check_execute(stmt, rc);
-
-  result = mysql_stmt_result_metadata(stmt);
-  mytest(result);
-
-  verify_prepare_field(result, 0, "c",
-                       "",                   // field and its org name
-                       MYSQL_TYPE_DATETIME,  // field type
-                       "", "",               // table and its org name
-                       "", 26, 0);           // db name, length(its bool flag)
-
-  rc = mysql_stmt_bind_result(stmt, bind + 1);
-  check_execute(stmt, rc);
-
-  rc = mysql_stmt_fetch(stmt);
-  DIE_UNLESS(rc == 0);
-
-  // Year, month and day are taken from current date and are not checked:
-  DIE_UNLESS(tm[1].hour == 1 && tm[1].minute == 2 && tm[1].second == 3);
-
-  mysql_free_result(result);
-
-  // Test 3: ADDDATE with date interval and datetime parameter, result datetime
-
-  rc = mysql_stmt_prepare(stmt, query1, strlen(query1));
-  check_execute(stmt, rc);
-
-  bind[0].buffer_type = MYSQL_TYPE_DATETIME;
-
-  bind[1].buffer_type = MYSQL_TYPE_DATETIME;
-
-  rc = mysql_stmt_bind_param(stmt, bind);
-  check_execute(stmt, rc);
-
-  rc = mysql_stmt_execute(stmt);
-  check_execute(stmt, rc);
-
-  result = mysql_stmt_result_metadata(stmt);
-  mytest(result);
-
-  verify_prepare_field(result, 0, "c",
-                       "",                   // field and its org name
-                       MYSQL_TYPE_DATETIME,  // field type
-                       "", "",               // table and its org name
-                       "", 26, 0);           // db name, length(its bool flag)
-
-  rc = mysql_stmt_bind_result(stmt, bind + 1);
-  check_execute(stmt, rc);
-
-  rc = mysql_stmt_fetch(stmt);
-  DIE_UNLESS(rc == 0);
-
-  DIE_UNLESS(tm[1].year == 2021 && tm[1].month == 2 && tm[1].day == 4 &&
-             tm[1].hour == 1 && tm[1].minute == 2 && tm[1].second == 3);
-
-  mysql_free_result(result);
-
-  // Test 4: ADDDATE with time interval and time parameter, result is NULL
-
-  rc = mysql_stmt_prepare(stmt, query2, strlen(query2));
-  check_execute(stmt, rc);
-
-  bind[0].buffer_type = MYSQL_TYPE_TIME;
-
-  bind[1].buffer_type = MYSQL_TYPE_DATETIME;
-
-  rc = mysql_stmt_bind_param(stmt, bind);
-  check_execute(stmt, rc);
-
-  rc = mysql_stmt_execute(stmt);
-  check_execute(stmt, rc);
-
-  result = mysql_stmt_result_metadata(stmt);
-  mytest(result);
-
-  verify_prepare_field(result, 0, "c",
-                       "",                   // field and its org name
-                       MYSQL_TYPE_DATETIME,  // field type
-                       "", "",               // table and its org name
-                       "", 26, 0);           // db name, length(its bool flag)
-
-  rc = mysql_stmt_bind_result(stmt, bind + 1);
-  check_execute(stmt, rc);
-
-  rc = mysql_stmt_fetch(stmt);
-  DIE_UNLESS(rc == 0);
-
-  DIE_UNLESS(is_null[1]);
-
-  mysql_free_result(result);
-
-  // Test 5: ADDDATE with time interval and date parameter, result datetime
-
-  rc = mysql_stmt_prepare(stmt, query2, strlen(query2));
-  check_execute(stmt, rc);
-
-  bind[0].buffer_type = MYSQL_TYPE_DATE;
-
-  bind[1].buffer_type = MYSQL_TYPE_DATETIME;
-
-  rc = mysql_stmt_bind_param(stmt, bind);
-  check_execute(stmt, rc);
-
-  rc = mysql_stmt_execute(stmt);
-  check_execute(stmt, rc);
-
-  result = mysql_stmt_result_metadata(stmt);
-  mytest(result);
-
-  verify_prepare_field(result, 0, "c",
-                       "",                   // field and its org name
-                       MYSQL_TYPE_DATETIME,  // field type
-                       "", "",               // table and its org name
-                       "", 26, 0);           // db name, length(its bool flag)
-
-  rc = mysql_stmt_bind_result(stmt, bind + 1);
-  check_execute(stmt, rc);
-
-  rc = mysql_stmt_fetch(stmt);
-  DIE_UNLESS(rc == 0);
-
-  DIE_UNLESS(tm[1].year == 2021 && tm[1].month == 2 && tm[1].day == 3 &&
-             tm[1].hour == 1 && tm[1].minute == 0 && tm[1].second == 0);
-
-  mysql_free_result(result);
-
-  // Test 6: ADDDATE with time interval and datetime parameter, result datetime
-
-  rc = mysql_stmt_prepare(stmt, query2, strlen(query2));
-  check_execute(stmt, rc);
-
-  bind[0].buffer_type = MYSQL_TYPE_DATETIME;
-
-  bind[1].buffer_type = MYSQL_TYPE_DATETIME;
-
-  rc = mysql_stmt_bind_param(stmt, bind);
-  check_execute(stmt, rc);
-
-  rc = mysql_stmt_execute(stmt);
-  check_execute(stmt, rc);
-
-  result = mysql_stmt_result_metadata(stmt);
-  mytest(result);
-
-  verify_prepare_field(result, 0, "c",
-                       "",                   // field and its org name
-                       MYSQL_TYPE_DATETIME,  // field type
-                       "", "",               // table and its org name
-                       "", 26, 0);           // db name, length(its bool flag)
-
-  rc = mysql_stmt_bind_result(stmt, bind + 1);
-  check_execute(stmt, rc);
-
-  rc = mysql_stmt_fetch(stmt);
-  DIE_UNLESS(rc == 0);
-
-  DIE_UNLESS(tm[1].year == 2021 && tm[1].month == 2 && tm[1].day == 3 &&
-             tm[1].hour == 2 && tm[1].minute == 2 && tm[1].second == 3);
-
-  mysql_free_result(result);
-
-  mysql_stmt_close(stmt);
-}
-
 static struct my_tests_st my_tests[] = {
     {"test_bug5194", test_bug5194},
     {"disable_query_logs", disable_query_logs},
@@ -22643,7 +22104,6 @@ static struct my_tests_st my_tests[] = {
     {"test_date", test_date},
     {"test_date_frac", test_date_frac},
     {"test_temporal_param", test_temporal_param},
-    {"test_temporal_functions", test_temporal_functions},
     {"test_date_date", test_date_date},
     {"test_date_time", test_date_time},
     {"test_date_ts", test_date_ts},
@@ -22858,7 +22318,6 @@ static struct my_tests_st my_tests[] = {
     {"test_skip_metadata", test_skip_metadata},
     {"test_bug25701141", test_bug25701141},
     {"test_bug27443252", test_bug27443252},
-    {"test_bug32391415", test_bug32391415},
     {"test_wl11381", test_wl11381},
     {"test_wl11381_qa", test_wl11381_qa},
     {"test_wl11772", test_wl11772},
@@ -22876,12 +22335,6 @@ static struct my_tests_st my_tests[] = {
     {"test_wl12542", test_wl12542},
     {"test_bug31691060_1", test_bug31691060_1},
     {"test_bug31691060_2", test_bug31691060_2},
-    {"test_bug32372038", test_bug32372038},
-    {"test_bug32558782", test_bug32558782},
-    {"test_bug32847269", test_bug32847269},
-    {"test_bug32892045", test_bug32892045},
-    {"test_bug33164347", test_bug33164347},
-    {"test_bug32915973", test_bug32915973},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

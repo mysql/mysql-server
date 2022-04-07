@@ -222,7 +222,7 @@ NdbBackup::getBackupDataDirForNode(int node_id)
     return "";
 
   // Fetch configuration from management server
-  ndb_mgm::config_ptr conf(ndb_mgm_get_configuration(handle, 0));
+  ndb_mgm_config_unique_ptr conf(ndb_mgm_get_configuration(handle, 0));
   if (!conf)
   {
     const char * err_msg = ndb_mgm_get_latest_error_msg(handle);

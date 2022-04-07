@@ -58,7 +58,11 @@ static inline int thd_partition(my_thread_id thread_id) {
 
 bool Find_thd_with_id::operator()(THD *thd) {
   if (thd->get_command() == COM_DAEMON) return false;
-  return (thd->thread_id() == m_thread_id);
+  if (thd->thread_id() == m_thread_id) {
+    mysql_mutex_lock(&thd->LOCK_thd_data);
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -94,35 +98,6 @@ class Find_THD {
  private:
   Find_THD_Impl *m_impl;
 };
-
-THD_ptr::THD_ptr(THD *thd) : m_underlying(thd) {
-  if (m_underlying != nullptr) {
-    mysql_mutex_assert_not_owner(&m_underlying->LOCK_thd_data);
-    mysql_mutex_lock(&m_underlying->LOCK_thd_data);
-  }
-}
-
-THD_ptr::THD_ptr(THD_ptr &&thd_ptr) {
-  if (m_underlying != nullptr) mysql_mutex_unlock(&m_underlying->LOCK_thd_data);
-  m_underlying = thd_ptr.m_underlying;
-  thd_ptr.m_underlying = nullptr;
-}
-
-THD_ptr &THD_ptr::operator=(THD_ptr &&thd_ptr) {
-  if (m_underlying != nullptr) mysql_mutex_unlock(&m_underlying->LOCK_thd_data);
-  m_underlying = thd_ptr.m_underlying;
-  thd_ptr.m_underlying = nullptr;
-  return *this;
-}
-
-THD *THD_ptr::release() {
-  if (m_underlying == nullptr) return nullptr;
-
-  THD *tmp = m_underlying;
-  mysql_mutex_unlock(&m_underlying->LOCK_thd_data);
-  m_underlying = nullptr;
-  return tmp;
-}
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_LOCK_thd_list;
@@ -262,7 +237,8 @@ void Global_THD_manager::release_thread_id(my_thread_id thread_id) {
   if (thread_id == reserved_thread_id)
     return;  // Some temporary THDs are never given a proper ID.
   MUTEX_LOCK(lock, &LOCK_thread_ids);
-  const size_t num_erased [[maybe_unused]] = thread_ids.erase_unique(thread_id);
+  const size_t num_erased MY_ATTRIBUTE((unused)) =
+      thread_ids.erase_unique(thread_id);
   // Assert if the ID was not found in the list.
   assert(1 == num_erased);
 }
@@ -314,24 +290,20 @@ void Global_THD_manager::do_for_all_thd(Do_THD_Impl *func) {
   }
 }
 
-THD_ptr Global_THD_manager::find_thd(Find_THD_Impl *func) {
+THD *Global_THD_manager::find_thd(Find_THD_Impl *func) {
   Find_THD find_thd(func);
   for (int i = 0; i < NUM_PARTITIONS; i++) {
     MUTEX_LOCK(lock, &LOCK_thd_list[i]);
     THD_array::const_iterator it =
         std::find_if(thd_list[i].begin(), thd_list[i].end(), find_thd);
-    if (it != thd_list[i].end()) {
-      THD_ptr thd_ptr(*it);
-      if (!thd_ptr->is_being_disposed()) return thd_ptr;
-      break;
-    }
+    if (it != thd_list[i].end()) return (*it);
   }
-  return THD_ptr{nullptr};
+  return nullptr;
 }
 
 // Optimized version of the above function for when we know
 // the thread_id of the THD we are looking for.
-THD_ptr Global_THD_manager::find_thd(Find_thd_with_id *func) {
+THD *Global_THD_manager::find_thd(Find_thd_with_id *func) {
   Find_THD find_thd(func);
   // Since we know the thread_id, we can check the correct
   // partition directly.
@@ -339,11 +311,8 @@ THD_ptr Global_THD_manager::find_thd(Find_thd_with_id *func) {
   MUTEX_LOCK(lock, &LOCK_thd_list[partition]);
   THD_array::const_iterator it = std::find_if(
       thd_list[partition].begin(), thd_list[partition].end(), find_thd);
-  if (it != thd_list[partition].end()) {
-    THD_ptr thd_ptr(*it);
-    if (!thd_ptr->is_being_disposed()) return thd_ptr;
-  }
-  return THD_ptr{nullptr};
+  if (it != thd_list[partition].end()) return (*it);
+  return nullptr;
 }
 
 void inc_thread_created() {

@@ -144,7 +144,7 @@ class PFS_index_rpl_applier_status_by_worker : public PFS_engine_index {
                                          PFS_engine_key *key_2)
       : PFS_engine_index(key_1, key_2) {}
 
-  ~PFS_index_rpl_applier_status_by_worker() override = default;
+  ~PFS_index_rpl_applier_status_by_worker() override {}
 
   virtual bool match(Master_info *mi) = 0;
   virtual bool match(Master_info *mi, Slave_worker *w) = 0;
@@ -158,7 +158,7 @@ class PFS_index_rpl_applier_status_by_worker_by_channel
         m_key_1("CHANNEL_NAME"),
         m_key_2("WORKER_ID") {}
 
-  ~PFS_index_rpl_applier_status_by_worker_by_channel() override = default;
+  ~PFS_index_rpl_applier_status_by_worker_by_channel() override {}
 
   bool match(Master_info *mi) override;
   bool match(Master_info *mi, Slave_worker *w) override;
@@ -174,7 +174,7 @@ class PFS_index_rpl_applier_status_by_worker_by_thread
   PFS_index_rpl_applier_status_by_worker_by_thread()
       : PFS_index_rpl_applier_status_by_worker(&m_key), m_key("THREAD_ID") {}
 
-  ~PFS_index_rpl_applier_status_by_worker_by_thread() override = default;
+  ~PFS_index_rpl_applier_status_by_worker_by_thread() override {}
 
   bool match(Master_info *mi) override;
   bool match(Master_info *mi, Slave_worker *w) override;
@@ -194,8 +194,7 @@ class table_replication_applier_status_by_worker : public PFS_engine_table {
     information in STS mode
   */
   int make_row(Master_info *);
-  void populate_trx_info(Trx_monitoring_info const &applying_trx,
-                         Trx_monitoring_info const &last_applied_trx);
+  void populate_trx_info(Gtid_monitoring_info *, mysql_mutex_t *);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;

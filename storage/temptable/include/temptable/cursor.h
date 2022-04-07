@@ -233,7 +233,7 @@ inline Cursor &Cursor::operator--() {
 
   if (m_type == Type::HASH) {
     /* We don't support decrement on a hash and it shouldn't be called. */
-    my_abort();
+    abort();
   } else {
     assert(m_type == Type::TREE);
     --m_tree_iterator;

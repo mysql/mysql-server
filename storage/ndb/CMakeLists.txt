@@ -101,15 +101,19 @@ SET(NDBCLUSTER_SOURCES
   plugin/ndb_dd_sync.cc
   plugin/ndb_upgrade_util.cc
   plugin/ndb_mysql_services.cc
-  plugin/ndb_blobs_buffer.cc
-  plugin/ndb_table_stats.cc
 )
-
-NDB_ADD_TEST("ndb_bitmap-t" "plugin/ndb_bitmap.cc" LIBS ndbgeneral)
-NDB_ADD_TEST("ndb_blobs_buffer-t" "plugin/ndb_blobs_buffer.cc" LIBS ndbgeneral)
 
 # Include directories used when building ha_ndbcluster
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
+
+IF(SOLARIS_INTEL)
+  # Sun Studio 12.6 on x86 machines creates a bogus code
+  # when -xO2 is used and crashes the executable whenever
+  # it calls std::condition_variable::wait_for()
+  STRING_APPEND(CMAKE_CXX_FLAGS_RELWITHDEBINFO " -xO1")
+  STRING_APPEND(CMAKE_CXX_FLAGS_RELEASE " -xO1")
+  STRING_APPEND(CMAKE_CXX_FLAGS_MINSIZEREL " -xO1")
+ENDIF()
 
 IF(NOT WITHOUT_SERVER)
   MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
@@ -127,18 +131,6 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
   STRING_APPEND(CMAKE_C_FLAGS   " -fno-strict-aliasing")
   STRING_APPEND(CMAKE_CXX_FLAGS " -fno-strict-aliasing")
 ENDIF()
-
-# Disable specific types of warnings for current directory, and subdirectories,
-# if the compiler supports the flag
-FOREACH(warning
-    "cast-qual"
-    )
-  MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
-  IF(HAS_WARN_FLAG)
-    STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
-    STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
-  ENDIF()
-ENDFOREACH()
 
 IF(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
   MESSAGE(FATAL_ERROR "Only 64-bit build of NDB is supported")
@@ -161,7 +153,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}/include
 )
 
-SET(WITH_NDBAPI_EXAMPLES_DEFAULT OFF)
 OPTION(WITH_NDB_TEST
   "Include the NDB Cluster ndbapi test programs" OFF)
 IF(WITH_NDB_TEST)
@@ -172,14 +163,14 @@ ELSE()
     MESSAGE(STATUS "Building NDB test programs for improved gcov coverage")
     SET(WITH_NDB_TEST ON)
     MESSAGE(STATUS "Building NdbApi examples for improved gcov coverage")
-    SET(WITH_NDBAPI_EXAMPLES_DEFAULT ON)
+    SET(WITH_NDBAPI_EXAMPLES ON)
   ENDIF()
   # Turn on NDB tests automatically for valgrind builds
   IF(WITH_VALGRIND)
     MESSAGE(STATUS "Building NDB test programs for improved valgrind coverage")
     SET(WITH_NDB_TEST ON)
     MESSAGE(STATUS "Building NdbApi examples for improved valgrind coverage")
-    SET(WITH_NDBAPI_EXAMPLES_DEFAULT ON)
+    SET(WITH_NDBAPI_EXAMPLES ON)
   ENDIF()
   # Turn on NDB tests automatically for "-devbld" debug builds
   # to increase test coverage
@@ -188,48 +179,36 @@ ELSE()
     MESSAGE(STATUS "Building NDB test programs for \"-devbld\" debug build")
     SET(WITH_NDB_TEST ON)
     MESSAGE(STATUS "Building NdbApi examples for \"-devbld\" debug build")
-    SET(WITH_NDBAPI_EXAMPLES_DEFAULT ON)
+    SET(WITH_NDBAPI_EXAMPLES ON)
   ENDIF()
   # Turn on build of NDB tests automatically for "-werror" builds
   IF(PACKAGE_SUFFIX STREQUAL "-werror")
     MESSAGE(STATUS "Building NDB test programs for \"-werror\" build")
     SET(WITH_NDB_TEST ON)
     MESSAGE(STATUS "Building NdbApi examples for \"-werror\" build")
-    SET(WITH_NDBAPI_EXAMPLES_DEFAULT ON)
+    SET(WITH_NDBAPI_EXAMPLES ON)
   ENDIF()
-ENDIF()
-
-SET(DEBUG_FLAGS
-  -DACC_SAFE_QUEUE
-  -DAPI_TRACE
-  -DARRAY_GUARD
-  -DERROR_INSERT
-  -DNDB_DEBUG
-  -DVM_TRACE
-  )
-SET(DEBUG_FLAGS_STRING "")
-FOREACH(flag ${DEBUG_FLAGS})
-  STRING_APPEND(DEBUG_FLAGS_STRING " ${flag}")
-ENDFOREACH()
-
-IF(APPLE_ARM)
-  # Do not add any flags, ndbmtd gets signal 10 = sigbus
-  # Without any additional flags, ~10 out of 200 tests fail.
-ELSE()
-  STRING_APPEND(CMAKE_C_FLAGS_DEBUG "${DEBUG_FLAGS_STRING}")
-  STRING_APPEND(CMAKE_CXX_FLAGS_DEBUG "${DEBUG_FLAGS_STRING}")
 ENDIF()
 
 OPTION(WITH_ERROR_INSERT
   "Enable error injection in NDB" OFF)
-IF(WITH_ERROR_INSERT)
-  ADD_DEFINITIONS(-DERROR_INSERT)
-ENDIF()
 
 OPTION(WITH_NDB_DEBUG
   "Enable special ndb NDB features(including ERROR_INSERT)" OFF)
-IF(WITH_NDB_DEBUG)
-  ADD_DEFINITIONS(${DEBUG_FLAGS})
+
+IF(WITH_NDB_DEBUG OR CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
+  MESSAGE(STATUS "Turning on special NDB debug features")
+  ADD_DEFINITIONS(-DVM_TRACE)
+  ADD_DEFINITIONS(-DNDB_DEBUG)
+  ADD_DEFINITIONS(-DERROR_INSERT)
+  ADD_DEFINITIONS(-DARRAY_GUARD)
+  ADD_DEFINITIONS(-DACC_SAFE_QUEUE)
+  ADD_DEFINITIONS(-DAPI_TRACE)
+ELSE()
+  IF(WITH_ERROR_INSERT)
+    ADD_DEFINITIONS(-DERROR_INSERT)
+  ENDIF()
+  ADD_DEFINITIONS(-DNDEBUG)
 ENDIF()
 
 # Set extra compiler switches from WITH_NDB_CCFLAGS
@@ -255,14 +234,7 @@ CHECK_FUNCTION_EXISTS (getrlimit HAVE_GETRLIMIT)
 
 SET(HAVE_JAVA FALSE)
 SET(HAVE_JDK FALSE)
-
-IF(APPLE_ARM)
-  SET(WITH_NDB_JAVA_DEFAULT OFF)
-  MESSAGE(STATUS "Default value for WITH_NDB_JAVA set to OFF")
-ELSE()
-  SET(WITH_NDB_JAVA_DEFAULT ON)
-ENDIF()
-
+SET(WITH_NDB_JAVA_DEFAULT ON)
 # Check if the default for WITH_NDB_JAVA should be overriden
 # by environment variable
 IF (DEFINED ENV{WITH_NDB_JAVA_DEFAULT})
@@ -417,11 +389,14 @@ IF(WITH_NDB_NODEJS)
   ADD_SUBDIRECTORY(nodejs)
 ENDIF(WITH_NDB_NODEJS)
 
-OPTION(WITH_NDBAPI_EXAMPLES
-  "Build the NdbApi example programs" ${WITH_NDBAPI_EXAMPLES_DEFAULT})
+OPTION(WITH_NDBAPI_EXAMPLES "Build the NdbApi example programs" OFF)
 IF(WITH_NDBAPI_EXAMPLES)
   MESSAGE(STATUS "Building the NdbApi example programs")
   ADD_SUBDIRECTORY(ndbapi-examples)
 ENDIF()
 
 ADD_SUBDIRECTORY(wix)
+
+IF(WITH_UNIT_TESTS)
+  FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/unittest/ndb)
+ENDIF()

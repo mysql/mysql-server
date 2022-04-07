@@ -40,7 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 namespace lob {
 
 /** A BLOB field reference has all the bits set to zero, except the "being
-modified" bit. */
+ * modified" bit. */
 const byte field_ref_almost_zero[FIELD_REF_SIZE] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x20, 0, 0, 0, 0, 0, 0, 0,
 };
@@ -92,7 +92,7 @@ log file. */
 void BtrContext::check_redolog_bulk() {
   ut_ad(is_bulk());
 
-  Flush_observer *observer = m_mtr->get_flush_observer();
+  FlushObserver *observer = m_mtr->get_flush_observer();
 
   rec_block_fix();
 
@@ -114,7 +114,7 @@ mini-transaction. */
 void BtrContext::check_redolog_normal() {
   ut_ad(!is_bulk());
 
-  Flush_observer *observer = m_mtr->get_flush_observer();
+  FlushObserver *observer = m_mtr->get_flush_observer();
   store_position();
 
   commit_btr_mtr();
@@ -214,15 +214,15 @@ dberr_t zReader::fetch() {
         if (m_rctx.m_page_no == FIL_NULL) {
           goto end_of_blob;
         }
-        [[fallthrough]];
+      /* fall through */
       default:
         err = DB_FAIL;
         ib::error(ER_IB_MSG_630)
             << "inflate() of compressed BLOB page "
             << page_id_t(m_rctx.m_space_id, curr_page_no) << " returned "
             << zlib_err << " (" << m_stream.msg << ")";
+        /* fall through */
         ut_error;
-        [[fallthrough]];
       case Z_BUF_ERROR:
         goto end_of_blob;
     }
@@ -680,9 +680,11 @@ byte *btr_rec_copy_externally_stored_field_func(
 
   ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
 
+#ifdef UNIV_DEBUG
   /* Verify if the LOB reference is sane. */
-  ut_d(space_id_t space_id = ref.space_id());
+  space_id_t space_id = ref.space_id();
   ut_ad(space_id == 0 || space_id == index->space);
+#endif /* UNIV_DEBUG */
 
   if (ref.is_null()) {
     /* The externally stored field was not written yet.
@@ -734,7 +736,7 @@ static void btr_check_blob_fil_page_type(space_id_t space_id, page_no_t page_no,
       }
 #endif /* !UNIV_DEBUG */
 
-      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_631)
+      ib::fatal(ER_IB_MSG_631)
           << "FIL_PAGE_TYPE=" << type << " on BLOB "
           << (read ? "read" : "purge") << " space " << space_id << " page "
           << page_no << " flags " << flags;
@@ -905,10 +907,32 @@ ulint btr_copy_externally_stored_field_prefix_func(trx_t *trx,
   return (local_len + fetch_len);
 }
 
+/** Copies an externally stored field of a record to mem heap.
+The clustered index record must be protected by a lock or a page latch.
+@param[in]	trx		the current trx object or nullptr
+@param[in]	index		the clust index in which lob is read.
+@param[out]	len		length of the whole field
+@param[out]	lob_version	LOB version number.
+@param[in]	data		'internally' stored part of the field
+                                containing also the reference to the external
+                                part; must be protected by a lock or a page
+                                latch.
+@param[in]	page_size	BLOB page size
+@param[in]	local_len	length of data */
+#ifdef UNIV_DEBUG
+/**
+@param[in]	is_sdi		true for SDI Indexes */
+#endif /* UNIV_DEBUG */
+/**
+@param[in,out]	heap		mem heap
+@return the whole field copied to heap */
 byte *btr_copy_externally_stored_field_func(
     trx_t *trx, const dict_index_t *index, ulint *len, size_t *lob_version,
     const byte *data, const page_size_t &page_size, ulint local_len,
-    IF_DEBUG(bool is_sdi, ) mem_heap_t *heap) {
+#ifdef UNIV_DEBUG
+    bool is_sdi,
+#endif /* UNIV_DEBUG */
+    mem_heap_t *heap) {
   uint32_t extern_len;
   byte *buf;
 
@@ -928,7 +952,12 @@ byte *btr_copy_externally_stored_field_func(
   buf = (byte *)mem_heap_alloc(heap, local_len + extern_len);
 
   ReadContext rctx(page_size, data, local_len + BTR_EXTERN_FIELD_REF_SIZE,
-                   buf + local_len, extern_len IF_DEBUG(, is_sdi));
+                   buf + local_len, extern_len
+#ifdef UNIV_DEBUG
+                   ,
+                   is_sdi
+#endif /* UNIV_DEBUG */
+  );
 
   rctx.m_index = (dict_index_t *)index;
 
@@ -1023,9 +1052,7 @@ void BtrContext::free_updated_extern_fields(trx_id_t trx_id, undo_no_t undo_no,
       byte *field_ref = data + len - BTR_EXTERN_FIELD_REF_SIZE;
 
       DeleteContext ctx(*this, field_ref, ufield->field_no, rollback);
-
-      /* Last argument is nullptr because this is rollback. */
-      lob::purge(&ctx, m_index, trx_id, undo_no, 0, ufield, nullptr);
+      lob::purge(&ctx, m_index, trx_id, undo_no, 0, ufield);
       if (need_recalc()) {
         recalc();
       }
@@ -1110,12 +1137,10 @@ ulint btr_rec_get_externally_stored_len(const rec_t *rec,
 @param[in]	undo_no		undo number within a transaction whose
                                 LOB is being freed.
 @param[in]	rollback	performing rollback?
-@param[in]	rec_type	undo record type.
-@param[in]	node        purge node or nullptr */
+@param[in]	rec_type	undo record type.*/
 void BtrContext::free_externally_stored_fields(trx_id_t trx_id,
                                                undo_no_t undo_no, bool rollback,
-                                               ulint rec_type,
-                                               purge_node_t *node) {
+                                               ulint rec_type) {
   ut_ad(rec_offs_validate());
   ut_ad(mtr_is_page_fix(m_mtr, m_rec, MTR_MEMO_PAGE_X_FIX, m_index->table));
   /* Assert that the cursor position and the record are matching. */
@@ -1132,7 +1157,7 @@ void BtrContext::free_externally_stored_fields(trx_id_t trx_id,
       DeleteContext ctx(*this, field_ref, i, rollback);
 
       upd_field_t *uf = nullptr;
-      lob::purge(&ctx, m_index, trx_id, undo_no, rec_type, uf, node);
+      lob::purge(&ctx, m_index, trx_id, undo_no, rec_type, uf);
       if (need_recalc()) {
         recalc();
       }

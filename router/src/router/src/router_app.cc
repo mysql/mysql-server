@@ -37,13 +37,11 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <system_error>
 #include <vector>
 
 #include "common.h"
 #include "config_files.h"
 #include "config_generator.h"
-#include "default_paths.h"
 #include "dim.h"
 #include "harness_assert.h"
 #include "hostname_validator.h"
@@ -54,12 +52,10 @@
 #include "mysql/harness/logging/logger_plugin.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
-#include "mysql/harness/utility/string.h"  // string_format
+#include "mysql/harness/utility/string.h"
 #include "mysql/harness/vt100.h"
-#include "mysqlrouter/mysql_session.h"
-#include "mysqlrouter/utils.h"  // substitute_envvar
+#include "mysql_session.h"
 #include "print_version.h"
-#include "router_config.h"  // MYSQL_ROUTER_VERSION
 #include "welcome_copyright_notice.h"
 
 #ifndef _WIN32
@@ -75,7 +71,6 @@ const std::string path_sep = ":";
 #include <io.h>
 #include <string.h>
 #include "mysqlrouter/windows/password_vault.h"
-#include "mysqlrouter/windows/service_operations.h"
 #define strtok_r strtok_s
 const char dir_sep = '\\';
 const std::string path_sep = ";";
@@ -85,9 +80,10 @@ IMPORT_LOG_FUNCTIONS()
 using namespace std::string_literals;
 
 using mysql_harness::DIM;
+using mysql_harness::get_strerror;
 using mysql_harness::truncate_string;
-using mysql_harness::utility::string_format;
 using mysql_harness::utility::wrap_string;
+using mysqlrouter::string_format;
 using mysqlrouter::substitute_envvar;
 using mysqlrouter::SysUserOperations;
 using mysqlrouter::SysUserOperationsBase;
@@ -95,9 +91,47 @@ using mysqlrouter::SysUserOperationsBase;
 static const char *kDefaultKeyringFileName = "keyring";
 static const char kProgramName[] = "mysqlrouter";
 
-namespace {
+// throws std::runtime_error, ...?
+/*static*/
+std::string MySQLRouter::find_full_path(const std::string &argv0) {
+#ifdef _WIN32
+  UNREFERENCED_PARAMETER(argv0);
 
-inline void set_signal_handlers() {
+  // the bin folder is not usually in the path, just the lib folder
+  char szPath[MAX_PATH];
+  if (GetModuleFileName(NULL, szPath, sizeof(szPath)) != 0)
+    return std::string(szPath);
+#else
+  mysql_harness::Path p_argv0(argv0);
+  // Path normalizes '\' to '/'
+  if (p_argv0.str().find('/') != std::string::npos) {
+    // Path is either absolute or relative to the current working dir, so
+    // we can use realpath() to find the full absolute path
+    mysql_harness::Path path2(p_argv0.real_path());
+    const char *tmp = path2.c_str();
+    std::string path(tmp);
+    return path;
+  } else {
+    // Program was found via PATH lookup by the shell, so we
+    // try to find the program in one of the PATH dirs
+    std::string path(std::getenv("PATH"));
+    char *last = nullptr;
+    char *p = strtok_r(&path[0], path_sep.c_str(), &last);
+    while (p) {
+      std::string tmp(std::string(p) + dir_sep + argv0);
+      if (mysqlrouter::my_check_access(tmp)) {
+        mysql_harness::Path path1(tmp.c_str());
+        mysql_harness::Path path2(path1.real_path());
+        return path2.str();
+      }
+      p = strtok_r(nullptr, path_sep.c_str(), &last);
+    }
+  }
+#endif
+  throw std::logic_error("Could not find own installation directory");
+}
+
+static inline void set_signal_handlers() {
 #ifndef _WIN32
   // until we have proper signal handling we need at least
   // mask out broken pipe to prevent terminating the router
@@ -109,8 +143,8 @@ inline void set_signal_handlers() {
 
 // Check if the value is valid regular filename and if it is add to the vector,
 // if it is not throw an exception
-void check_and_add_conf(std::vector<std::string> &configs,
-                        const std::string &value) {
+static void check_and_add_conf(std::vector<std::string> &configs,
+                               const std::string &value) {
   mysql_harness::Path cfg_file_path;
   try {
     cfg_file_path = mysql_harness::Path(value);
@@ -132,35 +166,9 @@ void check_and_add_conf(std::vector<std::string> &configs,
   }
 }
 
-void check_config_overwrites(const CmdArgHandler::ConfigOverwrites &overwrites,
-                             bool is_bootstrap) {
-  for (const auto &overwrite : overwrites) {
-    const std::string &section = overwrite.first.first;
-    const std::string &key = overwrite.first.second;
-    if (section == "DEFAULT" && !key.empty()) {
-      throw std::runtime_error("Invalid argument '--" + section + ":" + key +
-                               "'. Key not allowed on DEFAULT section");
-    }
-
-    if (!is_bootstrap) continue;
-    // only --logger.level config overwrite is allowed currently for bootstrap
-    for (const auto &option : overwrite.second) {
-      const std::string name = section + "." + option.first;
-      if (name != "logger.level") {
-        throw std::runtime_error(
-            "Invalid argument '--" + name +
-            "'. Only '--logger.level' configuration option can be "
-            "set with a command line parameter when bootstrapping.");
-      }
-    }
-  }
-}
-
-}  // namespace
-
 // throws MySQLSession::Error, std::runtime_error, std::out_of_range,
 // std::logic_error, ...?
-MySQLRouter::MySQLRouter(const std::string &program_name,
+MySQLRouter::MySQLRouter(const mysql_harness::Path &origin,
                          const std::vector<std::string> &arguments,
                          std::ostream &out_stream, std::ostream &err_stream
 #ifndef _WIN32
@@ -173,9 +181,7 @@ MySQLRouter::MySQLRouter(const std::string &program_name,
       arg_handler_(),
       can_start_(false),
       showing_info_(false),
-      origin_(mysql_harness::Path(
-                  mysqlrouter::find_full_executable_path(program_name))
-                  .dirname()),
+      origin_(origin),
       out_stream_(out_stream),
       err_stream_(err_stream)
 #ifndef _WIN32
@@ -185,9 +191,7 @@ MySQLRouter::MySQLRouter(const std::string &program_name,
 {
   set_log_reopen_complete_callback(default_log_reopen_complete_cb);
   set_signal_handlers();
-
-  init(program_name,
-       arguments);  // throws MySQLSession::Error, std::runtime_error,
+  init(arguments);  // throws MySQLSession::Error, std::runtime_error,
                     // std::out_of_range, std::logic_error, ...?
 }
 
@@ -200,7 +204,7 @@ MySQLRouter::MySQLRouter(const int argc, char **argv, std::ostream &out_stream,
                          SysUserOperationsBase *sys_user_operations
 #endif
                          )
-    : MySQLRouter(std::string(argv[0]),
+    : MySQLRouter(mysql_harness::Path(find_full_path(argv[0])).dirname(),
                   std::vector<std::string>({argv + 1, argv + argc}), out_stream,
                   err_stream
 #ifndef _WIN32
@@ -223,8 +227,7 @@ void MySQLRouter::parse_command_options(
 
 // throws MySQLSession::Error, std::runtime_error, std::out_of_range,
 // std::logic_error, ...?
-void MySQLRouter::init(const std::string &program_name,
-                       const std::vector<std::string> &arguments) {
+void MySQLRouter::init(const std::vector<std::string> &arguments) {
   set_default_config_files(CONFIG_FILES);
 
   parse_command_options(arguments);  // throws std::runtime_error
@@ -233,11 +236,7 @@ void MySQLRouter::init(const std::string &program_name,
     return;
   }
 
-  const bool is_bootstrap = !bootstrap_uri_.empty();
-  check_config_overwrites(arg_handler_.get_config_overwrites(),
-                          is_bootstrap);  // throws std::runtime_error
-
-  if (is_bootstrap) {
+  if (!bootstrap_uri_.empty()) {
 #ifndef _WIN32
     // If the user does the bootstrap with superuser (uid==0) but did not
     // provide
@@ -266,23 +265,21 @@ void MySQLRouter::init(const std::string &program_name,
     // extra configuration for bootstrap is not supported
     auto config_files_res =
         ConfigFilePathValidator({}, config_files_, {}).validate();
-    std::vector<std::string> config_files;
+
     if (config_files_res && !config_files_res.value().empty()) {
-      config_files = std::move(config_files_res.value());
+      auto config_files = std::move(config_files_res.value());
+      DIM::instance().reset_Config();  // simplifies unit tests
+      DIM::instance().set_Config(
+          [this, &config_files]() { return make_config({}, config_files); },
+          std::default_delete<mysql_harness::LoaderConfig>());
+      mysql_harness::LoaderConfig &config = DIM::instance().get_Config();
+
+      // reinit logger (right now the logger is configured to log to STDERR,
+      // here we re-configure it with settings from config file)
+      init_main_logger(config, true);  // true = raw logging mode
     }
 
-    DIM::instance().reset_Config();  // simplifies unit tests
-    DIM::instance().set_Config(
-        [this, &config_files]() { return make_config({}, config_files); },
-        std::default_delete<mysql_harness::LoaderConfig>());
-    mysql_harness::LoaderConfig &config = DIM::instance().get_Config();
-
-    // reinit logger (right now the logger is configured to log to STDERR,
-    // here we re-configure it with settings from config file)
-    init_main_logger(config, true);  // true = raw logging mode
-
     bootstrap(
-        program_name,
         bootstrap_uri_);  // throws MySQLSession::Error, std::runtime_error,
                           // std::out_of_range, std::logic_error, ...?
     return;
@@ -385,17 +382,70 @@ void MySQLRouter::init_keyring_using_prompted_password() {
                                        master_key, false);
 }
 
-#if 0
+/** @brief Returns `<path>` if it is absolute[*], `<basedir>/<path>` otherwise
+ *
+ * [*] `<path>` is considered absolute if it starts with one of:
+ *   Unix:    '/'
+ *   Windows: '/' or '\' or '.:' (where . is any character)
+ *   both:    '{origin}' or 'ENV{'
+ * else:
+ *   it's considered relative (empty `<path>` is also relative in such respect)
+ *
+ * @param path Absolute or relative path; absolute path may start with
+ *        '{origin}' or 'ENV{'
+ * @param basedir Path to grandparent directory of mysqlrouter.exe, i.e.
+ *        for '/path/to/bin/mysqlrouter.exe/' it will be '/path/to'
+ */
+static std::string ensure_absolute_path(const std::string &path,
+                                        const std::string &basedir) {
+  if (path.empty()) return basedir;
+  if (path.compare(0, strlen("{origin}"), "{origin}") == 0) return path;
+  if (path.find("ENV{") != std::string::npos) return path;
+#ifdef _WIN32
+  // if the path is not absolute, it must be relative to the origin
+  return (mysql_harness::Path(path).is_absolute() ? path
+                                                  : basedir + "\\" + path);
+#else
+  // if the path is not absolute, it must be relative to the origin
+  return (mysql_harness::Path(path).is_absolute() ? path
+                                                  : basedir + "/" + path);
+#endif
+}
+
 /*static*/
 std::map<std::string, std::string> MySQLRouter::get_default_paths(
     const mysql_harness::Path &origin) {
-  return mysqlrouter::get_default_paths(origin);
-}
+  std::string basedir = mysql_harness::Path(origin)
+                            .dirname()
+                            .str();  // throws std::invalid_argument
+
+  std::map<std::string, std::string> params = {
+      {"program", kProgramName},
+      {"origin", origin.str()},
+#ifdef _WIN32
+      {"event_source_name", MYSQL_ROUTER_PACKAGE_NAME},
 #endif
+      {"logging_folder",
+       ensure_absolute_path(MYSQL_ROUTER_LOGGING_FOLDER, basedir)},
+      {"plugin_folder",
+       ensure_absolute_path(MYSQL_ROUTER_PLUGIN_FOLDER, basedir)},
+      {"runtime_folder",
+       ensure_absolute_path(MYSQL_ROUTER_RUNTIME_FOLDER, basedir)},
+      {"config_folder",
+       ensure_absolute_path(MYSQL_ROUTER_CONFIG_FOLDER, basedir)},
+      {"data_folder", ensure_absolute_path(MYSQL_ROUTER_DATA_FOLDER, basedir)}};
+
+  // foreach param, s/{origin}/<basedir>/
+  for (auto it : params) {
+    std::string &param = params.at(it.first);
+    param.assign(
+        mysqlrouter::substitute_variable(param, "{origin}", origin.str()));
+  }
+  return params;
+}
 
 std::map<std::string, std::string> MySQLRouter::get_default_paths() const {
-  return mysqlrouter::get_default_paths(
-      origin_);  // throws std::invalid_argument
+  return get_default_paths(origin_);  // throws std::invalid_argument
 }
 
 /*static*/
@@ -474,8 +524,7 @@ mysql_harness::LoaderConfig *MySQLRouter::make_config(
     // LoaderConfig ctor throws bad_option (std::runtime_error)
     std::unique_ptr<mysql_harness::LoaderConfig> config(
         new mysql_harness::LoaderConfig(params, std::vector<std::string>(),
-                                        mysql_harness::Config::allow_keys,
-                                        arg_handler_.get_config_overwrites()));
+                                        mysql_harness::Config::allow_keys));
 
     // throws std::invalid_argument, std::runtime_error, syntax_error, ...
     for (const auto &config_file : config_files) {
@@ -607,20 +656,13 @@ void MySQLRouter::start() {
     auto pid = getpid();
     std::ofstream pidfile(pid_file_path_);
     if (pidfile.good()) {
-      pid_file_created_ = true;
       pidfile << pid << std::endl;
       pidfile.close();
       log_info("PID %d written to '%s'", pid, pid_file_path_.c_str());
     } else {
-#ifdef _WIN32
-      const std::error_code ec{static_cast<int>(GetLastError()),
-                               std::system_category()};
-#else
-      const std::error_code ec{errno, std::generic_category()};
-#endif
-
-      throw std::system_error(ec,
-                              "Failed writing PID to '" + pid_file_path_ + "'");
+      throw std::runtime_error(
+          string_format("Failed writing PID to %s: %s", pid_file_path_.c_str(),
+                        mysqlrouter::get_last_error(errno).c_str()));
     }
   }
 
@@ -672,8 +714,8 @@ void MySQLRouter::start() {
 }
 
 void MySQLRouter::stop() {
-  // Remove the pidfile if present and was created by us.
-  if (!pid_file_path_.empty() && pid_file_created_) {
+  // Remove the pidfile if present
+  if (!pid_file_path_.empty()) {
     mysql_harness::Path pid_file_path(pid_file_path_);
     if (pid_file_path.is_regular()) {
       log_debug("Removing pidfile %s", pid_file_path.c_str());
@@ -717,7 +759,7 @@ std::vector<std::string> MySQLRouter::check_config_files() {
   if (!res) {
     const auto err = std::move(res.error());
     if (err.ec == make_error_code(ConfigFilePathValidatorErrc::kDuplicate)) {
-      throw std::runtime_error(string_format(
+      throw std::runtime_error(mysqlrouter::string_format(
           "The configuration file '%s' is provided multiple "
           "times.\nAlready known "
           "configuration files:\n\n%s",
@@ -725,9 +767,9 @@ std::vector<std::string> MySQLRouter::check_config_files() {
           mysql_harness::join(err.paths_attempted, "\n").c_str()));
     } else if (err.ec ==
                make_error_code(ConfigFilePathValidatorErrc::kNotReadable)) {
-      throw std::runtime_error(
-          string_format("The configuration file '%s' is not readable.",
-                        err.current_filename.c_str()));
+      throw std::runtime_error(mysqlrouter::string_format(
+          "The configuration file '%s' is not readable.",
+          err.current_filename.c_str()));
     } else if (err.ec ==
                make_error_code(
                    ConfigFilePathValidatorErrc::kExtraWithoutMainConfig)) {
@@ -1114,84 +1156,22 @@ void MySQLRouter::prepare_command_options() noexcept {
   arg_handler_.add_option(
       OptionNames({"--connect-timeout"}),
       "The time in seconds after which trying to connect to metadata server "
-      "should timeout. It is used when bootstrapping and also written to the "
-      "configuration file (bootstrap)",
+      "should timeout. It applies to bootstrap mode and is written to "
+      "configuration file. It is also used in normal mode.",
       CmdOptionValueReq::optional, "",
       [this](const std::string &connect_timeout) {
         this->bootstrap_options_["connect-timeout"] = connect_timeout;
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--connect-timeout");
       });
 
   arg_handler_.add_option(
       OptionNames({"--conf-use-gr-notifications"}),
       "Whether to enable handling of cluster state change GR notifications.",
-      CmdOptionValueReq::optional, "",
-      [this](const std::string &value) {
-        if (value == "0" || value == "1") {
-          this->bootstrap_options_["use-gr-notifications"] = value;
-        } else if (value.empty()) {
-          this->bootstrap_options_["use-gr-notifications"] = "1";
-        } else {
-          throw std::runtime_error(
-              "Value for parameter '--conf-use-gr-notifications' needs to be "
-              "one of: ['0', '1']");
-        }
+      CmdOptionValueReq::none, "",
+      [this](const std::string &) {
+        this->bootstrap_options_["use-gr-notifications"] = "1";
       },
       [this](const std::string &) {
         this->assert_bootstrap_mode("--conf-use-gr-notifications");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--conf-target-cluster"}),
-      "Router's target Cluster from the ClusterSet('current' or 'primary').",
-      CmdOptionValueReq::required, "",
-      [this](const std::string &value) {
-        if (this->bootstrap_options_.count("target-cluster-by-name") > 0) {
-          throw std::runtime_error(
-              "Parameters '--conf-target-cluster' and "
-              "'--conf-target-cluster-by-name' are mutually exclusive and "
-              "can't be used together");
-        }
-
-        std::string value_lowercase{value};
-        std::transform(value_lowercase.begin(), value_lowercase.end(),
-                       value_lowercase.begin(), ::tolower);
-
-        if (value_lowercase != "primary" && value_lowercase != "current") {
-          throw std::runtime_error(
-              "Value for parameter '--conf-target-cluster' needs to be one of: "
-              "['primary', 'current']");
-        }
-
-        this->bootstrap_options_["target-cluster"] = value_lowercase;
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--conf-target-cluster");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--conf-target-cluster-by-name"}),
-      "Name of the target Cluster for the Router when bootstrapping against "
-      "the ClusterSet",
-      CmdOptionValueReq::required, "",
-      [this](const std::string &value) {
-        if (this->bootstrap_options_.count("target-cluster") > 0) {
-          throw std::runtime_error(
-              "Parameters '--conf-target-cluster' and "
-              "'--conf-target-cluster-by-name' are mutually exclusive and "
-              "can't be used together");
-        }
-        if (value.empty()) {
-          throw std::runtime_error(
-              "Value for parameter '--conf-target-cluster-by-name' can't be "
-              "empty");
-        }
-        this->bootstrap_options_["target-cluster-by-name"] = value;
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--conf-target-cluster-by-name");
       });
 
   arg_handler_.add_option(
@@ -1316,15 +1296,11 @@ void MySQLRouter::prepare_command_options() noexcept {
 
   arg_handler_.add_option(
       OptionNames({"--read-timeout"}),
-      "The time in seconds after which reads from metadata server should "
-      "timeout. It is used when bootstrapping and is also written to "
-      "configuration file. (bootstrap)",
-      CmdOptionValueReq::optional, "",
-      [this](const std::string &read_timeout) {
+      "The time in seconds after which read from metadata server should "
+      "timeout. It applies to bootstrap mode and is written to configuration "
+      "file. It is also used in normal mode.",
+      CmdOptionValueReq::optional, "", [this](const std::string &read_timeout) {
         this->bootstrap_options_["read-timeout"] = read_timeout;
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--read-timeout");
       });
   arg_handler_.add_option(
       OptionNames({"--report-host"}),
@@ -1653,20 +1629,6 @@ void MySQLRouter::prepare_command_options() noexcept {
         this->showing_info_ = true;
       });
 
-  arg_handler_.add_option(
-      OptionNames({"--conf-set-option"}),
-      "Allows forcing selected option in the configuration file when "
-      "bootstrapping (--conf-set-option=section_name.option_name=value)",
-      CmdOptionValueReq::required, "conf-set-option",
-      [this](const std::string &conf_option) {
-        std::vector<std::string> &conf_options =
-            this->bootstrap_multivalue_options_["conf-set-option"];
-        conf_options.push_back(conf_option);
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--conf-set-option");
-      });
-
 // These are additional Windows-specific options, added (at the time of writing)
 // in check_service_operations(). Grep after '--install-service' and you shall
 // find.
@@ -1680,11 +1642,28 @@ void MySQLRouter::prepare_command_options() noexcept {
         log_info("Removed successfully all passwords from the vault.");
         throw silent_exception();
       });
+  arg_handler_.add_option(
+      CmdOption::OptionNames({"--install-service"}),
+      "Install Router as Windows service which starts "
+      "automatically at system boot",
+      CmdOptionValueReq::none, "",
+      [](const std::string &) { /*implemented elsewhere*/ });
 
-  // in this context we only want the service-related options to be known and
-  // displayed with --help; they are handled elsewhere (main-windows.cc)
-  ServiceConfOptions unused;
-  add_service_options(arg_handler_, unused);
+  arg_handler_.add_option(
+      CmdOption::OptionNames({"--install-service-manual"}),
+      "Install Router as Windows service which needs to be started manually",
+      CmdOptionValueReq::none, "",
+      [](const std::string &) { /*implemented elsewhere*/ });
+
+  arg_handler_.add_option(
+      CmdOption::OptionNames({"--remove-service"}),
+      "Remove Router from Windows services", CmdOptionValueReq::none, "",
+      [](const std::string &) { /*implemented elsewhere*/ });
+
+  arg_handler_.add_option(
+      CmdOption::OptionNames({"--service"}), "Start Router as Windows service",
+      CmdOptionValueReq::none, "",
+      [](const std::string &) { /*implemented elsewhere*/ });
 
   arg_handler_.add_option(
       CmdOption::OptionNames({"--remove-credentials-section"}),
@@ -1703,7 +1682,7 @@ void MySQLRouter::prepare_command_options() noexcept {
       "Updates the credentials for the given section",
       CmdOptionValueReq::required, "section_name",
       [](const std::string &value) {
-        std::string prompt = string_format(
+        std::string prompt = mysqlrouter::string_format(
             "Enter password for config section '%s'", value.c_str());
         std::string pass = mysqlrouter::prompt_password(prompt);
         PasswordVault pv;
@@ -1717,8 +1696,7 @@ void MySQLRouter::prepare_command_options() noexcept {
 
 // throws MySQLSession::Error, std::runtime_error, std::out_of_range,
 // std::logic_error, ... ?
-void MySQLRouter::bootstrap(const std::string &program_name,
-                            const std::string &server_url) {
+void MySQLRouter::bootstrap(const std::string &server_url) {
   mysqlrouter::ConfigGenerator config_gen(out_stream_, err_stream_
 #ifndef _WIN32
                                           ,
@@ -1761,10 +1739,9 @@ void MySQLRouter::bootstrap(const std::string &program_name,
     if (!keyring_dir.exists()) {
       if (mysql_harness::mkdir(default_keyring_file,
                                mysqlrouter::kStrictDirectoryPerm, true) < 0) {
-        log_error(
-            "Cannot create directory '%s': %s",
-            truncate_string(default_keyring_file).c_str(),
-            std::error_code{errno, std::generic_category()}.message().c_str());
+        log_error("Cannot create directory '%s': %s",
+                  truncate_string(default_keyring_file).c_str(),
+                  get_strerror(errno).c_str());
         throw std::runtime_error("Could not create keyring directory");
       } else {
         // sets the directory owner for the --user if provided
@@ -1778,15 +1755,15 @@ void MySQLRouter::bootstrap(const std::string &program_name,
     keyring_info_.set_master_key_file(master_key_path);
     config_gen.set_keyring_info(keyring_info_);
     config_gen.bootstrap_system_deployment(
-        program_name, config_file_path, state_file_path, bootstrap_options_,
+        config_file_path, state_file_path, bootstrap_options_,
         bootstrap_multivalue_options_, default_paths);
   } else {
     keyring_info_.set_keyring_file(kDefaultKeyringFileName);
     keyring_info_.set_master_key_file("mysqlrouter.key");
     config_gen.set_keyring_info(keyring_info_);
     config_gen.bootstrap_directory_deployment(
-        program_name, bootstrap_directory_, bootstrap_options_,
-        bootstrap_multivalue_options_, default_paths);
+        bootstrap_directory_, bootstrap_options_, bootstrap_multivalue_options_,
+        default_paths);
   }
 }
 
@@ -1881,7 +1858,6 @@ void MySQLRouter::show_usage(bool include_options) noexcept {
         "--bootstrap",
         "--bootstrap-socket",
         "--conf-use-sockets",
-        "--conf-set-option",
         "--conf-skip-tcp",
         "--conf-base-port",
         "--conf-use-gr-notifications",

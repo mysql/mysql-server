@@ -1,5 +1,0 @@
-# ==== Purpose ====
-# Enable the replication option GTID_ONLY
-
-[ENV]
-GTID_ONLY= *:1

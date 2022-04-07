@@ -55,7 +55,7 @@ struct CloseComReqConf {
    */
   friend bool printCLOSECOMREQCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
-  static constexpr Uint32 SignalLength = 5;
+  STATIC_CONST( SignalLength = 5);
 
   enum RequestType {
     RT_API_FAILURE   = 0,

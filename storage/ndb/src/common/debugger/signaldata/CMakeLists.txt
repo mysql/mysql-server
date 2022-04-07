@@ -103,7 +103,6 @@ ADD_CONVENIENCE_LIBRARY(ndbsignaldata
   TcKeyReq.cpp
   TcRollbackRep.cpp
   TrigAttrInfo.cpp
-  TrpKeepAlive.cpp
   TupCommit.cpp
   TupKey.cpp
   TuxMaint.cpp

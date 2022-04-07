@@ -49,7 +49,7 @@ struct DropObjReq
   friend class Dbdih;
   
   friend bool printDROP_OBJ_REQ(FILE *, const Uint32 *, Uint32, Uint16);
-  static constexpr Uint32 SignalLength = 9;
+  STATIC_CONST( SignalLength = 9 );
 
   Uint32 op_key;
   Uint32 objId;
@@ -83,7 +83,7 @@ class DropObjConf {
 
   friend bool printDROP_OBJ_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  static constexpr Uint32 SignalLength = 3;
+  STATIC_CONST( SignalLength = 3 );
 
 private:
   Uint32 senderRef;
@@ -109,7 +109,7 @@ class DropObjRef {
 
   friend bool printDROP_OBJ_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  static constexpr Uint32 SignalLength = 4;
+  STATIC_CONST( SignalLength = 4 );
 
   enum ErrorCode {
     NoSuchObj = 1,

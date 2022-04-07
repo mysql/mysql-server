@@ -791,7 +791,8 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
                           << "Partition Index " << part_index->name()
                           << " from server for table: " << part_table->name;);
 
-      for (auto index : part_table->indexes) {
+      for (dict_index_t *index = UT_LIST_GET_FIRST(part_table->indexes);
+           index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
         if (strcmp(part_index->name().c_str(), index->name()) == 0) {
           uint64_t read_auto_inc = 0;
           dd_upgrade_process_index(part_index, index, part_table->dd_space_id,
@@ -990,7 +991,8 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
                         << "Index " << dd_index->name()
                         << " from server for table: " << ib_table->name;);
 
-    for (auto index : ib_table->indexes) {
+    for (dict_index_t *index = UT_LIST_GET_FIRST(ib_table->indexes);
+         index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
       if (strcmp(dd_index->name().c_str(), index->name()) == 0) {
         if (!dd_index->is_hidden()) {
           failure = dd_upgrade_match_index(srv_table, index);
@@ -1029,9 +1031,9 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
       dict_table_close(ib_table, false, false);
       return (true);
     } else {
-      dict_sys_mutex_enter();
+      mutex_enter(&dict_sys->mutex);
       dict_table_prevent_eviction(ib_table);
-      dict_sys_mutex_exit();
+      mutex_exit(&dict_sys->mutex);
 
       tables_with_fts.push_back(ib_table->name.m_name);
     }
@@ -1126,7 +1128,7 @@ int dd_upgrade_tablespace(THD *thd) {
   heap = mem_heap_create(1000);
   dd::cache::Dictionary_client *dd_client = dd::get_dd_client(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
-  dict_sys_mutex_enter();
+  mutex_enter(&dict_sys->mutex);
   mtr_start(&mtr);
 
   /* Pattern for matching the FTS auxiliary tablespace name which starts with
@@ -1145,7 +1147,7 @@ int dd_upgrade_tablespace(THD *thd) {
     err_msg = dict_process_sys_tablespaces(heap, rec, &space, &name, &flags);
 
     mtr_commit(&mtr);
-    dict_sys_mutex_exit();
+    mutex_exit(&dict_sys->mutex);
     std::string tablespace_name(name);
 
     if (!err_msg && !regex_search(tablespace_name, fts_regex)) {
@@ -1179,12 +1181,12 @@ int dd_upgrade_tablespace(THD *thd) {
         upgrade_space.name = name;
       }
 
-      dict_sys_mutex_enter();
+      mutex_enter(&dict_sys->mutex);
       char *filename = dict_get_first_path(space);
-      dict_sys_mutex_exit();
+      mutex_exit(&dict_sys->mutex);
 
       std::string orig_name(filename);
-      ut::free(filename);
+      ut_free(filename);
       filename = nullptr;
 
       /* To migrate statistics from 57 satistics tables, we rename the
@@ -1201,9 +1203,9 @@ int dd_upgrade_tablespace(THD *thd) {
 
         /* Validate whether the tablespace file exists before making
         the entry in dd::tablespaces*/
-        dict_sys_mutex_enter();
+        mutex_enter(&dict_sys->mutex);
         fil_space_t *fil_space = fil_space_get(space);
-        dict_sys_mutex_exit();
+        mutex_exit(&dict_sys->mutex);
 
         /* If the file is not already opened, check for its existence
         by opening it in read-only mode. */
@@ -1237,12 +1239,12 @@ int dd_upgrade_tablespace(THD *thd) {
     mem_heap_empty(heap);
 
     /* Get the next record */
-    dict_sys_mutex_enter();
+    mutex_enter(&dict_sys->mutex);
     mtr_start(&mtr);
   }
 
   mtr_commit(&mtr);
-  dict_sys_mutex_exit();
+  mutex_exit(&dict_sys->mutex);
 
   /* These are file_per_table tablespaces(created using 5.5 or
   earlier). These are not found in SYS_TABLESPACES but discovered
@@ -1290,7 +1292,7 @@ bool upgrade_space_version(const uint32 space_id, bool server_version_only) {
   page_t *page;
   mtr_t mtr;
 
-  fil_space_t *space = fil_space_acquire_silent(space_id);
+  fil_space_t *space = fil_space_acquire(space_id);
 
   if (space == nullptr) {
     return (true);
@@ -1370,7 +1372,7 @@ the end of successful upgrade */
 static void dd_upgrade_drop_sys_tables() {
   ut_ad(srv_is_upgrade_mode);
 
-  dict_sys_mutex_enter();
+  mutex_enter(&dict_sys->mutex);
 
   bool found;
   const page_size_t page_size(
@@ -1405,7 +1407,7 @@ static void dd_upgrade_drop_sys_tables() {
   dict_sys->sys_fields = nullptr;
   dict_sys->sys_virtual = nullptr;
 
-  dict_sys_mutex_exit();
+  mutex_exit(&dict_sys->mutex);
 }
 
 /** Stat backup tables(innodb_*_stats_backup57) are created by server before
@@ -1447,7 +1449,7 @@ static void dd_upgrade_fts_rename_cleanup(bool failed_upgrade) {
     if (ib_table != nullptr) {
       fts_upgrade_rename(ib_table, failed_upgrade);
 
-      dict_sys_mutex_enter();
+      mutex_enter(&dict_sys->mutex);
 
       /* Do not mark the table ready for eviction if there is
       a foreign key relationship on this table */
@@ -1455,7 +1457,7 @@ static void dd_upgrade_fts_rename_cleanup(bool failed_upgrade) {
         dict_table_allow_eviction(ib_table);
       }
       dict_table_close(ib_table, true, false);
-      dict_sys_mutex_exit();
+      mutex_exit(&dict_sys->mutex);
     }
   }
 }

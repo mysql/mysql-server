@@ -75,7 +75,7 @@ class Column_statistics : virtual public Entity_object {
 
   bool update_aux_key(Aux_key *) const { return true; }
 
-  ~Column_statistics() override = default;
+  ~Column_statistics() override {}
 
   virtual const String_type &schema_name() const = 0;
   virtual void set_schema_name(const String_type &schema_name) = 0;
@@ -141,14 +141,6 @@ class Column_statistics : virtual public Entity_object {
   }
 
   virtual Column_statistics *clone() const = 0;
-
-  /**
-    Allocate a new object which can serve as a placeholder for the original
-    object in the Dictionary_client's dropped registry. Such object has the
-    same keys as the original but has no other info and as result occupies
-    less memory.
-  */
-  virtual Column_statistics *clone_dropped_object_placeholder() const = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////

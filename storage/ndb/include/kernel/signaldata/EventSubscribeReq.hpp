@@ -46,7 +46,7 @@ struct EventSubscribeReq {
    */
   friend class MgmtSrvr;
 
-  static constexpr Uint32 SignalLength = 2 + LogLevel::LOGLEVEL_CATEGORIES;
+  STATIC_CONST( SignalLength = 2 + LogLevel::LOGLEVEL_CATEGORIES );
   
   /**
    * Note: If you use the same blockRef as you have used earlier, 

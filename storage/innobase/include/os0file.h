@@ -95,22 +95,14 @@ struct Block {
 
   /** Pointer to the memory block. */
   byte *m_ptr;
-  /** Size of the data in memory block. This may be not UNIV_PAGE_SIZE if the
-  data was compressed before encryption. */
-  size_t m_size;
   /** This padding is needed to avoid false sharing. TBD: of what exactly? We
   can't use alignas because std::vector<Block> uses std::allocator which in
-  C++14 doesn't have to handle overaligned types. (see 20.7.9.1.5 of N4140
+  C++14 doesn't have to handle overaligned types. (see § 20.7.9.1.5 of N4140
   draft) */
   byte pad[ut::INNODB_CACHE_LINE_SIZE];
   std::atomic<bool> m_in_use;
 };
 }  // namespace file
-
-/** Raw file handle. */
-using os_fd_t = int;
-
-static constexpr os_fd_t OS_FD_CLOSED = -1;
 
 #ifdef _WIN32
 
@@ -123,10 +115,8 @@ the OS actually supports it: Win 95 does not, NT does. */
 /** Use unbuffered I/O */
 #define UNIV_NON_BUFFERED_IO
 
-/** Windows file handle */
-using os_file_t = HANDLE;
-
-static const os_file_t OS_FILE_CLOSED = INVALID_HANDLE_VALUE;
+/** File handle */
+#define os_file_t HANDLE
 
 /** Convert a C file descriptor to a native file handle
 @param fd file descriptor
@@ -146,9 +136,7 @@ static const os_file_t OS_FILE_CLOSED = INVALID_HANDLE_VALUE;
 #else /* _WIN32 */
 
 /** File handle */
-using os_file_t = os_fd_t;
-
-static constexpr os_fd_t OS_FILE_CLOSED = OS_FD_CLOSED;
+typedef int os_file_t;
 
 /** Convert a C file descriptor to a native file handle
 @param fd file descriptor
@@ -163,7 +151,7 @@ static constexpr os_fd_t OS_FILE_CLOSED = OS_FD_CLOSED;
 /** Closes the file associated with C file descriptor fd
 @param[in]	fd	C file descriptor
 @return 0 if success */
-#define OS_FILE_CLOSE_FD(fd) (os_file_close(fd) ? 0 : OS_FD_CLOSED)
+#define OS_FILE_CLOSE_FD(fd) (os_file_close(fd) ? 0 : -1)
 
 #endif /* _WIN32 */
 
@@ -181,6 +169,8 @@ struct pfs_os_file_t {
 
   os_file_t m_file;
 };
+
+static const os_file_t OS_FILE_CLOSED = os_file_t(~0);
 
 /** The next value should be smaller or equal to the smallest sector size used
 on any disk. A log block is required to be a portion of disk which is written
@@ -258,8 +248,6 @@ static const ulint OS_FILE_AIO_INTERRUPTED = 79;
 static const ulint OS_FILE_OPERATION_ABORTED = 80;
 static const ulint OS_FILE_ACCESS_VIOLATION = 81;
 static const ulint OS_FILE_NAME_TOO_LONG = 82;
-static const ulint OS_FILE_TOO_MANY_OPENED = 83;
-
 static const ulint OS_FILE_ERROR_MAX = 100;
 /** @} */
 
@@ -357,29 +345,38 @@ class IORequest {
   }
 
   /** @return true if ignore missing flag is set */
-  [[nodiscard]] static bool ignore_missing(ulint type) {
+  static bool ignore_missing(ulint type) MY_ATTRIBUTE((warn_unused_result)) {
     return ((type & IGNORE_MISSING) == IGNORE_MISSING);
   }
 
   /** @return true if it is a read request */
-  [[nodiscard]] bool is_read() const { return ((m_type & READ) == READ); }
+  bool is_read() const MY_ATTRIBUTE((warn_unused_result)) {
+    return ((m_type & READ) == READ);
+  }
 
   /** @return true if it is a write request */
-  [[nodiscard]] bool is_write() const { return ((m_type & WRITE) == WRITE); }
+  bool is_write() const MY_ATTRIBUTE((warn_unused_result)) {
+    return ((m_type & WRITE) == WRITE);
+  }
 
   /** @return true if it is a redo log write */
-  [[nodiscard]] bool is_log() const { return ((m_type & LOG) == LOG); }
+  bool is_log() const MY_ATTRIBUTE((warn_unused_result)) {
+    return ((m_type & LOG) == LOG);
+  }
 
   /** @return true if it is a row log entry used in online DDL */
-  [[nodiscard]] bool is_row_log() const {
+  bool is_row_log() const MY_ATTRIBUTE((warn_unused_result)) {
     return ((m_type & ROW_LOG) == ROW_LOG);
   }
 
   /** @return true if the simulated AIO thread should be woken up */
-  [[nodiscard]] bool is_wake() const { return ((m_type & DO_NOT_WAKE) == 0); }
+  bool is_wake() const MY_ATTRIBUTE((warn_unused_result)) {
+    return ((m_type & DO_NOT_WAKE) == 0);
+  }
 
   /** @return true if partial read warning disabled */
-  [[nodiscard]] bool is_partial_io_warning_disabled() const {
+  bool is_partial_io_warning_disabled() const
+      MY_ATTRIBUTE((warn_unused_result)) {
     return ((m_type & DISABLE_PARTIAL_IO_WARNINGS) ==
             DISABLE_PARTIAL_IO_WARNINGS);
   }
@@ -388,16 +385,19 @@ class IORequest {
   void disable_partial_io_warnings() { m_type |= DISABLE_PARTIAL_IO_WARNINGS; }
 
   /** @return true if missing files should be ignored */
-  [[nodiscard]] bool ignore_missing() const { return (ignore_missing(m_type)); }
+  bool ignore_missing() const MY_ATTRIBUTE((warn_unused_result)) {
+    return (ignore_missing(m_type));
+  }
 
   /** @return true if punch hole should be used */
-  [[nodiscard]] bool punch_hole() const {
+  bool punch_hole() const MY_ATTRIBUTE((warn_unused_result)) {
     return ((m_type & PUNCH_HOLE) == PUNCH_HOLE);
   }
 
   /** @return true if punch hole needs to be done always if it's supported and
   if the page is to be compressed. */
-  [[nodiscard]] bool is_punch_hole_optimisation_disabled() const {
+  bool is_punch_hole_optimisation_disabled() const
+      MY_ATTRIBUTE((warn_unused_result)) {
     ut_ad(is_compressed() && punch_hole());
 
     return (m_type & DISABLE_PUNCH_HOLE_OPTIMISATION) ==
@@ -405,7 +405,7 @@ class IORequest {
   }
 
   /** @return true if the read should be validated */
-  [[nodiscard]] bool validate() const {
+  bool validate() const MY_ATTRIBUTE((warn_unused_result)) {
     ut_ad(is_read() ^ is_write());
 
     return (!is_read() || !punch_hole());
@@ -432,20 +432,14 @@ class IORequest {
   void clear_punch_hole() { m_type &= ~PUNCH_HOLE; }
 
   /** @return the block size to use for IO */
-  [[nodiscard]] ulint block_size() const { return (m_block_size); }
+  ulint block_size() const MY_ATTRIBUTE((warn_unused_result)) {
+    return (m_block_size);
+  }
 
   /** Set the block size for IO
   @param[in] block_size		Block size to set */
   void block_size(ulint block_size) {
     m_block_size = static_cast<uint32_t>(block_size);
-  }
-
-  /** Returns original size of the IO to make. If one was not specified, then 0
-  is returned. */
-  uint32_t get_original_size() const { return m_original_size; }
-
-  void set_original_size(uint32_t original_size) {
-    m_original_size = original_size;
   }
 
   /** Clear all compression related flags */
@@ -473,17 +467,17 @@ class IORequest {
 
   /** Get the compression algorithm.
   @return the compression algorithm */
-  [[nodiscard]] Compression compression_algorithm() const {
+  Compression compression_algorithm() const MY_ATTRIBUTE((warn_unused_result)) {
     return (m_compression);
   }
 
   /** @return true if the page should be compressed */
-  [[nodiscard]] bool is_compressed() const {
+  bool is_compressed() const MY_ATTRIBUTE((warn_unused_result)) {
     return (compression_algorithm().m_type != Compression::NONE);
   }
 
   /** @return true if the page read should not be transformed. */
-  [[nodiscard]] bool is_compression_enabled() const {
+  bool is_compression_enabled() const MY_ATTRIBUTE((warn_unused_result)) {
     return ((m_type & NO_COMPRESSION) == 0);
   }
 
@@ -504,7 +498,7 @@ class IORequest {
   @param[in] key		The encryption key to use
   @param[in] key_len	length of the encryption key
   @param[in] iv		The encryption iv to use */
-  void encryption_key(const byte *key, ulint key_len, const byte *iv) {
+  void encryption_key(byte *key, ulint key_len, byte *iv) {
     m_encryption.set_key(key);
     m_encryption.set_key_length(key_len);
     m_encryption.set_initial_vector(iv);
@@ -512,12 +506,12 @@ class IORequest {
 
   /** Get the encryption algorithm.
   @return the encryption algorithm */
-  [[nodiscard]] Encryption encryption_algorithm() const {
+  Encryption encryption_algorithm() const MY_ATTRIBUTE((warn_unused_result)) {
     return (m_encryption);
   }
 
   /** @return true if the page should be encrypted. */
-  [[nodiscard]] bool is_encrypted() const {
+  bool is_encrypted() const MY_ATTRIBUTE((warn_unused_result)) {
     return (m_encryption.get_type() != Encryption::NONE);
   }
 
@@ -533,7 +527,9 @@ class IORequest {
   void dblwr() { m_type |= DBLWR; }
 
   /** @return true if the request is for a dblwr page. */
-  [[nodiscard]] bool is_dblwr() const { return ((m_type & DBLWR) == DBLWR); }
+  bool is_dblwr() const MY_ATTRIBUTE((warn_unused_result)) {
+    return ((m_type & DBLWR) == DBLWR);
+  }
 
   /** @return true if punch hole is supported */
   static bool is_punch_hole_supported() {
@@ -598,7 +594,8 @@ class IORequest {
 
   /** Get a reference to the underlying encryption information.
   @return reference to the encryption information. */
-  [[nodiscard]] Encryption &get_encryption_info() noexcept {
+  Encryption &get_encryption_info() noexcept
+      MY_ATTRIBUTE((warn_unused_result)) {
     return m_encryption;
   }
 
@@ -610,7 +607,8 @@ class IORequest {
 
   /** Get the encrypted block.
   @return the encrypted block. */
-  [[nodiscard]] const file::Block *get_encrypted_block() const noexcept {
+  const file::Block *get_encrypted_block() const noexcept
+      MY_ATTRIBUTE((warn_unused_result)) {
     return m_eblock;
   }
 
@@ -632,12 +630,6 @@ class IORequest {
 
   /** The length of data in encrypted block. */
   uint32_t m_elen{};
-
-  /** Length of the original IO size.
-  For reads it is an expected uncompressed length.
-  For writes it is a length up to which the write is to be extended with a punch
-  hole, if supported. */
-  uint32_t m_original_size{};
 };
 
 /** @} */
@@ -739,10 +731,13 @@ struct os_file_stat_t {
 };
 
 #ifndef UNIV_HOTBACKUP
-/** Create a temporary file. This function is like tmpfile(3). It will create
-the file in the MySQL server configuration parameter (--tmpdir).
+/** Create a temporary file. This function is like tmpfile(3), but
+the temporary file is created in the given parameter path. If the path
+is NULL then it will create the file in the MySQL server configuration
+parameter (--tmpdir).
+@param[in]	path	location for creating temporary file
 @return temporary file handle, or NULL on error */
-FILE *os_file_create_tmpfile();
+FILE *os_file_create_tmpfile(const char *path);
 #endif /* !UNIV_HOTBACKUP */
 
 /** This function attempts to create a directory named pathname. The new
@@ -800,9 +795,9 @@ null-terminated string
 @param[out]	success		true if succeeded
 @return own: handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
-[[nodiscard]] pfs_os_file_t os_file_create_simple_no_error_handling_func(
+pfs_os_file_t os_file_create_simple_no_error_handling_func(
     const char *name, ulint create_mode, ulint access_type, bool read_only,
-    bool *success);
+    bool *success) MY_ATTRIBUTE((warn_unused_result));
 
 /** Tries to disable OS caching on an opened file descriptor.
 @param[in]	fd		file descriptor to alter
@@ -829,10 +824,10 @@ Opens an existing file or creates a new.
 @param[in]	success		true if succeeded
 @return own: handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
-[[nodiscard]] pfs_os_file_t os_file_create_func(const char *name,
-                                                ulint create_mode,
-                                                ulint purpose, ulint type,
-                                                bool read_only, bool *success);
+pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
+                                  ulint purpose, ulint type, bool read_only,
+                                  bool *success)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Deletes a file. The file has to be closed before calling this.
 @param[in]	name		file path as a null-terminated string
@@ -1047,9 +1042,11 @@ os_file_create_simple() which opens or creates a file.
 @param[in]	src_line	line where the func invoked
 @return own: handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
-[[nodiscard]] static inline pfs_os_file_t pfs_os_file_create_simple_func(
+UNIV_INLINE
+pfs_os_file_t pfs_os_file_create_simple_func(
     mysql_pfs_key_t key, const char *name, ulint create_mode, ulint access_type,
-    bool read_only, bool *success, const char *src_file, uint src_line);
+    bool read_only, bool *success, const char *src_file, uint src_line)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** NOTE! Please use the corresponding macro
 os_file_create_simple_no_error_handling(), not directly this function!
@@ -1069,10 +1066,11 @@ monitor file creation/open.
 @param[in]	src_line	line where the func invoked
 @return own: handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
-[[nodiscard]] static inline pfs_os_file_t
-pfs_os_file_create_simple_no_error_handling_func(
+UNIV_INLINE
+pfs_os_file_t pfs_os_file_create_simple_no_error_handling_func(
     mysql_pfs_key_t key, const char *name, ulint create_mode, ulint access_type,
-    bool read_only, bool *success, const char *src_file, uint src_line);
+    bool read_only, bool *success, const char *src_file, uint src_line)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** NOTE! Please use the corresponding macro os_file_create(), not directly
 this function!
@@ -1095,10 +1093,12 @@ Add instrumentation to monitor file creation/open.
 @param[in]	src_line	line where the func invoked
 @return own: handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
-[[nodiscard]] static inline pfs_os_file_t pfs_os_file_create_func(
-    mysql_pfs_key_t key, const char *name, ulint create_mode, ulint purpose,
-    ulint type, bool read_only, bool *success, const char *src_file,
-    uint src_line);
+UNIV_INLINE
+pfs_os_file_t pfs_os_file_create_func(mysql_pfs_key_t key, const char *name,
+                                      ulint create_mode, ulint purpose,
+                                      ulint type, bool read_only, bool *success,
+                                      const char *src_file, uint src_line)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** NOTE! Please use the corresponding macro os_file_close(), not directly
 this function!
@@ -1107,8 +1107,9 @@ A performance schema instrumented wrapper function for os_file_close().
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return true if success */
-static inline bool pfs_os_file_close_func(pfs_os_file_t file,
-                                          const char *src_file, uint src_line);
+UNIV_INLINE
+bool pfs_os_file_close_func(pfs_os_file_t file, const char *src_file,
+                            uint src_line);
 
 /** NOTE! Please use the corresponding macro os_file_read(), not directly
 this function!
@@ -1123,9 +1124,10 @@ os_file_read() which requests a synchronous read operation.
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return DB_SUCCESS if request was successful */
-static inline dberr_t pfs_os_file_read_func(
-    IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
-    os_offset_t offset, ulint n, const char *src_file, uint src_line);
+UNIV_INLINE
+dberr_t pfs_os_file_read_func(IORequest &type, const char *file_name,
+                              pfs_os_file_t file, void *buf, os_offset_t offset,
+                              ulint n, const char *src_file, uint src_line);
 
 /** NOTE! Please use the corresponding macro os_file_read_first_page(),
 not directly this function!
@@ -1140,9 +1142,10 @@ of page 0 of IBD file
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return DB_SUCCESS if request was successful */
-static inline dberr_t pfs_os_file_read_first_page_func(
-    IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
-    ulint n, const char *src_file, uint src_line);
+UNIV_INLINE
+dberr_t pfs_os_file_read_first_page_func(IORequest &type, const char *file_name,
+                                         pfs_os_file_t file, void *buf, ulint n,
+                                         const char *src_file, uint src_line);
 
 /** copy data from one file to another file. Data is read/written
 at current file offset.
@@ -1154,9 +1157,10 @@ at current file offset.
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return DB_SUCCESS if successful */
-static inline dberr_t pfs_os_file_copy_func(
-    pfs_os_file_t src, os_offset_t src_offset, pfs_os_file_t dest,
-    os_offset_t dest_offset, uint size, const char *src_file, uint src_line);
+UNIV_INLINE
+dberr_t pfs_os_file_copy_func(pfs_os_file_t src, os_offset_t src_offset,
+                              pfs_os_file_t dest, os_offset_t dest_offset,
+                              uint size, const char *src_file, uint src_line);
 
 /** NOTE! Please use the corresponding macro os_file_read_no_error_handling(),
 not directly this function!
@@ -1173,7 +1177,8 @@ read operation.
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return DB_SUCCESS if request was successful */
-static inline dberr_t pfs_os_file_read_no_error_handling_func(
+UNIV_INLINE
+dberr_t pfs_os_file_read_no_error_handling_func(
     IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
     os_offset_t offset, ulint n, ulint *o, const char *src_file, uint src_line);
 
@@ -1193,7 +1198,8 @@ synchronous read operation on files with int type descriptors.
 @param[in]      src_line        line where the func invoked
 @return DB_SUCCESS if request was successful */
 
-static inline dberr_t pfs_os_file_read_no_error_handling_int_fd_func(
+UNIV_INLINE
+dberr_t pfs_os_file_read_no_error_handling_int_fd_func(
     IORequest &type, const char *file_name, int file, void *buf,
     os_offset_t offset, ulint n, ulint *o, const char *src_file,
     ulint src_line);
@@ -1209,8 +1215,7 @@ an asynchronous I/O operation.
 @param[in]	file		Open file handle
 @param[out]	buf		buffer where to read
 @param[in]	offset		file offset where to read
-@param[in]	n		how many bytes to read or write; this
-must not cross a file boundary; in AIO this must be a block size multiple
+@param[in]	n		number of bytes to read
 @param[in]	read_only	if true read only mode checks are enforced
 @param[in,out]	m1		Message for the AIO handler, (can be used to
                                 identify a completed AIO operation); ignored
@@ -1221,11 +1226,11 @@ must not cross a file boundary; in AIO this must be a block size multiple
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return DB_SUCCESS if request was queued successfully, false if fail */
-static inline dberr_t pfs_os_aio_func(IORequest &type, AIO_mode mode,
-                                      const char *name, pfs_os_file_t file,
-                                      void *buf, os_offset_t offset, ulint n,
-                                      bool read_only, fil_node_t *m1, void *m2,
-                                      const char *src_file, uint src_line);
+UNIV_INLINE
+dberr_t pfs_os_aio_func(IORequest &type, AIO_mode mode, const char *name,
+                        pfs_os_file_t file, void *buf, os_offset_t offset,
+                        ulint n, bool read_only, fil_node_t *m1, void *m2,
+                        const char *src_file, uint src_line);
 
 /** NOTE! Please use the corresponding macro os_file_write(), not directly
 this function!
@@ -1241,9 +1246,11 @@ os_file_write() which requests a synchronous write operation.
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return DB_SUCCESS if request was successful */
-static inline dberr_t pfs_os_file_write_func(
-    IORequest &type, const char *name, pfs_os_file_t file, const void *buf,
-    os_offset_t offset, ulint n, const char *src_file, uint src_line);
+UNIV_INLINE
+dberr_t pfs_os_file_write_func(IORequest &type, const char *name,
+                               pfs_os_file_t file, const void *buf,
+                               os_offset_t offset, ulint n,
+                               const char *src_file, uint src_line);
 
 /** NOTE! Please use the corresponding macro os_file_write(), not
 directly this function!
@@ -1260,9 +1267,11 @@ on files with int type descriptors.
 @param[in]      src_file        file name where func invoked
 @param[in]      src_line        line where the func invoked
 @return DB_SUCCESS if request was successful */
-static inline dberr_t pfs_os_file_write_int_fd_func(
-    IORequest &type, const char *name, int file, const void *buf,
-    os_offset_t offset, ulint n, const char *src_file, ulint src_line);
+UNIV_INLINE
+dberr_t pfs_os_file_write_int_fd_func(IORequest &type, const char *name,
+                                      int file, const void *buf,
+                                      os_offset_t offset, ulint n,
+                                      const char *src_file, ulint src_line);
 
 /** NOTE! Please use the corresponding macro os_file_flush(), not directly
 this function!
@@ -1273,8 +1282,9 @@ Flushes the write buffers of a given file to the disk.
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return true if success */
-static inline bool pfs_os_file_flush_func(pfs_os_file_t file,
-                                          const char *src_file, uint src_line);
+UNIV_INLINE
+bool pfs_os_file_flush_func(pfs_os_file_t file, const char *src_file,
+                            uint src_line);
 
 /** NOTE! Please use the corresponding macro os_file_rename(), not directly
 this function!
@@ -1286,10 +1296,10 @@ os_file_rename()
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return true if success */
-static inline bool pfs_os_file_rename_func(mysql_pfs_key_t key,
-                                           const char *oldpath,
-                                           const char *newpath,
-                                           const char *src_file, uint src_line);
+UNIV_INLINE
+bool pfs_os_file_rename_func(mysql_pfs_key_t key, const char *oldpath,
+                             const char *newpath, const char *src_file,
+                             uint src_line);
 
 /**
 NOTE! Please use the corresponding macro os_file_delete(), not directly
@@ -1301,9 +1311,9 @@ os_file_delete()
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return true if success */
-static inline bool pfs_os_file_delete_func(mysql_pfs_key_t key,
-                                           const char *name,
-                                           const char *src_file, uint src_line);
+UNIV_INLINE
+bool pfs_os_file_delete_func(mysql_pfs_key_t key, const char *name,
+                             const char *src_file, uint src_line);
 
 /**
 NOTE! Please use the corresponding macro os_file_delete_if_exists(), not
@@ -1316,11 +1326,10 @@ os_file_delete_if_exists()
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return true if success */
-static inline bool pfs_os_file_delete_if_exists_func(mysql_pfs_key_t key,
-                                                     const char *name,
-                                                     bool *exist,
-                                                     const char *src_file,
-                                                     uint src_line);
+UNIV_INLINE
+bool pfs_os_file_delete_if_exists_func(mysql_pfs_key_t key, const char *name,
+                                       bool *exist, const char *src_file,
+                                       uint src_line);
 
 #else /* UNIV_PFS_IO */
 
@@ -1446,13 +1455,15 @@ bool os_file_close_no_error_handling(os_file_t file);
 /** Gets a file size.
 @param[in]	filename	Full path to the filename to check
 @return file size if OK, else set m_total_size to ~0 and m_alloc_size to
-        errno. */
-[[nodiscard]] os_file_size_t os_file_get_size(const char *filename);
+        errno */
+os_file_size_t os_file_get_size(const char *filename)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Gets a file size.
 @param[in]	file		Handle to a file
 @return file size, or (os_offset_t) -1 on failure */
-[[nodiscard]] os_offset_t os_file_get_size(pfs_os_file_t file);
+os_offset_t os_file_get_size(pfs_os_file_t file)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Allocate a block to file using fallocate from the given offset if
 fallocate is supported. Falls back to the old slower method of writing
@@ -1464,9 +1475,9 @@ zeros otherwise.
 @param[in]	read_only	enable read-only checks if true
 @param[in]	flush		flush file content to disk
 @return true if success */
-[[nodiscard]] bool os_file_set_size_fast(const char *name, pfs_os_file_t file,
-                                         os_offset_t offset, os_offset_t size,
-                                         bool read_only, bool flush);
+bool os_file_set_size_fast(const char *name, pfs_os_file_t file,
+                           os_offset_t offset, os_offset_t size, bool read_only,
+                           bool flush) MY_ATTRIBUTE((warn_unused_result));
 
 /** Write the specified number of zeros to a file from specific offset.
 @param[in]	name		name of the file or path as a null-terminated
@@ -1477,9 +1488,9 @@ zeros otherwise.
 @param[in]	read_only	enable read-only checks if true
 @param[in]	flush		flush file content to disk
 @return true if success */
-[[nodiscard]] bool os_file_set_size(const char *name, pfs_os_file_t file,
-                                    os_offset_t offset, os_offset_t size,
-                                    bool read_only, bool flush);
+bool os_file_set_size(const char *name, pfs_os_file_t file, os_offset_t offset,
+                      os_offset_t size, bool read_only, bool flush)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Truncates a file at its current position.
 @param[in,out]	file	file to be truncated
@@ -1529,9 +1540,9 @@ Requests a synchronous read operation of page 0 of IBD file.
 @param[in]	offset		file offset where to read
 @param[in]	n		number of bytes to read
 @return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
-[[nodiscard]] dberr_t os_file_read_func(IORequest &type, const char *file_name,
-                                        os_file_t file, void *buf,
-                                        os_offset_t offset, ulint n);
+dberr_t os_file_read_func(IORequest &type, const char *file_name,
+                          os_file_t file, void *buf, os_offset_t offset,
+                          ulint n) MY_ATTRIBUTE((warn_unused_result));
 
 /** NOTE! Use the corresponding macro os_file_read_first_page(),
 not directly this function!
@@ -1542,10 +1553,9 @@ Requests a synchronous read operation of page 0 of IBD file
 @param[out]	buf		buffer where to read
 @param[in]	n		number of bytes to read
 @return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
-[[nodiscard]] dberr_t os_file_read_first_page_func(IORequest &type,
-                                                   const char *file_name,
-                                                   os_file_t file, void *buf,
-                                                   ulint n);
+dberr_t os_file_read_first_page_func(IORequest &type, const char *file_name,
+                                     os_file_t file, void *buf, ulint n)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Copy data from one file to another file. Data is read/written
 at current file offset.
@@ -1555,10 +1565,9 @@ at current file offset.
 @param[in]	dest_offset	offset to copy to
 @param[in]	size		number of bytes to copy
 @return DB_SUCCESS if successful */
-[[nodiscard]] dberr_t os_file_copy_func(os_file_t src_file,
-                                        os_offset_t src_offset,
-                                        os_file_t dest_file,
-                                        os_offset_t dest_offset, uint size);
+dberr_t os_file_copy_func(os_file_t src_file, os_offset_t src_offset,
+                          os_file_t dest_file, os_offset_t dest_offset,
+                          uint size) MY_ATTRIBUTE((warn_unused_result));
 
 /** Rewind file to its start, read at most size - 1 bytes from it to str, and
 NUL-terminate str. All errors are silently ignored. This function is
@@ -1580,9 +1589,9 @@ any error handling. In case of error it returns FALSE.
 @param[in]	n		number of bytes to read
 @param[out]	o		number of bytes actually read
 @return DB_SUCCESS or error code */
-[[nodiscard]] dberr_t os_file_read_no_error_handling_func(
+dberr_t os_file_read_no_error_handling_func(
     IORequest &type, const char *file_name, os_file_t file, void *buf,
-    os_offset_t offset, ulint n, ulint *o);
+    os_offset_t offset, ulint n, ulint *o) MY_ATTRIBUTE((warn_unused_result));
 
 /** NOTE! Use the corresponding macro os_file_write(), not directly this
 function!
@@ -1595,9 +1604,9 @@ Requests a synchronous write operation.
 @param[in]	offset		file offset where to read
 @param[in]	n		number of bytes to read
 @return DB_SUCCESS if request was successful */
-[[nodiscard]] dberr_t os_file_write_func(IORequest &type, const char *name,
-                                         os_file_t file, const void *buf,
-                                         os_offset_t offset, ulint n);
+dberr_t os_file_write_func(IORequest &type, const char *name, os_file_t file,
+                           const void *buf, os_offset_t offset, ulint n)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Check the existence and type of a given path.
 @param[in]   path    pathname of the file
@@ -1658,17 +1667,18 @@ Requests an asynchronous i/o operation.
 @param[in]	type		IO request context
 @param[in]	aio_mode	IO mode
 @param[in]	name		Name of the file or path as NUL terminated
-string
+                                string
 @param[in]	file		Open file handle
 @param[out]	buf		buffer where to read
 @param[in]	offset		file offset where to read
-@param[in]	n		how many bytes to read or write; this
-must not cross a file boundary; in AIO this must be a block size multiple
+@param[in]	n		number of bytes to read
 @param[in]	read_only	if true read only mode checks are enforced
 @param[in,out]	m1		Message for the AIO handler, (can be used to
-identify a completed AIO operation); ignored if mode is OS_AIO_SYNC
+                                identify a completed AIO operation); ignored
+                                if mode is OS_AIO_SYNC
 @param[in,out]	m2		message for the AIO handler (can be used to
-identify a completed AIO operation); ignored if mode is OS_AIO_SYNC
+                                identify a completed AIO operation); ignored
+                                if mode is OS_AIO_SYNC
 @return DB_SUCCESS or error code */
 dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
                     pfs_os_file_t file, void *buf, os_offset_t offset, ulint n,
@@ -1757,8 +1767,8 @@ char *innobase_mysql_tmpdir();
 /** Creates a temporary file in the location specified by the parameter
 path. If the path is NULL, then it will be created in --tmpdir.
 @param[in]	path	location for creating temporary file
-@return temporary file descriptor, or OS_FD_CLOSED on error */
-os_fd_t innobase_mysql_tmpfile(const char *path);
+@return temporary file descriptor, or < 0 on error */
+int innobase_mysql_tmpfile(const char *path);
 
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1787,8 +1797,8 @@ ulint os_file_get_umask();
 @param[in]	off		Starting offset (SEEK_SET)
 @param[in]	len		Size of the hole
 @return DB_SUCCESS or error code */
-[[nodiscard]] dberr_t os_file_punch_hole(os_file_t fh, os_offset_t off,
-                                         os_offset_t len);
+dberr_t os_file_punch_hole(os_file_t fh, os_offset_t off, os_offset_t len)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Check if the file system supports sparse files.
 
@@ -1801,8 +1811,8 @@ Note: On Windows we use the name and on Unices we use the file handle.
 @param[in]	path	File name
 @param[in]	fh	File handle for the file - if opened
 @return true if the file system supports sparse files */
-[[nodiscard]] bool os_is_sparse_file_supported(const char *path,
-                                               pfs_os_file_t fh);
+bool os_is_sparse_file_supported(const char *path, pfs_os_file_t fh)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Decompress the page data contents. Page type must be FIL_PAGE_COMPRESSED, if
 not then the source contents are left unchanged and DB_SUCCESS is returned.
@@ -1814,8 +1824,9 @@ not then the source contents are left unchanged and DB_SUCCESS is returned.
 @param[in]	dst_len		If dst is valid, then size of the scratch area
                                 in bytes
 @return DB_SUCCESS or error code */
-[[nodiscard]] dberr_t os_file_decompress_page(bool dblwr_read, byte *src,
-                                              byte *dst, ulint dst_len);
+dberr_t os_file_decompress_page(bool dblwr_read, byte *src, byte *dst,
+                                ulint dst_len)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Compress a data page
 @param[in]	compression	Compression algorithm
@@ -1832,7 +1843,7 @@ byte *os_file_compress_page(Compression compression, ulint block_size,
 /** Determine if O_DIRECT is supported.
 @retval	true	if O_DIRECT is supported.
 @retval	false	if O_DIRECT is not supported. */
-[[nodiscard]] bool os_is_o_direct_supported();
+bool os_is_o_direct_supported() MY_ATTRIBUTE((warn_unused_result));
 
 /** Fill the pages with NULs
 @param[in] file		File handle
@@ -1843,9 +1854,10 @@ byte *os_file_compress_page(Compression compression, ulint block_size,
 @param[in] read_only_mode
                         if true, then read only mode checks are enforced.
 @return DB_SUCCESS or error code */
-[[nodiscard]] dberr_t os_file_write_zeros(pfs_os_file_t file, const char *name,
-                                          ulint page_size, os_offset_t start,
-                                          ulint len, bool read_only_mode);
+dberr_t os_file_write_zeros(pfs_os_file_t file, const char *name,
+                            ulint page_size, os_offset_t start, ulint len,
+                            bool read_only_mode)
+    MY_ATTRIBUTE((warn_unused_result));
 
 #ifndef UNIV_NONINL
 /** Class to scan the directory heirarchy using a depth first scan. */
@@ -1904,12 +1916,13 @@ class Dir_Walker {
 
 /** Allocate a page for sync IO
 @return pointer to page */
-[[nodiscard]] file::Block *os_alloc_block() noexcept;
+file::Block *os_alloc_block() noexcept MY_ATTRIBUTE((warn_unused_result));
 
 /** Get the sector aligned frame pointer.
 @param[in]  block   the memory block containing the page frame.
 @return the sector aligned frame pointer. */
-[[nodiscard]] byte *os_block_get_frame(const file::Block *block) noexcept;
+byte *os_block_get_frame(const file::Block *block) noexcept
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Free a page after sync IO
 @param[in,out]	block		The block to free/release */
@@ -1920,10 +1933,10 @@ inline void file::Block::free(file::Block *obj) noexcept { os_free_block(obj); }
 /** Encrypt a page content when write it to disk.
 @param[in]	type		IO flags
 @param[out]	buf		buffer to read or write
-@param[in]	n		number of bytes to read/write, starting from
+@param[in,out]	n		number of bytes to read/write, starting from
                                 offset
 @return pointer to the encrypted page */
-file::Block *os_file_encrypt_page(const IORequest &type, void *&buf, ulint n);
+file::Block *os_file_encrypt_page(const IORequest &type, void *&buf, ulint *n);
 
 /** Allocate the buffer for IO on a transparently compressed table.
 @param[in]	type		IO flags

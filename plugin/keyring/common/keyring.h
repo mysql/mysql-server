@@ -49,20 +49,19 @@ extern mysql_rwlock_t LOCK_keyring;
 extern std::unique_ptr<IKeys_container> keys;
 extern volatile bool is_keys_container_initialized;
 extern std::unique_ptr<ILogger> logger;
-extern char *keyring_file_data;
+extern std::unique_ptr<char[]> keyring_file_data;
 extern bool keyring_open_mode;
 
 #ifdef HAVE_PSI_INTERFACE
 void keyring_init_psi_keys(void);
 #endif  // HAVE_PSI_INTERFACE
 
-void delete_keyring_file_data();
 bool init_keyring_locks();
 bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path);
 
-void update_keyring_file_data(MYSQL_THD thd [[maybe_unused]],
-                              SYS_VAR *var [[maybe_unused]],
-                              void *var_ptr [[maybe_unused]],
+void update_keyring_file_data(MYSQL_THD thd MY_ATTRIBUTE((unused)),
+                              SYS_VAR *var MY_ATTRIBUTE((unused)),
+                              void *var_ptr MY_ATTRIBUTE((unused)),
                               const void *save_ptr);
 
 bool mysql_key_fetch(std::unique_ptr<IKey> key_to_fetch, char **key_type,

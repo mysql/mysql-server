@@ -50,7 +50,7 @@ TEST(CreateDetachedThreadTest, BasicUsage) {
   IB_thread thread;
   EXPECT_FALSE(thread_is_active(thread));
 
-  thread = create_detached_thread(0, 0, std::move(f), 42);
+  thread = create_detached_thread(0, std::move(f), 42);
   EXPECT_FALSE(thread_is_active(thread));
 
   thread.start();
@@ -88,7 +88,7 @@ TEST(CreateDetachedThreadTest, Move) {
 
   IB_thread t1, t2;
 
-  t1 = create_detached_thread(0, 0, std::move(f), 42);
+  t1 = create_detached_thread(0, std::move(f), 42);
   t1.start();
   EXPECT_TRUE(thread_is_active(t1));
 

@@ -56,7 +56,7 @@ Group_action_message::Group_action_message(Gcs_protocol_version gcs_protocol)
       primary_election_uuid(""),
       gcs_protocol(gcs_protocol) {}
 
-Group_action_message::~Group_action_message() = default;
+Group_action_message::~Group_action_message() {}
 
 Group_action_message::Group_action_message(const uchar *buf, size_t len)
     : Plugin_gcs_message(CT_GROUP_ACTION_MESSAGE) {

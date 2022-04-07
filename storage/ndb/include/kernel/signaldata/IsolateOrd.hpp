@@ -49,8 +49,8 @@ class IsolateOrd
   friend bool printISOLATE_ORD(FILE *, const Uint32*, Uint32, Uint16);
 
 private:
-  static constexpr Uint32 SignalLengthWithBitmask48 = 3 + NdbNodeBitmask48::Size;
-  static constexpr Uint32 SignalLength = 3;
+  STATIC_CONST(SignalLengthWithBitmask48 = 3 + NdbNodeBitmask48::Size);
+  STATIC_CONST(SignalLength = 3);
 
   enum IsolateStep 
   {

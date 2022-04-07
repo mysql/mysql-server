@@ -223,7 +223,7 @@ class context : public Explain_context {
           context *parent_arg)
       : Explain_context(type_arg), name(name_arg), parent(parent_arg) {}
 
-  virtual ~context() = default;
+  virtual ~context() {}
 
   /**
     Pass the node with its child nodes to a JSON formatter
@@ -300,8 +300,9 @@ class context : public Explain_context {
     @retval false           Ok
     @retval true            Error
   */
-  virtual bool add_subquery(subquery_list_enum subquery_type [[maybe_unused]],
-                            subquery_ctx *ctx [[maybe_unused]]) {
+  virtual bool add_subquery(subquery_list_enum subquery_type
+                                MY_ATTRIBUTE((unused)),
+                            subquery_ctx *ctx MY_ATTRIBUTE((unused))) {
     assert(0);
     return true;
   }
@@ -313,7 +314,8 @@ class context : public Explain_context {
     @retval false               Ok
     @retval true                Error
   */
-  virtual bool format_nested_loop(Opt_trace_context *json [[maybe_unused]]) {
+  virtual bool format_nested_loop(
+      Opt_trace_context *json MY_ATTRIBUTE((unused))) {
     assert(0);
     return true;
   }
@@ -326,7 +328,7 @@ class context : public Explain_context {
     @retval false           Ok
     @retval true            Error
   */
-  virtual bool add_join_tab(joinable_ctx *ctx [[maybe_unused]]) {
+  virtual bool add_join_tab(joinable_ctx *ctx MY_ATTRIBUTE((unused))) {
     assert(0);
     return true;
   }
@@ -337,7 +339,7 @@ class context : public Explain_context {
     @retval false               Ok
     @retval true                Error
   */
-  virtual void set_sort(sort_ctx *ctx [[maybe_unused]]) { assert(0); }
+  virtual void set_sort(sort_ctx *ctx MY_ATTRIBUTE((unused))) { assert(0); }
 
   /**
     Set nested WINDOW node to @c ctx
@@ -345,7 +347,7 @@ class context : public Explain_context {
     @retval false               Ok
     @retval true                Error
   */
-  virtual void set_window(window_ctx *ctx [[maybe_unused]]) { assert(0); }
+  virtual void set_window(window_ctx *ctx MY_ATTRIBUTE((unused))) { assert(0); }
 
   /**
     Add a query specification node to the CTX_UNION node
@@ -355,7 +357,7 @@ class context : public Explain_context {
     @retval false           Ok
     @retval true            Error
   */
-  virtual bool add_query_spec(context *ctx [[maybe_unused]]) {
+  virtual bool add_query_spec(context *ctx MY_ATTRIBUTE((unused))) {
     assert(0);
     return true;
   }
@@ -369,7 +371,7 @@ class context : public Explain_context {
     @retval false       Can't associate: this node or its child nodes are not
                         derived from the subquery
   */
-  virtual bool find_and_set_derived(context *subquery [[maybe_unused]]) {
+  virtual bool find_and_set_derived(context *subquery MY_ATTRIBUTE((unused))) {
     assert(0);
     return false;
   }
@@ -385,8 +387,9 @@ class context : public Explain_context {
        0   subqusery were added
        1   error occurred
   */
-  virtual int add_where_subquery(subquery_ctx *ctx [[maybe_unused]],
-                                 Query_expression *subquery [[maybe_unused]]) {
+  virtual int add_where_subquery(subquery_ctx *ctx MY_ATTRIBUTE((unused)),
+                                 Query_expression *subquery
+                                     MY_ATTRIBUTE((unused))) {
     assert(0);
     return false;
   }
@@ -1213,7 +1216,8 @@ class window_ctx : public join_ctx {
         // Make him notice the top-to-bottom order of execution of windows:
         if (w->is_last()) to.add(K_WINDOW_LAST_EXECUTED, true);
       }
-      if (!w->short_circuit()) to.add(K_USING_TMP_TABLE, true);
+      if (!w->outtable_param()->m_window_short_circuit)
+        to.add(K_USING_TMP_TABLE, true);
       if (w->needs_sorting()) {
         obj->add(K_USING_FILESORT, true);
         Opt_trace_array sort_order(json, K_FILESORT_KEY);
@@ -1521,7 +1525,7 @@ class materialize_ctx : public joinable_ctx,
 
     /*
       Currently K-REF/col_ref is not shown; it would always be "func", since
-      {subquery,semijoin} materialization use store_key; using
+      {subquery,semijoin} materialization use store_key_item; using
       get_store_key() instead would allow "const" and outer column's name,
       if applicable.
       The looked up expression can anyway be inferred from the condition:

@@ -41,7 +41,7 @@ public:
   static pid_t getpid()
   {
 #ifdef _WIN32
-    return GetCurrentProcessId();
+    return GetCurrentProcessid();
 #else
     return ::getpid();
 #endif
@@ -84,22 +84,6 @@ public:
 
   };
 
-#ifdef _WIN32
-  static void printerror()
-  {
-    char* message;
-    DWORD err = GetLastError();
-
-    FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
-      FORMAT_MESSAGE_IGNORE_INSERTS,
-      NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-      (LPTSTR)&message, 0, NULL);
-
-    fprintf(stderr, "Function failed, error: %d, message: '%s'", err, message);
-    LocalFree(message);
-  }
-#endif
-
   static NdbProcess* create(const BaseString& name,
                             const BaseString& path,
                             const BaseString& cwd,
@@ -134,16 +118,6 @@ public:
 
   bool stop(void)
   {
-#ifdef _WIN32
-    HANDLE processHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, m_pid);
-    if(!TerminateProcess(processHandle,9999))
-    {
-      printerror();
-      return false;
-    }
-    CloseHandle(processHandle);
-    return true;
-#else
     int ret = kill(m_pid, 9);
     if (ret != 0)
     {
@@ -154,38 +128,10 @@ public:
     }
     printf("Stopped process %d\n", m_pid);
     return true;
-#endif
   }
 
   bool wait(int& ret, int timeout = 0)
   {
-#ifdef _WIN32
-    HANDLE processHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, m_pid);
-    const DWORD result = WaitForSingleObject(processHandle, timeout*100);
-    bool fun_ret = true;
-    if (result == WAIT_TIMEOUT) {
-      fprintf(stderr,
-        "Timeout when waiting for process %d\n", m_pid);
-      fun_ret = false;
-    }
-    else if (result == WAIT_FAILED) {
-      printerror();
-      fun_ret = false;
-    }
-    DWORD exitCode = 0;
-    if (GetExitCodeProcess(processHandle, &exitCode) == FALSE)
-    {
-      fprintf(stderr,
-        "Error occurred when getting exit code of process %d\n", m_pid);
-      return false;
-    }
-    if (exitCode != 9999)
-    {
-      ret = static_cast<int>(exitCode);
-    }
-    return fun_ret;
-
-#else
     int retries = 0;
     int status;
     while (true)
@@ -224,7 +170,6 @@ public:
       NdbSleep_MilliSleep(10);
     }
     require(false); // Never reached
-#endif
   }
 
 private:
@@ -240,44 +185,6 @@ private:
                             const Args& args)
   {
 #ifdef _WIN32
-    STARTUPINFO si;
-    PROCESS_INFORMATION pi;
-
-    ZeroMemory(&si, sizeof(si));
-    si.cb = sizeof(si);
-    ZeroMemory(&pi, sizeof(pi));
-    //LPSTR r = (LPSTR)args.args().getBase()->c_str();
-    BaseString args_str;
-
-    args_str.assign(args.args(), " ");
-    std::string final_arg(path);
-    final_arg.append(" ");
-    final_arg.append(args_str.c_str());
-    LPSTR r = (LPSTR)final_arg.c_str();
-
-
-
-    // Start the child process.
-    if (!CreateProcess(path,
-      (LPSTR)final_arg.c_str(),
-      NULL,
-      NULL,
-      FALSE,
-      0,
-      NULL,
-      cwd,
-      &si,
-      &pi)
-      ) {
-      printerror();
-      return false;
-    }
-    else
-    {
-      pid = pi.dwProcessId;
-      fprintf(stderr, "Started process: %d\n", pid);
-    }
-    return true;
 #else
     int retries = 5;
     pid_t tmp;

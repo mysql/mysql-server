@@ -34,6 +34,7 @@
 #include <NdbConfig.h>
 #include <Configuration.hpp>
 #include "EventLogger.hpp"
+extern EventLogger * g_eventLogger;
 
 #include "ndb_stacktrace.h"
 #include "TimeModule.hpp"
@@ -344,8 +345,7 @@ WriteMessage(int thrdMessageID,
     stream = fopen(theErrorFileName, "w");
     if(stream == NULL)
     {
-      g_eventLogger->info("Unable to open error log file: %s",
-                          theErrorFileName);
+      fprintf(stderr,"Unable to open error log file: %s\n", theErrorFileName);
       return -1;
     }
     fprintf(stream, "%s%u%s", "Current byte-offset of file-pointer is: ", 69,

@@ -137,10 +137,10 @@ class Keyring_migrate final {
  private:
   Source_keyring_services &src_;
   Destination_keyring_services &dst_;
-  my_h_keyring_keys_metadata_iterator iterator_{nullptr};
+  my_h_keyring_keys_metadata_iterator iterator_;
   options::Mysql_connection mysql_connection_;
-  bool ok_{false};
-  const size_t maximum_size_{16384};
+  bool ok_;
+  const size_t maximum_size_;
 };
 
 }  // namespace components

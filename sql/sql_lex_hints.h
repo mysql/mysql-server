@@ -363,7 +363,7 @@ class Hint_scanner {
     @param byte         A byte to compare with the byte we skip.
                         Unused in non-debug builds.
   */
-  void skip_byte(char byte [[maybe_unused]]) {
+  void skip_byte(char byte MY_ATTRIBUTE((unused))) {
     assert(peek_byte() == byte);
     skip_byte();
   }
@@ -374,7 +374,7 @@ class Hint_scanner {
     @param str          A string of characters to compare with the next byte.
                         Unused in non-debug builds.
   */
-  void skip_byte(const char *str [[maybe_unused]]) {
+  void skip_byte(const char *str MY_ATTRIBUTE((unused))) {
     assert(strchr(str, peek_byte()));
     skip_byte();
   }

@@ -25,8 +25,6 @@
 #ifndef SYSLOGHANDLER_H
 #define SYSLOGHANDLER_H
 
-#include <time.h>
-
 #include "LogHandler.hpp"
 
 /**

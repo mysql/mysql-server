@@ -138,8 +138,7 @@ const char *globerrs[GLOBERRS] = {
     "Shift character out of range: %s.",
     "Reset character out of range: %s.",
     "Unknown LDML tag: '%.*s'.",
-    "Failed to reset before a secondary ignorable character %s.",
-    "Stopped processing the '%s' directive in file %s at line %d."};
+    "Failed to reset before a secondary ignorable character %s."};
 
 /*
  We cannot call my_error/my_printf_error here in this function.

@@ -58,29 +58,44 @@ class METADATA_TESTS_API MockNG : public GRClusterMetadata {
   metadata_cache::ManagedInstance ms1;
   metadata_cache::ManagedInstance ms2;
   metadata_cache::ManagedInstance ms3;
+  metadata_cache::ManagedInstance ms4;
+  metadata_cache::ManagedInstance ms5;
+  metadata_cache::ManagedInstance ms6;
+  metadata_cache::ManagedInstance ms7;
+  metadata_cache::ManagedInstance ms8;
+  metadata_cache::ManagedInstance ms9;
 
   /**
-   * Server list for the cluster. Each server object
-   * represents all relevant information about the server that is part of the
-   * topology.
+   * Server list for each replicaset in the topology. Each server object
+   * represents all relevant information about the server that is
+   * part of the topology.
    */
-  metadata_cache::cluster_nodes_list_t cluster_instances_vector;
+  std::vector<metadata_cache::ManagedInstance> replicaset_1_vector;
+  std::vector<metadata_cache::ManagedInstance> replicaset_2_vector;
+  std::vector<metadata_cache::ManagedInstance> replicaset_3_vector;
 
   /**
    * The information about the HA topology being managed.
    */
-  metadata_cache::ManagedCluster cluster_info;
-
-  metadata_cache::metadata_servers_list_t metadata_servers;
+  ReplicaSetsByName replicaset_map;
 
   /** @brief Constructor
-   * @param session_config Metadata MySQL session configuration
+   * @param user The user name used to authenticate to the metadata server.
+   * @param password The password used to authenticate to the metadata server.
+   * @param connect_timeout The time after which trying to connect to the
+   *                        metadata server should timeout.
+   * @param read_timeout The time after which read from the metadata server
+   *                     should timeout.
+   * @param connection_attempts The number of times a connection to the metadata
+   *                            server must be attempted, when a connection
+   *                            attempt fails.
    * @param use_cluster_notifications Flag indicating if the metadata cache
    *                                  should use cluster notifications as an
    *                                  additional trigger for metadata refresh
    *                                  (only available for GR cluster type)
    */
-  MockNG(const metadata_cache::MetadataCacheMySQLSessionConfig &session_config,
+  MockNG(const std::string &user, const std::string &password,
+         int connect_timeout, int read_timeout, int connection_attempts,
          const mysqlrouter::SSLOptions &ssl_options = mysqlrouter::SSLOptions(),
          const bool use_cluster_notifications = false);
 
@@ -96,8 +111,8 @@ class METADATA_TESTS_API MockNG : public GRClusterMetadata {
    *
    * @return a boolean to indicate if the connection was successful.
    */
-  bool connect_and_setup_session(const metadata_cache::metadata_server_t
-                                     &metadata_server) noexcept override;
+  bool connect_and_setup_session(
+      const metadata_cache::ManagedInstance &metadata_server) noexcept override;
 
   /** @brief Mock disconnect method.
    *
@@ -108,17 +123,18 @@ class METADATA_TESTS_API MockNG : public GRClusterMetadata {
 
   /**
    *
-   * Returns cluster topology object.
+   * Returns relation as a std::map between replicaset ID and list of managed
+   * servers.
    *
-   * @return Cluster topology object.
+   * @return Map of replicaset ID, server list pairs.
    */
-  stdx::expected<metadata_cache::ClusterTopology, std::error_code>
-  fetch_cluster_topology(
-      const std::atomic<bool> & /*terminated*/,
-      mysqlrouter::TargetCluster &target_cluster, const unsigned /*router_id*/,
-      const metadata_cache::metadata_servers_list_t &metadata_servers,
-      bool needs_writable_node, const std::string &group_replication_id,
-      const std::string &clusterset_id, size_t &instance_id) override;
+  ReplicaSetsByName fetch_instances(
+      const std::string &farm_name,
+      const std::string &group_replication_id) override;
+
+  ReplicaSetsByName fetch_instances(
+      const std::vector<metadata_cache::ManagedInstance> &instances,
+      const std::string &group_replication_id, size_t &instance_id) override;
 
 #if 0  // not used so far
   /**

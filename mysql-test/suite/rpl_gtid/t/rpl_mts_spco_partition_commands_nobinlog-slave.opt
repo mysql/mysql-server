@@ -1,2 +1,2 @@
 --disable-log-bin
---disable-log-replica-updates
+--disable-log-slave-updates

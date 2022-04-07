@@ -106,12 +106,7 @@ MACRO(MYSQL_ADD_COMPONENT component_arg)
     IF(UNIX)
       IF(MY_COMPILER_IS_CLANG AND WITH_UBSAN)
         # nothing, clang/ubsan gets confused
-        UNSET(COMPONENT_COMPILE_VISIBILITY CACHE)
       ELSE()
-        # Use this also for component libraries and tests.
-        SET(COMPONENT_COMPILE_VISIBILITY
-          "-fvisibility=hidden" CACHE INTERNAL
-          "Use -fvisibility=hidden for components" FORCE)
         TARGET_COMPILE_OPTIONS(${target} PRIVATE "-fvisibility=hidden")
       ENDIF()
     ENDIF()
@@ -133,10 +128,7 @@ MACRO(MYSQL_ADD_COMPONENT component_arg)
         COMPONENT ${INSTALL_COMPONENT})
     ENDIF()
   ENDIF()
-
-  ADD_DEPENDENCIES(component_all ${target})
-
-ENDMACRO(MYSQL_ADD_COMPONENT)
+ENDMACRO()
 
 
 # Add all CMake projects under components

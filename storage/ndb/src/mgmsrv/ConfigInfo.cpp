@@ -23,9 +23,6 @@
 */
 
 #include <ndb_global.h>
-#include <cstring>
-
-#include <time.h>
 
 #include "ConfigInfo.hpp"
 #include <mgmapi_config_parameters.h>
@@ -404,8 +401,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_SUBSCRIBERS,
     "MaxNoOfSubscribers",
     DB_TOKEN,
-    "Max no of subscribers "
-    "(default 0 == 2 * MaxNoOfTables + 2 * 'number of API nodes')",
+    "Max no of subscribers (default 0 == 2 * MaxNoOfTables)",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
@@ -998,8 +994,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_UNDO_INDEX_BUFFER,
     "UndoIndexBuffer",
     DB_TOKEN,
-    "",
-    ConfigInfo::CI_DEPRECATED,
+    "Number bytes on each " DB_TOKEN_PRINT " node allocated for writing UNDO logs for index part",
+    ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
     "2M",
@@ -1010,8 +1006,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_UNDO_DATA_BUFFER,
     "UndoDataBuffer",
     DB_TOKEN,
-    "",
-    ConfigInfo::CI_DEPRECATED,
+    "Number bytes on each " DB_TOKEN_PRINT " node allocated for writing UNDO logs for data part",
+    ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
     "16M",
@@ -1131,18 +1127,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
-    CFG_DB_TRP_KEEP_ALIVE_SEND_INTERVAL,
-    "KeepAliveSendInterval",
-    DB_TOKEN,
-    "Time between sending keep alive signals on " DB_TOKEN_PRINT "-" DB_TOKEN_PRINT " links",
-    ConfigInfo::CI_USED,
-    0,
-    ConfigInfo::CI_INT,
-    "60000",
-    "0",
-    STR_VALUE(MAX_INT_RNIL) },
-
-  {
     CFG_DB_CONNECT_CHECK_DELAY,
     "ConnectCheckIntervalDelay",
     DB_TOKEN,
@@ -1205,27 +1189,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "120000",
     "10",
     STR_VALUE(MAX_INT_RNIL) },
-
-  {
-    CFG_DB_TRANS_ERROR_LOGLEVEL,
-    "__TransactionErrorLogLevel",
-    DB_TOKEN,
-    "Transaction timeout logging level\n"
-    "When to log : \n"
-    "  0x0000 Not at all\n"
-    "  0x0001 Always\n"
-    "  0x0002 Only for deferred constraints\n"
-    "What to log : \n"
-    "  0x0100 Transaction aborts\n"
-    "  0x0200 Transaction timeouts (TC)\n"
-    "  0x0400 Transaction timeouts (TC+LDM)\n",
-    ConfigInfo::CI_USED,
-    false,
-    ConfigInfo::CI_INT,
-    "0", // Default
-    "0",
-    STR_VALUE(MAX_INT32)
-  },
 
   {
     CFG_DB_MICRO_GCP_INTERVAL,
@@ -1785,8 +1748,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_MAX_ALLOCATE,
     "MaxAllocate",
     DB_TOKEN,
-    "",
-    ConfigInfo::CI_DEPRECATED,
+    "Maximum size of allocation to use when allocating memory for tables",
+    ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
     "32M",
@@ -2298,7 +2261,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     0,
     ConfigInfo::CI_INT,
-    "1",
+    "0",
     "0",
     "1"
   },
@@ -2312,7 +2275,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     0,
     ConfigInfo::CI_INT,
-    "1",
+    "0",
     "0",
     "1"
   },
@@ -3598,17 +3561,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
      "false", "true"
    },
 
-  {
-      CFG_CONNECTION_PREFER_IP_VER,
-      "PreferIPVersion",
-      "TCP",
-      "Indicate DNS resolver preference for IP version 4 or 6 ",
-      ConfigInfo::CI_USED,
-      false,
-      ConfigInfo::CI_INT,
-      "4", "4", "6"   // default=4, min=4, max=6
-  },
-
   /****************************************************************************
    * SHM
    ***************************************************************************/
@@ -4719,9 +4671,9 @@ public:
         fprintf(m_out, "MANDATORY (Legal values: Y, N)\n");
       else if (info.hasDefault(section, param_name))
       {
-        if (info.getDefault(section, param_name) == 0)
+        if (info.getDefault(section, param_name) == false)
           fprintf(m_out, "Default: N (Legal values: Y, N)\n");
-        else if (info.getDefault(section, param_name) == 1)
+        else if (info.getDefault(section, param_name) == true)
           fprintf(m_out, "Default: Y (Legal values: Y, N)\n");
         else
           fprintf(m_out, "UNKNOWN\n");
@@ -4878,9 +4830,9 @@ public:
         pairs.put("mandatory", "true");
       else if (info.hasDefault(section, param_name))
       {
-        if (info.getDefault(section, param_name) == 0)
+        if (info.getDefault(section, param_name) == false)
           pairs.put("default", "false");
-        else if (info.getDefault(section, param_name) == 1)
+        else if (info.getDefault(section, param_name) == true)
           pairs.put("default", "true");
       }
       break;
@@ -6524,27 +6476,11 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
   ctx.m_userProperties.get("NoOfReplicas", &replicas);
 
   /**
-   * For replicas=1, Number of Datanodes allowed < Maximum Nodegroups
-   */
-  if (replicas == 1)
-  {
-    Uint32 n_db_nodes;
-    require(ctx.m_userProperties.get("DB", &n_db_nodes));
-    if (n_db_nodes > MAX_NDB_NODE_GROUPS)
-    {
-      ctx.reportError(
-          "Too many Datanodes(%d) for replicas=1, Max Nodes allowed: %d",
-          n_db_nodes, MAX_NDB_NODE_GROUPS);
-      return false;
-    }
-  }
-
-  /**
    * Register user supplied values
    */
-  Uint8 ng_cnt[MAX_NDB_NODE_GROUPS];
+  Uint8 ng_cnt[MAX_NDB_NODES];
   Bitmask<(MAX_NDB_NODES+31)/32> nodes_wo_ng;
-  std::memset(ng_cnt, 0, sizeof(ng_cnt));
+  bzero(ng_cnt, sizeof(ng_cnt));
 
   for (i= 0, n= 0; n < n_nodes; i++)
   {
@@ -6567,11 +6503,10 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
         {
           continue;
         }
-        else if (ng >= MAX_NDB_NODE_GROUPS)
+        else if (ng >= MAX_NDB_NODES)
         {
-          ctx.reportError(
-              "Invalid nodegroup %u for node %u, Max nodegroups allowed: %d",
-              ng, id, MAX_NDB_NODE_GROUPS);
+          ctx.reportError("Invalid nodegroup %u for node %u",
+                          ng, id);
           return false;
         }
         ng_cnt[ng]++;
@@ -6609,7 +6544,7 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
   /**
    * Check node vs replicas
    */
-  for (i = 0; i<MAX_NDB_NODE_GROUPS; i++)
+  for (i = 0; i<MAX_NDB_NODES; i++)
   {
     if (ng_cnt[i] != 0 && ng_cnt[i] != (Uint8)replicas)
     {

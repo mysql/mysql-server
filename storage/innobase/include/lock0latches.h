@@ -128,14 +128,6 @@ class Latches {
     bool try_x_lock(ut::Location location) {
       return rw_lock.try_x_lock(location);
     }
-    /** Checks if there is a thread requesting an x-latch waiting for our
-    thread to release its s-latch.
-    Must be called while holding an s-latch.
-    @return true iff there is an x-latcher blocked by our s-latch. */
-    bool is_x_blocked_by_our_s() {
-      ut_ad(m_shard_id != NOT_IN_USE);
-      return rw_lock.is_x_blocked_by_s(m_shard_id);
-    }
     void x_lock(ut::Location location) { rw_lock.x_lock(location); }
     void x_unlock() { rw_lock.x_unlock(); }
     void s_lock(ut::Location location) {
@@ -274,11 +266,7 @@ class Latches {
      https://reviews.llvm.org/D45898
   So, this declaration is just to make clang 6.0.0 and 7.0.0 happy.
   */
-#if defined(__clang__) && (__clang_major__ < 8)
-  ~Latches() {}  // NOLINT(modernize-use-equals-default)
-#else
-  ~Latches() = default;
-#endif
+  ~Latches() {}
 
 #ifdef UNIV_DEBUG
   /**

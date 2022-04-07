@@ -52,7 +52,6 @@ class MySQLServerMock {
  public:
   /** @brief Constructor.
    *
-   * @param io_ctx IO context for network operations
    * @param expected_queries_file Path to the json file with definitins
    *                        of the expected SQL statements and responses
    * @param module_prefixes prefixes of javascript modules used by the nodejs
@@ -66,7 +65,7 @@ class MySQLServerMock {
    * @param tls_server_ctx TLS Server Context
    * @param ssl_mode SSL mode
    */
-  MySQLServerMock(net::io_context &io_ctx, std::string expected_queries_file,
+  MySQLServerMock(std::string expected_queries_file,
                   std::vector<std::string> module_prefixes,
                   std::string bind_address, unsigned bind_port,
                   std::string protocol, bool debug_mode,
@@ -77,28 +76,51 @@ class MySQLServerMock {
    */
   void run(mysql_harness::PluginFuncEnv *env);
 
-  /**
-   * close all open connections.
-   *
-   * can be called from other threads.
-   */
   void close_all_connections();
 
  private:
+  void setup_service();
+
+  void handle_connections(mysql_harness::PluginFuncEnv *env);
+
+  static constexpr int kListenQueueSize = 128;
   std::string bind_address_;
   unsigned bind_port_;
   bool debug_mode_;
-  net::io_context &io_ctx_;
+  net::io_context io_ctx_;
+  net::ip::tcp::acceptor listener_{io_ctx_};
   std::string expected_queries_file_;
   std::vector<std::string> module_prefixes_;
   std::string protocol_name_;
 
+  struct Shared {
+    Shared(net::io_context &io_ctx) : wakeup_sock_send_{io_ctx} {}
+#if defined(_WIN32)
+    net::ip::tcp::socket
+#else
+    local::stream_protocol::socket
+#endif
+        wakeup_sock_send_;
+  };
+
+  Monitor<Shared> shared_{Shared{io_ctx_}};
+
   TlsServerContext tls_server_ctx_;
 
   mysql_ssl_mode ssl_mode_;
+};
 
-  WaitableMonitor<std::list<std::unique_ptr<MySQLServerMockSession>>>
-      client_sessions_{{}};
+class MySQLServerSharedGlobals {
+ public:
+  static std::shared_ptr<MockServerGlobalScope> get() noexcept {
+    std::lock_guard<std::mutex> lk(mtx_);
+    if (!shared_globals_) shared_globals_.reset(new MockServerGlobalScope);
+    return shared_globals_;
+  }
+
+ private:
+  static std::mutex mtx_;
+  static std::shared_ptr<MockServerGlobalScope> shared_globals_;
 };
 
 }  // namespace server_mock

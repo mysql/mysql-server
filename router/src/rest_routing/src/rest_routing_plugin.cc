@@ -31,10 +31,10 @@
 
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader.h"
-#include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
-#include "mysql/harness/plugin_config.h"
 #include "mysql/harness/utility/string.h"  // ::join()
+
+#include "mysqlrouter/plugin_config.h"
 
 #include "mysqlrouter/http_server_component.h"
 #include "mysqlrouter/rest_api_component.h"
@@ -46,7 +46,6 @@
 #include "rest_routing_destinations.h"
 #include "rest_routing_health.h"
 #include "rest_routing_list.h"
-#include "rest_routing_routes_status.h"
 #include "rest_routing_status.h"
 IMPORT_LOG_FUNCTIONS()
 
@@ -58,12 +57,12 @@ static const char kRequireRealm[]{"require_realm"};
 // one shared setting
 std::string require_realm_routing;
 
-class RestRoutingPluginConfig : public mysql_harness::BasePluginConfig {
+class RestRoutingPluginConfig : public mysqlrouter::BasePluginConfig {
  public:
   std::string require_realm;
 
   explicit RestRoutingPluginConfig(const mysql_harness::ConfigSection *section)
-      : mysql_harness::BasePluginConfig(section),
+      : mysqlrouter::BasePluginConfig(section),
         require_realm(get_option_string(section, kRequireRealm)) {}
 
   std::string get_default(const std::string & /* option */) const override {
@@ -143,13 +142,6 @@ using JsonValue = RestApiComponent::JsonValue;
 
 #define STR(s) \
   { s, strlen(s), rapidjson::kPointerInvalidIndex }
-
-static const std::array<JsonPointer::Token, 2> routing_status_path_tokens{
-    {STR("paths"), STR("/routing/status")}};
-
-static const std::array<JsonPointer::Token, 2> routing_status_def_tokens{
-    {STR("definitions"), STR("RoutingGlobalStatus")}};
-
 static const std::array<JsonPointer::Token, 2> route_name_param_tokens{
     {STR("parameters"), STR("routeNameParam")}};
 
@@ -239,22 +231,6 @@ static void spec_adder(RestApiComponent::JsonDocument &spec_doc) {
                 .AddMember("description", "Routes", allocator),
             allocator);
   }
-
-  // /definitions/RoutingGlobalStatus
-  const RestApiComponent::JsonPointer routing_status_def_ptr(
-      routing_status_def_tokens.data(), routing_status_def_tokens.size());
-
-  routing_status_def_ptr.Set(
-      spec_doc,
-      JsonValue(rapidjson::kObjectType)
-          .AddMember("totalMaxConnections",
-                     "number of total connections allowed", allocator)
-          .AddMember("currentMaxConnections",
-                     "number of current total connections", allocator),
-      allocator);
-
-  std::string routing_status_def_ptr_str =
-      json_pointer_stringfy(routing_status_def_ptr);
 
   // /parameters/routeNameParam
   const RestApiComponent::JsonPointer route_name_param_ptr(
@@ -680,51 +656,6 @@ static void spec_adder(RestApiComponent::JsonDocument &spec_doc) {
 
   std::string routes_connection_list_def_ptr_str =
       json_pointer_stringfy(routes_connection_list_def_ptr);
-
-  // /paths/routingStatus
-  {
-    JsonPointer ptr(routing_status_path_tokens.data(),
-                    routing_status_path_tokens.size());
-
-    ptr.Set(
-        spec_doc,
-        JsonValue(rapidjson::kObjectType)
-            .AddMember(
-                "get",
-                JsonValue(rapidjson::kObjectType)
-                    .AddMember("tags",
-                               JsonValue(rapidjson::kArrayType)
-                                   .PushBack("routing", allocator),
-                               allocator)
-                    .AddMember("description",
-                               "Get status of the routing plugin", allocator)
-                    .AddMember(
-                        "responses",
-                        JsonValue(rapidjson::kObjectType)
-                            .AddMember(
-                                "200",
-                                JsonValue(rapidjson::kObjectType)
-                                    .AddMember("description",
-                                               "status of the routing plugin",
-                                               allocator)
-                                    .AddMember(
-                                        "schema",
-                                        JsonValue(rapidjson::kObjectType)
-                                            .AddMember(
-                                                "$ref",
-                                                JsonValue(
-                                                    routing_status_def_ptr_str
-                                                        .data(),
-                                                    routing_status_def_ptr_str
-                                                        .size(),
-                                                    allocator),
-                                                allocator),
-                                        allocator),
-                                allocator),
-                        allocator),
-                allocator),
-        allocator);
-  }
 
   // /paths/routesConfig
   {
@@ -1163,9 +1094,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
   const bool spec_adder_executed = rest_api_srv.try_process_spec(spec_adder);
 
-  std::array<RestApiComponentPath, 8> paths{{
-      {rest_api_srv, RestRoutingStatus::path_regex,
-       std::make_unique<RestRoutingStatus>(require_realm_routing)},
+  std::array<RestApiComponentPath, 7> paths{{
       {rest_api_srv, RestRoutingList::path_regex,
        std::make_unique<RestRoutingList>(require_realm_routing)},
       {rest_api_srv, RestRoutingBlockedHosts::path_regex,
@@ -1174,8 +1103,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
        std::make_unique<RestRoutingDestinations>(require_realm_routing)},
       {rest_api_srv, RestRoutingConfig::path_regex,
        std::make_unique<RestRoutingConfig>(require_realm_routing)},
-      {rest_api_srv, RestRoutingRoutesStatus::path_regex,
-       std::make_unique<RestRoutingRoutesStatus>(require_realm_routing)},
+      {rest_api_srv, RestRoutingStatus::path_regex,
+       std::make_unique<RestRoutingStatus>(require_realm_routing)},
       {rest_api_srv, RestRoutingHealth::path_regex,
        std::make_unique<RestRoutingHealth>(require_realm_routing)},
       {rest_api_srv, RestRoutingConnections::path_regex,

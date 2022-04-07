@@ -41,9 +41,9 @@
 
 /*
   The macros below are borrowed from include/linux/compiler.h in the
-  Linux kernel. Use them to indicate the likelihood of the truthfulness
+  Linux kernel. Use them to indicate the likelyhood of the truthfulness
   of a condition. This serves two purposes - newer versions of gcc will be
-  able to optimize for branch predication, which could yield significant
+  able to optimize for branch predication, which could yield siginficant
   performance gains in frequently executed sections of the code, and the
   other reason to use them is for documentation
 */
@@ -51,8 +51,8 @@
 
 // likely/unlikely are likely to clash with other symbols, do not #define
 #if defined(__cplusplus)
-constexpr bool likely(bool expr) { return __builtin_expect(expr, true); }
-constexpr bool unlikely(bool expr) { return __builtin_expect(expr, false); }
+inline bool likely(bool expr) { return __builtin_expect(expr, true); }
+inline bool unlikely(bool expr) { return __builtin_expect(expr, false); }
 #else
 #define likely(x) __builtin_expect((x), 1)
 #define unlikely(x) __builtin_expect((x), 0)
@@ -61,8 +61,8 @@ constexpr bool unlikely(bool expr) { return __builtin_expect(expr, false); }
 #else /* HAVE_BUILTIN_EXPECT */
 
 #if defined(__cplusplus)
-constexpr bool likely(bool expr) { return expr; }
-constexpr bool unlikely(bool expr) { return expr; }
+inline bool likely(bool expr) { return expr; }
+inline bool unlikely(bool expr) { return expr; }
 #else
 #define likely(x) (x)
 #define unlikely(x) (x)
@@ -70,7 +70,7 @@ constexpr bool unlikely(bool expr) { return expr; }
 
 #endif /* HAVE_BUILTIN_EXPECT */
 
-/* Communicate to the compiler the unreachability of the code. */
+/* Comunicate to the compiler the unreachability of the code. */
 #ifdef HAVE_BUILTIN_UNREACHABLE
 #define MY_ASSERT_UNREACHABLE() __builtin_unreachable()
 #else

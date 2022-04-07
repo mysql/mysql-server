@@ -5,7 +5,6 @@
 
 plugin/x/tests/driver/
 unittest/gunit/xplugin
-unittest/gunit/libmysqlgcs
 extra/protobuf
 extra/icu
 extra/zstd

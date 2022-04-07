@@ -132,7 +132,7 @@ class DestRoundRobin : public RouteDestination {
   /** @brief Checks and removes servers from quarantine
    *
    * This method removes servers from quarantine while trying to establish
-   * a connection. It is used in a separate thread and will update the
+   * a connection. It is used in a seperate thread and will update the
    * quarantine list, and will keep trying until the list is empty.
    * A conditional variable is used to notify the thread servers were
    * quarantined.

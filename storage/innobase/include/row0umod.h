@@ -43,7 +43,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Undoes a modify operation on a row of a table.
  @return DB_SUCCESS or error code */
-[[nodiscard]] dberr_t row_undo_mod(undo_node_t *node, /*!< in: row undo node */
-                                   que_thr_t *thr);   /*!< in: query thread */
+dberr_t row_undo_mod(undo_node_t *node, /*!< in: row undo node */
+                     que_thr_t *thr)    /*!< in: query thread */
+    MY_ATTRIBUTE((warn_unused_result));
 
 #endif

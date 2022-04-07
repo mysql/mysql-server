@@ -111,7 +111,6 @@ RESET PERSIST group_replication_group_name;
 RESET PERSIST group_replication_local_address;
 RESET PERSIST group_replication_group_seeds;
 RESET PERSIST group_replication_start_on_boot;
-RESET PERSIST group_replication_communication_stack;
 SET GLOBAL group_replication_start_on_boot= GROUP_REPLICATION_START_ON_BOOT;
 SET SESSION sql_log_bin=0;
 call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of 1.");

@@ -26,6 +26,7 @@
 #include "tuppage.hpp"
 #include "EventLogger.hpp"
 
+extern EventLogger *g_eventLogger;
 
 #define JAM_FILE_ID 427
 
@@ -321,14 +322,14 @@ Tup_varsize_page::alloc_record(Uint32 alloc_size,
   
   insert_pos += alloc_size;
   free_space -= alloc_size;
-  //g_eventLogger->info("%p->alloc_record(%d%s) -> %d", this,alloc_size, (chain ? " CHAIN" : ""),page_idx);
+  //ndbout_c("%p->alloc_record(%d%s) -> %d", this,alloc_size, (chain ? " CHAIN" : ""),page_idx);
   return page_idx;
 }
   
 Uint32
 Tup_varsize_page::free_record(Uint32 page_idx, Uint32 chain)
 {
-  //g_eventLogger->info("%p->free_record(%d%s)", this, page_idx, (chain ? " CHAIN": ""));
+  //ndbout_c("%p->free_record(%d%s)", this, page_idx, (chain ? " CHAIN": ""));
   Uint32 *index_ptr= get_index_ptr(page_idx);
   Uint32 index_word= * index_ptr;
   Uint32 entry_pos= (index_word & POS_MASK) >> POS_SHIFT;

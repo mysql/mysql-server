@@ -53,7 +53,8 @@ class Compression_algorithm_zstd : public Compression_algorithm_interface {
 
   ~Compression_algorithm_zstd() override { ZSTD_freeCStream(m_stream); }
 
-  void set_pledged_source_size(const int src_size [[maybe_unused]]) override {
+  void set_pledged_source_size(
+      const int src_size MY_ATTRIBUTE((unused))) override {
     DBUG_TRACE;
     DBUG_LOG("debug", "set_pledged_source_size(" << src_size << ")");
 #if ZSTD_VERSION_NUMBER < 10400

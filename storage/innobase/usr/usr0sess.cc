@@ -38,8 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 sess_t *sess_open(void) {
   sess_t *sess;
 
-  sess = static_cast<sess_t *>(
-      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*sess)));
+  sess = static_cast<sess_t *>(ut_zalloc_nokey(sizeof(*sess)));
 
   sess->state = SESS_ACTIVE;
 
@@ -53,5 +52,5 @@ sess_t *sess_open(void) {
 void sess_close(sess_t *sess) /*!< in, own: session object */
 {
   trx_free_for_background(sess->trx);
-  ut::free(sess);
+  ut_free(sess);
 }

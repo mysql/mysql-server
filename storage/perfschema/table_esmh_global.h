@@ -41,7 +41,7 @@ class PFS_index_esmh_global : public PFS_engine_index {
   PFS_index_esmh_global()
       : PFS_engine_index(&m_key_1), m_key_1("BUCKET_NUMBER") {}
 
-  ~PFS_index_esmh_global() override = default;
+  ~PFS_index_esmh_global() override {}
 
   bool match_bucket(ulong bucket_index);
 
@@ -107,7 +107,7 @@ class table_esmh_global : public PFS_engine_table {
   table_esmh_global();
 
  public:
-  ~table_esmh_global() override = default;
+  ~table_esmh_global() override {}
 
  protected:
   void materialize();

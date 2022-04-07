@@ -7,14 +7,14 @@
 #
 # ==== Requirements =====
 #
-# TC1. sql_replica_skip_counter works correctly with
+# TC1. sql_slave_skip_counter works correctly with
 #      binlog_transaction_compression
 #
 # ==== Implementation ====
 #
 # 1. Setup a normal source-replica and check that its working fine.
 #
-# 2. Set sql_replica_skip_counter = 2 on replica along
+# 2. Set sql_slave_skip_counter = 2 on replica along
 #
 # 3. Set binlog_transaction_compression = ON on source, and execute
 #    few inserts.
@@ -40,7 +40,7 @@ CREATE TABLE t(a int);
 
 --source include/sync_slave_sql_with_master.inc
 --source include/stop_slave.inc
-SET GLOBAL sql_replica_skip_counter = 1;
+SET GLOBAL sql_slave_skip_counter = 1;
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc

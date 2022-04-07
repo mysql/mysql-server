@@ -47,7 +47,7 @@ class Partition_value : virtual public Weak_object {
   typedef tables::Table_partition_values DD_table;
 
  public:
-  ~Partition_value() override = default;
+  ~Partition_value() override {}
 
   /////////////////////////////////////////////////////////////////////////
   // Partition.

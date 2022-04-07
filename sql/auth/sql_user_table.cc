@@ -574,22 +574,45 @@ ulong get_access(TABLE *form, uint fieldnr, uint *next_field) {
 */
 Acl_change_notification::Acl_change_notification(
     THD *thd, enum_sql_command op, const List<LEX_USER> *users,
-    std::set<LEX_USER *> *rewrite_users, const List<LEX_CSTRING> *dynamic_privs)
-    : db{thd->db().str, thd->db().length},
-      operation(op),
-      users(users ? *users : empty_users),
-      rewrite_user_params(rewrite_users),
-      dynamic_privs(dynamic_privs ? *dynamic_privs : empty_dynamic_privs) {}
+    Rewrite_params *rewrite, const List<LEX_CSTRING> *dynamic_privs)
+    : operation(op),
+      db(thd->db().str, thd->db().length),
+      rewrite_params(rewrite) {
+  if (users) {
+    /* Copy data out of List<LEX_USER> */
+    user_list.reserve(users->size());
+    for (const LEX_USER &lex_user : *users) {
+      user_list.emplace_back(lex_user);
+    }
+  }
+  if (dynamic_privs) {
+    /* Copy data from dynamic_privs to dynamic_privilege_list */
+    dynamic_privilege_list.reserve(dynamic_privs->elements);
+    for (const LEX_CSTRING &priv : *dynamic_privs) {
+      dynamic_privilege_list.emplace_back(priv.str, priv.length);
+    }
+  }
+}
 
-void acl_notify_htons(THD *thd, enum_sql_command operation,
-                      const List<LEX_USER> *users,
-                      std::set<LEX_USER *> *rewrite_users,
-                      const List<LEX_CSTRING> *dynamic_privs) {
+void acl_notify_htons(
+    THD *thd MY_ATTRIBUTE((unused)),
+    enum_sql_command operation MY_ATTRIBUTE((unused)),
+    const List<LEX_USER> *users MY_ATTRIBUTE((unused)),
+    std::set<LEX_USER *> *rewrite_users MY_ATTRIBUTE((unused)),
+    const List<LEX_CSTRING> *dynamic_privs MY_ATTRIBUTE((unused))) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("db: %s query: '%s'", thd->db().str, thd->query().str));
-  Acl_change_notification notice(thd, operation, users, rewrite_users,
-                                 dynamic_privs);
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+  /*
+    The Acl_change_notification is used only by the ndbcluster SE.
+    So, instantiate it and send a notification only if the Server is
+    built with ndbcluster SE.
+  */
+  User_params rewrite_user_params(rewrite_users);
+  User_params *rewrite = rewrite_users ? &rewrite_user_params : nullptr;
+  Acl_change_notification notice(thd, operation, users, rewrite, dynamic_privs);
   ha_acl_notify(thd, &notice);
+#endif
 }
 
 /**
@@ -732,11 +755,9 @@ bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
               2. If SQLCOM_ALTER_USER, IDENTIFIED WITH clause is not used
               but IDENTIFIED BY is used.
             */
-            if (!extra_user->first_factor_auth_info
-                     .uses_identified_with_clause &&
+            if (!extra_user->uses_identified_with_clause &&
                 (command == SQLCOM_CREATE_USER ||
-                 extra_user->first_factor_auth_info
-                     .uses_identified_by_clause)) {
+                 extra_user->uses_identified_by_clause)) {
               log_user(thd, &warn_user, extra_user, comma);
               comma = true;
               log_warning = true;
@@ -1192,10 +1213,6 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
       store_record(table, record[1]);  // copy original row
     }
 
-    my_timeval tm;
-    tm = thd->query_start_timeval_trunc(0);
-    table->field[5]->store_timestamp(&tm);
-
     table->field[6]->store((longlong)get_rights_for_column(privileges), true);
 
     if (old_row_exists) {
@@ -1456,11 +1473,6 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   }
 
   table->field[4]->store(grantor, strlen(grantor), system_charset_info);
-
-  my_timeval tm;
-  tm = thd->query_start_timeval_trunc(0);
-  table->field[5]->store_timestamp(&tm);
-
   table->field[6]->store((longlong)store_table_rights, true);
   table->field[7]->store((longlong)store_col_rights, true);
   rights = fix_rights_for_table(store_table_rights);
@@ -1621,11 +1633,6 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
 
   table->field[5]->store(grantor, strlen(grantor), &my_charset_latin1);
   table->field[6]->store((longlong)store_proc_rights, true);
-
-  my_timeval tm;
-  tm = thd->query_start_timeval_trunc(0);
-  table->field[7]->store_timestamp(&tm);
-
   rights = fix_rights_for_procedure(store_proc_rights);
 
   if (old_row_exists) {
@@ -1758,11 +1765,11 @@ class acl_tables_setup_for_write_and_acquire_mdl_error_handler
     @param [in] msg           Message string. Unused.
   */
 
-  virtual bool handle_condition(THD *thd [[maybe_unused]], uint sql_errno,
-                                const char *sqlstate [[maybe_unused]],
-                                Sql_condition::enum_severity_level *level
-                                [[maybe_unused]],
-                                const char *msg [[maybe_unused]]) override {
+  virtual bool handle_condition(
+      THD *thd MY_ATTRIBUTE((unused)), uint sql_errno,
+      const char *sqlstate MY_ATTRIBUTE((unused)),
+      Sql_condition::enum_severity_level *level MY_ATTRIBUTE((unused)),
+      const char *msg MY_ATTRIBUTE((unused))) override {
     m_hit_deadlock = (sql_errno == ER_LOCK_DEADLOCK);
     return m_hit_deadlock;
   }

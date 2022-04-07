@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: ndb_import
+.\"     Title: \fBndb_import\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2021
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_IMPORT" "1" "11/26/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_IMPORT\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -125,7 +125,7 @@ mysql> \fBCREATE TABLE myndb_table LIKE myinnodb\&.myinnodb_table;\fR
 mysql> \fBALTER TABLE myndb_table ENGINE=NDB;\fR
 mysql> \fBEXIT;\fR
 Bye
-$>
+shell>
 .fi
 .if n \{\
 .RE
@@ -153,8 +153,8 @@ In the system shell:
 .\}
 .nf
 # if you are not already in the MySQL bin directory:
-$> \fBcd \fR\fB\fIpath\-to\-mysql\-bin\-dir\fR\fR
-$> \fBndb_import myndb /tmp/myndb_table\&.csv \-\-fields\-optionally\-enclosed\-by=\*(Aq"\*(Aq \e\fR
+shell> \fBcd \fR\fB\fIpath\-to\-mysql\-bin\-dir\fR\fR
+shell> \fBndb_import myndb /tmp/myndb_table\&.csv \-\-fields\-optionally\-enclosed\-by=\*(Aq"\*(Aq \e\fR
     \fB\-\-fields\-terminated\-by="," \-\-fields\-escaped\-by=\*(Aq\e\e\*(Aq\fR
 .fi
 .if n \{\
@@ -172,16 +172,17 @@ job\-1 [running] import myndb\&.myndb_table from /tmp/myndb_table\&.csv
 job\-1 [success] import myndb\&.myndb_table from /tmp/myndb_table\&.csv
 job\-1 imported 19984 rows in 0h0m9s at 2277 rows/s
 jobs summary: defined: 1 run: 1 with success: 1 with failure: 0
-$>
+shell>
 .fi
 .if n \{\
 .RE
 .\}
 .RE
 .PP
-All options that can be used with
-\fBndb_import\fR
-are shown in the following table\&. Additional descriptions follow the table\&.
+The following table includes options that are specific to
+\fBndb_import\fR\&. Additional descriptions follow the table\&. For options common to most NDB Cluster programs (including
+\fBndb_import\fR), see
+Options Common to NDB Cluster Programs(1)\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
@@ -199,26 +200,6 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
 lB l l
 lB l l
 lB l l
@@ -298,44 +279,6 @@ T}:T{
 T}
 T{
 .PP
-\fB \fR\fB--character-sets-dir=path\fR\fB \fR
-T}:T{
-Directory containing character sets
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--connect-retries=#\fR\fB \fR
-T}:T{
-Number of times to retry connection before giving up
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--connect-retry-delay=#\fR\fB \fR
-T}:T{
-Number of seconds to wait between attempts to contact management server
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB--connect-string=connection_string\fR,
-.PP
-\fB \fR\fB-c connection_string\fR\fB \fR
-T}:T{
-Same as --ndb-connectstring
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
 \fB \fR\fB--connections=#\fR\fB \fR
 T}:T{
 Number of cluster connections to create
@@ -354,55 +297,9 @@ T}:T{
 T}
 T{
 .PP
-\fB \fR\fB--core-file\fR\fB \fR
-T}:T{
-Write core file on error; used in debugging
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--csvopt=opts\fR\fB \fR
-T}:T{
-Shorthand option for setting typical CSV option values. See
-              documentation for syntax and other information
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
 \fB \fR\fB--db-workers=#\fR\fB \fR
 T}:T{
 Number of threads, per data node, executing database operations
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--defaults-extra-file=path\fR\fB \fR
-T}:T{
-Read given file after global files are read
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--defaults-file=path\fR\fB \fR
-T}:T{
-Read default options from given file only
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--defaults-group-suffix=string\fR\fB \fR
-T}:T{
-Also read groups with concat(group, suffix)
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -439,7 +336,7 @@ T}:T{
 T}
 T{
 .PP
-\fB \fR\fB--fields-escaped-by=char\fR\fB \fR
+\fB \fR\fB--fields-escaped-by=name\fR\fB \fR
 T}:T{
 Same as FIELDS ESCAPED BY option for LOAD DATA statements
 T}:T{
@@ -466,17 +363,6 @@ T}:T{
 T}
 T{
 .PP
-\fB--help\fR,
-.PP
-\fB \fR\fB-?\fR\fB \fR
-T}:T{
-Display help text and exit
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
 \fB \fR\fB--idlesleep=#\fR\fB \fR
 T}:T{
 Number of milliseconds to sleep waiting for more to do
@@ -488,7 +374,7 @@ T{
 .PP
 \fB \fR\fB--idlespin=#\fR\fB \fR
 T}:T{
-Number of times to retry before idlesleep
+Number of times to re-try before idlesleep
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -534,18 +420,9 @@ T}:T{
 T}
 T{
 .PP
-\fB \fR\fB--lines-terminated-by=char\fR\fB \fR
+\fB \fR\fB--lines-terminated-by=name\fR\fB \fR
 T}:T{
 Same as LINES TERMINATED BY option for LOAD DATA statements
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--login-path=path\fR\fB \fR
-T}:T{
-Read given path from login file
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -575,50 +452,6 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-connectstring=connection_string\fR,
-.PP
-\fB \fR\fB-c connection_string\fR\fB \fR
-T}:T{
-Set connect string for connecting to ndb_mgmd. Syntax:
-              "[nodeid=id;][host=]hostname[:port]". Overrides entries in
-              NDB_CONNECTSTRING and my.cnf
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB--ndb-mgmd-host=connection_string\fR,
-.PP
-\fB \fR\fB-c connection_string\fR\fB \fR
-T}:T{
-Same as --ndb-connectstring
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--ndb-nodeid=#\fR\fB \fR
-T}:T{
-Set node ID for this node, overriding any ID set by --ndb-connectstring
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--ndb-optimized-node-selection\fR\fB \fR
-T}:T{
-Enable optimizations for selection of nodes for transactions. Enabled by
-              default; use --skip-ndb-optimized-node-selection to
-              disable
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
 \fB \fR\fB--no-asynch\fR\fB \fR
 T}:T{
 Run database operations as batches, in single transactions
@@ -628,19 +461,9 @@ T}:T{
 T}
 T{
 .PP
-\fB \fR\fB--no-defaults\fR\fB \fR
-T}:T{
-Do not read default options from any option file other than login file
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
 \fB \fR\fB--no-hint\fR\fB \fR
 T}:T{
-Tells transaction coordinator not to use distribution key hint when
-              selecting data node
+Do not use distribution key hint to select data node (TC)
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -698,7 +521,7 @@ T{
 \fB \fR\fB--pagecnt=#\fR\fB \fR
 T}:T{
 Size of I/O buffers as multiple of page size. CSV input worker allocates
-              double-sized buffer
+              a double-sized buffer
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -709,15 +532,6 @@ T{
 T}:T{
 Timeout per poll for completed asynchonous transactions; polling
               continues until all polls are completed, or error occurs
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--print-defaults\fR\fB \fR
-T}:T{
-Print program argument list and exit
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -765,7 +579,7 @@ T}:T{
 T}
 T{
 .PP
-\fB \fR\fB--state-dir=path\fR\fB \fR
+\fB \fR\fB--state-dir=name\fR\fB \fR
 T}:T{
 Where to write state files; currect directory is default
 T}:T{
@@ -782,17 +596,6 @@ Save performance related options and internal statistics in *.sto and
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB--table=name\fR,
-.PP
-\fB \fR\fB-t name\fR\fB \fR
-T}:T{
-Name of target to import data into; default is base name of input file
-T}:T{
-.PP
-ADDED: NDB 8.0.28
 T}
 T{
 .PP
@@ -817,33 +620,11 @@ T}:T{
 T}
 T{
 .PP
-\fB--usage\fR,
+\fB--verbose\fR,
 .PP
-\fB \fR\fB-?\fR\fB \fR
-T}:T{
-Display help text and exit; same as --help
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB--verbose[=#]\fR,
-.PP
-\fB \fR\fB-v [#]\fR\fB \fR
+\fB \fR\fB-v\fR\fB \fR
 T}:T{
 Enable verbose output
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB--version\fR,
-.PP
-\fB \fR\fB-V\fR\fB \fR
-T}:T{
-Display version information and exit
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -862,11 +643,23 @@ T}
 \fB\-\-abort\-on\-error\fR
 .TS
 allbox tab(:);
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --abort-on-error
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
 T}
 .TE
 .sp 1
@@ -1025,28 +818,6 @@ system variable does in the MySQL Server\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-character\-sets\-dir\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---character-sets-dir=path
-T}
-.TE
-.sp 1
-Directory containing character sets\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-connections\fR=\fI#\fR
 .TS
 allbox tab(:);
@@ -1093,266 +864,30 @@ Number of cluster connections to create\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-connect\-retries\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---connect-retries=#
-T}
-T{
-Type
-T}:T{
-Integer
-T}
-T{
-Default Value
-T}:T{
-12
-T}
-T{
-Minimum Value
-T}:T{
-0
-T}
-T{
-Maximum Value
-T}:T{
-12
-T}
-.TE
-.sp 1
-Number of times to retry connection before giving up\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-connect\-retry\-delay\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---connect-retry-delay=#
-T}
-T{
-Type
-T}:T{
-Integer
-T}
-T{
-Default Value
-T}:T{
-5
-T}
-T{
-Minimum Value
-T}:T{
-0
-T}
-T{
-Maximum Value
-T}:T{
-5
-T}
-.TE
-.sp 1
-Number of seconds to wait between attempts to contact management server\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-connect\-string\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---connect-string=connection_string
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Same as
-\fB\-\-ndb\-connectstring\fR\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-continue\fR
 .TS
 allbox tab(:);
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --continue
 T}
-.TE
-.sp 1
-When a job fails, continue to the next job\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-core\-file\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---core-file
-T}
-.TE
-.sp 1
-Write core file on error; used in debugging\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-csvopt\fR=\fIstring\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---csvopt=opts
-T}
 T{
 Type
 T}:T{
-String
+Boolean
 T}
 T{
 Default Value
 T}:T{
-[none]
+FALSE
 T}
 .TE
 .sp 1
-Provides a shortcut method for setting typical CSV import options\&. The argument to this option is a string consisting of one or more of the following parameters:
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-c: Fields terminated by comma
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-d: Use defaults, except where overridden by another parameter
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-n: Lines terminated by
-\en
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-q: Fields optionally enclosed by double quote characters (")
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-r: Line terminated by
-\er
-.RE
-.sp
-In NDB 8\&.0\&.28 and later, the order of parameters used in the argument to this option is handled such that the rightmost parameter always takes precedence over any potentially conflicting parameters which have already been used in the same argument value\&. This also applies to any duplicate instances of a given parameter\&. Prior to NDB 8\&.0\&.28, the order of the parameters made no difference, other than that, when both
-n
-and
-r
-were specified, the one occurring last (rightmost) was the parameter which actually took effect\&.
-.sp
-This option is intended for use in testing under conditions in which it is difficult to transmit escapes or quotation marks\&.
+When a job fails, continue to the next job\&.
 .RE
 .sp
 .RS 4
@@ -1399,108 +934,6 @@ T}
 .TE
 .sp 1
 Number of threads, per data node, executing database operations\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-defaults\-file\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---defaults-file=path
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Read default options from given file only\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-defaults\-extra\-file\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---defaults-extra-file=path
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Read given file after global files are read\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-defaults\-group\-suffix\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---defaults-group-suffix=string
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Also read groups with concat(group, suffix)\&.
 .RE
 .sp
 .RS 4
@@ -1664,7 +1097,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---fields-escaped-by=char
+--fields-escaped-by=name
 T}
 T{
 Type
@@ -1760,28 +1193,6 @@ FIELDS TERMINATED BY
 option does for the
 LOAD DATA
 statement, specifying a character to be interpeted as the field separator\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-help\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---help
-T}
-.TE
-.sp 1
-Display help text and exit\&.
 .RE
 .sp
 .RS 4
@@ -2033,11 +1444,23 @@ Set the number of threads processing input\&.
 \fB\-\-keep\-state\fR
 .TS
 allbox tab(:);
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --keep-state
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
 T}
 .TE
 .sp 1
@@ -2063,7 +1486,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---lines-terminated-by=char
+--lines-terminated-by=name
 T}
 T{
 Type
@@ -2130,40 +1553,6 @@ T}
 Performs internal logging at the given level\&. This option is intended primarily for internal and development use\&.
 .sp
 In debug builds of NDB only, the logging level can be set using this option to a maximum of 4\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-login\-path\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---login-path=path
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Read given path from login file\&.
 .RE
 .sp
 .RS 4
@@ -2278,142 +1667,26 @@ Periodically print the status of a running job if something has changed (status,
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-ndb\-connectstring\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---ndb-connectstring=connection_string
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Set connect string for connecting to ndb_mgmd\&. Syntax: "[nodeid=id;][host=]hostname[:port]"\&. Overrides entries in NDB_CONNECTSTRING and my\&.cnf\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-ndb\-mgmd\-host\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---ndb-mgmd-host=connection_string
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Same as
-\fB\-\-ndb\-connectstring\fR\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-ndb\-nodeid\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---ndb-nodeid=#
-T}
-T{
-Type
-T}:T{
-Integer
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Set node ID for this node, overriding any ID set by
-\fB\-\-ndb\-connectstring\fR\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-ndb\-optimized\-node\-selection\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---ndb-optimized-node-selection
-T}
-.TE
-.sp 1
-Enable optimizations for selection of nodes for transactions\&. Enabled by default; use
-\fB\-\-skip\-ndb\-optimized\-node\-selection\fR
-to disable\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-no\-asynch\fR
 .TS
 allbox tab(:);
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --no-asynch
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
 T}
 .TE
 .sp 1
@@ -2428,36 +1701,26 @@ Run database operations as batches, in single transactions\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-no\-defaults\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---no-defaults
-T}
-.TE
-.sp 1
-Do not read default options from any option file other than login file\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-no\-hint\fR
 .TS
 allbox tab(:);
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --no-hint
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
 T}
 .TE
 .sp 1
@@ -2816,28 +2079,6 @@ Set a timeout per poll for completed asynchonous transactions; polling continues
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-print\-defaults\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---print-defaults
-T}
-.TE
-.sp 1
-Print program argument list and exit\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-rejects\fR=\fI#\fR
 .TS
 allbox tab(:);
@@ -2895,11 +2136,23 @@ run for this purpose\&.
 \fB\-\-resume\fR
 .TS
 allbox tab(:);
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --resume
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
 T}
 .TE
 .sp 1
@@ -3021,11 +2274,23 @@ Set a limit on the number of bytes per row queue\&. Use 0 for no limit\&.
 \fB\-\-stats\fR
 .TS
 allbox tab(:);
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --stats
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+false
 T}
 .TE
 .sp 1
@@ -3054,7 +2319,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---state-dir=path
+--state-dir=name
 T}
 T{
 Type
@@ -3072,51 +2337,6 @@ Where to write the state files (\fItbl_name\fR\&.map,
 \fItbl_name\fR\&.rej,
 \fItbl_name\fR\&.res, and
 \fItbl_name\fR\&.stt) produced by a run of the program; the default is the current directory\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-table=\fR\fB\fIname\fR\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---table=name
-T}
-T{
-Introduced
-T}:T{
-8.0.28-ndb-8.0.28
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[input file base name]
-T}
-.TE
-.sp 1
-By default,
-\fBndb_import\fR
-attempts to import data into a table whose name is the base name of the CSV file from which the data is being read\&. Beginning with NDB 8\&.0\&.28, you can override the choice of table name by specifying it using the
-\fB\-\-table\fR
-option (short form
-\fB\-t\fR)\&.
 .RE
 .sp
 .RS 4
@@ -3237,7 +2457,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---verbose[=#]
+--verbose
 T}
 T{
 Type
@@ -3252,51 +2472,6 @@ T}
 .TE
 .sp 1
 Enable verbose output\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-usage\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---usage
-T}
-.TE
-.sp 1
-Display help text and exit; same as
-\fB\-\-help\fR\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-version\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---version
-T}
-.TE
-.sp 1
-Display version information and exit\&.
 .RE
 .PP
 As with

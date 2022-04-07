@@ -178,7 +178,7 @@ inline void Memory<Source::RAM>::drop(void *ptr, size_t bytes) {
     free(ptr);
   }
 #elif defined(HAVE_WINNUMA)
-  BOOL ret [[maybe_unused]] = VirtualFree(ptr, 0, MEM_RELEASE);
+  BOOL MY_ATTRIBUTE((unused)) ret = VirtualFree(ptr, 0, MEM_RELEASE);
   assert(ret != 0);
 #else
   free(ptr);

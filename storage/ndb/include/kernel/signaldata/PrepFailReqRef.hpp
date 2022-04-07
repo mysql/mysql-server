@@ -47,8 +47,8 @@ class PrepFailReqRef {
   friend bool printPREPFAILREQREF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
   
 public:
-  static constexpr Uint32 SignalLength = 3;
-  static constexpr Uint32 SignalLength_v1 = 3 + NdbNodeBitmask48::Size;
+  STATIC_CONST( SignalLength = 3);
+  STATIC_CONST( SignalLength_v1 = 3 + NdbNodeBitmask48::Size );
 private:
   
   Uint32 xxxBlockRef;

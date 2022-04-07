@@ -30,6 +30,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
  Created December 2006 by Marko Makela
  *******************************************************/
 
+#ifdef UNIV_MATERIALIZE
+#undef UNIV_INLINE
+#define UNIV_INLINE
+#endif
+
 #include "buf0buddy.h"
 #include "buf0buf.h"
 
@@ -52,7 +57,8 @@ void buf_buddy_free_low(buf_pool_t *buf_pool, void *buf, ulint i,
 
 /** Get the index of buf_pool->zip_free[] for a given block size.
  @return index of buf_pool->zip_free[], or BUF_BUDDY_SIZES */
-static inline ulint buf_buddy_get_slot(ulint size) /*!< in: block size */
+UNIV_INLINE
+ulint buf_buddy_get_slot(ulint size) /*!< in: block size */
 {
   ulint i;
   ulint s;
@@ -74,7 +80,8 @@ block->mutex.
 @param[in]	size		compressed page size, between
                                 UNIV_ZIP_SIZE_MIN and UNIV_PAGE_SIZE
 @return allocated block, never NULL */
-static inline byte *buf_buddy_alloc(buf_pool_t *buf_pool, ulint size) {
+UNIV_INLINE
+byte *buf_buddy_alloc(buf_pool_t *buf_pool, ulint size) {
   ut_ad(ut_is_2pow(size));
   ut_ad(size >= UNIV_ZIP_SIZE_MIN);
   ut_ad(size <= UNIV_PAGE_SIZE);
@@ -88,10 +95,16 @@ static inline byte *buf_buddy_alloc(buf_pool_t *buf_pool, ulint size) {
 @param[in]	buf		block to be freed, must not be pointed to
                                 by the buffer pool
 @param[in]	size		block size, up to UNIV_PAGE_SIZE */
-static inline void buf_buddy_free(buf_pool_t *buf_pool, void *buf, ulint size) {
+UNIV_INLINE
+void buf_buddy_free(buf_pool_t *buf_pool, void *buf, ulint size) {
   ut_ad(ut_is_2pow(size));
   ut_ad(size >= UNIV_ZIP_SIZE_MIN);
   ut_ad(size <= UNIV_PAGE_SIZE);
 
   buf_buddy_free_low(buf_pool, buf, buf_buddy_get_slot(size), false);
 }
+
+#ifdef UNIV_MATERIALIZE
+#undef UNIV_INLINE
+#define UNIV_INLINE UNIV_INLINE_ORIGINAL
+#endif

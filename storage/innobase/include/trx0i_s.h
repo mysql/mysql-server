@@ -35,8 +35,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef trx0i_s_h
 #define trx0i_s_h
 
-#include <optional>
-
 #include "dict0types.h"
 #include "trx0types.h"
 #include "univ.i"
@@ -132,14 +130,14 @@ struct i_s_trx_row_t {
   trx_id_t trx_id;       /*!< transaction identifier */
   const char *trx_state; /*!< transaction state from
                          trx_get_que_state_str() */
-  std::chrono::system_clock::time_point trx_started; /*!< trx_t::start_time */
+  ib_time_t trx_started; /*!< trx_t::start_time */
   const i_s_locks_row_t *requested_lock_row;
   /*!< pointer to a row
   in innodb_locks if trx
   is waiting, or NULL */
 
   /** The value of trx->lock.wait_started */
-  std::chrono::system_clock::time_point trx_wait_started;
+  ib_time_t trx_wait_started;
   /** The value of TRX_WEIGHT(trx) */
   uintmax_t trx_weight;
   /** If `first` is `true` then `second` is the value of the

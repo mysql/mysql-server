@@ -28,15 +28,11 @@
 
 #include <string.h>
 
-/* By default, prefer IPv4 addresses, for smooth upgrade from an IPv4-only
-   environment.
-*/
-static int lookup_prefer_ip_version = 4;
 
-void NdbTCP_set_preferred_IP_version(int version) {
-  assert(version == 4 || version == 6);
-  lookup_prefer_ip_version = version;
-}
+/* On some operating systems (e.g. Solaris) INADDR_NONE is not defined */
+#ifndef INADDR_NONE
+#define INADDR_NONE -1                          /* Error value from inet_addr */
+#endif
 
 /* Return codes from getaddrinfo() */
 /* EAI_NODATA is obsolete and has been removed from some platforms */
@@ -62,36 +58,34 @@ void Ndb_make_ipv6_from_ipv4(struct sockaddr_in6* dst,
 
 static struct addrinfo * get_preferred_address(struct addrinfo * ai_list)
 {
-  struct addrinfo* first_ip4_addr = nullptr;
-  struct addrinfo* first_unscoped_ip6_addr = nullptr;
+  struct addrinfo* ai_pref = nullptr;
 
-  for(struct addrinfo *ai = ai_list; ai != nullptr; ai = ai->ai_next)
+  /*
+   * If a hostname resolves to multiple addresses:
+   * 1) the first IPv4 address is used.  This for as smooth upgrade from old
+   *    IPv4 only Ndb nodes.
+   * 2) if no IPv4 address the first IPv6 address without scope is used.
+   */
+  while (ai_list != nullptr)
   {
-    if((ai->ai_family == AF_INET) && (first_ip4_addr == nullptr))
+    if (ai_list->ai_family == AF_INET)
     {
-      first_ip4_addr = ai;
+      ai_pref = ai_list;
+      // Found first IPv4 address.
+      break;
     }
-    if((ai->ai_family == AF_INET6) && (first_unscoped_ip6_addr == nullptr))
+    else if (ai_pref == nullptr && ai_list->ai_family == AF_INET6)
     {
-      struct sockaddr_in6* addr = (struct sockaddr_in6*)ai->ai_addr;
+      struct sockaddr_in6* addr = (struct sockaddr_in6*)ai_list->ai_addr;
       if (addr->sin6_scope_id == 0)
       {
-        first_unscoped_ip6_addr = ai;
+        ai_pref = ai_list;
+        // Continue look for IPv4 address
       }
     }
+    ai_list = ai_list->ai_next;
   }
-
-  if(lookup_prefer_ip_version == 4)
-  {
-    if(first_ip4_addr) return first_ip4_addr;
-    if(first_unscoped_ip6_addr) return first_unscoped_ip6_addr;
-  }
-  else             // prefer IPv6
-  {
-    if(first_unscoped_ip6_addr) return first_unscoped_ip6_addr;
-    if(first_ip4_addr) return first_ip4_addr;
-  }
-  return ai_list;  // fallback to first address in original list
+  return ai_pref;
 }
 
 static int get_in6_addr(struct in6_addr* dst, const struct addrinfo* src)
@@ -113,10 +107,6 @@ static int get_in6_addr(struct in6_addr* dst, const struct addrinfo* src)
   else if (src->ai_family == AF_INET6)
   {
     addr6_ptr = (struct sockaddr_in6*)src->ai_addr;
-    if(addr6_ptr->sin6_scope_id != 0)
-    {
-      return -1;  // require unscoped address
-    }
   }
   else
   {
@@ -126,6 +116,7 @@ static int get_in6_addr(struct in6_addr* dst, const struct addrinfo* src)
   return 0;
 }
 
+extern "C"
 int
 Ndb_getInAddr6(struct in6_addr * dst, const char *address)
 {
@@ -151,6 +142,32 @@ Ndb_getInAddr6(struct in6_addr * dst, const char *address)
 
   return ret;
 }
+
+extern "C"
+int
+Ndb_getInAddr(struct in_addr * dst, const char *address)
+{
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = AF_INET; // Only IPv4 address
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_protocol = IPPROTO_TCP;
+
+  struct addrinfo* ai_list;
+  if (getaddrinfo(address, NULL, &hints, &ai_list) != 0)
+  {
+    dst->s_addr = INADDR_NONE;
+    return -1;
+  }
+
+  /* Return sin_addr for the first address returned */
+  struct sockaddr_in* sin = (struct sockaddr_in*)ai_list->ai_addr;
+  memcpy(dst, &sin->sin_addr, sizeof(struct in_addr));
+
+  freeaddrinfo(ai_list);
+  return 0;
+}
+
 
 char*
 Ndb_inet_ntop(int af,
@@ -231,8 +248,6 @@ Ndb_inet_ntop(int af,
 /**
  * This function takes a string splits it into the address/hostname part
  * and port/service part.
- * If string contains space, it is expected that the part preceding space is
- * host address or name and the succeding part is service port.
  * It does not do deep verification that passed string makes sense.
  * It is quite optimistic only checking for []: (ipv6-address) and
  * single : (ipv4-address or hostname).
@@ -248,35 +263,8 @@ Ndb_inet_ntop(int af,
  */
 int
 Ndb_split_string_address_port(const char *arg, char *host, size_t hostlen,
-                              char *serv, size_t servlen)
+                         char *serv, size_t servlen)
 {
-  const char* sep = strchr(arg, ' ');
-  if (sep != nullptr)
-  {
-    size_t hlen = sep - arg;
-    char unchecked_host[NDB_ADDR_STRLEN];
-    if (hlen >= sizeof(unchecked_host))
-    {
-      return -1;
-    }
-    memcpy(unchecked_host, arg, hlen);
-    unchecked_host[hlen] = 0;
-    while (*sep == ' ') sep++;
-    serv[servlen - 1] = 0;
-    strncpy(serv, sep, servlen);
-    if (serv[servlen - 1] != 0)
-    {
-      return -1;
-    }
-    char dummy[1];
-    /*
-     * Parse host part on its own. Will handle bracketed IPv6 address
-     * ([1::2:3]), and also fail if host part contains its own port
-     * ("1.2.3.4:5 4444").
-     */
-    return Ndb_split_string_address_port(unchecked_host, host, hostlen, dummy, 1);
-  }
-
   const char *port_colon = nullptr;
 
   if (*arg == '[')
@@ -292,8 +280,7 @@ Ndb_split_string_address_port(const char *arg, char *host, size_t hostlen,
     if ((*port_colon == ':') || (*port_colon == '\0'))
     {
       size_t copy_bytes = port_colon - arg - 2;
-      if ((copy_bytes >= hostlen) ||
-          (*port_colon != '\0' && strlen(port_colon + 1) >= servlen))
+      if ((copy_bytes >= hostlen) || (strlen(port_colon + 1) >= servlen))
         return -1; // fail on truncate
 
       // Check if host has at least one colon
@@ -305,10 +292,7 @@ Ndb_split_string_address_port(const char *arg, char *host, size_t hostlen,
       host[copy_bytes] = '\0';
       if (*port_colon == ':')
       {
-        serv[servlen - 1] = '\0';
         strncpy(serv, port_colon + 1, servlen);
-        if (serv[servlen - 1] != '\0')
-          return -1;
       }
       else
       {
@@ -327,19 +311,14 @@ Ndb_split_string_address_port(const char *arg, char *host, size_t hostlen,
       return -1; // fail on truncate
     strncpy(host, arg, copy_bytes);
     host[port_colon - arg] = '\0';
-    serv[servlen - 1] = '\0';
     strncpy(serv, port_colon + 1, servlen);
-    if (serv[servlen - 1] != '\0')
-      return -1;
+    serv[servlen - 1] = '\0';
     return 0;
   }
-  // more than one colon or no colon - assume no port !
   if (strlen(arg) >= hostlen)
     return -1; // fail on truncate
-  host[hostlen - 1] = '\0';
   strncpy(host, arg, hostlen);
-  if (host[hostlen - 1] != '\0')
-    return -1;
+  host[hostlen - 1] = '\0';
   serv[0] = '\0';
   return 0;
 }
@@ -369,63 +348,82 @@ Ndb_combine_address_port(char *buf,
 #include <NdbTap.hpp>
 
 static void
-CHECK(const char* name, int chk_result, const char* chk_address = nullptr)
+CHECK(const char* address, int expected_res, bool is_numeric= false)
 {
-  struct in6_addr addr;
-  char *addr_str1;
+  struct in_addr addr;
+  char *addr_str1, *addr_str2;
   char buf1[NDB_ADDR_STRLEN];
+  char buf2[NDB_ADDR_STRLEN];
 
-  fprintf(stderr, "Testing '%s' with length: %zu\n", name, strlen(name));
+  fprintf(stderr, "Testing '%s' with length: %u\n", address, (unsigned)strlen(address));
 
-  int res= Ndb_getInAddr6(&addr, name);
+  int res= Ndb_getInAddr(&addr, address);
 
-  if (res != chk_result)
+  if (res != expected_res)
   {
-    fprintf(stderr, "> unexpected result: %d, expected: %d\n", res, chk_result);
+    fprintf(stderr, "> unexpected result: %d, expected: %d\n",
+            res, expected_res);
     abort();
   }
 
-  addr_str1 = Ndb_inet_ntop(AF_INET6, static_cast<void*>(&addr),
-                            buf1, sizeof(buf1));
-  fprintf(stderr, "> '%s' -> '%s'\n", name, addr_str1);
-
-  if(chk_address && strcmp(addr_str1, chk_address))
-  {
-    fprintf(stderr, "> mismatch from expected '%s'\n", chk_address);
-    abort();
-  }
-}
-
-static void
-CHECK_SPLIT(const char str[], int chk_result, const char* host = nullptr,
-            const char* serv = nullptr)
-{
-  char host_buf[NDB_DNS_HOST_NAME_LENGTH + 1];
-  char serv_buf[NDB_IANA_SERVICE_NAME_LENGTH + 1];
-  int res = Ndb_split_string_address_port(str, host_buf, sizeof(host_buf),
-                                          serv_buf, sizeof(serv_buf));
-  if (res != chk_result)
-  {
-    fprintf(stderr, "> unexpected result: str '%s' %d, expected: %d\n", str,
-            res, chk_result);
-    abort();
-  }
   if (res != 0)
+  {
+    fprintf(stderr, "> returned -1, checking INADDR_NONE\n");
+
+    // Should return INADDR_NONE when when lookup fails
+    struct in_addr none;
+    none.s_addr = INADDR_NONE;
+    if (memcmp(&addr, &none, sizeof(none)) != 0)
+    {
+      addr_str1 = Ndb_inet_ntop(AF_INET,
+                                static_cast<void*>(&addr),
+                                buf1,
+                                sizeof(buf1));
+      addr_str2 = Ndb_inet_ntop(AF_INET,
+                                static_cast<void*>(&none),
+                                buf2,
+                                sizeof(buf2));
+      fprintf(stderr, "> didn't return INADDR_NONE after failure, "
+             "got: '%s', expected; '%s'\n", addr_str1, addr_str2);
+      abort();
+    }
+    fprintf(stderr, "> ok\n");
     return;
-  if (host != nullptr && strcmp(host_buf, host) != 0)
-  {
-    fprintf(stderr, "> unexpected result: str '%s' host '%s', expected '%s'\n",
-            str, host_buf, host);
-    abort();
   }
-  if (serv != nullptr && strcmp(serv_buf, serv) != 0)
+
+  addr_str1 = Ndb_inet_ntop(AF_INET,
+                            static_cast<void*>(&addr),
+                            buf1,
+                            sizeof(buf1));
+  fprintf(stderr, "> '%s' -> '%s'\n", address, addr_str1);
+
+  if (is_numeric)
   {
-    fprintf(stderr,
-            "> unexpected result: str '%s' service '%s', expected '%s'\n",
-            str, serv_buf, serv);
-    abort();
+    // Check that numeric address always map back to itself
+    // ie. compare to value returned by 'inet_aton'
+    fprintf(stderr, "> Checking numeric address against inet_addr\n");
+    struct in_addr addr2;
+    addr2.s_addr = inet_addr(address);
+    addr_str2 = Ndb_inet_ntop(AF_INET,
+                              static_cast<void*>(&addr2),
+                              buf2,
+                              sizeof(buf2));
+    fprintf(stderr, "> inet_addr(%s) -> '%s'\n", address, addr_str2);
+
+    if (memcmp(&addr, &addr2, sizeof(struct in_addr)) != 0)
+    {
+      addr_str2 = Ndb_inet_ntop(AF_INET,
+                                static_cast<void*>(&addr2),
+                                buf2,
+                                sizeof(buf2));
+      fprintf(stderr, "> numeric address '%s' didn't map to same value as "
+              "inet_addr: '%s'", address, addr_str2);
+      abort();
+    }
+    fprintf(stderr, "> ok\n");
   }
 }
+
 
 /*
   socket_library_init
@@ -476,13 +474,14 @@ can_resolve_hostname(const char* name)
 
   struct addrinfo* ai_list;
   int err = getaddrinfo(name, NULL, &hints, &ai_list);
-  freeaddrinfo(ai_list);
 
   if (err)
   {
-    fprintf(stderr, "> '%s' -> error: %d '%s'\n", name, err, gai_strerror(err));
+    fprintf(stderr, "> '%s' -> error: %d '%s'\n",
+             name, err, gai_strerror(err));
 
-    if (err == EAI_NODATA || err == EAI_NONAME)
+    if (err == EAI_NODATA ||
+	err == EAI_NONAME)
     {
       // An OK error 
       fprintf(stderr, ">  skipping tests with this name...\n");
@@ -493,6 +492,8 @@ can_resolve_hostname(const char* name)
     abort();
   }
 
+  freeaddrinfo(ai_list);
+
   return true;
 }
 
@@ -502,16 +503,10 @@ TAPTEST(NdbGetInAddr)
   socket_library_init();
 
   if (can_resolve_hostname("localhost"))
-  {
-    NdbTCP_set_preferred_IP_version(4);
-    CHECK("localhost", 0, "127.0.0.1");
-    NdbTCP_set_preferred_IP_version(6);
-    CHECK("localhost", 0, "::1");
-    NdbTCP_set_preferred_IP_version(4);
-  }
-  CHECK("127.0.0.1", 0);
+    CHECK("localhost", 0);
+  CHECK("127.0.0.1", 0, true);
 
-  char hostname_buf[NDB_DNS_HOST_NAME_LENGTH + 1];
+  char hostname_buf[256];
   char addr_buf[NDB_ADDR_STRLEN];
   if (gethostname(hostname_buf, sizeof(hostname_buf)) == 0 &&
       can_resolve_hostname(hostname_buf))
@@ -519,23 +514,24 @@ TAPTEST(NdbGetInAddr)
     // Check this machines hostname
     CHECK(hostname_buf, 0);
 
-    struct in6_addr addr;
-    Ndb_getInAddr6(&addr, hostname_buf);
+    struct in_addr addr;
+    Ndb_getInAddr(&addr, hostname_buf);
     // Convert hostname to dotted decimal string ip and check
-    CHECK(Ndb_inet_ntop(AF_INET6,
+    CHECK(Ndb_inet_ntop(AF_INET,
                         static_cast<void*>(&addr),
                         addr_buf,
                         sizeof(addr_buf)),
-                        0);
+                        0,
+                        true);
   }
   CHECK("unknown_?host", -1); // Does not exist
-  CHECK("3ffe:1900:4545:3:200:f8ff:fe21:67cf", 0);
-  CHECK("fe80:0:0:0:200:f8ff:fe21:67cf", 0);
-  CHECK("fe80::200:f8ff:fe21:67cf", 0);
-  CHECK("::1", 0);
+  CHECK("3ffe:1900:4545:3:200:f8ff:fe21:67cf", -1); // No IPv6
+  CHECK("fe80:0:0:0:200:f8ff:fe21:67cf", -1);
+  CHECK("fe80::200:f8ff:fe21:67cf", -1);
+  CHECK("::1", -1); // the loopback, but still No IPv6
 
   // 255 byte hostname which does not exist
-  char long_hostname[NDB_DNS_HOST_NAME_LENGTH + 1];
+  char long_hostname[256];
   memset(long_hostname, 'y', sizeof(long_hostname)-1);
   long_hostname[sizeof(long_hostname)-1] = 0;
   assert(strlen(long_hostname) == 255);
@@ -553,52 +549,6 @@ TAPTEST(NdbGetInAddr)
                                          sizeof(addr_buf));
     fprintf(stderr, "> AF_UNSPEC -> '%s'\n", addr_str);
   }
-
-  CHECK_SPLIT("1.2.3.4", 0, "1.2.3.4", "");
-  CHECK_SPLIT("001.009.081.0255", 0, "001.009.081.0255", "");
-  CHECK_SPLIT("1.2.3.4:5", 0, "1.2.3.4", "5");
-  CHECK_SPLIT("1::5:4", 0, "1::5:4", "");
-  CHECK_SPLIT("[1::5]:4", 0, "1::5", "4");
-  CHECK_SPLIT("my_host:4", 0, "my_host", "4");
-  CHECK_SPLIT("localhost:13001", 0, "localhost", "13001");
-  CHECK_SPLIT("[fed0:10::182]", 0, "fed0:10::182", "");
-  CHECK_SPLIT("fed0:10::182", 0, "fed0:10::182", "");
-  CHECK_SPLIT("[fed0:10:0:ff:11:22:33:182]:1186", 0,
-              "fed0:10:0:ff:11:22:33:182", "1186");
-  CHECK_SPLIT("::", 0, "::", "");
-  CHECK_SPLIT("::1", 0, "::1", "");
-  CHECK_SPLIT("2001:db8::1", 0, "2001:db8::1", "");
-  CHECK_SPLIT("192.0.2.0:1", 0, "192.0.2.0", "1");
-  /*
-   * When using space separated host and port, host part should not contain
-   * port.
-   */
-  CHECK_SPLIT("192.0.2.0:1 4444", -1);
-
-  char long_host[NDB_DNS_HOST_NAME_LENGTH + 3 + 1];
-  for (int i = 0; i < NDB_DNS_HOST_NAME_LENGTH + 3; i++)
-    long_host[i] = ((i + 1) % 27) ? 'a' + (i % 27) : '.';
-  long_host[NDB_DNS_HOST_NAME_LENGTH + 3] = 0;
-  CHECK_SPLIT(long_host, -1);
-  long_host[1] = ':';
-  CHECK_SPLIT(long_host, -1);
-  long_host[1] = 'b';
-  long_host[NDB_DNS_HOST_NAME_LENGTH] = ':';
-  CHECK_SPLIT(long_host, 0, nullptr, &long_host[NDB_DNS_HOST_NAME_LENGTH + 1]);
-
-  /*
-   * Ndb_split_string_address_port will allow the below for now since it only
-   * does not do a full validation of host.
-   */
-  CHECK_SPLIT("192.0.2.0::1", 0, "192.0.2.0::1", "");
-  CHECK_SPLIT("fed0:10:0:ff:11:22:33:182:1186", 0,
-              "fed0:10:0:ff:11:22:33:182:1186", "");
-
-  CHECK_SPLIT("localhost 13001", 0, "localhost", "13001");
-  CHECK_SPLIT("fed0:10:0:ff:11:22:33:182 1186", 0, "fed0:10:0:ff:11:22:33:182",
-              "1186");
-  CHECK_SPLIT("super:1186 1234", -1);
-  CHECK_SPLIT("[2001:db8::1] 20", 0, "2001:db8::1", "20");
 
   socket_library_end();
 

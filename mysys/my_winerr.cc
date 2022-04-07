@@ -100,8 +100,10 @@ access violations */
 #define MAX_EACCES_RANGE ERROR_SHARING_BUFFER_EXCEEDED
 
 static int get_errno_from_oserr(unsigned long oserrno) {
+  int i;
+
   /* check the table for the OS error code */
-  for (size_t i = 0; i < ERRTABLESIZE; ++i) {
+  for (i = 0; i < ERRTABLESIZE; ++i) {
     if (oserrno == errtable[i].oscode) {
       return errtable[i].sysv_errno;
     }

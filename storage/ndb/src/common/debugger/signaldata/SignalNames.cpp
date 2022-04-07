@@ -897,6 +897,5 @@ const GsnName SignalNames [] = {
   ,{ GSN_MEASURE_WAKEUP_TIME_ORD, "MEASURE_WAKEUP_TIME_ORD" }
   ,{ GSN_UPD_QUERY_DIST_ORD, "UPD_QUERY_DIST_ORD" }
   ,{ GSN_UPD_THR_LOAD_ORD, "UPDATE_THR_LOAD_ORD" }
-  ,{ GSN_TRP_KEEP_ALIVE, "TRP_KEEP_ALIVE" }
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);

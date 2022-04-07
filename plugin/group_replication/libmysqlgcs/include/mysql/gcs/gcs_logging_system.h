@@ -74,7 +74,7 @@
 */
 class Gcs_log_event {
  public:
-  explicit Gcs_log_event() = default;
+  explicit Gcs_log_event() {}
 
   /**
     Set whether the message is ready to be consumed or not.
@@ -387,7 +387,7 @@ class Gcs_async_buffer {
 class Gcs_output_sink : public Sink_interface {
  public:
   explicit Gcs_output_sink();
-  ~Gcs_output_sink() override = default;
+  ~Gcs_output_sink() override {}
 
   /**
     Output sink initialization method.
@@ -450,7 +450,7 @@ class Gcs_output_sink : public Sink_interface {
 class Gcs_default_logger : public Logger_interface {
  public:
   explicit Gcs_default_logger(Gcs_async_buffer *sink);
-  ~Gcs_default_logger() override = default;
+  ~Gcs_default_logger() override {}
 
   /**
     Default logger initialization method.
@@ -509,7 +509,7 @@ class Gcs_default_logger : public Logger_interface {
 class Gcs_default_debugger {
  public:
   explicit Gcs_default_debugger(Gcs_async_buffer *sink);
-  virtual ~Gcs_default_debugger() = default;
+  virtual ~Gcs_default_debugger() {}
 
   /**
     Default debugger initialization method.
@@ -747,7 +747,7 @@ class Gcs_debug_manager : public Gcs_debug_options {
 class Gcs_file_sink : public Sink_interface {
  public:
   Gcs_file_sink(const std::string &file_name, const std::string &dir_name);
-  ~Gcs_file_sink() override = default;
+  ~Gcs_file_sink() override {}
 
   /**
     File sink initialization method.

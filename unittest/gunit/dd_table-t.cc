@@ -53,7 +53,7 @@ class ColumnsTest : public ::testing::Test {
 
   const Column_collection &columns() { return *m_table->columns(); }
 
-  ColumnsTest() = default;
+  ColumnsTest() {}
 
  private:
   GTEST_DISALLOW_COPY_AND_ASSIGN_(ColumnsTest);

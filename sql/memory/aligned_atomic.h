@@ -77,9 +77,7 @@ static inline size_t _cache_line_size() {
 
 #elif defined(__linux__)
 static inline size_t _cache_line_size() {
-  long size = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
-  if (size == -1) return 64;
-  return static_cast<size_t>(size);
+  return sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
 }
 
 #else

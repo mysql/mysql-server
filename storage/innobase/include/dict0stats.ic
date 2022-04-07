@@ -37,7 +37,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Set the persistent statistics flag for a given table. This is set only
  in the in-memory table object and is not saved on disk. It will be read
  from the .frm file upon first open from MySQL after a server restart. */
-static inline void dict_stats_set_persistent(
+UNIV_INLINE
+void dict_stats_set_persistent(
     dict_table_t *table, /*!< in/out: table */
     ibool ps_on,         /*!< in: persistent stats explicitly enabled */
     ibool ps_off)        /*!< in: persistent stats explicitly disabled */
@@ -65,7 +66,8 @@ static inline void dict_stats_set_persistent(
 
 /** Check whether persistent statistics is enabled for a given table.
  @return true if enabled, false otherwise */
-static inline ibool dict_stats_is_persistent_enabled(
+UNIV_INLINE
+ibool dict_stats_is_persistent_enabled(
     const dict_table_t *table) /*!< in: table */
 {
   /* Because of the nature of this check (non-locking) it is possible
@@ -100,7 +102,8 @@ static inline ibool dict_stats_is_persistent_enabled(
  stats enabled table). The flag is set only in the in-memory table object
  and is not saved in InnoDB files. It will be read from the .frm file upon
  first open from MySQL after a server restart. */
-static inline void dict_stats_auto_recalc_set(
+UNIV_INLINE
+void dict_stats_auto_recalc_set(
     dict_table_t *table,   /*!< in/out: table */
     ibool auto_recalc_on,  /*!< in: explicitly enabled */
     ibool auto_recalc_off) /*!< in: explicitly disabled */
@@ -123,7 +126,8 @@ static inline void dict_stats_auto_recalc_set(
 
 /** Check whether auto recalc is enabled for a given table.
  @return true if enabled, false otherwise */
-static inline ibool dict_stats_auto_recalc_is_enabled(
+UNIV_INLINE
+ibool dict_stats_auto_recalc_is_enabled(
     const dict_table_t *table) /*!< in: table */
 {
   /* we rely on this read to be atomic */
@@ -140,9 +144,10 @@ static inline ibool dict_stats_auto_recalc_is_enabled(
 }
 
 /** Initialize table's stats for the first time when opening a table. */
-static inline void dict_stats_init(dict_table_t *table) /*!< in/out: table */
+UNIV_INLINE
+void dict_stats_init(dict_table_t *table) /*!< in/out: table */
 {
-  ut_ad(!dict_sys_mutex_own());
+  ut_ad(!mutex_own(&dict_sys->mutex));
 
   if (table->stat_initialized) {
     return;
@@ -161,7 +166,8 @@ static inline void dict_stats_init(dict_table_t *table) /*!< in/out: table */
 
 /** Deinitialize table's stats after the last close of the table. This is
  used to detect "FLUSH TABLE" and refresh the stats upon next open. */
-static inline void dict_stats_deinit(dict_table_t *table) /*!< in/out: table */
+UNIV_INLINE
+void dict_stats_deinit(dict_table_t *table) /*!< in/out: table */
 {
   /* Don't assert the table->n_ref_count is 0 here, since there could
   be some background threads opening the table concurrently. This is

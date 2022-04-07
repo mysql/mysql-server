@@ -71,7 +71,7 @@ class PFS_index_user_defined_functions : public PFS_engine_index {
   PFS_index_user_defined_functions(PFS_engine_key *key_1)
       : PFS_engine_index(key_1) {}
 
-  ~PFS_index_user_defined_functions() override = default;
+  ~PFS_index_user_defined_functions() override {}
 
   virtual bool match(const row_user_defined_functions *row) = 0;
 };
@@ -82,7 +82,7 @@ class PFS_index_user_defined_functions_by_name
   PFS_index_user_defined_functions_by_name()
       : PFS_index_user_defined_functions(&m_key), m_key("UDF_NAME") {}
 
-  ~PFS_index_user_defined_functions_by_name() override = default;
+  ~PFS_index_user_defined_functions_by_name() override {}
 
   bool match(const row_user_defined_functions *row) override;
 
@@ -112,7 +112,7 @@ class table_user_defined_functions : public PFS_engine_table {
   table_user_defined_functions();
 
  public:
-  ~table_user_defined_functions() override = default;
+  ~table_user_defined_functions() override {}
 
  private:
   void materialize(THD *thd);

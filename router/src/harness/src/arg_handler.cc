@@ -24,14 +24,18 @@
 
 #include "mysql/harness/arg_handler.h"
 
+#include "utilities.h"
+
+#include <assert.h>
 #include <algorithm>
-#include <cassert>
+#include <iostream>
 #include <sstream>
 #include <string>
 #include <vector>
 
-#include "mysql/harness/utility/string.h"  // wrap_string
-#include "utilities.h"                     // regex_pattern_matches
+using std::string;
+using std::unique_ptr;
+using std::vector;
 
 using mysql_harness::utility::regex_pattern_matches;
 using mysql_harness::utility::string_format;
@@ -87,39 +91,30 @@ OptionContainer::const_iterator CmdArgHandler::find_option(
  * Some compilers, like gcc 4.8, have no support for C++11 regular expression.
  * @endinternal
  */
-bool CmdArgHandler::is_valid_option_name(
-    const std::string &name) const noexcept {
+bool CmdArgHandler::is_valid_option_name(const string &name) const noexcept {
   // Handle tokens like -h or -v
   if (name.size() == 2 && name.at(1) != '-') {
     return name.at(0) == '-';
   }
 
   // Handle tokens like --help or --with-sauce
-  return regex_pattern_matches(
-      name, "^--[A-Za-z][0-9A-Za-z._-]*(:[0-9A-Za-z._-]*)?[0-9A-Za-z]$");
+  return regex_pattern_matches(name, "^--[A-Za-z][A-Za-z_-]*[A-Za-z]$");
 }
 
-namespace {
-bool is_valid_option_value(const std::string &value) {
-  return value.find_first_of("\n") == std::string::npos;
-}
-}  // namespace
-
-void CmdArgHandler::process(const std::vector<std::string> &arguments) {
+void CmdArgHandler::process(const vector<string> &arguments) {
   rest_arguments_.clear();
 
-  std::vector<std::pair<CmdOption::ActionFunc, std::string>> schedule;
-  std::vector<std::pair<CmdOption::AtEndActionFunc, std::string>>
-      at_end_schedule;
+  vector<std::pair<CmdOption::ActionFunc, string>> schedule;
+  vector<std::pair<CmdOption::AtEndActionFunc, string>> at_end_schedule;
 
   const auto args_end = arguments.end();
   for (auto part = arguments.begin(); part < args_end; ++part) {
-    std::string argpart;
-    std::string value;
+    string argpart;
+    string value;
     bool got_value{false};
 
     size_t pos;
-    if ((pos = (*part).find('=')) != std::string::npos) {
+    if ((pos = (*part).find('=')) != string::npos) {
       // Option like --config=/path/to/config.conf
       argpart = (*part).substr(0, pos);
       value = (*part).substr(pos + 1);
@@ -137,72 +132,11 @@ void CmdArgHandler::process(const std::vector<std::string> &arguments) {
       continue;
     }
 
-    const auto dot_pos = argpart.find_first_of('.');
-    if (dot_pos != std::string::npos) {
-      if (!got_value) {
-        auto next_part_it = std::next(part);
-        if (next_part_it == args_end) {
-          throw std::invalid_argument("option '" + argpart +
-                                      "' expects a value, got nothing");
-        } else if (next_part_it->empty()) {
-          // accept and ignore
-          ++part;
-        } else if (next_part_it->at(0) == '-') {
-          throw std::invalid_argument("option '" + argpart +
-                                      "' expects a value, got nothing");
-        } else {
-          // accept
-          value = *next_part_it;
-          ++part;
-        }
-      }
-
-      if (!is_valid_option_value(value)) {
-        throw std::invalid_argument("invalid value '" + value +
-                                    "' for option '" + argpart + "'");
-      }
-
-      std::string section_str = argpart.substr(2, dot_pos - 2);  // skip "--"
-      // split A:B into pair<A,B> or A into pair<A,"">
-      std::pair<std::string, std::string> section_id;
-      const auto colon_pos = section_str.find_first_of(':');
-
-      if (colon_pos != std::string::npos) {
-        section_id.first = section_str.substr(0, colon_pos);
-        section_id.second = section_str.substr(colon_pos + 1);
-      } else {
-        section_id.first = section_str;
-      }
-
-      std::transform(section_id.first.begin(), section_id.first.end(),
-                     section_id.first.begin(), ::tolower);
-
-      if (section_id.first == "default") {
-        std::transform(section_id.first.begin(), section_id.first.end(),
-                       section_id.first.begin(), ::toupper);
-      }
-
-      const std::string arg_key = argpart.substr(dot_pos + 1);
-      auto &section_overwrites = config_overwrites_[section_id];
-      section_overwrites[arg_key] = value;
-      continue;
-    }
-
     const auto opt_iter = find_option(argpart);
     if (opt_iter == options_.end()) {
-      if (!ignore_unknown_arguments)
-        throw std::invalid_argument("unknown option '" + argpart + "'.");
+      throw std::invalid_argument("unknown option '" + argpart + "'.");
     }
-
-    // if ignore_unknown_arguments is true we use this no-op handler when we see
-    // one; this helps keeping the below code simple (skipping  '--', skipping
-    // option arg, etc. common for both known and ignored arguments)
-    CmdOption ignored_option(std::vector<std::string>{}, "",
-                             CmdOptionValueReq::optional, "",
-                             [](const std::string &) {});
-
-    const auto &option =
-        opt_iter == options_.end() ? ignored_option : *opt_iter;
+    const auto &option = *opt_iter;
 
     switch (option.value_req) {
       case CmdOptionValueReq::required:
@@ -275,11 +209,11 @@ void CmdArgHandler::process(const std::vector<std::string> &arguments) {
   }
 }
 
-std::vector<std::string> CmdArgHandler::usage_lines_if(
-    const std::string &prefix, const std::string &rest_metavar, size_t width,
+vector<string> CmdArgHandler::usage_lines_if(
+    const string &prefix, const string &rest_metavar, size_t width,
     UsagePredicate predicate) const noexcept {
   std::stringstream ss;
-  std::vector<std::string> usage;
+  vector<string> usage;
 
   for (auto option : options_) {
     bool accepted;
@@ -289,7 +223,7 @@ std::vector<std::string> CmdArgHandler::usage_lines_if(
     if (!accepted) continue;
 
     ss.clear();
-    ss.str({});
+    ss.str(string());
 
     bool has_multiple_names = option.names.size() > 1;
 
@@ -326,19 +260,19 @@ std::vector<std::string> CmdArgHandler::usage_lines_if(
 
   if (allow_rest_arguments && !rest_metavar.empty()) {
     ss.clear();
-    ss.str({});
+    ss.str(string());
     ss << "[" << rest_metavar << "]";
     usage.push_back(ss.str());
   }
 
   ss.clear();
-  ss.str({});
+  ss.str(string());
   size_t line_size = 0;
-  std::vector<std::string> result{};
+  vector<string> result{};
 
   ss << prefix;
   line_size = ss.str().size();
-  auto indent = std::string(line_size, ' ');
+  auto indent = string(line_size, ' ');
 
   auto end_usage = usage.end();
   for (auto item = usage.begin(); item != end_usage; ++item) {
@@ -349,7 +283,7 @@ std::vector<std::string> CmdArgHandler::usage_lines_if(
     if (need_newline) {
       result.push_back(ss.str());
       ss.clear();
-      ss.str({});
+      ss.str(string());
       ss << indent;
     }
 
@@ -363,15 +297,15 @@ std::vector<std::string> CmdArgHandler::usage_lines_if(
   return result;
 }
 
-std::vector<std::string> CmdArgHandler::option_descriptions(
+vector<string> CmdArgHandler::option_descriptions(
     size_t width, size_t indent) const noexcept {
   std::stringstream ss;
-  std::vector<std::string> desc_lines;
+  vector<string> desc_lines;
 
   for (auto option = options_.begin(); option != options_.end(); ++option) {
     auto value_req = option->value_req;
     ss.clear();
-    ss.str({});
+    ss.str(string());
 
     ss << "  ";
     for (auto iter_name = option->names.begin();
@@ -397,9 +331,9 @@ std::vector<std::string> CmdArgHandler::option_descriptions(
     desc_lines.push_back(ss.str());
 
     ss.clear();
-    ss.str({});
+    ss.str(string());
 
-    std::string desc = option->description;
+    string desc = option->description;
     for (auto line : wrap_string(option->description, width, indent)) {
       desc_lines.push_back(line);
     }

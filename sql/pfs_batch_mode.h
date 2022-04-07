@@ -23,7 +23,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/iterators/row_iterator.h"
+#include "sql/row_iterator.h"
 
 /// A RAII class to handle turning on batch mode in front of scanning a row
 /// iterator, and then turn it back off afterwards (on destruction).

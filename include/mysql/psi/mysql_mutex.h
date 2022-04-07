@@ -192,21 +192,19 @@
 
 #define mysql_mutex_unlock_with_src(M, F, L) inline_mysql_mutex_unlock(M, F, L)
 
-static inline void inline_mysql_mutex_register(const char *category
-                                               [[maybe_unused]],
-                                               PSI_mutex_info *info
-                                               [[maybe_unused]],
-                                               int count [[maybe_unused]]) {
+static inline void inline_mysql_mutex_register(
+    const char *category MY_ATTRIBUTE((unused)),
+    PSI_mutex_info *info MY_ATTRIBUTE((unused)),
+    int count MY_ATTRIBUTE((unused))) {
 #ifdef HAVE_PSI_MUTEX_INTERFACE
   PSI_MUTEX_CALL(register_mutex)(category, info, count);
 #endif
 }
 
-static inline int inline_mysql_mutex_init(PSI_mutex_key key [[maybe_unused]],
-                                          mysql_mutex_t *that,
-                                          const native_mutexattr_t *attr,
-                                          const char *src_file [[maybe_unused]],
-                                          uint src_line [[maybe_unused]]) {
+static inline int inline_mysql_mutex_init(
+    PSI_mutex_key key MY_ATTRIBUTE((unused)), mysql_mutex_t *that,
+    const native_mutexattr_t *attr, const char *src_file MY_ATTRIBUTE((unused)),
+    uint src_line MY_ATTRIBUTE((unused))) {
 #ifdef HAVE_PSI_MUTEX_INTERFACE
   that->m_psi = PSI_MUTEX_CALL(init_mutex)(key, &that->m_mutex);
 #else
@@ -220,10 +218,9 @@ static inline int inline_mysql_mutex_init(PSI_mutex_key key [[maybe_unused]],
   );
 }
 
-static inline int inline_mysql_mutex_destroy(mysql_mutex_t *that,
-                                             const char *src_file
-                                             [[maybe_unused]],
-                                             uint src_line [[maybe_unused]]) {
+static inline int inline_mysql_mutex_destroy(
+    mysql_mutex_t *that, const char *src_file MY_ATTRIBUTE((unused)),
+    uint src_line MY_ATTRIBUTE((unused))) {
 #ifdef HAVE_PSI_MUTEX_INTERFACE
   if (that->m_psi != nullptr) {
     PSI_MUTEX_CALL(destroy_mutex)(that->m_psi);
@@ -238,9 +235,9 @@ static inline int inline_mysql_mutex_destroy(mysql_mutex_t *that,
   );
 }
 
-static inline int inline_mysql_mutex_lock(mysql_mutex_t *that,
-                                          const char *src_file [[maybe_unused]],
-                                          uint src_line [[maybe_unused]]) {
+static inline int inline_mysql_mutex_lock(
+    mysql_mutex_t *that, const char *src_file MY_ATTRIBUTE((unused)),
+    uint src_line MY_ATTRIBUTE((unused))) {
   int result;
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
@@ -281,10 +278,9 @@ static inline int inline_mysql_mutex_lock(mysql_mutex_t *that,
   return result;
 }
 
-static inline int inline_mysql_mutex_trylock(mysql_mutex_t *that,
-                                             const char *src_file
-                                             [[maybe_unused]],
-                                             uint src_line [[maybe_unused]]) {
+static inline int inline_mysql_mutex_trylock(
+    mysql_mutex_t *that, const char *src_file MY_ATTRIBUTE((unused)),
+    uint src_line MY_ATTRIBUTE((unused))) {
   int result;
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
@@ -325,10 +321,9 @@ static inline int inline_mysql_mutex_trylock(mysql_mutex_t *that,
   return result;
 }
 
-static inline int inline_mysql_mutex_unlock(mysql_mutex_t *that,
-                                            const char *src_file
-                                            [[maybe_unused]],
-                                            uint src_line [[maybe_unused]]) {
+static inline int inline_mysql_mutex_unlock(
+    mysql_mutex_t *that, const char *src_file MY_ATTRIBUTE((unused)),
+    uint src_line MY_ATTRIBUTE((unused))) {
   int result;
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE

@@ -52,7 +52,7 @@ class PFS_index_mems_global_by_event_name : public PFS_engine_index {
   PFS_index_mems_global_by_event_name()
       : PFS_engine_index(&m_key), m_key("EVENT_NAME") {}
 
-  ~PFS_index_mems_global_by_event_name() override = default;
+  ~PFS_index_mems_global_by_event_name() override {}
 
   virtual bool match(PFS_instr_class *instr_class);
 
@@ -121,7 +121,7 @@ class table_mems_global_by_event_name : public PFS_engine_table {
   table_mems_global_by_event_name();
 
  public:
-  ~table_mems_global_by_event_name() override = default;
+  ~table_mems_global_by_event_name() override {}
 
  private:
   int make_row(PFS_builtin_memory_class *klass);

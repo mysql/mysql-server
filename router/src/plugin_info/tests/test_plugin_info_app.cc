@@ -39,7 +39,7 @@
 #include "mysql/harness/vt100.h"
 #include "mysql/harness/vt100_filter.h"
 #include "print_version.h"
-#include "router_config.h"  // MYSQL_ROUTER_PACKAGE_NAME
+#include "router_config.h"
 #include "welcome_copyright_notice.h"
 
 using mysql_harness::Path;
@@ -48,6 +48,8 @@ using testing::StartsWith;
 using testing::StrEq;
 using testing::ValuesIn;
 using testing::WithParamInterface;
+
+using std::string;
 
 Path g_origin_path;
 
@@ -60,11 +62,10 @@ class PluginInfoAppTest : public ::testing::Test {
   void SetUp() override;
 
   void verify_version_output();
-  void verify_plugin_info(const std::string &brief, const std::string &version,
-                          const std::string &requires,
-                          const std::string &conflicts);
+  void verify_plugin_info(const string &brief, const string &version,
+                          const string &requires, const string &conflicts);
 
-  std::string get_plugin_file_path(const std::string &plugin_name);
+  string get_plugin_file_path(const string &plugin_name);
 
   std::stringstream out_stream_;
   Vt100Filter filtered_out_streambuf_;
@@ -83,10 +84,9 @@ void PluginInfoAppTest::SetUp() {
   plugin_dir_ = mysql_harness::get_plugin_dir(g_origin_path.str());
 }
 
-std::string PluginInfoAppTest::get_plugin_file_path(
-    const std::string &plugin_name) {
+string PluginInfoAppTest::get_plugin_file_path(const string &plugin_name) {
   Path plugin_path = plugin_dir_;
-  std::string plugin_file = plugin_name;
+  string plugin_file = plugin_name;
 
 #ifndef _WIN32
   plugin_file += ".so";
@@ -131,17 +131,17 @@ void PluginInfoAppTest::verify_version_output() {
   std::string version_string;
   build_version(std::string(MYSQL_ROUTER_PACKAGE_NAME), &version_string);
 
-  const std::string kVersionOutput =
+  const string kVersionOutput =
       version_string + "\n" + ORACLE_WELCOME_COPYRIGHT_NOTICE("2015") + "\n";
 
   EXPECT_EQ(out_stream_.str(), kVersionOutput);
   EXPECT_THAT(out_stream_err_.str(), StrEq(""));
 }
 
-void PluginInfoAppTest::verify_plugin_info(const std::string &brief,
-                                           const std::string &version,
-                                           const std::string &requires,
-                                           const std::string &conflicts) {
+void PluginInfoAppTest::verify_plugin_info(const string &brief,
+                                           const string &version,
+                                           const string &requires,
+                                           const string &conflicts) {
   EXPECT_THAT(out_stream_err_.str(), StrEq(""));
 
   const auto abi_version = ::mysql_harness::PLUGIN_ABI_VERSION;
@@ -149,13 +149,13 @@ void PluginInfoAppTest::verify_plugin_info(const std::string &brief,
       std::to_string(ABI_VERSION_MAJOR(abi_version)) + "." +
       std::to_string(ABI_VERSION_MINOR(abi_version));
 
-  const std::string expected_json =
+  const string expected_json =
       "{\n"
       "    \"abi-version\": \"" +
       abi_version_str +
       "\",\n"
       "    \"arch-descriptor\": \"" +
-      std::string(mysql_harness::ARCHITECTURE_DESCRIPTOR) +
+      string(mysql_harness::ARCHITECTURE_DESCRIPTOR) +
       "\",\n"
       "    \"brief\": \"" +
       brief +
@@ -241,7 +241,7 @@ TEST_F(PluginInfoAppTest, NonExistingLibrary) {
   PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, args,
                                      out_stream_);
 
-  const std::string expected_error = "Could not load plugin file ";
+  const std::string expected_error = "Could not load plugin file: ";
   EXPECT_THROW_LIKE(plugin_info_app.run(), FrontendError, expected_error);
 
   // that nothing else is printed
@@ -276,19 +276,18 @@ TEST_F(PluginInfoAppTest, DISABLED_NonPluginExistingLibrary) {
 //
 
 //                            <name,   brief,  version ,requires, conflicts>
-using Plugin_data =
-    std::tuple<std::string, std::string, std::string, std::string, std::string>;
+using Plugin_data = std::tuple<string, string, string, string, string>;
 
 class PluginInfoAppTestReadInfo : public PluginInfoAppTest,
                                   public WithParamInterface<Plugin_data> {};
 
 TEST_P(PluginInfoAppTestReadInfo, ReadInfo) {
-  const std::string plugin_name = std::get<0>(GetParam());
-  const std::string plugin_brief = std::get<1>(GetParam());
-  const std::string plugin_version = std::get<2>(GetParam());
-  const std::string plugin_requires = std::get<3>(GetParam());
-  const std::string plugin_conflicts = std::get<4>(GetParam());
-  const std::string plugin_file_path = get_plugin_file_path(plugin_name);
+  const string plugin_name = std::get<0>(GetParam());
+  const string plugin_brief = std::get<1>(GetParam());
+  const string plugin_version = std::get<2>(GetParam());
+  const string plugin_requires = std::get<3>(GetParam());
+  const string plugin_conflicts = std::get<4>(GetParam());
+  const string plugin_file_path = get_plugin_file_path(plugin_name);
 
   std::vector<std::string> args{plugin_file_path.c_str(), plugin_name.c_str()};
 

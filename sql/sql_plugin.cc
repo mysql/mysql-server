@@ -81,15 +81,16 @@
 #include "sql/derror.h"                   // ER_THD
 #include "sql/field.h"
 #include "sql/handler.h"  // ha_initalize_handlerton
-#include "sql/iterators/row_iterator.h"
-#include "sql/key.h"   // key_copy
-#include "sql/lock.h"  // acquire_shared_global...
+#include "sql/key.h"      // key_copy
+#include "sql/lock.h"     // acquire_shared_global...
 #include "sql/log.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"              // files_charset_info
 #include "sql/persisted_variable.h"  // Persisted_variables_cache
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"
+#include "sql/records.h"  // unique_ptr_destroy_only<RowIterator>
+#include "sql/row_iterator.h"
 #include "sql/set_var.h"
 #include "sql/sql_audit.h"        // mysql_audit_acquire_plugins
 #include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
@@ -97,7 +98,6 @@
 #include "sql/sql_class.h"        // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
-#include "sql/sql_executor.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"  // check_string_char_length
@@ -1079,8 +1079,8 @@ static bool plugin_add(MEM_ROOT *tmp_root, LEX_CSTRING name,
         if (plugin_hash[plugin->type]
                 ->emplace(to_string(tmp_plugin_ptr->name), tmp_plugin_ptr)
                 .second) {
-          ::new ((void *)&tmp_plugin_ptr->mem_root)
-              MEM_ROOT(key_memory_plugin_int_mem_root, 4096);
+          init_alloc_root(key_memory_plugin_int_mem_root,
+                          &tmp_plugin_ptr->mem_root, 4096, 4096);
           return false;
         }
         tmp_plugin_ptr->state = PLUGIN_IS_FREED;
@@ -1157,7 +1157,7 @@ static void plugin_del(st_plugin_int *plugin) {
   if (plugin->plugin_dl) plugin_dl_del(&plugin->plugin_dl->dl);
   plugin->state = PLUGIN_IS_FREED;
   plugin_array_version++;
-  plugin->mem_root.Clear();
+  free_root(&plugin->mem_root, MYF(0));
 }
 
 static void reap_plugins(void) {
@@ -1224,7 +1224,7 @@ static void intern_plugin_unlock(LEX *lex, plugin_ref plugin) {
       could be unlocked faster - optimizing for LIFO semantics.
     */
     plugin_ref *iter = lex->plugins.end() - 1;
-    bool found_it [[maybe_unused]] = false;
+    bool found_it MY_ATTRIBUTE((unused)) = false;
     for (; iter >= lex->plugins.begin() - 1; --iter) {
       if (plugin == *iter) {
         lex->plugins.erase(iter);
@@ -1391,7 +1391,7 @@ static bool plugin_init_internals() {
   init_plugin_psi_keys();
 #endif
 
-  ::new ((void *)&plugin_mem_root) MEM_ROOT(key_memory_plugin_mem_root, 4096);
+  init_alloc_root(key_memory_plugin_mem_root, &plugin_mem_root, 4096, 4096);
 
   bookmark_hash = new malloc_unordered_map<std::string, st_bookmark *>(
       key_memory_plugin_bookmark);
@@ -1489,7 +1489,8 @@ bool plugin_register_early_plugins(int *argc, char **argv, int flags) {
   if ((retval = plugin_init_internals())) return retval;
 
   /* Allocate the temporary mem root, will be freed before returning */
-  MEM_ROOT tmp_root(key_memory_plugin_init_tmp, 4096);
+  MEM_ROOT tmp_root;
+  init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
 
   I_List_iterator<i_string> iter(opt_early_plugin_load_list);
   i_string *item;
@@ -1497,7 +1498,7 @@ bool plugin_register_early_plugins(int *argc, char **argv, int flags) {
     plugin_load_list(&tmp_root, argc, argv, item->ptr, true);
 
   /* Temporary mem root not needed anymore, can free it here */
-  tmp_root.Clear();
+  free_root(&tmp_root, MYF(0));
 
   if (!(flags & PLUGIN_INIT_SKIP_INITIALIZATION))
     retval = plugin_init_initialize_and_reap();
@@ -1521,7 +1522,8 @@ bool plugin_register_builtin_and_init_core_se(int *argc, char **argv) {
   assert(!initialized);
 
   /* Allocate the temporary mem root, will be freed before returning */
-  MEM_ROOT tmp_root(key_memory_plugin_init_tmp, 4096);
+  MEM_ROOT tmp_root;
+  init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
 
   mysql_mutex_lock(&LOCK_plugin);
   initialized = true;
@@ -1564,7 +1566,7 @@ bool plugin_register_builtin_and_init_core_se(int *argc, char **argv) {
         tmp.load_option = PLUGIN_FORCE;
       }
 
-      tmp_root.ClearForReuse();
+      free_root(&tmp_root, MYF(MY_MARK_BLOCKS_FREE));
       if (test_plugin_options(&tmp_root, &tmp, argc, argv))
         tmp.state = PLUGIN_IS_DISABLED;
       else
@@ -1617,12 +1619,12 @@ bool plugin_register_builtin_and_init_core_se(int *argc, char **argv) {
 
   mysql_mutex_unlock(&LOCK_plugin);
 
-  tmp_root.Clear();
+  free_root(&tmp_root, MYF(0));
   return false;
 
 err_unlock:
   mysql_mutex_unlock(&LOCK_plugin);
-  tmp_root.Clear();
+  free_root(&tmp_root, MYF(0));
   return true;
 }
 
@@ -1725,7 +1727,8 @@ bool plugin_register_dynamic_and_init_all(int *argc, char **argv, int flags) {
   /* Register all dynamic plugins */
   if (!(flags & PLUGIN_INIT_SKIP_DYNAMIC_LOADING)) {
     /* Allocate the temporary mem root, will be freed before returning */
-    MEM_ROOT tmp_root(key_memory_plugin_init_tmp, 4096);
+    MEM_ROOT tmp_root;
+    init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
 
     I_List_iterator<i_string> iter(opt_plugin_load_list);
     i_string *item;
@@ -1736,6 +1739,7 @@ bool plugin_register_dynamic_and_init_all(int *argc, char **argv, int flags) {
       plugin_load(&tmp_root, argc, argv);
 
     /* Temporary mem root not needed anymore, can free it here */
+    free_root(&tmp_root, MYF(0));
   } else if (!opt_plugin_load_list.is_empty()) {
     /* Table is always empty at initialize */
     assert(opt_initialize);
@@ -1817,7 +1821,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv) {
   }
   table = tables.table;
   unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-      new_thd, table,
+      new_thd, table, nullptr,
       /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
   if (iterator == nullptr) {
     close_trans_system_tables(new_thd);
@@ -1857,7 +1861,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv) {
       mysql_rwlock_unlock(&LOCK_system_variables_hash);
       mysql_mutex_unlock(&LOCK_plugin);
     }
-    tmp_root->ClearForReuse();
+    free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
   }
   if (error > 0) {
     char errbuf[MYSQL_ERRMSG_SIZE];
@@ -1901,7 +1905,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
     switch ((*(p++) = *(list++))) {
       case '\0':
         list = nullptr; /* terminate the loop */
-        [[fallthrough]];
+                        /* fall through */
       case ';':
 #ifndef _WIN32
       case ':': /* can't use this as delimiter as it may be drive letter */
@@ -1927,7 +1931,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
               name.str = const_cast<char *>(plugin->name);
               name.length = strlen(name.str);
 
-              tmp_root->ClearForReuse();
+              free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
               if (plugin_add(tmp_root, to_lex_cstring(name), &dl, argc, argv,
                              REPORT_TO_LOG, load_early))
                 goto error;
@@ -1936,7 +1940,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
           } else
             goto error;
         } else {
-          tmp_root->ClearForReuse();
+          free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
           /*
             The whole locking sequence is not strictly speaking needed since
             this is a function that's executed only during server bootstrap, but
@@ -1963,7 +1967,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
           str->str = p;
           continue;
         }
-        [[fallthrough]];
+        // Fall through.
       default:
         str->length++;
         continue;
@@ -2132,7 +2136,7 @@ void plugin_shutdown(void) {
   bookmark_hash = nullptr;
   delete malloced_string_type_sysvars_bookmark_hash;
   malloced_string_type_sysvars_bookmark_hash = nullptr;
-  plugin_mem_root.Clear();
+  free_root(&plugin_mem_root, MYF(0));
 
   global_variables_dynamic_size = 0;
 }
@@ -2177,12 +2181,13 @@ bool plugin_early_load_one(int *argc, char **argv, const char *plugin) {
       initialized = true;
   }
   /* Allocate the temporary mem root, will be freed before returning */
-  MEM_ROOT tmp_root(PSI_NOT_INSTRUMENTED, 4096);
+  MEM_ROOT tmp_root;
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_root, 4096, 4096);
 
   plugin_load_list(&tmp_root, argc, argv, plugin, true);
 
   /* Temporary mem root not needed anymore, can free it here */
-  tmp_root.Clear();
+  free_root(&tmp_root, MYF(0));
 
   retval = plugin_init_initialize_and_reap();
 
@@ -2508,6 +2513,55 @@ static bool mysql_uninstall_plugin(THD *thd, LEX_CSTRING name) {
   if (plugin->plugin->flags & PLUGIN_OPT_NO_UNINSTALL) {
     mysql_mutex_unlock(&LOCK_plugin);
     my_error(ER_PLUGIN_NO_UNINSTALL, MYF(0), plugin->plugin->name);
+    goto err;
+  }
+
+  /*
+    FIXME: plugin rpl_semi_sync_master, check_uninstall() function.
+  */
+
+  /* Block Uninstallation of semi_sync plugins (Master/Slave)
+     when they are busy
+   */
+  char buff[20];
+  size_t buff_length;
+  /*
+    Master: If there are active semi sync slaves for this Master,
+    then that means it is busy and rpl_semi_sync_master plugin
+    cannot be uninstalled. To check whether the master
+    has any semi sync slaves or not, check Rpl_semi_sync_master_cliens
+    status variable value, if it is not 0, that means it is busy.
+  */
+  if (!strcmp(name.str, "rpl_semi_sync_master") &&
+      get_status_var(thd, plugin->plugin->status_vars,
+                     "Rpl_semi_sync_master_clients", buff, OPT_DEFAULT,
+                     &buff_length) &&
+      strcmp(buff, "0")) {
+    mysql_mutex_unlock(&LOCK_plugin);
+    my_error(ER_PLUGIN_CANNOT_BE_UNINSTALLED, MYF(0), name.str,
+             "Stop any active semisynchronous slaves of this master first.");
+    goto err;
+  }
+
+  /*
+    FIXME: plugin rpl_semi_sync_slave, check_uninstall() function.
+  */
+
+  /* Slave: If there is semi sync enabled IO thread active on this Slave,
+    then that means plugin is busy and rpl_semi_sync_slave plugin
+    cannot be uninstalled. To check whether semi sync
+    IO thread is active or not, check Rpl_semi_sync_slave_status status
+    variable value, if it is ON, that means it is busy.
+  */
+  if (!strcmp(name.str, "rpl_semi_sync_slave") &&
+      get_status_var(thd, plugin->plugin->status_vars,
+                     "Rpl_semi_sync_slave_status", buff, OPT_DEFAULT,
+                     &buff_length) &&
+      !strcmp(buff, "ON")) {
+    mysql_mutex_unlock(&LOCK_plugin);
+    my_error(
+        ER_PLUGIN_CANNOT_BE_UNINSTALLED, MYF(0), name.str,
+        "Stop any active semisynchronous I/O threads on this slave first.");
     goto err;
   }
 
@@ -3451,9 +3505,9 @@ static my_option *construct_help_options(MEM_ROOT *mem_root, st_plugin_int *p) {
   @retval 0 Success
 */
 
-static bool check_if_option_is_deprecated(int optid,
-                                          const struct my_option *opt,
-                                          char *argument [[maybe_unused]]) {
+static bool check_if_option_is_deprecated(
+    int optid, const struct my_option *opt,
+    char *argument MY_ATTRIBUTE((unused))) {
   if (optid == -1) {
     push_deprecated_warn(nullptr, opt->name, (opt->name + strlen("plugin-")));
   }
@@ -3497,7 +3551,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   LEX_CSTRING plugin_name;
   char *varname;
   int error;
-  sys_var *v [[maybe_unused]];
+  sys_var *v MY_ATTRIBUTE((unused));
   st_bookmark *var;
   size_t len;
   uint count = EXTRA_OPTIONS;
@@ -3605,7 +3659,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   */
   if (mysqld_server_started) {
     Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
-    if (pv && pv->set_persist_options(true, false)) {
+    if (pv && pv->set_persist_options(true)) {
       LogErr(ERROR_LEVEL, ER_PLUGIN_CANT_SET_PERSISTENT_OPTIONS, tmp->name.str);
       goto err;
     }

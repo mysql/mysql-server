@@ -11,7 +11,7 @@
 #                                                                       #
 # NOTE: For Windows platform, innodb_flush_method is not affected by    #
 #       innodb_dedicated_server value. So we need not to check for that.#
-#       This test is disabled on Linux, as there is a separate test for #
+#       This test is disabled on Linux as there is a seperate test for  #
 #       that.                                                           #
 #########################################################################
 

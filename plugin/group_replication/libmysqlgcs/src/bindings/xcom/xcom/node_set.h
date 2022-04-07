@@ -23,8 +23,6 @@
 #ifndef NODE_SET_H
 #define NODE_SET_H
 
-#include "xdr_gen/xcom_vp.h"
-
 #define dbg_node_set(s) _dbg_node_set(s, #s)
 #define g_dbg_node_set(s) _g_dbg_node_set(s, #s)
 bool_t equal_node_set(node_set x, node_set y);
@@ -50,5 +48,5 @@ void or_node_set(node_set *x, node_set const *y);
 void remove_node(node_set set, node_no node);
 void xor_node_set(node_set *x, node_set const *y);
 node_set *realloc_node_set(node_set *set, u_int n);
-bool equal_node_set(node_set const *x, node_set const *y);
+
 #endif

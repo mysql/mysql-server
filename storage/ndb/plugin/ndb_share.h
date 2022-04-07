@@ -25,8 +25,6 @@
 #ifndef NDB_SHARE_H
 #define NDB_SHARE_H
 
-#include <atomic>
-#include <mutex>
 #include <string>
 #ifndef NDEBUG
 #include <unordered_set>
@@ -34,11 +32,7 @@
 
 #include "my_alloc.h"                          // MEM_ROOT
 #include "storage/ndb/include/ndbapi/Ndb.hpp"  // Ndb::TupleIdRange
-#include "storage/ndb/plugin/ndb_table_stats.h"
-#include "thr_lock.h"  // THR_LOCK
-
-class ha_ndbcluster;
-class NdbEventOperation;
+#include "thr_lock.h"                          // THR_LOCK
 
 enum Ndb_binlog_type {
   NBT_DEFAULT = 0,
@@ -50,6 +44,17 @@ enum Ndb_binlog_type {
   NBT_FULL_USE_UPDATE = 7,
   NBT_UPDATED_ONLY_MINIMAL = 8,
   NBT_UPDATED_FULL_MINIMAL = 9
+};
+
+/*
+  Stats that can be retrieved from ndb
+*/
+struct Ndb_statistics {
+  Uint64 row_count;
+  ulong row_size;
+  Uint64 fragment_memory;
+  Uint64 fragment_extent_space;
+  Uint64 fragment_extent_free_space;
 };
 
 struct NDB_SHARE {
@@ -77,7 +82,7 @@ struct NDB_SHARE {
  public:
   // RAII style class for accessing tuple_id_range
   class Tuple_id_range_guard {
-    NDB_SHARE const *m_share;
+    NDB_SHARE *m_share;
 
    public:
     Ndb::TupleIdRange &range;
@@ -95,61 +100,8 @@ struct NDB_SHARE {
     g.range.reset();
   }
 
-  // Cached statistics for the table.
-  class Cached_stats {
-    mutable std::mutex m_stats_mutex;
-
-    // This is cached values and used in queries when that is "good enough",
-    // in other cases the values are updated from NDB before use.
-    Ndb_table_stats m_table_stats;
-
-    // Counter for rows changed since m_table_stats was saved. It's kept
-    // separate and is atomic to allow concurrent updates from threads while
-    // they are committing without locking the mutex. The counter value is
-    // appended to the row count when the cached table stats are retrived.
-    // NOTE! The counter is updated with changes from this MySQL Server but
-    // changes to the table in NDB are not reflected.
-    std::atomic<int64_t> atomic_row_count_changed{0};
-
-   public:
-    // Add changed rows to counter
-    void add_changed_rows(int changed_rows) {
-      if (changed_rows == 0) {
-        // Nothing to do
-        return;
-      }
-      atomic_row_count_changed += changed_rows;
-    }
-
-    // Save fresh table stats
-    void save_table_stats(Ndb_table_stats table_stats) {
-      {
-        std::lock_guard<std::mutex> lock_stats(m_stats_mutex);
-        m_table_stats = table_stats;
-      }
-      // Fresh table stats assigned, reset changed counter
-      atomic_row_count_changed = 0;
-    }
-
-    Ndb_table_stats get_table_stats() const {
-      Ndb_table_stats table_stats;
-      {
-        std::lock_guard<std::mutex> lock_stats(m_stats_mutex);
-        table_stats = m_table_stats;
-      }
-
-      // Update row_count with number of changed rows since it was saved
-      const int64_t changed_rows = atomic_row_count_changed;
-      table_stats.row_count =
-          // Check for underflow
-          ((int64_t)table_stats.row_count + changed_rows > 0)
-              ? table_stats.row_count + changed_rows
-              : 0;  // All rows gone
-      return table_stats;
-    }
-  } cached_stats;
-
-  struct Ndb_index_stat *index_stat_list{nullptr};
+  struct Ndb_statistics stat;
+  struct Ndb_index_stat *index_stat_list;
 
  private:
   enum Ndb_share_flags : uint {
@@ -170,15 +122,9 @@ struct NDB_SHARE {
     // NOTE! The decision wheter or not a table have event is decided
     // only once by Ndb_binlog_client::table_should_have_event()
     FLAG_TABLE_HAVE_EVENT = 1UL << 6,
-
-    // Flag describing if this is the share for ndb_apply_status table. It's
-    // primarily used in performance sensitive code as a quick way to check if
-    // special case should be activated, for example to write ndb_apply_status
-    // rows while applying rows from the binlog.
-    FLAG_TABLE_IS_APPLY_STATUS = 1UL << 7
   };
 
-  uint flags{0};
+  uint flags;
 
  public:
   bool get_binlog_nologging() const {
@@ -201,15 +147,11 @@ struct NDB_SHARE {
     return flags & NDB_SHARE::FLAG_TABLE_HAVE_EVENT;
   }
 
-  bool is_apply_status_table() const {
-    return flags & FLAG_TABLE_IS_APPLY_STATUS;
-  }
-
-  struct NDB_CONFLICT_FN_SHARE *m_cfn_share{nullptr};
+  struct NDB_CONFLICT_FN_SHARE *m_cfn_share;
 
   // The event operation used for listening to changes in NDB for this
-  // table, (mostly) protected by mutex
-  NdbEventOperation *op{nullptr};
+  // table, protected by mutex
+  class NdbEventOperation *op;
 
   // Check if an event operation has been setup for this share
   bool have_event_operation() const {
@@ -219,22 +161,11 @@ struct NDB_SHARE {
     return have_op;
   }
 
-  // Install event operation
-  bool install_event_op(NdbEventOperation *new_op, bool replace_op);
-
   // Raw pointer for passing table definition from schema dist client to
   // participant in the same node to avoid that participant have to access
   // the DD to open the table definition.
-  const void *inplace_alter_new_table_def{nullptr};
+  const void *inplace_alter_new_table_def;
 
- private:
-  explicit NDB_SHARE(const char *key_arg);
-  NDB_SHARE(const NDB_SHARE &) = delete;
-  NDB_SHARE &operator=(const NDB_SHARE &) = delete;
-
-  ~NDB_SHARE();
-
- public:
   static NDB_SHARE *create(const char *key);
   static void destroy(NDB_SHARE *share);
 
@@ -270,16 +201,16 @@ struct NDB_SHARE {
   // Acquire NDB_SHARE reference for use by ha_ndbcluster
   static NDB_SHARE *acquire_for_handler(const char *db_name,
                                         const char *table_name,
-                                        const ha_ndbcluster *reference);
+                                        const class ha_ndbcluster *reference);
   // Create NDB_SHARE reference for use by ha_ndbcluster
   // NOTE! Used only in a few special cases to allow opening table before
   // connection to NDB has been initialized
   static NDB_SHARE *create_for_handler(const char *db_name,
                                        const char *table_name,
-                                       const ha_ndbcluster *);
+                                       const class ha_ndbcluster *);
   // Release NDB_SHARE reference acquired by ha_ndbcluster
   static void release_for_handler(NDB_SHARE *share,
-                                  const ha_ndbcluster *reference);
+                                  const class ha_ndbcluster *reference);
 
   // Acquire or create NDB_SHARE
   // - used when table has just been created or discovered/synced/installed
@@ -323,12 +254,12 @@ struct NDB_SHARE {
   static void debug_print_shares(std::string &out);
 
  private:
-  uint m_use_count{0};
+  uint m_use_count;
   uint increment_use_count() { return ++m_use_count; }
   uint decrement_use_count();
   uint use_count() const { return m_use_count; }
 
-  enum { NSS_INITIAL = 0, NSS_DROPPED } state{NSS_INITIAL};
+  enum { NSS_INITIAL = 0, NSS_DROPPED } state;
 
   const char *share_state_string() const;
 
@@ -358,16 +289,16 @@ struct NDB_SHARE {
   // in a programmatic way.
   // Protected by "shares_mutex" in the same way as "m_use_count".
   struct Ndb_share_references {
-    std::unordered_set<const ha_ndbcluster *> handlers;
+    std::unordered_set<const class ha_ndbcluster *> handlers;
     std::unordered_set<std::string> strings;
 
     size_t size() const { return handlers.size() + strings.size(); }
 
-    bool exists(const ha_ndbcluster *ref) const {
+    bool exists(const class ha_ndbcluster *ref) const {
       return handlers.find(ref) != handlers.end();
     }
 
-    bool insert(const ha_ndbcluster *ref) {
+    bool insert(const class ha_ndbcluster *ref) {
       // The reference should not already exist
       assert(!exists(ref));
 
@@ -378,7 +309,7 @@ struct NDB_SHARE {
       return result.second;
     }
 
-    bool erase(const ha_ndbcluster *ref) {
+    bool erase(const class ha_ndbcluster *ref) {
       // The reference must already exist
       assert(exists(ref));
 
@@ -420,21 +351,22 @@ struct NDB_SHARE {
   };
   Ndb_share_references *refs;
 #endif
-  void refs_insert(const char *reference [[maybe_unused]]) {
+  void refs_insert(const char *reference MY_ATTRIBUTE((unused))) {
     assert(refs->insert(reference));
   }
-  void refs_insert(const ha_ndbcluster *reference [[maybe_unused]]) {
+  void refs_insert(
+      const class ha_ndbcluster *reference MY_ATTRIBUTE((unused))) {
     assert(refs->insert(reference));
   }
-  void refs_erase(const char *reference [[maybe_unused]]) {
+  void refs_erase(const char *reference MY_ATTRIBUTE((unused))) {
     assert(refs->erase(reference));
   }
-  void refs_erase(const ha_ndbcluster *reference [[maybe_unused]]) {
+  void refs_erase(const class ha_ndbcluster *reference MY_ATTRIBUTE((unused))) {
     assert(refs->erase(reference));
   }
 
  public:
-  bool refs_exists(const char *reference [[maybe_unused]]) const {
+  bool refs_exists(const char *reference MY_ATTRIBUTE((unused))) const {
 #ifndef NDEBUG
     return refs->exists(reference);
 #else
@@ -451,7 +383,7 @@ struct NDB_SHARE {
           reference and release it when going out of scope.
  */
 class Ndb_share_temp_ref {
-  NDB_SHARE *const m_share;
+  NDB_SHARE *m_share;
   const std::string m_reference;
 
   Ndb_share_temp_ref(const Ndb_share_temp_ref &) = delete;
@@ -460,17 +392,19 @@ class Ndb_share_temp_ref {
  public:
   Ndb_share_temp_ref(const char *db_name, const char *table_name,
                      const char *reference)
-      : m_share(NDB_SHARE::acquire_reference(db_name, table_name, reference)),
-        m_reference(reference) {
+      : m_reference(reference) {
+    m_share =
+        NDB_SHARE::acquire_reference(db_name, table_name, m_reference.c_str());
     // Should always exist
     assert(m_share);
   }
 
   Ndb_share_temp_ref(NDB_SHARE *share, const char *reference)
-      : m_share(share), m_reference(reference) {
+      : m_reference(reference) {
     // The share and a reference should exist
     assert(share);
     assert(share->refs_exists(reference));
+    m_share = share;
   }
 
   ~Ndb_share_temp_ref() {

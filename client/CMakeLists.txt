@@ -32,10 +32,6 @@ ADD_SUBDIRECTORY(dump)
 ## Subdirectory for mysql_migrate_keyring code.
 ADD_SUBDIRECTORY(migrate_keyring)
 
-INCLUDE_DIRECTORIES(
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
 MYSQL_ADD_EXECUTABLE(mysql
   ${CMAKE_SOURCE_DIR}/sql-common/net_ns.cc
   completion_hash.cc
@@ -43,8 +39,6 @@ MYSQL_ADD_EXECUTABLE(mysql
   pattern_matcher.cc
   readline.cc
   client_query_attributes.cc
-  multi_factor_passwordopt-vars.cc
-  ${CMAKE_CURRENT_SOURCE_DIR}/common/user_registration.cc
   LINK_LIBRARIES mysqlclient client_base ${EDITLINE_LIBRARY}
   )
 
@@ -52,6 +46,14 @@ IF(NOT WITHOUT_SERVER)
   MYSQL_ADD_EXECUTABLE(mysql_upgrade
     upgrade/program.cc
     LINK_LIBRARIES mysqlclient client_base
+    )
+ENDIF()
+
+# Enable inlining, to avoid stack overflow for some long regular expressions.
+IF(SOLARIS_SPARC AND MY_COMPILER_IS_SUNPRO AND
+    CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
+  ADD_COMPILE_FLAGS(mysqltest/regular_expressions.cc
+    COMPILE_FLAGS "-xO3"
     )
 ENDIF()
 
@@ -74,22 +76,18 @@ MYSQL_ADD_EXECUTABLE(mysqltest
 MYSQL_ADD_EXECUTABLE(mysqlcheck
   check/mysqlcheck.cc
   check/mysqlcheck_core.cc
-  multi_factor_passwordopt-vars.cc
   LINK_LIBRARIES mysqlclient
   )
 MYSQL_ADD_EXECUTABLE(mysqldump
   mysqldump.cc
-  multi_factor_passwordopt-vars.cc
   LINK_LIBRARIES mysqlclient
   )
 MYSQL_ADD_EXECUTABLE(mysqlimport
   mysqlimport.cc
-  multi_factor_passwordopt-vars.cc
   LINK_LIBRARIES mysqlclient
   )
 MYSQL_ADD_EXECUTABLE(mysqlshow
   mysqlshow.cc
-  multi_factor_passwordopt-vars.cc
   LINK_LIBRARIES mysqlclient
   )
 
@@ -253,12 +251,10 @@ TARGET_INCLUDE_DIRECTORIES(mysqlbinlog PRIVATE ${CMAKE_SOURCE_DIR}/sql)
 
 MYSQL_ADD_EXECUTABLE(mysqladmin
   mysqladmin.cc
-  multi_factor_passwordopt-vars.cc
   LINK_LIBRARIES mysqlclient
   )
 MYSQL_ADD_EXECUTABLE(mysqlslap
   mysqlslap.cc
-  multi_factor_passwordopt-vars.cc
   LINK_LIBRARIES mysqlclient
   )
 MYSQL_ADD_EXECUTABLE(mysql_config_editor

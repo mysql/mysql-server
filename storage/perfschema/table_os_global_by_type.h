@@ -90,7 +90,7 @@ class PFS_index_os_global_by_type : public PFS_engine_index {
         m_key_2("OBJECT_SCHEMA"),
         m_key_3("OBJECT_NAME") {}
 
-  ~PFS_index_os_global_by_type() override = default;
+  ~PFS_index_os_global_by_type() override {}
 
   virtual bool match(PFS_table_share *pfs);
   virtual bool match(PFS_program *pfs);
@@ -124,7 +124,7 @@ class table_os_global_by_type : public PFS_engine_table {
   table_os_global_by_type();
 
  public:
-  ~table_os_global_by_type() override = default;
+  ~table_os_global_by_type() override {}
 
  protected:
   int make_table_row(PFS_table_share *table_share);

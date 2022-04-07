@@ -80,7 +80,7 @@ introduced where a call to log_free_check() is bypassed. */
 
 /** Undoes a modify in a clustered index record.
  @return DB_SUCCESS, DB_FAIL, or error code: we may run out of file space */
-[[nodiscard]] static dberr_t row_undo_mod_clust_low(
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_clust_low(
     undo_node_t *node, /*!< in: row undo node */
     ulint **offsets,   /*!< out: rec_get_offsets() on the record */
     mem_heap_t **offsets_heap,
@@ -162,7 +162,7 @@ introduced where a call to log_free_check() is bypassed. */
  that would see the delete-marked record.
  @return	DB_SUCCESS, DB_FAIL, or error code: we may run out of file space
  */
-[[nodiscard]] static dberr_t row_undo_mod_remove_clust_low(
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_remove_clust_low(
     undo_node_t *node, /*!< in: row undo node */
     mtr_t *mtr,        /*!< in/out: mini-transaction */
     ulint mode)        /*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
@@ -231,8 +231,7 @@ introduced where a call to log_free_check() is bypassed. */
     are passing rollback=false, just like purge does. */
 
     btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, false, node->trx->id,
-                               node->undo_no, node->rec_type, mtr, &node->pcur,
-                               nullptr);
+                               node->undo_no, node->rec_type, mtr);
 
     /* The delete operation may fail if we have little
     file space left: TODO: easiest to crash the database
@@ -245,9 +244,9 @@ introduced where a call to log_free_check() is bypassed. */
 /** Undoes a modify in a clustered index record. Sets also the node state for
  the next round of undo.
  @return DB_SUCCESS or error code: we may run out of file space */
-[[nodiscard]] static dberr_t row_undo_mod_clust(
-    undo_node_t *node, /*!< in: row undo node */
-    que_thr_t *thr)    /*!< in: query thread */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_mod_clust(undo_node_t *node, /*!< in: row undo node */
+                       que_thr_t *thr)    /*!< in: query thread */
 {
   btr_pcur_t *pcur;
   mtr_t mtr;
@@ -373,13 +372,14 @@ introduced where a call to log_free_check() is bypassed. */
 
 /** Delete marks or removes a secondary index entry if found.
  @return DB_SUCCESS, DB_FAIL, or DB_OUT_OF_FILE_SPACE */
-[[nodiscard]] static dberr_t row_undo_mod_del_mark_or_remove_sec_low(
-    undo_node_t *node,   /*!< in: row undo node */
-    que_thr_t *thr,      /*!< in: query thread */
-    dict_index_t *index, /*!< in: index */
-    dtuple_t *entry,     /*!< in: index entry */
-    ulint mode)          /*!< in: latch mode BTR_MODIFY_LEAF or
-                         BTR_MODIFY_TREE */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_mod_del_mark_or_remove_sec_low(
+        undo_node_t *node,   /*!< in: row undo node */
+        que_thr_t *thr,      /*!< in: query thread */
+        dict_index_t *index, /*!< in: index */
+        dtuple_t *entry,     /*!< in: index entry */
+        ulint mode)          /*!< in: latch mode BTR_MODIFY_LEAF or
+                             BTR_MODIFY_TREE */
 {
   btr_pcur_t pcur;
   btr_cur_t *btr_cur;
@@ -510,8 +510,7 @@ introduced where a call to log_free_check() is bypassed. */
       record that contains externally stored columns. */
       ut_ad(!index->is_clustered());
       btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, false, node->trx->id,
-                                 node->undo_no, node->rec_type, &mtr,
-                                 &node->pcur, nullptr);
+                                 node->undo_no, node->rec_type, &mtr);
       /* The delete operation may fail if we have little
       file space left: TODO: easiest to crash the database
       and restart with more file space */
@@ -536,11 +535,12 @@ func_exit_no_pcur:
  clustered index record or an earlier version of it, if the secondary index
  record through which we do the search is delete-marked.
  @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-[[nodiscard]] static dberr_t row_undo_mod_del_mark_or_remove_sec(
-    undo_node_t *node,   /*!< in: row undo node */
-    que_thr_t *thr,      /*!< in: query thread */
-    dict_index_t *index, /*!< in: index */
-    dtuple_t *entry)     /*!< in: index entry */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_mod_del_mark_or_remove_sec(
+        undo_node_t *node,   /*!< in: row undo node */
+        que_thr_t *thr,      /*!< in: query thread */
+        dict_index_t *index, /*!< in: index */
+        dtuple_t *entry)     /*!< in: index entry */
 {
   dberr_t err;
 
@@ -564,13 +564,14 @@ func_exit_no_pcur:
  @retval DB_OUT_OF_FILE_SPACE when running out of tablespace
  @retval DB_DUPLICATE_KEY if the value was missing
          and an insert would lead to a duplicate exists */
-[[nodiscard]] static dberr_t row_undo_mod_del_unmark_sec_and_undo_update(
-    ulint mode,          /*!< in: search mode: BTR_MODIFY_LEAF or
-                         BTR_MODIFY_TREE */
-    que_thr_t *thr,      /*!< in: query thread */
-    dict_index_t *index, /*!< in: index */
-    dtuple_t *entry,     /*!< in: index entry */
-    undo_no_t undo_no)
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_mod_del_unmark_sec_and_undo_update(
+        ulint mode,          /*!< in: search mode: BTR_MODIFY_LEAF or
+                             BTR_MODIFY_TREE */
+        que_thr_t *thr,      /*!< in: query thread */
+        dict_index_t *index, /*!< in: index */
+        dtuple_t *entry,     /*!< in: index entry */
+        undo_no_t undo_no)
 /*!< in: undo number upto which to rollback.*/
 {
   btr_pcur_t pcur;
@@ -771,7 +772,7 @@ static void row_undo_mod_sec_flag_corrupted(
       dict_set_corrupted(index);
       break;
     default:
-      [[fallthrough]];
+      /* fall through */
     case RW_X_LATCH:
       /* This should be the rollback of a data dictionary
       transaction. */
@@ -786,10 +787,9 @@ This is the specific function to handle the modify on multi-value indexes.
 @param[in]	index	the multi-value index
 @param[in,out]	heap	memory heap
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-[[nodiscard]] static dberr_t row_undo_mod_upd_del_multi_sec(undo_node_t *node,
-                                                            que_thr_t *thr,
-                                                            dict_index_t *index,
-                                                            mem_heap_t *heap) {
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_mod_upd_del_multi_sec(undo_node_t *node, que_thr_t *thr,
+                                   dict_index_t *index, mem_heap_t *heap) {
   dberr_t err = DB_SUCCESS;
   Multi_value_entry_builder_normal mv_entry_builder(node->row, node->ext, index,
                                                     heap, true, false);
@@ -810,9 +810,9 @@ This is the specific function to handle the modify on multi-value indexes.
 
 /** Undoes a modify in secondary indexes when undo record type is UPD_DEL.
  @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-[[nodiscard]] static dberr_t row_undo_mod_upd_del_sec(
-    undo_node_t *node, /*!< in: row undo node */
-    que_thr_t *thr)    /*!< in: query thread */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_mod_upd_del_sec(undo_node_t *node, /*!< in: row undo node */
+                             que_thr_t *thr)    /*!< in: query thread */
 {
   mem_heap_t *heap;
   dberr_t err = DB_SUCCESS;
@@ -886,8 +886,9 @@ This is the specific function to handle the modify on multi-value indexes.
 @param[in]	index	the multi-value index
 @param[in,out]	heap	memory heap
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-[[nodiscard]] static dberr_t row_undo_mod_del_mark_multi_sec(
-    undo_node_t *node, que_thr_t *thr, dict_index_t *index, mem_heap_t *heap) {
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_mod_del_mark_multi_sec(undo_node_t *node, que_thr_t *thr,
+                                    dict_index_t *index, mem_heap_t *heap) {
   dberr_t err = DB_SUCCESS;
   Multi_value_entry_builder_normal mv_entry_builder(node->row, node->ext, index,
                                                     heap, true, false);
@@ -923,9 +924,9 @@ This is the specific function to handle the modify on multi-value indexes.
 
 /** Undoes a modify in secondary indexes when undo record type is DEL_MARK.
  @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-[[nodiscard]] static dberr_t row_undo_mod_del_mark_sec(
-    undo_node_t *node, /*!< in: row undo node */
-    que_thr_t *thr)    /*!< in: query thread */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_mod_del_mark_sec(undo_node_t *node, /*!< in: row undo node */
+                              que_thr_t *thr)    /*!< in: query thread */
 {
   mem_heap_t *heap;
   dberr_t err = DB_SUCCESS;
@@ -1052,9 +1053,9 @@ static dberr_t row_undo_mod_upd_exist_multi_sec(undo_node_t *node,
 
 /** Undoes a modify in secondary indexes when undo record type is UPD_EXIST.
  @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-[[nodiscard]] static dberr_t row_undo_mod_upd_exist_sec(
-    undo_node_t *node, /*!< in: row undo node */
-    que_thr_t *thr)    /*!< in: query thread */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_mod_upd_exist_sec(undo_node_t *node, /*!< in: row undo node */
+                               que_thr_t *thr)    /*!< in: query thread */
 {
   mem_heap_t *heap;
   dberr_t err = DB_SUCCESS;

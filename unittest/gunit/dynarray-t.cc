@@ -86,7 +86,7 @@ class MemRootTest : public ::testing::Test {
     destroy_counter = 0;
   }
 
-  void TearDown() override { m_mem_root.Clear(); }
+  void TearDown() override { free_root(&m_mem_root, MYF(0)); }
 
   static void SetUpTestCase() {
     generate_test_data(test_data, table_list, num_elements);
@@ -134,7 +134,7 @@ TEST_F(MemRootTest, Reserve) {
 class DestroyCounter {
  public:
   DestroyCounter() : p_counter(&MemRootTest::destroy_counter) {}
-  DestroyCounter(const DestroyCounter &rhs) = default;
+  DestroyCounter(const DestroyCounter &rhs) : p_counter(rhs.p_counter) {}
   explicit DestroyCounter(size_t *p) : p_counter(p) {}
   DestroyCounter &operator=(const DestroyCounter &) = default;
   ~DestroyCounter() { (*p_counter) += 1; }

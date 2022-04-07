@@ -35,10 +35,10 @@ struct BuildIndxImplReq
     ,RF_NO_DISK      = 1 << 9         /* Indexed columns are not on disk */
   };
 
-  static constexpr Uint32 SignalLength = 10;
-  static constexpr Uint32 INDEX_COLUMNS = 0;
-  static constexpr Uint32 KEY_COLUMNS = 1;
-  static constexpr Uint32 NoOfSections = 2;
+  STATIC_CONST( SignalLength = 10 );
+  STATIC_CONST( INDEX_COLUMNS = 0 );
+  STATIC_CONST( KEY_COLUMNS = 1 );
+  STATIC_CONST( NoOfSections = 2 );
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -53,7 +53,7 @@ struct BuildIndxImplReq
 };
 
 struct BuildIndxImplConf {
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -72,7 +72,7 @@ struct BuildIndxImplRef {
     InternalError = 4346
   };
 
-  static constexpr Uint32 SignalLength = 6;
+  STATIC_CONST( SignalLength = 6 );
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -100,7 +100,7 @@ struct mt_BuildIndxReq
 
   Uint32 pad[3];
 
-  static constexpr Uint32 SignalLength = (6 + 3 + 4 * (sizeof(void*) / 4));
+  STATIC_CONST( SignalLength = (6 + 3 + 4 * (sizeof(void*) / 4)));
 };
 
 

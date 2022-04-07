@@ -76,7 +76,7 @@ int innobase_fts_nocase_compare(const CHARSET_INFO *cs, const fts_string_t *s1,
 
 // FIXME: Need to have a generic iterator that traverses the ilist.
 
-typedef std::vector<fts_string_t, ut::allocator<fts_string_t>> word_vector_t;
+typedef std::vector<fts_string_t, ut_allocator<fts_string_t>> word_vector_t;
 
 struct fts_word_freq_t;
 
@@ -207,7 +207,7 @@ struct fts_select_t {
                               the FTS index */
 };
 
-typedef std::vector<ulint, ut::allocator<ulint>> pos_vector_t;
+typedef std::vector<ulint, ut_allocator<ulint>> pos_vector_t;
 
 /** structure defines a set of ranges for original documents, each of which
 has a minimum position and maximum position. Text in such range should
@@ -340,10 +340,11 @@ fts_query_find_doc_id(
  search arguments to search the document again, thus "expand"
  the search result set.
  @return DB_SUCCESS if success, otherwise the error code */
-[[nodiscard]] static dberr_t fts_expand_query(
+static dberr_t fts_expand_query(
     dict_index_t *index, /*!< in: FTS index to search */
-    fts_query_t *query); /*!< in: query result, to be freed
-                        by the client */
+    fts_query_t *query)  /*!< in: query result, to be freed
+                         by the client */
+    MY_ATTRIBUTE((warn_unused_result));
 /** This function finds documents that contain all words in a
  phrase or proximity search. And if proximity search, verify
  the words are close enough to each other, as in specified distance.
@@ -385,8 +386,9 @@ fts_query_terms_in_document(
 /********************************************************************
 Compare two fts_doc_freq_t doc_ids.
 @return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
-static inline int fts_freq_doc_id_cmp(const void *p1, /*!< in: id1 */
-                                      const void *p2) /*!< in: id2 */
+UNIV_INLINE
+int fts_freq_doc_id_cmp(const void *p1, /*!< in: id1 */
+                        const void *p2) /*!< in: id2 */
 {
   const fts_doc_freq_t *fq1 = (const fts_doc_freq_t *)p1;
   const fts_doc_freq_t *fq2 = (const fts_doc_freq_t *)p2;
@@ -436,7 +438,7 @@ fts_query_lcs(
 	ulint	r = len_p1;
 	ulint	c = len_p2;
 	ulint	size = (r + 1) * (c + 1) * sizeof(ulint);
-	ulint*	table = (ulint*) ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, size);
+	ulint*	table = (ulint*) ut_malloc_nokey(size);
 
 	/* Traverse the table backwards, from the last row to the first and
 	also from the last column to the first. We compute the smaller
@@ -474,7 +476,7 @@ fts_query_lcs(
 	fts_print_lcs_table(table, r, c);
 	printf("\nLen=%lu\n", len);
 
-	ut::free(table);
+	ut_free(table);
 
 	return(len);
 }
@@ -722,7 +724,7 @@ static void fts_query_remove_doc_id(
   /* Check if the doc id is deleted and it's in our set. */
   if (fts_bsearch(array, 0, static_cast<int>(size), doc_id) < 0 &&
       rbt_search(query->doc_ids, &parent, &doc_id) == 0) {
-    ut::free(rbt_remove_node(query->doc_ids, parent.last));
+    ut_free(rbt_remove_node(query->doc_ids, parent.last));
 
     ut_ad(query->total_size >= SIZEOF_RBT_NODE_ADD + sizeof(fts_ranking_t));
     query->total_size -= SIZEOF_RBT_NODE_ADD + sizeof(fts_ranking_t);
@@ -853,7 +855,7 @@ static void fts_query_free_doc_ids(
       ranking->words = nullptr;
     }
 
-    ut::free(rbt_remove_node(doc_ids, node));
+    ut_free(rbt_remove_node(doc_ids, node));
 
     ut_ad(query->total_size >= SIZEOF_RBT_NODE_ADD + sizeof(fts_ranking_t));
     query->total_size -= SIZEOF_RBT_NODE_ADD + sizeof(fts_ranking_t);
@@ -1010,9 +1012,9 @@ static ulint fts_cache_find_wildcard(
 
 /** Set difference.
  @return DB_SUCCESS if all go well */
-[[nodiscard]] static dberr_t fts_query_difference(
-    fts_query_t *query,        /*!< in: query instance */
-    const fts_string_t *token) /*!< in: token to search */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    fts_query_difference(fts_query_t *query,        /*!< in: query instance */
+                         const fts_string_t *token) /*!< in: token to search */
 {
   ulint n_doc_ids = 0;
   trx_t *trx = query->trx;
@@ -1101,7 +1103,7 @@ static ulint fts_cache_find_wildcard(
 
 /** Intersect the token doc ids with the current set.
  @return DB_SUCCESS if all go well */
-[[nodiscard]] static dberr_t fts_query_intersect(
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_query_intersect(
     fts_query_t *query,        /*!< in: query instance */
     const fts_string_t *token) /*!< in: the token to search */
 {
@@ -1274,9 +1276,9 @@ static dberr_t fts_query_cache(
 
 /** Set union.
  @return DB_SUCCESS if all go well */
-[[nodiscard]] static dberr_t fts_query_union(
-    fts_query_t *query,  /*!< in: query instance */
-    fts_string_t *token) /*!< in: token to search */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    fts_query_union(fts_query_t *query,  /*!< in: query instance */
+                    fts_string_t *token) /*!< in: token to search */
 {
   fts_fetch_t fetch;
   ulint n_doc_ids = 0;
@@ -1443,9 +1445,9 @@ static dberr_t fts_merge_doc_ids(
 
 /** Skip non-whitespace in a string. Move ptr to the next word boundary.
  @return pointer to first whitespace character or end */
-static inline byte *fts_query_skip_word(
-    byte *ptr,       /*!< in: start of scan */
-    const byte *end) /*!< in: pointer to end of string */
+UNIV_INLINE
+byte *fts_query_skip_word(byte *ptr,       /*!< in: start of scan */
+                          const byte *end) /*!< in: pointer to end of string */
 {
   /* TODO: Does this have to be UTF-8 too ? */
   while (ptr < end && !(ispunct(*ptr) || isspace(*ptr))) {
@@ -1932,7 +1934,7 @@ fts_query_query_block(
 Read the rows from the FTS index, that match word and where the
 doc id is between first and last doc id.
 @return DB_SUCCESS if all go well else error code */
-[[nodiscard]] static
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 fts_query_find_term(
 	fts_query_t*		query,	/*!< in: FTS query state */
@@ -2072,7 +2074,7 @@ fts_query_sum(
 /********************************************************************
 Calculate the total documents that contain a particular word (term).
 @return DB_SUCCESS if all go well else error code */
-[[nodiscard]] static
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 fts_query_total_docs_containing_term(
 	fts_query_t*		query,	/*!< in: FTS query state */
@@ -2153,7 +2155,7 @@ fts_query_total_docs_containing_term(
 /********************************************************************
 Get the total number of words in a documents.
 @return DB_SUCCESS if all go well else error code */
-[[nodiscard]] static
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 fts_query_terms_in_document(
 	fts_query_t*	query,		/*!< in: FTS query state */
@@ -2234,7 +2236,7 @@ fts_query_terms_in_document(
 
 /** Retrieve the document and match the phrase tokens.
  @return DB_SUCCESS or error code */
-[[nodiscard]] static dberr_t fts_query_match_document(
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_query_match_document(
     ib_vector_t *tokens,       /*!< in: phrase tokens */
     fts_get_doc_t *get_doc,    /*!< in: table and prepared statements */
     fts_match_t *match,        /*!< in: doc id and positions */
@@ -2273,7 +2275,7 @@ fts_query_terms_in_document(
 /** This function fetches the original documents and count the
  words in between matching words to see that is in specified distance
  @return DB_SUCCESS if all OK */
-[[nodiscard]] static bool fts_query_is_in_proximity_range(
+static MY_ATTRIBUTE((warn_unused_result)) bool fts_query_is_in_proximity_range(
     const fts_query_t *query,       /*!< in:  query instance */
     fts_match_t **match,            /*!< in: query instance */
     fts_proximity_t *qualified_pos) /*!< in: position info for
@@ -2322,15 +2324,15 @@ fts_query_terms_in_document(
 /** Iterate over the matched document ids and search the for the
  actual phrase in the text.
  @return DB_SUCCESS if all OK */
-[[nodiscard]] static dberr_t fts_query_search_phrase(
-    fts_query_t *query,       /*!< in: query instance */
-    ib_vector_t *orig_tokens, /*!< in: tokens to search,
-                              with any stopwords in the
-                              original phrase */
-    ib_vector_t *tokens)      /*!< in: tokens that does
-                              not include stopwords and
-                              can be used to calculate
-                              ranking */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    fts_query_search_phrase(fts_query_t *query,       /*!< in: query instance */
+                            ib_vector_t *orig_tokens, /*!< in: tokens to search,
+                                                      with any stopwords in the
+                                                      original phrase */
+                            ib_vector_t *tokens)      /*!< in: tokens that does
+                                                      not include stopwords and
+                                                      can be used to calculate
+                                                      ranking */
 {
   ulint i;
   fts_get_doc_t get_doc;
@@ -2493,7 +2495,7 @@ static void fts_query_phrase_split(fts_query_t *query,
 
 /** Text/Phrase search.
  @return DB_SUCCESS or error code */
-[[nodiscard]] static dberr_t fts_query_phrase_search(
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_query_phrase_search(
     fts_query_t *query,         /*!< in: query instance */
     const fts_ast_node_t *node) /*!< in: node to search */
 {
@@ -2664,9 +2666,9 @@ func_exit:
 
 /** Find the word and evaluate.
  @return DB_SUCCESS if all go well */
-[[nodiscard]] static dberr_t fts_query_execute(
-    fts_query_t *query,  /*!< in: query instance */
-    fts_string_t *token) /*!< in: token to search */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    fts_query_execute(fts_query_t *query,  /*!< in: query instance */
+                      fts_string_t *token) /*!< in: token to search */
 {
   switch (query->oper) {
     case FTS_NONE:
@@ -2692,8 +2694,7 @@ func_exit:
 }
 
 /** Create a wildcard string. It's the responsibility of the caller to
- free the byte* pointer. It's allocated using
- ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY).
+ free the byte* pointer. It's allocated using ut_malloc_nokey().
  @return ptr to allocated memory */
 static byte *fts_query_get_token(
     fts_ast_node_t *node, /*!< in: the current sub tree */
@@ -2710,8 +2711,7 @@ static byte *fts_query_get_token(
   token->f_str = node->term.ptr->str;
 
   if (node->term.wildcard) {
-    token->f_str = static_cast<byte *>(
-        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, str_len + 2));
+    token->f_str = static_cast<byte *>(ut_malloc_nokey(str_len + 2));
     token->f_len = str_len + 1;
 
     memcpy(token->f_str, node->term.ptr->str, str_len);
@@ -2797,7 +2797,7 @@ static dberr_t fts_query_visitor(
       query->error = fts_query_execute(query, &token);
 
       if (ptr) {
-        ut::free(ptr);
+        ut_free(ptr);
       }
 
       break;
@@ -3355,8 +3355,7 @@ static fts_result_t *fts_query_prepare_result(
   DBUG_TRACE;
 
   if (result == nullptr) {
-    result = static_cast<fts_result_t *>(
-        ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*result)));
+    result = static_cast<fts_result_t *>(ut_zalloc_nokey(sizeof(*result)));
 
     result->rankings_by_id =
         rbt_create(sizeof(fts_ranking_t), fts_ranking_doc_id_cmp);
@@ -3471,8 +3470,7 @@ static fts_result_t *fts_query_get_result(
     result = fts_query_prepare_result(query, result);
   } else {
     /* Create an empty result instance. */
-    result = static_cast<fts_result_t *>(
-        ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*result)));
+    result = static_cast<fts_result_t *>(ut_zalloc_nokey(sizeof(*result)));
   }
 
   return result;
@@ -3531,7 +3529,7 @@ static void fts_query_free(fts_query_t *query) /*!< in: query instance to free*/
   }
 
   if (query->word_vector != nullptr) {
-    ut::delete_(query->word_vector);
+    UT_DELETE(query->word_vector);
   }
 
   if (query->heap) {
@@ -3637,7 +3635,7 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
   query_trx = trx_allocate_for_background();
   query_trx->op_info = "FTS query";
 
-  const auto start_time = std::chrono::steady_clock::now();
+  const auto start_time_ms = ut_time_monotonic_ms();
 
   query.trx = query_trx;
   query.index = index;
@@ -3661,7 +3659,7 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
 
   query.word_map =
       rbt_create_arg_cmp(sizeof(fts_string_t), innobase_fts_text_cmp, charset);
-  query.word_vector = ut::new_withkey<word_vector_t>(UT_NEW_THIS_FILE_PSI_KEY);
+  query.word_vector = UT_NEW_NOKEY(word_vector_t());
   query.error = DB_SUCCESS;
 
   /* Setup the RB tree that will be used to collect per term
@@ -3713,8 +3711,7 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
   the ut_malloc'ed result and so remember to free it before return. */
 
   lc_query_str_len = query_len * charset->casedn_multiply + charset->mbmaxlen;
-  lc_query_str = static_cast<byte *>(
-      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, lc_query_str_len));
+  lc_query_str = static_cast<byte *>(ut_zalloc_nokey(lc_query_str_len));
 
   /* For binary collations, a case sensitive search is
   performed. Hence don't convert to lower case. */
@@ -3764,7 +3761,7 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
     query.error = fts_ast_visit(FTS_NONE, ast, fts_query_visitor, &query,
                                 &will_be_ignored);
     if (query.error == DB_INTERRUPTED) {
-      ut::free(lc_query_str);
+      ut_free(lc_query_str);
       error = DB_INTERRUPTED;
       goto func_exit;
     }
@@ -3785,7 +3782,7 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
       *result = fts_query_get_result(&query, *result);
     }
     if (trx_is_interrupted(trx)) {
-      ut::free(lc_query_str);
+      ut_free(lc_query_str);
       if (result != nullptr) {
         fts_query_free_result(*result);
       }
@@ -3795,17 +3792,13 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
     error = query.error;
   } else {
     /* still return an empty result set */
-    *result = static_cast<fts_result_t *>(
-        ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(**result)));
+    *result = static_cast<fts_result_t *>(ut_zalloc_nokey(sizeof(**result)));
   }
 
-  ut::free(lc_query_str);
+  ut_free(lc_query_str);
 
   if (fts_enable_diag_print && (*result)) {
-    const auto diff_time =
-        std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::steady_clock::now() - start_time)
-            .count();
+    auto diff_time = ut_time_monotonic_ms() - start_time_ms;
 
     ib::info(ER_IB_MSG_516)
         << "FTS Search Processing time: " << diff_time / 1000
@@ -3842,7 +3835,7 @@ void fts_query_free_result(
       result->rankings_by_rank = nullptr;
     }
 
-    ut::free(result);
+    ut_free(result);
     result = nullptr;
   }
 }
@@ -3907,9 +3900,9 @@ static void fts_print_doc_id(
  search arguments to search the document again, thus "expand"
  the search result set.
  @return DB_SUCCESS if success, otherwise the error code */
-[[nodiscard]] static dberr_t fts_expand_query(
-    dict_index_t *index, /*!< in: FTS index to search */
-    fts_query_t *query)  /*!< in: FTS query instance */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    fts_expand_query(dict_index_t *index, /*!< in: FTS index to search */
+                     fts_query_t *query)  /*!< in: FTS query instance */
 {
   const ib_rbt_node_t *node;
   const ib_rbt_node_t *token_node;
@@ -3988,7 +3981,7 @@ static void fts_print_doc_id(
       it as prefix. */
       while (rbt_search_cmp(result_doc.tokens, &parent, &word, nullptr,
                             innobase_fts_text_cmp_prefix) == 0) {
-        ut::free(rbt_remove_node(result_doc.tokens, parent.last));
+        ut_free(rbt_remove_node(result_doc.tokens, parent.last));
       }
     } else {
       /* We don't check return value, because the word may

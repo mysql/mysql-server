@@ -40,7 +40,7 @@ class Common_interface {
     polymorphically used.
   */
 
-  virtual ~Common_interface() = default;
+  virtual ~Common_interface() {}
 
   /**
     The purpose of this method is to initialize resources used by the objects
@@ -76,7 +76,7 @@ class Sink_interface : public Common_interface {
     polymorphically used.
   */
 
-  ~Sink_interface() override = default;
+  ~Sink_interface() override {}
 
   /**
     The purpose of this method is to effectively log the information.
@@ -127,7 +127,7 @@ class Logger_interface : public Common_interface {
     polymorphically used.
   */
 
-  ~Logger_interface() override = default;
+  ~Logger_interface() override {}
 
   /**
     The purpose of this method is to deliver to the logging system any message

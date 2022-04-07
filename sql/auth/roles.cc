@@ -84,7 +84,7 @@ bool Role_activation::activate() {
       set_role_status = activate_role_name();
       break;
     case role_enum::ROLE_NONE:
-      [[fallthrough]];
+      // Fall through
     default:
       set_role_status = activate_role_none();
   }

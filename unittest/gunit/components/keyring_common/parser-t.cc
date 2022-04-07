@@ -27,8 +27,6 @@
 
 #include <gtest/gtest.h>
 
-#include "template_utils.h"
-
 namespace component_load_parser_unittest {
 
 class ComponentLoadParser_test : public ::testing::Test {};
@@ -56,9 +54,8 @@ void get_next_component(std::string &components, std::string &one_component) {
   }
 }
 
-// Use myu::IsSpace rather than ::isspace to avoid linker warnings on MacOS.
 void remove_spaces(std::string &groups) {
-  groups.erase(std::remove_if(groups.begin(), groups.end(), myu::IsSpace),
+  groups.erase(std::remove_if(groups.begin(), groups.end(), ::isspace),
                groups.end());
 }
 

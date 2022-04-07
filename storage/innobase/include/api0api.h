@@ -61,6 +61,12 @@ typedef uint32 space_id_t;
 typedef struct ib_sdi_key ib_sdi_key_t;
 typedef struct ib_sdi_vector ib_sdi_vector_t;
 
+#if defined(__GNUC__)
+#define UNIV_NO_IGNORE MY_ATTRIBUTE((warn_unused_result))
+#else
+#define UNIV_NO_IGNORE
+#endif /* __GNUC__ */
+
 /* See comment about ib_bool_t as to why the two macros are unsigned long. */
 /** The boolean value of "true" used internally within InnoDB */
 #define IB_TRUE 0x1UL

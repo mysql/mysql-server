@@ -40,7 +40,7 @@ class TransactionPayloadIteratorTest : public ::testing::Test {
   std::vector<std::size_t> m_payloads;
 
  protected:
-  TransactionPayloadIteratorTest() = default;
+  TransactionPayloadIteratorTest() {}
 
   void SetUp() override {}
 

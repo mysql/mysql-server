@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: mysql_upgrade
+.\"     Title: \fBmysql_upgrade\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2021
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQL_UPGRADE" "1" "11/26/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQL_UPGRADE\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -223,7 +223,7 @@ root:
 .RS 4
 .\}
 .nf
-$> \fBmysql \-u root \-p\fR
+shell> \fBmysql \-u root \-p\fR
 Enter password: \fB****\fR  <\- enter root password here
 .fi
 .if n \{\
@@ -253,7 +253,7 @@ again:
 .RS 4
 .\}
 .nf
-$> \fBmysql_upgrade [\fR\fB\fIoptions\fR\fR\fB]\fR
+shell> \fBmysql_upgrade [\fR\fB\fIoptions\fR\fR\fB]\fR
 .fi
 .if n \{\
 .RE
@@ -667,7 +667,7 @@ login path file\&. A
 is an option group containing options that specify which MySQL server to connect to and which account to authenticate as\&. To create or modify a login path file, use the
 \fBmysql_config_editor\fR
 utility\&. See
-mysql_config_editor(1)\&.
+\fBmysql_config_editor\fR(1)\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -718,7 +718,7 @@ is used\&. To create
 \&.mylogin\&.cnf, use the
 \fBmysql_config_editor\fR
 utility\&. See
-mysql_config_editor(1)\&.
+\fBmysql_config_editor\fR(1)\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.

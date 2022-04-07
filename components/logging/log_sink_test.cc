@@ -785,7 +785,7 @@ static void banner() {
   @returns         <0                   failure
 */
 DEFINE_METHOD(int, log_service_imp::run,
-              (void *instance [[maybe_unused]], log_line *ll)) {
+              (void *instance MY_ATTRIBUTE((unused)), log_line *ll)) {
   char out_buff[LOG_BUFF_MAX];
   char *out_writepos = out_buff;
   size_t out_left = LOG_BUFF_MAX - 1,  // bytes left in output buffer
@@ -1077,7 +1077,7 @@ mysql_service_status_t log_service_init() {
 
 /* flush logs */
 DEFINE_METHOD(log_service_error, log_service_imp::flush,
-              (void **instance [[maybe_unused]])) {
+              (void **instance MY_ATTRIBUTE((unused)))) {
   int res;
 
   if (inited) log_service_exit();
@@ -1095,7 +1095,7 @@ DEFINE_METHOD(log_service_error, log_service_imp::flush,
   @retval  otherwise                  a new instance could not be created
 */
 DEFINE_METHOD(log_service_error, log_service_imp::open,
-              (log_line * ll [[maybe_unused]], void **instance)) {
+              (log_line * ll MY_ATTRIBUTE((unused)), void **instance)) {
   if (instance == nullptr) return LOG_SERVICE_INVALID_ARGUMENT;
 
   *instance = nullptr;
@@ -1110,7 +1110,7 @@ DEFINE_METHOD(log_service_error, log_service_imp::open,
   @retval  otherwise                  an error occurred
 */
 DEFINE_METHOD(log_service_error, log_service_imp::close,
-              (void **instance [[maybe_unused]])) {
+              (void **instance MY_ATTRIBUTE((unused)))) {
   return LOG_SERVICE_SUCCESS;
 }
 

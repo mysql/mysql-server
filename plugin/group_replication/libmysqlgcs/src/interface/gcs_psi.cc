@@ -30,25 +30,22 @@
 PSI_thread_key key_GCS_THD_Gcs_ext_logger_impl_m_consumer,
     key_GCS_THD_Gcs_xcom_engine_m_engine_thread,
     key_GCS_THD_Gcs_xcom_control_m_xcom_thread,
-    key_GCS_THD_Gcs_xcom_control_m_suspicions_processing_thread,
-    key_GCS_THD_Gcs_xcom_network_provider_m_network_provider_tcp_server;
+    key_GCS_THD_Gcs_xcom_control_m_suspicions_processing_thread;
 
 static PSI_thread_info all_gcs_psi_thread_keys_info[] = {
     {&key_GCS_THD_Gcs_ext_logger_impl_m_consumer,
-     "THD_Gcs_ext_logger_impl::m_consumer", "gcs_ext_log", PSI_FLAG_SINGLETON,
-     0, PSI_DOCUMENT_ME},
+     "THD_Gcs_ext_logger_impl::m_consumer", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
     {&key_GCS_THD_Gcs_xcom_engine_m_engine_thread,
-     "THD_Gcs_xcom_engine::m_engine_thread", "gcs_engine", PSI_FLAG_SINGLETON,
-     0, PSI_DOCUMENT_ME},
+     "THD_Gcs_xcom_engine::m_engine_thread", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
     {&key_GCS_THD_Gcs_xcom_control_m_xcom_thread,
-     "THD_Gcs_xcom_control::m_xcom_thread", "gcs_xcom", PSI_FLAG_SINGLETON, 0,
+     "THD_Gcs_xcom_control::m_xcom_thread", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
     {&key_GCS_THD_Gcs_xcom_control_m_suspicions_processing_thread,
-     "THD_Gcs_xcom_control::m_suspicions_processing_thread", "gcs_suspect",
-     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-    {&key_GCS_THD_Gcs_xcom_network_provider_m_network_provider_tcp_server,
-     "THD_Gcs_xcom_network_provider::m_network_provider_tcp_server",
-     "gcs_xcom_comm", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
+     "THD_Gcs_xcom_control::m_suspicions_processing_thread", PSI_FLAG_SINGLETON,
+     0, PSI_DOCUMENT_ME},
+};
 
 PSI_mutex_key key_GCS_MUTEX_Gcs_async_buffer_m_free_buffer_mutex,
     key_GCS_MUTEX_Gcs_suspicions_manager_m_suspicions_mutex,

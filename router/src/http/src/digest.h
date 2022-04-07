@@ -66,14 +66,19 @@ class Digest {
     EVP_MD_CTX_create(), &EVP_MD_CTX_destroy
 #endif
   }
-  { reinit(); }
+  { init(type_); }
 
   /**
-   * initialize or reinitialize the message digest functions.
+   * initialize the message digest functions.
    *
-   * Allows reused of the Digest function without reallocating memory.
+   * Allows reused of the Digest function without reallocating memory
+   *
+   * @pre Digest is not initialized or is finalized.
    */
-  void reinit() { EVP_DigestInit(ctx_.get(), Digest::get_evp_md(type_)); }
+  void init(Type type) {
+    type_ = type;
+    EVP_DigestInit(ctx_.get(), Digest::get_evp_md(type));
+  }
 
   /**
    * update Digest.
@@ -98,14 +103,16 @@ class Digest {
    *
    * @param out vector to place the digest value in
    */
-  void finalize(std::vector<uint8_t> &out) { finalize_impl(out); }
+  void finalize(std::vector<uint8_t> &out) {
+    // if cap is too large, limit it to uint::max and let narrowing handle the
+    // rest
+    unsigned int out_len{static_cast<unsigned int>(std::min(
+        out.capacity(),
+        static_cast<size_t>(std::numeric_limits<unsigned int>::max())))};
 
-  /**
-   * finalize the digest and get digest value.
-   *
-   * @param out string to place the digest value in
-   */
-  void finalize(std::string &out) { finalize_impl(out); }
+    EVP_DigestFinal_ex(ctx_.get(), out.data(), &out_len);
+    out.resize(out_len);
+  }
 
   /**
    * get size of the digest value.
@@ -123,19 +130,6 @@ class Digest {
   }
 
  private:
-  template <typename Container>
-  void finalize_impl(Container &out) {
-    // if cap is too large, limit it to uint::max and let narrowing handle the
-    // rest
-    unsigned int out_len{static_cast<unsigned int>(std::min(
-        out.capacity(),
-        static_cast<size_t>(std::numeric_limits<unsigned int>::max())))};
-
-    EVP_DigestFinal_ex(ctx_.get(), reinterpret_cast<uint8_t *>(&out[0]),
-                       &out_len);
-    out.resize(out_len);
-  }
-
   static const EVP_MD *get_evp_md(Type type) noexcept {
     switch (type) {
       case Type::Md5:

@@ -38,9 +38,8 @@
 #include "sql/thd_raii.h"          // Implicit_substatement_state_guard
 #include "storage/ndb/plugin/ndb_dd_client.h"  // Ndb_dd_client
 #include "storage/ndb/plugin/ndb_log.h"        // ndb_log_error
-#include "storage/ndb/plugin/ndb_table_guard.h"
-#include "storage/ndb/plugin/ndb_thd.h"      // get_thd_ndb
-#include "storage/ndb/plugin/ndb_thd_ndb.h"  // Thd_ndb
+#include "storage/ndb/plugin/ndb_thd.h"        // get_thd_ndb
+#include "storage/ndb/plugin/ndb_thd_ndb.h"    // Thd_ndb
 
 namespace dd {
 class Schema;
@@ -89,7 +88,7 @@ class Table_upgrade_guard {
 
   ~Table_upgrade_guard() {
     m_thd->variables.sql_mode = m_sql_mode;
-    m_thd->work_part_info = nullptr;
+    m_thd->work_part_info = 0;
 
     // Free item list for partitions
     if (m_table->s->m_part_info) free_items(m_table->s->m_part_info->item_list);
@@ -162,32 +161,10 @@ static void fill_create_info_for_upgrade(HA_CREATE_INFO *create_info,
 static bool fill_partition_info_for_upgrade(THD *thd, TABLE_SHARE *share,
                                             const FRM_context *frm_context,
                                             TABLE *table) {
-  DBUG_TRACE;
   thd->work_part_info = nullptr;
 
   // If partition information is present in TABLE_SHARE
   if (share->partition_info_str_len && table->file) {
-    // Setup temporary m_part_info in TABLE_SHARE, this allows
-    // ha_ndbcluster::get_num_parts() to return the number of partitions same
-    // way as usual while opening table.
-    partition_info tmp_part_info;
-    tmp_part_info.list_of_part_fields = true;
-    {
-      // Open the table from NDB and save number of partitions
-      Thd_ndb *thd_ndb = get_thd_ndb(thd);
-      Ndb_table_guard ndbtab_g(thd_ndb->ndb, share->db.str,
-                               share->table_name.str);
-      if (!ndbtab_g.get_table()) {
-        thd_ndb->push_ndb_error_warning(ndbtab_g.getNdbError());
-        thd_ndb->push_warning("Failed to fetch num_parts for: '%s.%s'",
-                              share->db.str, share->table_name.str);
-        return false;
-      }
-      tmp_part_info.num_parts = ndbtab_g.get_table()->getPartitionCount();
-      DBUG_PRINT("info", ("num_parts: %u", tmp_part_info.num_parts));
-    }
-    share->m_part_info = &tmp_part_info;
-
     // Parse partition expression and create Items.
     if (unpack_partition_info(thd, table, share,
                               frm_context->default_part_db_type, false))
@@ -475,8 +452,7 @@ bool migrate_table_to_dd(THD *thd, Ndb_dd_client *dd_client,
   List_iterator<Create_field> it_create(alter_info.create_list);
 
   for (int field_no = 0; (sql_field = it_create++); field_no++) {
-    if (prepare_create_field(thd, schema_name.c_str(), table_name.c_str(),
-                             &create_info, &alter_info.create_list,
+    if (prepare_create_field(thd, &create_info, &alter_info.create_list,
                              &select_field_pos, table.file, sql_field,
                              field_no))
       return false;

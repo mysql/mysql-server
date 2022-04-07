@@ -74,7 +74,7 @@ class PFS_index_setup_actors : public PFS_engine_index {
         m_key_2("USER"),
         m_key_3("ROLE") {}
 
-  ~PFS_index_setup_actors() override = default;
+  ~PFS_index_setup_actors() override {}
 
   virtual bool match(PFS_setup_actor *pfs);
 
@@ -117,7 +117,7 @@ class table_setup_actors : public PFS_engine_table {
   table_setup_actors();
 
  public:
-  ~table_setup_actors() override = default;
+  ~table_setup_actors() override {}
 
  private:
   int make_row(PFS_setup_actor *actor);

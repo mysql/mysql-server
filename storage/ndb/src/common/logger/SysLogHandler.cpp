@@ -26,8 +26,6 @@
 
 #include "SysLogHandler.hpp"
 
-#include <time.h>
-
 #include <syslog.h>
 
 //

@@ -402,7 +402,7 @@ stdx::expected<file_handle, std::error_code> file_handle::file(
 
   auto st = stat_res.value();
 
-  return {std::in_place, handle, st.st_dev, st.st_ino, _caching, flags};
+  return {stdx::in_place, handle, st.st_dev, st.st_ino, _caching, flags};
 }
 
 /**

@@ -61,7 +61,7 @@ mysql_pfs_key_t buf_pool_free_list_mutex_key;
 mysql_pfs_key_t buf_pool_zip_free_mutex_key;
 mysql_pfs_key_t buf_pool_zip_hash_mutex_key;
 mysql_pfs_key_t buf_pool_zip_mutex_key;
-mysql_pfs_key_t ddl_autoinc_mutex_key;
+mysql_pfs_key_t cache_last_read_mutex_key;
 mysql_pfs_key_t dict_foreign_err_mutex_key;
 mysql_pfs_key_t dict_persist_dirty_tables_mutex_key;
 mysql_pfs_key_t dict_sys_mutex_key;
@@ -127,8 +127,6 @@ mysql_pfs_key_t lock_sys_table_mutex_key;
 mysql_pfs_key_t lock_sys_page_mutex_key;
 mysql_pfs_key_t lock_wait_mutex_key;
 mysql_pfs_key_t trx_sys_mutex_key;
-mysql_pfs_key_t trx_sys_shard_mutex_key;
-mysql_pfs_key_t trx_sys_serialisation_mutex_key;
 mysql_pfs_key_t srv_sys_mutex_key;
 mysql_pfs_key_t srv_threads_mutex_key;
 #ifndef PFS_SKIP_EVENT_MUTEX
@@ -280,7 +278,8 @@ void MutexMonitor::reset() {
 
   mutex_enter(&rw_lock_list_mutex);
 
-  for (auto rw_lock : rw_lock_list) {
+  for (rw_lock_t *rw_lock = UT_LIST_GET_FIRST(rw_lock_list); rw_lock != nullptr;
+       rw_lock = UT_LIST_GET_NEXT(list, rw_lock)) {
     rw_lock->count_os_wait = 0;
   }
 

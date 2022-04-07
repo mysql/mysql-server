@@ -199,7 +199,7 @@ private:
 #ifdef _WIN32
   HANDLE hFileMapping;
 #else
-  int shmId{0};
+  int shmId;
 #endif
   
   int shmSize;

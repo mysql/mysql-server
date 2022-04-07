@@ -56,7 +56,7 @@ class PFS_index_setup_threads : public PFS_engine_index {
  public:
   PFS_index_setup_threads() : PFS_engine_index(&m_key), m_key("NAME") {}
 
-  ~PFS_index_setup_threads() override = default;
+  ~PFS_index_setup_threads() override {}
 
   bool match(PFS_instr_class *klass);
 
@@ -92,7 +92,7 @@ class table_setup_threads : public PFS_engine_table {
   table_setup_threads();
 
  public:
-  ~table_setup_threads() override = default;
+  ~table_setup_threads() override {}
 
  private:
   int make_row(PFS_thread_class *klass);

@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: ndb_select_all
+.\"     Title: \fBndb_select_all\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2021
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_SELECT_ALL" "1" "11/26/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_SELECT_ALL\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -51,9 +51,10 @@ ndb_select_all \-c \fIconnection_string\fR \fItbl_name\fR \-d \fIdb_name\fR [> \
 .RE
 .\}
 .PP
-Options that can be used with
-\fBndb_select_all\fR
-are shown in the following table\&. Additional descriptions follow the table\&.
+The following table includes options that are specific to the NDB Cluster native backup restoration program
+\fBndb_select_all\fR\&. Additional descriptions follow the table\&. For options common to most NDB Cluster programs (including
+\fBndb_select_all\fR), see
+Options Common to NDB Cluster Programs(1)\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
@@ -84,77 +85,12 @@ lB l l
 lB l l
 lB l l
 lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
 lB l l.
 T{
 .PP
-\fB \fR\fB--character-sets-dir=path\fR\fB \fR
-T}:T{
-Directory containing character sets
-T}:T{
+\fB--database=dbname\fR,
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--connect-retries=#\fR\fB \fR
-T}:T{
-Number of times to retry connection before giving up
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--connect-retry-delay=#\fR\fB \fR
-T}:T{
-Number of seconds to wait between attempts to contact management server
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB--connect-string=connection_string\fR,
-.PP
-\fB \fR\fB-c connection_string\fR\fB \fR
-T}:T{
-Same as --ndb-connectstring
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--core-file\fR\fB \fR
-T}:T{
-Write core file on error; used in debugging
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB--database=name\fR,
-.PP
-\fB \fR\fB-d name\fR\fB \fR
+\fB \fR\fB-d\fR\fB \fR
 T}:T{
 Name of database in which table is found
 T}:T{
@@ -163,38 +99,33 @@ T}:T{
 T}
 T{
 .PP
-\fB \fR\fB--defaults-extra-file=path\fR\fB \fR
-T}:T{
-Read given file after global files are read
-T}:T{
+\fB--parallelism=#\fR,
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--defaults-file=path\fR\fB \fR
+\fB \fR\fB-p\fR\fB \fR
 T}:T{
-Read default options from given file only
+Degree of parallelism
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
-\fB \fR\fB--defaults-group-suffix=string\fR\fB \fR
+\fB--lock=#\fR,
+.PP
+\fB \fR\fB-l\fR\fB \fR
 T}:T{
-Also read groups with concat(group, suffix)
+Lock type
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
-\fB--delimiter=char\fR,
+\fB--order=index\fR,
 .PP
-\fB \fR\fB-D char\fR\fB \fR
+\fB \fR\fB-o\fR\fB \fR
 T}:T{
-Set column delimiter
+Sort resultset according to index having this name
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -212,10 +143,52 @@ T}:T{
 T}
 T{
 .PP
+\fB--header\fR,
+.PP
+\fB \fR\fB-h\fR\fB \fR
+T}:T{
+Print header (set to 0|FALSE to disable headers in output)
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--useHexFormat\fR,
+.PP
+\fB \fR\fB-x\fR\fB \fR
+T}:T{
+Output numbers in hexadecimal format
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--delimiter=char\fR,
+.PP
+\fB \fR\fB-D\fR\fB \fR
+T}:T{
+Set column delimiter
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
 \fB \fR\fB--disk\fR\fB \fR
 T}:T{
-Print disk references (useful only for Disk Data tables having unindexed
-              columns)
+Print disk references (useful only for Disk Data tables having
+              nonindexed columns)
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--rowid\fR\fB \fR
+T}:T{
+Print row ID
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -240,95 +213,11 @@ T}:T{
 T}
 T{
 .PP
-\fB--header[=value]\fR,
+\fB--tupscan\fR,
 .PP
-\fB \fR\fB-h\fR\fB \fR
+\fB \fR\fB-t\fR\fB \fR
 T}:T{
-Print header (set to 0|FALSE to disable headers in output)
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB--lock=#\fR,
-.PP
-\fB \fR\fB-l #\fR\fB \fR
-T}:T{
-Lock type
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--login-path=path\fR\fB \fR
-T}:T{
-Read given path from login file
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB--help\fR,
-.PP
-\fB \fR\fB-?\fR\fB \fR
-T}:T{
-Display help text and exit
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB--ndb-connectstring=connection_string\fR,
-.PP
-\fB \fR\fB-c connection_string\fR\fB \fR
-T}:T{
-Set connect string for connecting to ndb_mgmd. Syntax:
-              "[nodeid=id;][host=]hostname[:port]". Overrides entries in
-              NDB_CONNECTSTRING and my.cnf
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB--ndb-mgmd-host=connection_string\fR,
-.PP
-\fB \fR\fB-c connection_string\fR\fB \fR
-T}:T{
-Same as --ndb-connectstring
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--ndb-nodeid=#\fR\fB \fR
-T}:T{
-Set node ID for this node, overriding any ID set by --ndb-connectstring
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--ndb-optimized-node-selection\fR\fB \fR
-T}:T{
-Enable optimizations for selection of nodes for transactions. Enabled by
-              default; use --skip-ndb-optimized-node-selection to
-              disable
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--no-defaults\fR\fB \fR
-T}:T{
-Do not read default options from any option file other than login file
+Scan in tup order
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -342,263 +231,8 @@ T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
 T}
-T{
-.PP
-\fB--order=index\fR,
-.PP
-\fB \fR\fB-o index\fR\fB \fR
-T}:T{
-Sort resultset according to index having this name
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB--parallelism=#\fR,
-.PP
-\fB \fR\fB-p #\fR\fB \fR
-T}:T{
-Degree of parallelism
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--print-defaults\fR\fB \fR
-T}:T{
-Print program argument list and exit
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--rowid\fR\fB \fR
-T}:T{
-Print row ID
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB--tupscan\fR,
-.PP
-\fB \fR\fB-t\fR\fB \fR
-T}:T{
-Scan in tup order
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB--usage\fR,
-.PP
-\fB \fR\fB-?\fR\fB \fR
-T}:T{
-Display help text and exit; same as --help
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB--useHexFormat\fR,
-.PP
-\fB \fR\fB-x\fR\fB \fR
-T}:T{
-Output numbers in hexadecimal format
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB--version\fR,
-.PP
-\fB \fR\fB-V\fR\fB \fR
-T}:T{
-Display version information and exit
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
 .TE
 .sp 1
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-character\-sets\-dir\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---character-sets-dir=path
-T}
-.TE
-.sp 1
-Directory containing character sets\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-connect\-retries\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---connect-retries=#
-T}
-T{
-Type
-T}:T{
-Integer
-T}
-T{
-Default Value
-T}:T{
-12
-T}
-T{
-Minimum Value
-T}:T{
-0
-T}
-T{
-Maximum Value
-T}:T{
-12
-T}
-.TE
-.sp 1
-Number of times to retry connection before giving up\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-connect\-retry\-delay\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---connect-retry-delay=#
-T}
-T{
-Type
-T}:T{
-Integer
-T}
-T{
-Default Value
-T}:T{
-5
-T}
-T{
-Minimum Value
-T}:T{
-0
-T}
-T{
-Maximum Value
-T}:T{
-5
-T}
-.TE
-.sp 1
-Number of seconds to wait between attempts to contact management server\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-connect\-string\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---connect-string=connection_string
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Same as
-\fB\-\-ndb\-connectstring\fR\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-core\-file\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---core-file
-T}
-.TE
-.sp 1
-Write core file on error; used in debugging\&.
-.RE
 .sp
 .RS 4
 .ie n \{\
@@ -623,194 +257,10 @@ TEST_DB\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-descending\fR,
-\fB\-z\fR
-Sorts the output in descending order\&. This option can be used only in conjunction with the
-\fB\-o\fR
-(\fB\-\-order\fR) option\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-defaults\-extra\-file\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---defaults-extra-file=path
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Read given file after global files are read\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-defaults\-file\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---defaults-file=path
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Read default options from given file only\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-defaults\-group\-suffix\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---defaults-group-suffix=string
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Also read groups with concat(group, suffix)\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-delimiter=\fR\fB\fIcharacter\fR\fR,
-\fB\-D \fR\fB\fIcharacter\fR\fR
-Causes the
-\fIcharacter\fR
-to be used as a column delimiter\&. Only table data columns are separated by this delimiter\&.
-.sp
-The default delimiter is the tab character\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-disk\fR
-Adds a disk reference column to the output\&. The column is nonempty only for Disk Data tables having nonindexed columns\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-gci\fR
-Adds a
-GCI
-column to the output showing the global checkpoint at which each row was last updated\&. See
-Section\ \&23.2, \(lqNDB Cluster Overview\(rq, and
-Section\ \&23.6.3.2, \(lqNDB Cluster Log Events\(rq, for more information about checkpoints\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-gci64\fR
-Adds a
-ROW$GCI64
-column to the output showing the global checkpoint at which each row was last updated, as well as the number of the epoch in which this update occurred\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-help\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---help
-T}
-.TE
-.sp 1
-Display help text and exit\&.
+\fBparallelism=\fR\fB\fI#\fR\fR,
+\fB\-p\fR
+\fI#\fR
+Specifies the degree of parallelism\&.
 .RE
 .sp
 .RS 4
@@ -871,214 +321,6 @@ There is no default value for this option\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-login\-path\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---login-path=path
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Read given path from login file\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-header=FALSE\fR
-Excludes column headers from the output\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-nodata\fR
-Causes any table data to be omitted\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-ndb\-connectstring\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---ndb-connectstring=connection_string
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Set connect string for connecting to ndb_mgmd\&. Syntax: "[nodeid=id;][host=]hostname[:port]"\&. Overrides entries in NDB_CONNECTSTRING and my\&.cnf\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-ndb\-mgmd\-host\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---ndb-mgmd-host=connection_string
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Same as
-\fB\-\-ndb\-connectstring\fR\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-ndb\-nodeid\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---ndb-nodeid=#
-T}
-T{
-Type
-T}:T{
-Integer
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Set node ID for this node, overriding any ID set by
-\fB\-\-ndb\-connectstring\fR\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-ndb\-optimized\-node\-selection\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---ndb-optimized-node-selection
-T}
-.TE
-.sp 1
-Enable optimizations for selection of nodes for transactions\&. Enabled by default; use
-\fB\-\-skip\-ndb\-optimized\-node\-selection\fR
-to disable\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-no\-defaults\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---no-defaults
-T}
-.TE
-.sp 1
-Do not read default options from any option file other than login file\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-order=\fR\fB\fIindex_name\fR\fR,
 \fB\-o \fR\fB\fIindex_name\fR\fR
 Orders the output according to the index named
@@ -1108,10 +350,11 @@ This is the name of an index, not of a column; the index must have been explicit
 .sp -1
 .IP \(bu 2.3
 .\}
-\fBparallelism=\fR\fB\fI#\fR\fR,
-\fB\-p\fR
-\fI#\fR
-Specifies the degree of parallelism\&.
+\fB\-\-descending\fR,
+\fB\-z\fR
+Sorts the output in descending order\&. This option can be used only in conjunction with the
+\fB\-o\fR
+(\fB\-\-order\fR) option\&.
 .RE
 .sp
 .RS 4
@@ -1122,18 +365,50 @@ Specifies the degree of parallelism\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-print\-defaults\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---print-defaults
-T}
-.TE
-.sp 1
-Print program argument list and exit\&.
+\fB\-\-header=FALSE\fR
+Excludes column headers from the output\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-useHexFormat\fR
+\fB\-x\fR
+Causes all numeric values to be displayed in hexadecimal format\&. This does not affect the output of numerals contained in strings or datetime values\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-delimiter=\fR\fB\fIcharacter\fR\fR,
+\fB\-D \fR\fB\fIcharacter\fR\fR
+Causes the
+\fIcharacter\fR
+to be used as a column delimiter\&. Only table data columns are separated by this delimiter\&.
+.sp
+The default delimiter is the tab character\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-disk\fR
+Adds a disk reference column to the output\&. The column is nonempty only for Disk Data tables having nonindexed columns\&.
 .RE
 .sp
 .RS 4
@@ -1158,6 +433,36 @@ column providing information about the fragments in which rows are stored\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-gci\fR
+Adds a
+GCI
+column to the output showing the global checkpoint at which each row was last updated\&. See
+Section\ \&23.1, \(lqNDB Cluster Overview\(rq, and
+Section\ \&23.5.3.2, \(lqNDB Cluster Log Events\(rq, for more information about checkpoints\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-gci64\fR
+Adds a
+ROW$GCI64
+column to the output showing the global checkpoint at which each row was last updated, as well as the number of the epoch in which this update occurred\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-tupscan\fR,
 \fB\-t\fR
 Scan the table in the order of the tuples\&.
@@ -1171,54 +476,8 @@ Scan the table in the order of the tuples\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-usage\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---usage
-T}
-.TE
-.sp 1
-Display help text and exit; same as
-\fB\-\-help\fR\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-useHexFormat\fR
-\fB\-x\fR
-Causes all numeric values to be displayed in hexadecimal format\&. This does not affect the output of numerals contained in strings or datetime values\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-version\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---version
-T}
-.TE
-.sp 1
-Display version information and exit\&.
+\fB\-\-nodata\fR
+Causes any table data to be omitted\&.
 .RE
 Sample Output
 .PP
@@ -1254,7 +513,7 @@ Output from the equivalent invocation of
 .RS 4
 .\}
 .nf
-$> \fB\&./ndb_select_all \-c localhost fish \-d ctest1\fR
+shell> \fB\&./ndb_select_all \-c localhost fish \-d ctest1\fR
 id      name
 3       [shark]
 6       [puffer]
@@ -1303,7 +562,7 @@ options:
 .RS 4
 .\}
 .nf
-$> \fB\&./ndb_select_all \-d ctest1 dogs \-o ix \-z \-\-gci \-\-disk\fR
+shell> \fB\&./ndb_select_all \-d ctest1 dogs \-o ix \-z \-\-gci \-\-disk\fR
 GCI     id name          breed        DISK_REF
 834461  2  [Scooby\-Doo]  [Great Dane] [ m_file_no: 0 m_page: 98 m_page_idx: 0 ]
 834878  4  [Rosscoe]     [Mutt]       [ m_file_no: 0 m_page: 98 m_page_idx: 16 ]

@@ -28,10 +28,12 @@
 #include "sql/derror.h" /* ER_THD */
 #include "sql/rpl_async_conn_failover_add_source_udf.h"
 #include "sql/rpl_async_conn_failover_table_operations.h"
-#include "sql/rpl_group_replication.h"
 #include "sql/rpl_io_monitor.h"
 
 const int DEFAULT_WEIGHT_VAL = 50;
+
+const std::string Rpl_async_conn_failover_add_source::m_udf_name =
+    "asynchronous_connection_failover_add_source";
 
 bool Rpl_async_conn_failover_add_source::init() {
   DBUG_TRACE;
@@ -77,11 +79,11 @@ char *Rpl_async_conn_failover_add_source::add_source(UDF_INIT *, UDF_ARGS *args,
 
   /* add row */
   std::tie(err_val, err_msg) =
-      sql_operations.add_source(channel, host, port, "", weight, "");
+      sql_operations.add_source(channel, host, port, "", weight);
 
   if (err_val) {
     *error = 1;
-    my_error(ER_UDF_ERROR, MYF(0), m_udf_name, err_msg.c_str());
+    my_error(ER_UDF_ERROR, MYF(0), m_udf_name.c_str(), err_msg.c_str());
   } else {
     err_msg.assign(
         "The UDF asynchronous_connection_failover_add_source() "
@@ -168,13 +170,6 @@ bool Rpl_async_conn_failover_add_source::add_source_init(UDF_INIT *init_id,
     my_stpcpy(message,
               "Can't execute the given operation because you have"
               " active locked tables.");
-    return true;
-  }
-
-  if (is_group_replication_member_secondary()) {
-    my_stpcpy(message,
-              "Can't execute the given operation on a Group Replication "
-              "secondary member.");
     return true;
   }
 

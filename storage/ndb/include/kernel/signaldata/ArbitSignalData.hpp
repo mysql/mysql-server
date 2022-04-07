@@ -43,8 +43,8 @@ private:
   Uint32 data[2];
 
 public:
-  static constexpr Uint32 DataLength = 2;
-  static constexpr Uint32 TextLength = DataLength * 8;  // hex digits
+  STATIC_CONST( DataLength = 2 );
+  STATIC_CONST( TextLength = DataLength * 8 );  // hex digits
 
   inline void clear() {
     data[0] = 0;
@@ -81,7 +81,7 @@ public:
  */
 class ArbitCode {
 public:
-  static constexpr Uint32 ErrTextLength = 80;
+  STATIC_CONST( ErrTextLength = 80 );
 
   enum {
     NoInfo = 0,
@@ -155,7 +155,7 @@ public:
   ArbitTicket ticket;           // ticket
   NodeBitmaskPOD mask;          // set of nodes
 
-  static constexpr Uint32 SignalLength = 3 + ArbitTicket::DataLength + NodeBitmask::Size;
+  STATIC_CONST( SignalLength = 3 + ArbitTicket::DataLength + NodeBitmask::Size );
 
   inline bool match(ArbitSignalData& aData) const {
     return

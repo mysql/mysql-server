@@ -56,7 +56,7 @@ Every k-waits (ended on wake-up or timeout), the timeout is multiplied by two
 template <typename Condition>
 inline static Wait_stats os_event_wait_for(os_event_t &event,
                                            uint64_t spins_limit,
-                                           std::chrono::microseconds timeout,
+                                           uint64_t timeout,
                                            Condition condition = {}) {
 #ifdef _WIN32
   uint32_t next_level = 64;
@@ -65,8 +65,8 @@ inline static Wait_stats os_event_wait_for(os_event_t &event,
 #endif
   uint32_t waits = 0;
 
-  constexpr auto MIN_TIMEOUT = std::chrono::microseconds{1};
-  constexpr auto MAX_TIMEOUT = std::chrono::microseconds{100 * 1000};
+  constexpr uint64_t MIN_TIMEOUT_US = 1;
+  constexpr uint64_t MAX_TIMEOUT_US = 100 * 1000;
 
   while (true) {
     /* Store current sig_count before checking the
@@ -93,7 +93,7 @@ inline static Wait_stats os_event_wait_for(os_event_t &event,
     } else {
       /* Event-based loop. */
       ++waits;
-      if (timeout < MIN_TIMEOUT) {
+      if (timeout < MIN_TIMEOUT_US) {
         /* If timeout = 0, then timeout * 2 = 0 and
         we would not keep increasing timeout below.
         Therefore we need some limitation for min.
@@ -109,11 +109,11 @@ inline static Wait_stats os_event_wait_for(os_event_t &event,
 
         (Oracle Linux 4.14.28) */
 
-        timeout = MIN_TIMEOUT;
+        timeout = MIN_TIMEOUT_US;
       }
 
       if (waits == next_level) {
-        timeout = std::min(timeout * 2, MAX_TIMEOUT);
+        timeout = std::min(timeout * 2, MAX_TIMEOUT_US);
 
 #ifdef _WIN32
         /* On Windows timeout is expressed in ms,

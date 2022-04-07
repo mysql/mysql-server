@@ -104,7 +104,6 @@ class Geometry {
   Geometry &operator=(const Geometry &) = default;
 
   // Returns a copy of an instantiable subclass of Geometry.
-
   virtual Geometry *clone() const = 0;
 
   /// Gets the geometry type of the object.
@@ -157,7 +156,6 @@ class Point : public Geometry {
   }
 
   // Returns a copy of a subclass of Point.
-
   Point *clone() const override = 0;
 
   /// Gets a coordinate value.
@@ -318,6 +316,9 @@ class Linestring : public Curve {
 /// enforced, by the implementation).
 class Linearring : public Linestring {
  public:
+#if defined(__SUNPRO_CC)
+  ~Linearring() override = default;
+#endif
   bool accept(Geometry_visitor *v) override = 0;
 
   /// Creates a subclass of Linearring from a Coordinate_system

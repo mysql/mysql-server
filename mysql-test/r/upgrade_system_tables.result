@@ -1,6 +1,3 @@
-# Create and initialize new data directory
-# Restart server on the newly initialized data directory.
-# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_ERROR_LOG
 
 # Dump system table information for the newly initialized data directory
 # Adding debug point 'skip_dd_table_access_check' to @@GLOBAL.debug
@@ -53,10 +50,14 @@ include/filter_file.inc
 ########################################################################
 
 # Compare fresh and upgraded tables
+20c20
+< #	#	gtid_executed	BASE TABLE	InnoDB	#	Dynamic	255		Visible	avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+---
+> #	#	gtid_executed	BASE TABLE	InnoDB	#	Dynamic	255		Visible	avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
 
 # Compare fresh and upgraded columns
 
-# Stop server and cleanup.
+# Cleanup.
 # Copy the 5.7 data zip file to working directory and check it exists.
 # Unzip 5.7 data directory.
 # Set data directory and log file
@@ -66,6 +67,6 @@ include/filter_file.inc
 # Check for errors in the error log.
 Pattern "\[ERROR\]" not found
 # Check for mysql_upgrade_info file in data directory.
-# Stop server and cleanup.
+# Cleanup.
 # Restart the server with default options.
 # restart

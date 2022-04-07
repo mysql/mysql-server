@@ -1,9 +1,0 @@
-################################################################################
-# Validate that View_change_log_event can be logged in a different order from
-# the group communication order without breaking the group transactions ids
-# generation when group_replication_view_change_uuid is configured.
-#
-################################################################################
-
---let $view_change_uuid= c0dec0de-c0de-c0de-c0de-c0dec0dec0de
---source ../include/gr_delayed_view_change_uuid_local_commit.inc

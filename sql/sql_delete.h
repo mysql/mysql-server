@@ -23,16 +23,78 @@
 #ifndef SQL_DELETE_INCLUDED
 #define SQL_DELETE_INCLUDED
 
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_base.h"  // ha_rows
 #include "my_sqlcommand.h"
 #include "my_table_map.h"
-#include "sql/sql_cmd_dml.h"  // Sql_cmd_dml
+#include "sql/query_result.h"  // Query_result_interceptor
+#include "sql/sql_cmd_dml.h"   // Sql_cmd_dml
 
-class JOIN;
+class Item;
+class Query_expression;
 class Select_lex_visitor;
 class THD;
+class Unique;
+struct TABLE;
 struct TABLE_LIST;
+template <class T>
+class List;
 template <typename T>
 class SQL_I_List;
+
+class Query_result_delete final : public Query_result_interceptor {
+  /// Pointers to temporary files used for delayed deletion of rows
+  Unique **tempfiles{nullptr};
+  /// Pointers to table objects matching tempfiles
+  TABLE **tables{nullptr};
+  /// Number of tables being deleted from
+  uint delete_table_count{0};
+  /// Number of rows produced by the join
+  ha_rows found_rows{0};
+  /// Number of rows deleted
+  ha_rows deleted_rows{0};
+  /// Handler error status for the operation.
+  int delete_error{0};
+  /// Map of all tables to delete rows from
+  table_map delete_table_map{0};
+  /// Map of tables to delete from immediately
+  table_map delete_immediate{0};
+  // Map of transactional tables to be deleted from
+  table_map transactional_table_map{0};
+  /// Map of non-transactional tables to be deleted from
+  table_map non_transactional_table_map{0};
+  /// True if the full delete operation is complete
+  bool delete_completed{false};
+  /// True if some actual delete operation against non-transactional table done
+  bool non_transactional_deleted{false};
+  /*
+     error handling (rollback and binlogging) can happen in send_eof()
+     so that afterward send_error() needs to find out that.
+  */
+  bool error_handled{false};
+
+ public:
+  Query_result_delete() : Query_result_interceptor() {}
+  bool need_explain_interceptor() const override { return true; }
+  bool prepare(THD *thd, const mem_root_deque<Item *> &list,
+               Query_expression *u) override;
+  bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
+  void send_error(THD *thd, uint errcode, const char *err) override;
+  bool optimize() override;
+  bool start_execution(THD *) override {
+    delete_completed = false;
+    return false;
+  }
+  int do_deletes(THD *thd);
+  int do_table_deletes(THD *thd, TABLE *table);
+  bool send_eof(THD *thd) override;
+  inline ha_rows num_deleted() { return deleted_rows; }
+  void abort_result_set(THD *thd) override;
+  void cleanup(THD *thd) override;
+  bool immediate_update(TABLE_LIST *t) const override;
+};
 
 class Sql_cmd_delete final : public Sql_cmd_dml {
  public:
@@ -66,11 +128,5 @@ class Sql_cmd_delete final : public Sql_cmd_dml {
   */
   SQL_I_List<TABLE_LIST> *delete_tables;
 };
-
-/// Find out which of the delete target tables can be deleted from immediately
-/// while scanning. This is used by the old optimizer *after* the plan has been
-/// created. The hypergraph optimizer does not use this function, as it makes
-/// the decision about immediate delete *during* planning, not after planning.
-table_map GetImmediateDeleteTables(const JOIN *join, table_map delete_tables);
 
 #endif /* SQL_DELETE_INCLUDED */

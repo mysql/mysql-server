@@ -43,8 +43,8 @@ struct DropFilegroupReq {
    */
   friend bool printDROP_FILEGROUP_REQ(FILE*, const Uint32*, Uint32, Uint16);
   
-  static constexpr Uint32 SignalLength = 7;
-  static constexpr Uint32 GSN = GSN_DROP_FILEGROUP_REQ;
+  STATIC_CONST( SignalLength = 7 );
+  STATIC_CONST( GSN = GSN_DROP_FILEGROUP_REQ );
   
   union {
     Uint32 senderData;
@@ -78,8 +78,8 @@ struct DropFilegroupRef {
    */
   friend bool printDROP_FILEGROUP_REF(FILE*, const Uint32*, Uint32, Uint16);
   
-  static constexpr Uint32 SignalLength = 9;
-  static constexpr Uint32 GSN = GSN_DROP_FILEGROUP_REF;
+  STATIC_CONST( SignalLength = 9 );
+  STATIC_CONST( GSN = GSN_DROP_FILEGROUP_REF );
 
   enum ErrorCode {
     NoError = 0,
@@ -118,8 +118,8 @@ struct DropFilegroupConf {
    */
   friend bool printDROP_FILEGROUP_CONF(FILE*, const Uint32*, Uint32, Uint16);
   
-  static constexpr Uint32 SignalLength = 5;
-  static constexpr Uint32 GSN = GSN_DROP_FILEGROUP_CONF;
+  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( GSN = GSN_DROP_FILEGROUP_CONF );
 
   Uint32 senderData;
   Uint32 senderRef;
@@ -141,8 +141,8 @@ struct DropFileReq {
    */
   friend bool printDROP_FILE_REQ(FILE*, const Uint32*, Uint32, Uint16);
   
-  static constexpr Uint32 SignalLength = 7;
-  static constexpr Uint32 GSN = GSN_DROP_FILE_REQ;
+  STATIC_CONST( SignalLength = 7 );
+  STATIC_CONST( GSN = GSN_DROP_FILE_REQ );
   
   union {
     Uint32 senderData;
@@ -176,8 +176,8 @@ struct DropFileRef {
    */
   friend bool printDROP_FILE_REF(FILE*, const Uint32*, Uint32, Uint16);
   
-  static constexpr Uint32 SignalLength = 9;
-  static constexpr Uint32 GSN = GSN_DROP_FILE_REF;
+  STATIC_CONST( SignalLength = 9 );
+  STATIC_CONST( GSN = GSN_DROP_FILE_REF );
 
   enum ErrorCode {
     NoError = 0,
@@ -216,8 +216,8 @@ struct DropFileConf {
    */
   friend bool printDROP_FILE_CONF(FILE*, const Uint32*, Uint32, Uint16);
   
-  static constexpr Uint32 SignalLength = 5;
-  static constexpr Uint32 GSN = GSN_DROP_FILE_CONF;
+  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( GSN = GSN_DROP_FILE_CONF );
 
   Uint32 senderData;
   Uint32 senderRef;

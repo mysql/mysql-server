@@ -93,7 +93,6 @@ void Security_context::init() {
   m_is_skip_grants_user = false;
   m_has_drop_policy = false;
   m_executed_drop_policy = false;
-  m_registration_sandbox_mode = false;
 }
 
 void Security_context::logout() {
@@ -160,7 +159,6 @@ void Security_context::destroy() {
   m_password_expired = false;
   m_is_skip_grants_user = false;
   clear_db_restrictions();
-  m_registration_sandbox_mode = false;
 }
 
 /**

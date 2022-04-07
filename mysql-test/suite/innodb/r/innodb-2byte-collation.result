@@ -85,9 +85,6 @@ Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 ucs2_vn_ci	ucs2	359			8	PAD SPACE
 create table 2byte_collation (c1 char(1) character set ucs2 collate ucs2_vn_ci)
 engine = InnoDB;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_vn_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 insert into 2byte_collation values (0x0061);
 set @@character_set_results=NULL;
 select hex(c1) from 2byte_collation;
@@ -105,8 +102,6 @@ SELECT * FROM 2byte_collation WHERE s1='a' ORDER BY BINARY s1;
 s1
 a
 b
-Warnings:
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE 2byte_collation;
 SET @innodb_change_buffering_debug_orig = @@innodb_change_buffering_debug;
 SET GLOBAL innodb_change_buffering_debug = 1;

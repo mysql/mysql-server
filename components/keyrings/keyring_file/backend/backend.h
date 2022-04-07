@@ -36,7 +36,7 @@ class Keyring_file_backend final {
   explicit Keyring_file_backend(const std::string keyring_file_name,
                                 bool read_only);
 
-  ~Keyring_file_backend() = default;
+  ~Keyring_file_backend() {}
 
   /**
     Fetch data

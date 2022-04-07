@@ -19,9 +19,6 @@ if (!$require_case_insensitive_file_system)
 # Test of some show commands
 #
 
-SET @old_log_output= @@global.log_output;
-SET GLOBAL log_output="FILE,TABLE";
-
 --disable_warnings
 drop table if exists t1,t2;
 drop table if exists t1aa,t2aa;
@@ -1391,7 +1388,3 @@ DROP TABLE t3;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
-
-SET @@global.log_output = @old_log_output;
-TRUNCATE TABLE mysql.general_log;
-TRUNCATE TABLE mysql.slow_log;

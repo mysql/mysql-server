@@ -61,7 +61,7 @@ class Explain_format_traditional : public Explain_format {
 
 class Explain_format_tree : public Explain_format {
  public:
-  Explain_format_tree() = default;
+  Explain_format_tree() {}
 
   bool is_hierarchical() const override { return false; }
   bool send_headers(Query_result *) override {

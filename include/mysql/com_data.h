@@ -62,7 +62,6 @@ struct PS_PARAM {
 
 struct COM_STMT_EXECUTE_DATA {
   unsigned long stmt_id;
-  /** This holds the flags, as defined in @ref enum_cursor_type */
   unsigned long open_cursor;
   PS_PARAM *parameters;
   unsigned long parameter_count;

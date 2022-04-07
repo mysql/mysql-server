@@ -45,7 +45,7 @@ enum tbsp_purpose {
 @return DB_SUCCESS on success, else DB_ERROR on failure */
 dberr_t open_or_create(bool create_new_db);
 
-/** Session Temporary tablespace */
+/** Sesssion Temporary tablespace */
 class Tablespace {
  public:
   Tablespace();
@@ -135,10 +135,10 @@ Once a session disconnects, the tablespaces are truncated and released
 to the pool. */
 class Tablespace_pool {
  public:
-  using Pool = std::list<Tablespace *, ut::allocator<Tablespace *>>;
+  using Pool = std::list<Tablespace *, ut_allocator<Tablespace *>>;
 
   /** Tablespace_pool constructor
-  @param[in] init_size    Initial size of the tablespace pool */
+  @param[in]    init_size    Initial size of the tablespace pool */
   Tablespace_pool(size_t init_size);
 
   /** Destructor */
@@ -174,15 +174,6 @@ class Tablespace_pool {
     std::for_each(begin(*m_free), end(*m_free), f);
 
     release();
-  }
-
-  /** Gets current pool size.
-  @return Number of tablespaces in the pool, both active and free ones. */
-  size_t get_size() {
-    acquire();
-    size_t current_size = m_active->size() + m_free->size();
-    release();
-    return current_size;
   }
 
  private:

@@ -32,7 +32,7 @@ using std::min;
 
 class Ssl_acceptor_context_iterator_data {
  public:
-  Ssl_acceptor_context_iterator_data() = default;
+  Ssl_acceptor_context_iterator_data() {}
   Ssl_acceptor_context_iterator_data(const std::string interface,
                                      const std::string property,
                                      const std::string value)

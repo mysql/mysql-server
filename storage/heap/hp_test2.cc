@@ -548,7 +548,7 @@ static int rnd(int max_value) {
   return (int)((rand() & 32767) / 32767.0 * max_value);
 } /* rnd */
 
-static void endprog(int sig_number [[maybe_unused]]) {
+static void endprog(int sig_number MY_ATTRIBUTE((unused))) {
   {
     hp_panic(HA_PANIC_CLOSE);
     my_end(1);

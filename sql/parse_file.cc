@@ -517,10 +517,9 @@ bool File_parser::parse(uchar *base, MEM_ROOT *mem_root,
     true  Error
 */
 
-bool File_parser_dummy_hook::process_unknown_string(const char *&unknown_key
-                                                    [[maybe_unused]],
-                                                    uchar *, MEM_ROOT *,
-                                                    const char *) {
+bool File_parser_dummy_hook::process_unknown_string(
+    const char *&unknown_key MY_ATTRIBUTE((unused)), uchar *, MEM_ROOT *,
+    const char *) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("Unknown key: '%60s'", unknown_key));
   return false;

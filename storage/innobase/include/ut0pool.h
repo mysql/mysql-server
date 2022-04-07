@@ -47,7 +47,7 @@ struct Pool {
   typedef Type value_type;
 
   // FIXME: Add an assertion to check alignment and offset is
-  // as we expect it. Also, sizeof(void*) can be 8, can we improve on this.
+  // as we expect it. Also, sizeof(void*) can be 8, can we impove on this.
   struct Element {
     Pool *m_pool;
     value_type m_type;
@@ -62,8 +62,7 @@ struct Pool {
 
     ut_a(m_start == nullptr);
 
-    m_start = reinterpret_cast<Element *>(
-        ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, m_size));
+    m_start = reinterpret_cast<Element *>(ut_zalloc_nokey(m_size));
 
     m_last = m_start;
 
@@ -88,7 +87,7 @@ struct Pool {
       Factory::destroy(&elem->m_type);
     }
 
-    ut::free(m_start);
+    ut_free(m_start);
     m_end = m_last = m_start = nullptr;
     m_size = 0;
   }
@@ -140,7 +139,7 @@ struct Pool {
  private:
   /* We only need to compare on pointer address. */
   typedef std::priority_queue<Element *,
-                              std::vector<Element *, ut::allocator<Element *>>,
+                              std::vector<Element *, ut_allocator<Element *>>,
                               std::greater<Element *>>
       pqueue_t;
 
@@ -271,7 +270,7 @@ struct PoolManager {
 
       ut_ad(n_pools == m_pools.size());
 
-      pool = ut::new_withkey<PoolType>(UT_NEW_THIS_FILE_PSI_KEY, m_size);
+      pool = UT_NEW_NOKEY(PoolType(m_size));
 
       if (pool != nullptr) {
         ut_ad(n_pools <= m_pools.size());
@@ -307,7 +306,7 @@ struct PoolManager {
     for (it = m_pools.begin(); it != end; ++it) {
       PoolType *pool = *it;
 
-      ut::delete_(pool);
+      UT_DELETE(pool);
     }
 
     m_pools.clear();
@@ -320,7 +319,7 @@ struct PoolManager {
   PoolManager(const PoolManager &);
   PoolManager &operator=(const PoolManager &);
 
-  typedef std::vector<PoolType *, ut::allocator<PoolType *>> Pools;
+  typedef std::vector<PoolType *, ut_allocator<PoolType *>> Pools;
 
   /** Size of each block */
   size_t m_size;

@@ -33,11 +33,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef ut0dbg_h
 #define ut0dbg_h
 
-#include "my_compiler.h"
-
 /* Do not include univ.i because univ.i includes this. */
 
 #include <functional>
+#include "os0thread.h"
 
 /** Set a callback function to be called before exiting.
 @param[in]	callback	user callback function */
@@ -48,19 +47,19 @@ void ut_set_assert_callback(std::function<void()> &callback);
 @param[in] file Source file containing the assertion
 @param[in] line Line number of the assertion */
 [[noreturn]] void ut_dbg_assertion_failed(const char *expr, const char *file,
-                                          uint64_t line);
+                                          ulint line);
 
 /** Abort execution if EXPR does not evaluate to nonzero.
 @param EXPR assertion expression that should hold */
-#define ut_a(EXPR)                                        \
-  do {                                                    \
-    if (unlikely(!(bool)(EXPR))) {                        \
-      ut_dbg_assertion_failed(#EXPR, __FILE__, __LINE__); \
-    }                                                     \
+#define ut_a(EXPR)                                               \
+  do {                                                           \
+    if (UNIV_UNLIKELY(!(ulint)(EXPR))) {                         \
+      ut_dbg_assertion_failed(#EXPR, __FILE__, (ulint)__LINE__); \
+    }                                                            \
   } while (0)
 
 /** Abort execution. */
-#define ut_error ut_dbg_assertion_failed(0, __FILE__, __LINE__)
+#define ut_error ut_dbg_assertion_failed(0, __FILE__, (ulint)__LINE__)
 
 #ifdef UNIV_DEBUG
 /** Debug assertion. Does nothing unless UNIV_DEBUG is defined. */
@@ -100,7 +99,7 @@ void ut_set_assert_callback(std::function<void()> &callback);
 
 /** Silence warnings about an unused variable by doing a null assignment.
 @param A the unused variable */
-#define UT_NOT_USED(A) std::ignore = A
+#define UT_NOT_USED(A) A = A
 
 #if defined(HAVE_SYS_TIME_H) && defined(HAVE_SYS_RESOURCE_H)
 

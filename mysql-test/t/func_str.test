@@ -22,34 +22,6 @@ select hex(char(256));
 select locate('he','hello'),locate('he','hello',2),locate('lo','hello',2) ;
 select instr('hello','HE'), instr('hello',binary 'HE'), instr(binary 'hello','HE'); 
 select position(binary 'll' in 'hello'),position('a' in binary 'hello');
-
-# Check LOCATE with binary substring, which is converted to string's collation
-SELECT LOCATE('d', _utf8mb4'abcdef');
-SELECT LOCATE(x'44', _utf8mb4'abcdef');
-
-SELECT POSITION('d' IN _utf8mb4'abcdef');
-SELECT POSITION(x'44' IN _utf8mb4'abcdef');
-
-SELECT INSTR(_utf8mb4'abcdef', 'd');
-SELECT INSTR(_utf8mb4'abcdef', x'44');
-
-# Case sensitivity is determined by string's collation
-SELECT LOCATE(x'64', _utf8mb4'abcdef');
-
-SELECT POSITION(x'64' IN _utf8mb4'abcdef');
-
-SELECT INSTR(_utf8mb4'abcdef', x'64');
-
-# Conversion may be invalid:
---error ER_CANNOT_CONVERT_STRING
-SELECT LOCATE(x'ff', _utf8mb4'abcdef');
-
---error ER_CANNOT_CONVERT_STRING
-SELECT POSITION(x'ff' IN _utf8mb4'abcdef');
-
---error ER_CANNOT_CONVERT_STRING
-SELECT INSTR(_utf8mb4'abcdef', x'ff');
-
 #
 # Bug#11728 string function LEFT,
 # strange undocumented behaviour, strict mode
@@ -259,17 +231,18 @@ select FIELD('b','A','B');
 select FIELD('B','A','B');
 select FIELD('b' COLLATE latin1_bin,'A','B');
 select FIELD('b','A' COLLATE latin1_bin,'B');
+--error 1270
 select FIELD(_latin2'b','A','B');
+--error 1270
 select FIELD('b',_latin2'A','B');
 select FIELD('1',_latin2'3','2',1);
-
---error ER_CANNOT_CONVERT_STRING
-SELECT FIELD(_utf8mb4'abc', x'ff');
 
 select POSITION(_latin1'B' IN _latin1'abcd');
 select POSITION(_latin1'B' IN _latin1'abcd' COLLATE latin1_bin);
 select POSITION(_latin1'B' COLLATE latin1_bin IN _latin1'abcd');
+--error 1267
 select POSITION(_latin1'B' COLLATE latin1_general_ci IN _latin1'abcd' COLLATE latin1_bin);
+--error 1267
 select POSITION(_latin1'B' IN _latin2'abcd');
 
 select FIND_IN_SET(_latin1'B',_latin1'a,b,c,d');
@@ -2059,18 +2032,16 @@ set sql_mode=default;
 
 CREATE TABLE t1(c1 VARCHAR(10));
 INSERT INTO t1 VALUES ('Alaska');
---error ER_CANNOT_CONVERT_STRING
 SELECT HEX(LPAD('', 42, REPLACE(COMPRESS(42),c1,''))) FROM t1;
---error ER_CANNOT_CONVERT_STRING
 SELECT HEX(LPAD('', 42, SUBSTRING_INDEX(COMPRESS(42),c1,1))) FROM t1;
-
---error ER_CANNOT_CONVERT_STRING
+--disable_result_log
+SELECT LPAD('', 42, REPLACE(RANDOM_BYTES(42),c1,'')) FROM t1;
 SELECT LPAD('', 42, REPLACE(AES_ENCRYPT(c1, 'key'),c1,'')) FROM t1;
+--enable_result_log
 
 SELECT LPAD('', 42, REPLACE(MD5(c1),c1,'')) FROM t1;
---error ER_CANNOT_CONVERT_STRING
 SELECT HEX(LPAD('', 42, TRIM(BOTH c1 FROM x'ff'))) FROM t1;
---error ER_CANNOT_CONVERT_STRING
+
 SELECT HEX(LPAD('', 42, REPLACE(x'ffff',c1,''))) FROM t1;
 --error ER_CANNOT_CONVERT_STRING
 SELECT HEX(LPAD('', 42, TRIM(x'ffff' FROM c1))) FROM t1;
@@ -2239,193 +2210,3 @@ SELECT (SELECT 1
         WHERE CONVERT(1 USING gb18030) <> GROUP_CONCAT(x'a3')
         );
 DROP TABLE t;
-
---echo # Bug#32694458: Assertion `thd->is_error()' failed|sql/sql_select.cc
-
-SELECT INSERT('a', 1, 1, YEAR(UNHEX('w')));
-
---echo # Bug#32746552: my_strnncollsp_utf32: assertion `(slen % 4) == 0' failed
-
-DO USER() in
-(COERCIBILITY(@c),
- CONVERT(LAST_VALUE(FROM_UNIXTIME(1536999169)) OVER() USING utf32));
-
---echo #
---echo # Bug #32746536 MULTIPLE FUNCTIONS: ASSERTION `IS_NULLABLE()' FAILED.
---echo #
-
---error ER_CANNOT_CONVERT_STRING
-DO ST_ISVALID(INSTR(9223372036854775806 ,0x46bc299f));
-
---error ER_CANNOT_CONVERT_STRING
-DO ST_SRID(LOCATE(0x58ed0b8e,8,135));
-
---echo #
---echo # Bug #32864958 ITEM_STR_FUNC::PUSH_PACKET_OVERFLOW_WARNING:
---echo #               ASSERTION `IS_NULLABLE()' FAILED.
-
---source include/turn_off_strict_mode.inc
-
---error ER_DATA_OUT_OF_RANGE
-DO NOT CAST(UTC_TIME AS CHAR(2877246026) CHARACTER SET ujis);
-
-DO REPEAT(LAST_INSERT_ID(''), 4294967295);
-
-DO REPEAT(LAST_INSERT_ID(''), 0x96e4ed7e70a7fec7f11572c8980a);
-
---source include/restore_strict_mode.inc
-
---echo # Bug#33142010: Failure on complex const argument to string functions
-
-CREATE VIEW v AS SELECT LPAD('x', 1 NOT IN (0), 1) AS c;
-SHOW CREATE TABLE v;
-SELECT * FROM v;
-DROP VIEW v;
-
-CREATE VIEW v AS SELECT RPAD('x', 1 NOT IN (0), 1) AS c;
-SHOW CREATE TABLE v;
-SELECT * FROM v;
-DROP VIEW v;
-
-CREATE VIEW v AS SELECT SHA2('x', 1 NOT IN (0)) AS c;
-SHOW CREATE TABLE v;
-SELECT * FROM v;
-DROP VIEW v;
-
-CREATE VIEW v AS SELECT SUBSTR('x', 1 NOT IN (0)) AS c;
-SHOW CREATE TABLE v;
-SELECT * FROM v;
-DROP VIEW v;
-
-CREATE VIEW v AS SELECT SUBSTR('x', 1, 1 NOT IN (0)) AS c;
-SHOW CREATE TABLE v;
-SELECT * FROM v;
-DROP VIEW v;
-
-CREATE VIEW v AS SELECT REPEAT('x', 1 NOT IN (0)) AS c;
-SHOW CREATE TABLE v;
-SELECT * FROM v;
-DROP VIEW v;
-
-CREATE VIEW v AS SELECT SPACE(1 NOT IN (0)) AS c;
-SHOW CREATE TABLE v;
-SELECT * FROM v;
-DROP VIEW v;
-
-CREATE VIEW v AS SELECT LEFT('x', 1 NOT IN (0)) AS c;
-SHOW CREATE TABLE v;
-SELECT * FROM v;
-DROP VIEW v;
-
-CREATE VIEW v AS SELECT RIGHT('x', 1 NOT IN (0)) AS c;
-SHOW CREATE TABLE v;
-SELECT * FROM v;
-DROP VIEW v;
-
-CREATE TABLE t(s SET('0', '1'));
-CREATE VIEW v AS SELECT FIND_IN_SET(1 NOT IN (0), s) AS c FROM t;
-SHOW CREATE TABLE v;
-SELECT * FROM v;
-DROP VIEW v;
-DROP TABLE t;
-
-CREATE VIEW v AS SELECT STR_TO_DATE('2020', 1 NOT IN (0)) AS c;
-SHOW CREATE TABLE v;
-SELECT * FROM v;
-DROP VIEW v;
-
---echo #
---echo # Bug #33180446 SPACE(): Item_str_func::push_packet_overflow_warning:
---echo #               Assertion `is_nullable()' failed.
-
-# set_nullable(is_nullable() || thd->is_strict_mode());
---source include/turn_off_strict_mode.inc
-
-SELECT space(9223372036854775808);
-SELECT length(space(9223372036854775809));
-
-CREATE TABLE t(i BIGINT UNSIGNED);
-INSERT INTO t values(9223372036854775808);
-
-SELECT space(i) FROM t;
-
-DROP TABLE t;
-
-SET @@collation_connection = 'utf32_bin';
-
-SELECT space(1073741824);
-
-SET @@collation_connection = default;
-
---source include/restore_strict_mode.inc
-
---echo #
---echo # Bug#31374305 - FORMAT() NOT DISPLAYING WHOLE NUMBER SIDE CORRECTLY
---echo #                FOR ES_MX AND ES_ES LOCALES
---echo #
-
-DELIMITER |;
-CREATE PROCEDURE load_locale_format_table()
-BEGIN
-  DECLARE locale_list VARCHAR(1000) DEFAULT '
-  es_AR,es_BO,es_CL,es_CO,es_CR,es_DO,es_EC,es_ES,es_GT,es_HN,
-  es_MX,es_NI,es_PA,es_PE,es_PR,es_PY,es_SV,es_US,es_UY,es_VE';
-  SET @fmt_stmt = 'INSERT INTO locale_format VALUES
-                   (?, FORMAT(12131254123412541,2,?));';
-  PREPARE stmt FROM @fmt_stmt;
-  WHILE locale_list != '' DO
-    /* get the first locale from the list */
-    SET @locale =
-          TRIM(REPLACE((SUBSTRING_INDEX(locale_list, ',', 1)), '\n',''));
-    EXECUTE stmt USING @locale, @locale;
-    /* remove the first locale from the list */
-    IF LOCATE(',', locale_list) > 0 THEN
-      SET locale_list =
-      SUBSTRING(locale_list, LOCATE(',', locale_list) + 1);
-    ELSE
-      SET locale_list = '';
-    END IF;
-  END WHILE;
-  DEALLOCATE PREPARE stmt;
-END|
-DELIMITER ;|
-
-CREATE TABLE locale_format(locale VARCHAR(10), formatted_string VARCHAR(100));
-CALL load_locale_format_table();
-SELECT * FROM locale_format;
-DROP PROCEDURE load_locale_format_table;
-DROP TABLE locale_format;
-
---echo # Bug#33661337: more gcols corruption
-
-SET sql_mode = '';
-CREATE TABLE t (
-  a INT,
-  b BLOB,
-  c INT GENERATED ALWAYS AS (1) VIRTUAL,
-  d INT,
-  e INT GENERATED ALWAYS AS (LPAD('111', b, '1')) VIRTUAL,
-  UNIQUE KEY (e),
-  KEY(b(1),a,e),
-  KEY(e,b(1))
-);
-
-INSERT INTO t(b) VALUES('32');
-INSERT INTO t(d, b) VALUES(2, '222222') ON DUPLICATE KEY UPDATE a=644, b=3;
-INSERT IGNORE INTO t(a,b,d) VALUES (1, '1536999167', 1);
-CHECK TABLE t EXTENDED;
-DELETE FROM t;
-CHECK TABLE t EXTENDED;
-
-DROP TABLE t;
-
-SET sql_mode = DEFAULT;
-
-CREATE TABLE t1(c VARCHAR(10));
-INSERT INTO t1 VALUES(NULL), ('pad');
-SELECT RPAD(c, 4, 'x') FROM t1;
-SELECT RPAD(c, 3, 'x') FROM t1;
-SELECT LPAD(c, 4, 'x') FROM t1;
-SELECT LPAD(c, 3, 'x') FROM t1;
-
-DROP TABLE t1;

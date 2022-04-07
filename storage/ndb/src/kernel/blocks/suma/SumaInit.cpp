@@ -24,7 +24,6 @@
 
 #include "Suma.hpp"
 
-#include <cstring>
 #include <Properties.hpp>
 #include <Configuration.hpp>
 
@@ -155,16 +154,16 @@ Suma::Suma(Block_context& ctx) :
   m_gcp_monitor = 0;
 #endif
   m_missing_data = false;
-  std::memset(c_subscriber_per_node, 0, sizeof(c_subscriber_per_node));
+  bzero(c_subscriber_per_node, sizeof(c_subscriber_per_node));
 
   m_gcp_rep_cnt = getLqhWorkers();
   m_snd_gcp_rep_counter_index = 0;
   m_min_gcp_rep_counter_index = 0;
   m_max_gcp_rep_counter_index = 0;
-  std::memset(m_gcp_rep_counter, 0, sizeof(m_gcp_rep_counter));
+  bzero(m_gcp_rep_counter, sizeof(m_gcp_rep_counter));
   m_oldest_gcp_inflight_index = 0;
   m_newest_gcp_inflight_index = 0;
-  std::memset(m_gcp_inflight, 0, sizeof(m_gcp_inflight));
+  bzero(m_gcp_inflight, sizeof(m_gcp_inflight));
 }
 
 Suma::~Suma()

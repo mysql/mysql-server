@@ -68,10 +68,6 @@ def	mysql	replication_asynchronous_connection_failover	0	mysql	PRIMARY	4	Network
 def	mysql	replication_asynchronous_connection_failover	0	mysql	PRIMARY	5	Managed_name	A	#CARD#	NULL	NULL		BTREE			YES	NULL
 def	mysql	replication_asynchronous_connection_failover_managed	0	mysql	PRIMARY	1	Channel_name	A	#CARD#	NULL	NULL		BTREE			YES	NULL
 def	mysql	replication_asynchronous_connection_failover_managed	0	mysql	PRIMARY	2	Managed_name	A	#CARD#	NULL	NULL		BTREE			YES	NULL
-def	mysql	replication_group_configuration_version	0	mysql	PRIMARY	1	name	A	#CARD#	NULL	NULL		BTREE			YES	NULL
-def	mysql	replication_group_member_actions	1	mysql	event	1	event	A	#CARD#	NULL	NULL		BTREE			YES	NULL
-def	mysql	replication_group_member_actions	0	mysql	PRIMARY	1	name	A	#CARD#	NULL	NULL		BTREE			YES	NULL
-def	mysql	replication_group_member_actions	0	mysql	PRIMARY	2	event	A	#CARD#	NULL	NULL		BTREE			YES	NULL
 def	mysql	role_edges	0	mysql	PRIMARY	1	FROM_HOST	A	#CARD#	NULL	NULL		BTREE			YES	NULL
 def	mysql	role_edges	0	mysql	PRIMARY	2	FROM_USER	A	#CARD#	NULL	NULL		BTREE			YES	NULL
 def	mysql	role_edges	0	mysql	PRIMARY	3	TO_HOST	A	#CARD#	NULL	NULL		BTREE			YES	NULL

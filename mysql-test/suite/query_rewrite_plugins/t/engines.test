@@ -2,6 +2,16 @@
 --echo # Tests that it works to have the rules table in different engines.
 --echo #
 
+# The test fails with log-bin enabled and binlog_format=ROW due to Bug#22654105.
+# Temporarily, overriding binlog_format to MIXED when log_bin is ON.
+if (`SELECT @@global.log_bin AND @@global.binlog_format = 'ROW'`)
+{
+  --disable_query_log
+  SET @saved_binlog_format= @@SESSION.binlog_format;
+  SET SESSION binlog_format= MIXED;
+  --enable_query_log
+}
+
 --source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
 --source suite/query_rewrite_plugins/include/install_rewriter_with_optional_columns.inc
 
@@ -19,3 +29,10 @@ SELECT engine FROM information_schema.tables WHERE table_name = 'rewrite_rules';
 --source suite/query_rewrite_plugins/include/basic.inc
 
 --source suite/query_rewrite_plugins/include/uninstall_rewriter.inc
+
+if (`SELECT @@global.log_bin AND @@global.binlog_format = 'ROW'`)
+{
+  --disable_query_log
+  SET SESSION binlog_format= @saved_binlog_format;
+  --enable_query_log
+}

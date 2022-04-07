@@ -94,8 +94,7 @@ bool Udf_charset_service::set_args_charset(UDF_ARGS *args) {
   charset_name[m_charset_name.size()] = '\0';
 
   for (uint index = 0; index < args->arg_count; ++index) {
-    if (args->arg_type[index] == STRING_RESULT &&
-        mysql_service_mysql_udf_metadata->argument_set(
+    if (mysql_service_mysql_udf_metadata->argument_set(
             args, Udf_charset_service::m_arg_type.c_str(), index,
             static_cast<void *>(charset_name))) {
       deinit();

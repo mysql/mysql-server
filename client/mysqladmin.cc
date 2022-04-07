@@ -56,7 +56,7 @@
 #define MAX_TRUNC_LENGTH 3
 
 const char *host = nullptr;
-char *user = nullptr;
+char *user = nullptr, *opt_password = nullptr;
 const char *default_charset = MYSQL_AUTODETECT_CHARSET_NAME;
 char truncated_var_names[MAX_MYSQL_VAR][MAX_TRUNC_LENGTH];
 char ex_var_names[MAX_MYSQL_VAR][FN_REFLEN];
@@ -64,10 +64,10 @@ ulonglong last_values[MAX_MYSQL_VAR];
 static int interval = 0;
 static bool option_force = false, interrupted = false, new_line = false,
             opt_compress = false, opt_relative = false, opt_verbose = false,
-            opt_vertical = false, opt_nobeep;
+            opt_vertical = false, tty_password = false, opt_nobeep;
 static bool debug_info_flag = false, debug_check_flag = false;
 static uint tcp_port = 0, option_wait = 0, option_silent = 0, nr_iterations;
-static uint opt_count_iterations = 0, my_end_arg = 0;
+static uint opt_count_iterations = 0, my_end_arg;
 static char *opt_bind_addr = nullptr;
 static ulong opt_connect_timeout, opt_shutdown_timeout;
 static char *unix_port = nullptr;
@@ -96,7 +96,6 @@ static uint ex_var_count, max_var_length, max_val_length;
 #include "sslopt-vars.h"
 
 #include "caching_sha2_passwordopt-vars.h"
-#include "multi_factor_passwordopt-vars.h"
 
 static void usage(void);
 extern "C" bool get_one_option(int optid, const struct my_option *opt,
@@ -146,11 +145,9 @@ enum commands {
   ADMIN_EXTENDED_STATUS,
   ADMIN_FLUSH_STATUS,
   ADMIN_FLUSH_PRIVILEGES,
-  ADMIN_START_REPLICA,
-  ADMIN_STOP_REPLICA,
-  ADMIN_FLUSH_THREADS,
   ADMIN_START_SLAVE,
-  ADMIN_STOP_SLAVE
+  ADMIN_STOP_SLAVE,
+  ADMIN_FLUSH_THREADS
 };
 static const char *command_names[] = {"create",
                                       "drop",
@@ -171,11 +168,9 @@ static const char *command_names[] = {"create",
                                       "extended-status",
                                       "flush-status",
                                       "flush-privileges",
-                                      "start-replica",
-                                      "stop-replica",
-                                      "flush-threads",
                                       "start-slave",
                                       "stop-slave",
+                                      "flush-threads",
                                       NullS};
 
 static TYPELIB command_typelib = {array_elements(command_names) - 1, "commands",
@@ -229,7 +224,11 @@ static struct my_option my_long_options[] = {
      REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"no-beep", 'b', "Turn off beep on error.", &opt_nobeep, &opt_nobeep,
      nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-#include "multi_factor_passwordopt-longopts.h"
+    {"password", 'p',
+     "Password to use when connecting to server. If password is not given it's "
+     "asked from the tty.",
+     nullptr, nullptr, nullptr, GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
 #ifdef _WIN32
     {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
      NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -318,7 +317,8 @@ static struct my_option my_long_options[] = {
 
 static const char *load_default_groups[] = {"mysqladmin", "client", nullptr};
 
-bool get_one_option(int optid, const struct my_option *opt [[maybe_unused]],
+bool get_one_option(int optid,
+                    const struct my_option *opt MY_ATTRIBUTE((unused)),
                     char *argument) {
   int error = 0;
 
@@ -326,7 +326,24 @@ bool get_one_option(int optid, const struct my_option *opt [[maybe_unused]],
     case 'c':
       opt_count_iterations = 1;
       break;
-      PARSE_COMMAND_LINE_PASSWORD_OPTION;
+    case 'p':
+      if (argument == disabled_my_option) {
+        // Don't require password
+        static char empty_password[] = {'\0'};
+        assert(empty_password[0] ==
+               '\0');  // Check that it has not been overwritten
+        argument = empty_password;
+      }
+      if (argument) {
+        char *start = argument;
+        my_free(opt_password);
+        opt_password = my_strdup(PSI_NOT_INSTRUMENTED, argument, MYF(MY_FAE));
+        while (*argument) *argument++ = 'x'; /* Destroy argument */
+        if (*start) start[1] = 0;            /* Cut length of argument */
+        tty_password = false;
+      } else
+        tty_password = true;
+      break;
     case 's':
       option_silent++;
       break;
@@ -380,16 +397,16 @@ int main(int argc, char *argv[]) {
   char **commands, **temp_argv;
 
   MY_INIT(argv[0]);
+  mysql_init(&mysql);
   my_getopt_use_args_separator = true;
   MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
-  if (load_defaults("my", load_default_groups, &argc, &argv, &alloc)) {
-    my_end(my_end_arg);
+  if (load_defaults("my", load_default_groups, &argc, &argv, &alloc))
     return EXIT_FAILURE;
-  }
   my_getopt_use_args_separator = false;
 
   if ((ho_error =
            handle_options(&argc, &argv, my_long_options, get_one_option))) {
+    mysql_close(&mysql);
     my_end(my_end_arg);
     return ho_error;
   }
@@ -399,7 +416,6 @@ int main(int argc, char *argv[]) {
 
   if (argc == 0) {
     usage();
-    my_end(my_end_arg);
     return EXIT_FAILURE;
   }
 
@@ -407,11 +423,11 @@ int main(int argc, char *argv[]) {
   temp_argc = argc;
 
   commands = temp_argv;
+  if (tty_password) opt_password = get_tty_password(NullS);
 
   (void)signal(SIGINT, endprog);  /* Here if abort */
   (void)signal(SIGTERM, endprog); /* Here if abort */
 
-  mysql_init(&mysql);
   if (opt_bind_addr) mysql_options(&mysql, MYSQL_OPT_BIND, opt_bind_addr);
   if (opt_compress) mysql_options(&mysql, MYSQL_OPT_COMPRESS, NullS);
   if (opt_connect_timeout) {
@@ -420,8 +436,6 @@ int main(int argc, char *argv[]) {
   }
   if (SSL_SET_OPTIONS(&mysql)) {
     fprintf(stderr, "%s", SSL_SET_OPTIONS_ERROR);
-    mysql_close(&mysql);
-    my_end(my_end_arg);
     return EXIT_FAILURE;
   }
   if (opt_protocol)
@@ -461,8 +475,6 @@ int main(int argc, char *argv[]) {
 
   set_server_public_key(&mysql);
   set_get_server_public_key_option(&mysql);
-
-  set_password_options(&mysql);
   if (sql_connect(&mysql, option_wait)) {
     /*
       We couldn't get an initial connection and will definitely exit.
@@ -547,7 +559,7 @@ int main(int argc, char *argv[]) {
   }            /* got connection */
 
   mysql_close(&mysql);
-  free_passwords();
+  my_free(opt_password);
   my_free(user);
 #if defined(_WIN32)
   my_free(shared_memory_base_name);
@@ -562,7 +574,7 @@ int main(int argc, char *argv[]) {
   return error ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
-void endprog(int signal_number [[maybe_unused]]) { interrupted = true; }
+void endprog(int signal_number MY_ATTRIBUTE((unused))) { interrupted = true; }
 
 /**
    @brief connect to server, optionally waiting for same to come up
@@ -580,7 +592,7 @@ static bool sql_connect(MYSQL *mysql, uint wait) {
   bool info = false;
 
   for (;;) {
-    if (mysql_real_connect(mysql, host, user, nullptr, NullS, tcp_port,
+    if (mysql_real_connect(mysql, host, user, opt_password, NullS, tcp_port,
                            unix_port, CLIENT_REMEMBER_OPTIONS)) {
       mysql->reconnect = true;
       if (info) {
@@ -1101,27 +1113,20 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
       }
 
       case ADMIN_START_SLAVE:
-        CLIENT_WARN_DEPRECATED("start-slave", "start-replica");
-        [[fallthrough]];
-      case ADMIN_START_REPLICA:
-        if (mysql_query(mysql, "START REPLICA")) {
-          my_printf_error(0, "Error starting replication: %s", error_flags,
+        if (mysql_query(mysql, "START SLAVE")) {
+          my_printf_error(0, "Error starting slave: %s", error_flags,
                           mysql_error(mysql));
           return -1;
         } else
-          puts("Replication started");
+          puts("Slave started");
         break;
-
       case ADMIN_STOP_SLAVE:
-        CLIENT_WARN_DEPRECATED("stop-slave", "stop-replica");
-        [[fallthrough]];
-      case ADMIN_STOP_REPLICA:
-        if (mysql_query(mysql, "STOP REPLICA")) {
-          my_printf_error(0, "Error stopping replication: %s", error_flags,
+        if (mysql_query(mysql, "STOP SLAVE")) {
+          my_printf_error(0, "Error stopping slave: %s", error_flags,
                           mysql_error(mysql));
           return -1;
         } else
-          puts("Replication stopped");
+          puts("Slave stopped");
         break;
 
       case ADMIN_PING:
@@ -1222,10 +1227,8 @@ static void usage(void) {
   refresh		Flush all tables and close and open logfiles\n\
   shutdown		Take server down\n\
   status		Gives a short status message from the server\n\
-  start-replica		Start replication\n\
-  start-slave		Deprecated: use start-replica instead\n\
-  stop-replica		Stop replication\n\
-  stop-slave		Deprecated: use stop-replica instead\n\
+  start-slave		Start slave\n\
+  stop-slave		Stop slave\n\
   variables             Prints variables available\n\
   version		Get version info from server");
 }
@@ -1311,7 +1314,7 @@ static void print_top(MYSQL_RES *result) {
 
 /* 3.rd argument, uint row, is not in use. Don't remove! */
 static void print_row(MYSQL_RES *result, MYSQL_ROW cur,
-                      uint row [[maybe_unused]]) {
+                      uint row MY_ATTRIBUTE((unused))) {
   uint i, length;
   MYSQL_FIELD *field;
 
@@ -1341,7 +1344,7 @@ static void print_relative_row(MYSQL_RES *result, MYSQL_ROW cur, uint row) {
   last_values[row] = tmp;
 }
 
-static void print_relative_row_vert(MYSQL_RES *result [[maybe_unused]],
+static void print_relative_row_vert(MYSQL_RES *result MY_ATTRIBUTE((unused)),
                                     MYSQL_ROW cur, uint row) {
   uint length;
   ulonglong tmp;

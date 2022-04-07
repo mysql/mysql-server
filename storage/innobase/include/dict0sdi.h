@@ -42,29 +42,28 @@ class Sdi_Compressor {
   Sdi_Compressor(uint32_t src_len, const void *sdi)
       : m_src_len(src_len), m_comp_len(), m_sdi(sdi), m_comp_sdi() {}
 
-  ~Sdi_Compressor() { ut::free(m_comp_sdi); }
+  ~Sdi_Compressor() { ut_free(m_comp_sdi); }
 
   /** Compress the SDI */
   inline void compress() {
     uLongf zlen = compressBound(static_cast<uLong>(m_src_len));
     auto src = reinterpret_cast<const Bytef *>(m_sdi);
 
-    m_comp_sdi =
-        static_cast<byte *>(ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, zlen));
+    m_comp_sdi = static_cast<byte *>(ut_malloc_nokey(zlen));
     ut_ad(m_comp_sdi != nullptr);
 
     switch (
         compress2(m_comp_sdi, &zlen, src, static_cast<uLong>(m_src_len), 6)) {
       case Z_BUF_ERROR:
-        ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_FAILED_SDI_Z_BUF_ERROR);
+        ib::fatal(ER_IB_MSG_FAILED_SDI_Z_BUF_ERROR);
         break;
 
       case Z_MEM_ERROR:
-        ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_FAILED_SDI_Z_MEM_ERROR);
+        ib::fatal(ER_IB_MSG_FAILED_SDI_Z_MEM_ERROR);
         break;
 
       case Z_STREAM_ERROR:
-        ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_SDI_Z_STREAM_ERROR);
+        ib::fatal(ER_IB_MSG_SDI_Z_STREAM_ERROR);
         break;
 
       case Z_OK:
@@ -72,7 +71,7 @@ class Sdi_Compressor {
         break;
 
       default:
-        ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_SDI_Z_UNKNOWN_ERROR);
+        ib::fatal(ER_IB_MSG_SDI_Z_UNKNOWN_ERROR);
         break;
     }
   }

@@ -37,13 +37,12 @@ extern char *mysql_unix_port;
  When adding capabilities here, consider if they should be also added to
  the server's version.
 */
-#define CLIENT_CAPABILITIES                                                \
-  (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_TRANSACTIONS |         \
-   CLIENT_PROTOCOL_41 | CLIENT_RESERVED2 | CLIENT_MULTI_RESULTS |          \
-   CLIENT_PS_MULTI_RESULTS | CLIENT_PLUGIN_AUTH |                          \
-   CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA | CLIENT_CONNECT_ATTRS |          \
-   CLIENT_SESSION_TRACK | CLIENT_DEPRECATE_EOF | CLIENT_QUERY_ATTRIBUTES | \
-   MULTI_FACTOR_AUTHENTICATION)
+#define CLIENT_CAPABILITIES                                        \
+  (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_TRANSACTIONS | \
+   CLIENT_PROTOCOL_41 | CLIENT_RESERVED2 | CLIENT_MULTI_RESULTS |  \
+   CLIENT_PS_MULTI_RESULTS | CLIENT_PLUGIN_AUTH |                  \
+   CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA | CLIENT_CONNECT_ATTRS |  \
+   CLIENT_SESSION_TRACK | CLIENT_DEPRECATE_EOF | CLIENT_QUERY_ATTRIBUTES)
 
 void read_user_name(char *name);
 bool handle_local_infile(MYSQL *mysql, const char *net_filename);

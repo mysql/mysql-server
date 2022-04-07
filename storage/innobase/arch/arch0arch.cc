@@ -116,8 +116,7 @@ void arch_remove_dir(const char *dir_path, const char *dir_name) {
 @return error code */
 dberr_t arch_init() {
   if (arch_log_sys == nullptr) {
-    arch_log_sys =
-        ut::new_withkey<Arch_Log_Sys>(ut::make_psi_memory_key(mem_key_archive));
+    arch_log_sys = UT_NEW(Arch_Log_Sys(), mem_key_archive);
 
     if (arch_log_sys == nullptr) {
       return (DB_OUT_OF_MEMORY);
@@ -127,8 +126,7 @@ dberr_t arch_init() {
   }
 
   if (arch_page_sys == nullptr) {
-    arch_page_sys = ut::new_withkey<Arch_Page_Sys>(
-        ut::make_psi_memory_key(mem_key_archive));
+    arch_page_sys = UT_NEW(Arch_Page_Sys(), mem_key_archive);
 
     if (arch_page_sys == nullptr) {
       return (DB_OUT_OF_MEMORY);
@@ -150,14 +148,14 @@ dberr_t arch_init() {
 /** Free Page and Log archiver system */
 void arch_free() {
   if (arch_log_sys != nullptr) {
-    ut::delete_(arch_log_sys);
+    UT_DELETE(arch_log_sys);
     arch_log_sys = nullptr;
 
     os_event_destroy(log_archiver_thread_event);
   }
 
   if (arch_page_sys != nullptr) {
-    ut::delete_(arch_page_sys);
+    UT_DELETE(arch_page_sys);
     arch_page_sys = nullptr;
 
     os_event_destroy(page_archiver_thread_event);
@@ -303,12 +301,11 @@ dberr_t Arch_File_Ctx::init(const char *path, const char *base_dir,
 
   /* In case of reinitialise. */
   if (m_name_buf != nullptr) {
-    ut::free(m_name_buf);
+    ut_free(m_name_buf);
     m_name_buf = nullptr;
   }
 
-  m_name_buf = static_cast<char *>(
-      ut::malloc_withkey(ut::make_psi_memory_key(mem_key_archive), m_name_len));
+  m_name_buf = static_cast<char *>(ut_malloc(m_name_len, mem_key_archive));
 
   if (m_name_buf == nullptr) {
     return (DB_OUT_OF_MEMORY);
@@ -342,6 +339,12 @@ dberr_t Arch_File_Ctx::init(const char *path, const char *base_dir,
 
 dberr_t Arch_File_Ctx::open(bool read_only, lsn_t start_lsn, uint file_index,
                             uint64_t file_offset) {
+  os_file_create_t option;
+  os_file_type_t type;
+
+  bool success;
+  bool exists;
+
   /* Close current file, if open. */
   close();
 
@@ -352,16 +355,11 @@ dberr_t Arch_File_Ctx::open(bool read_only, lsn_t start_lsn, uint file_index,
 
   build_name(m_index, start_lsn, nullptr, 0);
 
-  bool exists;
-  os_file_type_t type;
-
-  bool success = os_file_status(m_name_buf, &exists, &type);
+  success = os_file_status(m_name_buf, &exists, &type);
 
   if (!success) {
     return (DB_CANNOT_OPEN_FILE);
   }
-
-  os_file_create_t option;
 
   if (read_only) {
     if (!exists) {
@@ -381,19 +379,7 @@ dberr_t Arch_File_Ctx::open(bool read_only, lsn_t start_lsn, uint file_index,
     return (DB_CANNOT_OPEN_FILE);
   }
 
-  /* For newly created file, zero fill the header section. This is required
-  for archived redo files that are just created. Clone expects the header
-  length to be written. */
-  if (!exists && file_offset != 0) {
-    /* This call would extend the length by multiple of UNIV_PAGE_SIZE. This is
-    not an issue but we need to lseek to keep the current position at offset. */
-    success =
-        os_file_set_size(m_name_buf, m_file, 0, file_offset, false, false);
-  }
-
-  if (success) {
-    success = os_file_seek(m_name_buf, m_file.m_file, file_offset);
-  }
+  success = os_file_seek(m_name_buf, m_file.m_file, file_offset);
 
   return (success ? DB_SUCCESS : DB_IO_ERROR);
 }
@@ -527,7 +513,7 @@ int start_log_archiver_background() {
 
   if (ret) {
     srv_threads.m_log_archiver =
-        os_thread_create(log_archiver_thread_key, 0, log_archiver_thread);
+        os_thread_create(log_archiver_thread_key, log_archiver_thread);
 
     srv_threads.m_log_archiver.start();
 
@@ -549,7 +535,7 @@ int start_page_archiver_background() {
 
   if (ret) {
     srv_threads.m_page_archiver =
-        os_thread_create(page_archiver_thread_key, 0, page_archiver_thread);
+        os_thread_create(page_archiver_thread_key, page_archiver_thread);
 
     srv_threads.m_page_archiver.start();
 

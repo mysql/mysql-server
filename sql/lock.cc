@@ -330,9 +330,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, size_t count,
   if (!(thd->state_flags & Open_tables_state::SYSTEM_TABLES))
     THD_STAGE_INFO(thd, stage_system_lock);
 
-  ulonglong lock_start_usec = my_micro_time();
-
-  DBUG_PRINT("info", ("thd->proc_info %s", thd->proc_info()));
+  DBUG_PRINT("info", ("thd->proc_info %s", thd->proc_info));
   if (sql_lock->table_count &&
       lock_external(thd, sql_lock->table, sql_lock->table_count)) {
     /* Clear the lock type of all lock data to avoid reusage. */
@@ -370,9 +368,7 @@ end:
   if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
     track_table_access(thd, tables, count);
 
-  ulonglong lock_end_usec = my_micro_time();
-  thd->inc_lock_usec(lock_end_usec - lock_start_usec);
-
+  thd->set_time_after_lock();
   return sql_lock;
 }
 
@@ -785,14 +781,12 @@ bool lock_schema_name(THD *thd, const char *db) {
   @param thd               - Thread invoking this function.
   @param tablespace_set    - Set of tablespace names to be lock.
   @param lock_wait_timeout - Lock timeout.
-  @param mem_root          - Memory root on which MDL_request objects
-                             can be allocated.
 
   @return true - On failure
   @return false - On Success.
 */
 bool lock_tablespace_names(THD *thd, Tablespace_hash_set *tablespace_set,
-                           ulong lock_wait_timeout, MEM_ROOT *mem_root) {
+                           ulong lock_wait_timeout) {
   // Stop if we have nothing to lock
   if (tablespace_set->empty()) return false;
 
@@ -801,7 +795,7 @@ bool lock_tablespace_names(THD *thd, Tablespace_hash_set *tablespace_set,
   for (const std::string &tablespace : *tablespace_set) {
     assert(!tablespace.empty());
 
-    MDL_request *tablespace_request = new (mem_root) MDL_request;
+    MDL_request *tablespace_request = new (thd->mem_root) MDL_request;
     if (tablespace_request == nullptr) return true;
     MDL_REQUEST_INIT(tablespace_request, MDL_key::TABLESPACE, "",
                      tablespace.c_str(), MDL_INTENTION_EXCLUSIVE,

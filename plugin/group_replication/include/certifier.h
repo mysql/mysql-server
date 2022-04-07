@@ -57,7 +57,7 @@ class Gtid_set_ref : public Gtid_set {
         reference_counter(0),
         parallel_applier_sequence_number(parallel_applier_sequence_number) {}
 
-  virtual ~Gtid_set_ref() = default;
+  virtual ~Gtid_set_ref() {}
 
   /**
     Increment the number of references by one.
@@ -173,7 +173,7 @@ class Certifier_broadcast_thread {
 
 class Certifier_interface : public Certifier_stats {
  public:
-  ~Certifier_interface() override = default;
+  ~Certifier_interface() override {}
   virtual void handle_view_change() = 0;
   virtual int handle_certifier_data(
       const uchar *data, ulong len,
@@ -183,13 +183,11 @@ class Certifier_interface : public Certifier_stats {
       std::map<std::string, std::string> *cert_info) = 0;
   virtual int set_certification_info(
       std::map<std::string, std::string> *cert_info) = 0;
-  virtual int stable_set_handle() = 0;
   virtual bool set_group_stable_transactions_set(
       Gtid_set *executed_gtid_set) = 0;
   virtual void enable_conflict_detection() = 0;
   virtual void disable_conflict_detection() = 0;
   virtual bool is_conflict_detection_enable() = 0;
-  virtual ulonglong get_certification_info_size() override = 0;
 };
 
 class Certifier : public Certifier_interface {
@@ -334,12 +332,12 @@ class Certifier : public Certifier_interface {
   void get_last_conflict_free_transaction(std::string *value) override;
 
   /**
-    Generate group GTID for a view change log event.
+    Generate group GNO for a view change log event.
 
-    @retval  >0         view change GTID
-    @retval  otherwise  Error on GTID generation
+    @retval  >0         view change GNO
+    @retval  otherwise  Error on GNO generation
   */
-  Gtid generate_view_change_group_gtid();
+  rpl_gno generate_view_change_group_gno();
 
   /**
     Public method to add the given gno value to the group_gtid_executed set
@@ -369,16 +367,6 @@ class Certifier : public Certifier_interface {
   */
   int add_specified_gtid_to_group_gtid_executed(Gtid_log_event *gle,
                                                 bool local);
-
-  /**
-    Computes intersection between all sets received, so that we
-    have the already applied transactions on all servers.
-
-    @return the operation status
-      @retval 0      OK
-      @retval !=0    Error
-  */
-  int stable_set_handle() override;
 
   /**
     This member function shall add transactions to the stable set
@@ -440,15 +428,6 @@ class Certifier : public Certifier_interface {
     with the group_uuid.
   */
   rpl_sidno group_gtid_sid_map_group_sidno;
-
-  /**
-    The sidno used for view log events as seen by the group sid map
-    */
-  rpl_sidno views_sidno_group_representation;
-  /**
-    The sidno used for view log events as seen by the server sid map
-    */
-  rpl_sidno views_sidno_server_representation;
 
   /**
     Method to initialize the group_gtid_executed gtid set with the server gtid
@@ -515,24 +494,6 @@ class Certifier : public Certifier_interface {
                                            bool local_transaction);
 
   /**
-    This method is used to get the next valid GNO for the given sidno,
-    for the transaction that is being executed. It checks the already
-    used up GNOs and based on that chooses the next possible value.
-    This method will consult group_available_gtid_intervals to
-    assign GTIDs in blocks according to gtid_assignment_block_size
-    when `sidno` is the group sidno.
-
-    @param member_uuid        The UUID of the member from which this
-                              transaction originates. It will be NULL
-                              on View_change_log_event.
-    @param sidno              The sidno that will be used on GTID
-
-    @retval >0                The GNO to be used.
-    @retval -1                Error: GNOs exhausted for group UUID.
-  */
-  rpl_gno get_next_available_gtid(const char *member_uuid, rpl_sidno sidno);
-
-  /**
     This method is used to get the next valid GNO for the
     transaction that is being executed. It checks the already used
     up GNOs and based on that chooses the next possible value.
@@ -555,7 +516,6 @@ class Certifier : public Certifier_interface {
     This method will consult group_gtid_executed to avoid generate
     the same value twice.
 
-    @param sidno              The sidno that will be used to retrieve GNO
     @param start              The first possible value for the GNO
     @param end                The last possible value for the GNO
 
@@ -563,8 +523,8 @@ class Certifier : public Certifier_interface {
     @retval -1                Error: GNOs exhausted for group UUID.
     @retval -2                Error: generated GNO is bigger than end.
   */
-  rpl_gno get_next_available_gtid_candidate(rpl_sidno sidno, rpl_gno start,
-                                            rpl_gno end) const;
+  rpl_gno get_group_next_available_gtid_candidate(rpl_gno start,
+                                                  rpl_gno end) const;
 
   bool inline is_initialized() { return initialized; }
 
@@ -731,6 +691,16 @@ class Certifier : public Certifier_interface {
                               Otherwise 0;
   */
   Gtid_set *get_certified_write_set_snapshot_version(const char *item);
+
+  /**
+    Computes intersection between all sets received, so that we
+    have the already applied transactions on all servers.
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+  */
+  int stable_set_handle();
 
   /**
     Removes the intersection of the received transactions stable

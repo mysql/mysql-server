@@ -38,7 +38,7 @@
 
 class DestMetadataCacheGroup final
     : public RouteDestination,
-      public metadata_cache::ClusterStateListenerInterface,
+      public metadata_cache::ReplicasetStateListenerInterface,
       public metadata_cache::AcceptorUpdateHandlerInterface {
  public:
   enum ServerRole { Primary, Secondary, PrimaryAndSecondary };
@@ -46,6 +46,7 @@ class DestMetadataCacheGroup final
   /** @brief Constructor */
   DestMetadataCacheGroup(
       net::io_context &io_ctx_, const std::string &metadata_cache,
+      const std::string &replicaset,
       const routing::RoutingStrategy routing_strategy,
       const mysqlrouter::URIQuery &query, const Protocol::Type protocol,
       const routing::AccessMode access_mode = routing::AccessMode::kUndefined,
@@ -126,6 +127,9 @@ class DestMetadataCacheGroup final
    */
   const std::string cache_name_;
 
+  /** @brief The HA Group which will be used for looking up managed servers */
+  const std::string ha_replicaset_;
+
   /** @brief Query part of the URI given as destination in the configuration
    *
    * For example, given following Metadata Cache configuration:
@@ -159,7 +163,7 @@ class DestMetadataCacheGroup final
   /** @brief Gets available destinations from Metadata Cache
    *
    * This method gets the destinations using Metadata Cache information. It uses
-   * the `metadata_cache::get_cluster_nodes()` function to get a list of current
+   * the `metadata_cache::lookup_replicaset()` function to get a list of current
    * managed servers. Bool in the returned pair indicates if (in case of the
    * round-robin-with-fallback routing strategy) the returned nodes are the
    * primaries after the fallback (true), regular primaries (false) or
@@ -194,11 +198,9 @@ class DestMetadataCacheGroup final
   void subscribe_for_metadata_cache_changes();
   void subscribe_for_acceptor_handler();
 
-  void notify_instances_changed(
-      const metadata_cache::LookupResult &instances,
-      const metadata_cache::metadata_servers_list_t &metadata_servers,
-      const bool md_servers_reachable,
-      const uint64_t /*view_id*/) noexcept override;
+  void notify_instances_changed(const metadata_cache::LookupResult &instances,
+                                const bool md_servers_reachable,
+                                const unsigned /*view_id*/) noexcept override;
 
   bool update_socket_acceptor_state(
       const metadata_cache::LookupResult &instances) noexcept override;

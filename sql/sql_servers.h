@@ -55,7 +55,7 @@ class FOREIGN_SERVER {
 };
 
 /* cache handlers */
-bool servers_init(THD *thd);
+bool servers_init(bool dont_read_server_table);
 bool servers_reload(THD *thd);
 void servers_free(bool end = false);
 
@@ -150,7 +150,7 @@ class Sql_cmd_common_server : public Sql_cmd {
 
   Sql_cmd_common_server() : table(nullptr) {}
 
-  ~Sql_cmd_common_server() override = default;
+  ~Sql_cmd_common_server() override {}
 
   /**
      Check permissions and open the mysql.servers table.

@@ -55,7 +55,7 @@ while ($i < 3)
     eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$uuida:1$i') * 0;
 
     --connection slave
-    --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE PROCESSLIST_ID = $id AND PROCESSLIST_STATE = 'Waiting for the replica SQL thread to advance position'
+    --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE PROCESSLIST_ID = $id AND PROCESSLIST_STATE = 'Waiting for the slave SQL thread to advance position'
     --source include/wait_condition_or_abort.inc
   }
   if ($i > 0)

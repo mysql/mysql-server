@@ -197,7 +197,8 @@ size_t meb_heap_used();
 
 /** Returns true if recovery is currently running.
 @return recv_recovery_on */
-[[nodiscard]] static inline bool recv_recovery_is_on();
+UNIV_INLINE
+bool recv_recovery_is_on() MY_ATTRIBUTE((warn_unused_result));
 
 /** Returns true if the page is brand new (the next log record is init_file_page
 or no records to apply).
@@ -211,15 +212,15 @@ bool recv_page_is_brand_new(buf_block_t *block);
 @param[in]	flush_lsn	FIL_PAGE_FILE_FLUSH_LSN
                                 of first system tablespace page
 @return error code or DB_SUCCESS */
-[[nodiscard]] dberr_t recv_recovery_from_checkpoint_start(log_t &log,
-                                                          lsn_t flush_lsn);
+dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Complete the recovery from the latest checkpoint.
 @param[in,out]	log		redo log
 @param[in]	aborting	true if the server has to abort due to an error
 @return recovered persistent metadata or nullptr if aborting*/
-[[nodiscard]] MetadataRecover *recv_recovery_from_checkpoint_finish(
-    log_t &log, bool aborting);
+MetadataRecover *recv_recovery_from_checkpoint_finish(log_t &log, bool aborting)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Creates the recovery system. */
 void recv_sys_create();
@@ -316,7 +317,7 @@ enum recv_addr_state {
 
 /** Hashed page file address struct */
 struct recv_addr_t {
-  using List = UT_LIST_BASE_NODE_T(recv_t, rec_list);
+  using List = UT_LIST_BASE_NODE_T(recv_t);
 
   /** recovery state of the page */
   recv_addr_state state;
@@ -343,11 +344,11 @@ merge them and apply them to in-memory table objects finally */
 class MetadataRecover {
   using PersistentTables = std::map<
       table_id_t, PersistentTableMetadata *, std::less<table_id_t>,
-      ut::allocator<std::pair<const table_id_t, PersistentTableMetadata *>>>;
+      ut_allocator<std::pair<const table_id_t, PersistentTableMetadata *>>>;
 
  public:
   /** Default constructor */
-  MetadataRecover() UNIV_NOTHROW = default;
+  MetadataRecover() UNIV_NOTHROW {}
 
   /** Destructor */
   ~MetadataRecover();
@@ -444,7 +445,7 @@ struct recv_sys_t {
     size_t size;
   };
 
-  using Mlog_records = std::vector<Mlog_record, ut::allocator<Mlog_record>>;
+  using Mlog_records = std::vector<Mlog_record, ut_allocator<Mlog_record>>;
 
   /** While scanning logs for multi-record mini transaction (mtr), we have two
   passes. In first pass, we check if all the logs of the mtr is present in
@@ -562,6 +563,9 @@ struct recv_sys_t {
 
   /** Possible incomplete last recovered log block */
   byte *last_block;
+
+  /** The nonaligned start address of the preceding buffer */
+  byte *last_block_buf_start;
 
   /** Buffer for parsing log records */
   byte *buf;

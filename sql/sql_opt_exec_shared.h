@@ -37,6 +37,7 @@ class JOIN;
 class Item_func_match;
 class store_key;
 struct POSITION;
+class QUICK_SELECT_I;
 
 /**
    This represents the index of a JOIN_TAB/QEP_TAB in an array. "plan_idx":
@@ -50,7 +51,7 @@ struct POSITION;
    before-first-table" (firstmatch_return==PRE_FIRST_PLAN_IDX) from "No
    FirstMatch" (firstmatch_return==NO_PLAN_IDX).
 */
-using plan_idx = int;
+typedef int8 plan_idx;
 #define NO_PLAN_IDX (-2)  ///< undefined index
 #define PRE_FIRST_PLAN_IDX \
   (-1)  ///< right before the first (first's index is 0)
@@ -141,7 +142,8 @@ struct TABLE_REF {
   bool impossible_null_ref() const {
     if (null_rejecting == 0) return false;
     for (uint i = 0; i < key_parts; i++) {
-      if ((null_rejecting & 1 << i) && items[i]->is_null()) {
+      if ((null_rejecting & 1 << i) && items[i]->is_nullable() &&
+          items[i]->is_null()) {
         return true;
       }
     }
@@ -243,6 +245,7 @@ class QEP_shared {
         m_condition(nullptr),
         m_keys(),
         m_records(0),
+        m_quick(nullptr),
         prefix_tables_map(0),
         added_tables_map(0),
         m_ft_func(nullptr),
@@ -296,8 +299,8 @@ class QEP_shared {
   Key_map &keys() { return m_keys; }
   ha_rows records() const { return m_records; }
   void set_records(ha_rows r) { m_records = r; }
-  AccessPath *range_scan() const { return m_range_scan; }
-  void set_range_scan(AccessPath *q) { m_range_scan = q; }
+  QUICK_SELECT_I *quick() const { return m_quick; }
+  void set_quick(QUICK_SELECT_I *q) { m_quick = q; }
   table_map prefix_tables() const { return prefix_tables_map; }
   table_map added_tables() const { return added_tables_map; }
   Item_func_match *ft_func() const { return m_ft_func; }
@@ -434,10 +437,9 @@ class QEP_shared {
 
   /**
      Non-NULL if quick-select used.
-     Filled in optimization, converted to a RowIterator before execution
-     (used to find rows), and in EXPLAIN.
+     Filled in optimization, used in execution to find rows, and in EXPLAIN.
   */
-  AccessPath *m_range_scan = nullptr;
+  QUICK_SELECT_I *m_quick;
 
   /*
     Maps below are shared because of dynamic range: in execution, it needs to
@@ -487,10 +489,7 @@ class QEP_shared_owner {
   // (before optimization).
   plan_idx idx() const { return m_qs->idx(); }
   void set_idx(plan_idx i) { return m_qs->set_idx(i); }
-  qep_tab_map idx_map() const {
-    assert(m_qs->idx() < static_cast<plan_idx>(CHAR_BIT * sizeof(qep_tab_map)));
-    return qep_tab_map{1} << m_qs->idx();
-  }
+  qep_tab_map idx_map() const { return qep_tab_map{1} << m_qs->idx(); }
 
   TABLE *table() const { return m_qs->table(); }
   POSITION *position() const { return m_qs->position(); }
@@ -525,8 +524,8 @@ class QEP_shared_owner {
   Key_map &keys() const { return m_qs->keys(); }
   ha_rows records() const { return m_qs->records(); }
   void set_records(ha_rows r) { return m_qs->set_records(r); }
-  AccessPath *range_scan() const { return m_qs->range_scan(); }
-  void set_range_scan(AccessPath *q) { return m_qs->set_range_scan(q); }
+  QUICK_SELECT_I *quick() const { return m_qs->quick(); }
+  void set_quick(QUICK_SELECT_I *q) { return m_qs->set_quick(q); }
   table_map prefix_tables() const { return m_qs->prefix_tables(); }
   table_map added_tables() const { return m_qs->added_tables(); }
   Item_func_match *ft_func() const { return m_qs->ft_func(); }

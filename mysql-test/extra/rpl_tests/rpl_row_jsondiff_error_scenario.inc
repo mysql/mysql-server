@@ -1,7 +1,7 @@
 # ==== Purpose ====
 #
 # Check that slave handles an applier error according to
-# replica_exec_mode, slave_skip_error, or none of them.
+# slave_exec_mode, slave_skip_error, or none of them.
 #
 # ==== Usage ====
 #
@@ -24,7 +24,7 @@
 #
 # Invariants:
 # - Replication threads should be running, and will be left running.
-# - replica_exec_mode or slave_skip_error should be set according to $error_mode.
+# - slave_exec_mode or slave_skip_error should be set according to $error_mode.
 #
 # Parameters:
 #
@@ -161,6 +161,7 @@ if (!$skip_case)
     --let $debug_point= $master_debug_symbol
     --let $debug_type= SESSION
     --source include/add_debug_point.inc
+    SELECT @@SESSION.DEBUG;
   }
   if ($use_mysqlbinlog) {
     --source include/save_binlog_position.inc
@@ -250,7 +251,7 @@ if (!$skip_case)
   --source include/rpl_connection_slave.inc
   --replace_result $MASTER_MYPORT MASTER_PORT
   --disable_warnings
-  eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=$MASTER_MYPORT,SOURCE_HOST='127.0.0.1';
+  eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=$MASTER_MYPORT,SOURCE_HOST='localhost';
   --enable_warnings
   --source include/start_slave.inc
 

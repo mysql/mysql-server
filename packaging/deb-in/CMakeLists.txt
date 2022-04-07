@@ -98,7 +98,6 @@ usr/lib/mysql/plugin/audit_log.so
 usr/lib/mysql/plugin/authentication_pam.so
 usr/lib/mysql/plugin/authentication_ldap_sasl.so
 usr/lib/mysql/plugin/authentication_ldap_simple.so
-usr/lib/mysql/plugin/authentication_kerberos.so
 usr/lib/mysql/plugin/data_masking.so
 usr/lib/mysql/plugin/keyring_okv.so
 usr/lib/mysql/plugin/keyring_encrypted_file.so
@@ -107,14 +106,8 @@ usr/lib/mysql/plugin/keyring_oci.so
 usr/lib/mysql/plugin/openssl_udf.so
 usr/lib/mysql/plugin/thread_pool.so
 usr/lib/mysql/plugin/firewall.so
-usr/lib/mysql/plugin/authentication_fido.so
-usr/lib/mysql/plugin/component_keyring_encrypted_file.so
-")
-
-   SET (DEB_INSTALL_TEST_PLUGINS
-"
-usr/lib/mysql/plugin/component_test_global_priv_registration.so
 usr/lib/mysql/plugin/component_test_page_track_component.so
+usr/lib/mysql/plugin/component_keyring_encrypted_file.so
 ")
 
   IF (DEB_AWS_SDK)
@@ -241,11 +234,7 @@ ENDIF()
 
 # Enable various apparmor systems for Ubuntu
 IF(DEB_ID STREQUAL "ubuntu")
-  IF(DEB_CODENAME STREQUAL "bionic")
-    SET (DEB_CONTROL_BDEPS ", dh-apparmor, gcc-8, g++-8")
-  ELSE()
-    SET (DEB_CONTROL_BDEPS ", dh-apparmor")
-  ENDIF()
+  SET (DEB_CONTROL_BDEPS ", dh-apparmor")
   SET (DEB_RULES_INSTALL_APPARMOR "install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
   SET (DEB_RULES_APPARMOR_LOAD "dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld")
   SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")

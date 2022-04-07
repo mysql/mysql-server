@@ -52,7 +52,7 @@ class Function_impl : public Routine_impl, public Function {
  public:
   Function_impl();
 
-  ~Function_impl() override = default;
+  ~Function_impl() override {}
 
   bool update_routine_name_key(Name_key *key, Object_id schema_id,
                                const String_type &name) const override;
@@ -340,16 +340,6 @@ class Function_impl : public Routine_impl, public Function {
 
   Function_impl(const Function_impl &src);
   Function_impl *clone() const override { return new Function_impl(*this); }
-
-  // N.B.: returning dd::Function from this function confuses MSVC compiler
-  // thanks to diamond inheritance.
-  Function_impl *clone_dropped_object_placeholder() const override {
-    Function_impl *placeholder = new Function_impl();
-    placeholder->set_id(id());
-    placeholder->set_schema_id(schema_id());
-    placeholder->set_name(name());
-    return placeholder;
-  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

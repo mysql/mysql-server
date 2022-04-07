@@ -180,9 +180,9 @@ INSERT INTO t_03_03_temp VALUES(1);
 **** zero. If not,the test will time out.
 
 include/sync_slave_sql_with_master.inc
-show status like 'Replica_open_temp_tables';
+show status like 'Slave_open_temp_tables';
 Variable_name	Value
-Replica_open_temp_tables	10
+Slave_open_temp_tables	10
 flush logs;
 
 **** Wait until number of open temporary tables at slave becomes zero

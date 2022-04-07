@@ -114,8 +114,8 @@ bool Ndb_DDL_transaction_ctx::rollback_rename_table(
   Thd_ndb *thd_ndb = get_thd_ndb(m_thd);
   Ndb *ndb = thd_ndb->ndb;
   Ndb_table_guard ndbtab_g(ndb, new_db_name, new_table_name);
-  const NdbDictionary::Table *renamed_table = ndbtab_g.get_table();
-  if (renamed_table == nullptr) {
+  const NdbDictionary::Table *renamed_table;
+  if (!(renamed_table = ndbtab_g.get_table())) {
     thd_ndb->push_ndb_error_warning(ndbtab_g.getNdbError());
     thd_ndb->push_warning("Failed to rename table during rollback.");
     return false;
@@ -272,8 +272,8 @@ bool Ndb_DDL_transaction_ctx::post_ddl_hook_rename_table(
 
   /* Load the table from NDB */
   Ndb_table_guard ndbtab_g(ndb, db_name, table_name);
-  const NdbDictionary::Table *ndb_table = ndbtab_g.get_table();
-  if (ndb_table == nullptr) {
+  const NdbDictionary::Table *ndb_table;
+  if (!(ndb_table = ndbtab_g.get_table())) {
     thd_ndb->push_ndb_error_warning(ndbtab_g.getNdbError());
     thd_ndb->push_warning("Unable to load table during rollback");
     return false;

@@ -26,7 +26,6 @@
 
 #include <stdlib.h>
 #include <functional>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -111,7 +110,7 @@ void Mysql_crawler::enumerate_objects() {
        it != databases.end(); ++it) {
     std::string db_name = (**it)[0];
 
-    std::optional<std::string> stmt = this->get_create_statement(
+    Mysql::Nullable<std::string> stmt = this->get_create_statement(
         runner, "", db_name, "DATABASE IF NOT EXISTS");
     if (!stmt.has_value()) continue;  // some error ocurred
 
@@ -273,7 +272,7 @@ void Mysql_crawler::enumerate_tables(const Database &db) {
                       ? 0
                       : atoll(table_data[4].c_str());  // "Rows"
     bool isInnoDB = table_data[1] == "InnoDB";         // "Engine"
-    std::optional<std::string> stmt =
+    Mysql::Nullable<std::string> stmt =
         this->get_create_statement(runner, db.get_name(), table_name, "TABLE");
     if (!stmt.has_value()) continue;  // some error ocurred
     Table *table = new Table(this->generate_new_object_id(), table_name,
@@ -348,7 +347,7 @@ void Mysql_crawler::enumerate_views(const Database &db) {
           return;
         } else
           runner->run_query(std::string("UNLOCK TABLES"));
-        std::optional<std::string> stmt = this->get_create_statement(
+        Mysql::Nullable<std::string> stmt = this->get_create_statement(
             runner, db.get_name(), table_name, "TABLE");
 
         if (!stmt.has_value()) {
@@ -388,7 +387,7 @@ void Mysql_crawler::enumerate_functions(const Database &db, std::string type) {
        it != functions.end(); ++it) {
     const Mysql::Tools::Base::Mysql_query_runner::Row &function_row = **it;
 
-    std::optional<std::string> stmt = this->get_create_statement(
+    Mysql::Nullable<std::string> stmt = this->get_create_statement(
         runner, db.get_name(), function_row[1], type, 2);
     if (!stmt.has_value())  // some error ocurred
       break;
@@ -428,7 +427,7 @@ void Mysql_crawler::enumerate_event_scheduler_events(const Database &db) {
        it != events.end(); ++it) {
     const Mysql::Tools::Base::Mysql_query_runner::Row &event_row = **it;
 
-    std::optional<std::string> stmt = this->get_create_statement(
+    Mysql::Nullable<std::string> stmt = this->get_create_statement(
         runner, db.get_name(), event_row[1], "EVENT", 3);
 
     if (!stmt.has_value())  // some error ocurred
@@ -521,7 +520,7 @@ void Mysql_crawler::enumerate_table_triggers(const Table &table,
            triggers.begin();
        it != triggers.end(); ++it) {
     const Mysql::Tools::Base::Mysql_query_runner::Row &trigger_row = **it;
-    std::optional<std::string> stmt = this->get_create_statement(
+    Mysql::Nullable<std::string> stmt = this->get_create_statement(
         runner, table.get_schema(), trigger_row[0], "TRIGGER", 2);
     if (!stmt.has_value())  // some error occured
       break;

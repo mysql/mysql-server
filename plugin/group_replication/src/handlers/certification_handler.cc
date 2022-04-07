@@ -52,7 +52,6 @@ Certification_handler::~Certification_handler() {
     delete (*stored_view_info_it)->view_change_pevent;
     delete *stored_view_info_it;
   }
-  pending_view_change_events_waiting_for_consistent_transactions.clear();
 }
 
 int Certification_handler::initialize() {
@@ -494,17 +493,6 @@ int Certification_handler::extract_certification_info(Pipeline_event *pevent,
     next(pevent, cont);
     return error;
   }
-  if (pevent->is_delayed_view_change_waiting_for_consistent_transactions()) {
-    std::string local_gtid_certified_string{};
-    cert_module->get_local_certified_gtid(local_gtid_certified_string);
-    pending_view_change_events_waiting_for_consistent_transactions.push_back(
-        std::make_unique<View_change_stored_info>(
-            pevent, local_gtid_certified_string,
-            cert_module->generate_view_change_group_gtid()));
-    cont->set_transation_discarded(true);
-    cont->signal(0, cont->is_transaction_discarded());
-    return error;
-  }
 
   /*
     If the current view event is a standalone event (not inside a
@@ -524,10 +512,10 @@ int Certification_handler::extract_certification_info(Pipeline_event *pevent,
   }
 
   std::string local_gtid_certified_string;
-  Gtid vlce_gtid = {-1, -1};
+  rpl_gno view_change_event_gno = -1;
   if (!error) {
     error = log_view_change_event_in_order(pevent, local_gtid_certified_string,
-                                           &vlce_gtid, cont);
+                                           &view_change_event_gno, cont);
   }
 
   /*
@@ -537,7 +525,7 @@ int Certification_handler::extract_certification_info(Pipeline_event *pevent,
   if (error) {
     if (LOCAL_WAIT_TIMEOUT_ERROR == error) {
       error = store_view_event_for_delayed_logging(
-          pevent, local_gtid_certified_string, vlce_gtid, cont);
+          pevent, local_gtid_certified_string, view_change_event_gno, cont);
       LogPluginErr(WARNING_LEVEL, ER_GRP_DELAYED_VCLE_LOGGING);
       if (error)
         cont->signal(1, false);
@@ -561,7 +549,7 @@ int Certification_handler::log_delayed_view_change_events(Continuation *cont) {
     error = log_view_change_event_in_order(
         stored_view_info->view_change_pevent,
         stored_view_info->local_gtid_certified,
-        &(stored_view_info->view_change_gtid), cont);
+        &(stored_view_info->view_change_event_gno), cont);
     // if we timeout keep the event
     if (LOCAL_WAIT_TIMEOUT_ERROR != error) {
       delete stored_view_info->view_change_pevent;
@@ -573,8 +561,8 @@ int Certification_handler::log_delayed_view_change_events(Continuation *cont) {
 }
 
 int Certification_handler::store_view_event_for_delayed_logging(
-    Pipeline_event *pevent, std::string &local_gtid_certified_string, Gtid gtid,
-    Continuation *cont) {
+    Pipeline_event *pevent, std::string &local_gtid_certified_string,
+    rpl_gno event_gno, Continuation *cont) {
   DBUG_TRACE;
 
   int error = 0;
@@ -594,8 +582,8 @@ int Certification_handler::store_view_event_for_delayed_logging(
   // -1 means there was a second timeout on a VCLE that we already delayed
   if (view_change_event_id != "-1") {
     m_view_change_event_on_wait = true;
-    View_change_stored_info *vcle_info =
-        new View_change_stored_info(pevent, local_gtid_certified_string, gtid);
+    View_change_stored_info *vcle_info = new View_change_stored_info(
+        pevent, local_gtid_certified_string, event_gno);
     pending_view_change_events.push_back(vcle_info);
     // Use the discard flag to let the applier know this was delayed
     cont->set_transation_discarded(true);
@@ -650,7 +638,7 @@ int Certification_handler::wait_for_local_transaction_execution(
 }
 
 int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
-                                                       Gtid *gtid,
+                                                       rpl_gno *event_gno,
                                                        Continuation *cont) {
   DBUG_TRACE;
   Log_event *event = nullptr;
@@ -674,23 +662,28 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
 
   // GTID event
 
-  if (gtid->gno == -1) {
-    *gtid = cert_module->generate_view_change_group_gtid();
+  if (*event_gno == -1) {
+    *event_gno = cert_module->generate_view_change_group_gno();
   }
-  if (gtid->gno <= 0) {
+  Gtid gtid = {group_sidno, *event_gno};
+  if (gtid.gno <= 0) {
     cont->signal(1, true);
     return 1;
   }
-  Gtid_specification gtid_specification = {ASSIGNED_GTID, *gtid};
+  Gtid_specification gtid_specification = {ASSIGNED_GTID, gtid};
   /**
-   The original_commit_timestamp for this GTID will be different for each
-   member that generated this View_change_event.
+   The original_commit_timestamp of this Gtid_log_event will be zero
+   because the transaction corresponds to a View_change_event, which is
+   generated and committed locally by all members. Consequently, there is no
+   'original master'. So, instead of each member generating a GTID with
+   its own unique original_commit_timestamp (and violating the property that
+   the original_commit_timestamp is the same for a given GTID), this timestamp
+   will not be defined.
   */
   uint32_t server_version = do_server_version_int(::server_version);
-  auto time_stamp_now = my_micro_time();
-  Gtid_log_event *gtid_log_event = new Gtid_log_event(
-      event->server_id, true, 0, 0, true, time_stamp_now, time_stamp_now,
-      gtid_specification, server_version, server_version);
+  Gtid_log_event *gtid_log_event =
+      new Gtid_log_event(event->server_id, true, 0, 0, true, 0, 0,
+                         gtid_specification, server_version, server_version);
 
   Pipeline_event *gtid_pipeline_event =
       new Pipeline_event(gtid_log_event, fd_event);
@@ -743,30 +736,12 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
 }
 
 int Certification_handler::log_view_change_event_in_order(
-    Pipeline_event *view_pevent, std::string &local_gtid_string, Gtid *gtid,
-    Continuation *cont) {
+    Pipeline_event *view_pevent, std::string &local_gtid_string,
+    rpl_gno *event_gno, Continuation *cont) {
   DBUG_TRACE;
 
   int error = 0;
-  /*
-    Certification info needs to be added into the `vchange_event` when this view
-    if first handled (no GITD) or when it is being resumed after waiting from
-    consistent transactions.
-  */
-  const bool first_log_attempt =
-      (-1 == gtid->gno || view_pevent->is_delayed_view_change_resumed());
-
-  /*
-    If this view was delayed to wait for consistent transactions to finish, we
-    need to recover its previously computed GTID information.
-  */
-  if (view_pevent->is_delayed_view_change_resumed()) {
-    auto &stored_view_info =
-        pending_view_change_events_waiting_for_consistent_transactions.front();
-    local_gtid_string.assign(stored_view_info->local_gtid_certified);
-    *gtid = stored_view_info->view_change_gtid;
-    pending_view_change_events_waiting_for_consistent_transactions.pop_front();
-  }
+  bool first_log_attempt = (*event_gno == -1);
 
   Log_event *event = nullptr;
   error = view_pevent->get_LogEvent(&event);
@@ -796,7 +771,7 @@ int Certification_handler::log_view_change_event_in_order(
        To avoid this, we  now instead encode an error that will make the joiner
        leave the group.
     */
-    if (event_size > get_replica_max_allowed_packet()) {
+    if (event_size > get_slave_max_allowed_packet()) {
       cert_info.clear();
       cert_info[Certifier::CERTIFICATION_INFO_ERROR_NAME] =
           "Certification information is too large for transmission.";
@@ -815,10 +790,10 @@ int Certification_handler::log_view_change_event_in_order(
      VCLE
      COMMIT
     */
-    error = inject_transactional_events(view_pevent, gtid, cont);
+    error = inject_transactional_events(view_pevent, event_gno, cont);
   } else if (LOCAL_WAIT_TIMEOUT_ERROR == error && first_log_attempt) {
     // Even if we can't log it, register the position
-    *gtid = cert_module->generate_view_change_group_gtid();
+    *event_gno = cert_module->generate_view_change_group_gno();
   }
 
   return error;

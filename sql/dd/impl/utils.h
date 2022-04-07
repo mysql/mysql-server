@@ -24,7 +24,7 @@
 #define DD__UTILS_INCLUDED
 
 #include "sql/dd/string_type.h"  // dd::String_type
-#include "sql/tztime.h"          // my_tz_OFFSET0
+#include "sql/tztime.h"          // my_time_t
 
 struct CHARSET_INFO;
 

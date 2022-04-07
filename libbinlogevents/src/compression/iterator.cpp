@@ -94,7 +94,7 @@ Iterable_buffer::iterator::iterator(Iterable_buffer &parent)
 Iterable_buffer::iterator::iterator(const iterator &rhs) { (*this) = rhs; }
 Iterable_buffer::iterator::iterator(iterator &&rhs) { (*this) = rhs; }
 
-Iterable_buffer::iterator::~iterator() = default;
+Iterable_buffer::iterator::~iterator() {}
 
 Iterable_buffer::iterator &Iterable_buffer::iterator::operator=(
     const Iterable_buffer::iterator &rhs) {
@@ -124,7 +124,7 @@ Iterable_buffer::iterator &Iterable_buffer::iterator::operator++() {
   if (has_next_buffer()) {
     auto ptr = m_reader->ptr();
     m_reader->forward(EVENT_LEN_OFFSET);
-    uint32_t event_len = m_reader->read<uint32_t>();
+    uint32_t event_len = m_reader->read_and_letoh<uint32_t>();
     m_reader->go_to((ptr - m_reader->buffer()) + event_len);
   }
 

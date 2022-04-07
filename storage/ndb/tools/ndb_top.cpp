@@ -390,7 +390,7 @@ static void usage(void)
 
 static bool
 get_one_option(int optid,
-               const struct my_option *opt [[maybe_unused]],
+               const struct my_option *opt MY_ATTRIBUTE((unused)),
                char *argument)
 {
   switch (optid) {
@@ -448,7 +448,7 @@ get_one_option(int optid,
     break;
   }
   }
-  return false;
+  return FALSE;
 }
 
 #define SORT_ORDER_ENTRIES 128

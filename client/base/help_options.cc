@@ -55,12 +55,12 @@ void Help_options::create_options() {
           std::bind(&Help_options::version_callback, this, _1)));
 }
 
-void Help_options::help_callback(char *argument [[maybe_unused]]) {
+void Help_options::help_callback(char *argument MY_ATTRIBUTE((unused))) {
   this->print_usage();
   exit(0);
 }
 
-void Help_options::version_callback(char *argument [[maybe_unused]]) {
+void Help_options::version_callback(char *argument MY_ATTRIBUTE((unused))) {
   this->print_version_line();
   exit(0);
 }

@@ -929,8 +929,6 @@ uf	7566
 æ	C3A6
 Œ	C592
 œ	C593
-Warnings:
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(s1 order by binary s1) from t1 group by s1;
 group_concat(s1 order by binary s1)
 a,ä
@@ -950,8 +948,6 @@ ue
 uf
 Æ,æ
 Œ,œ
-Warnings:
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT s1, hex(s1), hex(weight_string(s1)) FROM t1 ORDER BY s1, BINARY(s1);
 s1	hex(s1)	hex(weight_string(s1))
 a	61	0041
@@ -977,13 +973,9 @@ uf	7566	00550046
 æ	C3A6	00C6
 Œ	C592	0152
 œ	C593	0152
-Warnings:
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT s1, hex(s1) FROM t1 WHERE s1='ae' ORDER BY s1, BINARY(s1);
 s1	hex(s1)
 ae	6165
-Warnings:
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 drop table t1;
 "END ctype_german.inc"
 SET collation_connection='utf8mb4_bin';
@@ -2106,8 +2098,6 @@ u_decimal	hex(utf8mb4_encoding)
 120735	F09D9E9F
 65131	EFB9ABF09D849EF09D859EF09D859EF09D8480F09D859FEFB9ABEFB9ABF09D85A0EFB9AB
 917999	F3A087AF
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
-Warnings:
 INSERT IGNORE INTO t1 VALUES (1114111, x'f5808080');
 Warnings:
 Warning	1366	Incorrect string value: '\xF5\x80\x80\x80' for column 'utf8mb4_encoding' at row 1

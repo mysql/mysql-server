@@ -39,6 +39,7 @@
 #include <WatchDog.hpp>
 
 #include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 #include <signaldata/StartOrd.hpp>
 
@@ -150,7 +151,7 @@ void ThreadConfig::ipControlLoop(NdbThread* pThis)
   Uint32 timeOutMillis;
   Uint32 micros_passed;
   bool spinning;
-  bool yield_flag= false;
+  bool yield_flag= FALSE;
   Uint32 i = 0;
   Uint32 exec_again;
 
@@ -247,9 +248,9 @@ void ThreadConfig::ipControlLoop(NdbThread* pThis)
         NDB_TICKS before = NdbTick_getCurrentTicks();
         if (yield_flag)
         {
-          globalEmulatorData.theConfiguration->yield_main(thread_index, true);
+          globalEmulatorData.theConfiguration->yield_main(thread_index, TRUE);
           poll_flag= globalTransporterRegistry.pollReceive(timeOutMillis);
-          globalEmulatorData.theConfiguration->yield_main(thread_index, false);
+          globalEmulatorData.theConfiguration->yield_main(thread_index, FALSE);
         }
         else
           poll_flag= globalTransporterRegistry.pollReceive(timeOutMillis);
@@ -263,7 +264,7 @@ void ThreadConfig::ipControlLoop(NdbThread* pThis)
           globalData.incrementWatchDogCounter(8);
           globalTransporterRegistry.performReceive();
         }
-        yield_flag= false;
+        yield_flag= FALSE;
         globalScheduler.setHighResTimer(yield_ticks);
         globalScheduler.postPoll();
         if (min_spin_time > 0 && spinning &&
@@ -294,7 +295,7 @@ void ThreadConfig::ipControlLoop(NdbThread* pThis)
     start_ticks = NdbTick_getCurrentTicks();
     globalScheduler.setHighResTimer(start_ticks);
     if ((NdbTick_Elapsed(yield_ticks, start_ticks).microSec() > 10000))
-      yield_flag= true;
+      yield_flag= TRUE;
     exec_again= 0;
     Uint32 loopStartCount = 0;
     do

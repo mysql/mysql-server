@@ -34,7 +34,7 @@ class Sql_service_context : public Sql_service_context_base {
     if (rset != nullptr) resultset->clear();
   }
 
-  ~Sql_service_context() override = default;
+  ~Sql_service_context() override {}
 
   /** Getting metadata **/
   /**

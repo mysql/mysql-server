@@ -37,7 +37,7 @@ namespace gcs_member_info_unittest {
 
 class ClusterMemberInfoTest : public ::testing::Test {
  protected:
-  ClusterMemberInfoTest() = default;
+  ClusterMemberInfoTest() {}
 
   void SetUp() override {
     string hostname("pc_hostname");
@@ -55,8 +55,6 @@ class ClusterMemberInfoTest : public ::testing::Test {
     bool has_enforces_update_everywhere_checks = false;
     uint member_weight = 70;
     std::string member_recovery_endpoints = "DEFAULT";
-    std::string member_view_change_uuid = "AUTOMATIC";
-    bool allow_single_leader = true;
 
     gcs_member_id = new Gcs_member_identifier("stuff");
 
@@ -70,8 +68,7 @@ class ClusterMemberInfoTest : public ::testing::Test {
         gtid_assignment_block_size, Group_member_info::MEMBER_ROLE_PRIMARY,
         in_primary_mode, has_enforces_update_everywhere_checks, member_weight,
         lower_case_table_names, default_table_encryption,
-        member_recovery_endpoints.c_str(), member_view_change_uuid.c_str(),
-        allow_single_leader, PSI_NOT_INSTRUMENTED);
+        member_recovery_endpoints.c_str(), PSI_NOT_INSTRUMENTED);
     local_node->update_gtid_sets(executed_gtid, purged_gtid, retrieved_gtid);
   }
 
@@ -113,16 +110,13 @@ TEST_F(ClusterMemberInfoTest, EncodeDecodeIdempotencyTest) {
   ASSERT_EQ(local_node->get_role(), decoded_local_node.get_role());
   ASSERT_EQ(local_node->get_member_weight(),
             decoded_local_node.get_member_weight());
-  ASSERT_EQ(local_node->get_view_change_uuid(),
-            decoded_local_node.get_view_change_uuid());
-  ASSERT_EQ(local_node->get_allow_single_leader(),
-            decoded_local_node.get_allow_single_leader());
+
   delete encoded;
 }
 
 class ClusterMemberInfoManagerTest : public ::testing::Test {
  protected:
-  ClusterMemberInfoManagerTest() = default;
+  ClusterMemberInfoManagerTest() {}
 
   void SetUp() override {
     string hostname("pc_hostname");
@@ -138,9 +132,6 @@ class ClusterMemberInfoManagerTest : public ::testing::Test {
     bool has_enforces_update_everywhere_checks = false;
     uint member_weight = 80;
     std::string member_recovery_endpoints = "DEFAULT";
-    std::string member_view_change_uuid =
-        "8896eb66-8684-11eb-8dcd-0242ac130003";
-    bool allow_single_leader = false;
 
     Group_member_info::Group_member_status status =
         Group_member_info::MEMBER_OFFLINE;
@@ -152,8 +143,7 @@ class ClusterMemberInfoManagerTest : public ::testing::Test {
         gtid_assignment_block_size, Group_member_info::MEMBER_ROLE_SECONDARY,
         in_primary_mode, has_enforces_update_everywhere_checks, member_weight,
         lower_case_table_names, default_table_encryption,
-        member_recovery_endpoints.c_str(), member_view_change_uuid.c_str(),
-        allow_single_leader, PSI_NOT_INSTRUMENTED);
+        member_recovery_endpoints.c_str(), PSI_NOT_INSTRUMENTED);
 
     cluster_member_mgr =
         new Group_member_info_manager(local_node, PSI_NOT_INSTRUMENTED);
@@ -188,8 +178,6 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDTest) {
   bool has_enforces_update_everywhere_checks = false;
   uint member_weight = 90;
   std::string member_recovery_endpoints = "DEFAULT";
-  std::string member_view_change_uuid = "99f957fc-75c5-445d-98ae-7ea02e55c5be";
-  bool allow_single_leader = true;
 
   Group_member_info::Group_member_status status =
       Group_member_info::MEMBER_OFFLINE;
@@ -201,8 +189,7 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDTest) {
       gtid_assignment_block_size, Group_member_info::MEMBER_ROLE_PRIMARY,
       in_primary_mode, has_enforces_update_everywhere_checks, member_weight,
       lower_case_table_names, default_table_encryption,
-      member_recovery_endpoints.c_str(), member_view_change_uuid.c_str(),
-      allow_single_leader, PSI_NOT_INSTRUMENTED);
+      member_recovery_endpoints.c_str(), PSI_NOT_INSTRUMENTED);
   new_member->update_gtid_sets(executed_gtid, purged_gtid, retrieved_gtid);
 
   cluster_member_mgr->add(new_member);
@@ -279,10 +266,6 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDAfterEncodingTest) {
   ASSERT_EQ(local_node->get_role(), retrieved_local_info->get_role());
   ASSERT_EQ(local_node->get_member_weight(),
             retrieved_local_info->get_member_weight());
-  ASSERT_EQ(local_node->get_view_change_uuid(),
-            retrieved_local_info->get_view_change_uuid());
-  ASSERT_EQ(local_node->get_allow_single_leader(),
-            retrieved_local_info->get_allow_single_leader());
 
   delete retrieved_local_info;
 }
@@ -348,8 +331,6 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets) {
   bool has_enforces_update_everywhere_checks = false;
   uint member_weight = 40;
   std::string member_recovery_endpoints = "DEFAULT";
-  std::string member_view_change_uuid = "ba1c4c32-1887-4ccf-bc5a-8f6165d19ea3";
-  bool allow_single_leader = true;
 
   Group_member_info::Group_member_status status =
       Group_member_info::MEMBER_OFFLINE;
@@ -361,8 +342,7 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets) {
       gtid_assignment_block_size, Group_member_info::MEMBER_ROLE_PRIMARY,
       in_primary_mode, has_enforces_update_everywhere_checks, member_weight,
       lower_case_table_names, default_table_encryption,
-      member_recovery_endpoints.c_str(), member_view_change_uuid.c_str(),
-      allow_single_leader, PSI_NOT_INSTRUMENTED);
+      member_recovery_endpoints.c_str(), PSI_NOT_INSTRUMENTED);
   new_member->update_gtid_sets(executed_gtid, purged_gtid, retrieved_gtid);
 
   cluster_member_mgr->add(new_member);
@@ -429,10 +409,6 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets) {
             retrieved_local_info->get_lower_case_table_names());
   ASSERT_EQ(local_node->get_default_table_encryption(),
             retrieved_local_info->get_default_table_encryption());
-  ASSERT_EQ(local_node->get_view_change_uuid(),
-            retrieved_local_info->get_view_change_uuid());
-  ASSERT_EQ(local_node->get_allow_single_leader(),
-            retrieved_local_info->get_allow_single_leader());
 
   delete retrieved_local_info;
 }

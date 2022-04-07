@@ -102,15 +102,15 @@ inline bool operator==(const Schema &a, const Schema &b) {
  */
 class State {
  public:
-  constexpr State(int8_t state) : state_{std::move(state)} {}
+  State(std::string state) : state_{std::move(state)} {}
 
-  constexpr int8_t state() const noexcept { return state_; }
+  std::string state() const noexcept { return state_; }
 
  private:
-  int8_t state_;
+  std::string state_;
 };
 
-constexpr inline bool operator==(const State &a, const State &b) {
+inline bool operator==(const State &a, const State &b) {
   return (a.state() == b.state());
 }
 
@@ -221,19 +221,18 @@ inline bool operator==(const TransactionState &a, const TransactionState &b) {
  */
 class TransactionCharacteristics {
  public:
-  TransactionCharacteristics(std::string trx_state)
-      : trx_state_{std::move(trx_state)} {}
+  TransactionCharacteristics(std::string statements)
+      : statements_{std::move(statements)} {}
 
-  // encoded VarString of TransactionState
-  std::string trx_state() const { return trx_state_; }
+  std::string statements() const { return statements_; }
 
  private:
-  std::string trx_state_;
+  std::string statements_;
 };
 
 inline bool operator==(const TransactionCharacteristics &a,
                        const TransactionCharacteristics &b) {
-  return (a.trx_state() == b.trx_state());
+  return (a.statements() == b.statements());
 }
 
 }  // namespace session_track

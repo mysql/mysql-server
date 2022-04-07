@@ -32,7 +32,7 @@
 
 struct DihRestartReq
 {
-  static constexpr Uint32 SignalLength = 1;
+  STATIC_CONST( SignalLength = 1 );
   Uint32 senderRef;
 
   /**
@@ -41,22 +41,22 @@ struct DihRestartReq
    *
    * Below only for direct signal.
    */
-  static constexpr Uint32 CheckLength = 1 + NdbNodeBitmask::Size + MAX_NDB_NODES;
+  STATIC_CONST( CheckLength = 1 + NdbNodeBitmask::Size + MAX_NDB_NODES);
   Uint32 nodemask[NdbNodeBitmask::Size];
   Uint32 node_gcis[MAX_NDB_NODES];
 };
 
 struct DihRestartRef
 {
-  static constexpr Uint32 SignalLength = 1; // Dummy length, only data in section
+  STATIC_CONST( SignalLength = 1); // Dummy length, only data in section
   NdbNodeBitmask no_nodegroup_mask; // Not part of signal but first section
 };
 
 // Local signal
 struct DihRestartConf
 {
-  static constexpr Uint32 SignalLength = 3;
-  static constexpr Uint32 SignalLengthWithBitmask = 3 + NdbNodeBitmask::Size;
+  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLengthWithBitmask = 3 + NdbNodeBitmask::Size );
   Uint32 unused;
   Uint32 latest_gci;
   Uint32 latest_lcp_id;

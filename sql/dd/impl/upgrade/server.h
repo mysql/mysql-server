@@ -25,8 +25,6 @@
 
 #include <stdio.h>
 
-#include <set>
-
 #include "my_sys.h"  // ErrorHandlerFunctionPointer
 #include "sql/dd/string_type.h"
 #include "sql/error_handler.h"  // Internal_error_handler
@@ -68,23 +66,15 @@ class Bootstrap_error_handler {
   // Set abort on error flag and enable error logging for certain fatal error.
   static void set_abort_on_error(uint error);
 
-  // Check if error should be logged.
-  static bool should_log_error(uint error);
-
  public:
   Bootstrap_error_handler();
 
-  // Log all errors to the error log file too.
+  // Mark as error is set.
   void set_log_error(bool log_error);
-
-  void set_allowlist_errors(std::set<uint> &error_codes);
-  void clear_allowlist_errors();
 
   ~Bootstrap_error_handler();
   static bool m_log_error;
   static bool abort_on_error;
-  // Set of errors which are logged to error log file always.
-  static std::set<uint> m_allowlist_errors;
 };
 
 /**

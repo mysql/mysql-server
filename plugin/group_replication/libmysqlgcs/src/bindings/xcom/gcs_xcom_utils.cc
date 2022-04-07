@@ -62,7 +62,7 @@ static const uint64_t DEFAULT_XCOM_MAX_CACHE_SIZE = 1073741824;
 */
 static const uint64_t MIN_XCOM_MAX_CACHE_SIZE = 134217728;
 
-Gcs_xcom_utils::~Gcs_xcom_utils() = default;
+Gcs_xcom_utils::~Gcs_xcom_utils() {}
 
 u_long Gcs_xcom_utils::build_xcom_group_id(Gcs_group_identifier &group_id) {
   std::string group_id_str = group_id.get_group_id();
@@ -167,14 +167,6 @@ void fix_parameters_syntax(Gcs_interface_parameters &interface_params) {
       interface_params.get_parameter("fragmentation_threshold"));
   std::string *xcom_cache_size_str = const_cast<std::string *>(
       interface_params.get_parameter("xcom_cache_size"));
-  std::string *communication_stack_str = const_cast<std::string *>(
-      interface_params.get_parameter("communication_stack"));
-
-  // Sets the default value for the communication stack to use
-  if (!communication_stack_str) {  // Default is XCom...
-    interface_params.add_parameter("communication_stack",
-                                   std::to_string(XCOM_PROTOCOL));
-  }
 
   // sets the default value for compression (ON by default)
   if (!compression_str) {
@@ -317,8 +309,7 @@ end:
 }
 
 bool is_parameters_syntax_correct(
-    const Gcs_interface_parameters &interface_params,
-    Network_namespace_manager *netns_manager) {
+    const Gcs_interface_parameters &interface_params) {
   enum_gcs_error error = GCS_OK;
   Gcs_sock_probe_interface *sock_probe_interface =
       new Gcs_sock_probe_interface_impl();
@@ -358,8 +349,6 @@ bool is_parameters_syntax_correct(
       interface_params.get_parameter("fragmentation");
   const std::string *xcom_cache_size_str =
       interface_params.get_parameter("xcom_cache_size");
-  const std::string *communication_stack_str =
-      interface_params.get_parameter("communication_stack");
 
   /*
     -----------------------------------------------------
@@ -416,19 +405,10 @@ bool is_parameters_syntax_correct(
     }
   }
 
-  // Communication Stack
-  if (communication_stack_str && (communication_stack_str->size() == 0 ||
-                                  !is_number(*communication_stack_str))) {
-    MYSQL_GCS_LOG_ERROR("The Commmunication Stack parameter ("
-                        << communication_stack_str << ") is not valid.")
-    error = GCS_NOK;
-    goto end;
-  }
-
   // local peer address
   if (local_node_str != nullptr) {
     bool matches_local_ip = false;
-    std::map<std::string, int> ips, namespace_ips;
+    std::map<std::string, int> ips;
     std::map<std::string, int>::iterator it;
 
     char host_str[IP_MAX_SIZE];
@@ -444,8 +424,7 @@ bool is_parameters_syntax_correct(
 
     std::string host(host_str);
     std::vector<std::string> ip;
-    int configured_protocol;
-    std::string net_namespace;
+
     // first validate hostname
     if (!is_valid_hostname(*local_node_str)) {
       MYSQL_GCS_LOG_ERROR("Invalid hostname or IP address ("
@@ -479,7 +458,7 @@ bool is_parameters_syntax_correct(
       goto end;
     }
 
-    // see if any IP matches fromt he root namespace
+    // see if any IP matches
     for (it = ips.begin(); it != ips.end() && !matches_local_ip; it++) {
       for (auto &ip_entry : ip) {
         matches_local_ip = (*it).first.compare(ip_entry) == 0;
@@ -488,42 +467,6 @@ bool is_parameters_syntax_correct(
       }
     }
 
-    // If this server is configured to use a MySQL connection, we must check
-    //  if we have a network namespace configured. If so, we must also check
-    //  if the address exists in the network namespace
-    configured_protocol = std::stoi(*communication_stack_str);
-    /* purecov: begin deadcode */
-    if (!matches_local_ip && netns_manager &&
-        configured_protocol > XCOM_PROTOCOL) {
-      // Check if we have a namespace configured
-      netns_manager->channel_get_network_namespace(net_namespace);
-      if (!net_namespace.empty()) {  // If the namespace is configured
-        netns_manager->set_network_namespace(net_namespace);
-
-        // second check that this host has that IP assigned in a namespace
-        //  Use all interfaces, active or not, that contain an IP address
-        if (get_local_addresses(*sock_probe_interface, namespace_ips)) {
-          MYSQL_GCS_LOG_ERROR(
-              "Unable to get the list of local IP addresses for "
-              "the server!");
-          error = GCS_NOK;
-          netns_manager->restore_original_network_namespace();
-          goto end;
-        }
-
-        // see if any IP matches fromt he root namespace
-        for (it = namespace_ips.begin();
-             it != namespace_ips.end() && !matches_local_ip; it++) {
-          for (auto &ip_entry : ip) {
-            matches_local_ip = (*it).first.compare(ip_entry) == 0;
-
-            if (matches_local_ip) break;
-          }
-        }
-        netns_manager->restore_original_network_namespace();
-      }
-    }
-    /* purecov: end */
     if (!matches_local_ip) {
       MYSQL_GCS_LOG_ERROR(
           "There is no local IP address matching the one "
@@ -640,13 +583,12 @@ bool is_parameters_syntax_correct(
       // Verify if the input value is a valid number
       (xcom_cache_size_str->size() == 0 || !is_number(*xcom_cache_size_str) ||
        // Check that it is not lower than the min value allowed for the var
-       (strtoull(xcom_cache_size_str->c_str(), nullptr, 10) <
-        MIN_XCOM_MAX_CACHE_SIZE) ||
+       strtoull(xcom_cache_size_str->c_str(), nullptr, 10) <
+           MIN_XCOM_MAX_CACHE_SIZE ||
        // Check that it is not higher than the max value allowed
-       (strtoull(xcom_cache_size_str->c_str(), nullptr, 10) > ULONG_MAX) ||
-       // Check that it is within the range of values allowed for the var
-       // type. This is need in addition to the check above because of
-       // overflows.
+       strtoull(xcom_cache_size_str->c_str(), nullptr, 10) > ULONG_MAX ||
+       // Check that it is within the range of values allowed for the var type.
+       // This is need in addition to the check above because of overflows.
        errno == ERANGE)) {
     MYSQL_GCS_LOG_ERROR("The xcom_cache_size parameter ("
                         << xcom_cache_size_str->c_str() << ") is not valid.")
@@ -668,10 +610,8 @@ std::string gcs_protocol_to_mysql_version(Gcs_protocol_version protocol) {
     case Gcs_protocol_version::V2:
       version = "8.0.16";
       break;
-    case Gcs_protocol_version::HIGHEST_KNOWN:
-      version = "8.0.27";
-      break;
     case Gcs_protocol_version::UNKNOWN:
+    case Gcs_protocol_version::V3:
     case Gcs_protocol_version::V4:
     case Gcs_protocol_version::V5:
       /* This should not happen... */

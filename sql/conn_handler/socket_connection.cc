@@ -1444,36 +1444,28 @@ void Mysqld_socket_listener::close_listener() {
     referenced by the data member m_admin_interface_listen_socket.
   */
   if (m_use_separate_thread_for_admin) {
-    if (admin_socket_thread_id != my_thread_handle{}) {
 #ifdef _WIN32
-      /*
-        For Windows, first close the socket referenced by the data member
-        m_admin_interface_listen_socket. It results in return from select()
-        API call running from a separate thread.
-      */
-      (void)mysql_socket_close(m_admin_interface_listen_socket);
-      m_admin_interface_listen_socket.fd = INVALID_SOCKET;
-      my_thread_join(&admin_socket_thread_id, nullptr);
+    /*
+      For Windows, first close the socket referenced by the data member
+      m_admin_interface_listen_socket. It results in return from select()
+      API call running from a separate thread.
+    */
+    (void)mysql_socket_close(m_admin_interface_listen_socket);
+    my_thread_join(&admin_socket_thread_id, nullptr);
 #else
-      // First, finish listening thread.
-      pthread_kill(admin_socket_thread_id.thread, SIGALRM);
-      my_thread_join(&admin_socket_thread_id, nullptr);
-
-#endif
-      mysql_mutex_destroy(&LOCK_start_admin_thread);
-      mysql_cond_destroy(&COND_start_admin_thread);
-    }  // if (admin_socket_thread_id != my_thread_handle{})
+    // First, finish listening thread.
+    pthread_kill(admin_socket_thread_id.thread, SIGALRM);
+    my_thread_join(&admin_socket_thread_id, nullptr);
     /*
       After a thread listening on admin interface finished, it is safe
-      to close listening socket. But socket is opened before thread is
-      spawned, so we may need to close the socket even if
-      admin_socket_thread_id has not been assigned.
+      to close listening socket.
     */
-    if (m_admin_interface_listen_socket.fd != INVALID_SOCKET) {
-      (void)mysql_socket_close(m_admin_interface_listen_socket);
-      m_admin_interface_listen_socket.fd = INVALID_SOCKET;
-    }
-  }  // use_separate_thread_for_admin
+    (void)mysql_socket_close(m_admin_interface_listen_socket);
+#endif
+
+    mysql_mutex_destroy(&LOCK_start_admin_thread);
+    mysql_cond_destroy(&COND_start_admin_thread);
+  }
 
 #if defined(HAVE_SYS_UN_H)
   if (m_unix_sockname != "" && m_unlink_sockname) {

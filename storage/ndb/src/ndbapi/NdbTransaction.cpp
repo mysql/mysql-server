@@ -23,7 +23,6 @@
 */
 
 #include <ndb_global.h>
-#include <cstring>
 #include <NdbTick.h>
 #include <NdbOut.hpp>
 #include "API.hpp"
@@ -1648,8 +1647,8 @@ NdbTransaction::doSend()
     theNdb->insert_completed_list(this); 
     DBUG_RETURN(0);
   default:
-    g_eventLogger->info("Inconsistent theSendStatus = %d",
-                        (Uint32)theSendStatus);
+    ndbout << "Inconsistent theSendStatus = "
+	   << (Uint32) theSendStatus << endl;
     abort();
     break;
   }//switch
@@ -2048,20 +2047,16 @@ NdbTransaction::checkSchemaObjects(const NdbTableImpl *tab,
                && (dictTab->getObjectVersion() == tab->getObjectVersion())
                && (tab != &(NdbTableImpl::getImpl(*dictTab))))
     {
-      g_eventLogger->info(
-          "Schema object ownership check failed:"
-          " table %s not owned by connection",
-          tab->getName());
+      ndbout << "Schema object ownership check failed: table " << tab->getName() 
+             << " not owned by connection" << endl;
       ret = false;
     }
     if(idx && dictIdx && (dictTab->getObjectId() == idx->getObjectId())
                && (dictIdx->getObjectVersion() == idx->getObjectVersion())
                && (idx != &(NdbIndexImpl::getImpl(*dictIdx))))
     {
-      g_eventLogger->info(
-          "Schema object ownership check failed:"
-          " index %s not owned by connection",
-          idx->getName());
+      ndbout << "Schema object ownership check failed: index " 
+             << idx->getName() << " not owned by connection" << endl;
       ret = false;
     }
   }
@@ -2898,7 +2893,7 @@ NdbTransaction::receiveTCKEY_FAILCONF(const TcKeyFailConf * failConf)
     return 0;
   } else {
 #ifdef VM_TRACE
-    g_eventLogger->info("Recevied TCKEY_FAILCONF wo/ operation");
+    ndbout_c("Recevied TCKEY_FAILCONF wo/ operation");
 #endif
   }
   return -1;
@@ -2943,7 +2938,7 @@ NdbTransaction::receiveTCKEY_FAILREF(const NdbApiSignal* aSignal)
     return 0;
   } else {
 #ifdef VM_TRACE
-    g_eventLogger->info("Recevied TCKEY_FAILREF wo/ operation");
+    ndbout_c("Recevied TCKEY_FAILREF wo/ operation");
 #endif
   }
   return -1;
@@ -3410,7 +3405,7 @@ NdbTransaction::refreshTuple(const NdbRecord *key_rec, const char *key_row,
   }
 
   Uint8 keymask[NDB_MAX_ATTRIBUTES_IN_TABLE/8];
-  std::memset(keymask, 0, sizeof(keymask));
+  bzero(keymask, sizeof(keymask));
   for (Uint32 i = 0; i<key_rec->key_index_length; i++)
   {
     Uint32 id = key_rec->columns[key_rec->key_indexes[i]].attrId;
@@ -3731,7 +3726,7 @@ NdbTransaction::unlock(const NdbLockHandle* lockHandle,
       /* Looks ok */
       break;
     }
-    [[fallthrough]];
+    /* Fall through */
   case NdbLockHandle::ALLOCATED:
     /* NdbLockHandle original operation not executed successfully */
     setErrorCode(4553);
@@ -3823,7 +3818,7 @@ NdbTransaction::releaseLockHandle(const NdbLockHandle* lockHandle)
       setErrorCode(4550);
       return -1;
     }
-    [[fallthrough]];
+    /* Fall through */
   case NdbLockHandle::ALLOCATED:
     /* Ok to release */
     break;

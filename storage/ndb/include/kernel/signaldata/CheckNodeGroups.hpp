@@ -90,10 +90,10 @@ public:
     Partitioning = 3            // possible network partitioning
   };
 
-  static constexpr Uint32 SignalLength = 4 + NdbNodeBitmask::Size; // Only for direct signal.
-  static constexpr Uint32 SignalLengthArbitCheckShort = 4 + NdbNodeBitmask::Size;
-  static constexpr Uint32 SignalLengthArbitCheckLong = 4 + (2 * NdbNodeBitmask::Size);
-  static constexpr Uint32 SignalLengthNoBitmask = 4;
+  STATIC_CONST( SignalLength = 4 + NdbNodeBitmask::Size); // Only for direct signal.
+  STATIC_CONST( SignalLengthArbitCheckShort = 4 + NdbNodeBitmask::Size);
+  STATIC_CONST( SignalLengthArbitCheckLong = 4 + (2 * NdbNodeBitmask::Size));
+  STATIC_CONST( SignalLengthNoBitmask = 4);
 };
 
 

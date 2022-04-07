@@ -20,9 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-usr/share/mysql-@MYSQL_BASE_VERSION@/docs/INFO_SRC usr/share/doc/mysql-router/
-usr/share/mysql-@MYSQL_BASE_VERSION@/docs/INFO_BIN usr/share/doc/mysql-router/
-
 # legal
 usr/LICENSE.router usr/share/doc/mysql-router/
 usr/README.router usr/share/doc/mysql-router/

@@ -119,5 +119,5 @@ static int test_plugin_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 
 mysql_declare_client_plugin(AUTHENTICATION) "qa_auth_client",
     MYSQL_CLIENT_PLUGIN_AUTHOR_ORACLE, "Dialog Client Authentication Plugin",
-    {0, 1, 0}, "GPL", nullptr, nullptr, nullptr, nullptr,
-    nullptr, test_plugin_client, nullptr, mysql_end_client_plugin;
+    {0, 1, 0}, "GPL", nullptr, nullptr, nullptr, nullptr, test_plugin_client,
+    nullptr mysql_end_client_plugin;

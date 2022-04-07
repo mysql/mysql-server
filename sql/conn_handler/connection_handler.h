@@ -37,8 +37,8 @@ class Connection_handler {
  protected:
   friend class Connection_handler_manager;
 
-  Connection_handler() = default;
-  virtual ~Connection_handler() = default;
+  Connection_handler() {}
+  virtual ~Connection_handler() {}
 
   /**
     Add a connection.

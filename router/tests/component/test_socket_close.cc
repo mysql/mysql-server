@@ -30,6 +30,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "cluster_metadata.h"
 #include "config_builder.h"
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
@@ -39,9 +40,8 @@
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/stdx/expected.h"  // make_unexpected
+#include "mysql_session.h"
 #include "mysqlrouter/classic_protocol.h"
-#include "mysqlrouter/cluster_metadata.h"
-#include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
@@ -269,6 +269,7 @@ class SocketCloseTest : public RouterComponentTest {
   }
 
   std::chrono::milliseconds ttl{100ms};
+  TcpPortPool port_pool_;
   std::vector<uint16_t> node_ports, node_http_ports;
   std::vector<ProcessWrapper *> cluster_nodes;
   ProcessWrapper *router;
@@ -322,19 +323,14 @@ TEST_P(SocketCloseOnMetadataAuthFail, SocketCloseOnMetadataAuthFailTest) {
   };
 
   SCOPED_TRACE("// launch cluster with 3 nodes, 1 RW/2 RO");
-  ASSERT_NO_FATAL_FAILURE(setup_cluster(3, GetParam().tracefile));
+  setup_cluster(3, GetParam().tracefile);
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
-  ASSERT_NO_FATAL_FAILURE(setup_router(GetParam().cluster_type));
+  setup_router(GetParam().cluster_type);
 
   SCOPED_TRACE("// check if both RO and RW ports are used");
   check_ports_not_available();
-
   SCOPED_TRACE("// RO and RW queries should pass");
-  ASSERT_NO_THROW(try_connection("127.0.0.1", router_rw_port, router_user,
-                                 router_password));
-  ASSERT_NO_THROW(try_connection("127.0.0.1", router_ro_port, router_user,
-                                 router_password));
 
   SCOPED_TRACE("// Toggle authentication failure on a primary node");
   toggle_auth_failure_on(node_http_ports[0], node_ports);
@@ -368,18 +364,15 @@ TEST_P(SocketCloseOnMetadataAuthFail, SocketCloseOnMetadataAuthFailTest) {
   toggle_auth_failure_off(node_http_ports[0], node_ports);
   check_ports_not_available();
 
-  SCOPED_TRACE("// Allow successful authentication on secondary nodes");
+  SCOPED_TRACE("// Allow successful authentication on a first secondary node");
   toggle_auth_failure_off(node_http_ports[1], node_ports);
-  toggle_auth_failure_off(node_http_ports[2], node_ports);
-  wait_for_transaction_count_increase(node_http_ports[0], 2);
-
   check_ports_not_available();
 
   SCOPED_TRACE("// RO and RW connections should work ok");
-  ASSERT_NO_THROW(try_connection("127.0.0.1", router_rw_port, router_user,
-                                 router_password));
-  ASSERT_NO_THROW(try_connection("127.0.0.1", router_ro_port, router_user,
-                                 router_password));
+  ASSERT_NO_FATAL_FAILURE(try_connection("127.0.0.1", router_rw_port,
+                                         router_user, router_password));
+  ASSERT_NO_FATAL_FAILURE(try_connection("127.0.0.1", router_ro_port,
+                                         router_user, router_password));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1264,12 +1257,14 @@ TEST_P(StaticRoutingToNonExistentNodes, StaticRoutingToNonExistentNodesTest) {
            {"routing_strategy", "first-available"},
            {"destinations", "127.0.0.1:" + std::to_string(local_port)},
            {"protocol", "classic"}}) +
+      "\n" +
       mysql_harness::ConfigBuilder::build_section(
           "routing:R2",
           {{"bind_port", std::to_string(port2)},
            {"routing_strategy", "next-available"},
            {"destinations", "127.0.0.1:" + std::to_string(local_port)},
            {"protocol", "classic"}}) +
+      "\n" +
       mysql_harness::ConfigBuilder::build_section(
           "routing:R3",
           {{"bind_port", std::to_string(port3)},

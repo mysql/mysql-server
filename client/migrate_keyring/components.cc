@@ -107,7 +107,7 @@ Keyring_services::Keyring_services(const std::string implementation_name,
 
   if (keyring_load_service_->load(
           Options::s_component_dir,
-          instance_path.length() ? instance_path.c_str() : nullptr) != 0) {
+          instance_path.length() ? instance_path.c_str() : nullptr) == true) {
     std::string message("Failed to initialize keyring");
     log_error << message << std::endl;
     return;
@@ -181,15 +181,19 @@ Destination_keyring_services::~Destination_keyring_services() {
 Keyring_migrate::Keyring_migrate(Source_keyring_services &src,
                                  Destination_keyring_services &dst,
                                  bool online_migration)
-    : src_(src), dst_(dst), mysql_connection_(online_migration) {
+    : src_(src),
+      dst_(dst),
+      iterator_(nullptr),
+      mysql_connection_(online_migration),
+      ok_(false),
+      maximum_size_(16384) {
   if (!src_.ok() || !dst_.ok()) return;
-  if (online_migration && !mysql_connection_.ok()) return;
   if (lock_source_keyring() == false) {
     log_error << "Failed to lock source keyring" << std::endl;
     return;
   }
   auto iterator = src_.metadata_iterator();
-  if (iterator->init(&iterator_) != 0) {
+  if (iterator->init(&iterator_) == true) {
     log_error << "Error creating source keyring iterator" << std::endl;
     return;
   }
@@ -198,14 +202,12 @@ Keyring_migrate::Keyring_migrate(Source_keyring_services &src,
 
 bool Keyring_migrate::lock_source_keyring() {
   if (Options::s_online_migration == false) return true;
-  if (!mysql_connection_.ok()) return false;
   std::string lock_statement("SET GLOBAL KEYRING_OPERATIONS=0");
   return mysql_connection_.execute(lock_statement);
 }
 
 bool Keyring_migrate::unlock_source_keyring() {
-  if (Options::s_online_migration == false || !mysql_connection_.ok())
-    return true;
+  if (Options::s_online_migration == false) return true;
   std::string unlock_statement("SET GLOBAL KEYRING_OPERATIONS=1");
   return mysql_connection_.execute(unlock_statement);
 }
@@ -233,7 +235,7 @@ bool Keyring_migrate::migrate_keys() {
     auth_id_length = 0;
     /* Fetch length */
     if (metadata_iterator->get_length(iterator_, &data_id_length,
-                                      &auth_id_length) != 0) {
+                                      &auth_id_length) == true) {
       log_error << "Could not fetch next available key content from keyring"
                 << std::endl;
       retval = false;
@@ -251,7 +253,7 @@ bool Keyring_migrate::migrate_keys() {
     }
     /* Fetch metadata of next available key */
     if (metadata_iterator->get(iterator_, data_id.get(), data_id_length + 1,
-                               auth_id.get(), auth_id_length + 1) != 0) {
+                               auth_id.get(), auth_id_length + 1) == true) {
       log_error << "Could not fetch next available key content from keyring"
                 << std::endl;
       retval = false;
@@ -278,14 +280,15 @@ bool Keyring_migrate::migrate_keys() {
 
     auto cleanup_guard = create_scope_guard([&] {
       if (reader_object != nullptr) {
-        if (reader->deinit(reader_object) != 0)
+        if (reader->deinit(reader_object) == true)
           log_error << "Failed to deallocated reader_object" << std::endl;
       }
       reader_object = nullptr;
     });
 
     size_t data_size, data_type_size;
-    if (reader->fetch_length(reader_object, &data_size, &data_type_size) != 0) {
+    if (reader->fetch_length(reader_object, &data_size, &data_type_size) ==
+        true) {
       log_warning << "Could not find data pointed by data_id: " << data_id.get()
                   << ", auth_id: " << auth_id.get() << ". Skipping"
                   << std::endl;
@@ -321,7 +324,7 @@ bool Keyring_migrate::migrate_keys() {
 
     if (reader->fetch(reader_object, data_buffer.get(), data_size, &data_size,
                       data_type_buffer.get(), data_type_size + 1,
-                      &data_type_size) != 0) {
+                      &data_type_size) == true) {
       log_warning << "Could not find data pointed by data_id: " << data_id.get()
                   << ", auth_id: " << auth_id.get() << ". Skipping"
                   << std::endl;
@@ -350,7 +353,7 @@ bool Keyring_migrate::migrate_keys() {
     ++migrated_count;
   }
 
-  if (metadata_iterator->deinit(iterator_) != 0) {
+  if (metadata_iterator->deinit(iterator_) == true) {
     log_error << "Failed to deinitialize source iterator" << std::endl;
     retval = false;
   }

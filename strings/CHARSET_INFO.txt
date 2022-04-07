@@ -235,9 +235,8 @@ Multi-byte routines
 ismbchar()  - detects whether the given string is a multi-byte sequence
 mbcharlen() - returns length of multi-byte sequence starting with
               the given character
-numchars()  - returns number of characters (in SQL terminology),
-              or code points (in character encoding terminology)
-              in the given string, e.g. in the SQL function CHAR_LENGTH().
+numchars()  - returns number of characters in the given string, e.g.
+              in SQL function CHAR_LENGTH().
 charpos()   - calculates the offset of the given position in the string.
               Used in SQL functions LEFT(), RIGHT(), SUBSTRING(), 
               INSERT()

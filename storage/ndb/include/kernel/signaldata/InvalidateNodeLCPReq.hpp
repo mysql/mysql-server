@@ -47,7 +47,7 @@ class InvalidateNodeLCPReq {
   Uint32 startingNodeId;
 
 public:
-  static constexpr Uint32 SignalLength = 1;
+  STATIC_CONST( SignalLength = 1 );
 };
 
 

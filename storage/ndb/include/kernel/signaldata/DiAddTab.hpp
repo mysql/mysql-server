@@ -41,7 +41,7 @@ class DiAddTabReq {
    */
   friend class Dbdih;
 public:
-  static constexpr Uint32 SignalLength = 14;
+  STATIC_CONST( SignalLength = 14 );
   SECTION( FRAGMENTATION = 0 );
   SECTION( TS_RANGE = 0 );
   
@@ -73,7 +73,7 @@ class DiAddTabRef {
    */
   friend class Dbdict;
 public:
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
   
 private:
   union {
@@ -94,7 +94,7 @@ class DiAddTabConf {
    */
   friend class Dbdict;
 public:
-  static constexpr Uint32 SignalLength = 1;
+  STATIC_CONST( SignalLength = 1 );
   
 private:
   union {

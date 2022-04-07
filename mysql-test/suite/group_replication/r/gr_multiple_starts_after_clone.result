@@ -101,7 +101,6 @@ RESET PERSIST group_replication_group_name;
 RESET PERSIST group_replication_local_address;
 RESET PERSIST group_replication_group_seeds;
 RESET PERSIST group_replication_start_on_boot;
-RESET PERSIST IF EXISTS group_replication_communication_stack;
 SET GLOBAL group_replication_clone_threshold= GROUP_REPLICATION_CLONE_THRESHOLD;
 SET GLOBAL group_replication_start_on_boot= START_ON_BOOT_VALUE;
 UNINSTALL PLUGIN clone;

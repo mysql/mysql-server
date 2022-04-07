@@ -113,7 +113,7 @@ Master_info *Multisource_info::get_mi(const char *channel_name) {
   return it->second;
 }
 
-bool Multisource_info::delete_mi(const char *channel_name) {
+void Multisource_info::delete_mi(const char *channel_name) {
   DBUG_TRACE;
 
   m_channel_map_lock->assert_some_wrlock();
@@ -135,15 +135,8 @@ bool Multisource_info::delete_mi(const char *channel_name) {
     map_it = rep_channel_map.find(GROUP_REPLICATION_CHANNEL);
     assert(map_it != rep_channel_map.end());
 
-    if (map_it != rep_channel_map.end()) {
-      it = map_it->second.find(channel_name);
-      assert(it != map_it->second.end());
-    }
-  }
-
-  if (map_it == rep_channel_map.end() || it == map_it->second.end()) {
-    // the channel identified by channel_name could not be found
-    return true;
+    it = map_it->second.find(channel_name);
+    assert(it != map_it->second.end());
   }
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -176,7 +169,6 @@ bool Multisource_info::delete_mi(const char *channel_name) {
     }
     delete mi;
   }
-  return false;
 }
 
 bool Multisource_info::is_group_replication_channel_name(const char *channel,
@@ -397,7 +389,7 @@ bool Rpl_channel_filters::build_do_and_ignore_table_hashes() {
     if (it->second->build_do_table_hash() ||
         it->second->build_ignore_table_hash()) {
       LogErr(ERROR_LEVEL, ER_FAILED_TO_BUILD_DO_AND_IGNORE_TABLE_HASHES);
-      return true;
+      return -1;
     }
   }
   m_channel_to_filter_lock->unlock();

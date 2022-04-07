@@ -26,15 +26,15 @@
 
 #include <algorithm>
 #include <sstream>
-#include <string>
-#include <vector>
+
+using std::string;
 
 namespace mysql_harness {
-std::vector<std::string> split_string(const std::string &data,
-                                      const char delimiter, bool allow_empty) {
+std::vector<string> split_string(const string &data, const char delimiter,
+                                 bool allow_empty) {
   std::stringstream ss(data);
   std::string token;
-  std::vector<std::string> result;
+  std::vector<string> result;
 
   if (data.empty()) {
     return {};
@@ -56,16 +56,16 @@ std::vector<std::string> split_string(const std::string &data,
   return result;
 }
 
-void left_trim(std::string &str) {
+void left_trim(string &str) {
   str.erase(str.begin(), std::find_if_not(str.begin(), str.end(), ::isspace));
 }
 
-void right_trim(std::string &str) {
+void right_trim(string &str) {
   str.erase(std::find_if_not(str.rbegin(), str.rend(), ::isspace).base(),
             str.end());
 }
 
-void trim(std::string &str) {
+void trim(string &str) {
   left_trim(str);
   right_trim(str);
 }

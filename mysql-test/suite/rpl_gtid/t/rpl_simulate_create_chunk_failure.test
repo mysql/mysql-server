@@ -29,11 +29,9 @@
 
 --source include/rpl_connection_slave.inc
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
-
+SET @debug_save= @@GLOBAL.DEBUG;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
-
---let $debug_point= rpl_gtid_update_on_commit_simulate_out_of_memory
---source include/add_debug_point.inc
+SET @@GLOBAL.DEBUG= '+d,rpl_gtid_update_on_commit_simulate_out_of_memory';
 
 --source include/rpl_connection_master.inc
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
@@ -57,9 +55,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 --echo # added into @@GLOBAL.GTID_EXECUTED and 'gtid_executed'
 --echo # table after slave server restarts.
 --echo #
-
-# No need to unset the debug point as the server restarted
-
+SET @@GLOBAL.DEBUG= @debug_save;
 --replace_result $master_uuid MASTER_UUID
 --eval SELECT * FROM mysql.gtid_executed
 --let $assert_text= committed gtids MASTER_UUID:1

@@ -64,7 +64,7 @@ class Log_test {
    public:
     virtual void sync() = 0;
 
-    virtual ~Sync_point() = default;
+    virtual ~Sync_point() {}
   };
 
   enum class Options {

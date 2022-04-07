@@ -24,7 +24,6 @@
 
 
 #include "ndb_socket.h"
-#include <cstring>
 
 /*
   Implement ndb_socketpair() so that it works both on UNIX and windows
@@ -46,7 +45,7 @@ int ndb_socketpair(ndb_socket_t s[2])
   if (!ndb_socket_valid(listener))
     return -1;
 
-  std::memset(&addr, 0, sizeof(addr));
+  bzero(&addr, sizeof(addr));
   addr.sin6_family = AF_INET6;
   addr.sin6_addr = in6addr_loopback; /* localhost */
   addr.sin6_port = 0; /* Any port */

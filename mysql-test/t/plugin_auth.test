@@ -54,15 +54,11 @@ disconnect plug_con;
 connect(plug_con,localhost,plug,bad_credentials);
 --enable_query_log
 
---echo ## test bad default plugin : As long as the server returns a compatible
---echo ## plugin any default plugin set by the client is ignored. Only if the
---echo ## client doesn't comprehend the servers plugin will the default be used.
+--echo ## test bad default plugin : should get CR_AUTH_PLUGIN_CANNOT_LOAD
 --disable_result_log
 --disable_query_log
+--error 2059
 connect(plug_con_wrongp,localhost,plug,plug_dest,,,,,wrong_plugin_name);
-select USER(),CURRENT_USER();
-connection default;
-disconnect plug_con_wrongp;
 --enable_query_log
 --enable_result_log
 

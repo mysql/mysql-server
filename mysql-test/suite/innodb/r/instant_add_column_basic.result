@@ -641,8 +641,6 @@ INSERT INTO t1(a, b, c, h) VALUES(0, 7, 40, 2000), (0, 7, 40, 20000);
 SELECT * FROM t1;
 a	b	c	d	e	f	g	h	i
 1	1	0	2	ABCD EFGH	9	ABCD EFGH	10000	20001
-10	7	40	14	ABCD EFGH	9	ABCD EFGH	2000	4007
-11	7	40	14	ABCD EFGH	9	ABCD EFGH	20000	40007
 2	2	0	4	ABCD EFGH	9	ABCD EFGH	10000	20002
 3	3	0	6	ABCD EFGH	9	ABCD EFGH	10000	20003
 4	4	0	8	ABCD EFGH	9	ABCD EFGH	10000	20004
@@ -651,6 +649,8 @@ a	b	c	d	e	f	g	h	i
 7	NULL	20	NULL	Hello	5	Hello	10000	NULL
 8	NULL	20	NULL	World	5	World	10000	NULL
 9	NULL	20	NULL	Hello World	11	Hello World	10000	NULL
+10	7	40	14	ABCD EFGH	9	ABCD EFGH	2000	4007
+11	7	40	14	ABCD EFGH	9	ABCD EFGH	20000	40007
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -751,8 +751,6 @@ INSERT INTO t1(a, b) VALUES(0, 10), (0, 20);
 SELECT * FROM t1;
 a	b	c	d	e
 1	1	100	201	Hello world
-10	10	500	1010	HELLO MySQL!
-11	20	500	1020	HELLO MySQL!
 2	2	100	202	Hello world
 3	3	100	203	Hello world
 4	4	100	204	Hello world
@@ -761,6 +759,8 @@ a	b	c	d	e
 7	7	300	607	Good DAY
 8	8	500	1008	Hello world
 9	9	500	1009	Hello world
+10	10	500	1010	HELLO MySQL!
+11	20	500	1020	HELLO MySQL!
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -817,9 +817,9 @@ UPDATE t1 SET e = 'Hello MySQL' WHERE a > 10;
 UPDATE t1 SET e = 'Hello MySQL!!' WHERE a > 20;
 SELECT distinct(e) FROM t1;
 e
+Hello world
 Hello MySQL
 Hello MySQL!!
-Hello world
 UPDATE t1 SET c = 500 WHERE e LIKE '%world%';
 SELECT c, e FROM t1 GROUP BY c, e;
 c	e
@@ -1165,32 +1165,32 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SELECT * FROM t1;
 a	b	c
-1	1	5
-2	2	5
 3	3	5
-4	4	5
-5	5	5
 6	6	5
+1	1	5
+4	4	5
 7	7	5
+2	2	5
+5	5	5
 8	8	5
 INSERT INTO t1 VALUES(0, 9, 10), (0, 10, 20);
 SELECT * FROM t1 WHERE b > 8;
 a	b	c
-10	10	20
 9	9	10
+10	10	20
 UPDATE t1 SET c = 8 WHERE a = 1 OR a = 3 OR a = 5 OR a = 7;
 SELECT * FROM t1;
 a	b	c
+3	3	8
+6	6	5
+9	9	10
 1	1	8
+4	4	5
+7	7	8
 10	10	20
 2	2	5
-3	3	8
-4	4	5
 5	5	8
-6	6	5
-7	7	8
 8	8	5
-9	9	10
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -2705,8 +2705,6 @@ INSERT INTO t1(a, b, c, h) VALUES(0, 7, 40, 2000), (0, 7, 40, 20000);
 SELECT * FROM t1;
 a	b	c	d	e	f	g	h	i
 1	1	0	2	ABCD EFGH	9	ABCD EFGH	10000	20001
-10	7	40	14	ABCD EFGH	9	ABCD EFGH	2000	4007
-11	7	40	14	ABCD EFGH	9	ABCD EFGH	20000	40007
 2	2	0	4	ABCD EFGH	9	ABCD EFGH	10000	20002
 3	3	0	6	ABCD EFGH	9	ABCD EFGH	10000	20003
 4	4	0	8	ABCD EFGH	9	ABCD EFGH	10000	20004
@@ -2715,6 +2713,8 @@ a	b	c	d	e	f	g	h	i
 7	NULL	20	NULL	Hello	5	Hello	10000	NULL
 8	NULL	20	NULL	World	5	World	10000	NULL
 9	NULL	20	NULL	Hello World	11	Hello World	10000	NULL
+10	7	40	14	ABCD EFGH	9	ABCD EFGH	2000	4007
+11	7	40	14	ABCD EFGH	9	ABCD EFGH	20000	40007
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -2815,8 +2815,6 @@ INSERT INTO t1(a, b) VALUES(0, 10), (0, 20);
 SELECT * FROM t1;
 a	b	c	d	e
 1	1	100	201	Hello world
-10	10	500	1010	HELLO MySQL!
-11	20	500	1020	HELLO MySQL!
 2	2	100	202	Hello world
 3	3	100	203	Hello world
 4	4	100	204	Hello world
@@ -2825,6 +2823,8 @@ a	b	c	d	e
 7	7	300	607	Good DAY
 8	8	500	1008	Hello world
 9	9	500	1009	Hello world
+10	10	500	1010	HELLO MySQL!
+11	20	500	1020	HELLO MySQL!
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -2881,9 +2881,9 @@ UPDATE t1 SET e = 'Hello MySQL' WHERE a > 10;
 UPDATE t1 SET e = 'Hello MySQL!!' WHERE a > 20;
 SELECT distinct(e) FROM t1;
 e
+Hello world
 Hello MySQL
 Hello MySQL!!
-Hello world
 UPDATE t1 SET c = 500 WHERE e LIKE '%world%';
 SELECT c, e FROM t1 GROUP BY c, e;
 c	e
@@ -3229,32 +3229,32 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SELECT * FROM t1;
 a	b	c
-1	1	5
-2	2	5
 3	3	5
-4	4	5
-5	5	5
 6	6	5
+1	1	5
+4	4	5
 7	7	5
+2	2	5
+5	5	5
 8	8	5
 INSERT INTO t1 VALUES(0, 9, 10), (0, 10, 20);
 SELECT * FROM t1 WHERE b > 8;
 a	b	c
-10	10	20
 9	9	10
+10	10	20
 UPDATE t1 SET c = 8 WHERE a = 1 OR a = 3 OR a = 5 OR a = 7;
 SELECT * FROM t1;
 a	b	c
+3	3	8
+6	6	5
+9	9	10
 1	1	8
+4	4	5
+7	7	8
 10	10	20
 2	2	5
-3	3	8
-4	4	5
 5	5	8
-6	6	5
-7	7	8
 8	8	5
-9	9	10
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -4769,8 +4769,6 @@ INSERT INTO t1(a, b, c, h) VALUES(0, 7, 40, 2000), (0, 7, 40, 20000);
 SELECT * FROM t1;
 a	b	c	d	e	f	g	h	i
 1	1	0	2	ABCD EFGH	9	ABCD EFGH	10000	20001
-10	7	40	14	ABCD EFGH	9	ABCD EFGH	2000	4007
-11	7	40	14	ABCD EFGH	9	ABCD EFGH	20000	40007
 2	2	0	4	ABCD EFGH	9	ABCD EFGH	10000	20002
 3	3	0	6	ABCD EFGH	9	ABCD EFGH	10000	20003
 4	4	0	8	ABCD EFGH	9	ABCD EFGH	10000	20004
@@ -4779,6 +4777,8 @@ a	b	c	d	e	f	g	h	i
 7	NULL	20	NULL	Hello	5	Hello	10000	NULL
 8	NULL	20	NULL	World	5	World	10000	NULL
 9	NULL	20	NULL	Hello World	11	Hello World	10000	NULL
+10	7	40	14	ABCD EFGH	9	ABCD EFGH	2000	4007
+11	7	40	14	ABCD EFGH	9	ABCD EFGH	20000	40007
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -4879,8 +4879,6 @@ INSERT INTO t1(a, b) VALUES(0, 10), (0, 20);
 SELECT * FROM t1;
 a	b	c	d	e
 1	1	100	201	Hello world
-10	10	500	1010	HELLO MySQL!
-11	20	500	1020	HELLO MySQL!
 2	2	100	202	Hello world
 3	3	100	203	Hello world
 4	4	100	204	Hello world
@@ -4889,6 +4887,8 @@ a	b	c	d	e
 7	7	300	607	Good DAY
 8	8	500	1008	Hello world
 9	9	500	1009	Hello world
+10	10	500	1010	HELLO MySQL!
+11	20	500	1020	HELLO MySQL!
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -4945,9 +4945,9 @@ UPDATE t1 SET e = 'Hello MySQL' WHERE a > 10;
 UPDATE t1 SET e = 'Hello MySQL!!' WHERE a > 20;
 SELECT distinct(e) FROM t1;
 e
+Hello world
 Hello MySQL
 Hello MySQL!!
-Hello world
 UPDATE t1 SET c = 500 WHERE e LIKE '%world%';
 SELECT c, e FROM t1 GROUP BY c, e;
 c	e
@@ -5293,32 +5293,32 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SELECT * FROM t1;
 a	b	c
-1	1	5
-2	2	5
 3	3	5
-4	4	5
-5	5	5
 6	6	5
+1	1	5
+4	4	5
 7	7	5
+2	2	5
+5	5	5
 8	8	5
 INSERT INTO t1 VALUES(0, 9, 10), (0, 10, 20);
 SELECT * FROM t1 WHERE b > 8;
 a	b	c
-10	10	20
 9	9	10
+10	10	20
 UPDATE t1 SET c = 8 WHERE a = 1 OR a = 3 OR a = 5 OR a = 7;
 SELECT * FROM t1;
 a	b	c
+3	3	8
+6	6	5
+9	9	10
 1	1	8
+4	4	5
+7	7	8
 10	10	20
 2	2	5
-3	3	8
-4	4	5
 5	5	8
-6	6	5
-7	7	8
 8	8	5
-9	9	10
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -6202,7 +6202,7 @@ ALTER TABLE t1 ADD COLUMN (b INT);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` text GENERATED ALWAYS AS (lpad(1,1,_utf8mb4'1')) VIRTUAL,
+  `a` text GENERATED ALWAYS AS (lpad(1,1,1)) VIRTUAL,
   `b` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -6232,10 +6232,10 @@ INSERT INTO t1(col1, new_col, new_col_1) VALUES(100, 200, 300);
 SELECT * FROM t1;
 col1	new_col	new_col_1	col2	new_col_2
 10	NULL	NULL	20	NULL
-100	200	300	200	600
 20	NULL	NULL	40	NULL
 30	NULL	NULL	60	NULL
 40	NULL	NULL	80	NULL
+100	200	300	200	600
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

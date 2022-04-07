@@ -180,9 +180,9 @@
 */
 /* clang-format on */
 
-PFS_data_cache::PFS_data_cache() = default;
+PFS_data_cache::PFS_data_cache() {}
 
-PFS_data_cache::~PFS_data_cache() = default;
+PFS_data_cache::~PFS_data_cache() {}
 
 const char *PFS_data_cache::cache_data(const char *ptr, size_t length) {
   /*
@@ -202,7 +202,7 @@ void PFS_data_cache::clear() { m_set.clear(); }
 PFS_data_lock_container::PFS_data_lock_container()
     : m_logical_row_index(0), m_filter(nullptr) {}
 
-PFS_data_lock_container::~PFS_data_lock_container() = default;
+PFS_data_lock_container::~PFS_data_lock_container() {}
 
 const char *PFS_data_lock_container::cache_string(const char *string) {
   return m_cache.cache_data(string, strlen(string));
@@ -259,7 +259,7 @@ bool PFS_data_lock_container::accept_object(
 }
 
 void PFS_data_lock_container::add_lock_row(
-    const char *engine, size_t engine_length [[maybe_unused]],
+    const char *engine, size_t engine_length MY_ATTRIBUTE((unused)),
     const char *engine_lock_id, size_t engine_lock_id_length,
     ulonglong transaction_id, ulonglong thread_id, ulonglong event_id,
     const char *table_schema, size_t table_schema_length,
@@ -361,7 +361,7 @@ row_data_lock *PFS_data_lock_container::get_row(size_t index) {
 PFS_data_lock_wait_container::PFS_data_lock_wait_container()
     : m_logical_row_index(0), m_filter(nullptr) {}
 
-PFS_data_lock_wait_container::~PFS_data_lock_wait_container() = default;
+PFS_data_lock_wait_container::~PFS_data_lock_wait_container() {}
 
 const char *PFS_data_lock_wait_container::cache_string(const char *string) {
   return m_cache.cache_data(string, strlen(string));
@@ -431,7 +431,7 @@ bool PFS_data_lock_wait_container::accept_blocking_thread_id_event_id(
 }
 
 void PFS_data_lock_wait_container::add_lock_wait_row(
-    const char *engine, size_t engine_length [[maybe_unused]],
+    const char *engine, size_t engine_length MY_ATTRIBUTE((unused)),
     const char *requesting_engine_lock_id,
     size_t requesting_engine_lock_id_length,
     ulonglong requesting_transaction_id, ulonglong requesting_thread_id,

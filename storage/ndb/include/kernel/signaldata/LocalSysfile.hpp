@@ -42,10 +42,10 @@ class ReadLocalSysfileReq
   /**
    * Length of signal
    */
-  static constexpr Uint32 SignalLength = 2;
-  static constexpr Uint32 NODE_RESTORABLE_ON_ITS_OWN = 0;
-  static constexpr Uint32 NODE_NOT_RESTORABLE_ON_ITS_OWN = 1;
-  static constexpr Uint32 NODE_REQUIRE_INITIAL_RESTART = 2;
+  STATIC_CONST( SignalLength = 2 );
+  STATIC_CONST( NODE_RESTORABLE_ON_ITS_OWN = 0 );
+  STATIC_CONST( NODE_NOT_RESTORABLE_ON_ITS_OWN = 1 );
+  STATIC_CONST( NODE_REQUIRE_INITIAL_RESTART = 2 );
 
   /**
    * DATA VARIABLES
@@ -73,7 +73,7 @@ class ReadLocalSysfileConf
   /**
    * Length of signal
    */
-  static constexpr Uint32 SignalLength = 3;
+  STATIC_CONST( SignalLength = 3 );
 
   /**
    * DATA VARIABLES
@@ -103,7 +103,7 @@ class WriteLocalSysfileReq
   /**
    * Length of signal
    */
-  static constexpr Uint32 SignalLength = 5;
+  STATIC_CONST( SignalLength = 5 );
 
   /**
    * DATA VARIABLES
@@ -129,7 +129,7 @@ class WriteLocalSysfileConf
   /**
    * Length of signal
    */
-  static constexpr Uint32 SignalLength = 1;
+  STATIC_CONST( SignalLength = 1 );
 
   /**
    * DATA VARIABLES

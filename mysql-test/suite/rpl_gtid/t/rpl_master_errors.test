@@ -2,7 +2,6 @@
 # It tests the cases where the dump thread returns an error to the client.
 ################################################################################
 --source include/not_group_replication_plugin.inc
---source include/not_rpl_gtid_only.inc
 --source include/have_debug.inc
 --source include/master-slave.inc
 
@@ -23,9 +22,8 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 --echo #
 --echo # Error: master doesn't set server_id
 --echo #
-
---let $debug_point= simulate_no_server_id
---source include/add_debug_point.inc
+--let $master_debug= `SELECT @@GLOBAL.debug`
+SET GLOBAL debug= 'd,simulate_no_server_id';
 
 --error 1
 --exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-server not-exist.000001
@@ -33,17 +31,12 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 --echo #
 --echo # Error: Error while sending faked rotate event
 --echo #
-
---let $debug_point= simulate_send_error
---source include/add_debug_point.inc
+SET GLOBAL debug= 'd,simulate_send_error';
 
 --error 1
 --exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-server master-bin.000001
 
---let $debug_point= simulate_no_server_id
---source include/remove_debug_point.inc
---let $debug_point= simulate_send_error
---source include/remove_debug_point.inc
+eval SET GLOBAL debug= '$master_debug';
 
 --echo #
 --echo # Error: Fail to open binlog file
@@ -72,7 +65,7 @@ FLUSH BINARY LOGS;
 --copy_file $MYSQLTEST_VARDIR/std_data/binlog_truncated_prev_gtid_event.000001 $datadir/master-bin.000001
 
 --error 1
---exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-source=BINLOG-DUMP-GTIDS master-bin.000001
+--exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-master=BINLOG-DUMP-GTIDS master-bin.000001
 
 --echo #
 --echo # Error: Fail on reading event
@@ -91,17 +84,15 @@ FLUSH BINARY LOGS;
 --source include/rpl_connection_slave.inc
 --let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
 --source include/stop_slave.inc
-
---let $debug_point= request_source_log_pos_3
---source include/add_debug_point.inc
+--let $slave_debug= `SELECT @@debug`
+SET GLOBAL debug= 'd,request_master_log_pos_3';
 
 START SLAVE IO_THREAD;
 --let $slave_io_errno= 13114
 call mtr.add_suppression(".* Got fatal error 1236 from master when reading data from binary log");
 --source include/wait_for_slave_io_error.inc
 
---let $debug_point= request_source_log_pos_3
---source include/remove_debug_point.inc
+SET GLOBAL debug= '$slave_debug';
 
 --echo #
 --echo # Error: Binary log is not open on master
@@ -123,7 +114,7 @@ call mtr.add_suppression(".* Got fatal error 1236 from master when reading data 
 --source include/rpl_restart_server.inc
 
 --error 1
---exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-source=BINLOG-DUMP-GTIDS master-bin.000001
+--exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-master=BINLOG-DUMP-GTIDS master-bin.000001
 
 --let $rpl_server_parameters=
 --source include/rpl_restart_server.inc
@@ -136,8 +127,7 @@ call mtr.add_suppression(".* Got fatal error 1236 from master when reading data 
 RESET MASTER;
 CREATE TABLE t1(c1 INT);
 
---let $debug_point= simulate_kill_dump
---source include/add_debug_point.inc
+SET GLOBAL debug= 'd,simulate_kill_dump';
 
 # 'stop-never' will cause test timeout if 'kill dump thread' doesn't work well.
 --exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-server master-bin.000001 --stop-never
@@ -148,17 +138,12 @@ CREATE TABLE t1(c1 INT);
 --let $exclude_gtids= `SELECT @@GLOBAL.gtid_executed`
 INSERT INTO t1 VALUES(1);
 
---let $debug_point= simulate_flush_error
---source include/add_debug_point.inc
+SET GLOBAL debug= 'd,simulate_flush_error';
 
 --error 1
---exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-source=BINLOG-DUMP-GTIDS --exclude-gtids=$exclude_gtids master-bin.000001
+--exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-master=BINLOG-DUMP-GTIDS --exclude-gtids=$exclude_gtids master-bin.000001
 
---let $debug_point= simulate_kill_dump
---source include/remove_debug_point.inc
---let $debug_point= simulate_flush_error
---source include/remove_debug_point.inc
-
+eval SET GLOBAL debug= '$master_debug';
 # Cleanup
 DROP TABLE t1;
 --remove_file $MYSQLTEST_VARDIR/tmp/output

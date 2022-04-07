@@ -1,5 +1,0 @@
-#
-# Bug #32637784: MYSQL_MIGRATE_KEYRING DOES NOT ENFORCE
-#                DISTINCT SOURCE AND DESTINATION KEYSTORES
-#
-TIMESTAMP [ERROR]   Source and destination cannot be the same.

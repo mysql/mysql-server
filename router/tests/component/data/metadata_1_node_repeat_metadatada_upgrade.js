@@ -69,7 +69,7 @@ if (mysqld.global.use_new_metadata === 1) {
 
   common_responses_regex = common_stmts.prepare_statement_responses_regex(
       [
-        "router_update_attributes_v1",
+        "router_update_version_v1",
       ],
       options);
 
@@ -89,7 +89,7 @@ if (mysqld.global.use_new_metadata === 1) {
 
   common_responses_regex = common_stmts.prepare_statement_responses_regex(
       [
-        "router_update_attributes_v2",
+        "router_update_version_v2",
         "router_update_last_check_in_v2",
       ],
       options);

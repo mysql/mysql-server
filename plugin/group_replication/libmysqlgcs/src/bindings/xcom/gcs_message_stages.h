@@ -154,7 +154,7 @@ class Gcs_message_stage {
 
   explicit Gcs_message_stage(bool enabled) : m_is_enabled(enabled) {}
 
-  virtual ~Gcs_message_stage() = default;
+  virtual ~Gcs_message_stage() {}
 
   /**
    Return the unique stage code.
@@ -396,7 +396,7 @@ class Gcs_message_pipeline {
 
   Gcs_message_pipeline &operator=(Gcs_message_pipeline &&p) = delete;
 
-  virtual ~Gcs_message_pipeline() = default;
+  virtual ~Gcs_message_pipeline() {}
 
   /**
    This member function SHALL be called by the message sender. It makes the

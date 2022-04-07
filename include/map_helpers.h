@@ -50,34 +50,64 @@
   against container.end() yourself.
 */
 template <class Container, class Key>
-static inline auto find_or_nullptr(const Container &container, const Key &key) {
+static inline auto find_or_nullptr(const Container &container, const Key &key)
+    -> typename std::enable_if<
+        std::is_pointer<typename Container::value_type::second_type>::value,
+        typename Container::value_type::second_type>::type {
   const auto it = container.find(key);
-  if constexpr (std::is_pointer_v<typename Container::mapped_type>) {
-    return it == container.end() ? nullptr : it->second;
-  } else {
-    return it == container.end() ? nullptr : it->second.get();
-  }
+  if (it == container.end())
+    return nullptr;
+  else
+    return it->second;
+}
+
+template <class Container, class Key>
+static inline auto find_or_nullptr(const Container &container, const Key &key)
+    -> typename std::enable_if<
+        std::is_pointer<
+            typename Container::value_type::second_type::pointer>::value,
+        typename Container::value_type::second_type::pointer>::type {
+  const auto it = container.find(key);
+  if (it == container.end())
+    return nullptr;
+  else
+    return it->second.get();
 }
 
 /**
   For unordered_multimap<Key, Value>, erase the first specific element that
   matches _both_ the given key and value.
 */
-template <class Container, class Value>
+template <class Container>
 typename Container::iterator erase_specific_element(
     Container *container, const typename Container::key_type &key,
-    const Value &value) {
+    const typename Container::value_type::second_type &value) {
   auto it_range = container->equal_range(key);
   for (auto it = it_range.first; it != it_range.second; ++it) {
-    if constexpr (std::is_pointer_v<typename Container::mapped_type>) {
-      if (it->second == value) return container->erase(it);
-    } else {
-      // For when the container holds unique_ptr elements.
-      if (it->second.get() == value) return container->erase(it);
-    }
+    if (it->second == value) return container->erase(it);
   }
   return container->end();
 }
+
+/**
+  Same as regular erase_specific_element(), but for the case where the
+  container holds unique_ptr elements.
+*/
+template <class Container>
+static inline auto erase_specific_element(
+    Container *container, const typename Container::key_type &key,
+    typename Container::value_type::second_type::pointer value) ->
+    typename std::enable_if<
+        std::is_pointer<
+            typename Container::value_type::second_type::pointer>::value,
+        typename Container::iterator>::type {
+  auto it_range = container->equal_range(key);
+  for (auto it = it_range.first; it != it_range.second; ++it) {
+    if (it->second.get() == value) return container->erase(it);
+  }
+  return container->end();
+}
+
 /**
   std::unique_ptr, but with a custom delete function.
   Normally, it is more efficient to have a deleter class instead,

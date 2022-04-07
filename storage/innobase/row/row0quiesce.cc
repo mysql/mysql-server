@@ -46,11 +46,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Write the meta data (index user fields) config file.
  @return DB_SUCCESS or error code. */
-[[nodiscard]] static dberr_t row_quiesce_write_index_fields(
-    const dict_index_t *index, /*!< in: write the meta data for
-                               this index */
-    FILE *file,                /*!< in: file to write to */
-    THD *thd)                  /*!< in/out: session */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_quiesce_write_index_fields(
+        const dict_index_t *index, /*!< in: write the meta data for
+                                   this index */
+        FILE *file,                /*!< in: file to write to */
+        THD *thd)                  /*!< in/out: session */
 {
   /* This row will store prefix_len, fixed_len,
   and in IB_EXPORT_CFG_VERSION_V4, is_ascending */
@@ -106,8 +107,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in,out]	file	file to write to
 @param[in,out]	thd	session
 @return DB_SUCCESS or error code. */
-[[nodiscard]] static dberr_t row_quiesce_write_one_index(
-    const dict_index_t *index, FILE *file, THD *thd) {
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_quiesce_write_one_index(const dict_index_t *index, FILE *file,
+                                THD *thd) {
   dberr_t err;
   byte *ptr;
   byte row[sizeof(space_index_t) + sizeof(uint32_t) * 8];
@@ -173,7 +175,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Write the meta data config file index information.
  @return DB_SUCCESS or error code. */
-[[nodiscard]] static MY_ATTRIBUTE((nonnull)) dberr_t
+static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
     row_quiesce_write_indexes(const dict_table_t *table, /*!< in: write the meta
                                                          data for this table */
                               FILE *file, /*!< in: file to write to */
@@ -204,6 +206,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
     return (DB_IO_ERROR);
   }
 
+  dberr_t err = DB_SUCCESS;
+
   /* Write SDI Index */
   if (has_sdi) {
     dict_mutex_enter_for_mysql();
@@ -213,21 +217,21 @@ this program; if not, write to the Free Software Foundation, Inc.,
     dict_mutex_exit_for_mysql();
 
     ut_ad(index != nullptr);
-    const auto err = row_quiesce_write_one_index(index, file, thd);
-    if (err != DB_SUCCESS) {
-      return err;
-    }
+    err = row_quiesce_write_one_index(index, file, thd);
   }
 
   /* Write the table indexes meta data. */
-  for (const dict_index_t *index : table->indexes) {
-    const auto err = row_quiesce_write_one_index(index, file, thd);
-    if (err != DB_SUCCESS) {
-      return err;
-    }
+  for (const dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
+       index != nullptr && err == DB_SUCCESS;
+       index = UT_LIST_GET_NEXT(indexes, index)) {
+    err = row_quiesce_write_one_index(index, file, thd);
   }
 
-  return DB_SUCCESS;
+  if (err != DB_SUCCESS) {
+    return (err);
+  }
+
+  return (err);
 }
 
 /** Write the metadata (table columns) config file. Serialise the contents
@@ -235,8 +239,8 @@ of dict_col_t default value part if exists.
 @param[in]	col	column to which the default value belongs
 @param[in]	file	file to write to
 @return DB_SUCCESS or DB_IO_ERROR. */
-[[nodiscard]] static dberr_t row_quiesce_write_default_value(
-    const dict_col_t *col, FILE *file) {
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_quiesce_write_default_value(const dict_col_t *col, FILE *file) {
   byte row[6];
 
   if (col->instant_default != nullptr) {
@@ -272,11 +276,11 @@ of dict_col_t default value part if exists.
  dict_col_t structure, along with the column name. All fields are serialized
  as ib_uint32_t.
  @return DB_SUCCESS or error code. */
-[[nodiscard]] static dberr_t row_quiesce_write_table(
-    const dict_table_t *table, /*!< in: write the meta
-                               data for this table */
-    FILE *file,                /*!< in: file to write to */
-    THD *thd)                  /*!< in/out: session */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_quiesce_write_table(const dict_table_t *table, /*!< in: write the meta
+                                                       data for this table */
+                            FILE *file, /*!< in: file to write to */
+                            THD *thd)   /*!< in/out: session */
 {
   dict_col_t *col;
   byte row[sizeof(ib_uint32_t) * 7];
@@ -350,11 +354,11 @@ of dict_col_t default value part if exists.
 
 /** Write the meta data config file header.
  @return DB_SUCCESS or error code. */
-[[nodiscard]] static dberr_t row_quiesce_write_header(
-    const dict_table_t *table, /*!< in: write the meta
-                               data for this table */
-    FILE *file,                /*!< in: file to write to */
-    THD *thd)                  /*!< in/out: session */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_quiesce_write_header(const dict_table_t *table, /*!< in: write the meta
+                                                        data for this table */
+                             FILE *file, /*!< in: file to write to */
+                             THD *thd)   /*!< in/out: session */
 {
   byte value[sizeof(ib_uint32_t)];
 
@@ -480,14 +484,14 @@ of dict_col_t default value part if exists.
   }
 
   if (cfg_version >= IB_EXPORT_CFG_VERSION_V6) {
-    /* Write compression type info. */
+    /* Write compression info */
     uint8_t compression_type =
         static_cast<uint8_t>(fil_get_compression(table->space));
     mach_write_to_1(value, compression_type);
 
     if (fwrite(&value, 1, sizeof(uint8_t), file) != sizeof(uint8_t)) {
       ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
-                  strerror(errno), "while writing compression type info.");
+                  strerror(errno), "while writing space_flags.");
 
       return DB_IO_ERROR;
     }
@@ -498,10 +502,10 @@ of dict_col_t default value part if exists.
 
 /** Write the table meta data after quiesce.
  @return DB_SUCCESS or error code */
-[[nodiscard]] static dberr_t row_quiesce_write_cfg(
-    dict_table_t *table, /*!< in: write the meta data for
-                                 this table */
-    THD *thd)            /*!< in/out: session */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_quiesce_write_cfg(dict_table_t *table, /*!< in: write the meta data for
+                                                       this table */
+                          THD *thd)            /*!< in/out: session */
 {
   dberr_t err;
   char name[OS_FILE_MAX_PATH];
@@ -555,7 +559,7 @@ of dict_col_t default value part if exists.
 @param[in]	file		file to write to
 @param[in]	thd		session
 @return DB_SUCCESS or error code. */
-[[nodiscard]] static MY_ATTRIBUTE((nonnull)) dberr_t
+static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
     row_quiesce_write_transfer_key(const dict_table_t *table, FILE *file,
                                    THD *thd) {
   byte key_size[sizeof(ib_uint32_t)];
@@ -636,7 +640,7 @@ of dict_col_t default value part if exists.
 @param[in]	table		write the data for this table
 @param[in]	thd		session
 @return DB_SUCCESS or error code */
-[[nodiscard]] static MY_ATTRIBUTE((nonnull)) dberr_t
+static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
     row_quiesce_write_cfp(dict_table_t *table, THD *thd) {
   dberr_t err;
   char name[OS_FILE_MAX_PATH];
@@ -648,7 +652,7 @@ of dict_col_t default value part if exists.
 
   /* Get the encryption key and iv from space */
   /* For encrypted table, before we discard the tablespace,
-  we need to save the encryption information into table, otherwise,
+  we need save the encryption information into table, otherwise,
   this information will be lost in fil_discard_tablespace along
   with fil_space_free(). */
   if (table->encryption_key == nullptr) {
@@ -723,7 +727,8 @@ static bool row_quiesce_table_has_fts_index(
 
   dict_mutex_enter_for_mysql();
 
-  for (const dict_index_t *index : table->indexes) {
+  for (const dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
+       index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
     if (index->type & DICT_FTS) {
       exists = true;
       break;

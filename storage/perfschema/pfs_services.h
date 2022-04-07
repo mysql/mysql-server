@@ -79,8 +79,6 @@ extern SERVICE_TYPE(psi_table_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_table_v1);
 extern SERVICE_TYPE(psi_thread_v4)
     SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v4);
-extern SERVICE_TYPE(psi_thread_v5)
-    SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v5);
 extern SERVICE_TYPE(psi_transaction_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_transaction_v1);
 extern SERVICE_TYPE(psi_tls_channel_v1)

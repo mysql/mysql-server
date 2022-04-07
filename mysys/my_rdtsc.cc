@@ -36,10 +36,9 @@
   my_timer_microseconds     ulonglong "microseconds"
   my_timer_milliseconds     ulonglong milliseconds
   my_timer_ticks            ulonglong ticks
-  my_timer_thread_cpu       ulonglong thread_cpu
   my_timer_init             initialization / test
 
-  We'll call the first 6 functions (the ones that return
+  We'll call the first 5 functions (the ones that return
   a ulonglong) "my_timer_xxx" functions.
   Each my_timer_xxx function returns a 64-bit timing value
   since an arbitrary 'epoch' start. Since the only purpose
@@ -85,6 +84,26 @@
 #include <mach/mach_time.h>
 #endif
 
+#if defined(__SUNPRO_CC) && defined(__sparcv9) && defined(_LP64) && \
+    !defined(__SunOS_5_7)
+extern "C" ulonglong my_timer_cycles_il_sparc64();
+#elif defined(__SUNPRO_CC) && defined(_ILP32) && !defined(__SunOS_5_7)
+extern "C" ulonglong my_timer_cycles_il_sparc32();
+#elif defined(__SUNPRO_CC) && defined(__i386) && defined(_ILP32)
+extern "C" ulonglong my_timer_cycles_il_i386();
+#elif defined(__SUNPRO_CC) && defined(__x86_64) && defined(_LP64)
+extern "C" ulonglong my_timer_cycles_il_x86_64();
+#elif defined(__SUNPRO_C) && defined(__sparcv9) && defined(_LP64) && \
+    !defined(__SunOS_5_7)
+ulonglong my_timer_cycles_il_sparc64();
+#elif defined(__SUNPRO_C) && defined(_ILP32) && !defined(__SunOS_5_7)
+ulonglong my_timer_cycles_il_sparc32();
+#elif defined(__SUNPRO_C) && defined(__i386) && defined(_ILP32)
+ulonglong my_timer_cycles_il_i386();
+#elif defined(__SUNPRO_C) && defined(__x86_64) && defined(_LP64)
+ulonglong my_timer_cycles_il_x86_64();
+#endif
+
 /*
   For cycles, we depend on RDTSC for x86 platforms,
   or on time buffer (which is not really a cycle count
@@ -99,6 +118,8 @@ ulonglong my_timer_cycles(void) {
   ulonglong result;
   __asm__ __volatile__("rdtsc" : "=A"(result));
   return result;
+#elif defined(__SUNPRO_C) && defined(__i386)
+  __asm("rdtsc");
 #elif defined(__GNUC__) && defined(__x86_64__)
   ulonglong result;
   __asm__ __volatile__(
@@ -142,8 +163,21 @@ ulonglong my_timer_cycles(void) {
     result = x1;
     return (result << 32) | x2;
   }
+#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__sparcv9) && \
+    defined(_LP64) && !defined(__SunOS_5_7)
+  return (my_timer_cycles_il_sparc64());
+#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(_ILP32) && \
+    !defined(__SunOS_5_7)
+  return (my_timer_cycles_il_sparc32());
+#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__i386) && \
+    defined(_ILP32)
+  /* This is probably redundant for __SUNPRO_C. */
+  return (my_timer_cycles_il_i386());
+#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__x86_64) && \
+    defined(_LP64)
+  return (my_timer_cycles_il_x86_64());
 #elif defined(__GNUC__) && (defined(__sparcv9) || defined(__sparc_v9__)) && \
-    defined(_LP64) && !defined(__clang__)
+    defined(_LP64)
   {
     ulonglong result;
     __asm __volatile__("rd %%tick,%0" : "=r"(result));
@@ -304,43 +338,6 @@ ulonglong my_timer_ticks(void) {
 #endif
 }
 
-/**
-  THREAD_CPU timer.
-  Expressed in nanoseconds.
-*/
-ulonglong my_timer_thread_cpu(void) {
-#if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_THREAD_CPUTIME_ID)
-  {
-    struct timespec tp;
-    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp);
-    return (ulonglong)tp.tv_sec * 1000000000 + (ulonglong)tp.tv_nsec;
-  }
-#elif defined(_WIN32)
-  {
-    HANDLE hThread = GetCurrentThread();
-    FILETIME start;
-    FILETIME end;
-    FILETIME system;
-    FILETIME user;
-    ulonglong result;
-    if (GetThreadTimes(hThread, &start, &end, &system, &user) != 0) {
-      /*
-        GetThreadTimes() return a number expressed in 100 nanosecs units.
-      */
-      result = (user.dwHighDateTime + system.dwHighDateTime);
-      result <<= 32;
-      result += (user.dwLowDateTime + system.dwLowDateTime);
-      result *= 100;
-    } else {
-      result = 0;
-    }
-    return result;
-  }
-#else
-#warning "Implement my_timer_thread_cpu() for this platform."
-  return 0;
-#endif
-}
 /*
   The my_timer_init() function and its sub-functions
   have several loops which call timers. If there's
@@ -474,6 +471,8 @@ void my_timer_init(MY_TIMER_INFO *mti) {
   mti->cycles.frequency = 1000000000;
 #if defined(__GNUC__) && defined(__i386__)
   mti->cycles.routine = MY_TIMER_ROUTINE_ASM_X86;
+#elif defined(__SUNPRO_C) && defined(__i386)
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_X86;
 #elif defined(__GNUC__) && defined(__x86_64__)
   mti->cycles.routine = MY_TIMER_ROUTINE_ASM_X86_64;
 #elif defined(_WIN64) && defined(_M_X64)
@@ -486,9 +485,23 @@ void my_timer_init(MY_TIMER_INFO *mti) {
 #elif defined(__GNUC__) && (defined(__powerpc__) || defined(__POWERPC__)) && \
     (!defined(__64BIT__) && !defined(_ARCH_PPC64))
   mti->cycles.routine = MY_TIMER_ROUTINE_ASM_PPC;
+#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__sparcv9) && \
+    defined(_LP64) && !defined(__SunOS_5_7)
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_SUNPRO_SPARC64;
+#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(_ILP32) && \
+    !defined(__SunOS_5_7)
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_SUNPRO_SPARC32;
+#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__i386) && \
+    defined(_ILP32)
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_SUNPRO_I386;
+#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__x86_64) && \
+    defined(_LP64)
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_SUNPRO_X86_64;
 #elif defined(__GNUC__) && (defined(__sparcv9) || defined(__sparc_v9__)) && \
     defined(_LP64)
   mti->cycles.routine = MY_TIMER_ROUTINE_ASM_GCC_SPARC64;
+#elif defined(__GNUC__) && defined(__sparc__) && !defined(_LP64)
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_GCC_SPARC32;
 #elif defined(__GNUC__) && defined(__aarch64__)
   mti->cycles.routine = MY_TIMER_ROUTINE_ASM_AARCH64;
 #elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
@@ -579,22 +592,6 @@ void my_timer_init(MY_TIMER_INFO *mti) {
     mti->ticks.overhead = 0;
   }
 
-  /* thread_cpu */
-  mti->thread_cpu.frequency = 1000000000; /* initial assumption */
-#if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_THREAD_CPUTIME_ID)
-  mti->thread_cpu.routine = MY_TIMER_ROUTINE_CLOCK_GETTIME;
-#elif defined(_WIN32)
-  mti->thread_cpu.routine = MY_TIMER_ROUTINE_GET_THREAD_TIMES;
-#else
-  mti->thread_cpu.routine = 0;
-#endif
-  if (!mti->thread_cpu.routine || !my_timer_thread_cpu()) {
-    mti->thread_cpu.routine = 0;
-    mti->thread_cpu.resolution = 0;
-    mti->thread_cpu.frequency = 0;
-    mti->thread_cpu.overhead = 0;
-  }
-
   /*
     Calculate overhead in terms of the timer that
     gives the best resolution: cycles or nanoseconds.
@@ -632,9 +629,6 @@ void my_timer_init(MY_TIMER_INFO *mti) {
   if (mti->ticks.routine)
     my_timer_init_overhead(&mti->ticks.overhead, best_timer, &my_timer_ticks,
                            best_timer_overhead);
-  if (mti->thread_cpu.routine)
-    my_timer_init_overhead(&mti->thread_cpu.overhead, best_timer,
-                           &my_timer_thread_cpu, best_timer_overhead);
 
   /*
     Calculate resolution for nanoseconds or microseconds
@@ -653,9 +647,6 @@ void my_timer_init(MY_TIMER_INFO *mti) {
     mti->milliseconds.resolution =
         my_timer_init_resolution(&my_timer_milliseconds, 0);
   if (mti->ticks.routine) mti->ticks.resolution = 1;
-  if (mti->thread_cpu.routine)
-    mti->thread_cpu.resolution =
-        my_timer_init_resolution(&my_timer_thread_cpu, 20000);
 
   /*
     Calculate cycles frequency,
@@ -734,29 +725,6 @@ void my_timer_init(MY_TIMER_INFO *mti) {
     }
     time4 = my_timer_cycles();
     mti->ticks.frequency =
-        (mti->cycles.frequency * (time3 - time2)) / (time4 - time1);
-  }
-
-  /*
-    Calculate thread_cpu.frequency =
-    (cycles-frequency/#-of-cycles * #-of-thread_cpu,
-    if we have both a thread_cpu routine and a cycles routine.
-
-    The 'frequency' of the thread cpu timer is ill defined,
-    as this timer is not progressing if the thread is not running.
-  */
-  if (mti->thread_cpu.routine && mti->cycles.routine) {
-    int i;
-    ulonglong time1, time2, time3, time4;
-    time1 = my_timer_cycles();
-    time2 = my_timer_thread_cpu();
-    time3 = time2;
-    for (i = 0; i < MY_TIMER_ITERATIONS * 1000; ++i) {
-      time3 = my_timer_thread_cpu();
-      if (time3 - time2 > 10) break;
-    }
-    time4 = my_timer_cycles();
-    mti->thread_cpu.frequency =
         (mti->cycles.frequency * (time3 - time2)) / (time4 - time1);
   }
 }

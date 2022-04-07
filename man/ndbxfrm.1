@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: ndbxfrm
+.\"     Title: \fBndbxfrm\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2021
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDBXFRM" "1" "11/26/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDBXFRM\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -63,12 +63,6 @@ lB l l
 lB l l
 lB l l
 lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
 lB l l.
 T{
 .PP
@@ -83,7 +77,7 @@ ADDED: NDB 8.0.22
 T}
 T{
 .PP
-\fB \fR\fB--decrypt-password=password\fR\fB \fR
+\fB \fR\fB--decrypt-password=string\fR\fB \fR
 T}:T{
 Use this password to decrypt file
 T}:T{
@@ -92,7 +86,7 @@ ADDED: NDB 8.0.22
 T}
 T{
 .PP
-\fB \fR\fB--decrypt-password-from-stdin\fR\fB \fR
+\fB \fR\fB--decrypt-password-from-stdin[=value]\fR\fB \fR
 T}:T{
 Get decryption password in a secure fashion from STDIN
 T}:T{
@@ -101,36 +95,9 @@ ADDED: NDB 8.0.24
 T}
 T{
 .PP
-\fB \fR\fB--defaults-extra-file=path\fR\fB \fR
-T}:T{
-Read given file after global files are read
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--defaults-group-suffix=string\fR\fB \fR
-T}:T{
-Also read groups with concat(group, suffix)
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--defaults-file=path\fR\fB \fR
-T}:T{
-Read default options from given file only
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
 \fB--encrypt-kdf-iter-count=#\fR,
 .PP
-\fB \fR\fB-k #\fR\fB \fR
+\fB \fR\fB-k\fR\fB \fR
 T}:T{
 Number of iterations used in key definition
 T}:T{
@@ -139,7 +106,7 @@ ADDED: NDB 8.0.22
 T}
 T{
 .PP
-\fB \fR\fB--encrypt-password=password\fR\fB \fR
+\fB \fR\fB--encrypt-password=string\fR\fB \fR
 T}:T{
 Use this password to encrypt file
 T}:T{
@@ -148,7 +115,7 @@ ADDED: NDB 8.0.22
 T}
 T{
 .PP
-\fB \fR\fB--encrypt-password-from-stdin\fR\fB \fR
+\fB \fR\fB--encrypt-password-from-stdin[=value]\fR\fB \fR
 T}:T{
 Get encryption password in a secure fashion from STDIN
 T}:T{
@@ -176,33 +143,6 @@ Print file information
 T}:T{
 .PP
 ADDED: NDB 8.0.22
-T}
-T{
-.PP
-\fB \fR\fB--login-path=path\fR\fB \fR
-T}:T{
-Read given path from login file
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--no-defaults\fR\fB \fR
-T}:T{
-Do not read default options from any option file other than login file
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--print-defaults\fR\fB \fR
-T}:T{
-Print program argument list and exit
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -304,108 +244,6 @@ with no password following the option\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-defaults\-extra\-file\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---defaults-extra-file=path
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Read given file after global files are read\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-defaults\-file\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---defaults-file=path
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Read default options from given file only\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-defaults\-group\-suffix\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---defaults-group-suffix=string
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Also read groups with concat(group, suffix)\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-encrypt\-kdf\-iter\-count=\fR\fB\fI#\fR\fR,
 \fB\-k \fR\fB\fI#\fR\fR
 When encrypting a file, specifies the number of iterations to use for the encryption key\&. Requires the
@@ -438,8 +276,7 @@ Uses any of the printable ASCII characters except
 ",
 $,
 %,
-\e,
-`, and
+\e, and
 ^
 .RE
 .sp
@@ -464,6 +301,10 @@ Is no more than 256 characters in length
 .\}
 Is enclosed by single or double quotation marks
 .RE
+.sp
+It is possible but not recommended to use an empty password (\*(Aq\*(Aq
+or
+"")\&.
 .RE
 .sp
 .RS 4
@@ -549,7 +390,7 @@ Example:
 .RS 4
 .\}
 .nf
-$> \fBndbxfrm \-i BACKUP\-10\-0\&.5\&.Data BACKUP\-10\&.5\&.ctl BACKUP\-10\&.5\&.log\fR
+shell> \fBndbxfrm \-i BACKUP\-10\-0\&.5\&.Data BACKUP\-10\&.5\&.ctl BACKUP\-10\&.5\&.log\fR
 File=BACKUP\-10\-0\&.5\&.Data, compression=no, encryption=yes
 File=BACKUP\-10\&.5\&.ctl, compression=no, encryption=yes
 File=BACKUP\-10\&.5\&.log, compression=no, encryption=yes
@@ -557,84 +398,6 @@ File=BACKUP\-10\&.5\&.log, compression=no, encryption=yes
 .if n \{\
 .RE
 .\}
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-login\-path\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---login-path=path
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Read given path from login file\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-no\-defaults\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---no-defaults
-T}
-.TE
-.sp 1
-Do not read default options from any option file other than login file\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-print\-defaults\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---print-defaults
-T}
-.TE
-.sp 1
-Print program argument list and exit\&.
 .RE
 .sp
 .RS 4
@@ -696,6 +459,13 @@ In the example just shown,
 and
 \fInew\fR
 are the old and new passwords, respectively; both of these must be quoted\&. The input file is decrypted and then encrypted as the output file\&. The input file itself is not changed; if you do not want it to be accessible using the old password, you must remove the input file manually\&.
+.PP
+\fBndbxfrm\fR
+does not take any of the options shown in
+Options Common to NDB Cluster Programs(1), other than those explicitly listed in this section (that is,
+\fB\-\-help\fR,
+\fB\-\-usage\fR, and
+\fB\-\-version\fR)\&.
 .SH "COPYRIGHT"
 .br
 .PP

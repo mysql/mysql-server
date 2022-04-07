@@ -74,7 +74,7 @@
 # This test is unrelated to log format
 --source include/have_binlog_format_row.inc
 --source include/not_master_info_file.inc
---source include/not_mts_replica_parallel_workers.inc
+--source include/not_mts_slave_parallel_workers.inc
 --source include/master-slave.inc
 
 --echo
@@ -201,7 +201,7 @@ START SLAVE;
 --echo #     The starting value should be 1 in the file / STREAM
 
 --let $sub_testcase = no_require_table_primary_key_check
---let $rpl_server_restart_parameters = --skip_replica_start
+--let $rpl_server_restart_parameters = --skip_slave_start
 --let $slave_server_num = 2
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 
@@ -215,7 +215,7 @@ START SLAVE;
 --echo #     Check we cannot start the slave process
 
 --let $sub_testcase = invalid_require_table_primary_key_check
---let $rpl_server_restart_parameters = --skip_replica_start
+--let $rpl_server_restart_parameters = --skip_slave_start
 --let $slave_server_num = 2
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 
@@ -232,7 +232,7 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_table_primary_key_che
 UPDATE mysql.slave_relay_log_info SET Number_of_lines = 11;
 
 --let $sub_testcase = no_require_table_primary_key_check
---let $rpl_server_restart_parameters = --skip_replica_start --relay-log-info-repository=TABLE --upgrade=FORCE
+--let $rpl_server_restart_parameters = --skip_slave_start --relay-log-info-repository=TABLE --upgrade=FORCE
 --let $slave_server_num = 2
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 
@@ -256,14 +256,6 @@ UPDATE mysql.slave_relay_log_info SET Number_of_lines = 11;
 --echo #       3. A channel with a privileged user (default channel)
 --echo #     REQUIRE_TABLE_PRIMARY_KEY_CHECK is set to STREAM for all channels
 
-# For runs where GTID mode is OFF we enable it so we can configure the GR recovery channel
---let $rpl_gtid_mode= ON
---let $rpl_server_numbers= 2
---let $rpl_set_enforce_gtid_consistency= 1
---let $rpl_skip_sync= 1
---let $no_extra_info = 1
---source include/rpl_set_gtid_mode.inc
-
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "ch1" ;
 --disable_warnings
 CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
@@ -275,7 +267,7 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_table_primary_key_che
 UPDATE mysql.slave_relay_log_info SET Number_of_lines = 11;
 
 --let $rpl_server_number = 2
---let $rpl_server_parameters = --skip_replica_start --relay-log-info-repository=TABLE --upgrade=FORCE
+--let $rpl_server_parameters = --skip_slave_start --relay-log-info-repository=TABLE --upgrade=FORCE
 --let $explicit_default_wait_counter = 15000
 --source include/rpl_restart_server.inc
 
@@ -291,13 +283,6 @@ UPDATE mysql.slave_relay_log_info SET Number_of_lines = 11;
 
 RESET SLAVE ALL FOR CHANNEL "ch1";
 RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
-
-if ($gtid_mode_on == 0) {
-  --let $rpl_gtid_mode = 0
-  --let $rpl_set_enforce_gtid_consistency = 0
-}
---let $no_extra_info = 1
---source include/rpl_set_gtid_mode.inc
 
 # 5. RESET SLAVE tests
 
@@ -322,7 +307,7 @@ RESET SLAVE;
 --source include/assert.inc
 
 --let $rpl_server_number = 2
---let $rpl_server_parameters = --skip_replica_start --relay-log-info-repository=TABLE
+--let $rpl_server_parameters = --skip_slave_start --relay-log-info-repository=TABLE
 --let $explicit_default_wait_counter = 15000
 --source include/rpl_restart_server.inc
 

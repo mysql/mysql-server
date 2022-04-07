@@ -25,8 +25,6 @@
 
 #include <ndb_global.h>
 
-#include <time.h>
-
 #include "SHM_Transporter.hpp"
 #include "TransporterInternalDefinitions.hpp"
 #include <TransporterCallback.hpp>
@@ -39,6 +37,7 @@
 #include <OutputStream.hpp>
 
 #include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 #if 0
 #define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
@@ -72,6 +71,9 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
   shmKey(_shmKey),
   shmSize(_shmSize)
 {
+#ifndef _WIN32
+  shmId= 0;
+#endif
   _shmSegCreated = false;
   _attached = false;
 
@@ -111,6 +113,9 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
 {
   shmKey = t->shmKey;
   shmSize = t->shmSize;
+#ifndef NDB_WIN32
+  shmId= 0;
+#endif
   _shmSegCreated = false;
   _attached = false;
 
@@ -364,7 +369,7 @@ SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
                    localNodeId, remoteNodeId, __LINE__));
     if (setupBuffers())
     {
-      g_eventLogger->info("Shared memory not supported on this platform");
+      fprintf(stderr, "Shared memory not supported on this platform\n");
       detach_shm(false);
       DBUG_RETURN(false);
     }
@@ -505,7 +510,7 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
                    localNodeId, remoteNodeId, __LINE__));
     if (setupBuffers())
     {
-      g_eventLogger->info("Shared memory not supported on this platform");
+      fprintf(stderr, "Shared memory not supported on this platform\n");
       detach_shm(false);
       DBUG_RETURN(false);
     }

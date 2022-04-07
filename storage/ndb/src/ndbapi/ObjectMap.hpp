@@ -30,6 +30,7 @@
 
 #include <EventLogger.hpp>
 #include <NdbMutex.h>
+extern EventLogger * g_eventLogger;
 
 //#define DEBUG_OBJECTMAP
 
@@ -39,7 +40,7 @@
 class NdbObjectIdMap
 {
 public:
-  static constexpr Uint32 InvalidId = 0x7fffffff;
+  STATIC_CONST( InvalidId = 0x7fffffff );
 
 private:
   /**

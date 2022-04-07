@@ -35,7 +35,6 @@
 #include <mgmapi.h>
 
 #include <NdbMutex.h>
-#include <EventLogger.hpp>
 
 #define JAM_FILE_ID 292
 
@@ -1424,12 +1423,12 @@ CachedArrayPool<T>::seizeChunk(Uint32 & cnt, Ptr<T> & ptr)
     do 
     {
       if (0)
-        g_eventLogger->info(
-            "seizeChunk(%u) ff: %u tmp: %d chunkSize: %u lastChunk: %u "
-            "nextChunk: %u",
-            save, ff, tmp, theArray[ff].chunkSize, theArray[ff].lastChunk,
-            theArray[ff].nextChunk);
-
+        ndbout_c("seizeChunk(%u) ff: %u tmp: %d chunkSize: %u lastChunk: %u nextChunk: %u",
+                 save, ff, tmp, 
+                 theArray[ff].chunkSize, 
+                 theArray[ff].lastChunk,
+                 theArray[ff].nextChunk);
+      
       tmp -= theArray[ff].chunkSize;
       prev = theArray[ff].lastChunk;
       assert(theArray[ff].nextChunk == theArray[prev].nextPool);

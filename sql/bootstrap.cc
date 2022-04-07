@@ -94,7 +94,7 @@ static char *mysql_file_fgets_fn(char *buffer, size_t size, MYSQL_FILE *input,
   return line;
 }
 
-File_command_iterator::~File_command_iterator() = default;
+File_command_iterator::~File_command_iterator() {}
 
 static void bootstrap_log_error(const char *message) {
   my_printf_error(ER_UNKNOWN_ERROR, "%s", MYF(0), message);
@@ -181,14 +181,15 @@ static bool handle_bootstrap_impl(handle_bootstrap_args *args) {
 }
 
 static int process_iterator(THD *thd, Command_iterator *it,
-                            bool enforce_invariants [[maybe_unused]]) {
+                            bool enforce_invariants MY_ATTRIBUTE((unused))) {
   std::string query;
   Key_length_error_handler error_handler;
   bool error = false;
 
-  const bool saved_sql_log_bin [[maybe_unused]] = thd->variables.sql_log_bin;
-  const ulonglong invariant_bits [[maybe_unused]] = OPTION_BIN_LOG;
-  const ulonglong saved_option_bits [[maybe_unused]] =
+  const bool saved_sql_log_bin MY_ATTRIBUTE((unused)) =
+      thd->variables.sql_log_bin;
+  const ulonglong invariant_bits MY_ATTRIBUTE((unused)) = OPTION_BIN_LOG;
+  const ulonglong saved_option_bits MY_ATTRIBUTE((unused)) =
       thd->variables.option_bits & invariant_bits;
 
   it->begin();
@@ -268,7 +269,7 @@ static int process_iterator(THD *thd, Command_iterator *it,
       break;
     }
 
-    thd->mem_root->ClearForReuse();
+    free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
 
     /*
       Make sure bootstrap statements do not change binlog options.

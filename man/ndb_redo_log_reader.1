@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: ndb_redo_log_reader
+.\"     Title: \fBndb_redo_log_reader\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2021
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_REDO_LOG_READER" "1" "11/26/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_REDO_LOG_READER\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -45,9 +45,10 @@ The C++ source files for
 can be found in the directory
 /storage/ndb/src/kernel/blocks/dblqh/redoLogReader\&.
 .PP
-Options that can be used with
-\fBndb_redo_log_reader\fR
-are shown in the following table\&. Additional descriptions follow the table\&.
+The following table includes options that are specific to the NDB Cluster program
+\fBndb_redo_log_reader\fR\&. Additional descriptions follow the table\&. For options common to most NDB Cluster programs (including
+\fBndb_redo_log_reader\fR), see
+Options Common to NDB Cluster Programs(1)\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
@@ -99,7 +100,7 @@ T{
 .PP
 \fB \fR\fB--help\fR\fB \fR
 T}:T{
-Print usage information (has no short form)
+Print usage information
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -227,11 +228,23 @@ The name of the file to be read may be followed by one or more of the options li
 \fB\-dump\fR
 .TS
 allbox tab(:);
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 -dump
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
 T}
 .TE
 .sp 1
@@ -248,11 +261,23 @@ Print dump info\&.
 .\}
 .TS
 allbox tab(:);
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 -filedescriptors
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
 T}
 .TE
 .sp 1
@@ -291,11 +316,23 @@ T}
 \fB\-lap\fR
 .TS
 allbox tab(:);
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 -lap
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
 T}
 .TE
 .sp 1
@@ -360,11 +397,23 @@ is an integer in the range 0 to 15, inclusive\&.
 .\}
 .TS
 allbox tab(:);
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 -mbyteheaders
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
 T}
 .TE
 .sp 1
@@ -381,11 +430,23 @@ T}
 .\}
 .TS
 allbox tab(:);
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 -noprint
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
 T}
 .TE
 .sp 1
@@ -402,11 +463,23 @@ T}
 .\}
 .TS
 allbox tab(:);
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 -nocheck
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
 T}
 .TE
 .sp 1
@@ -471,11 +544,23 @@ is an integer in the range 0 to 31, inclusive\&.
 .\}
 .TS
 allbox tab(:);
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 -pageheaders
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
 T}
 .TE
 .sp 1
@@ -541,11 +626,23 @@ is an integer between 12 and 8191, inclusive\&.
 \fB\-twiddle\fR
 .TS
 allbox tab(:);
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 -twiddle
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
 T}
 .TE
 .sp 1

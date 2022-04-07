@@ -22,13 +22,11 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <gtest/gtest-matchers.h>
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
-#include <initializer_list>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -41,25 +39,21 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "filesystem_utils.h"
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
 #include "mysql/harness/filesystem.h"
-#include "mysql/harness/string_utils.h"  // join
 #include "mysql/harness/tls_client_context.h"
 #include "mysql/harness/tls_context.h"
-#include "mysql/harness/utility/string.h"  // string_format
 #include "mysqlrouter/http_client.h"
-#include "mysqlrouter/utils.h"
 #include "process_wrapper.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
-#include "router_test_helpers.h"
 #include "tcp_port_pool.h"
+#include "utils.h"
 
 using namespace std::chrono_literals;
-
-using mysql_harness::utility::string_format;
 
 class TestRestApiEnable : public RouterComponentTest {
  public:
@@ -92,6 +86,8 @@ class TestRestApiEnable : public RouterComponentTest {
               std::back_inserter(cmdline));
     auto &router_bootstrap = launch_router(cmdline, EXIT_SUCCESS);
 
+    router_bootstrap.register_response("Please enter MySQL password for root: ",
+                                       k_root_password + "\n");
     check_exit_code(router_bootstrap, EXIT_SUCCESS);
 
     EXPECT_TRUE(router_bootstrap.expect_output(
@@ -106,83 +102,43 @@ class TestRestApiEnable : public RouterComponentTest {
 
   void assert_rest_config(const mysql_harness::Path &config_path,
                           const bool is_enabled) const {
-    auto content = get_file_output(config_path.str());
+    const static char *nl = R"(((.|\r\n)*\s*))";
 
-    std::string rest_api_section = mysql_harness::join(
-        std::initializer_list<const char *>{
-            "[rest_api]",
-        },
-        "\n");
+    EXPECT_EQ(is_enabled, file_contains_regex(config_path, "\\[rest_api\\]"));
 
-    std::string http_server_section = mysql_harness::join(
-        std::initializer_list<const char *>{
-            R"(\[http_server\])",
-            R"(port=.+)",
-            R"(ssl=1)",
-            R"(ssl_cert=.*)",
-            R"(ssl_key=.*)",
-        },
-        "\n");
+    EXPECT_EQ(is_enabled,
+              file_contains_regex(config_path,
+                                  std::string{"\\[http_server\\]"} + nl +
+                                      "port=.*" + nl + "ssl=1" + nl +
+                                      "ssl_cert=.*" + nl + "ssl_key=.*"));
 
-    std::string http_auth_backend_section = mysql_harness::join(
-        std::initializer_list<const char *>{
-            "[http_auth_backend:default_auth_backend]",
-            "backend=metadata_cache",
-        },
-        "\n");
+    EXPECT_EQ(is_enabled,
+              file_contains_regex(
+                  config_path,
+                  std::string{"\\[http_auth_backend:default_auth_backend\\]"} +
+                      nl + "backend=metadata_cache"));
 
-    std::string http_auth_realm_section = mysql_harness::join(
-        std::initializer_list<const char *>{
-            "[http_auth_realm:default_auth_realm]",
-            "backend=default_auth_backend",
-            "method=basic",
-            "name=default_realm",
-        },
-        "\n");
+    EXPECT_EQ(is_enabled,
+              file_contains_regex(
+                  config_path,
+                  std::string{"\\[http_auth_realm:default_auth_realm\\]"} + nl +
+                      "backend=default_auth_backend" + nl + "method=basic" +
+                      nl + "name=default_realm"));
 
-    std::string rest_router_section = mysql_harness::join(
-        std::initializer_list<const char *>{
-            "[rest_router]",
-            "require_realm=default_auth_realm",
-        },
-        "\n");
+    EXPECT_EQ(is_enabled,
+              file_contains_regex(config_path,
+                                  std::string{"\\[rest_router\\]"} + nl +
+                                      "require_realm=default_auth_realm"));
 
-    std::string rest_routing_section = mysql_harness::join(
-        std::initializer_list<const char *>{
-            "[rest_routing]",
-            "require_realm=default_auth_realm",
-        },
-        "\n");
+    EXPECT_EQ(is_enabled,
+              file_contains_regex(config_path,
+                                  std::string{"\\[rest_routing\\]"} + nl +
+                                      "require_realm=default_auth_realm"));
 
-    std::string rest_metadata_cache_section = mysql_harness::join(
-        std::initializer_list<const char *>{
-            "[rest_metadata_cache]",
-            "require_realm=default_auth_realm",
-        },
-        "\n");
-
-    if (is_enabled) {
-      EXPECT_THAT(content, ::testing::AllOf(
-                               ::testing::HasSubstr(rest_api_section),
-                               ::testing::ContainsRegex(http_server_section),
-                               ::testing::HasSubstr(http_auth_backend_section),
-                               ::testing::HasSubstr(http_auth_realm_section),
-                               ::testing::HasSubstr(rest_router_section),
-                               ::testing::HasSubstr(rest_routing_section),
-                               ::testing::HasSubstr(rest_metadata_cache_section)
-
-                                   ));
-    } else {
-      EXPECT_THAT(content,
-                  ::testing::Not(::testing::AnyOf(
-                      ::testing::HasSubstr(rest_api_section),
-                      ::testing::ContainsRegex(http_server_section),
-                      ::testing::HasSubstr(http_auth_backend_section),
-                      ::testing::HasSubstr(http_auth_realm_section),
-                      ::testing::HasSubstr(rest_router_section),
-                      ::testing::HasSubstr(rest_routing_section),
-                      ::testing::HasSubstr(rest_metadata_cache_section))));
-    }
+    EXPECT_EQ(is_enabled,
+              file_contains_regex(
+                  config_path, std::string{"\\[rest_metadata_cache\\]"} + nl +
+                                   "require_realm=default_auth_realm"));
   }
 
   enum class CertFile { k_ca_key, k_ca_cert, k_router_key, k_router_cert };
@@ -199,7 +155,7 @@ class TestRestApiEnable : public RouterComponentTest {
   }
 
   std::string read_cert(CertFile cert) const {
-    return get_file_output(datadir_path.join(cert_filenames.at(cert)).str());
+    return read_file(datadir_path.join(cert_filenames.at(cert)).str());
   }
 
   bool certificate_files_not_modified(
@@ -275,6 +231,8 @@ class TestRestApiEnable : public RouterComponentTest {
         "-d", path.str()};
     auto &router_bootstrap = launch_router(cmdline, EXIT_SUCCESS);
 
+    router_bootstrap.register_response("Please enter MySQL password for root: ",
+                                       k_root_password + "\n");
     check_exit_code(router_bootstrap, EXIT_SUCCESS);
 
     auto custom_config_path = path.join("mysqlrouter.conf");
@@ -323,7 +281,7 @@ class TestRestApiEnable : public RouterComponentTest {
   }
 
   void patch_config_file(const std::string &config_filename) {
-    // bootstrap does 'level=INFO', we need 'DEBUG'
+    // bootstrap does 'level = INFO', we need 'DEBUG'
     // bootstrap sets logging_folder=..., we need where the ProcessManager
     // expects it.
 
@@ -334,8 +292,8 @@ class TestRestApiEnable : public RouterComponentTest {
 
     std::string line;
     while (std::getline(ifs, line)) {
-      if (line == "level=INFO") {
-        line = "level=DEBUG";
+      if (line == "level = INFO") {
+        line = "level = DEBUG";
       }
       if (line.substr(0, sizeof("logging_folder") - 1) == "logging_folder") {
         line = "logging_folder = " + get_logging_dir().str();
@@ -353,25 +311,23 @@ class TestRestApiEnable : public RouterComponentTest {
 
   ProcessWrapper &launch_router(
       const std::vector<std::string> &params, int expected_exit_code /*= 0*/,
-      std::chrono::milliseconds wait_for_notify_ready = -1s,
-      ProcessWrapper::OutputResponder output_responder =
-          RouterComponentBootstrapTest::kBootstrapOutputResponder) {
+      std::chrono::milliseconds wait_for_notify_ready = -1s) {
     return ProcessManager::launch_router(
         params, expected_exit_code,
-        /*catch_stderr*/ true, /*with_sudo*/ false, wait_for_notify_ready,
-        output_responder);
+        /*catch_stderr*/ true, /*with_sudo*/ false, wait_for_notify_ready);
   }
 
   TlsLibraryContext m_tls_lib_ctx;
   const std::string gr_member_ip{"127.0.0.1"};
   const std::string cluster_id{"3a0be5af-0022-11e8-9655-0800279e6a88"};
-
+  const std::string k_root_password{"fake-pass"};
   uint16_t cluster_node_port;
   uint16_t cluster_http_port;
   uint16_t custom_port;
   uint16_t router_port;
   uint16_t default_rest_port{8443};
   ProcessWrapper *cluster_node;
+  TcpPortPool port_pool_;
 
   TempDirectory temp_test_dir;
   mysql_harness::Path config_path;
@@ -551,18 +507,25 @@ TEST_F(TestRestApiEnable, ensure_rest_is_disabled) {
 /**
  * @test
  * Verify that bootstrap enables REST API by default. 'mysqlrouter.conf' should
- * contain lines required to enable REST API.
+ * contain lines required to enable REST API and connecting to REST API
+ * should work.
  *
  * WL13906:TS_FR03_01
  * WL13906:TS_FR05_01
  */
-TEST_F(TestRestApiEnable, ensure_rest_is_configured_by_default) {
+TEST_F(TestRestApiEnable, ensure_rest_works) {
   ASSERT_NO_FATAL_FAILURE(do_bootstrap({/*default command line arguments*/}));
 
   EXPECT_TRUE(certificate_files_exists(
       {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
        cert_file_t::k_router_cert}));
   assert_rest_config(config_path, true);
+
+  patch_config_file(config_path.str());
+
+  ProcessManager::launch_router({"-c", config_path.str()});
+
+  assert_rest_works(default_rest_port);
 }
 
 /**
@@ -711,11 +674,10 @@ class RestApiEnableUserCertificates
  */
 TEST_P(RestApiEnableUserCertificates, ensure_rest_works_with_user_certs) {
   create_cert_files(GetParam());
-  auto &router_bootstrap =
-      do_bootstrap({"--https-port", std::to_string(custom_port)});
-  const auto expected_message =
-      string_format("- Using existing certificates from the '%s' directory",
-                    datadir_path.real_path().c_str());
+  auto &router_bootstrap = do_bootstrap({/*default command line arguments*/});
+  const auto expected_message = mysqlrouter::string_format(
+      "- Using existing certificates from the '%s' directory",
+      datadir_path.real_path().c_str());
   EXPECT_THAT(router_bootstrap.get_full_output(),
               ::testing::HasSubstr(expected_message));
 
@@ -728,7 +690,7 @@ TEST_P(RestApiEnableUserCertificates, ensure_rest_works_with_user_certs) {
 
   ProcessManager::launch_router({"-c", config_path.str()});
 
-  assert_rest_works(custom_port);
+  assert_rest_works(default_rest_port);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -764,6 +726,9 @@ TEST_P(RestApiEnableNotEnoughFiles, ensure_rest_fail) {
       "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
       "-d", temp_test_dir.name()};
   auto &router_bootstrap = launch_router(cmdline, EXIT_FAILURE);
+
+  router_bootstrap.register_response("Please enter MySQL password for root: ",
+                                     k_root_password + "\n");
   check_exit_code(router_bootstrap, EXIT_FAILURE);
 
   const auto &files = GetParam();
@@ -783,7 +748,7 @@ TEST_P(RestApiEnableNotEnoughFiles, ensure_rest_fail) {
   if (!missing_files.empty()) missing_files += ", ";
   if (!has_file(cert_file_t::k_router_cert))
     missing_files += router_cert_filename;
-  const std::string output = string_format(
+  const std::string output = mysqlrouter::string_format(
       "Error: Missing certificate files in %s: '%s'. Please provide them or "
       "erase the existing certificate files and re-run bootstrap.",
       datadir_path.real_path().c_str(), missing_files.c_str());
@@ -850,22 +815,20 @@ TEST_P(RestApiInvalidUserCerts,
   }
 
   auto &router_bootstrap = do_bootstrap({/*default command line arguments*/});
-  const auto expected_message =
-      string_format("- Using existing certificates from the '%s' directory",
-                    datadir_path.real_path().c_str());
+  const auto expected_message = mysqlrouter::string_format(
+      "- Using existing certificates from the '%s' directory",
+      datadir_path.real_path().c_str());
   EXPECT_THAT(router_bootstrap.get_full_output(),
               ::testing::HasSubstr(expected_message));
 
   EXPECT_TRUE(certificate_files_exists(
       {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
        cert_file_t::k_router_cert}));
-  EXPECT_EQ(get_file_output(datadir_path.join(ca_key_filename).str()),
+  EXPECT_EQ(read_file(datadir_path.join(ca_key_filename).str()), GetParam());
+  EXPECT_EQ(read_file(datadir_path.join(ca_cert_filename).str()), GetParam());
+  EXPECT_EQ(read_file(datadir_path.join(router_key_filename).str()),
             GetParam());
-  EXPECT_EQ(get_file_output(datadir_path.join(ca_cert_filename).str()),
-            GetParam());
-  EXPECT_EQ(get_file_output(datadir_path.join(router_key_filename).str()),
-            GetParam());
-  EXPECT_EQ(get_file_output(datadir_path.join(router_cert_filename).str()),
+  EXPECT_EQ(read_file(datadir_path.join(router_cert_filename).str()),
             GetParam());
   assert_rest_config(config_path, true);
 
@@ -941,6 +904,8 @@ TEST_F(TestRestApiEnable, ensure_certificate_files_cleanup) {
   //    queries in the rest_api_enable.js file.
   // 3. Certificates are cleaned up.
   auto &router_bootstrap = launch_router(cmdline, EXIT_FAILURE);
+  router_bootstrap.register_response("Please enter MySQL password for root: ",
+                                     k_root_password + "\n");
 
   check_exit_code(router_bootstrap, EXIT_FAILURE);
   EXPECT_THAT(router_bootstrap.get_full_output(),
@@ -1015,7 +980,7 @@ TEST_F(TestRestApiEnableBootstrapFailover,
   setup_mocks(successful_failover);
   auto &router_bootstrap = do_bootstrap({/*default command line arguments*/});
   EXPECT_THAT(router_bootstrap.get_full_output(),
-              ::testing::HasSubstr("trying to connect to"));
+              ::testing::HasSubstr("trying to connect to another node"));
 
   EXPECT_TRUE(certificate_files_exists(
       {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
@@ -1046,10 +1011,12 @@ TEST_F(TestRestApiEnableBootstrapFailover,
       "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
       "-d", temp_test_dir.name(), "--strict"};
   auto &router_bootstrap = launch_router(cmdline, EXIT_FAILURE);
+  router_bootstrap.register_response("Please enter MySQL password for root: ",
+                                     k_root_password + "\n");
 
   check_exit_code(router_bootstrap, EXIT_FAILURE);
   EXPECT_THAT(router_bootstrap.get_full_output(),
-              ::testing::HasSubstr("trying to connect to"));
+              ::testing::HasSubstr("trying to connect to another node"));
   EXPECT_THAT(router_bootstrap.get_full_output(),
               ::testing::HasSubstr("Account verification failed"));
 
@@ -1074,6 +1041,8 @@ TEST_F(TestRestApiEnableBootstrapFailover,
       "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
       "-d", temp_test_dir.name()};
   auto &router_bootstrap = launch_router(cmdline, EXIT_FAILURE);
+  router_bootstrap.register_response("Please enter MySQL password for root: ",
+                                     k_root_password + "\n");
 
   check_exit_code(router_bootstrap, EXIT_FAILURE);
   EXPECT_THAT(

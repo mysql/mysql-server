@@ -94,7 +94,7 @@ class PFS_index_status_by_account : public PFS_engine_index {
         m_key_2("HOST"),
         m_key_3("VARIABLE_NAME") {}
 
-  ~PFS_index_status_by_account() override = default;
+  ~PFS_index_status_by_account() override {}
 
   virtual bool match(PFS_account *pfs);
   virtual bool match(const Status_variable *pfs);
@@ -131,7 +131,7 @@ class table_status_by_account : public PFS_engine_table {
   table_status_by_account();
 
  public:
-  ~table_status_by_account() override = default;
+  ~table_status_by_account() override {}
 
  protected:
   int make_row(PFS_account *pfs_account, const Status_variable *status_var);

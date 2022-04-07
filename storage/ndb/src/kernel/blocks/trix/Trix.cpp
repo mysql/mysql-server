@@ -26,7 +26,6 @@
 
 #include <cstring>
 #include <string.h>
-#include <time.h>
 #include <kernel_types.h>
 #include <NdbOut.hpp>
 
@@ -710,7 +709,7 @@ void Trix:: execBUILD_INDX_IMPL_REQ(Signal* signal)
 
 #if 0
   // Debugging
-  g_eventLogger->info("Trix:: execBUILD_INDX_IMPL_REQ: Attribute order:");
+  printf("Trix:: execBUILD_INDX_IMPL_REQ: Attribute order:\n");
   subRec->attributeOrder.print(stdout);
 #endif
 
@@ -721,12 +720,12 @@ void Trix:: execBUILD_INDX_IMPL_REQ(Signal* signal)
 
 void Trix:: execBUILD_INDX_IMPL_CONF(Signal* signal)
 {
-  g_eventLogger->info("Trix:: execBUILD_INDX_IMPL_CONF");
+  printf("Trix:: execBUILD_INDX_IMPL_CONF\n");
 }
 
 void Trix:: execBUILD_INDX_IMPL_REF(Signal* signal)
 {
-  g_eventLogger->info("Trix:: execBUILD_INDX_IMPL_REF");
+  printf("Trix:: execBUILD_INDX_IMPL_REF\n");
 }
 
 void Trix::execUTIL_PREPARE_CONF(Signal* signal)
@@ -738,10 +737,7 @@ void Trix::execUTIL_PREPARE_CONF(Signal* signal)
 
   subRecPtr.i = utilPrepareConf->senderData;
   if ((subRec = c_theSubscriptions.getPtr(subRecPtr.i)) == NULL) {
-    g_eventLogger->info(
-        "Trix::execUTIL_PREPARE_CONF:"
-        " Failed to find subscription data %u",
-        subRecPtr.i);
+    printf("Trix::execUTIL_PREPARE_CONF: Failed to find subscription data %u\n", subRecPtr.i);
     return;
   }
   if (subRec->requestType == STAT_UTIL)
@@ -763,10 +759,7 @@ void Trix::execUTIL_PREPARE_REF(Signal* signal)
 
   subRecPtr.i = utilPrepareRef->senderData;
   if ((subRec = c_theSubscriptions.getPtr(subRecPtr.i)) == NULL) {
-    g_eventLogger->info(
-        "Trix::execUTIL_PREPARE_REF:"
-        " Failed to find subscription data %u",
-        subRecPtr.i);
+    printf("Trix::execUTIL_PREPARE_REF: Failed to find subscription data %u\n", subRecPtr.i);
     return;
   }
   if (subRec->requestType == STAT_UTIL)
@@ -808,10 +801,7 @@ void Trix::execUTIL_EXECUTE_CONF(Signal* signal)
 
   subRecPtr.i = utilExecuteConf->senderData;
   if ((subRec = c_theSubscriptions.getPtr(subRecPtr.i)) == NULL) {
-    g_eventLogger->info(
-        "rix::execUTIL_EXECUTE_CONF:"
-        " Failed to find subscription data %u",
-        subRecPtr.i);
+    printf("rix::execUTIL_EXECUTE_CONF: Failed to find subscription data %u\n", subRecPtr.i);
     return;
   }
   if (subRec->requestType == STAT_UTIL)
@@ -850,10 +840,7 @@ void Trix::execUTIL_EXECUTE_REF(Signal* signal)
 
   subRecPtr.i = utilExecuteRef->senderData;
   if ((subRec = c_theSubscriptions.getPtr(subRecPtr.i)) == NULL) {
-    g_eventLogger->info(
-        "Trix::execUTIL_EXECUTE_REF:"
-        " Failed to find subscription data %u",
-        subRecPtr.i);
+    printf("Trix::execUTIL_EXECUTE_REF: Failed to find subscription data %u\n", subRecPtr.i);
     return;
   }
   if (subRec->requestType == STAT_UTIL)
@@ -898,10 +885,7 @@ void Trix::execSUB_CREATE_CONF(Signal* signal)
 
   subRecPtr.i = subCreateConf->senderData;
   if ((subRec = c_theSubscriptions.getPtr(subRecPtr.i)) == NULL) {
-    g_eventLogger->info(
-        "Trix::execSUB_CREATE_CONF:"
-        " Failed to find subscription data %u",
-        subRecPtr.i);
+    printf("Trix::execSUB_CREATE_CONF: Failed to find subscription data %u\n", subRecPtr.i);
     DBUG_VOID_RETURN;
   }
   subRec->subscriptionCreated = true;
@@ -927,10 +911,7 @@ void Trix::execSUB_CREATE_REF(Signal* signal)
   subRecPtr.i = subCreateRef->senderData;
   if ((subRec = c_theSubscriptions.getPtr(subRecPtr.i)) == NULL)
   {
-    g_eventLogger->info(
-        "Trix::execSUB_CREATE_REF:"
-        " Failed to find subscription data %u",
-        subRecPtr.i);
+    printf("Trix::execSUB_CREATE_REF: Failed to find subscription data %u\n", subRecPtr.i);
     return;
   }
   subRecPtr.p = subRec;
@@ -956,10 +937,8 @@ void Trix::execSUB_SYNC_CONF(Signal* signal)
   
   subRecPtr.i = subSyncConf->senderData;
   if ((subRec = c_theSubscriptions.getPtr(subRecPtr.i)) == NULL) {
-    g_eventLogger->info(
-        "Trix::execSUB_SYNC_CONF:"
-        " Failed to find subscription data %u",
-        subRecPtr.i);
+    printf("Trix::execSUB_SYNC_CONF: Failed to find subscription data %u\n",
+	   subRecPtr.i);
     DBUG_VOID_RETURN;
   }
 
@@ -989,10 +968,7 @@ void Trix::execSUB_SYNC_REF(Signal* signal)
 
   subRecPtr.i = subSyncRef->senderData;
   if ((subRec = c_theSubscriptions.getPtr(subRecPtr.i)) == NULL) {
-    g_eventLogger->info(
-        "Trix::execSUB_SYNC_REF:"
-        " Failed to find subscription data %u",
-        subRecPtr.i);
+    printf("Trix::execSUB_SYNC_REF: Failed to find subscription data %u\n", subRecPtr.i);
     DBUG_VOID_RETURN;
   }
   subRecPtr.p = subRec;
@@ -1010,10 +986,7 @@ void Trix::execSUB_SYNC_CONTINUE_REQ(Signal* signal)
   SubscriptionRecord* subRec;
   subRecPtr.i = subSyncContinueReq->subscriberData;
   if ((subRec = c_theSubscriptions.getPtr(subRecPtr.i)) == NULL) {
-    g_eventLogger->info(
-        "Trix::execSUB_SYNC_CONTINUE_REQ:"
-        " Failed to find subscription data %u",
-        subRecPtr.i);
+    printf("Trix::execSUB_SYNC_CONTINUE_REQ: Failed to find subscription data %u\n", subRecPtr.i);
     return;
   }
   subRecPtr.p = subRec;
@@ -1031,10 +1004,7 @@ void Trix::execSUB_TABLE_DATA(Signal* signal)
   SubscriptionRecord* subRec;
   subRecPtr.i = subTableData->senderData;
   if ((subRec = c_theSubscriptions.getPtr(subRecPtr.i)) == NULL) {
-    g_eventLogger->info(
-        "Trix::execSUB_TABLE_DATA:"
-        " Failed to find subscription data %u",
-        subRecPtr.i);
+    printf("Trix::execSUB_TABLE_DATA: Failed to find subscription data %u\n", subRecPtr.i);
     DBUG_VOID_RETURN;
   }
   subRecPtr.p = subRec;
@@ -1221,7 +1191,7 @@ void Trix::prepareInsertTransactions(Signal* signal,
 #if 0
   // Debugging
   SimplePropertiesLinearReader reader(propPage, w.getWordsUsed());
-  g_eventLogger->info("Trix::prepareInsertTransactions: Sent SimpleProperties");
+  printf("Trix::prepareInsertTransactions: Sent SimpleProperties:\n");
   reader.printAll(ndbout);
 #endif
 
@@ -1245,16 +1215,15 @@ void Trix::executeBuildInsertTransaction(Signal* signal,
   utilExecuteReq->senderData = subRecPtr.i;
   utilExecuteReq->prepareId = subRec->prepareId;
 #if 0
-  char logbuf[MAX_LOG_MESSAGE_SIZE] = "";
-
+  printf("Header size %u\n", headerPtr.sz);
   for(int i = 0; i < headerPtr.sz; i++)
-    BaseString::snappend(logbuf, sizeof(logbuf), "H'%.8x ", headerBuffer[i]);
-  g_eventLogger->info("Header size %u: %s", headerPtr.sz, logbuf);
-
-  logbuf = "";
+    printf("H'%.8x ", headerBuffer[i]);
+  printf("\n");
+  
+  printf("Data size %u\n", dataPtr.sz);
   for(int i = 0; i < dataPtr.sz; i++)
-    BaseString::snappend(logbuf, sizeof(logbuf), "H'%.8x ", dataBuffer[i]);
-  g_eventLogger->info("Data size %u: %s", dataPtr.sz, logbuf);
+    printf("H'%.8x ", dataBuffer[i]);
+  printf("\n");
 #endif
   // Save scan result in linear buffers
   SectionHandle handle(this, signal);
@@ -1328,16 +1297,15 @@ void Trix::executeReorgTransaction(Signal* signal,
   utilExecuteReq->senderData = subRecPtr.i;
   utilExecuteReq->prepareId = subRec->prepareId;
 #if 0
-  char logbuf[MAX_LOG_MESSAGE_SIZE] = "";
-
+  printf("Header size %u\n", headerPtr.sz);
   for(int i = 0; i < headerPtr.sz; i++)
-    BaseString::snappend(logbuf, sizeof(logbuf), "H'%.8x ", headerBuffer[i]);
-  g_eventLogger->info("Header size %u: %s", headerPtr.sz, logbuf);
+    printf("H'%.8x ", headerBuffer[i]);
+  printf("\n");
 
-  logbuf = "";
+  printf("Data size %u\n", dataPtr.sz);
   for(int i = 0; i < dataPtr.sz; i++)
-    BaseString::snappend(logbuf, sizeof(logbuf), "H'%.8x ", dataBuffer[i]);
-  g_eventLogger->info("Data size %u: %s", dataPtr.sz, logbuf);
+    printf("H'%.8x ", dataBuffer[i]);
+  printf("\n");
 #endif
   // Increase expected CONF count
   subRec->expectedConf++;
@@ -2134,21 +2102,15 @@ Trix::statMetaGetHeadCB(Signal* signal, Uint32 statPtrI, Uint32 ret)
 {
   StatOp& stat = statOpGetPtr(statPtrI);
   D("statMetaGetHeadCB" << V(stat) << V(ret));
+  StatOp::Meta& meta = stat.m_meta;
   if (ret != 0)
   {
     jam();
-    Uint32 errorCode = ret;
-    if (errorCode == GetTabInfoRef::TableNotDefined)
-    {
-      // Map the generic TableNotDefined error to the more specific "Index stats
-      // system tables do not exist" error
-      errorCode = 4714;
-    }
-    const Uint32 suppress[] = { 4714, 0 };
-    statOpError(signal, stat, errorCode, __LINE__, suppress);
+    Uint32 supress[] = { GetTabInfoRef::TableNotDefined, 0 };
+    statOpError(signal, stat, ret, __LINE__, supress);
     return;
   }
-  g_statMetaHead.tableId = stat.m_meta.m_conf.tableId;
+  g_statMetaHead.tableId = meta.m_conf.tableId;
   statMetaGetSample(signal, stat);
 }
 
@@ -2590,10 +2552,10 @@ Trix::statReadHeadDone(Signal* signal, StatOp& stat)
   switch (stat.m_requestType) {
   case IndexStatReq::RT_CLEAN_NEW:
     jam();
-    [[fallthrough]];
+    // Fall through
   case IndexStatReq::RT_CLEAN_OLD:
     jam();
-    [[fallthrough]];
+    // Fall through
   case IndexStatReq::RT_CLEAN_ALL:
     jam();
     statCleanBegin(signal, stat);

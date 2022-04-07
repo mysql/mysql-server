@@ -77,7 +77,7 @@ class PFS_index_table_handles : public PFS_engine_index {
                           PFS_engine_key *key_3)
       : PFS_engine_index(key_1, key_2, key_3) {}
 
-  ~PFS_index_table_handles() override = default;
+  ~PFS_index_table_handles() override {}
 
   virtual bool match(PFS_table *table) = 0;
 };
@@ -90,7 +90,7 @@ class PFS_index_table_handles_by_object : public PFS_index_table_handles {
         m_key_2("OBJECT_SCHEMA"),
         m_key_3("OBJECT_NAME") {}
 
-  ~PFS_index_table_handles_by_object() override = default;
+  ~PFS_index_table_handles_by_object() override {}
 
   bool match(PFS_table *table) override;
 
@@ -105,7 +105,7 @@ class PFS_index_table_handles_by_instance : public PFS_index_table_handles {
   PFS_index_table_handles_by_instance()
       : PFS_index_table_handles(&m_key), m_key("OBJECT_INSTANCE_BEGIN") {}
 
-  ~PFS_index_table_handles_by_instance() override = default;
+  ~PFS_index_table_handles_by_instance() override {}
 
   bool match(PFS_table *table) override;
 
@@ -120,7 +120,7 @@ class PFS_index_table_handles_by_owner : public PFS_index_table_handles {
         m_key_1("OWNER_THREAD_ID"),
         m_key_2("OWNER_EVENT_ID") {}
 
-  ~PFS_index_table_handles_by_owner() override = default;
+  ~PFS_index_table_handles_by_owner() override {}
 
   bool match(PFS_table *table) override;
 
@@ -152,7 +152,7 @@ class table_table_handles : public PFS_engine_table {
   table_table_handles();
 
  public:
-  ~table_table_handles() override = default;
+  ~table_table_handles() override {}
 
  protected:
   int make_row(PFS_table *table);

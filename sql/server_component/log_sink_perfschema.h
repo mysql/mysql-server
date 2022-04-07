@@ -169,6 +169,6 @@ log_service_error log_error_read_log(const char *log_name);
 log_service_error log_sink_pfs_event_add(log_sink_pfs_event *e,
                                          const char *blob_src);
 
-int log_sink_perfschema(void *instance [[maybe_unused]], log_line *ll);
+int log_sink_perfschema(void *instance MY_ATTRIBUTE((unused)), log_line *ll);
 
 #endif /* LOG_SINK_PERFSCHEMA_H */

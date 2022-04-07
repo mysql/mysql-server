@@ -133,13 +133,12 @@ Ssl_acceptor_context_data::Ssl_acceptor_context_data(
   }
 
   if (use_ssl_arg) {
-    long tls_version = process_tls_version(current_version_.c_str());
-
     ssl_acceptor_fd_ = new_VioSSLAcceptorFd(
         current_key_.c_str(), current_cert_.c_str(), current_ca_.c_str(),
         current_capath_.c_str(), current_cipher_.c_str(),
         current_ciphersuites_.c_str(), &error_num, current_crl_.c_str(),
-        current_crlpath_.c_str(), tls_version);
+        current_crlpath_.c_str(),
+        process_tls_version(current_version_.c_str()));
 
     if (!ssl_acceptor_fd_ && report_ssl_error) {
       LogErr(WARNING_LEVEL, ER_WARN_TLS_CHANNEL_INITIALIZATION_ERROR,
@@ -337,7 +336,7 @@ std::string Ssl_acceptor_context_data::show_property(
       break;
     }
     case Ssl_acceptor_context_property_type::last:
-      [[fallthrough]];
+      // Fall through
     default:
       output.assign("");
   }

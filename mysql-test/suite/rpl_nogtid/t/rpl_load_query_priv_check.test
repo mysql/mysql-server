@@ -134,6 +134,7 @@ INSERT INTO t1 VALUES (1);
 
 SET @@SESSION.sql_log_bin = ON;
 --let $master_log_pos_1= query_get_value(SHOW MASTER STATUS, Position, 1)
+--echo master_log_pos $master_log_pos_1
 # Generates the file to be loaded
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --write_file $MYSQLTEST_VARDIR/tmp/data01

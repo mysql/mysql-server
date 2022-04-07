@@ -56,9 +56,8 @@ HANDLE timer_queue = 0;
   @remark this function is executed in timer owner thread when timer
           expires.
 */
-static void CALLBACK timer_callback_function(PVOID timer_data,
-                                             BOOLEAN timer_or_wait_fired
-                                             [[maybe_unused]]) {
+static void CALLBACK timer_callback_function(
+    PVOID timer_data, BOOLEAN timer_or_wait_fired MY_ATTRIBUTE((unused))) {
   my_timer_t *timer = (my_timer_t *)timer_data;
   assert(timer != NULL);
   timer->id.timer_state = TIMER_EXPIRED;
@@ -70,7 +69,7 @@ static void CALLBACK timer_callback_function(PVOID timer_data,
 
   @param arg  Unused.
 */
-static void *timer_notify_thread_func(void *arg [[maybe_unused]]) {
+static void *timer_notify_thread_func(void *arg MY_ATTRIBUTE((unused))) {
   DWORD bytes_transferred;
   ULONG_PTR compl_key;
   LPOVERLAPPED overlapped;

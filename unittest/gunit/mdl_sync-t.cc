@@ -46,7 +46,7 @@ using thread::Thread;
 
 class MDLSyncTest : public ::testing::Test {
  protected:
-  MDLSyncTest() = default;
+  MDLSyncTest() {}
 
   void SetUp() override {
     /* Set debug sync timeout of 60 seconds. */

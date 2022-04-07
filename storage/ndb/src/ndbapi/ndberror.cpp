@@ -270,8 +270,6 @@ ErrorBundle ErrorCodes[] = {
     "SharedGlobalMemory" },
   { 233,  DMEC, TR,
     "Out of operation records in transaction coordinator (increase SharedGlobalMemory)" },
-  { 234,  DMEC, TR,
-    "Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)" },
   { 251,  DMEC, TR, "Out of frag location records in TC (increase SharedGlobalMemory)" },
   { 275,  DMEC, TR, "Out of transaction records for complete phase (increase SharedGlobalMemory)" },
   { 273,  DMEC, TR, "Out of transaction markers databuffer in TC, "
@@ -280,13 +278,13 @@ ErrorBundle ErrorCodes[] = {
   { 293,  DMEC, TR, "Out of attribute buffers in TC block, increase SharedGlobalMemory" },
   { 312,  DMEC, TR, "Out of LongMessageBuffer" },
   { 414,  DMEC, TR, "414" },
-  { 418,  DMEC, TR, "Out of transaction buffers in LQH, increase LongMessageBuffer" },
-  { 419,  DMEC, TR, "Out of signal memory, increase LongMessageBuffer" },
+  { 418,  DMEC, TR, "Out of transaction buffers in LQH, increase LongSignalMemory" },
+  { 419,  DMEC, TR, "Out of signal memory, increase LongSignalMemory" },
   { 245,  DMEC, TR, "Too many active scans, increase MaxNoOfConcurrentScans" },
   { 488,  DMEC, TR, "Too many active scans" },
   { 489,  DMEC, TR, "Out of scan records in LQH, increase SharedGlobalMemory" },
   { 490,  DMEC, TR, "Too many active scans" },
-  { 805,  DMEC, TR, "Out of attrinfo records in tuple manager, increase LongMessageBuffer" },
+  { 805,  DMEC, TR, "Out of attrinfo records in tuple manager, increase LongSignalMemory" },
   { 830,  DMEC, TR, "Out of add fragment operation records" },
   { 873,  DMEC, TR, "Out of transaction memory in local data manager, ordered index data (increase SharedGlobalMemory)" },
   { 899,  DMEC, TR, "Rowid already allocated" },
@@ -464,7 +462,6 @@ ErrorBundle ErrorCodes[] = {
   { 323,  DMEC, AE, "Invalid nodegroup id, nodegroup already existing" },
   { 324,  DMEC, AE, "Invalid node(s) specified for new nodegroup, no node in nodegroup is started" },
   { 325,  DMEC, AE, "Invalid node(s) specified for new nodegroup, node ID invalid or undefined" },
-  { 326,  DMEC, AE, "Same node(s) specified for new nodegroup" },
   { 417,  DMEC, AE, "Bad operation reference - double unlock" },
 
   /** 
@@ -680,7 +677,7 @@ ErrorBundle ErrorCodes[] = {
   /*
    * Index stats error codes
    */
-  { 4714, DMEC, AE, "Index stats system tables do not exist" },
+  { 4714, DMEC, AE, "Index stats sys tables " NDB_INDEX_STAT_PREFIX " do not exist" },
   { 4715, DMEC, AE, "Index stats for specified index do not exist" },
   { 4716, DMEC, AE, "Index stats methods usage error" },
   { 4717, DMEC, AE, "Index stats cannot allocate memory" },

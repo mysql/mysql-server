@@ -53,7 +53,7 @@ int completion_hash_init(HashTable *ht, uint nSize) {
     ht->initialized = 0;
     return FAILURE;
   }
-  ::new ((void *)&ht->mem_root) MEM_ROOT(PSI_NOT_INSTRUMENTED, 8192);
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &ht->mem_root, 8192, 0);
   ht->pHashFunction = hashpjw;
   ht->nTableSize = nSize;
   ht->initialized = 1;
@@ -192,7 +192,7 @@ Bucket *find_longest_match(HashTable *ht, char *str, uint length,
 }
 
 void completion_hash_clean(HashTable *ht) {
-  ht->mem_root.Clear();
+  free_root(&ht->mem_root, MYF(0));
   memset(ht->arBuckets, 0, ht->nTableSize * sizeof(Bucket *));
 }
 

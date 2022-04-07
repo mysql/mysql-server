@@ -92,12 +92,6 @@ const char *cargo_type_to_str(cargo_type x) {
       return "get_synode_app_data_type";
     case convert_into_local_server_type:
       return "convert_into_local_server_type";
-    case set_max_leaders:
-      return "set_max_leaders";
-    case set_leaders_type:
-      return "set_leaders_type";
-    case get_leaders_type:
-      return "get_leaders_type";
     default:
       return "???";
   }
@@ -166,10 +160,6 @@ const char *pax_op_to_str(pax_op x) {
       return "xcom_client_reply";
     case tiny_learn_op:
       return "tiny_learn_op";
-    case synode_request:
-      return "synode_request";
-    case synode_allocated:
-      return "synode_allocated";
     case LAST_OP:
       return "LAST_OP";
     default:
@@ -198,8 +188,6 @@ const char *client_reply_code_to_str(client_reply_code x) {
       return "REQUEST_FAIL";
     case REQUEST_RETRY:
       return "REQUEST_RETRY";
-    case REQUEST_REDIRECT:
-      return "REQUEST_REDIRECT";
     default:
       return "???";
   }
@@ -227,8 +215,6 @@ const char *xcom_proto_to_str(xcom_proto x) {
       return "x_1_7";
     case x_1_8:
       return "x_1_8";
-    case x_1_9:
-      return "x_1_9";
     default:
       return "???";
   }

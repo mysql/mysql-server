@@ -87,7 +87,7 @@ TlsClientContext *DestinationTlsContext::get(const std::string &dest_id) {
         break;
       case SslVerify::kVerifyIdentity:
         tls_ctx->verify_hostname(dest_id);
-        [[fallthrough]];
+        // fallthrough
       case SslVerify::kVerifyCa:
         tls_ctx->ssl_ca(ca_file_, ca_path_);
         tls_ctx->crl(crl_file_, crl_path_);

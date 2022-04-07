@@ -226,7 +226,7 @@ class RSA_priv {
  public:
   RSA_priv(uint32_t key_size = 2048) : m_key_size(key_size) {}
 
-  ~RSA_priv() = default;
+  ~RSA_priv() {}
 
   Sql_string_t operator()(const Sql_string_t &key_file) {
     stringstream command;
@@ -281,7 +281,7 @@ class X509v3_ext_writer {
 
     m_certv3_ext_options << "basicConstraints=CA:FALSE" << std::endl;
   }
-  ~X509v3_ext_writer() = default;
+  ~X509v3_ext_writer() {}
 
   bool operator()(const Sql_string_t &cav3_ext_file,
                   const Sql_string_t &certv3_ext_file) {
@@ -314,7 +314,7 @@ class X509_cert {
  public:
   X509_cert(uint32_t validity = 10 * 365L) : m_validity(validity) {}
 
-  ~X509_cert() = default;
+  ~X509_cert() {}
 
   Sql_string_t operator()(const Sql_string_t &req_file,
                           const Sql_string_t &cert_file, uint32_t serial,

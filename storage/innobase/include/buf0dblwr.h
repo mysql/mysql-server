@@ -65,15 +65,24 @@ struct Buffer {
       : m_n_bytes(n_pages * univ_page_size.physical()) {
     ut_a(n_pages > 0);
 
-    m_ptr = static_cast<byte *>(ut::aligned_zalloc(m_n_bytes, UNIV_PAGE_SIZE));
+    auto n_bytes = m_n_bytes + univ_page_size.physical();
+
+    m_ptr_unaligned = static_cast<byte *>(ut_zalloc_nokey(n_bytes));
+
+    m_ptr = static_cast<byte *>(ut_align(m_ptr_unaligned, UNIV_PAGE_SIZE));
+
+    ut_a(ptrdiff_t(m_ptr - m_ptr_unaligned) <=
+         (ssize_t)univ_page_size.physical());
 
     m_next = m_ptr;
   }
 
   /** Destructor */
   ~Buffer() noexcept {
-    ut::aligned_free(m_ptr);
-    m_ptr = nullptr;
+    if (m_ptr_unaligned != nullptr) {
+      ut_free(m_ptr_unaligned);
+    }
+    m_ptr_unaligned = nullptr;
   }
 
   /** Add the contents of ptr upto n_bytes to the buffer.
@@ -120,6 +129,9 @@ struct Buffer {
   /** Start of  next write to the buffer. */
   byte *m_next{};
 
+  /** Pointer to m_ptr, but unaligned */
+  byte *m_ptr_unaligned{};
+
   /** Size of the unaligned (raw) buffer. */
   const size_t m_n_bytes{};
 
@@ -151,7 +163,7 @@ extern page_id_t Force_crash;
 /** Startup the background thread(s) and create the instance.
 @param[in]  create_new_db Create new database.
 @return DB_SUCCESS or error code */
-[[nodiscard]] dberr_t open(bool create_new_db) noexcept;
+dberr_t open(bool create_new_db) noexcept MY_ATTRIBUTE((warn_unused_result));
 
 /** Shutdown the background thread and destroy the instance */
 void close() noexcept;
@@ -167,13 +179,15 @@ then writes the page to the datafile.
 @param[in]	bpage		            Buffer block to write
 @param[in]	sync		            True if sync IO requested
 @return DB_SUCCESS or error code */
-[[nodiscard]] dberr_t write(buf_flush_t flush_type, buf_page_t *bpage,
-                            bool sync) noexcept;
+dberr_t write(buf_flush_t flush_type, buf_page_t *bpage, bool sync) noexcept
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Obtain the encrypted frame and store it in bpage->m_io_frame
 @param[in,out]  bpage  the buffer page containing the unencrypted frame.
+@param[out]     len    the encrypted data length.
 @return the memory block containing the compressed + encrypted frame. */
-[[nodiscard]] file::Block *get_encrypted_frame(buf_page_t *bpage) noexcept;
+file::Block *get_encrypted_frame(buf_page_t *bpage, uint32_t &len) noexcept
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Updates the double write buffer when a write request is completed.
 @param[in] bpage               Block that has just been writtent to disk.
@@ -186,16 +200,19 @@ void reset_files() noexcept;
 namespace v1 {
 /** Read the boundaries of the legacy dblwr buffer extents.
 @return DB_SUCCESS or error code. */
-[[nodiscard]] dberr_t init() noexcept;
+dberr_t init() noexcept MY_ATTRIBUTE((warn_unused_result));
 
 /** Create the dblwr data structures in the system tablespace.
 @return DB_SUCCESS or error code. */
-[[nodiscard]] dberr_t create() noexcept;
+dberr_t create() noexcept MY_ATTRIBUTE((warn_unused_result));
 
 /** Check if the read is of a page inside the legacy dblwr buffer.
 @param[in] page_no              Page number to check.
 @return true if offset inside legacy dblwr buffer. */
-[[nodiscard]] bool is_inside(page_no_t page_no) noexcept;
+// clang-format off
+bool is_inside(page_no_t page_no) noexcept
+    MY_ATTRIBUTE((warn_unused_result));
+// clang-format on
 
 }  // namespace v1
 }  // namespace dblwr
@@ -232,7 +249,7 @@ void create(Pages *&pages) noexcept;
 @param[in,out] pages           For storing the doublewrite pages read
                                from the double write buffer
 @return DB_SUCCESS or error code */
-[[nodiscard]] dberr_t load(Pages *pages) noexcept;
+dberr_t load(Pages *pages) noexcept MY_ATTRIBUTE((warn_unused_result));
 
 /** Restore pages from the double write buffer to the tablespace.
 @param[in,out]	pages		Pages from the doublewrite buffer
@@ -245,8 +262,8 @@ void recover(Pages *pages, fil_space_t *space) noexcept;
 @param[in]	page_id		Page number to lookup
 @return	page frame
 @retval NULL if no page was found */
-[[nodiscard]] const byte *find(const Pages *pages,
-                               const page_id_t &page_id) noexcept;
+const byte *find(const Pages *pages, const page_id_t &page_id) noexcept
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Check if some pages from the double write buffer could not be
 restored because of the missing tablespace IDs.
@@ -271,7 +288,9 @@ class DBLWR {
 
   /** Load the doublewrite buffer pages. Doesn't create the doublewrite
   @return DB_SUCCESS or error code */
-  [[nodiscard]] dberr_t load() noexcept { return (dblwr::recv::load(m_pages)); }
+  dberr_t load() noexcept MY_ATTRIBUTE((warn_unused_result)) {
+    return (dblwr::recv::load(m_pages));
+  }
 
   /** Restore pages from the double write buffer to the tablespace.
   @param[in]	space		Tablespace pages to restore,
@@ -281,13 +300,16 @@ class DBLWR {
     dblwr::recv::recover(m_pages, space);
   }
 
+  // clang-format off
   /** Find a doublewrite copy of a page.
   @param[in]	page_id		Page number to lookup
   @return	page frame
   @retval nullptr if no page was found */
-  [[nodiscard]] const byte *find(const page_id_t &page_id) noexcept {
+  const byte *find(const page_id_t &page_id) noexcept
+      MY_ATTRIBUTE((warn_unused_result)) {
     return (dblwr::recv::find(m_pages, page_id));
   }
+  // clang-format on
 
   /** Check if some pages from the double write buffer
   could not be restored because of the missing tablespace IDs. */
@@ -316,7 +338,7 @@ class DBLWR {
 /** Check if the dblwr files contain encrypted pages.
 @return true if dblwr file contains any encrypted pages,
         false if dblwr file contains no encrypted pages. */
-[[nodiscard]] bool has_encrypted_pages() noexcept;
+bool has_encrypted_pages() noexcept MY_ATTRIBUTE((warn_unused_result));
 #endif /* UNIV_DEBUG */
 }  // namespace dblwr
 

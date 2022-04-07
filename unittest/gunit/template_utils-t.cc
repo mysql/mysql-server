@@ -34,10 +34,10 @@ class Base {
   int id() const { return 1; }
 
   // Needed to make compiler understand that it's a polymorphic class.
-  virtual ~Base() = default;
+  virtual ~Base() {}
 
   // To silence -Wdeprecated-copy.
-  Base() = default;
+  Base() {}
   Base(const Base &) = default;
 };
 

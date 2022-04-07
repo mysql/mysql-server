@@ -77,14 +77,15 @@ void mlog_write_initial_log_record(
 @param[in,out]	dyn_buf	buffer to write
 @param[in]	val	value to write
 @param[in]	type	type of value to write */
-static inline void mlog_catenate_ulint(mtr_buf_t *dyn_buf, ulint val,
-                                       mlog_id_t type);
+UNIV_INLINE
+void mlog_catenate_ulint(mtr_buf_t *dyn_buf, ulint val, mlog_id_t type);
 
 /** Catenates 1 - 4 bytes to the mtr log.
 @param[in]	mtr	mtr
 @param[in]	val	value to write
 @param[in]	type	MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
-static inline void mlog_catenate_ulint(mtr_t *mtr, ulint val, mlog_id_t type);
+UNIV_INLINE
+void mlog_catenate_ulint(mtr_t *mtr, ulint val, mlog_id_t type);
 
 /** Catenates n bytes to the mtr log.
 @param[in] mtr Mini-transaction
@@ -95,12 +96,14 @@ void mlog_catenate_string(mtr_t *mtr, const byte *str, ulint len);
 /** Catenates a compressed ulint to mlog.
 @param[in]	mtr	mtr
 @param[in]	val	value to write */
-static inline void mlog_catenate_ulint_compressed(mtr_t *mtr, ulint val);
+UNIV_INLINE
+void mlog_catenate_ulint_compressed(mtr_t *mtr, ulint val);
 
 /** Catenates a compressed 64-bit integer to mlog.
 @param[in]	mtr	mtr
 @param[in]	val	value to write */
-static inline void mlog_catenate_ull_compressed(mtr_t *mtr, ib_uint64_t val);
+UNIV_INLINE
+void mlog_catenate_ull_compressed(mtr_t *mtr, ib_uint64_t val);
 
 /** Opens a buffer to mlog. It must be closed with mlog_close.
 @param[in,out]	mtr	mtr
@@ -109,8 +112,9 @@ static inline void mlog_catenate_ull_compressed(mtr_t *mtr, ib_uint64_t val);
 @param[out]	buffer  mlog buffer pointer if opened successfully
 @retval true if opened successfully.
 @retval false if not opened. One case is when redo is disabled for mtr. */
-[[nodiscard]] static inline bool mlog_open(mtr_t *mtr, ulint size,
-                                           byte *&buffer);
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) bool mlog_open(mtr_t *mtr,
+                                                              ulint size,
+                                                              byte *&buffer);
 
 /** Opens a buffer to mlog. It must be closed with mlog_close.
 This is used for writing log for metadata changes
@@ -120,13 +124,14 @@ This is used for writing log for metadata changes
 @param[out]	buffer  mlog buffer pointer if opened successfully
 @retval true if opened successfully.
 @retval false if not opened. One case is when redo is disabled for mtr. */
-[[nodiscard]] static inline bool mlog_open_metadata(mtr_t *mtr, ulint size,
-                                                    byte *&buffer);
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) bool mlog_open_metadata(
+    mtr_t *mtr, ulint size, byte *&buffer);
 
 /** Closes a buffer opened to mlog.
 @param[in]	mtr	mtr
 @param[in]	ptr	buffer space from ptr up was not used */
-static inline void mlog_close(mtr_t *mtr, byte *ptr);
+UNIV_INLINE
+void mlog_close(mtr_t *mtr, byte *ptr);
 
 /** Writes a log record about a dictionary operation, which would cost
 at most 23 bytes.
@@ -136,8 +141,10 @@ at most 23 bytes.
 @param[in,out]	log_ptr		Current end of mini-transaction log
 @param[in,out]	mtr		Mini-transaction
 @return end of mini-transaction log */
-static inline byte *mlog_write_initial_dict_log_record(
-    mlog_id_t type, table_id_t id, uint64_t version, byte *log_ptr, mtr_t *mtr);
+UNIV_INLINE
+byte *mlog_write_initial_dict_log_record(mlog_id_t type, table_id_t id,
+                                         uint64_t version, byte *log_ptr,
+                                         mtr_t *mtr);
 
 /** Writes a log record about an operation.
 @param[in]	type		Redo log record type
@@ -146,11 +153,10 @@ static inline byte *mlog_write_initial_dict_log_record(
 @param[in,out]	log_ptr		Current end of mini-transaction log
 @param[in,out]	mtr		Mini-transaction
 @return	end of mini-transaction log */
-static inline byte *mlog_write_initial_log_record_low(mlog_id_t type,
-                                                      space_id_t space_id,
-                                                      page_no_t page_no,
-                                                      byte *log_ptr,
-                                                      mtr_t *mtr);
+UNIV_INLINE
+byte *mlog_write_initial_log_record_low(mlog_id_t type, space_id_t space_id,
+                                        page_no_t page_no, byte *log_ptr,
+                                        mtr_t *mtr);
 
 #ifndef UNIV_HOTBACKUP
 /** Writes the initial part of a log record (3..11 bytes).
@@ -162,10 +168,9 @@ mlog_open() should be adjusted accordingly!
 @param[in]	log_ptr	pointer to mtr log which has been opened
 @param[in]	mtr	mtr
 @return new value of log_ptr */
-static inline byte *mlog_write_initial_log_record_fast(const byte *ptr,
-                                                       mlog_id_t type,
-                                                       byte *log_ptr,
-                                                       mtr_t *mtr);
+UNIV_INLINE
+byte *mlog_write_initial_log_record_fast(const byte *ptr, mlog_id_t type,
+                                         byte *log_ptr, mtr_t *mtr);
 #else /* !UNIV_HOTBACKUP */
 #define mlog_write_initial_log_record(ptr, type, mtr) ((void)0)
 #define mlog_write_initial_log_record_fast(ptr, type, log_ptr, mtr) ((byte *)0)

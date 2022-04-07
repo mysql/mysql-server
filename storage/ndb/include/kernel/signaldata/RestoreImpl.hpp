@@ -42,7 +42,7 @@ struct RestoreLcpReq
   Uint32 maxGciCompleted;
   Uint32 createGci;
   Uint32 cnewestGci;
-  static constexpr Uint32 SignalLength = 10;
+  STATIC_CONST( SignalLength = 10 );
 };
 
 struct RestoreLcpRef
@@ -51,7 +51,7 @@ struct RestoreLcpRef
   Uint32 senderRef;
   Uint32 errorCode;
   Uint32 extra[1];
-  static constexpr Uint32 SignalLength = 3;
+  STATIC_CONST( SignalLength = 3 );
 
   enum ErrorCode 
   {
@@ -71,7 +71,7 @@ struct RestoreLcpConf
   Uint32 restoredLocalLcpId;
   Uint32 maxGciCompleted;
   Uint32 afterRestore;
-  static constexpr Uint32 SignalLength = 6;
+  STATIC_CONST( SignalLength = 6 );
 };
 
 struct RestoreContinueB {

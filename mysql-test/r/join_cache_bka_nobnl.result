@@ -1866,7 +1866,7 @@ explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	7	11.11	Using index condition; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = `test`.`t1`.`f1`) and (`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t2`.`f2`))
 drop table t1,t2;

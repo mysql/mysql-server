@@ -39,6 +39,6 @@ TARGET_INCLUDE_DIRECTORIES(mysql_protocol INTERFACE ${include_dirs})
 #   ${CMAKE_CURRENT_BINARY_DIR}/include/mysqlrouter/mysql_protocol_export.h
 #   )
 
-IF(WITH_UNIT_TESTS)
+IF(WITH_UNIT_TESTS AND GMOCK_FOUND)
   ADD_SUBDIRECTORY(tests/)
 ENDIF()

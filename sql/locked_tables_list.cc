@@ -164,7 +164,7 @@ void Locked_tables_list::unlock_locked_tables(THD *thd)
     After closing tables we can free memory used for storing lock
     request for metadata locks and TABLE_LIST elements.
   */
-  m_locked_tables_root.Clear();
+  free_root(&m_locked_tables_root, MYF(0));
   m_locked_tables = nullptr;
   m_locked_tables_last = &m_locked_tables;
   m_reopen_array = nullptr;

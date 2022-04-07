@@ -25,7 +25,15 @@
 /** @file
  * Module for implementing the Logger functionality.
  */
+
 #include "mysql/harness/logging/handler.h"
+#include "mysql/harness/logging/logging.h"
+
+#include "common.h"
+#include "mysql/harness/config_parser.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/plugin.h"
+#include "utilities.h"  // string_format()
 
 #include <algorithm>
 #include <cerrno>
@@ -40,13 +48,17 @@
 #include <unistd.h>
 #endif
 
-#include "mysql/harness/config_parser.h"
-#include "mysql/harness/filesystem.h"
-#include "mysql/harness/logging/logging.h"
-#include "mysql/harness/plugin.h"
-#include "mysql/harness/utility/string.h"  // string_format
-
 using mysql_harness::Path;
+
+#if defined(_MSC_VER) && defined(logger_EXPORTS)
+/* We are building this library */
+#define LOGGER_API __declspec(dllexport)
+#else
+#define LOGGER_API
+#endif
+
+using std::ofstream;
+using std::ostringstream;
 
 using namespace std::chrono_literals;
 
@@ -146,8 +158,6 @@ StreamHandler::StreamHandler(std::ostream &out, bool format_messages,
 void StreamHandler::do_log(const Record &record) {
   std::lock_guard<std::mutex> lock(stream_mutex_);
   stream_ << format(record) << std::endl;
-
-  has_logged(true);
 }
 
 ////////////////////////////////////////////////////////////////
@@ -248,7 +258,7 @@ void FileHandler::reopen(const std::string dst) {  // namespace logging
 #ifdef _WIN32
   const bool created = !file_path_.exists();
 #endif
-  fstream_.open(file_path_.str(), std::ofstream::app);
+  fstream_.open(file_path_.str(), ofstream::app);
   if (fstream_.fail()) {
     // get the last-error early as with VS2015 it has been seen
     // that something in std::system_error() called SetLastError(0)
@@ -292,17 +302,13 @@ void FileHandler::do_log(const Record &record) {
   stream_ << format(record) << std::endl;
   // something is wrong with the logging file, let's at least log it on the
   // std error as a fallback
-  if (stream_.fail()) {
-    std::cerr << format(record) << std::endl;
-  } else {
-    has_logged(true);
-  }
+  if (stream_.fail()) std::cerr << format(record) << std::endl;
 }
 
 // satisfy ODR
 constexpr const char *FileHandler::kDefaultName;
 
-FileHandler::~FileHandler() = default;
+FileHandler::~FileHandler() {}
 
 }  // namespace logging
 

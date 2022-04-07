@@ -36,7 +36,6 @@
 #include "xcom/task_debug.h"
 #include "xcom/xcom_common.h"
 #include "xcom/xcom_detector.h"
-#include "xcom/xcom_memory.h"
 #include "xcom/xcom_profile.h"
 #include "xdr_gen/xcom_vp.h"
 
@@ -73,7 +72,7 @@ char *dbg_msg_link(msg_link *link) {
 msg_link *msg_link_new(pax_msg *p, node_no to) {
   msg_link *ret;
   if (link_empty(&msg_link_list)) {
-    ret = (msg_link *)xcom_calloc((size_t)1, sizeof(msg_link));
+    ret = (msg_link *)calloc((size_t)1, sizeof(msg_link));
     msg_link_init(ret, p, to);
     /* IFDBG(D_NONE, FN; STRLIT(" allocate "); PTREXP(ret);
     dbg_linkage(&ret->l)); */
@@ -118,7 +117,6 @@ void empty_msg_list(linkage *l) {
   }
 }
 
-#if 0
 /* purecov: begin deadcode */
 void shrink_msg_list(linkage *l, int n) {
   int count = cardinal(l);
@@ -129,7 +127,6 @@ void shrink_msg_list(linkage *l, int n) {
   }
 }
 /* purecov: end */
-#endif
 
 void empty_msg_channel(channel *c) {
   IFDBG(D_NONE, FN;);
@@ -137,7 +134,6 @@ void empty_msg_channel(channel *c) {
   empty_msg_list(&c->data); /* Empty the queue */
 }
 
-#if 0
 /* purecov: begin deadcode */
 void shrink_msg_channel(channel *c, int n) {
   IFDBG(D_NONE, FN;);
@@ -145,7 +141,6 @@ void shrink_msg_channel(channel *c, int n) {
   shrink_msg_list(&c->data, n); /* Empty the queue */
 }
 /* purecov: end */
-#endif
 
 /* Empty the free list */
 void empty_link_free_list() {

@@ -125,18 +125,15 @@ SHOW KEYS FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 t1	1	idx1	1	col1	A	0	NULL	NULL	YES	BTREE			YES	NULL
 t1	1	idx1	2	NULL	A	0	NULL	NULL	YES	BTREE			YES	(`col1` + `col2`)
-# Create a functional index with many functional key parts. Bug#27168185.
-CREATE INDEX idx2
-ON t1 ((col1 + 1), (col1 + 2), (col1 + 3), (col1 + 4), (col1 + 5));
+# Create a funtional index with many functional key parts
 # Check that if we try to add a column with the same name as a hidden
 # column, we get an internal error. The column name of the generated
-# column is `!hidden!index_name!key_part!counter`.
-ALTER TABLE t1 ADD COLUMN `!hidden!idx1!1!0` INT NOT NULL;
-ERROR HY000: Internal error: The column name '!hidden!idx1!1!0' is already in use by a hidden column
-ALTER TABLE t1 ADD COLUMN `!hidden!idx3!0!0` INT NOT NULL;
-CREATE INDEX idx3 ON t1 ((col1-col2));
-ALTER TABLE t1 ADD COLUMN `!hidden!idx3!0!1` INT NOT NULL;
-ERROR HY000: Internal error: The column name '!hidden!idx3!0!1' is already in use by a hidden column
+# column is calculated as MD5(index_name + key_part_number).
+SELECT MD5(CONCAT("idx1", "1"));
+MD5(CONCAT("idx1", "1"))
+56fb28970273a50c6f31dec0fe3b175b
+ALTER TABLE t1 ADD COLUMN `56fb28970273a50c6f31dec0fe3b175b` INT NOT NULL;
+ERROR HY000: Internal error: The column name '56fb28970273a50c6f31dec0fe3b175b' is already in use by a hidden column
 DROP TABLE t1;
 # Creating a functional index on already existing columns using
 # ALTER TABLE should work just fine.
@@ -289,9 +286,12 @@ DROP TABLE t1;
 # Test that doing an UPDATE on a hidden generated column returns "column
 # not found".
 CREATE TABLE t1 (col1 INT, INDEX idx1 ((col1 + col1)));
-# Update the hidden generated column.
-UPDATE t1 SET `!hidden!idx1!0!0` = 123;
-ERROR 42S22: Unknown column '!hidden!idx1!0!0' in 'field list'
+# Get the expected name of the hidden generated column.
+SELECT MD5(CONCAT("idx1", "0"));
+MD5(CONCAT("idx1", "0"))
+45197ac678c1210c4a64bf22351853e7
+UPDATE t1 SET 45197ac678c1210c4a64bf22351853e7 = 123;
+ERROR 42S22: Unknown column '45197ac678c1210c4a64bf22351853e7' in 'field list'
 DROP TABLE t1;
 #
 # Bug#28037245 VIRTUAL COLUMN IS ALLOWED IN THE WHERE CLAUSE FOR SQL
@@ -299,8 +299,12 @@ DROP TABLE t1;
 #
 CREATE TABLE t3 (c1 INT);
 CREATE INDEX int_func_index ON t3 ((ABS(c1)));
-SELECT * FROM t3 WHERE `!hidden!int_func_index!0!0`=1;
-ERROR 42S22: Unknown column '!hidden!int_func_index!0!0' in 'where clause'
+# Get the expected column name of the functional index
+SELECT MD5(CONCAT('int_func_index', '0'));
+MD5(CONCAT('int_func_index', '0'))
+7cf759b4f03e729c90aa40cc68dd8780
+SELECT * FROM t3 WHERE 7cf759b4f03e729c90aa40cc68dd8780=1;
+ERROR 42S22: Unknown column '7cf759b4f03e729c90aa40cc68dd8780' in 'where clause'
 DROP TABLE t3;
 #
 # Bug#28037375 ALTER TABLE DROP OF A NORMAL COLUMN RAISES ERROR

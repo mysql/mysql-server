@@ -70,31 +70,22 @@ bool RouterComponentTest::wait_log_contains(const ProcessWrapper &router,
 
   const auto MSEC_STEP = 50ms;
   bool found = false;
-  using clock_type = std::chrono::steady_clock;
-  const auto end = clock_type::now() + timeout;
+  const auto started = std::chrono::steady_clock::now();
   do {
     const std::string log_content = router.get_full_logfile();
     found = pattern_found(log_content, pattern);
     if (!found) {
       auto step = std::min(timeout, MSEC_STEP);
       RouterComponentTest::sleep_for(step);
+      timeout -= step;
     }
-  } while (!found && clock_type::now() < end);
+  } while (!found && timeout > std::chrono::steady_clock::now() - started);
 
   return found;
 }
 
 std::string RouterComponentBootstrapTest::my_hostname;
 constexpr const char RouterComponentBootstrapTest::kRootPassword[];
-
-const RouterComponentBootstrapTest::OutputResponder
-    RouterComponentBootstrapTest::kBootstrapOutputResponder{
-        [](const std::string &line) -> std::string {
-          if (line == "Please enter MySQL password for root: ")
-            return kRootPassword + "\n"s;
-
-          return "";
-        }};
 
 /**
  * the tiny power function that does all the work.
@@ -168,8 +159,11 @@ void RouterComponentBootstrapTest::bootstrap_failover(
   }
 
   // launch the router
-  auto &router =
-      launch_router_for_bootstrap(router_cmdline, expected_exitcode, true);
+  auto &router = launch_router_for_bootstrap(router_cmdline, expected_exitcode);
+
+  // type in the password
+  router.register_response("Please enter MySQL password for root: ",
+                           kRootPassword + "\n"s);
 
   ASSERT_NO_FATAL_FAILURE(
       check_exit_code(router, expected_exitcode, wait_for_exit_timeout));

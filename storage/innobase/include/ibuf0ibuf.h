@@ -103,9 +103,11 @@ void ibuf_max_size_update(ulint new_val); /*!< in: new value in terms of
  tree and updates the counter in fil_system. */
 void ibuf_update_max_tablespace_id(void);
 /** Starts an insert buffer mini-transaction. */
-static inline void ibuf_mtr_start(mtr_t *mtr); /*!< out: mini-transaction */
+UNIV_INLINE
+void ibuf_mtr_start(mtr_t *mtr); /*!< out: mini-transaction */
 /** Commits an insert buffer mini-transaction. */
-static inline void ibuf_mtr_commit(mtr_t *mtr); /*!< in/out: mini-transaction */
+UNIV_INLINE
+void ibuf_mtr_commit(mtr_t *mtr); /*!< in/out: mini-transaction */
 
 /** Initializes an ibuf bitmap page. */
 void ibuf_bitmap_page_init(buf_block_t *block, /*!< in: bitmap page */
@@ -144,9 +146,9 @@ not update the free bits here, because that would break crash recovery.
 @param[in]	increase	upper limit for the additional space used in
                                 the latest operation, if known, or
                                 ULINT_UNDEFINED */
-static inline void ibuf_update_free_bits_if_full(buf_block_t *block,
-                                                 ulint max_ins_size,
-                                                 ulint increase);
+UNIV_INLINE
+void ibuf_update_free_bits_if_full(buf_block_t *block, ulint max_ins_size,
+                                   ulint increase);
 
 /** Updates the free bits for an uncompressed page to reflect the present
  state.  Does this in the mtr given, which means that the latching
@@ -188,8 +190,8 @@ and recommended.
 @param[in]	ignore_sec_unique	if != 0, we should ignore UNIQUE
                                         constraint on a secondary index when
                                         we decide*/
-static inline ibool ibuf_should_try(dict_index_t *index,
-                                    ulint ignore_sec_unique);
+UNIV_INLINE
+ibool ibuf_should_try(dict_index_t *index, ulint ignore_sec_unique);
 
 /** Returns TRUE if the current OS thread is performing an insert buffer
  routine.
@@ -197,15 +199,16 @@ static inline ibool ibuf_should_try(dict_index_t *index,
  For instance, a read-ahead of non-ibuf pages is forbidden by threads
  that are executing an insert buffer routine.
  @return true if inside an insert buffer routine */
-[[nodiscard]] static inline ibool ibuf_inside(
-    const mtr_t *mtr); /*!< in: mini-transaction */
+UNIV_INLINE
+ibool ibuf_inside(const mtr_t *mtr) /*!< in: mini-transaction */
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Checks if a page address is an ibuf bitmap page (level 3 page) address.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
 @return true if a bitmap page */
-static inline ibool ibuf_bitmap_page(const page_id_t &page_id,
-                                     const page_size_t &page_size);
+UNIV_INLINE
+ibool ibuf_bitmap_page(const page_id_t &page_id, const page_size_t &page_size);
 
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
 Must not be called when recv_no_ibuf_operations==true.
@@ -223,12 +226,12 @@ bitmap page) */
 bitmap page if the page is not one of the fixed address ibuf pages, or NULL,
 in which case a new transaction is created.
 @return true if level 2 or level 3 page */
-[[nodiscard]] ibool ibuf_page_low(const page_id_t &page_id,
-                                  const page_size_t &page_size,
+ibool ibuf_page_low(const page_id_t &page_id, const page_size_t &page_size,
 #ifdef UNIV_DEBUG
-                                  ibool x_latch,
+                    ibool x_latch,
 #endif /* UNIV_DEBUG */
-                                  const char *file, ulint line, mtr_t *mtr);
+                    const char *file, ulint line, mtr_t *mtr)
+    MY_ATTRIBUTE((warn_unused_result));
 
 #ifdef UNIV_DEBUG
 
@@ -349,9 +352,10 @@ void ibuf_close(void);
 
 /** Checks the insert buffer bitmaps on IMPORT TABLESPACE.
  @return DB_SUCCESS or error code */
-[[nodiscard]] dberr_t ibuf_check_bitmap_on_import(
-    const trx_t *trx,     /*!< in: transaction */
-    space_id_t space_id); /*!< in: tablespace identifier */
+dberr_t ibuf_check_bitmap_on_import(
+    const trx_t *trx,    /*!< in: transaction */
+    space_id_t space_id) /*!< in: tablespace identifier */
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Updates free bits and buffered bits for bulk loaded page.
 @param[in]      block   index page

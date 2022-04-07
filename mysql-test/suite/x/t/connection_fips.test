@@ -22,11 +22,8 @@ EOF
 let $wait_condition=SELECT 1 FROM performance_schema.global_status WHERE variable_name='mysqlx_port' AND variable_value!='';
 --source include/wait_condition_or_abort.inc
 
-exec $MYSQLXTEST
-  -u root
-  --file=$MYSQL_TMP_DIR/mysqlx_fips_test.xpl
-  --ssl-mode=required --ssl-fips-mode=on --ssl-cipher=CAMELLIA256-SHA
-  --expect-error 2026 2>&1;
+--error 1
+--exec $MYSQLXTEST -u root --file=$MYSQL_TMP_DIR/mysqlx_fips_test.xpl --ssl-mode=required --ssl-fips-mode=on --ssl-cipher=CAMELLIA256-SHA 2>&1
 --exec $MYSQLXTEST -u root --file=$MYSQL_TMP_DIR/mysqlx_fips_test.xpl --ssl-mode=required --ssl-fips-mode=off --ssl-cipher=CAMELLIA256-SHA 2>&1
 
 --echo ##Cleanup: Restore ssl-cipher to default

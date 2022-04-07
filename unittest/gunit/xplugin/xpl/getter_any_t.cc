@@ -33,7 +33,7 @@ namespace test {
 
 class Type_handler {
  public:
-  virtual ~Type_handler() = default;
+  virtual ~Type_handler() {}
 
   virtual void put(const ::google::protobuf::int64 &value) = 0;
   virtual void put(const ::google::protobuf::uint64 &value) = 0;

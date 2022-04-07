@@ -117,7 +117,7 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
   @return               size of buffer required to store encrypted data
 */
 
-longlong my_aes_get_size(uint32 source_length, enum my_aes_opmode opmode);
+int my_aes_get_size(uint32 source_length, enum my_aes_opmode opmode);
 
 /**
   Return true if the AES cipher and block mode requires an IV.

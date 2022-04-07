@@ -39,9 +39,9 @@
 # is installed on the compile host in the standard location.
 
 SET(BOOST_PACKAGE_NAME "boost_1_73_0")
-SET(BOOST_TARBALL "${BOOST_PACKAGE_NAME}.tar.bz2")
+SET(BOOST_TARBALL "${BOOST_PACKAGE_NAME}.tar.gz")
 SET(BOOST_DOWNLOAD_URL
-  "https://boostorg.jfrog.io/artifactory/main/release/1.73.0/source/${BOOST_TARBALL}"
+  "https://boostorg.jfrog.io/artifactory/main/release/1.73.0/source/boost_1_73_0.7z"
   )
 
 SET(OLD_PACKAGE_NAMES
@@ -146,7 +146,7 @@ SET(OLD_WITH_BOOST ${WITH_BOOST} CACHE INTERNAL
 
 IF (WITH_BOOST)
   ## Did we get a full path name, including file name?
-  IF (${WITH_BOOST} MATCHES ".*\\.tar.bz2" OR ${WITH_BOOST} MATCHES ".*\\.zip")
+  IF (${WITH_BOOST} MATCHES ".*\\.tar.gz" OR ${WITH_BOOST} MATCHES ".*\\.zip")
     GET_FILENAME_COMPONENT(BOOST_DIR ${WITH_BOOST} PATH)
     GET_FILENAME_COMPONENT(BOOST_ZIP ${WITH_BOOST} NAME)
     FIND_FILE(LOCAL_BOOST_ZIP
@@ -155,9 +155,9 @@ IF (WITH_BOOST)
               NO_DEFAULT_PATH
              )
   ENDIF()
-  ## Did we get a path name to the directory of the .tar.bz2 or .zip file?
+  ## Did we get a path name to the directory of the .tar.gz or .zip file?
   FIND_FILE(LOCAL_BOOST_ZIP
-            NAMES "${BOOST_PACKAGE_NAME}.tar.bz2" "${BOOST_PACKAGE_NAME}.zip"
+            NAMES "${BOOST_PACKAGE_NAME}.tar.gz" "${BOOST_PACKAGE_NAME}.zip"
             PATHS ${WITH_BOOST}
             NO_DEFAULT_PATH
            )
@@ -239,9 +239,9 @@ ENDIF()
 IF(LOCAL_BOOST_ZIP AND NOT LOCAL_BOOST_DIR)
   GET_FILENAME_COMPONENT(LOCAL_BOOST_DIR ${LOCAL_BOOST_ZIP} PATH)
   IF(NOT EXISTS "${LOCAL_BOOST_DIR}/${BOOST_PACKAGE_NAME}")
-    MESSAGE(STATUS "cd ${LOCAL_BOOST_DIR}; tar xfj ${LOCAL_BOOST_ZIP}")
+    MESSAGE(STATUS "cd ${LOCAL_BOOST_DIR}; tar xfz ${LOCAL_BOOST_ZIP}")
     EXECUTE_PROCESS(
-      COMMAND ${CMAKE_COMMAND} -E tar xfj "${LOCAL_BOOST_ZIP}"
+      COMMAND ${CMAKE_COMMAND} -E tar xfz "${LOCAL_BOOST_ZIP}"
       WORKING_DIRECTORY "${LOCAL_BOOST_DIR}"
       RESULT_VARIABLE tar_result
       )

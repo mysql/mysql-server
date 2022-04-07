@@ -191,7 +191,7 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
     my_thread_join(&context.thread, nullptr);
 }
 
-static int test_session_service_plugin_init(void *p [[maybe_unused]]) {
+static int test_session_service_plugin_init(void *p MY_ATTRIBUTE((unused))) {
   DBUG_TRACE;
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Installation.");

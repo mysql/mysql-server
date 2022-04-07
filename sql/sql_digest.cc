@@ -453,8 +453,7 @@ sql_digest_state *digest_add_token(sql_digest_state *state, uint token,
         }
       } while (found_unary);
     }
-      /* fall through, for case NULL_SYM below */
-      [[fallthrough]];
+    /* fall through, for case NULL_SYM below */
     case LEX_HOSTNAME:
     case TEXT_STRING:
     case NCHAR_STRING:

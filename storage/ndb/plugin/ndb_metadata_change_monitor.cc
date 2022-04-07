@@ -38,7 +38,7 @@
 #include "sql/table.h"              // is_infoschema_db() / is_perfschema_db()
 #include "storage/ndb/include/ndbapi/NdbError.hpp"    // NdbError
 #include "storage/ndb/plugin/ha_ndbcluster_binlog.h"  // ndb_binlog_is_read_only
-#include "storage/ndb/plugin/ha_ndbcluster_connection.h"  // ndbcluster_is_ready
+#include "storage/ndb/plugin/ha_ndbcluster_connection.h"  // ndbcluster_is_connected
 #include "storage/ndb/plugin/ndb_dd_client.h"             // Ndb_dd_client
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"           // ndb_get_*_names
 #include "storage/ndb/plugin/ndb_sleep.h"                 // ndb_milli_sleep
@@ -490,23 +490,23 @@ void Ndb_metadata_change_monitor::do_run() {
     return;
   }
 
-  Thd_ndb_guard thd_ndb_guard(thd);
-  const Thd_ndb *thd_ndb = thd_ndb_guard.get_thd_ndb();
-  if (thd_ndb == nullptr) {
-    assert(false);
-    log_error("Failed to allocate Thd_ndb");
-    return;
-  }
-
   for (;;) {
     // Outer loop to ensure that if the connection to NDB is lost, a fresh
     // connection is established before the thread continues its processing
-    while (!ndb_connection_is_ready(thd_ndb->connection, 1)) {
+    while (!ndbcluster_is_connected(1)) {
       // No connection to NDB yet. Retry until connection is established while
       // checking if stop has been requested at 1 second intervals
       if (is_stop_requested()) {
         return;
       }
+    }
+
+    Thd_ndb_guard thd_ndb_guard(thd);
+    const Thd_ndb *thd_ndb = thd_ndb_guard.get_thd_ndb();
+    if (thd_ndb == nullptr) {
+      assert(false);
+      log_error("Failed to allocate Thd_ndb");
+      return;
     }
 
     for (;;) {
@@ -579,7 +579,7 @@ void Ndb_metadata_change_monitor::do_run() {
       }
 
       // Check if NDB connection is still valid
-      if (!ndb_connection_is_ready(thd_ndb->connection, 1)) {
+      if (!ndbcluster_is_connected(1)) {
         // Break out of inner loop
         log_info(
             "Connection to NDB was lost. Attempting to establish a new "

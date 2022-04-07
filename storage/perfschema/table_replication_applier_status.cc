@@ -39,8 +39,8 @@
 #include "sql/rpl_info.h"
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h" /*Multi source replication */
-#include "sql/rpl_replica.h"
 #include "sql/rpl_rli.h"
+#include "sql/rpl_slave.h"
 #include "sql/sql_parse.h"
 #include "sql/table.h"
 #include "storage/perfschema/pfs_instr.h"
@@ -104,7 +104,7 @@ PFS_engine_table *table_replication_applier_status::create(
 table_replication_applier_status::table_replication_applier_status()
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
-table_replication_applier_status::~table_replication_applier_status() = default;
+table_replication_applier_status::~table_replication_applier_status() {}
 
 void table_replication_applier_status::reset_position(void) {
   m_pos.m_index = 0;
@@ -152,8 +152,8 @@ int table_replication_applier_status::rnd_pos(const void *pos) {
   return res;
 }
 
-int table_replication_applier_status::index_init(uint idx [[maybe_unused]],
-                                                 bool) {
+int table_replication_applier_status::index_init(
+    uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_rpl_applier_status *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_rpl_applier_status);
@@ -200,7 +200,7 @@ int table_replication_applier_status::make_row(Master_info *mi) {
   mysql_mutex_lock(&mi->rli->info_thd_lock);
 
   slave_sql_running_state = const_cast<char *>(
-      mi->rli->info_thd ? mi->rli->info_thd->proc_info() : "");
+      mi->rli->info_thd ? mi->rli->info_thd->get_proc_info() : "");
   mysql_mutex_unlock(&mi->rli->info_thd_lock);
 
   mysql_mutex_lock(&mi->data_lock);

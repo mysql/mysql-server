@@ -37,12 +37,12 @@ class Gcs_gr_logger_impl : public Logger_interface {
   /**
     Constructor.
   */
-  Gcs_gr_logger_impl() = default;
+  Gcs_gr_logger_impl() {}
 
   /**
     Destructor.
   */
-  ~Gcs_gr_logger_impl() override = default;
+  ~Gcs_gr_logger_impl() override {}
 
   /**
     Initialize the logger.

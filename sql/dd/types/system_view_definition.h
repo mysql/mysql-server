@@ -35,7 +35,7 @@ namespace system_views {
 
 class System_view_definition {
  public:
-  virtual ~System_view_definition() = default;
+  virtual ~System_view_definition() {}
 
   /**
     Build CREATE VIEW DDL statement for the system view.

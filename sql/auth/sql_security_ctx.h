@@ -299,9 +299,6 @@ class Security_context {
 
   void clear_db_restrictions();
 
-  bool is_in_registration_sandbox_mode();
-  void set_registration_sandbox_mode(bool v);
-
   void set_thd(THD *thd);
 
   THD *get_thd();
@@ -385,18 +382,6 @@ class Security_context {
   bool m_has_drop_policy;
   std::unique_ptr<std::function<void(Security_context *)>> m_drop_policy;
   Restrictions m_restrictions;
-  /**
-    This flag tracks if server should be in sandbox mode or not.
-    When user account connects to server, with any of its authentication
-    plugin's registration step pending, in that case, the connection is
-    set in sandbox(or registration) mode i.e m_registration_sandbox_mode is set
-    to TRUE.
-    During this time only ALTER USER, SET PASSWORD statements are allowed.
-    Once user finishes the registration steps for the authentication plugin
-    via an ALTER USER statement, m_registration_sandbox_mode is set to FALSE,
-    making a full fledged connection, where user can execute any sql statement.
-  */
-  bool m_registration_sandbox_mode;
 
   /**
     m_thd - Thread handle, set to nullptr if this does not belong to any THD yet
@@ -498,14 +483,6 @@ inline bool Security_context::is_skip_grants_user() {
 
 inline void Security_context::clear_db_restrictions() {
   m_restrictions.clear_db();
-}
-
-inline bool Security_context::is_in_registration_sandbox_mode() {
-  return m_registration_sandbox_mode;
-}
-
-inline void Security_context::set_registration_sandbox_mode(bool v) {
-  m_registration_sandbox_mode = v;
 }
 
 inline void Security_context::set_thd(THD *thd) { m_thd = thd; }

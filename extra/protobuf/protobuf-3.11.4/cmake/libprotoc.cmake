@@ -165,8 +165,16 @@ set(libprotoc_rc_files
 )
 endif()
 
-add_library(libprotoc ${protobuf_SHARED_OR_STATIC}
-  ${libprotoc_files} ${libprotoc_headers} ${libprotoc_rc_files})
+### The custom command using xprotocol_plugin hangs on solaris if
+### libprotoc is a shared library.
+### TODO: should we make it STATIC on all platforms?
+IF(SOLARIS)
+  add_library(libprotoc STATIC
+    ${libprotoc_files} ${libprotoc_headers})
+ELSE()
+  add_library(libprotoc ${protobuf_SHARED_OR_STATIC}
+    ${libprotoc_files} ${libprotoc_headers} ${libprotoc_rc_files})
+ENDIF()
 
 target_link_libraries(libprotoc libprotobuf)
 if(MSVC AND protobuf_BUILD_SHARED_LIBS)
@@ -182,7 +190,7 @@ set_target_properties(libprotoc PROPERTIES
 add_library(protobuf::libprotoc ALIAS libprotoc)
 
 ###
-IF(protobuf_BUILD_SHARED_LIBS)
+IF(protobuf_BUILD_SHARED_LIBS AND NOT SOLARIS)
   SET_TARGET_PROPERTIES(libprotoc PROPERTIES
     DEBUG_POSTFIX ""
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory

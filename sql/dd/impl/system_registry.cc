@@ -228,8 +228,6 @@ void System_tables::add_remaining_dd_tables() {
   register_table("replication_asynchronous_connection_failover", system);
   register_table("replication_asynchronous_connection_failover_managed",
                  system);
-  register_table("replication_group_member_actions", system);
-  register_table("replication_group_configuration_version", system);
   register_table("role_edges", system);
   register_table("servers", system);
   register_table("server_cost", system);

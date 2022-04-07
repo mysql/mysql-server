@@ -205,7 +205,7 @@ inline void log_free_check() {
     if we let all threads to go forward after making this check now.
 
     The waiting procedure is rather unlikely to happen for proper my.cnf.
-    Therefore we extracted the code to a separate function, to make the
+    Therefore we extracted the code to seperate function, to make the
     inlined log_free_check() small. */
 
     log_free_check_wait(log);
@@ -296,7 +296,8 @@ inline void log_buffer_flush_to_disk(bool sync) {
 #if defined(UNIV_HOTBACKUP) && defined(UNIV_DEBUG)
 /** Print a log file header.
 @param[in]	block	pointer to the log buffer */
-static inline void meb_log_print_file_hdr(byte *block) {
+UNIV_INLINE
+void meb_log_print_file_hdr(byte *block) {
   ib::info(ER_IB_MSG_626) << "Log file header:"
                           << " format "
                           << mach_read_from_4(block + LOG_HEADER_FORMAT)
@@ -321,9 +322,8 @@ inline lsn_t log_buffer_flush_order_lag(const log_t &log) {
   return (log.recent_closed.capacity());
 }
 
-inline bool log_write_to_file_requests_are_frequent(
-    std::chrono::microseconds interval) {
-  return (interval < std::chrono::milliseconds{1});
+inline bool log_write_to_file_requests_are_frequent(uint64_t interval) {
+  return (interval < 1000); /* 1ms */
 }
 
 inline bool log_write_to_file_requests_are_frequent(const log_t &log) {

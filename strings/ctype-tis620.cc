@@ -590,7 +590,7 @@ static size_t thai2sortable(uchar *tstr, size_t len) {
 */
 
 extern "C" {
-static int my_strnncoll_tis620(const CHARSET_INFO *cs [[maybe_unused]],
+static int my_strnncoll_tis620(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                const uchar *s1, size_t len1, const uchar *s2,
                                size_t len2, bool s2_is_prefix) {
   uchar buf[80];
@@ -614,7 +614,7 @@ static int my_strnncoll_tis620(const CHARSET_INFO *cs [[maybe_unused]],
   return i;
 }
 
-static int my_strnncollsp_tis620(const CHARSET_INFO *cs [[maybe_unused]],
+static int my_strnncollsp_tis620(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                  const uchar *a0, size_t a_length,
                                  const uchar *b0, size_t b_length) {
   uchar buf[80], *end, *a, *b, *alloced = nullptr;
@@ -860,16 +860,16 @@ static const uchar *uni_to_cs[256] = {
     nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, plFF};
 
 extern "C" {
-static int my_mb_wc_tis620(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t *wc,
-                           const uchar *str, const uchar *end) {
+static int my_mb_wc_tis620(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+                           my_wc_t *wc, const uchar *str, const uchar *end) {
   if (str >= end) return MY_CS_TOOSMALL;
 
   *wc = cs_to_uni[*str];
   return (!wc[0] && str[0]) ? -1 : 1;
 }
 
-static int my_wc_mb_tis620(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
-                           uchar *str, uchar *end) {
+static int my_wc_mb_tis620(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+                           my_wc_t wc, uchar *str, uchar *end) {
   const uchar *pl;
 
   if (str >= end) return MY_CS_TOOSMALL;

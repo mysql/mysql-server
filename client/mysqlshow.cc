@@ -49,10 +49,10 @@
 #include "typelib.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
-static char *host = nullptr, *user = nullptr;
+static char *host = nullptr, *opt_password = nullptr, *user = nullptr;
 static bool opt_show_keys = false, opt_compress = false, opt_count = false,
             opt_status = false;
-static bool opt_table_type = false;
+static bool tty_password = false, opt_table_type = false;
 static bool debug_info_flag = false, debug_check_flag = false;
 static uint my_end_arg = 0;
 static uint opt_verbose = 0;
@@ -63,8 +63,6 @@ static bool using_opt_enable_cleartext_plugin = false;
 
 static uint opt_zstd_compress_level = default_zstd_compression_level;
 static char *opt_compress_algorithm = nullptr;
-
-#include "multi_factor_passwordopt-vars.h"
 
 #if defined(_WIN32)
 static char *shared_memory_base_name = 0;
@@ -176,8 +174,7 @@ int main(int argc, char **argv) {
                  "mysqlshow");
   set_server_public_key(&mysql);
   set_get_server_public_key_option(&mysql);
-  set_password_options(&mysql);
-  if (!(mysql_real_connect(&mysql, host, user, nullptr,
+  if (!(mysql_real_connect(&mysql, host, user, opt_password,
                            (first_argument_uses_wildcards) ? "" : argv[0],
                            opt_mysql_port, opt_mysql_unix_port, 0))) {
     fprintf(stderr, "%s: %s\n", my_progname, mysql_error(&mysql));
@@ -203,7 +200,7 @@ int main(int argc, char **argv) {
       break;
   }
   mysql_close(&mysql); /* Close & free connection */
-  free_passwords();
+  my_free(opt_password);
 #if defined(_WIN32)
   my_free(shared_memory_base_name);
 #endif
@@ -255,7 +252,12 @@ static struct my_option my_long_options[] = {
      nullptr},
     {"keys", 'k', "Show keys for table.", &opt_show_keys, &opt_show_keys,
      nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-#include "multi_factor_passwordopt-longopts.h"
+    {"password", 'p',
+     "Password to use when connecting to server. If password is not given, "
+     "it's "
+     "solicited on the tty.",
+     nullptr, nullptr, nullptr, GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
      &opt_plugin_dir, &opt_plugin_dir, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
@@ -339,7 +341,24 @@ static bool get_one_option(int optid, const struct my_option *opt,
     case 'v':
       opt_verbose++;
       break;
-      PARSE_COMMAND_LINE_PASSWORD_OPTION;
+    case 'p':
+      if (argument == disabled_my_option) {
+        // Don't require password
+        static char empty_password[] = {'\0'};
+        assert(empty_password[0] ==
+               '\0');  // Check that it has not been overwritten
+        argument = empty_password;
+      }
+      if (argument) {
+        char *start = argument;
+        my_free(opt_password);
+        opt_password = my_strdup(PSI_NOT_INSTRUMENTED, argument, MYF(MY_FAE));
+        while (*argument) *argument++ = 'x'; /* Destroy argument */
+        if (*start) start[1] = 0;            /* Cut length of argument */
+        tty_password = false;
+      } else
+        tty_password = true;
+      break;
     case 'W':
 #ifdef _WIN32
       opt_protocol = MYSQL_PROTOCOL_PIPE;
@@ -376,6 +395,7 @@ static void get_options(int *argc, char ***argv) {
   if ((ho_error = handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
 
+  if (tty_password) opt_password = get_tty_password(NullS);
   if (opt_count) {
     /*
       We need to set verbose to 2 as we need to change the output to include

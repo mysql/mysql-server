@@ -306,7 +306,7 @@ COLLATION(_koi8r    '‘≈À”‘') AS c6,
 @@character_set_client AS c8;
 SET –ø–∞—Ä–∞–º1 = 'a';
 SET –ø–∞—Ä–∞–º2 = 'b';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE p2|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -327,7 +327,7 @@ COLLATION(_koi8r    '‘≈À”‘') AS c6,
 @@character_set_client AS c8;
 SET –ø–∞—Ä–∞–º1 = 'a';
 SET –ø–∞—Ä–∞–º2 = 'b';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE mysqltest2.p3|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -348,7 +348,7 @@ COLLATION(_koi8r    '‘≈À”‘') AS c6,
 @@character_set_client AS c8;
 SET –ø–∞—Ä–∞–º1 = 'a';
 SET –ø–∞—Ä–∞–º2 = 'b';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE mysqltest2.p4|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -369,7 +369,7 @@ COLLATION(_koi8r    '‘≈À”‘') AS c6,
 @@character_set_client AS c8;
 SET –ø–∞—Ä–∞–º1 = 'a';
 SET –ø–∞—Ä–∞–º2 = 'b';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 
 SHOW PROCEDURE STATUS LIKE 'p1'|
@@ -472,7 +472,9 @@ utf8_unicode_ci	utf8_unicode_ci	utf8_unicode_ci
 c4	c5	c6	c7	c8
 utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8mb3
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT COLLATION(@a) AS ca, COLLATION(@b) cb|
@@ -487,6 +489,8 @@ utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8mb3
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT COLLATION(@a) AS ca, COLLATION(@b) cb|
 ca	cb
 utf8_general_ci	utf8_general_ci
@@ -497,7 +501,9 @@ utf8_unicode_ci	utf8_unicode_ci	utf8_unicode_ci
 c4	c5	c6	c7	c8
 utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8mb3
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT COLLATION(@a) AS ca, COLLATION(@b) cb|
@@ -510,6 +516,8 @@ utf8_general_ci	utf8_general_ci	utf8_general_ci
 c4	c5	c6	c7	c8
 utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8mb3
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT COLLATION(@a) AS ca, COLLATION(@b) cb|
@@ -530,7 +538,9 @@ utf8_unicode_ci	utf8_unicode_ci	utf8_unicode_ci
 c4	c5	c6	c7	c8
 utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8mb3
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL p2(@a, @b)|
@@ -541,13 +551,17 @@ utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8mb3
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL mysqltest2.p3(@a, @b)|
 c1	c2	c3
 utf8_unicode_ci	utf8_unicode_ci	utf8_unicode_ci
 c4	c5	c6	c7	c8
 utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8mb3
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL mysqltest2.p4(@a, @b)|
@@ -556,6 +570,8 @@ utf8_general_ci	utf8_general_ci	utf8_general_ci
 c4	c5	c6	c7	c8
 utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8mb3
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 set names utf8|
@@ -582,7 +598,7 @@ COLLATION(_koi8r    '‘≈À”‘') AS c6,
 @@character_set_client AS c8;
 SET –ø–∞—Ä–∞–º1 = 'a';
 SET –ø–∞—Ä–∞–º2 = 'b';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE p2|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -603,7 +619,7 @@ COLLATION(_koi8r    '‘≈À”‘') AS c6,
 @@character_set_client AS c8;
 SET –ø–∞—Ä–∞–º1 = 'a';
 SET –ø–∞—Ä–∞–º2 = 'b';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE mysqltest2.p3|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -624,7 +640,7 @@ COLLATION(_koi8r    '‘≈À”‘') AS c6,
 @@character_set_client AS c8;
 SET –ø–∞—Ä–∞–º1 = 'a';
 SET –ø–∞—Ä–∞–º2 = 'b';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE mysqltest2.p4|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -645,7 +661,7 @@ COLLATION(_koi8r    '‘≈À”‘') AS c6,
 @@character_set_client AS c8;
 SET –ø–∞—Ä–∞–º1 = 'a';
 SET –ø–∞—Ä–∞–º2 = 'b';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 
 SHOW PROCEDURE STATUS LIKE 'p1'|
@@ -787,8 +803,8 @@ ALTER DATABASE `mysqltest1` CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb3 */ ;
-/*!50003 SET character_set_results = utf8mb3 */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
@@ -821,8 +837,8 @@ ALTER DATABASE `mysqltest1` CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb3 */ ;
-/*!50003 SET character_set_results = utf8mb3 */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
@@ -863,8 +879,8 @@ ALTER DATABASE `mysqltest2` CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb3 */ ;
-/*!50003 SET character_set_results = utf8mb3 */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
@@ -897,8 +913,8 @@ ALTER DATABASE `mysqltest2` CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb3 */ ;
-/*!50003 SET character_set_results = utf8mb3 */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
@@ -948,7 +964,9 @@ utf8_unicode_ci	utf8_unicode_ci	utf8_unicode_ci
 c4	c5	c6	c7	c8
 utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8mb3
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL p2(@a, @b)|
@@ -959,13 +977,17 @@ utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8mb3
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL mysqltest2.p3(@a, @b)|
 c1	c2	c3
 utf8_unicode_ci	utf8_unicode_ci	utf8_unicode_ci
 c4	c5	c6	c7	c8
 utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8mb3
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL mysqltest2.p4(@a, @b)|
@@ -974,6 +996,8 @@ utf8_general_ci	utf8_general_ci	utf8_general_ci
 c4	c5	c6	c7	c8
 utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8mb3
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 set names utf8|
@@ -1000,7 +1024,7 @@ COLLATION(_koi8r    '‘≈À”‘') AS c6,
 @@character_set_client AS c8;
 SET –ø–∞—Ä–∞–º1 = 'a';
 SET –ø–∞—Ä–∞–º2 = 'b';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE p2|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -1021,7 +1045,7 @@ COLLATION(_koi8r    '‘≈À”‘') AS c6,
 @@character_set_client AS c8;
 SET –ø–∞—Ä–∞–º1 = 'a';
 SET –ø–∞—Ä–∞–º2 = 'b';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE mysqltest2.p3|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -1042,7 +1066,7 @@ COLLATION(_koi8r    '‘≈À”‘') AS c6,
 @@character_set_client AS c8;
 SET –ø–∞—Ä–∞–º1 = 'a';
 SET –ø–∞—Ä–∞–º2 = 'b';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE mysqltest2.p4|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -1063,7 +1087,7 @@ COLLATION(_koi8r    '‘≈À”‘') AS c6,
 @@character_set_client AS c8;
 SET –ø–∞—Ä–∞–º1 = 'a';
 SET –ø–∞—Ä–∞–º2 = 'b';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 
 SHOW PROCEDURE STATUS LIKE 'p1'|
@@ -1306,7 +1330,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @a1 = '—Ç–µ–∫—Å—Ç';
 SET @a2 = _utf8 '—Ç–µ–∫—Å—Ç';
 SET @a3 = _koi8r    '‘≈À”‘';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci	CREATED
+END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER trg2|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
@@ -1321,7 +1345,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @b1 = '—Ç–µ–∫—Å—Ç';
 SET @b2 = _utf8 '—Ç–µ–∫—Å—Ç';
 SET @b3 = _koi8r    '‘≈À”‘';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci	CREATED
+END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER mysqltest2.trg3|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
@@ -1336,7 +1360,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @a1 = '—Ç–µ–∫—Å—Ç';
 SET @a2 = _utf8 '—Ç–µ–∫—Å—Ç';
 SET @a3 = _koi8r    '‘≈À”‘';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci	CREATED
+END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER mysqltest2.trg4|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
@@ -1351,7 +1375,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @b1 = '—Ç–µ–∫—Å—Ç';
 SET @b2 = _utf8 '—Ç–µ–∫—Å—Ç';
 SET @b3 = _koi8r    '‘≈À”‘';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci	CREATED
+END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 
 SHOW TRIGGERS|
@@ -1577,7 +1601,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @a1 = '—Ç–µ–∫—Å—Ç';
 SET @a2 = _utf8 '—Ç–µ–∫—Å—Ç';
 SET @a3 = _koi8r    '‘≈À”‘';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci	CREATED
+END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER trg2|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
@@ -1592,7 +1616,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @b1 = '—Ç–µ–∫—Å—Ç';
 SET @b2 = _utf8 '—Ç–µ–∫—Å—Ç';
 SET @b3 = _koi8r    '‘≈À”‘';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci	CREATED
+END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER mysqltest2.trg3|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
@@ -1607,7 +1631,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @a1 = '—Ç–µ–∫—Å—Ç';
 SET @a2 = _utf8 '—Ç–µ–∫—Å—Ç';
 SET @a3 = _koi8r    '‘≈À”‘';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci	CREATED
+END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER mysqltest2.trg4|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
@@ -1622,7 +1646,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @b1 = '—Ç–µ–∫—Å—Ç';
 SET @b2 = _utf8 '—Ç–µ–∫—Å—Ç';
 SET @b3 = _koi8r    '‘≈À”‘';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci	CREATED
+END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 
 SHOW TRIGGERS|
@@ -1835,8 +1859,8 @@ ALTER DATABASE `mysqltest1` CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb3 */ ;
-/*!50003 SET character_set_results = utf8mb3 */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
@@ -1863,8 +1887,8 @@ ALTER DATABASE `mysqltest1` CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb3 */ ;
-/*!50003 SET character_set_results = utf8mb3 */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
@@ -1912,8 +1936,8 @@ ALTER DATABASE `mysqltest2` CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb3 */ ;
-/*!50003 SET character_set_results = utf8mb3 */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
@@ -1940,8 +1964,8 @@ ALTER DATABASE `mysqltest2` CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb3 */ ;
-/*!50003 SET character_set_results = utf8mb3 */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
@@ -2006,7 +2030,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @a1 = '—Ç–µ–∫—Å—Ç';
 SET @a2 = _utf8 '—Ç–µ–∫—Å—Ç';
 SET @a3 = _koi8r    '‘≈À”‘';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci	CREATED
+END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER trg2|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
@@ -2021,7 +2045,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @b1 = '—Ç–µ–∫—Å—Ç';
 SET @b2 = _utf8 '—Ç–µ–∫—Å—Ç';
 SET @b3 = _koi8r    '‘≈À”‘';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci	CREATED
+END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER mysqltest2.trg3|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
@@ -2036,7 +2060,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @a1 = '—Ç–µ–∫—Å—Ç';
 SET @a2 = _utf8 '—Ç–µ–∫—Å—Ç';
 SET @a3 = _koi8r    '‘≈À”‘';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci	CREATED
+END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER mysqltest2.trg4|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
@@ -2051,7 +2075,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @b1 = '—Ç–µ–∫—Å—Ç';
 SET @b2 = _utf8 '—Ç–µ–∫—Å—Ç';
 SET @b3 = _koi8r    '‘≈À”‘';
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci	CREATED
+END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 
 SHOW TRIGGERS|
@@ -2335,7 +2359,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT ev2|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
@@ -2348,7 +2372,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT mysqltest2.ev3|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
@@ -2361,7 +2385,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT mysqltest2.ev3|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
@@ -2374,7 +2398,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 
 SHOW EVENTS LIKE 'ev1'|
@@ -2472,7 +2496,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT ev2|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
@@ -2485,7 +2509,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT mysqltest2.ev3|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
@@ -2498,7 +2522,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT mysqltest2.ev3|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
@@ -2511,7 +2535,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 
 SHOW EVENTS LIKE 'ev1'|
@@ -2592,8 +2616,8 @@ ALTER DATABASE `mysqltest1` CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci ;;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;;
-/*!50003 SET character_set_client  = utf8mb3 */ ;;
-/*!50003 SET character_set_results = utf8mb3 */ ;;
+/*!50003 SET character_set_client  = utf8 */ ;;
+/*!50003 SET character_set_results = utf8 */ ;;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;;
@@ -2620,8 +2644,8 @@ ALTER DATABASE `mysqltest1` CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci ;;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;;
-/*!50003 SET character_set_client  = utf8mb3 */ ;;
-/*!50003 SET character_set_results = utf8mb3 */ ;;
+/*!50003 SET character_set_client  = utf8 */ ;;
+/*!50003 SET character_set_results = utf8 */ ;;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;;
@@ -2659,8 +2683,8 @@ ALTER DATABASE `mysqltest2` CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci ;;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;;
-/*!50003 SET character_set_client  = utf8mb3 */ ;;
-/*!50003 SET character_set_results = utf8mb3 */ ;;
+/*!50003 SET character_set_client  = utf8 */ ;;
+/*!50003 SET character_set_results = utf8 */ ;;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;;
@@ -2687,8 +2711,8 @@ ALTER DATABASE `mysqltest2` CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci ;;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;;
-/*!50003 SET character_set_client  = utf8mb3 */ ;;
-/*!50003 SET character_set_results = utf8mb3 */ ;;
+/*!50003 SET character_set_client  = utf8 */ ;;
+/*!50003 SET character_set_results = utf8 */ ;;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;;
@@ -2747,7 +2771,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT ev2|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
@@ -2760,7 +2784,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT mysqltest2.ev3|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
@@ -2773,7 +2797,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT mysqltest2.ev3|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
@@ -2786,7 +2810,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8mb3	utf8_general_ci	utf8_unicode_ci
+END	utf8	utf8_general_ci	utf8_unicode_ci
 
 
 SHOW EVENTS LIKE 'ev1'|

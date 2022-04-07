@@ -61,7 +61,6 @@
 #include <assert.h>
 #include <unicode/uregex.h>
 
-#include <optional>
 #include <string>
 
 // assert
@@ -71,12 +70,6 @@
 #include "sql/mysqld.h"  // make_unique_destroy_only
 #include "sql/regexp/regexp_facade.h"
 #include "sql_string.h"  // String
-
-// GCC bug 80635.
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-#endif
 
 /**
   Base class for all regular expression function classes. Is responsible for
@@ -110,7 +103,7 @@ class Item_func_regexp : public Item_func {
   Item *pattern() const { return args[1]; }
 
   /// The value of the `position` argument, or its default if absent.
-  std::optional<int> position() const {
+  Mysql::Nullable<int> position() const {
     int the_index = pos_arg_pos();
     if (the_index != -1 && arg_count >= static_cast<uint>(the_index) + 1) {
       int value = args[the_index]->val_int();
@@ -121,7 +114,7 @@ class Item_func_regexp : public Item_func {
         but until that happens, we need to have a more conservative check.
       */
       if (args[the_index]->is_nullable() && args[the_index]->null_value)
-        return {};
+        return Mysql::Nullable<int>();
       else
         return value;
     }
@@ -129,7 +122,7 @@ class Item_func_regexp : public Item_func {
   }
 
   /// The value of the `occurrence` argument, or its default if absent.
-  std::optional<int> occurrence() const {
+  Mysql::Nullable<int> occurrence() const {
     int the_index = occ_arg_pos();
     if (the_index != -1 && arg_count >= static_cast<uint>(the_index) + 1) {
       int value = args[the_index]->val_int();
@@ -140,7 +133,7 @@ class Item_func_regexp : public Item_func {
         but until that happens, we need to have a more conservative check.
       */
       if (args[the_index]->is_nullable() && args[the_index]->null_value)
-        return {};
+        return Mysql::Nullable<int>();
       else
         return value;
     }
@@ -148,7 +141,7 @@ class Item_func_regexp : public Item_func {
   }
 
   /// The value of the `match_parameter` argument, or an empty string if absent.
-  std::optional<std::string> match_parameter() const {
+  Mysql::Nullable<std::string> match_parameter() const {
     int the_index = match_arg_pos();
     if (the_index != -1 && arg_count >= static_cast<uint>(the_index) + 1) {
       StringBuffer<5> buf;  // Longer match_parameter doesn't make sense.
@@ -156,7 +149,7 @@ class Item_func_regexp : public Item_func {
       if (s != nullptr)
         return to_string(*s);
       else
-        return {};
+        return Mysql::Nullable<std::string>();
     }
     return std::string{};
   }
@@ -244,12 +237,12 @@ class Item_func_regexp_instr : public Item_func_regexp {
   const char *func_name() const override { return "regexp_instr"; }
 
   /// The value of the `return_option` argument, or its default if absent.
-  std::optional<int> return_option() const {
+  Mysql::Nullable<int> return_option() const {
     int the_index = retopt_arg_pos();
     if (the_index != -1 && arg_count >= static_cast<uint>(the_index) + 1) {
       int value = args[the_index]->val_int();
       if (args[the_index]->null_value)
-        return std::optional<int>();
+        return Mysql::Nullable<int>();
       else
         return value;
     }
@@ -407,9 +400,5 @@ class Item_func_icu_version final : public Item_static_string_func {
 
   bool itemize(Parse_context *pc, Item **res) override;
 };
-
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
 
 #endif  // SQL_ITEM_REGEXP_FUNC_H_

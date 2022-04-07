@@ -281,7 +281,7 @@ void Gcs_dynamic_header::dump(std::ostringstream &output) const {
          << "), payload length=(" << get_payload_length() << ")> ";
 }
 
-Gcs_stage_metadata::~Gcs_stage_metadata() = default;
+Gcs_stage_metadata::~Gcs_stage_metadata() {}
 
 std::unique_ptr<Gcs_stage_metadata> Gcs_empty_stage_metadata::clone() {
   return std::make_unique<Gcs_empty_stage_metadata>(*this);

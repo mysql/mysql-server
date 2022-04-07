@@ -22,26 +22,22 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <chrono>
-#include <cstdlib>  // setenv
-#include <fstream>
-#include <memory>  // unique_ptr
-#include <string>
-#include <thread>
-
-#include <gmock/gmock.h>
-
-#include "mysql/harness/filesystem.h"
-#include "process_wrapper.h"
+#include "gmock/gmock.h"
 #include "router_component_test.h"
+
+#include "mysqlrouter/utils.h"
+#include "process_wrapper.h"
 #include "tcp_port_pool.h"
+
+#include <chrono>
+#include <thread>
 
 using namespace std::chrono_literals;
 
 #define MY_WAIT_US_NOASSERT(cond, usec) \
   {                                     \
     int n = 0;                          \
-    int max = (usec) / 1000;            \
+    int max = usec / 1000;              \
     do {                                \
       std::this_thread::sleep_for(1ms); \
       n++;                              \
@@ -350,8 +346,8 @@ struct PidFileOptionParams {
   std::string filename;
   bool tmpdir_prefix;
 
-  PidFileOptionParams(std::string filename_, bool tmpdir_prefix_)
-      : filename(std::move(filename_)), tmpdir_prefix(tmpdir_prefix_) {}
+  PidFileOptionParams(const std::string &filename_, bool tmpdir_prefix_)
+      : filename(filename_), tmpdir_prefix(tmpdir_prefix_) {}
 };
 
 class RouterPidfileOptionValueTest
@@ -449,8 +445,9 @@ struct PidFileOptionErrorParams {
   std::string filename;
   std::string pattern;
 
-  PidFileOptionErrorParams(std::string filename_, std::string pattern_)
-      : filename(std::move(filename_)), pattern(std::move(pattern_)) {}
+  PidFileOptionErrorParams(const std::string &filename_,
+                           const std::string &pattern_)
+      : filename(filename_), pattern(pattern_) {}
 };
 
 class RouterPidfileOptionValueTestError
@@ -484,16 +481,16 @@ INSTANTIATE_TEST_SUITE_P(
         // readonly dir : TS_FR11_01 (M)
         PidFileOptionErrorParams(
             mysql_harness::Path(FOO).join(READONLY_FOLDER).c_str(),
-            "^Error: Failed writing PID to .*/foo/readonly':.*"),
+            "^Error: Failed writing PID to .*/foo/readonly:.*"),
         // readonly file : TS_FR11_02 (M)
         PidFileOptionErrorParams(
             mysql_harness::Path(FOO).join(READONLY_FILE).c_str(),
-            "^Error: Failed writing PID to .*/foo/readonly.pid':.*"),
+            "^Error: Failed writing PID to .*/foo/readonly.pid:.*"),
         // nonexisting dir : TS_FR11_03 (M)
         PidFileOptionErrorParams(
             mysql_harness::Path(FOO).join(NONEXISTING).join(PIDFILE).c_str(),
             "^Error: Failed writing PID to "
-            ".*/foo/nonexisting/mysqlrouter.pid':.*")));
+            ".*/foo/nonexisting/mysqlrouter.pid:.*")));
 
 /**
  * @test
@@ -502,8 +499,7 @@ INSTANTIATE_TEST_SUITE_P(
 struct PidFileOptionCfgParams {
   std::string filename;
 
-  PidFileOptionCfgParams(std::string filename_)
-      : filename(std::move(filename_)) {}
+  PidFileOptionCfgParams(const std::string &filename_) : filename(filename_) {}
 };
 
 class RouterPidfileOptionCfgValueTest
@@ -563,8 +559,8 @@ INSTANTIATE_TEST_SUITE_P(
 struct PidFileOptionCfgErrorParams {
   std::string filename;
 
-  PidFileOptionCfgErrorParams(std::string filename_)
-      : filename(std::move(filename_)) {}
+  PidFileOptionCfgErrorParams(const std::string &filename_)
+      : filename(filename_) {}
 };
 
 class RouterPidfileOptionCfgValueTestError
@@ -609,8 +605,8 @@ INSTANTIATE_TEST_SUITE_P(PidFileOptionCfgValueTestError,
 struct PidFileOptionEnvErrorParams {
   std::string filename;
 
-  PidFileOptionEnvErrorParams(std::string filename_)
-      : filename(std::move(filename_)) {}
+  PidFileOptionEnvErrorParams(const std::string &filename_)
+      : filename(filename_) {}
 };
 
 class RouterPidfileOptionEnvValueTestError
@@ -744,9 +740,9 @@ struct PidFileOptionSupremacyCornerCaseParams {
   std::string extra_params;
   std::string pattern;
 
-  PidFileOptionSupremacyCornerCaseParams(std::string extra_params_,
-                                         std::string pattern_)
-      : extra_params(std::move(extra_params_)), pattern(std::move(pattern_)) {}
+  PidFileOptionSupremacyCornerCaseParams(const std::string &extra_params_,
+                                         const std::string &pattern_)
+      : extra_params(extra_params_), pattern(pattern_) {}
 };
 
 class RouterPidfileOptionSupremacyCornerCaseTest
@@ -805,12 +801,9 @@ TEST_P(RouterPidfileOptionExistsTest, PidFileOptionExistsTest) {
   // Create an already existing pidfile
   mysql_harness::Path fullpath =
       mysql_harness::Path(runtime_folder.name()).join(pidfile.c_str());
-  std::ofstream alreadyexists(fullpath.str());
+  std::ofstream alreadyexists(fullpath.c_str());
   alreadyexists << "PidFileOptionExistsTest already existing file" << std::endl;
   alreadyexists.close();
-
-  // pid-file still exists
-  ASSERT_TRUE(fullpath.exists()) << fullpath.str();
 
   if (test_params.used & ENV) {
     // set ROUTER_PID and and expect error
@@ -833,6 +826,9 @@ TEST_P(RouterPidfileOptionExistsTest, PidFileOptionExistsTest) {
 
   check_exit_code(router, EXIT_FAILURE, 1s);
 
+  // Remove the already existing pidfile
+  remove(fullpath.c_str());
+
   if (test_params.used & ENV) {
     // unset ROUTER_PID env
     UnsetEnvRouterPid();
@@ -841,9 +837,6 @@ TEST_P(RouterPidfileOptionExistsTest, PidFileOptionExistsTest) {
   // expect error
   EXPECT_TRUE(router.expect_output(
       "^Error: PID file .* found. Already running?", true));
-
-  // pid-file still exists
-  EXPECT_TRUE(fullpath.exists()) << fullpath.str();
 }
 
 INSTANTIATE_TEST_SUITE_P(PidFileOptionExistsTest, RouterPidfileOptionExistsTest,

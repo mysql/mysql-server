@@ -220,31 +220,29 @@ drop function if exists pi;
 --error ER_NATIVE_FCT_NAME_COLLISION
 CREATE FUNCTION pi RETURNS STRING SONAME "should_not_parse.so";
 
---echo
---echo # Bug#33301931 LOADABLE AND STORED FUNCTIONS SHARE NAMESPACE INCONSISTENTLY
---echo
---echo # Verify that UDF and Stored function can be created with the same name.
-
---echo
---echo # UDF can be created with the same name as SF. UDF eclipses the stored function when used without schema qualifier
+# Verify that Stored Functions and UDF are mutually exclusive
 DROP FUNCTION IF EXISTS metaphon;
-CREATE FUNCTION metaphon(a int) RETURNS int return 0;
+
+CREATE FUNCTION metaphon(a int) RETURNS int
+return 0;
+
+# this currently passes, and eclipse the stored function
 --replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
 eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
-SELECT metaphon('a');
-SELECT test.metaphon(0);
-DROP FUNCTION test.metaphon;
 
---echo
---echo # SF can be created with the same name as UDF. UDF eclipses the stored function when used without schema qualifier
-DROP FUNCTION IF EXISTS metaphon;
+DROP FUNCTION metaphon;
+DROP FUNCTION metaphon;
+
 --replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
 eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
-CREATE FUNCTION metaphon(a int) RETURNS int return 0;
-SELECT metaphon('a');
-SELECT test.metaphon(0);
-DROP FUNCTION test.metaphon;
-# End of Bug#33301931
+
+--error ER_UDF_EXISTS
+CREATE FUNCTION metaphon(a int) RETURNS int
+return 0;
+
+--error ER_UDF_EXISTS
+CREATE FUNCTION test.metaphon(a int) RETURNS int
+return 0;
 
 # End of Bug#18239
 
@@ -632,40 +630,9 @@ INSERT INTO t1 values
 ;
 SELECT a, my_median(b) from t1 GROUP BY a;
 
+DROP FUNCTION my_median;
 DROP TABLE t1;
 
---echo # Bug#32528898: Calling UDF aggregate function corrupts plugin with JOIN
-
-CREATE TABLE users(id INTEGER, name VARCHAR(255));
-INSERT INTO users(id, name) VALUES (1, 'Jason'), (2, 'Brian');
-
-CREATE TABLE user_values(id INTEGER, user_id INTEGER, value INTEGER);
-INSERT INTO user_values(id, user_id, value) VALUES (1,1,1), (2,2,10);
-
-let $query = SELECT my_median(value) FROM user_values;
-eval $query;
-eval $query;
-
-let $query = SELECT user_id, my_median(value) FROM user_values GROUP BY user_id;
-eval $query;
-eval $query;
-
-let $query =
-SELECT users.id, my_median(value)
-FROM users,user_values
-WHERE users.id = user_values.user_id
-GROUP BY users.id;
-eval $query;
-eval $query;
-
-eval prepare ps from "$query";
-execute ps;
-execute ps;
-DEALLOCATE PREPARE ps;
-
-DROP TABLE users, user_values;
-
-DROP FUNCTION my_median;
 
 --echo #
 --echo # WL8980 - Move udf metatable table from MyISAM to InnoDB.

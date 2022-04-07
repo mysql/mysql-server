@@ -37,6 +37,7 @@
 #include <float.h>                         // DBL_MAX, FLT_MAX
 #include <stdint.h>                        // UINT64_MAX
 #include <sys/types.h>                     // uint
+#include <cstring>                         // memset
 #include <utility>                         // swap
 #include "decimal.h"                       // E_DEC_FATAL_ERROR
 #include "field_types.h"                   // MYSQL_TYPE_DATE
@@ -243,7 +244,7 @@ static bool analyze_int_field_constant(THD *thd, Item_field *f,
         break;
       }
     }
-      [[fallthrough]];
+      // fall-through
     case REAL_RESULT: {
       /*
         Try to convert to decimal. If that fails, we know the constant is out of
@@ -288,7 +289,7 @@ static bool analyze_int_field_constant(THD *thd, Item_field *f,
       }
       d = &dec;
     }
-      [[fallthrough]];
+      // fall-through
     case DECIMAL_RESULT: {
       /*
         If out of bounds of longlong, return RP_OUTSIDE_LOW or RP_OUTSIDE_HIGH
@@ -480,8 +481,6 @@ static bool analyze_decimal_field_constant(THD *thd, const Item_field *f,
     case INT_RESULT: {
       my_decimal tmp;
       const auto *const d = (*const_val)->val_decimal(&tmp);
-      if (thd->is_error()) return true;
-      assert(d != nullptr);
       assert(decimal_actual_fraction(d) == 0);
       const int actual_intg = decimal_intg(d);
 
@@ -533,7 +532,7 @@ static bool analyze_decimal_field_constant(THD *thd, const Item_field *f,
       }
       was_string_or_real = true;
     }
-      [[fallthrough]];
+      // fall-thru
     case DECIMAL_RESULT: {
       /*
         Decimal constant can have different range and precision
@@ -543,8 +542,6 @@ static bool analyze_decimal_field_constant(THD *thd, const Item_field *f,
       // Compute actual (minimal) decimal type of the constant
       my_decimal buff, *d;
       d = (*const_val)->val_decimal(&buff);
-      if ((*const_val)->null_value) return false;
-      assert(d != nullptr);
       const int actual_frac = decimal_actual_fraction(d);
       const int actual_intg = decimal_intg(d);
       const bool overflow = actual_intg > f_intg;
@@ -825,11 +822,11 @@ static bool analyze_timestamp_field_constant(THD *thd, const Item_field *f,
       if (ft == MYSQL_TYPE_TIMESTAMP) {
         /*
           Convert constant to timeval, if it fits. If not, we are out of
-          range for a TIMESTAMP. The timeval is UTC since epoch, using 32
-          bits range.
+          range for a TIMESTAMP. The timeval is UTC since epoch.
         */
         int warnings = 0;
-        my_timeval tm = {0, 0};
+        struct timeval tm;
+        std::memset(&tm, 0, sizeof(tm));
         int zeros = 0;
         zeros += ltime.year == 0;
         zeros += ltime.month == 0;
@@ -853,7 +850,7 @@ static bool analyze_timestamp_field_constant(THD *thd, const Item_field *f,
           compare with min/max, unless it is 0 or has a zero date part (year,
           month or day)
         */
-        if (tm.m_tv_sec != 0) {
+        if (tm.tv_sec != 0) {
           /* '2038-01-19 03:14:07.[999999]' */
           MYSQL_TIME max_timestamp = my_time_set(
               TIMESTAMP_MAX_YEAR, 1, 19, 3, 14, 7,

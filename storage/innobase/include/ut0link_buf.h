@@ -203,8 +203,7 @@ Link_buf<Position>::Link_buf(size_t capacity)
 
   ut_a((capacity & (capacity - 1)) == 0);
 
-  m_links = ut::new_arr_withkey<std::atomic<Distance>>(UT_NEW_THIS_FILE_PSI_KEY,
-                                                       ut::Count{capacity});
+  m_links = UT_NEW_ARRAY_NOKEY(std::atomic<Distance>, capacity);
 
   for (size_t i = 0; i < capacity; ++i) {
     m_links[i].store(0);
@@ -243,7 +242,7 @@ Link_buf<Position>::~Link_buf() {
 template <typename Position>
 void Link_buf<Position>::free() {
   if (m_links != nullptr) {
-    ut::delete_arr(m_links);
+    UT_DELETE_ARRAY(m_links);
     m_links = nullptr;
   }
 }

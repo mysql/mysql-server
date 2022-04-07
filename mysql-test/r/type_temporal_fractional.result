@@ -764,6 +764,38 @@ a	CAST(a AS TIME)
 -10:10:10.0	-10:10:10
 DROP TABLE t1;
 #
+# Testing rounding with FROM_UNIXTIME
+#
+SET time_zone='+00:00';
+CREATE TABLE t1 (a DECIMAL(20,7));
+INSERT INTO t1 VALUES
+(2147483647.999999),
+(2147483647.9999990),
+(2147483647.9999991),
+(2147483647.9999992),
+(2147483647.9999993),
+(2147483647.9999994),
+(2147483647.9999995),
+(2147483647.9999996),
+(2147483647.9999997),
+(2147483647.9999998),
+(2147483647.9999999);
+SELECT a, FROM_UNIXTIME(a) FROM t1;
+a	FROM_UNIXTIME(a)
+2147483647.9999990	2038-01-19 03:14:07.999999
+2147483647.9999990	2038-01-19 03:14:07.999999
+2147483647.9999991	2038-01-19 03:14:07.999999
+2147483647.9999992	2038-01-19 03:14:07.999999
+2147483647.9999993	2038-01-19 03:14:07.999999
+2147483647.9999994	2038-01-19 03:14:07.999999
+2147483647.9999995	NULL
+2147483647.9999996	NULL
+2147483647.9999997	NULL
+2147483647.9999998	NULL
+2147483647.9999999	NULL
+DROP TABLE t1;
+SET time_zone=DEFAULT;
+#
 # Testing internal representation format for TIME(N)
 #
 CREATE TABLE t1 (a6 VARCHAR(32));
@@ -3987,18 +4019,24 @@ CAST('00:00:00' AS TIME) + INTERVAL 2000 HOUR
 NULL
 Warnings:
 Warning	1441	Datetime function: time field overflow
-SELECT TIME(CAST('00:00:00' AS TIME) + INTERVAL 34 DAY);
-TIME(CAST('00:00:00' AS TIME) + INTERVAL 34 DAY)
-00:00:00
-SELECT TIME(CAST('00:00:00' AS TIME) + INTERVAL 35 DAY);
-TIME(CAST('00:00:00' AS TIME) + INTERVAL 35 DAY)
-00:00:00
-SELECT TIME(CAST('00:00:00' AS TIME) + INTERVAL 1 MONTH);
-TIME(CAST('00:00:00' AS TIME) + INTERVAL 1 MONTH)
-00:00:00
-SELECT TIME(CAST('00:00:00' AS TIME) + INTERVAL 1 YEAR);
-TIME(CAST('00:00:00' AS TIME) + INTERVAL 1 YEAR)
-00:00:00
+SELECT CAST('00:00:00' AS TIME) + INTERVAL 34 DAY;
+CAST('00:00:00' AS TIME) + INTERVAL 34 DAY
+816:00:00
+SELECT CAST('00:00:00' AS TIME) + INTERVAL 35 DAY;
+CAST('00:00:00' AS TIME) + INTERVAL 35 DAY
+NULL
+Warnings:
+Warning	1441	Datetime function: time field overflow
+SELECT CAST('00:00:00' AS TIME) + INTERVAL 1 MONTH;
+CAST('00:00:00' AS TIME) + INTERVAL 1 MONTH
+NULL
+Warnings:
+Warning	1441	Datetime function: time field overflow
+SELECT CAST('00:00:00' AS TIME) + INTERVAL 1 YEAR;
+CAST('00:00:00' AS TIME) + INTERVAL 1 YEAR
+NULL
+Warnings:
+Warning	1441	Datetime function: time field overflow
 SET @@timestamp=UNIX_TIMESTAMP('2001-01-01 00:00:00');
 SELECT CAST(CAST('00:00:00.123456' AS TIME(6)) + INTERVAL 1 DAY AS DATETIME(6));
 CAST(CAST('00:00:00.123456' AS TIME(6)) + INTERVAL 1 DAY AS DATETIME(6))
@@ -8405,9 +8443,6 @@ a	b
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.1230
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.12300
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.123000
-Warnings:
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 ALTER TABLE t1 ADD KEY (a);
 SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
 a	b
@@ -8423,9 +8458,6 @@ a	b
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.1230
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.12300
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.123000
-Warnings:
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 ALTER TABLE t2 ADD KEY(b);
 SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
 a	b
@@ -8441,9 +8473,6 @@ a	b
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.1230
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.12300
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.123000
-Warnings:
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 ALTER TABLE t1 DROP KEY a;
 SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
 a	b
@@ -8459,9 +8488,6 @@ a	b
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.1230
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.12300
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.123000
-Warnings:
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1, t2;
 #
 # Testing arithmetic with INT, DECIMAL, FLOAT
@@ -13117,9 +13143,6 @@ a	b
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.1230
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.12300
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.123000
-Warnings:
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 ALTER TABLE t1 ADD KEY (a);
 SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
 a	b
@@ -13135,9 +13158,6 @@ a	b
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.1230
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.12300
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.123000
-Warnings:
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 ALTER TABLE t2 ADD KEY (b);
 SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
 a	b
@@ -13153,9 +13173,6 @@ a	b
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.1230
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.12300
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.123000
-Warnings:
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 ALTER TABLE t1 DROP KEY a;
 SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
 a	b
@@ -13171,9 +13188,6 @@ a	b
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.1230
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.12300
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.123000
-Warnings:
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1, t2;
 #
 # Testing arithmetic with INT, DECIMAL, FLOAT
@@ -15701,10 +15715,10 @@ SET @@timestamp=default;
 SET TIMESTAMP=UNIX_TIMESTAMP('2001-01-01 00:00:00');
 SELECT ADDTIME(UTC_DATE, '23:28:14.014837') FROM dual;
 ADDTIME(UTC_DATE, '23:28:14.014837')
-2000-12-31 23:28:14.014837
+23:28:14.014837
 SELECT SUBTIME(UTC_DATE, '04:44:03.014042') FROM dual ;
 SUBTIME(UTC_DATE, '04:44:03.014042')
-2000-12-30 19:15:56.985958
+-04:44:03.014042
 SELECT TIMEDIFF(CURRENT_DATE, '2004-12-07') FROM dual;
 TIMEDIFF(CURRENT_DATE, '2004-12-07')
 -838:59:59
@@ -15772,11 +15786,12 @@ SELECT col_datetime_5_not_null
 FROM t1 
 WHERE TIMESTAMPADD(QUARTER, 5, col_time_3_key);
 col_datetime_5_not_null
-0000-00-00 00:00:00.00000
-0000-00-00 00:00:00.00000
-2001-12-22 00:00:00.00000
-0000-00-00 00:00:00.00000
-0000-00-00 00:00:00.00000
+Warnings:
+Warning	1441	Datetime function: time field overflow
+Warning	1441	Datetime function: time field overflow
+Warning	1441	Datetime function: time field overflow
+Warning	1441	Datetime function: time field overflow
+Warning	1441	Datetime function: time field overflow
 DROP TABLE t1;
 #
 # bug10
@@ -15916,6 +15931,17 @@ OR
 col_datetime_5 = CURRENT_DATE()
 ORDER BY 1;
 c1	c2
+Warnings:
+Warning	1411	Incorrect datetime value: '03:07' for function str_to_date
+Warning	1411	Incorrect datetime value: '08:07' for function str_to_date
+Warning	1411	Incorrect datetime value: '08:07' for function str_to_date
+Warning	1411	Incorrect datetime value: '12:07' for function str_to_date
+Warning	1411	Incorrect datetime value: '08:07' for function str_to_date
+Warning	1411	Incorrect datetime value: '12:07' for function str_to_date
+Warning	1411	Incorrect datetime value: '12:07' for function str_to_date
+Warning	1411	Incorrect datetime value: '12:07' for function str_to_date
+Warning	1411	Incorrect datetime value: '12:07' for function str_to_date
+Warning	1411	Incorrect datetime value: '12:07' for function str_to_date
 DROP TABLE t1;
 SET timestamp=DEFAULT;
 #
@@ -17586,6 +17612,40 @@ Warnings:
 Warning	1441	Datetime function: add_time field overflow
 SET @@session.sql_buffer_result=default;
 DROP TABLE t1;
+#
+# Bug #28671811 FROM_UNIXTIME ACCEPTS AN OUT OF RANGE PARAMETER
+#               THROUGH ROUNDING
+#
+SET time_zone='+00:00';
+SELECT
+FROM_UNIXTIME(2147483647) AS c1,
+FROM_UNIXTIME(2147483648) AS c2,
+FROM_UNIXTIME(2147483647.9999999) AS c3;
+c1	c2	c3
+2038-01-19 03:14:07	NULL	NULL
+SET time_zone=default;
+SELECT
+FROM_UNIXTIME(2147483647) AS c1,
+FROM_UNIXTIME(2147483648) AS c2,
+FROM_UNIXTIME(2147483647.9999999) AS c3;
+c1	c2	c3
+2038-01-19 06:14:07	NULL	NULL
+SET sql_mode=time_truncate_fractional;
+SET time_zone='+00:00';
+SELECT
+FROM_UNIXTIME(2147483647) AS c1,
+FROM_UNIXTIME(2147483648) AS c2,
+FROM_UNIXTIME(2147483647.9999999) AS c3;
+c1	c2	c3
+2038-01-19 03:14:07	NULL	2038-01-19 03:14:07.999999
+SET time_zone=default;
+SELECT
+FROM_UNIXTIME(2147483647) AS c1,
+FROM_UNIXTIME(2147483648) AS c2,
+FROM_UNIXTIME(2147483647.9999999) AS c3;
+c1	c2	c3
+2038-01-19 06:14:07	NULL	2038-01-19 06:14:07.999999
+SET sql_mode=default;
 #
 # Bug#29120569 SETTING OUT OF RANGE FRACTIONAL PART PRODUCES
 #              INCORRECT TIMESTAMPS

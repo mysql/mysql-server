@@ -73,7 +73,7 @@ public:
   /**
    * Length of signal
    */
-  static constexpr Uint32 SignalLength = 11;
+  STATIC_CONST( SignalLength = 11 );
   SECTION( FILENAME = 0 );
   SECTION( PASSWORD = 1 );
 
@@ -93,28 +93,28 @@ private:
   Uint32 auto_sync_size; // In bytes
   
 public:
-  static constexpr Uint32 OM_READONLY = 0;
-  static constexpr Uint32 OM_WRITEONLY = 1;
-  static constexpr Uint32 OM_READWRITE = 2;
-  static constexpr Uint32 OM_READ_WRITE_MASK = 3;
+  STATIC_CONST( OM_READONLY        = 0 );
+  STATIC_CONST( OM_WRITEONLY       = 1 );
+  STATIC_CONST( OM_READWRITE       = 2 );
+  STATIC_CONST( OM_READ_WRITE_MASK = 3 );
 
-  static constexpr Uint32 OM_APPEND = 0x8; // Not Implemented on W2k
-  static constexpr Uint32 OM_SYNC = 0x10;
-  static constexpr Uint32 OM_CREATE = 0x100;
-  static constexpr Uint32 OM_TRUNCATE = 0x200;
-  static constexpr Uint32 OM_AUTOSYNC = 0x400; 
+  STATIC_CONST( OM_APPEND    = 0x8   ); // Not Implemented on W2k
+  STATIC_CONST( OM_SYNC      = 0x10  );
+  STATIC_CONST( OM_CREATE    = 0x100 );
+  STATIC_CONST( OM_TRUNCATE  = 0x200 );
+  STATIC_CONST( OM_AUTOSYNC  = 0x400 ); 
 
-  static constexpr Uint32 OM_CREATE_IF_NONE = 0x0800;
-  static constexpr Uint32 OM_INIT = 0x1000; // 
-  static constexpr Uint32 OM_CHECK_SIZE = 0x2000;
-  static constexpr Uint32 OM_DIRECT = 0x4000;
-  static constexpr Uint32 OM_GZ = 0x8000;
-  static constexpr Uint32 OM_THREAD_POOL = 0x10000;
-  static constexpr Uint32 OM_WRITE_BUFFER = 0x20000;
-  static constexpr Uint32 OM_READ_SIZE = 0x40000;
-  static constexpr Uint32 OM_DIRECT_SYNC = 0x80000;
-  static constexpr Uint32 OM_ENCRYPT = 0x100000;
-  static constexpr Uint32 OM_PASSWORD = 0x200000; // Not really needed, implicit by section PASSWORD
+  STATIC_CONST( OM_CREATE_IF_NONE = 0x0800 );
+  STATIC_CONST( OM_INIT           = 0x1000 ); // 
+  STATIC_CONST( OM_CHECK_SIZE     = 0x2000 );
+  STATIC_CONST( OM_DIRECT         = 0x4000 );
+  STATIC_CONST( OM_GZ             = 0x8000 );
+  STATIC_CONST( OM_THREAD_POOL    = 0x10000 );
+  STATIC_CONST( OM_WRITE_BUFFER   = 0x20000 );
+  STATIC_CONST( OM_READ_SIZE      = 0x40000 );
+  STATIC_CONST( OM_DIRECT_SYNC    = 0x80000 );
+  STATIC_CONST( OM_ENCRYPT        = 0x100000 );
+  STATIC_CONST( OM_PASSWORD       = 0x200000 ); // Not really needed, implicit by section PASSWORD
   
   enum Suffixes {
     S_DATA = 0,

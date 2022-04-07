@@ -38,7 +38,7 @@ struct CreateTrigImplReq
     CreateTriggerOffline = 2
   };
 
-  static constexpr Uint32 SignalLength = 11 + 3;
+  STATIC_CONST( SignalLength = 11 + 3);
   SECTION( ATTRIBUTE_MASK_SECTION = 0 );
 
   // tableVersion, indexVersion, name section used only within DICT
@@ -58,7 +58,7 @@ struct CreateTrigImplReq
 };
 
 struct CreateTrigImplConf {
-  static constexpr Uint32 SignalLength = 5;
+  STATIC_CONST( SignalLength = 5 );
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -83,7 +83,7 @@ struct CreateTrigImplRef {
     InconsistentTC = 293
   };
 
-  static constexpr Uint32 SignalLength = 9;
+  STATIC_CONST( SignalLength = 9 );
 
   Uint32 senderRef;
   Uint32 senderData;

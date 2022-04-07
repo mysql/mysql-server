@@ -32,7 +32,7 @@
  */
 class ReadConfigReq {
 public:
-  static constexpr Uint32 SignalLength = 3;
+  STATIC_CONST( SignalLength = 3 );
   
   Uint32 senderRef;
   Uint32 senderData;
@@ -42,7 +42,7 @@ public:
 
 class ReadConfigConf {
 public:
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
 
   Uint32 senderRef;
   Uint32 senderData;

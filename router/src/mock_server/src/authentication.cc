@@ -25,13 +25,13 @@
 #include "authentication.h"
 
 #include <memory>  // unique_ptr
-#include <string_view>
 #include <vector>
 
 #include <openssl/evp.h>
 #include <openssl/opensslv.h>
 
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/stdx/string_view.h"
 
 namespace impl {
 /**
@@ -52,7 +52,7 @@ namespace impl {
  * @returns auth-response a client would send it
  */
 static stdx::expected<std::vector<uint8_t>, void> scramble(
-    std::string_view nonce, std::string_view password,
+    stdx::string_view nonce, stdx::string_view password,
     const EVP_MD *digest_func, bool nonce_before_double_hashed_password) {
   // in case of empty password, the hash is empty too
   if (password.size() == 0) return {};
@@ -112,7 +112,7 @@ static stdx::expected<std::vector<uint8_t>, void> scramble(
 // mysql_native_password
 
 stdx::expected<std::vector<uint8_t>, void> MySQLNativePassword::scramble(
-    std::string_view nonce, std::string_view password) {
+    stdx::string_view nonce, stdx::string_view password) {
   return impl::scramble(nonce, password, EVP_sha1(), true);
 }
 
@@ -121,7 +121,7 @@ constexpr char MySQLNativePassword::name[];
 // caching_sha2_password
 
 stdx::expected<std::vector<uint8_t>, void> CachingSha2Password::scramble(
-    std::string_view nonce, std::string_view password) {
+    stdx::string_view nonce, stdx::string_view password) {
   return impl::scramble(nonce, password, EVP_sha256(), false);
 }
 constexpr char CachingSha2Password::name[];
@@ -129,7 +129,7 @@ constexpr char CachingSha2Password::name[];
 // clear_text_password
 
 stdx::expected<std::vector<uint8_t>, void> ClearTextPassword::scramble(
-    std::string_view /* nonce */, std::string_view password) {
+    stdx::string_view /* nonce */, stdx::string_view password) {
   std::vector<uint8_t> res(password.begin(), password.end());
 
   // the payload always has a trailing \0

@@ -26,7 +26,6 @@
 #define NDB_MGMD_HPP
 
 #include <mgmapi.h>
-#include "mgmcommon/NdbMgm.hpp"
 #include "../../src/mgmapi/mgmapi_internal.h"
 
 #include <BaseString.hpp>
@@ -38,8 +37,6 @@
 #include "../../src/mgmsrv/Config.hpp"
 
 #include <InputStream.hpp>
-
-#include "NdbSleep.h"
 
 class NdbMgmd {
   BaseString m_connect_str;
@@ -373,7 +370,7 @@ public:
       return false;
     }
 
-    ndb_mgm::config_ptr conf(ndb_mgm_get_configuration(m_handle,0));
+    ndb_mgm_config_unique_ptr conf(ndb_mgm_get_configuration(m_handle,0));
     if (!conf) {
       error("get_config: ndb_mgm_get_configuration failed");
       return false;
@@ -529,7 +526,7 @@ public:
 
     // TODO: Instead of using flaky sleep, try reconnect and
     // determine whether the config is changed.
-    NdbSleep_SecSleep(10); //Give MGM server time to restart
+    sleep(10); //Give MGM server time to restart
 
     return true;
   }
@@ -591,7 +588,7 @@ public:
 
     // TODO: Instead of using flaky sleep, try reconnect and
     // determine whether the config is changed.
-    NdbSleep_SecSleep(10); //Give MGM server time to restart
+    sleep(10); //Give MGM server time to restart
 
     return true;
   }

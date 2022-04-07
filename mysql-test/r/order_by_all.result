@@ -1299,28 +1299,28 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	range	k2	k2	5	NULL	409	100.00	Using index condition; Using MRR; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`c3` AS `c3` from `test`.`t2` where (`test`.`t2`.`c2` between 20 and 30) order by `test`.`t2`.`c3` limit 4000
-SELECT c3,id FROM t2 WHERE c2=11 ORDER BY c3 LIMIT 20;
-c3	id
-14	125
-14	135
-14	145
-14	155
-14	16
-14	165
-14	175
-14	185
-14	195
-14	252
-14	262
-14	272
-14	282
-14	31
-14	41
-14	6
-14	62
-14	72
-14	82
-14	92
+SELECT id,c3 FROM t2 WHERE c2=11 ORDER BY c3 LIMIT 20;
+id	c3
+6	14
+16	14
+31	14
+41	14
+62	14
+72	14
+82	14
+92	14
+125	14
+135	14
+145	14
+155	14
+165	14
+175	14
+185	14
+195	14
+252	14
+262	14
+272	14
+282	14
 DROP TABLE t1,t2;
 CREATE TABLE t1 (
 a INT,
@@ -1969,18 +1969,13 @@ charset utf8mb4;
 CREATE TABLE t3 (a varchar(32), b char(3), UNIQUE KEY a (a,b))
 charset utf8mb4;
 INSERT INTO t3 SELECT * FROM t1;
-ANALYZE TABLE t1, t2, t3;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
-test.t2	analyze	status	OK
-test.t3	analyze	status	OK
 EXPLAIN
 SELECT d FROM t1, t2
 WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
 ORDER BY t2.c LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a,b	b	13	const	4	100.00	Using index condition; Using where; Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ref	a,b,c	a	136	test.t1.a,const	11	78.90	Using index condition
+1	SIMPLE	t2	NULL	ref	a,b,c	a	136	test.t1.a,const	1	78.90	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`b` = 'DE') and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`b` = 14) and (5.1 < `test`.`t2`.`c`)) order by `test`.`t2`.`c` limit 1
 SELECT d FROM t1, t2

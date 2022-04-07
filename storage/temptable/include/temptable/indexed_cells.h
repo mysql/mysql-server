@@ -230,18 +230,18 @@ inline Storage::Element *Indexed_cells::row() const {
   /*
   switch (m_data_location) {
     case Data_location::MYSQL_BUF_INDEX_READ:
-      my_abort();
+      abort();
     case Data_location::MYSQL_BUF_WRITE_ROW:
       return ...;
     case Data_location::ROW:
       return ...;
   }
-  my_abort();  <-- this is executed when m_data_location == Data_location::ROW
+  abort();  <-- this is executed when m_data_location == Data_location::ROW
   and compiled with "Studio 12.5 Sun C++ 5.14 SunOS_sparc 2016/05/31" !!!
   So we use if-else instead of switch below. */
 
   if (m_data_location == Data_location::MYSQL_BUF_INDEX_READ) {
-    my_abort();
+    abort();
   } else if (m_data_location == Data_location::MYSQL_BUF_WRITE_ROW) {
     return const_cast<unsigned char *>(m_mysql_buf);
   } else if (m_data_location == Data_location::ROW) {
@@ -249,7 +249,7 @@ inline Storage::Element *Indexed_cells::row() const {
   }
 
   /* Not reached. */
-  my_abort();
+  abort();
 }
 
 inline void Indexed_cells::export_row_to_mysql(const Columns &columns,
@@ -258,7 +258,7 @@ inline void Indexed_cells::export_row_to_mysql(const Columns &columns,
   /*
   switch (m_data_location) {
     case Data_location::MYSQL_BUF_INDEX_READ:
-      my_abort();
+      abort();
     case Data_location::MYSQL_BUF_WRITE_ROW:
       ...
       return;
@@ -266,12 +266,12 @@ inline void Indexed_cells::export_row_to_mysql(const Columns &columns,
       ...
       return;
   }
-  my_abort();  <-- this is executed when m_data_location == Data_location::ROW
+  abort();  <-- this is executed when m_data_location == Data_location::ROW
   and compiled with "Studio 12.5 Sun C++ 5.14 SunOS_sparc 2016/05/31" !!!
   So we use if-else instead of switch below. */
 
   if (m_data_location == Data_location::MYSQL_BUF_INDEX_READ) {
-    my_abort();
+    abort();
   } else if (m_data_location == Data_location::MYSQL_BUF_WRITE_ROW) {
     memcpy(mysql_row, m_mysql_buf, mysql_row_length);
     return;
@@ -281,7 +281,7 @@ inline void Indexed_cells::export_row_to_mysql(const Columns &columns,
   }
 
   /* Not reached. */
-  my_abort();
+  abort();
 }
 
 inline size_t Indexed_cells::number_of_cells() const {

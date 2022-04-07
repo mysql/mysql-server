@@ -5,16 +5,20 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 [connection master]
 SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
+SET @save_transaction_write_set_extraction = @@GLOBAL.transaction_write_set_extraction;
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
+SET GLOBAL transaction_write_set_extraction = XXHASH64;
+SET LOCAL transaction_write_set_extraction = XXHASH64;
 [connection slave]
 include/stop_slave.inc
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db2)),
 REPLICATE_IGNORE_DB=(nodb);
 include/start_slave.inc
 SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
-SET @save_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
-SET GLOBAL replica_parallel_workers = 0;
+SET @save_transaction_write_set_extraction = @@GLOBAL.transaction_write_set_extraction;
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
+SET GLOBAL transaction_write_set_extraction = XXHASH64;
+SET LOCAL transaction_write_set_extraction = XXHASH64;
 [connection master]
 #
 # 1. Add transactions with different dependency tracking and empty transaction
@@ -51,9 +55,9 @@ DROP DATABASE nodb;
 DROP DATABASE db1;
 DROP DATABASE db2;
 DROP TABLE test.t1;
-SELECT @@binlog_transaction_dependency_tracking;
-@@binlog_transaction_dependency_tracking
-COMMIT_ORDER
+SELECT @@global.transaction_write_set_extraction, @@binlog_transaction_dependency_tracking;
+@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
+XXHASH64	COMMIT_ORDER
 include/include/assert_logical_timestamps.inc
 #
 # 2. Test timestamps order with filtered and non-filtered transactions on Slave.
@@ -61,9 +65,9 @@ include/include/assert_logical_timestamps.inc
 include/sync_slave_sql_with_master.inc
 [On Slave]
 ######## 2.1. COMMIT_ORDER with SLAVE ########
-SELECT @@binlog_transaction_dependency_tracking;
-@@binlog_transaction_dependency_tracking
-COMMIT_ORDER
+SELECT @@global.transaction_write_set_extraction, @@binlog_transaction_dependency_tracking;
+@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
+XXHASH64	COMMIT_ORDER
 include/include/assert_logical_timestamps.inc
 include/stop_slave.inc
 RESET SLAVE;
@@ -75,9 +79,9 @@ RESET MASTER;
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
-SELECT @@binlog_transaction_dependency_tracking;
-@@binlog_transaction_dependency_tracking
-WRITESET
+SELECT @@global.transaction_write_set_extraction, @@binlog_transaction_dependency_tracking;
+@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
+XXHASH64	WRITESET
 include/include/assert_logical_timestamps.inc
 include/stop_slave.inc
 RESET SLAVE;
@@ -89,19 +93,20 @@ RESET MASTER;
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
-SELECT @@binlog_transaction_dependency_tracking;
-@@binlog_transaction_dependency_tracking
-WRITESET_SESSION
+SELECT @@global.transaction_write_set_extraction, @@binlog_transaction_dependency_tracking;
+@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
+XXHASH64	WRITESET_SESSION
 include/include/assert_logical_timestamps.inc
 
 # 3. Clean up.
 [connection master]
+SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
 SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
 include/sync_slave_sql_with_master.inc
 [On Slave]
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
+SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
 SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
-SET @@GLOBAL.replica_parallel_workers = @save_replica_parallel_workers;
 include/stop_slave.inc
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=(), REPLICATE_IGNORE_DB=();
 include/start_slave.inc

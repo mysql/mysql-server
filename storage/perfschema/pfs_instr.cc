@@ -545,30 +545,17 @@ void carry_global_memory_stat_free_delta(PFS_memory_stat_free_delta *delta,
   (void)stat->apply_free_delta(delta, &delta_buffer);
 }
 
-bool PFS_thread::mem_cnt_alloc(size_t size) {
-#ifndef NDEBUG
-  return thd_mem_cnt_alloc(m_cnt_thd, size, current_key_name);
-#else
-  return thd_mem_cnt_alloc(m_cnt_thd, size);
-#endif
-}
-
-void PFS_thread::mem_cnt_free(size_t size) {
-  thd_mem_cnt_free(m_cnt_thd, size);
-}
-
 /**
   Create instrumentation for a thread instance.
   @param klass                        the thread class
-  @param seqnum                       the thread instance sequence number
   @param identity                     the thread address,
     or a value characteristic of this thread
   @param processlist_id               the PROCESSLIST id,
     or 0 if unknown
   @return a thread instance, or NULL
 */
-PFS_thread *create_thread(PFS_thread_class *klass, PSI_thread_seqnum seqnum,
-                          const void *identity [[maybe_unused]],
+PFS_thread *create_thread(PFS_thread_class *klass,
+                          const void *identity MY_ATTRIBUTE((unused)),
                           ulonglong processlist_id) {
   PFS_thread *pfs;
   pfs_dirty_state dirty_state;
@@ -623,10 +610,6 @@ PFS_thread *create_thread(PFS_thread_class *klass, PSI_thread_seqnum seqnum,
     pfs->m_connection_type = NO_VIO_TYPE;
 
     pfs->m_thd = nullptr;
-    pfs->m_cnt_thd = nullptr;
-#ifndef NDEBUG
-    pfs->current_key_name = nullptr;
-#endif
     pfs->m_host = nullptr;
     pfs->m_user = nullptr;
     pfs->m_account = nullptr;
@@ -656,27 +639,6 @@ PFS_thread *create_thread(PFS_thread_class *klass, PSI_thread_seqnum seqnum,
 
     pfs->m_events_statements_count = 0;
     pfs->m_transaction_current.m_event_id = 0;
-
-    if (klass->is_singleton()) {
-#if 0
-      /* See destroy_thread() */
-      assert(klass->m_singleton == nullptr);
-#endif
-      klass->m_singleton = pfs;
-    }
-
-    if (klass->has_seqnum()) {
-      if (klass->has_auto_seqnum()) {
-        seqnum = klass->m_seqnum++;
-      }
-
-      /* Possible truncation */
-      snprintf(pfs->m_os_name, PFS_MAX_OS_NAME_LENGTH - 1, klass->m_os_name,
-               seqnum);
-    } else {
-      snprintf(pfs->m_os_name, PFS_MAX_OS_NAME_LENGTH, "%s", klass->m_os_name);
-    }
-    pfs->m_os_name[PFS_MAX_OS_NAME_LENGTH - 1] = '\0';
 
     pfs->m_lock.dirty_to_allocated(&dirty_state);
   }
@@ -778,44 +740,6 @@ void destroy_thread(PFS_thread *pfs) {
   assert(pfs != nullptr);
   pfs->reset_session_connect_attrs();
   pfs->m_thd = nullptr;
-  pfs->m_cnt_thd = nullptr;
-
-  PFS_thread_class *klass = pfs->m_class;
-  if (klass->is_singleton()) {
-#if 0
-    /*
-      In theory, some threads are -- logically -- singletons.
-
-      START XYZ will start a XYZ thread with mysql_thread_create(),
-      and set a global state as "running".
-      STOP XYZ will notify the running thread to stop,
-      and set a global state as "not running".
-
-      In practice, these threads are -- physically -- not singletons.
-
-      STOP XYZ only notifies the running thread to stop,
-      but the MySQL code base in general never calls pthread_join(3).
-      Instead, the running thread, when noticing it should stop,
-      is still executing cleanup actions, until the thread main loop
-      finally terminates and call destroy_thread in the performance schema.
-
-      Because of this, the following sequence:
-        START XYZ --> fork thread #1
-        STOP XYZ --> tell #1 to stop
-        START XYZ --> fork thread #2
-      can create situations when both threads #1 and #2
-      are executing at the same time, until #1 gracefully ends.
-
-      As a result, the assert below is relaxed.
-
-      To enforce it properly,
-      a pre requisite is first to use pthread_join() in the entire code base.
-    */
-
-    assert(klass->m_singleton == pfs);
-#endif
-    klass->m_singleton = nullptr;
-  }
 
   if (pfs->m_account != nullptr) {
     pfs->m_account->release();

@@ -76,19 +76,19 @@ static pax_msg *init_pax_msg(pax_msg *p, int refcnt, synode_no synode,
 }
 
 pax_msg *pax_msg_new(synode_no synode, site_def const *site) {
-  pax_msg *p = (pax_msg *)xcom_calloc((size_t)1, sizeof(pax_msg));
+  pax_msg *p = (pax_msg *)calloc((size_t)1, sizeof(pax_msg));
   IFDBG(D_NONE, FN; PTREXP(p));
   return init_pax_msg(p, 0, synode, site);
 }
 
 pax_msg *pax_msg_new_0(synode_no synode) {
-  pax_msg *p = (pax_msg *)xcom_calloc((size_t)1, sizeof(pax_msg));
+  pax_msg *p = (pax_msg *)calloc((size_t)1, sizeof(pax_msg));
   IFDBG(D_NONE, FN; PTREXP(p));
   return init_pax_msg(p, 0, synode, 0);
 }
 
 pax_msg *clone_pax_msg_no_app(pax_msg *msg) {
-  pax_msg *p = (pax_msg *)xcom_calloc((size_t)1, sizeof(pax_msg));
+  pax_msg *p = (pax_msg *)calloc((size_t)1, sizeof(pax_msg));
   IFDBG(D_NONE, FN; STRLIT("clone_pax_msg"); PTREXP(p));
   *p = *msg;
   p->refcnt = 0;

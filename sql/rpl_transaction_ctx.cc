@@ -30,6 +30,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld_error.h"
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
+#include "sql/rpl_gtid.h"            // rpl_sidno
 #include "sql/sql_class.h"           // THD
 #include "sql/transaction_info.h"
 
@@ -91,22 +92,23 @@ int set_transaction_ctx(
     Transaction_termination_ctx transaction_termination_ctx) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("thread_id=%lu, rollback_transaction=%d, "
-                       "generated_gtid=%d, sidno=%d, gno=%" PRId64,
+                       "generated_gtid=%d, sidno=%d, gno=%lld",
                        transaction_termination_ctx.m_thread_id,
                        transaction_termination_ctx.m_rollback_transaction,
                        transaction_termination_ctx.m_generated_gtid,
                        transaction_termination_ctx.m_sidno,
                        transaction_termination_ctx.m_gno));
 
+  THD *thd = nullptr;
   uint error = ER_NO_SUCH_THREAD;
   Find_thd_with_id find_thd_with_id(transaction_termination_ctx.m_thread_id);
 
-  THD_ptr thd_ptr =
-      Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
-  if (thd_ptr) {
-    error = thd_ptr->get_transaction()
+  thd = Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
+  if (thd) {
+    error = thd->get_transaction()
                 ->get_rpl_transaction_ctx()
                 ->set_rpl_transaction_ctx(transaction_termination_ctx);
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
   }
   return error;
 }

@@ -370,8 +370,3 @@ INSERT INTO t1 VALUES (382218415, -36452.389, '{"key1": 220655528}');
 SELECT col_int FROM t1
 WHERE CASE WHEN POWER(col_double, col_int) THEN j ELSE j END;
 DROP TABLE t1;
---echo # Bug#32865008: GROUP_CONCAT: setup_fields: assertion `!thd->is_error()' failed
-
---error ER_WRONG_ARGUMENTS
-DO GROUP_CONCAT(DISTINCT NULLIF(1, PERIOD_ADD(0x6f09c5f8 ,'7451-01-27')));
-

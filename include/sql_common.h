@@ -48,10 +48,7 @@ struct MEM_ROOT;
 extern "C" {
 #endif
 
-#ifdef IMPORT_UNKNOWN_SQLSTATE
-__declspec(dllimport)
-#endif
-    extern const char *unknown_sqlstate;
+extern const char *unknown_sqlstate;
 extern const char *cant_connect_sqlstate;
 extern const char *not_error_sqlstate;
 
@@ -128,40 +125,11 @@ void mysql_extension_bind_free(MYSQL_EXTENSION *ext);
 
 #define ASYNC_DATA(M) \
   (NULL != (M) ? (MYSQL_EXTENSION_PTR(M)->mysql_async_context) : NULL)
-/**
-  Sets the MYSQL_EXTENSION::server_extn attribute by the use of NET_SERVER which
-  contains information about compression context and compression attributes.
-  This attribute needs to be set each time mysql_real_connect() is called to
-  make a connection. When a connection attempt fails or when a connection is
-  closed, as part of the MYSQL handle cleanup, mysql_close_free() is called and
-  that will free MYSQL_EXTENSION::server_extn.
-
-  mysql_close_free() will free all the memory allocated in the MYSQL handle but
-  preserves MYSQL::options. These options are later free'd by
-  mysql_close_free_options() unless the client flag CLIENT_REMEMBER_OPTIONS is
-  set.
-
-  @param mysql  The MYSQL handle
-  @param extn   The NET_SERVER handle that contains compression context info.
-*/
 #ifdef MYSQL_SERVER
 inline void mysql_extension_set_server_extn(MYSQL *mysql, NET_SERVER *extn) {
   MYSQL_EXTENSION_PTR(mysql)->server_extn = extn;
 }
 #endif
-
-/*
-  Maximum allowed authentication plugins for a given user account.
-*/
-#define MAX_AUTHENTICATION_FACTOR 3
-/*
-  Placeholder to save plugin name and password of 1st, 2nd and 3rd
-  factor authentication methods.
-*/
-struct client_authentication_info {
-  char *plugin_name;
-  char *password;
-};
 
 struct st_mysql_options_extention {
   char *plugin_dir;
@@ -184,7 +152,6 @@ struct st_mysql_options_extention {
   unsigned int zstd_compression_level;
   bool connection_compressed;
   char *load_data_dir;
-  struct client_authentication_info client_auth_info[MAX_AUTHENTICATION_FACTOR];
 };
 
 struct MYSQL_METHODS {
@@ -298,11 +265,13 @@ int is_file_or_dir_world_writable(const char *filepath);
 void read_ok_ex(MYSQL *mysql, unsigned long len);
 
 bool fix_param_bind(MYSQL_BIND *param, uint idx);
-bool mysql_int_serialize_param_data(
-    NET *net, unsigned int param_count, MYSQL_BIND *params, const char **names,
-    unsigned long n_param_sets, uchar **ret_data, ulong *ret_length,
-    uchar send_types_to_server, bool send_named_params,
-    bool send_parameter_set_count, bool send_parameter_count_when_zero);
+bool mysql_int_serialize_param_data(NET *net, unsigned int param_count,
+                                    MYSQL_BIND *params, const char **names,
+                                    unsigned long n_param_sets,
+                                    uchar **ret_data, ulong *ret_length,
+                                    uchar send_types_to_server,
+                                    bool send_named_params,
+                                    bool send_parameter_set_count);
 
 #ifdef __cplusplus
 }
@@ -310,8 +279,4 @@ bool mysql_int_serialize_param_data(
 
 #define protocol_41(A) ((A)->server_capabilities & CLIENT_PROTOCOL_41)
 
-/*
-  AuthNextFactor packet is defined to have value 2 in 1st byte.
-*/
-#define AUTH_NEXT_FACTOR_PACKETTYPE 2
 #endif /* SQL_COMMON_INCLUDED */

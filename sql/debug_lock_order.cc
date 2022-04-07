@@ -460,7 +460,7 @@ static bool g_with_rwlock = true;
   For example:
 
   @verbatim
-  BIND "cond/sql/Source_info::start_cond" TO "mutex/sql/Source_info::run_lock" FLAGS UNFAIR
+  BIND "cond/sql/Master_info::start_cond" TO "mutex/sql/Master_info::run_lock" FLAGS UNFAIR
   @endverbatim
 
   @subsubsection LO_DEP_FILE File nodes
@@ -540,12 +540,12 @@ NODE: mutex/sql/LOCK_open
     FROM: mutex/p_dyn_loader/key_component_id_by_urn_mutex
     FROM: mutex/sql/LOCK_plugin_install
     FROM: mutex/sql/LOCK_table_cache
-    FROM: mutex/sql/key_mta_temp_table_LOCK
+    FROM: mutex/sql/key_mts_temp_table_LOCK
     FROM: mutex/sql/LOCK_event_queue
     FROM: mutex/sql/LOCK_global_system_variables
     FROM: mutex/sql/LOCK_reset_gtid_table
-    FROM: mutex/sql/Source_info::data_lock
-    FROM: mutex/sql/Source_info::run_lock
+    FROM: mutex/sql/Master_info::data_lock
+    FROM: mutex/sql/Master_info::run_lock
     FROM: mutex/sql/MYSQL_BIN_LOG::LOCK_index
     FROM: mutex/sql/MYSQL_BIN_LOG::LOCK_log
     FROM: mutex/sql/MYSQL_RELAY_LOG::LOCK_log
@@ -592,7 +592,7 @@ mutex/sql/LOCK_offline_mode
 
 Found SCC number 2 of size 2:
 mutex/sql/Relay_log_info::run_lock
-mutex/sql/Source_info::run_lock
+mutex/sql/Master_info::run_lock
 
 Number of SCC found: 2
   @endverbatim
@@ -614,8 +614,8 @@ SCC ARC FROM "mutex/sql/MYSQL_BIN_LOG::LOCK_commit" TO "mutex/sql/LOCK_plugin"
 SCC ARC FROM "mutex/sql/MYSQL_BIN_LOG::LOCK_commit" TO "mutex/sql/THD::LOCK_current_cond"
 
 Dumping arcs for SCC 2:
-SCC ARC FROM "mutex/sql/Relay_log_info::run_lock" TO "mutex/sql/Source_info::run_lock"
-SCC ARC FROM "mutex/sql/Source_info::run_lock" TO "mutex/sql/Relay_log_info::run_lock"
+SCC ARC FROM "mutex/sql/Relay_log_info::run_lock" TO "mutex/sql/Master_info::run_lock"
+SCC ARC FROM "mutex/sql/Master_info::run_lock" TO "mutex/sql/Relay_log_info::run_lock"
   @endverbatim
 
   The section "IGNORED NODES" prints the nodes flagged as IGNORED
@@ -663,12 +663,12 @@ mutex/sql/MYSQL_BIN_LOG::LOCK_commit
 mutex/sql/MYSQL_BIN_LOG::LOCK_index
 mutex/sql/MYSQL_RELAY_LOG::LOCK_log
 mutex/sql/Relay_log_info::data_lock
-mutex/sql/key_mta_temp_table_LOCK
-mutex/sql/Source_info::data_lock
+mutex/sql/key_mts_temp_table_LOCK
+mutex/sql/Master_info::data_lock
 
 Found SCC number 2 of size 2:
 mutex/sql/Relay_log_info::run_lock
-mutex/sql/Source_info::run_lock
+mutex/sql/Master_info::run_lock
 
 Number of SCC found: 2
 
@@ -806,8 +806,8 @@ mutex/sql/LOCK_thd_list
 mutex/sql/MYSQL_RELAY_LOG::LOCK_index
 mutex/sql/MYSQL_RELAY_LOG::LOCK_log
 mutex/sql/Relay_log_info::data_lock
-mutex/sql/key_mta_temp_table_LOCK
-mutex/sql/Source_info::data_lock
+mutex/sql/key_mts_temp_table_LOCK
+mutex/sql/Master_info::data_lock
 mutex/sql/MYSQL_BIN_LOG::LOCK_log
 mutex/sql/LOCK_reset_gtid_table
 mutex/sql/MYSQL_BIN_LOG::LOCK_sync
@@ -816,7 +816,7 @@ mutex/sql/LOCK_offline_mode
 
 Found SCC number 2 of size 2:
 mutex/sql/Relay_log_info::run_lock
-mutex/sql/Source_info::run_lock
+mutex/sql/Master_info::run_lock
 
 Number of SCC found: 2
   @endverbatim
@@ -840,8 +840,8 @@ SCC ARC FROM "mutex/sql/MYSQL_BIN_LOG::LOCK_commit" TO "mutex/sql/LOCK_plugin"
 SCC ARC FROM "mutex/sql/MYSQL_BIN_LOG::LOCK_commit" TO "mutex/sql/THD::LOCK_current_cond"
 
 Dumping arcs for SCC 2:
-SCC ARC FROM "mutex/sql/Relay_log_info::run_lock" TO "mutex/sql/Source_info::run_lock"
-SCC ARC FROM "mutex/sql/Source_info::run_lock" TO "mutex/sql/Relay_log_info::run_lock"
+SCC ARC FROM "mutex/sql/Relay_log_info::run_lock" TO "mutex/sql/Master_info::run_lock"
+SCC ARC FROM "mutex/sql/Master_info::run_lock" TO "mutex/sql/Relay_log_info::run_lock"
   @endverbatim
 
   Note that only arcs within the same SCC are printed here,
@@ -1697,7 +1697,7 @@ stack when the second lock was acquired:
 #define LO_MAX_THREAD_CLASS 100
 #define LO_MAX_MUTEX_CLASS 300
 #define LO_MAX_RWLOCK_CLASS 100
-#define LO_MAX_COND_CLASS 150
+#define LO_MAX_COND_CLASS 100
 #define LO_MAX_FILE_CLASS 100
 
 /*
@@ -3113,7 +3113,7 @@ void LO_graph::check_common(LO_thread *thread, const char *from_class_name,
                             const char *to_class_name, bool recursive,
                             const char *to_operation_name,
                             const LO_node *to_node,
-                            const LO_lock *new_lock [[maybe_unused]]) {
+                            const LO_lock *new_lock MY_ATTRIBUTE((unused))) {
   assert(thread != nullptr);
   assert(from_class_name != nullptr);
   /* from_state_name can be null. */
@@ -4727,8 +4727,8 @@ LO_node *LO_mutex_class::get_state_node_by_name(const char *name) const {
 }
 
 LO_node *LO_mutex_class::get_operation_node_by_name(
-    bool recursive [[maybe_unused]], const char *state [[maybe_unused]],
-    const char *operation) const {
+    bool recursive MY_ATTRIBUTE((unused)),
+    const char *state MY_ATTRIBUTE((unused)), const char *operation) const {
   if (operation == nullptr) {
     return m_node;
   }
@@ -5473,7 +5473,8 @@ void LO_rwlock_lock_pr::merge_lock(PSI_rwlock_operation op,
   set_locked(op, src_file, src_line);
 }
 
-bool LO_rwlock_lock_pr::set_unlocked(PSI_rwlock_operation op [[maybe_unused]]) {
+bool LO_rwlock_lock_pr::set_unlocked(
+    PSI_rwlock_operation op MY_ATTRIBUTE((unused))) {
   assert(op == PSI_RWLOCK_UNLOCK);
   if (m_read_count > 0) {
     m_read_count--;
@@ -5562,7 +5563,8 @@ void LO_rwlock_lock_rw::merge_lock(PSI_rwlock_operation op,
   set_locked(op, src_file, src_line);
 }
 
-bool LO_rwlock_lock_rw::set_unlocked(PSI_rwlock_operation op [[maybe_unused]]) {
+bool LO_rwlock_lock_rw::set_unlocked(
+    PSI_rwlock_operation op MY_ATTRIBUTE((unused))) {
   assert(op == PSI_RWLOCK_UNLOCK);
   if (m_read_count > 0) {
     m_read_count--;
@@ -5773,8 +5775,8 @@ LO_node *LO_cond_class::get_state_node_by_name(const char *state) const {
 }
 
 LO_node *LO_cond_class::get_operation_node_by_name(
-    bool recursive [[maybe_unused]], const char *state [[maybe_unused]],
-    const char *operation) const {
+    bool recursive MY_ATTRIBUTE((unused)),
+    const char *state MY_ATTRIBUTE((unused)), const char *operation) const {
   if (operation == nullptr) {
     return m_node;
   }
@@ -5942,8 +5944,8 @@ LO_node *LO_file_class::get_state_node_by_name(const char *state) const {
 }
 
 LO_node *LO_file_class::get_operation_node_by_name(
-    bool recursive [[maybe_unused]], const char *state [[maybe_unused]],
-    const char *operation) const {
+    bool recursive MY_ATTRIBUTE((unused)),
+    const char *state MY_ATTRIBUTE((unused)), const char *operation) const {
   if (operation == nullptr) {
     return m_node;
   }
@@ -6470,8 +6472,7 @@ void *lo_spawn_thread_fct(void *arg) {
   return nullptr;
 }
 
-static int lo_spawn_thread(PSI_thread_key key, PSI_thread_seqnum seqnum,
-                           my_thread_handle *thread,
+static int lo_spawn_thread(PSI_thread_key key, my_thread_handle *thread,
                            const my_thread_attr_t *attr,
                            void *(*start_routine)(void *), void *arg) {
   LO_spawn_thread_arg *psi_arg;
@@ -6498,7 +6499,7 @@ static int lo_spawn_thread(PSI_thread_key key, PSI_thread_seqnum seqnum,
     result = my_thread_create(thread, attr, lo_spawn_thread_fct, psi_arg);
   } else {
     /* [1] Start the thread in the chained instrumentation. */
-    result = g_thread_chain->spawn_thread(chain_key, seqnum, thread, attr,
+    result = g_thread_chain->spawn_thread(chain_key, thread, attr,
                                           lo_spawn_thread_fct, psi_arg);
   }
 
@@ -6508,8 +6509,7 @@ static int lo_spawn_thread(PSI_thread_key key, PSI_thread_seqnum seqnum,
   return result;
 }
 
-static PSI_thread *lo_new_thread(PSI_thread_key key, PSI_thread_seqnum seqnum,
-                                 const void *identity,
+static PSI_thread *lo_new_thread(PSI_thread_key key, const void *identity,
                                  ulonglong processlist_id) {
   native_mutex_lock(&serialize);
 
@@ -6522,8 +6522,8 @@ static PSI_thread *lo_new_thread(PSI_thread_key key, PSI_thread_seqnum seqnum,
     LO_thread::g_threads.push_back(lo);
 
     if (g_thread_chain != nullptr) {
-      lo->m_chain = g_thread_chain->new_thread(klass->get_chain_key(), seqnum,
-                                               identity, processlist_id);
+      lo->m_chain = g_thread_chain->new_thread(klass->get_chain_key(), identity,
+                                               processlist_id);
     }
   }
 
@@ -7563,7 +7563,7 @@ static void lo_end_file_close_wait(PSI_file_locker *locker, int rc) {
 }
 
 static void lo_start_file_rename_wait(PSI_file_locker *locker,
-                                      size_t count [[maybe_unused]],
+                                      size_t count MY_ATTRIBUTE((unused)),
                                       const char *old_name,
                                       const char *new_name,
                                       const char *src_file, uint src_line) {
@@ -7719,16 +7719,7 @@ static void lo_notify_session_change_user(PSI_thread *thread) {
   }
 }
 
-static void lo_set_mem_cnt_THD(THD *thd, THD **backup_thd) {
-  LO_thread *lo = get_THR_LO();
-  if (lo != nullptr) {
-    if ((g_thread_chain != nullptr) && (lo->m_chain != nullptr)) {
-      g_thread_chain->set_mem_cnt_THD(thd, backup_thd);
-    }
-  }
-}
-
-PSI_thread_service_v5 LO_thread_v5 = {lo_register_thread,
+PSI_thread_service_v4 LO_thread_v4 = {lo_register_thread,
                                       lo_spawn_thread,
                                       lo_new_thread,
                                       lo_set_thread_id,
@@ -7761,8 +7752,7 @@ PSI_thread_service_v5 LO_thread_v5 = {lo_register_thread,
                                       lo_unregister_notification,
                                       lo_notify_session_connect,
                                       lo_notify_session_disconnect,
-                                      lo_notify_session_change_user,
-                                      lo_set_mem_cnt_THD};
+                                      lo_notify_session_change_user};
 
 static void *lo_get_thread_interface(int version) {
   switch (version) {
@@ -7773,9 +7763,7 @@ static void *lo_get_thread_interface(int version) {
     case PSI_THREAD_VERSION_3:
       return nullptr;
     case PSI_THREAD_VERSION_4:
-      return nullptr;
-    case PSI_THREAD_VERSION_5:
-      return &LO_thread_v5;
+      return &LO_thread_v4;
     default:
       return nullptr;
   }

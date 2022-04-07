@@ -322,7 +322,7 @@ class Histogram {
   Histogram(const Histogram &other) = delete;
 
   /// Destructor.
-  virtual ~Histogram() = default;
+  virtual ~Histogram() {}
 
   /// @return the MEM_ROOT that this histogram uses for allocations
   MEM_ROOT *get_mem_root() const { return m_mem_root; }
@@ -531,12 +531,9 @@ bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
   @param original_table_def Original table definition.
   @param results A map where the result of each operation is stored.
 
-  @note Assumes that caller owns exclusive metadata lock on the table,
-        so there is no need to lock individual statistics.
-
   @return false on success, true on error.
 */
-bool drop_all_histograms(THD *thd, TABLE_LIST &table,
+bool drop_all_histograms(THD *thd, const TABLE_LIST &table,
                          const dd::Table &original_table_def,
                          results_map &results);
 
@@ -549,18 +546,12 @@ bool drop_all_histograms(THD *thd, TABLE_LIST &table,
   @param thd Thread handler.
   @param table The table where we should look for the columns.
   @param columns Columns specified by the user.
-  @param needs_lock Whether we need to acquire metadata locks on
-                    the table and column statistics to be dropped.
   @param results A map where the result of each operation is stored.
-
-  @note In case when needs_lock parameter is false assumes that caller
-        owns exclusive metadata lock on the table, so there is no need
-        to lock individual statistics.
 
   @return false on success, true on error.
 */
-bool drop_histograms(THD *thd, TABLE_LIST &table, const columns_set &columns,
-                     bool needs_lock, results_map &results);
+bool drop_histograms(THD *thd, const TABLE_LIST &table,
+                     const columns_set &columns, results_map &results);
 
 /**
   Rename histograms for all columns in a given table.

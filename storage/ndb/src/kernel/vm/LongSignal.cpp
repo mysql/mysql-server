@@ -24,6 +24,7 @@
 #include "LongSignalImpl.hpp"
 #include <EventLogger.hpp>
 
+extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 262
 
@@ -65,9 +66,7 @@ verifySection(Uint32 firstIVal, SectionSegmentPool& thePool)
    * Nature abhors a segmented section with length 0
    */
   //assert(totalSize != 0);
-#ifdef VM_TRACE
   assert(lastSegIVal != RNIL); /* Should never be == RNIL */
-#endif
   /* We ignore m_ownerRef */
 
   if (totalSize <= SectionSegment::DataLength)
@@ -99,9 +98,7 @@ verifySection(Uint32 firstIVal, SectionSegmentPool& thePool)
     /* Once we are here, we are on the last Segment of this Section
      * Check that last segment is as stated in the first segment
      */
-#ifdef VM_TRACE
     assert(currIVal == lastSegIVal);
-#endif
     // m_nextSegment not always set properly on last segment
     //assert(curr->m_nextSegment == RNIL);
     /* Ignore m_ownerRef, m_sz, m_lastSegment of last segment */
@@ -257,7 +254,7 @@ appendToSection(SPC_ARG Uint32& firstSegmentIVal, const Uint32* src, Uint32 len)
     {
       if (ErrorMaxSegmentsToSeize == 0)
       {
-        g_eventLogger->info("append exhausted on first segment");
+        ndbout_c("append exhausted on first segment");
         return false;
       }
     }
@@ -315,8 +312,7 @@ appendToSection(SPC_ARG Uint32& firstSegmentIVal, const Uint32* src, Uint32 len)
     {
       if (0 == remainSegs--)
       {
-        g_eventLogger->info("Append exhausted on segment %d",
-                            ErrorMaxSegmentsToSeize);
+        ndbout_c("Append exhausted on segment %d", ErrorMaxSegmentsToSeize);
         firstPtr.p->m_lastSegment= prevPtr.i;
         firstPtr.p->m_sz-= len;
         return false;
@@ -357,7 +353,7 @@ import(SPC_ARG Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
   {
     if (ErrorMaxSegmentsToSeize == 0)
     {
-      g_eventLogger->info("Import exhausted on first segment");
+      ndbout_c("Import exhausted on first segment");
       return false;
     }
   }
@@ -373,7 +369,7 @@ import(SPC_ARG Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
   if(g_sectionSegmentPool.seize(SPC_SEIZE_ARG first)){
     ;
   } else {
-    g_eventLogger->info("No Segmented Sections for import");
+    ndbout_c("No Segmented Sections for import");
     return false;
   }
 
@@ -398,8 +394,8 @@ import(SPC_ARG Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
     {
       if (0 == remainSegs--)
       {
-        g_eventLogger->info("Import exhausted on segment %d",
-                            ErrorMaxSegmentsToSeize);
+        ndbout_c("Import exhausted on segment %d", 
+                 ErrorMaxSegmentsToSeize);
         first.p->m_lastSegment= prevPtr.i;
         first.p->m_sz-= len;
         prevPtr.p->m_nextSegment = RNIL;
@@ -417,7 +413,7 @@ import(SPC_ARG Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
       first.p->m_lastSegment = prevPtr.i;
       first.p->m_sz-= len;
       prevPtr.p->m_nextSegment = RNIL;
-      g_eventLogger->info("Not enough Segmented Sections during import");
+      ndbout_c("Not enough Segmented Sections during import");
       return false;
     }
   }

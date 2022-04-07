@@ -52,7 +52,6 @@
 #include "my_inttypes.h"      // MYF
 #include "my_sys.h"           // my_error
 #include "mysqld_error.h"     // Error codes
-#include "sql/gis/buffer.h"   // gis::invalid_buffer_strategies_exception
 #include "sql/gis/functor.h"  // gis::not_implemented_exception
 #include "sql/gis/gc_utils.h"  // gis::invalid_geometry_exception, gis::too_large_polygon_exception
 
@@ -113,10 +112,6 @@ void handle_gis_exception(const char *funcname) {
         break;
     }
     my_error(er_variant, MYF(0), funcname, e.typenames());
-  } catch (const gis::invalid_buffer_argument_exception &) {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0), funcname);
-  } catch (const gis::invalid_buffer_result_exception &) {
-    my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), funcname);
   } catch (const gis::invalid_geometry_exception &) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), funcname);
   } catch (const gis::too_large_polygon_exception &) {

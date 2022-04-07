@@ -448,9 +448,9 @@ TEST_F(GroupTest, Group_containers) {
        method_i++) {                                                        \
     for (int sid_map_i = 0; sid_map_i < MAX_SID_MAP;                        \
          sid_map_i++, combination_i++) {                                    \
-      Gtid_set &gtid_set [[maybe_unused]] =                                 \
+      Gtid_set &gtid_set MY_ATTRIBUTE((unused)) =                           \
           containers[combination_i]->gtid_set;                              \
-      Sid_map *&sid_map [[maybe_unused]] = sid_maps[sid_map_i];             \
+      Sid_map *&sid_map MY_ATTRIBUTE((unused)) = sid_maps[sid_map_i];       \
       append_errtext(__LINE__, "sid_map_i=%d method_i=%d combination_i=%d", \
                      sid_map_i, method_i, combination_i);
 
@@ -466,13 +466,13 @@ TEST_F(GroupTest, Group_containers) {
     for (int end_i = 0; end_i < MAX_END; end_i++) {                            \
       for (int empty_i = 0; empty_i < MAX_EMPTY; empty_i++) {                  \
         for (int anon_i = 0; anon_i < MAX_ANON; anon_i++, combination_i++) {   \
-          Gtid_set &gtid_set [[maybe_unused]] =                                \
+          Gtid_set &gtid_set MY_ATTRIBUTE((unused)) =                          \
               containers[combination_i]->gtid_set;                             \
-          Group_cache &stmt_cache [[maybe_unused]] =                           \
+          Group_cache &stmt_cache MY_ATTRIBUTE((unused)) =                     \
               containers[combination_i]->stmt_cache;                           \
-          Group_cache &trx_cache [[maybe_unused]] =                            \
+          Group_cache &trx_cache MY_ATTRIBUTE((unused)) =                      \
               containers[combination_i]->trx_cache;                            \
-          Group_log_state &group_log_state [[maybe_unused]] =                  \
+          Group_log_state &group_log_state MY_ATTRIBUTE((unused)) =            \
               containers[combination_i]->group_log_state;                      \
           append_errtext(__LINE__,                                             \
                          "type_i=%d end_i=%d empty_i=%d "                      \

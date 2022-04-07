@@ -327,8 +327,8 @@ public:
    * bound data.
    * Worst case is 32 cols in key and max key size used.
    */
-  static constexpr Uint32 BoundBufWords =
-    (2 * NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY) + NDB_MAX_KEYSIZE_IN_WORDS;
+  STATIC_CONST( BoundBufWords = (2 * NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY)
+                + NDB_MAX_KEYSIZE_IN_WORDS );
 };
 
 inline

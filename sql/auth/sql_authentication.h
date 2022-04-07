@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,6 @@
 #include <openssl/rsa.h>
 #include <stddef.h>
 #include <sys/types.h>
-
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_thread_local.h"    // my_thread_id
@@ -75,7 +74,7 @@ struct MPVIO_EXT : public MYSQL_PLUGIN_VIO {
   } cached_server_packet;
   int packets_read, packets_written;  ///< counters for send/received packets
   /** when plugin returns a failure this tells us what really happened */
-  enum { SUCCESS, FAILURE, RESTART, START_MFA } status;
+  enum { SUCCESS, FAILURE, RESTART } status;
 
   /* encapsulation members */
   char *scramble;
@@ -120,7 +119,7 @@ class Rsa_authentication_keys {
         m_pem_public_key(nullptr),
         m_private_key_path(private_key_path),
         m_public_key_path(public_key_path) {}
-  ~Rsa_authentication_keys() = default;
+  ~Rsa_authentication_keys() {}
 
   void free_memory();
   void *allocate_pem_buffer(size_t buffer_len);

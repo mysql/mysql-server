@@ -31,9 +31,9 @@
 
 #include <stdint.h>
 
-#include <optional>
 #include <string>
 
+#include "nullable.h"
 #include "sql/item.h"
 #include "sql/regexp/regexp_engine.h"
 #include "sql_string.h"
@@ -93,7 +93,7 @@ class Regexp_facade {
     doesn't have to make a special case for when the regular expression is
     NULL. Instead, the case is handled here in the facade.
   */
-  std::optional<bool> Matches(Item *subject_expr, int start, int occurrence);
+  Mysql::Nullable<bool> Matches(Item *subject_expr, int start, int occurrence);
 
   /**
     Searches the subject for a match of the compiled regular expression and
@@ -107,8 +107,8 @@ class Regexp_facade {
 
     @return The first character of the match, or a null value if not found.
   */
-  std::optional<int> Find(Item *subject_expr, int start, int occurrence,
-                          bool after_match);
+  Mysql::Nullable<int> Find(Item *subject_expr, int start, int occurrence,
+                            bool after_match);
 
   /**
     @param subject_expr The string to search.

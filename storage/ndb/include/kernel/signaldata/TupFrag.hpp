@@ -41,7 +41,7 @@ class TupFragReq {
   friend class Dblqh;
   friend class Dbtup;
 public:
-  static constexpr Uint32 SignalLength = 12;
+  STATIC_CONST( SignalLength = 12 );
 private:
   Uint32 userPtr;
   Uint32 userRef;
@@ -61,7 +61,7 @@ class TupFragConf {
   friend class Dblqh;
   friend class Dbtup;
 public:
-  static constexpr Uint32 SignalLength = 4;
+  STATIC_CONST( SignalLength = 4 );
 private:
   Uint32 userPtr;
   Uint32 tupConnectPtr;
@@ -73,7 +73,7 @@ class TupFragRef {
   friend class Dblqh;
   friend class Dbtup;
 public:
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
 private:
   Uint32 userPtr;
   Uint32 errorCode;
@@ -85,7 +85,7 @@ class TuxFragReq {
   friend class Dblqh;
   friend class Dbtux;
 public:
-  static constexpr Uint32 SignalLength = 9;
+  STATIC_CONST( SignalLength = 9 );
 private:
   Uint32 userPtr;
   Uint32 userRef;
@@ -102,7 +102,7 @@ class TuxFragConf {
   friend class Dblqh;
   friend class Dbtux;
 public:
-  static constexpr Uint32 SignalLength = 4;
+  STATIC_CONST( SignalLength = 4 );
 private:
   Uint32 userPtr;
   Uint32 tuxConnectPtr;
@@ -114,7 +114,7 @@ class TuxFragRef {
   friend class Dblqh;
   friend class Dbtux;
 public:
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
   enum ErrorCode {
     NoError = 0,
     InvalidRequest = 903,
@@ -132,8 +132,8 @@ class TupAddAttrReq {
   friend class Dblqh;
   friend class Dbtux;
 public:
-  static constexpr Uint32 SignalLength = 5;
-  static constexpr Uint32 DEFAULT_VALUE_SECTION_NUM = 0;
+  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( DEFAULT_VALUE_SECTION_NUM = 0 );
 private:
   Uint32 tupConnectPtr;
   Uint32 notused1;
@@ -146,7 +146,7 @@ class TupAddAttrConf {
   friend class Dblqh;
   friend class Dbtup;
 public:
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
 private:
   Uint32 userPtr;
   Uint32 lastAttr; // bool: got last attr and closed frag op
@@ -156,7 +156,7 @@ class TupAddAttrRef {
   friend class Dblqh;
   friend class Dbtup;
 public:
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
   enum ErrorCode {
     NoError = 0,
     InvalidCharset = 743,
@@ -174,7 +174,7 @@ class TuxAddAttrReq {
   friend class Dblqh;
   friend class Dbtux;
 public:
-  static constexpr Uint32 SignalLength = 6;
+  STATIC_CONST( SignalLength = 6 );
 private:
   Uint32 tuxConnectPtr;
   Uint32 notused1;
@@ -188,7 +188,7 @@ class TuxAddAttrConf {
   friend class Dblqh;
   friend class Dbtux;
 public:
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
 private:
   Uint32 userPtr;
   Uint32 lastAttr; // bool: got last attr and closed frag op
@@ -198,7 +198,7 @@ class TuxAddAttrRef {
   friend class Dblqh;
   friend class Dbtux;
 public:
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
   enum ErrorCode {
     NoError = 0,
     InvalidAttributeType = 906,

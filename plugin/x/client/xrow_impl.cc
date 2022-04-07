@@ -33,7 +33,7 @@
 namespace xcl {
 namespace details {
 
-std::string as_string(const Column_metadata &m [[maybe_unused]],
+std::string as_string(const Column_metadata &m MY_ATTRIBUTE((unused)),
                       const std::set<std::string> &values) {
   std::string result;
   bool first = true;
@@ -49,22 +49,22 @@ std::string as_string(const Column_metadata &m [[maybe_unused]],
   return result;
 }
 
-std::string as_string(const Column_metadata &m [[maybe_unused]],
+std::string as_string(const Column_metadata &m MY_ATTRIBUTE((unused)),
                       const std::string &value) {
   return value;
 }
 
-std::string as_string(const Column_metadata &m [[maybe_unused]],
+std::string as_string(const Column_metadata &m MY_ATTRIBUTE((unused)),
                       const Time &value) {
   return value.to_string();
 }
 
-std::string as_string(const Column_metadata &m [[maybe_unused]],
+std::string as_string(const Column_metadata &m MY_ATTRIBUTE((unused)),
                       const DateTime &value) {
   return value.to_string();
 }
 
-std::string as_string(const Column_metadata &m [[maybe_unused]],
+std::string as_string(const Column_metadata &m MY_ATTRIBUTE((unused)),
                       const Decimal &value) {
   return value.to_string();
 }
@@ -97,7 +97,7 @@ std::string as_string(const Column_metadata &metadata, const float &value) {
 }
 
 template <typename Value_type>
-std::string as_string(const Column_metadata &m [[maybe_unused]],
+std::string as_string(const Column_metadata &m MY_ATTRIBUTE((unused)),
                       const Value_type &value) {
   return std::to_string(value);
 }

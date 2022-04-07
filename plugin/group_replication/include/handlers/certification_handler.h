@@ -60,19 +60,16 @@ class Certification_handler : public Event_handler {
   struct View_change_stored_info {
     Pipeline_event *view_change_pevent;
     std::string local_gtid_certified;
-    Gtid view_change_gtid;
+    rpl_gno view_change_event_gno;
     View_change_stored_info(Pipeline_event *vc_pevent,
-                            std::string &local_gtid_string, Gtid gtid)
+                            std::string &local_gtid_string, rpl_gno gno)
         : view_change_pevent(vc_pevent),
           local_gtid_certified(local_gtid_string),
-          view_change_gtid(gtid) {}
+          view_change_event_gno(gno) {}
   };
 
   /** All the VC events pending application due to timeout */
   std::list<View_change_stored_info *> pending_view_change_events;
-  /** All the VC events pending application due to consistent transactions */
-  std::list<std::unique_ptr<View_change_stored_info>>
-      pending_view_change_events_waiting_for_consistent_transactions;
 
   /**
     Set transaction context for next event handler.
@@ -165,8 +162,8 @@ class Certification_handler : public Event_handler {
     COMMIT
 
     @param[in] pevent          the event to be injected
-    @param[in, out] gtid       The transaction GTID
-                               If {-1, -1}, one will be generated.
+    @param[in, out] event_gno  The transaction GTID gno
+                               If -1, one will be generated.
     @param[in] cont            the object used to wait
 
 
@@ -174,7 +171,7 @@ class Certification_handler : public Event_handler {
       @retval 0      OK
       @retval !=0    Error
   */
-  int inject_transactional_events(Pipeline_event *pevent, Gtid *gtid,
+  int inject_transactional_events(Pipeline_event *pevent, rpl_gno *event_gno,
                                   Continuation *cont);
 
   /**
@@ -184,8 +181,8 @@ class Certification_handler : public Event_handler {
     @param[in] view_pevent             the event to be injected
     @param[in, out] local_gtid_string  The local certified transaction set to
     wait If empty, one will be assigned even on timeout
-    @param[in, out] gtid               The transaction GTID
-                                       If {-1, -1}, one will be generated.
+    @param[in, out] event_gno          The transaction GTID gno
+                                       If -1, one will be generated.
     @param[in] cont                    the object used to wait
 
 
@@ -196,8 +193,8 @@ class Certification_handler : public Event_handler {
       @retval !=0    Error
   */
   int log_view_change_event_in_order(Pipeline_event *view_pevent,
-                                     std::string &local_gtid_string, Gtid *gtid,
-                                     Continuation *cont);
+                                     std::string &local_gtid_string,
+                                     rpl_gno *event_gno, Continuation *cont);
 
   /**
     Store the event for future logging as a timeout occurred.
@@ -210,7 +207,7 @@ class Certification_handler : public Event_handler {
     @param[in] pevent             The event to be stored
     @param[in] local_gtid_certified_string The local certified transaction set
     to wait
-    @param[in] gtid               The transaction GTID
+    @param[in] event_gno          The transaction GTID gno
     @param[in] cont               Used to discard or not the transaction
 
 
@@ -220,7 +217,7 @@ class Certification_handler : public Event_handler {
   */
   int store_view_event_for_delayed_logging(
       Pipeline_event *pevent, std::string &local_gtid_certified_string,
-      Gtid gtid, Continuation *cont);
+      rpl_gno event_gno, Continuation *cont);
 
   /**
     Logs all the delayed View Change log events stored.

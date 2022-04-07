@@ -137,7 +137,7 @@ class PFS_index_events_waits : public PFS_engine_index {
         m_key_1("THREAD_ID"),
         m_key_2("EVENT_ID") {}
 
-  ~PFS_index_events_waits() override = default;
+  ~PFS_index_events_waits() override {}
 
   bool match(PFS_thread *pfs);
   bool match(PFS_events_waits *pfs);
@@ -158,7 +158,7 @@ class table_events_waits_common : public PFS_engine_table {
 
   table_events_waits_common(const PFS_engine_table_share *share, void *pos);
 
-  ~table_events_waits_common() override = default;
+  ~table_events_waits_common() override {}
 
   void clear_object_columns();
   int make_table_object_columns(PFS_events_waits *wait);
@@ -192,7 +192,7 @@ class table_events_waits_current : public table_events_waits_common {
   table_events_waits_current();
 
  public:
-  ~table_events_waits_current() override = default;
+  ~table_events_waits_current() override {}
 
  private:
   friend class table_events_waits_history;
@@ -235,7 +235,7 @@ class table_events_waits_history : public table_events_waits_common {
   table_events_waits_history();
 
  public:
-  ~table_events_waits_history() override = default;
+  ~table_events_waits_history() override {}
 
  private:
   /** Table share lock. */
@@ -271,7 +271,7 @@ class table_events_waits_history_long : public table_events_waits_common {
   table_events_waits_history_long();
 
  public:
-  ~table_events_waits_history_long() override = default;
+  ~table_events_waits_history_long() override {}
 
  private:
   /** Table share lock. */

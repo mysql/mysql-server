@@ -142,7 +142,7 @@ int table_global_variables::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_global_variables::index_init(uint idx [[maybe_unused]], bool) {
+int table_global_variables::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
   /*
     Build a list of system variables from the global system variable hash.
     Filter by scope.

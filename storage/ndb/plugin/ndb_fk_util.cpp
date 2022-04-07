@@ -117,17 +117,17 @@ const char *fk_split_name(char dst[], const char *src, bool index) {
 bool fetch_referenced_tables_from_ndb_dictionary(
     THD *thd, const char *schema_name, const char *table_name,
     std::set<std::pair<std::string, std::string>> &referenced_tables) {
-  DBUG_TRACE;
+  DBUG_ENTER("fetch_referenced_tables_from_ndb_dictionary");
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
   Ndb *ndb = thd_ndb->ndb;
 
   Ndb_table_guard tab_guard(ndb, schema_name, table_name);
   const NdbDictionary::Table *table = tab_guard.get_table();
-  if (table == nullptr) {
+  if (table == NULL) {
     DBUG_PRINT("error",
                ("Unable to load table '%s.%s' from NDB. Error : %s",
                 schema_name, table_name, tab_guard.getNdbError().message));
-    return false;
+    DBUG_RETURN(false);
   }
 
   NdbDictionary::Dictionary::List obj_list;
@@ -135,7 +135,7 @@ bool fetch_referenced_tables_from_ndb_dictionary(
   if (dict->listDependentObjects(obj_list, *table) != 0) {
     DBUG_PRINT("error", ("Unable to list dependents of '%s.%s'. Error : %s",
                          schema_name, table_name, dict->getNdbError().message));
-    return false;
+    DBUG_RETURN(false);
   }
   DBUG_PRINT("info", ("found %u dependent objects", obj_list.count));
 
@@ -152,7 +152,7 @@ bool fetch_referenced_tables_from_ndb_dictionary(
     if (dict->getForeignKey(fk, element.name) != 0) {
       DBUG_PRINT("error", ("Unable to fetch foreign key '%s'. Error : %s",
                            element.name, dict->getNdbError().message));
-      return false;
+      DBUG_RETURN(false);
     }
 
     char parent_db[FN_LEN + 1];
@@ -171,7 +171,7 @@ bool fetch_referenced_tables_from_ndb_dictionary(
         std::pair<std::string, std::string>(parent_db, parent_name));
   }
 
-  return true;
+  DBUG_RETURN(true);
 }
 
 /**

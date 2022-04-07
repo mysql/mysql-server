@@ -106,12 +106,6 @@ set(libprotobuf_includes
   ${protobuf_source_dir}/src/google/protobuf/wrappers.pb.h
 )
 
-IF(MSVC)
-  # no suitable definition provided for explicit template instantiation
-  ADD_COMPILE_FLAGS(${protobuf_source_dir}/src/google/protobuf/text_format.cc
-    COMPILE_FLAGS "/wd4661")
-ENDIF()
-
 if (MSVC AND NOT WIN32_CLANG)
 set(libprotobuf_rc_files
   ${CMAKE_CURRENT_BINARY_DIR}/version.rc

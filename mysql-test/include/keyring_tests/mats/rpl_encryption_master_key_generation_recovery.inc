@@ -111,7 +111,7 @@ INSERT INTO t1 (c1) VALUES (4),(5),(6);
 --source include/assert.inc
 --echo Restart the slave with keyring installed
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --skip-replica-start $RPL_PLUGIN_DIR_OPT
+--let $rpl_server_parameters= --skip-slave-start $RPL_PLUGIN_DIR_OPT
 --let $rpl_server_error= 0
 --let $rpl_omit_print_server_parameters= 1
 --source include/rpl_restart_server.inc

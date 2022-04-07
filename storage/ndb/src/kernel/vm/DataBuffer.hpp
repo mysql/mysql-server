@@ -42,7 +42,7 @@
 template<Uint32 sz, Uint32 Type_id = 0>
   struct DataBufferSegment
   {
-    static constexpr Uint32 TYPE_ID = Type_id;
+    STATIC_CONST( TYPE_ID = Type_id );
 
     DataBufferSegment()
       : m_magic(Magic::make(TYPE_ID))
@@ -406,8 +406,8 @@ DataBuffer<sz, Pool, Type_id>::seize(Uint32 n)
   }
 
   if (0)
-    g_eventLogger->info("seize(%u) used: %u rest: %u firstItem: 0x%x", n,
-                        head.used, rest, head.firstItem);
+    ndbout_c("seize(%u) used: %u rest: %u firstItem: 0x%x",
+             n, head.used, rest, head.firstItem);
 
   if (rest >= n)
   {

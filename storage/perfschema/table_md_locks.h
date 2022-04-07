@@ -77,7 +77,7 @@ class PFS_index_metadata_locks : public PFS_engine_index {
                            PFS_engine_key *key_3, PFS_engine_key *key_4)
       : PFS_engine_index(key_1, key_2, key_3, key_4) {}
 
-  ~PFS_index_metadata_locks() override = default;
+  ~PFS_index_metadata_locks() override {}
 
   virtual bool match(const PFS_metadata_lock *pfs) = 0;
 };
@@ -87,7 +87,7 @@ class PFS_index_metadata_locks_by_instance : public PFS_index_metadata_locks {
   PFS_index_metadata_locks_by_instance()
       : PFS_index_metadata_locks(&m_key), m_key("OBJECT_INSTANCE_BEGIN") {}
 
-  ~PFS_index_metadata_locks_by_instance() override = default;
+  ~PFS_index_metadata_locks_by_instance() override {}
 
   bool match(const PFS_metadata_lock *pfs) override;
 
@@ -104,7 +104,7 @@ class PFS_index_metadata_locks_by_object : public PFS_index_metadata_locks {
         m_key_3("OBJECT_NAME"),
         m_key_4("COLUMN_NAME") {}
 
-  ~PFS_index_metadata_locks_by_object() override = default;
+  ~PFS_index_metadata_locks_by_object() override {}
 
   bool match(const PFS_metadata_lock *pfs) override;
 
@@ -122,7 +122,7 @@ class PFS_index_metadata_locks_by_owner : public PFS_index_metadata_locks {
         m_key_1("OWNER_THREAD_ID"),
         m_key_2("OWNER_EVENT_ID") {}
 
-  ~PFS_index_metadata_locks_by_owner() override = default;
+  ~PFS_index_metadata_locks_by_owner() override {}
 
   bool match(const PFS_metadata_lock *pfs) override;
 
@@ -153,7 +153,7 @@ class table_metadata_locks : public PFS_engine_table {
   table_metadata_locks();
 
  public:
-  ~table_metadata_locks() override = default;
+  ~table_metadata_locks() override {}
 
  private:
   int make_row(PFS_metadata_lock *pfs);

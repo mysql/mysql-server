@@ -27,13 +27,13 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <functional>  // std::function
-#include <optional>
 
 #include "lex_string.h"
 
 #include "my_io.h"
 #include "my_sqlcommand.h"
 #include "mysql/components/services/bits/psi_bits.h"
+#include "nullable.h"
 #include "sql/dd/types/column.h"
 #include "sql/gis/srid.h"
 #include "sql/mdl.h"                   // MDL_request
@@ -55,6 +55,8 @@ class THD;
 struct TABLE_LIST;
 
 enum enum_field_types : int;
+
+using Mysql::Nullable;
 
 /**
   Class representing DROP COLUMN, DROP KEY, DROP FOREIGN KEY, DROP CHECK
@@ -495,7 +497,7 @@ class Alter_info {
                  const CHARSET_INFO *cs, bool has_explicit_collation,
                  uint uint_geom_type, Value_generator *gcol_info,
                  Value_generator *default_val_expr, const char *opt_after,
-                 std::optional<gis::srid_t> srid,
+                 Nullable<gis::srid_t> srid,
                  Sql_check_constraint_spec_list *check_cons_list,
                  dd::Column::enum_hidden_type hidden, bool is_array = false);
 
@@ -607,7 +609,7 @@ class Sql_cmd_common_alter_table : public Sql_cmd_ddl_table {
   enum_sql_command sql_command_code() const final { return SQLCOM_ALTER_TABLE; }
 };
 
-inline Sql_cmd_common_alter_table::~Sql_cmd_common_alter_table() = default;
+inline Sql_cmd_common_alter_table::~Sql_cmd_common_alter_table() {}
 
 /**
   Represents the generic ALTER TABLE statement.

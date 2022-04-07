@@ -25,13 +25,13 @@
 #ifndef OBJECT_FILTER_INCLUDED
 #define OBJECT_FILTER_INCLUDED
 
-#include <optional>
 #include <string>
 #include <vector>
 
 #include "client/base/abstract_program.h"
 #include "client/base/composite_options_provider.h"
 #include "client/dump/abstract_data_object.h"
+#include "nullable.h"
 
 namespace Mysql {
 namespace Tools {
@@ -91,7 +91,7 @@ class Object_filter
   bool m_dump_triggers;
   bool m_dump_events;
   bool m_dump_users;
-  std::optional<std::string> m_include_tmp_string;
+  Mysql::Nullable<std::string> m_include_tmp_string;
   Mysql::Tools::Base::Abstract_program *m_program;
 };
 

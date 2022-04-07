@@ -43,9 +43,10 @@
 #include <stdexcept>
 #include <string>
 
-#include "mysql/harness/filesystem.h"      // Path
-#include "mysql/harness/utility/string.h"  // strip
-#include "utilities.h"                     // find_range_first
+#include "mysql/harness/filesystem.h"
+#include "utilities.h"
+
+using std::ostringstream;
 
 using mysql_harness::utility::find_range_first;
 using mysql_harness::utility::matches_glob;
@@ -56,9 +57,7 @@ namespace mysql_harness {
 // satisfy ODR requirements
 constexpr const char *Config::DEFAULT_PATTERN;
 
-bool is_valid_conf_ident_char(const char ch) {
-  return isalnum(ch) || ch == '_';
-}
+static bool isident(const char ch) { return isalnum(ch) || ch == '_'; }
 
 static void inplace_lower(std::string *str) {
   std::transform(str->begin(), str->end(), str->begin(), ::tolower);
@@ -70,7 +69,7 @@ static std::string lower(std::string str) {
 }
 
 static void check_option(const std::string &str) {
-  if (!all_of(str.begin(), str.end(), is_valid_conf_ident_char))
+  if (!all_of(str.begin(), str.end(), isident))
     throw bad_option("Not a legal option name: '" + str + "'");
 }
 
@@ -99,8 +98,8 @@ void ConfigSection::update(const ConfigSection &other) {
   auto old_defaults = defaults_;
 #endif
 
-  if (other.name != name || lower(other.key) != lower(key)) {
-    std::ostringstream buffer;
+  if (other.name != name || other.key != key) {
+    ostringstream buffer;
     buffer << "Trying to update section " << name << ":" << key
            << " using section " << other.name << ":" << other.key;
     throw bad_section(buffer.str());
@@ -158,7 +157,7 @@ std::string ConfigSection::do_replace(const std::string &value,
 }
 
 std::string ConfigSection::get(const std::string &option) const {
-  check_option(option);  // throws bad_option (std::runtime_error)
+  check_option(option);  // throws bad::option (std::runtime_error)
   auto result = do_locate(option);
   if (std::get<1>(result)) return do_replace(std::get<0>(result)->second);
   throw bad_option("Value for '" + option + "' not found");
@@ -207,12 +206,9 @@ void ConfigSection::add(const std::string &option, const std::string &value) {
   if (!ret.second) throw bad_option("Option '" + option + "' already defined");
 }
 
-Config::Config(unsigned int flags, const ConfigOverwrites &config_overwrites)
+Config::Config(unsigned int flags) noexcept
     : defaults_(std::make_shared<ConfigSection>("default", "", nullptr)),
-      flags_(flags),
-      config_overwrites_(config_overwrites) {
-  apply_overwrites();
-}
+      flags_(flags) {}
 
 void Config::copy_guts(const Config &source) noexcept {
   reserved_ = source.reserved_;
@@ -257,12 +253,7 @@ ConfigSection &Config::get(const std::string &section, const std::string &key) {
   if (!(flags_ & allow_keys))
     throw bad_section("Key '" + key + "' used but keys are not allowed");
 
-  const std::string key_lc = lower(key);
-  SectionMap::iterator sec = std::find_if(
-      sections_.begin(), sections_.end(), [&section, &key_lc](const auto &v) {
-        return v.first.first == section && lower(v.first.second) == key_lc;
-      });
-
+  SectionMap::iterator sec = sections_.find(make_pair(section, key));
   if (sec == sections_.end())
     throw bad_section("Section '" + section + "' with key '" + key +
                       "' does not exist");
@@ -303,7 +294,7 @@ ConfigSection &Config::add(const std::string &section, const std::string &key) {
   ConfigSection cnfsec(section, key, defaults_);
   auto result = sections_.emplace(make_pair(section, key), std::move(cnfsec));
   if (!result.second) {
-    std::ostringstream buffer;
+    ostringstream buffer;
     buffer << "Section '" << cnfsec.get_section_name() << "' already exists";
     throw bad_section(buffer.str());
   }
@@ -323,7 +314,7 @@ void Config::read(const Path &path) {
     new_config.do_read_file(path);  // throws std::runtime_error, syntax_error
     update(new_config);
   } else {
-    std::ostringstream buffer;
+    ostringstream buffer;
     buffer << "Path '" << path << "' ";
     if (path.type() == Path::FileType::FILE_NOT_FOUND)
       buffer << "does not exist";
@@ -331,8 +322,6 @@ void Config::read(const Path &path) {
       buffer << "is not a directory or a file";
     throw std::runtime_error(buffer.str());
   }
-
-  apply_overwrites();
 }
 
 // throws std::invalid_argument, std::runtime_error, syntax_error, ...
@@ -347,19 +336,16 @@ void Config::read(const Path &path, const std::string &pattern) {
           entry);  // throws std::runtime_error, syntax_error
   }
   update(new_config);
-  apply_overwrites();
 }
 
 void Config::read(std::istream &input) {
   do_read_stream(input);  // throws syntax_error, maybe bad_section
-
-  apply_overwrites();
 }
 
 void Config::do_read_file(const Path &path) {
   std::ifstream ifs(path.c_str(), std::ifstream::in);
   if (ifs.fail()) {
-    std::ostringstream buffer;
+    ostringstream buffer;
     buffer << "Unable to open file " << path << " for reading";
     throw std::runtime_error(buffer.str());
   }
@@ -404,8 +390,8 @@ void Config::do_read_stream(std::istream &input) {
           }
 
           // Check that the section key is correct
-          const auto invalid_char_pos = std::find_if_not(
-              section_key.begin(), section_key.end(), is_valid_conf_ident_char);
+          const auto invalid_char_pos =
+              std::find_if_not(section_key.begin(), section_key.end(), isident);
           if (section_key.end() != invalid_char_pos) {
             const std::string message(
                 "config-section '" + line + "' contains invalid character '" +
@@ -425,8 +411,8 @@ void Config::do_read_stream(std::istream &input) {
       }
 
       // Check that the section name consists of allowable characters only
-      const auto invalid_char_pos = std::find_if_not(
-          section_name.begin(), section_name.end(), is_valid_conf_ident_char);
+      const auto invalid_char_pos =
+          std::find_if_not(section_name.begin(), section_name.end(), isident);
       if (section_name.end() != invalid_char_pos) {
         std::string message(
             "config-section '" + line + "' contains invalid character '" +
@@ -461,7 +447,7 @@ void Config::do_read_stream(std::istream &input) {
       strip(&value);
 
       // Check that the section name consists of allowable characters only
-      if (!std::all_of(option.begin(), option.end(), is_valid_conf_ident_char))
+      if (!std::all_of(option.begin(), option.end(), isident))
         throw syntax_error("Invalid option name '" + option + "'");
 
       current->add(option, value);  // throws syntax_error, bad_section
@@ -496,14 +482,7 @@ void Config::update(const Config &other) {
 
   for (const auto &section : other.sections_) {
     const SectionKey &key = section.first;
-
-    const std::string label_lc = lower(key.second);
-    auto iter = std::find_if(sections_.begin(), sections_.end(),
-                             [&key, &label_lc](const auto &v) {
-                               return v.first.first == key.first &&
-                                      lower(v.first.second) == label_lc;
-                             });
-
+    SectionMap::iterator iter = sections_.find(key);
     if (iter == sections_.end())
       sections_.emplace(key, ConfigSection(section.second, defaults_));
     else
@@ -511,8 +490,6 @@ void Config::update(const Config &other) {
   }
 
   defaults_->update(*other.defaults_.get());
-
-  apply_overwrites();
 
   // Post-condition is that the default section pointers after the
   // update all refer to the default section for this configuration
@@ -529,30 +506,6 @@ Config::ConstSectionList Config::sections() const {
   decltype(sections()) result;
   for (auto &section : sections_) result.push_back(&section.second);
   return result;
-}
-
-void Config::apply_overwrites() {
-  for (const auto &section_overwrites : config_overwrites_) {
-    SectionKey section_key = section_overwrites.first;
-
-    if (section_key.first == "DEFAULT") {
-      for (const auto &section_overwrite : section_overwrites.second) {
-        set_default(section_overwrite.first, section_overwrite.second);
-      }
-      continue;
-    }
-
-    ConfigSection *section;
-    try {
-      section = &get(section_key.first, section_key.second);
-    } catch (const bad_section &) {
-      section = &add(section_key.first, section_key.second);
-    }
-
-    for (const auto &section_overwrite : section_overwrites.second) {
-      section->set(section_overwrite.first, section_overwrite.second);
-    }
-  }
 }
 
 }  // namespace mysql_harness

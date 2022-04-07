@@ -28,8 +28,6 @@
   Performance schema instrumentation (declarations).
 */
 
-void record_main_thread_id();
-
 #define HAVE_PSI_1
 
 #include <mysql/components/services/bits/psi_bits.h>

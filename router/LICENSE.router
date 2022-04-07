@@ -10,7 +10,7 @@ Introduction
    third-party software which may be included in this distribution of
    MySQL Router 8.0.
 
-   Last updated: September 2021
+   Last updated: January 2021
 
 Licensing Information
 
@@ -411,23 +411,21 @@ Licenses for Third-Party Components
    may be included with this product. We are thankful to all individuals
    that have created these.
 
-Duktape
+DUKTAPE
 
-   Duktape
+   DUKTAPE
+Copyright (c) 2013-2018 by Duktape authors (see AUTHORS.rst)
 
-===============
-Duktape license
-===============
-(http://opensource.org/licenses/MIT)
-Copyright (c) 2013-2019 by Duktape authors (see AUTHORS.rst)
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
+
 The above copyright notice and this permission notice shall be included in
 all copies or substantial portions of the Software.
+
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -435,56 +433,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
-
---------------------------
---------------------------
-
-licenses/commonjs.txt
----------------------
-CommonJS specification snapshots are included in the references/
-directory.  CommonJS is under the MIT license:
-  http://www.commonjs.org/licenses/lua.txt
-
-----------------
-Lua is under the MIT license:
-  http://www.lua.org/license.html/licenses/murmurhash2.txt
-
-------------------------
-
-The MIT License
-Copyright (c) <year> <copyright holders>
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-
-licenses/splitmix64.txt
------------------------
-/*  Written in 2015 by Sebastiano Vigna (vigna@acm.org)
-To the extent possible under law, the author has dedicated all copyright
-and related and neighboring rights to this software to the public domain
-worldwide. This software is distributed without any warranty.
-See <http://creativecommons.org/publicdomain/zero/1.0/>. */
-licenses/xoroshiro128plus.txt
-
------------------------------
-
-/*  Written in 2016 by David Blackman and Sebastiano Vigna (vigna@acm.org)
-To the extent possible under law, the author has dedicated all copyright
-and related and neighboring rights to this software to the public domain
-worldwide. This software is distributed without any warranty.
-See <http://creativecommons.org/publicdomain/zero/1.0/>. */
 
    ======================================================================
    ======================================================================
@@ -493,7 +441,6 @@ Google C++ Mocking Framework (Google Mock)
 
    This Oracle Product includes or references Gmock (including gtest),
    which is licensed to Oracle under the following terms:
-
 Copyright 2008, Google Inc.
 All rights reserved.
 
@@ -701,7 +648,6 @@ OpenSSL License
    the original SSLeay license, separate from the Oracle product. If you
    do not wish to install this library, you may remove it, but the Oracle
    program might not operate properly or at all without it.
-
   LICENSE ISSUES
   ==============
 
@@ -951,7 +897,6 @@ Written Offer for Source Code
    request to the address listed below or by sending an email to Oracle
    using the following link:
    http://www.oracle.com/goto/opensourcecode/request.
-
   Oracle America, Inc.
   Attn: Senior Vice President
   Development and Engineering Legal
@@ -959,30 +904,20 @@ Written Offer for Source Code
   Redwood Shores, CA 94065
 
    Your request should include:
-
      * The name of the binary for which you are requesting the source code
-
      * The name and version number of the Oracle product containing the
        binary
-
      * The date you received the Oracle product
-
      * Your name
-
      * Your company name (if applicable)
-
      * Your return mailing address and email, and
-
      * A telephone number in the event we need to reach you.
-
 
    We may charge you a fee to cover the cost of physical media and
    processing.
 
    Your request must be sent
-
     a. within three (3) years of the date you received the Oracle product
        that included the binary that is the subject of your request, or
-
     b. in the case of code licensed under the GPL v3 for as long as Oracle
        offers spare parts or customer support for that product model.

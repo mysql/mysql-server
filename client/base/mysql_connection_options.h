@@ -25,7 +25,6 @@
 #ifndef MYSQL_CONNECTION_OPTIONS_INCLUDED
 #define MYSQL_CONNECTION_OPTIONS_INCLUDED
 
-#include <optional>
 #include <vector>
 
 #include "client/base/abstract_program.h"
@@ -34,6 +33,7 @@
 #include "client/client_priv.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
+#include "nullable.h"
 
 namespace Mysql {
 namespace Tools {
@@ -64,8 +64,8 @@ class Mysql_connection_options : public Composite_options_provider,
     bool apply_for_connection(MYSQL *connection);
 
    private:
-    std::optional<std::string> m_ssl_mode_string;
-    std::optional<std::string> m_ssl_fips_mode_string;
+    Nullable<std::string> m_ssl_mode_string;
+    Nullable<std::string> m_ssl_fips_mode_string;
 
     void ca_option_callback(char *argument);
     void mode_option_callback(char *argument);
@@ -108,42 +108,42 @@ class Mysql_connection_options : public Composite_options_provider,
     Returns pointer to constant array containing specified string or NULL
     value if string has length 0.
    */
-  const char *get_null_or_string(std::optional<std::string> &maybeString);
+  const char *get_null_or_string(Nullable<std::string> &maybeString);
 
   /**
     Prints database connection error and exits program.
    */
   void db_error(MYSQL *connection, const char *when);
 #ifdef _WIN32
-  void pipe_protocol_callback(char *not_used [[maybe_unused]]);
+  void pipe_protocol_callback(char *not_used MY_ATTRIBUTE((unused)));
 #endif
-  void protocol_callback(char *not_used [[maybe_unused]]);
+  void protocol_callback(char *not_used MY_ATTRIBUTE((unused)));
 
   static bool mysql_inited;
 
   Ssl_options m_ssl_options_provider;
   Abstract_program *m_program;
-  std::optional<std::string> m_protocol_string;
+  Nullable<std::string> m_protocol_string;
   uint32 m_protocol;
-  std::optional<std::string> m_bind_addr;
-  std::optional<std::string> m_host;
+  Nullable<std::string> m_bind_addr;
+  Nullable<std::string> m_host;
   uint32 m_mysql_port;
-  std::optional<std::string> m_mysql_unix_port;
+  Nullable<std::string> m_mysql_unix_port;
 #if defined(_WIN32)
-  std::optional<std::string> m_shared_memory_base_name;
+  Nullable<std::string> m_shared_memory_base_name;
 #endif
-  std::optional<std::string> m_default_auth;
-  std::optional<std::string> m_plugin_dir;
+  Nullable<std::string> m_default_auth;
+  Nullable<std::string> m_plugin_dir;
   uint32 m_net_buffer_length;
   uint32 m_max_allowed_packet;
   bool m_compress;
-  std::optional<std::string> m_user;
-  std::optional<std::string> m_password[3];
-  std::optional<std::string> m_default_charset;
-  std::optional<std::string> m_server_public_key;
+  Nullable<std::string> m_user;
+  Nullable<std::string> m_password;
+  Nullable<std::string> m_default_charset;
+  Nullable<std::string> m_server_public_key;
   bool m_get_server_public_key;
   uint m_zstd_compress_level;
-  std::optional<std::string> m_compress_algorithm;
+  Nullable<std::string> m_compress_algorithm;
 };
 
 }  // namespace Options

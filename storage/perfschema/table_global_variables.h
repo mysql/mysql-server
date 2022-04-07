@@ -51,7 +51,7 @@ class PFS_index_global_variables : public PFS_engine_index {
   PFS_index_global_variables()
       : PFS_engine_index(&m_key), m_key("VARIABLE_NAME") {}
 
-  ~PFS_index_global_variables() override = default;
+  ~PFS_index_global_variables() override {}
 
   virtual bool match(const System_variable *pfs);
 
@@ -95,7 +95,7 @@ class table_global_variables : public PFS_engine_table {
   table_global_variables();
 
  public:
-  ~table_global_variables() override = default;
+  ~table_global_variables() override {}
 
  protected:
   int make_row(const System_variable *system_var);

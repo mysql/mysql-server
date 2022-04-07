@@ -53,13 +53,14 @@ void buf_flush_insert_sorted_into_flush_list(
 /** This function should be called at a mini-transaction commit, if a page was
  modified in it. Puts the block to the list of modified blocks, if it is not
  already in it. */
-static inline void buf_flush_note_modification(
-    buf_block_t *block,       /*!< in: block which is modified */
-    lsn_t start_lsn,          /*!< in: start lsn of the mtr that
-                              modified this block */
-    lsn_t end_lsn,            /*!< in: end lsn of the mtr that
-                              modified this block */
-    Flush_observer *observer) /*!< in: flush observer */
+UNIV_INLINE
+void buf_flush_note_modification(
+    buf_block_t *block,      /*!< in: block which is modified */
+    lsn_t start_lsn,         /*!< in: start lsn of the mtr that
+                             modified this block */
+    lsn_t end_lsn,           /*!< in: end lsn of the mtr that
+                             modified this block */
+    FlushObserver *observer) /*!< in: flush observer */
 {
 #ifdef UNIV_DEBUG
   {
@@ -111,7 +112,8 @@ static inline void buf_flush_note_modification(
 }
 
 /** This function should be called when recovery has modified a buffer page. */
-static inline void buf_flush_recv_note_modification(
+UNIV_INLINE
+void buf_flush_recv_note_modification(
     buf_block_t *block, /*!< in: block which is modified */
     lsn_t start_lsn,    /*!< in: start lsn of the first mtr in a
                         set of mtr's */

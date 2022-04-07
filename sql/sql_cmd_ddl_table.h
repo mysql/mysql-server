@@ -56,7 +56,7 @@ class Sql_cmd_ddl_table : public Sql_cmd {
   Alter_info *const m_alter_info;
 };
 
-inline Sql_cmd_ddl_table::~Sql_cmd_ddl_table() = default;
+inline Sql_cmd_ddl_table::~Sql_cmd_ddl_table() {}
 
 class Sql_cmd_create_table final : public Sql_cmd_ddl_table {
  public:
@@ -68,8 +68,6 @@ class Sql_cmd_create_table final : public Sql_cmd_ddl_table {
   enum_sql_command sql_command_code() const override {
     return SQLCOM_CREATE_TABLE;
   }
-
-  const MYSQL_LEX_CSTRING *eligible_secondary_storage_engine() const override;
 
   bool execute(THD *thd) override;
   bool prepare(THD *thd) override;
@@ -87,8 +85,8 @@ class Sql_cmd_create_or_drop_index_base : public Sql_cmd_ddl_table {
   bool execute(THD *thd) override;
 };
 
-inline Sql_cmd_create_or_drop_index_base::~Sql_cmd_create_or_drop_index_base() =
-    default;
+inline Sql_cmd_create_or_drop_index_base::~Sql_cmd_create_or_drop_index_base() {
+}
 
 class Sql_cmd_create_index final : public Sql_cmd_create_or_drop_index_base {
  public:

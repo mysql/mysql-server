@@ -53,10 +53,10 @@ class AttrInfo {
   friend bool printATTRINFO(FILE *, const Uint32 *, Uint32, Uint16);
   
 public:
-  static constexpr Uint32 HeaderLength = 3;
-  static constexpr Uint32 DataLength = 22;
-  static constexpr Uint32 MaxSignalLength = HeaderLength + DataLength;
-  static constexpr Uint32 SectionSizeInfoLength = 5;
+  STATIC_CONST( HeaderLength = 3 );
+  STATIC_CONST( DataLength = 22 );
+  STATIC_CONST( MaxSignalLength = HeaderLength + DataLength );
+  STATIC_CONST( SectionSizeInfoLength = 5 );
 
 private:
   Uint32 connectPtr;

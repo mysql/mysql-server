@@ -1,3 +1,10 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+--source include/not_hypergraph.inc  # Does not support SELECT DISTINCT yet.
+
 #
 # Bug with distinct and INSERT INTO
 # Bug with group by and not used fields
@@ -72,7 +79,6 @@ INSERT INTO t3 VALUES (1,'1'),(2,'2');
 SELECT DISTINCT t3.b FROM t3,t2,t1 WHERE t3.a=t1.b AND t1.a=t2.a;
 INSERT INTO t2 values (1),(2),(3);
 INSERT INTO t3 VALUES (1,'1'),(2,'2'),(1,'1'),(2,'2');
-ANALYZE TABLE t1, t2, t3;
 explain SELECT distinct t3.a FROM t3,t2,t1 WHERE t3.a=t1.b AND t1.a=t2.a;
 SELECT distinct t3.a FROM t3,t2,t1 WHERE t3.a=t1.b AND t1.a=t2.a;
 
@@ -102,11 +108,11 @@ explain select distinct t1.a from t1,t3 where t1.a=t3.a;
 # of 4.
 flush status;
 select distinct t1.a from t1,t3 where t1.a=t3.a;
---skip_if_hypergraph  # Does not support rewriting DISTINCT to antijoins.
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read%';
 flush status;
 select distinct 1 from t1,t3 where t1.a=t3.a;
---skip_if_hypergraph  # Does not support rewriting DISTINCT to antijoins.
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read%';
 
 let $iteration=2;
@@ -393,7 +399,6 @@ DROP TABLE t1,t2;
 #
 CREATE TABLE t1(a INT PRIMARY KEY, b INT);
 INSERT INTO t1 VALUES (1,1), (2,1), (3,1);
-ANALYZE TABLE t1;
 EXPLAIN SELECT DISTINCT a FROM t1;
 EXPLAIN SELECT DISTINCT a,b FROM t1;
 EXPLAIN SELECT DISTINCT t1_1.a, t1_1.b FROM t1 t1_1, t1 t1_2;
@@ -406,7 +411,6 @@ EXPLAIN SELECT DISTINCT a,b FROM t1 GROUP BY a,b;
 CREATE TABLE t2(a INT, b INT NOT NULL, c INT NOT NULL, d INT, 
                 PRIMARY KEY (a,b));
 INSERT INTO t2 VALUES (1,1,1,50), (1,2,3,40), (2,1,3,4);
-ANALYZE TABLE t2;
 EXPLAIN SELECT DISTINCT a FROM t2;
 EXPLAIN SELECT DISTINCT a,a FROM t2;
 EXPLAIN SELECT DISTINCT b,a FROM t2;
@@ -418,7 +422,6 @@ EXPLAIN SELECT DISTINCT a,b,d FROM t2 GROUP BY c,b,d;
 # After adding unique constraint, GROUP BY is ok.
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 CREATE UNIQUE INDEX c_b_unq ON t2 (c,b);
-ANALYZE TABLE t2;
 EXPLAIN SELECT DISTINCT a,b,d FROM t2 GROUP BY c,b,d;
 
 DROP TABLE t1,t2;
@@ -436,7 +439,7 @@ drop table t1;
 CREATE TABLE t1 (a int primary key, b int);
 
 INSERT INTO t1 (a,b) values (1,1), (2,3), (3,2);
-ANALYZE TABLE t1;
+
 explain SELECT DISTINCT a, b FROM t1 ORDER BY b;
 SELECT DISTINCT a, b FROM t1 ORDER BY b;
 DROP TABLE t1;
@@ -477,7 +480,7 @@ INSERT INTO t1 SELECT a + 1, a + 101 FROM t1;
 INSERT INTO t1 SELECT a + 2, a + 102 FROM t1;
 INSERT INTO t1 SELECT a + 4, a + 104 FROM t1;
 INSERT INTO t1 SELECT a + 8, a + 108 FROM t1;
-ANALYZE TABLE t1;
+
 EXPLAIN SELECT DISTINCT a,a FROM t1 WHERE b < 12 ORDER BY a;
 SELECT DISTINCT a,a FROM t1 WHERE b < 12 ORDER BY a;
 
@@ -552,12 +555,10 @@ DROP TABLE t2;
 #
 CREATE TABLE t1 (a CHAR(1)); INSERT INTO t1 VALUES('A'), (0);
 SELECT a FROM t1 WHERE a=0;
---sorted_result
 SELECT DISTINCT a FROM t1 WHERE a=0;
 DROP TABLE t1;
 CREATE TABLE t1 (a DATE);
 INSERT INTO t1 VALUES ('1972-07-29'), ('1972-02-06');
-ANALYZE TABLE t1;
 EXPLAIN SELECT (SELECT DISTINCT a FROM t1 WHERE a = '2002-08-03');
 EXPLAIN SELECT (SELECT DISTINCT ADDDATE(a,1) FROM t1
                 WHERE ADDDATE(a,1) = '2002-08-03');
@@ -578,7 +579,6 @@ DROP TABLE t1, t2;
 #
 CREATE TABLE t1 (a INT, UNIQUE (a));
 INSERT INTO t1 VALUES (4),(null),(2),(1),(null),(3);
-ANALYZE TABLE t1;
 EXPLAIN SELECT DISTINCT a FROM t1;
 #result must have one row with NULL
 SELECT DISTINCT a FROM t1;
@@ -616,7 +616,6 @@ INSERT IGNORE INTO t1(a, b, c) VALUES (1, 1, 1),
                                       (1, 2, 2),
                                       (1, 2, 3);
 
-ANALYZE TABLE t1;
 EXPLAIN SELECT DISTINCT a, b, d, c FROM t1;
 
 SELECT DISTINCT a, b, d, c FROM t1;
@@ -650,13 +649,12 @@ INSERT INTO t1 SELECT 5 + 10000 * RAND(), '5' FROM t1;
 INSERT INTO t1 SELECT 5 + 10000 * RAND(), '5' FROM t1;
 INSERT INTO t1 SELECT 5 + 10000 * RAND(), '5' FROM t1;
 --source include/turn_off_only_full_group_by.inc
-ANALYZE TABLE t1;
+
 # First rows of the GROUP BY table that will be processed by 
 # remove_dup_with_compare()
 SELECT c1, c2, COUNT(*) FROM t1 GROUP BY c1 LIMIT 4;
 
 # The actual test case
---skip_if_hypergraph  # Chooses a different query plan.
 EXPLAIN FORMAT=tree SELECT DISTINCT c2 FROM t1 GROUP BY c1 HAVING COUNT(*) > 1;
 SELECT DISTINCT c2 FROM t1 GROUP BY c1 HAVING COUNT(*) > 1;
 
@@ -732,7 +730,7 @@ INSERT INTO t1 VALUES (1,2), (3,3);
 
 SET @save_optimizer_switch= @@optimizer_switch;
 SET @@SESSION.optimizer_switch="derived_merge=off";
-ANALYZE TABLE t1;
+
 let $query=
 SELECT DISTINCT subselect.b
 FROM t1 LEFT JOIN 
@@ -771,7 +769,7 @@ FROM t1
      LEFT JOIN t2 ON false
      LEFT JOIN t3 ON t2.b = t3.b
 LIMIT 1;
-ANALYZE TABLE t1, t2, t3;
+
 eval EXPLAIN $query;
 eval $query;
 
@@ -787,7 +785,6 @@ INSERT INTO t1 VALUES (1,3), (2,4), (1,5),
 (1,3), (2,1), (1,5), (1,7), (3,1),
 (3,2), (3,1), (2,4);
 
---sorted_result
 SELECT DISTINCT (COUNT(DISTINCT b) + 1) AS c FROM t1 GROUP BY a;
 DROP TABLE t1;
 
@@ -839,12 +836,11 @@ CREATE TABLE t1 (
 INSERT INTO t1 VALUES (14,7,'G','W');
 INSERT INTO t1 VALUES (16,8,'W','p');
 INSERT INTO t1 VALUES (23,NULL,'q','w');
-ANALYZE TABLE t1;
+
 # Verify that we don't add LIMIT 1 on the scan of table2, since the filter is
 # pushed up above it.
 
 SELECT DISTINCT table1.pk FROM t1 AS table1 LEFT JOIN t1 AS table2 ON table1.f2=table2.f3 WHERE table2.f1 IS NULL;
---skip_if_hypergraph  # Chooses a different query plan.
 EXPLAIN FORMAT=tree SELECT DISTINCT table1.pk FROM t1 AS table1 LEFT JOIN t1 AS table2 ON table1.f2=table2.f3 WHERE table2.f1 IS NULL;
 
 DROP TABLE t1;
@@ -875,11 +871,10 @@ CREATE TABLE t3 (
 
 INSERT INTO t3 VALUES (56,0,4);  # Two different rows that both match t2.pk=4...
 INSERT INTO t3 VALUES (97,3,4);  # ...but only the second one also matches t1.pk=3.
-ANALYZE TABLE t1, t2, t3;
+
 SELECT /*+JOIN_ORDER(t2,t3,t1) */ DISTINCT t2.pk FROM t1 LEFT JOIN t2 RIGHT OUTER JOIN t3 ON t2.f1 = t3.f3 ON t1.pk = t3.f2 WHERE t3.pk <> t2.pk;
 
 # Demonstrate that we get the expected plan, with only one LIMIT 1.
---skip_if_hypergraph  # Doesn't do const tables, so gets a fairly different query plan.
 EXPLAIN FORMAT=tree SELECT /*+JOIN_ORDER(t2,t3,t1) */ DISTINCT t2.pk FROM t1 LEFT JOIN t2 RIGHT OUTER JOIN t3 ON t2.f1 = t3.f3 ON t1.pk = t3.f2 WHERE t3.pk <> t2.pk;
 
 DROP TABLE t1, t2, t3;
@@ -900,9 +895,7 @@ INSERT INTO t1 SELECT RAND() FROM t1 AS t1, t1 AS t2;  # 42 rows.
 INSERT INTO t1 SELECT RAND() FROM t1 AS t1, t1 AS t2;  # 1806 rows.
 INSERT INTO t1 SELECT RAND() FROM t1;  # 3612 rows.
 INSERT INTO t1 SELECT RAND() FROM t1;  # 7224 rows; enough to fill a few sort chunks.
-ANALYZE TABLE t1;
 
---skip_if_hypergraph  # Chooses a different query plan.
 EXPLAIN FORMAT=tree SELECT DISTINCT COUNT(*) AS num FROM t1 GROUP BY f HAVING num=1;
 SELECT DISTINCT COUNT(*) AS num FROM t1 GROUP BY f HAVING num=1;
 
@@ -928,7 +921,6 @@ CREATE TABLE t1 (a INTEGER, b INTEGER);
 INSERT INTO t1 VALUES(1, 1), (2, 2), (3, 3);
 ANALYZE TABLE t1;
 let $query = SELECT DISTINCT SQL_BIG_RESULT a FROM t1 GROUP BY a,b ORDER BY a DESC;
---skip_if_hypergraph  # Doesn't get the redundant sort!
 eval EXPLAIN FORMAT=tree $query;  # Verify that we have a sort, with DESC. Note that we currently have two, which is redundant.
 eval $query;
 DROP TABLE t1;
@@ -943,19 +935,3 @@ INSERT INTO t1 VALUES (1,"aaa"), (1,"bbb"),(1,"aaaa"),(1,"bbbb");
 SELECT DISTINCT f1, LENGTH(F2) FROM t1 GROUP BY f1,LENGTH(F2) ORDER BY 1,2;
 
 DROP TABLE t1;
-
---echo #
---echo # Bug #33148369: HYPERGRAPH-OPTIMIZER: HIT ASSERT(COUNT>0) IN MAKE_SORTORDER() WHILE FINALIZEPLAN
---echo #
-
-CREATE TABLE t1 ( a INTEGER );
-CREATE TABLE t2 ( a INTEGER );
-CREATE TABLE t3 ( a INTEGER );
-
-SELECT DISTINCT t1.a
-  FROM t1, t2, t3
-  WHERE t1.a = t2.a AND t2.a IS NULL
-  HAVING t1.a = 8
-  ORDER BY t1.a;
-
-DROP TABLE t1, t2, t3;

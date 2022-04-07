@@ -22,6 +22,9 @@
 
 /* See http://code.google.com/p/googletest/wiki/Primer */
 
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
+
 #include <gtest/gtest.h>
 #include <stddef.h>
 

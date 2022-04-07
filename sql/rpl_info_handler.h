@@ -373,7 +373,7 @@ class Rpl_info_handler {
   enum_field_get_status prv_get_error;
   /*
    Keeps track of the number of events before fsyncing. The option
-   --sync-source-info and --sync-relay-log-info determine how many
+   --sync-master-info and --sync-relay-log-info determine how many
    events should be processed before fsyncing.
   */
   uint sync_counter;
@@ -443,6 +443,6 @@ bool operator!(Rpl_info_handler::enum_field_get_status status);
 
 #ifndef NDEBUG
 extern ulong w_rr;
-extern uint mta_debug_concurrent_access;
+extern uint mts_debug_concurrent_access;
 #endif
 #endif /* RPL_INFO_HANDLER_H */

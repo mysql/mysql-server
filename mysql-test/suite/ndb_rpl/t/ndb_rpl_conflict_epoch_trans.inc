@@ -767,7 +767,7 @@ select left(b,1), length(b) from test.t5 order by a;
 #SHOW SLAVE STATUS;
 
 --echo Restart Primary Slave
-set global sql_replica_skip_counter=1;
+set global sql_slave_skip_counter=1;
 
 START SLAVE;
 

@@ -244,9 +244,6 @@ _	5F
 }	7D
 ~	7E
 	7F
-Warnings:
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 drop table t1;
 SET collation_connection='gb18030_bin';
 create table t1 select repeat('a',4000) a;
@@ -318,8 +315,6 @@ DROP TABLE t1;
 SELECT HEX(CONVERT(_gb18030 0xA14041 USING ucs2));
 HEX(CONVERT(_gb18030 0xA14041 USING ucs2))
 E4C60041
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(CONVERT(_gb18030 0xA14041 USING utf8));
 HEX(CONVERT(_gb18030 0xA14041 USING utf8))
 EE938641
@@ -346,23 +341,15 @@ HEX(CONVERT(_gb18030 0xFE39FE39 USING utf32))
 SELECT HEX(CONVERT(_ucs2 0xD800 USING gb18030));
 HEX(CONVERT(_ucs2 0xD800 USING gb18030))
 3F
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(CONVERT(_ucs2 0xDFFF USING gb18030));
 HEX(CONVERT(_ucs2 0xDFFF USING gb18030))
 3F
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(CONVERT(_ucs2 0xE000 USING gb18030));
 HEX(CONVERT(_ucs2 0xE000 USING gb18030))
 AAA1
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(CONVERT(_ucs2 0xF8FF USING gb18030));
 HEX(CONVERT(_ucs2 0xF8FF USING gb18030))
 84308130
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(CONVERT(_gb18030 0xA13941 USING ucs2));
 ERROR HY000: Invalid gb18030 character string: 'A13941'
 SELECT HEX(CONVERT(_gb18030 0xFFFE USING ucs2));
@@ -1363,8 +1350,6 @@ hex(c)	hex(lower(c))	hex(upper(c))	hex(weight_string(c))	c
 9030EC30	A7F0	A7C0	30D8	𐐮
 9030E831	8130D335	8130D230	30D9	𐐇
 9030EC31	A7F1	A7C1	30D9	𐐯
-Warnings:
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 INSERT INTO t1 VALUES ('a');
 INSERT INTO t1 VALUES (concat(_utf32 0x61, _utf32 0xFFFF));
 INSERT INTO t1 VALUES (concat(_utf32 0x61, _utf32 0x10FFFF));
@@ -1379,14 +1364,10 @@ SELECT hex(c), hex(weight_string(c)), c FROM t1 WHERE c LIKE _utf32 0x10400 ORDE
 hex(c)	hex(weight_string(c))	c
 9030E734	30D2	𐐀
 9030EB34	30D2	𐐨
-Warnings:
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT hex(c), hex(weight_string(c)), c FROM t1 WHERE c LIKE _utf32 0x10428 ORDER BY c, BINARY c;
 hex(c)	hex(weight_string(c))	c
 9030E734	30D2	𐐀
 9030EB34	30D2	𐐨
-Warnings:
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 ALTER TABLE t1 ADD KEY(c);
 EXPLAIN SELECT hex(c) FROM t1 WHERE c LIKE 'a%' ORDER BY c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1403,14 +1384,10 @@ SELECT hex(c), hex(weight_string(c)), c FROM t1 WHERE c LIKE _utf32 0x10400 ORDE
 hex(c)	hex(weight_string(c))	c
 9030E734	30D2	𐐀
 9030EB34	30D2	𐐨
-Warnings:
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT hex(c), hex(weight_string(c)), c FROM t1 WHERE c LIKE _utf32 0x10428 ORDER BY c, BINARY c;
 hex(c)	hex(weight_string(c))	c
 9030E734	30D2	𐐀
 9030EB34	30D2	𐐨
-Warnings:
-Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 SET NAMES gb18030 COLLATE gb18030_unicode_520_ci;
 SELECT 1 gb18030_unicode_520_ci;

@@ -317,7 +317,7 @@ class MySQLSession {
   class ResultRow {
    public:
     ResultRow(Row row) : row_{std::move(row)} {}
-    virtual ~ResultRow() = default;
+    virtual ~ResultRow() {}
     size_t size() const { return row_.size(); }
     const char *&operator[](size_t i) { return row_[i]; }
 
@@ -451,7 +451,7 @@ class MySQLSession {
 
   virtual unsigned warning_count() noexcept;
 
-  virtual std::string quote(const std::string &s, char qchar = '\'') const;
+  virtual std::string quote(const std::string &s, char qchar = '\'') noexcept;
 
   virtual bool is_connected() noexcept { return connection_ && connected_; }
   const std::string &get_address() noexcept { return connection_address_; }

@@ -36,8 +36,6 @@ class UtilBuffer {
 public:
   UtilBuffer() : data(nullptr), len(0), alloc_size(0) { }
   ~UtilBuffer() { free(data); }
-  UtilBuffer(const UtilBuffer &) = delete;
-  UtilBuffer& operator=(const UtilBuffer &) = delete;
 
   /* Grow buffer to specified length.
      On success, returns 0. On failure, returns -1 and sets errno.

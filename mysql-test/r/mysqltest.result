@@ -1772,7 +1772,7 @@ PRIMARY KEY (c1)
 Warnings:
 Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 1, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
@@ -1782,7 +1782,7 @@ Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
 INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 3, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
@@ -1790,43 +1790,29 @@ Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 4, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 5, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 6, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 7, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 8, -500, "aaa");
-Warnings:
-Warning	1264	Out of range value for column 'c3' at row 1
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 9, -500, "aaa");
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 10, -500, "aaa");
-Warnings:
-Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 11, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
@@ -1834,11 +1820,13 @@ Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 12, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 13, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
@@ -1846,9 +1834,11 @@ Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 14, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 15, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
@@ -1856,15 +1846,9 @@ Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 16, -500, "aaa");
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
-Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 17, -500, "aaa");
-DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 18, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
@@ -1872,17 +1856,33 @@ Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 19, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 20, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 21, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 22, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
@@ -1891,23 +1891,23 @@ Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 23, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 DELETE FROM t1;
 ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 24, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 DELETE FROM t1;
 ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 
 ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 25, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 DELETE FROM t1;
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 26, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
@@ -1916,14 +1916,14 @@ Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 27, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 28, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 DELETE FROM t1;
 ER_WARN_DATA_OUT_OF_RANGE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 29, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
@@ -1934,7 +1934,7 @@ DELETE FROM t1;
 ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 
 ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 30, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
@@ -1942,18 +1942,18 @@ Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
 
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 31, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 32, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 33, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 34, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
@@ -2034,12 +2034,12 @@ PRIMARY KEY (c1)
 Warnings:
 Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 35, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 36, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
@@ -2047,33 +2047,33 @@ Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 37, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 38, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 39, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 40, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 41, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
 DELETE FROM t1;
-INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 42, -500, "aaa");
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
 DELETE FROM t1;
@@ -2196,14 +2196,3 @@ long_string
 CREATE TABLE t1 (i int primary key not null);
 INSERT INTO t1 values(3);
 DROP TABLE t1;
-#
-# Bug#33068833 MISSING END OF BLOCK ERROR WITH `--ASSERT` MYSQLTEST COMMAND
-#
-mysqltest: At line 1: Expression in assert() must begin with $, ` or a number
-mysqltest: At line 1: Assertion failed: assert(0)
-mysqltest: At line 1: Assertion failed: assert($undef_var)
-mysqltest: At line 1: Assertion failed: assert($false_var)
-mysqltest: At line 2: Assertion failed: assert(`SELECT $false_var`)
-mysqltest: At line 4: Assertion failed: assert(`SELECT 0`)
-mysqltest: At line 6: Assertion failed: assert($myvar)
-mysqltest: At line 14: Assertion failed: assert($counter)

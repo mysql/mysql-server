@@ -23,9 +23,9 @@
 */
 
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <mgmapi.h>
-#include <NdbSleep.h>
 
 int main()
 {
@@ -36,7 +36,7 @@ int main()
       printf("connect failed, error: '%d: %s'\n",
              ndb_mgm_get_latest_error(handle),
              ndb_mgm_get_latest_error_desc(handle));
-      NdbSleep_SecSleep(1);
+      sleep(1);
       continue;
     }
 

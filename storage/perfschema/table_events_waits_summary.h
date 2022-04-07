@@ -71,7 +71,7 @@ class PFS_index_events_waits_summary_by_instance : public PFS_index_all_instr {
   PFS_index_events_waits_summary_by_instance()
       : PFS_index_all_instr(&m_key), m_key("OBJECT_INSTANCE_BEGIN") {}
 
-  ~PFS_index_events_waits_summary_by_instance() override = default;
+  ~PFS_index_events_waits_summary_by_instance() override {}
 
   bool match(PFS_mutex *pfs) override;
   bool match(PFS_rwlock *pfs) override;
@@ -89,7 +89,7 @@ class PFS_index_events_waits_summary_by_event_name
   PFS_index_events_waits_summary_by_event_name()
       : PFS_index_all_instr(&m_key), m_key("EVENT_NAME") {}
 
-  ~PFS_index_events_waits_summary_by_event_name() override = default;
+  ~PFS_index_events_waits_summary_by_event_name() override {}
 
   bool match(PFS_mutex *pfs) override;
   bool match(PFS_rwlock *pfs) override;
@@ -127,7 +127,7 @@ class table_events_waits_summary_by_instance : public table_all_instr {
   table_events_waits_summary_by_instance();
 
  public:
-  ~table_events_waits_summary_by_instance() override = default;
+  ~table_events_waits_summary_by_instance() override {}
 
  private:
   /** Table share lock. */

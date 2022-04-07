@@ -1,2 +1,0 @@
-!include ndb_mt_backup.cnf
-!include ../encrypted_backup.cnf

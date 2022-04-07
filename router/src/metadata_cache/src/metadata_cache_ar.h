@@ -33,30 +33,32 @@ class METADATA_API ARMetadataCache : public MetadataCache {
    * Initialize a connection to the MySQL Metadata server.
    *
    * @param router_id id of the router in the cluster metadata
-   * @param cluster_specific_type_id id of the replication group
+   * @param cluster_id id of the replication group
    * @param metadata_servers The servers that store the metadata
    * @param cluster_metadata metadata of the cluster
-   * @param ttl_config metadata TTL configuration
+   * @param ttl The TTL of the cached data
+   * @param auth_credentials_ttl TTL of the rest user authentication data
+   * @param auth_credentials_refresh_rate Refresh rate of the rest user
+   *                                      authentication data
    * @param ssl_options SSL related options for connection
-   * @param target_cluster object identifying the Cluster this operation refers
-   * to
-   * @param router_attributes Router attributes to be registered in the metadata
+   * @param cluster_name The name of the desired cluster in the metadata server
    * @param thread_stack_size The maximum memory allocated for thread's stack
    */
   ARMetadataCache(
-      const unsigned router_id, const std::string &cluster_specific_type_id,
+      const unsigned router_id, const std::string &cluster_id,
       const std::vector<mysql_harness::TCPAddress> &metadata_servers,
       std::shared_ptr<MetaData> cluster_metadata,
-      const metadata_cache::MetadataCacheTTLConfig &ttl_config,
+      const std::chrono::milliseconds ttl,
+      const std::chrono::milliseconds auth_credentials_ttl,
+      const std::chrono::milliseconds auth_credentials_refresh_rate,
       const mysqlrouter::SSLOptions &ssl_options,
-      const mysqlrouter::TargetCluster &target_cluster,
-      const metadata_cache::RouterAttributes &router_attributes,
+      const std::string &cluster_name,
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes)
-      : MetadataCache(router_id, cluster_specific_type_id, "", metadata_servers,
-                      cluster_metadata, ttl_config, ssl_options, target_cluster,
-                      router_attributes, thread_stack_size, false) {}
+      : MetadataCache(router_id, cluster_id, metadata_servers, cluster_metadata,
+                      ttl, auth_credentials_ttl, auth_credentials_refresh_rate,
+                      ssl_options, cluster_name, thread_stack_size, false) {}
 
-  bool refresh(bool needs_writable_node) override;
+  bool refresh() override;
 
   mysqlrouter::ClusterType cluster_type() const noexcept override {
     return mysqlrouter::ClusterType::RS_V2;

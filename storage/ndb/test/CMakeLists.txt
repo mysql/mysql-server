@@ -22,17 +22,24 @@
 
 # Disable specific types of warnings for current directory
 # if the compiler supports the flag
-
-INCLUDE(ndb_downgrade_warnings)
-
 IF(MY_COMPILER_IS_GNU_OR_CLANG)
   INCLUDE(CheckCXXCompilerFlag)
   FOREACH(warning
-      # Downgrade -Werror=restrict for gcc10 optimized build
-      "error=restrict"
-      )
-    MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
-    IF(HAS_WARN_FLAG)
+          "unused-but-set-variable"
+          "strict-aliasing"
+          "unused-parameter"
+          "cast-qual"
+          # Downgrade -Werror=restrict for gcc10 optimized build
+          "error=restrict"
+          # Downgrade -Werror=deprecated-copy to warning for gcc 9
+          "error=deprecated-copy"
+          # Downgrade -Werror to warning for "may be used uninitialized"
+          # and "is used uninitialized in this function"
+          "error=maybe-uninitialized")
+    STRING(REPLACE "-" "_" warning_ ${warning})
+    STRING(TOUPPER ${warning_} WARNING)
+    CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})
+    IF(HAVE_${WARNING})
       SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
       SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
     ENDIF()

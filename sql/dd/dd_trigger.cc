@@ -323,8 +323,8 @@ bool load_triggers(THD *thd, MEM_ROOT *mem_root, const char *schema_name,
     if (schema_cs == nullptr) schema_cs = thd->variables.collation_database;
 
     LEX_CSTRING client_cs_name, connection_cl_name, db_cl_name, trigger_name;
-    const char *csname = replace_utf8_utf8mb3(client_cs->csname);
-    if (lex_string_strmake(mem_root, &client_cs_name, csname, strlen(csname)) ||
+    if (lex_string_strmake(mem_root, &client_cs_name, client_cs->csname,
+                           strlen(client_cs->csname)) ||
         lex_string_strmake(mem_root, &connection_cl_name, connection_cs->name,
                            strlen(connection_cs->name)) ||
         lex_string_strmake(mem_root, &db_cl_name, schema_cs->name,

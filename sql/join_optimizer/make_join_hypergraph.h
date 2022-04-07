@@ -26,7 +26,6 @@
 #include <array>
 #include <string>
 
-#include "map_helpers.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/hypergraph.h"
 #include "sql/mem_root_array.h"
@@ -72,7 +71,6 @@ struct JoinHypergraph {
       : nodes(mem_root),
         edges(mem_root),
         predicates(mem_root),
-        sargable_join_predicates(mem_root),
         m_query_block(query_block) {}
 
   hypergraph::Hypergraph graph;
@@ -85,22 +83,14 @@ struct JoinHypergraph {
   struct Node {
     TABLE *table;
 
-    // Join conditions that are potentially pushable to this node
-    // as sargable predicates (if they are sargable, they will be
-    // added to sargable_predicates below, together with sargable
-    // non-join conditions). This is a verbatim copy of
-    // the join_conditions_pushable_to_this member in RelationalExpression,
-    // which is computed as a side effect during join pushdown.
-    // (We could in principle have gone and collected all join conditions
-    // ourselves when determining sargable conditions, but there would be
-    // a fair amount of duplicated code in determining pushability,
-    // which is why regular join pushdown does the computation.)
-    Mem_root_array<Item *> join_conditions_pushable_to_this;
-
     // List of all sargable predicates (see SargablePredicate) where
     // the field is part of this table. When we see the node for
     // the first time, we will evaluate all of these and consider
     // creating access paths that exploit these predicates.
+    //
+    // For now, only elements from the “predicates” array
+    // (WHERE conditions) are included; later, we should also include
+    // predicates from join conditions.
     Mem_root_array<SargablePredicate> sargable_predicates;
   };
   Mem_root_array<Node> nodes;
@@ -109,24 +99,7 @@ struct JoinHypergraph {
   // for more information), so edges[i] corresponds to graph.edges[i*2].
   Mem_root_array<JoinPredicate> edges;
 
-  // The first <num_where_predicates> are WHERE predicates;
-  // the rest are sargable join predicates. The latter are in the array
-  // solely so they can be part of the regular “applied_filters” bitmap
-  // if they are pushed down into an index, so that we know that we
-  // don't need to apply them as join conditions later.
   Mem_root_array<Predicate> predicates;
-
-  unsigned num_where_predicates = 0;
-
-  // A bitmap over predicates that are, or contain, at least one
-  // materializable subquery.
-  OverflowBitset materializable_predicates{0};
-
-  // For each sargable join condition, maps into its index in “predicates”.
-  // We need the predicate index when applying the join to figure out whether
-  // we have already applied the predicate or not; see
-  // {applied,subsumed}_sargable_join_predicates in AccessPath.
-  mem_root_unordered_map<Item *, int> sargable_join_predicates;
 
   /// Returns a pointer to the query block that is being planned.
   const Query_block *query_block() const { return m_query_block; }
@@ -151,14 +124,5 @@ struct JoinHypergraph {
   to find optimal join planning.
  */
 bool MakeJoinHypergraph(THD *thd, std::string *trace, JoinHypergraph *graph);
-
-// Exposed for testing only.
-void MakeJoinGraphFromRelationalExpression(THD *thd, RelationalExpression *expr,
-                                           std::string *trace,
-                                           JoinHypergraph *graph);
-
-hypergraph::NodeMap GetNodeMapFromTableMap(
-    table_map table_map,
-    const std::array<int, MAX_TABLES> &table_num_to_node_num);
 
 #endif  // SQL_JOIN_OPTIMIZER_MAKE_JOIN_HYPERGRAPH

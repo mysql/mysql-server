@@ -1,2 +1,0 @@
---source include/have_32bits_time.inc
---source include/func_unixtime.inc

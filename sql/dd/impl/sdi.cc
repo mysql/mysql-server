@@ -185,8 +185,9 @@ String_type generic_serialize(THD *thd, const char *dd_object_type,
   return (wctx.error() ? empty_ : String_type(buf.GetString(), buf.GetSize()));
 }
 
-const String_type &lookup_tablespace_name(Sdi_wcontext *wctx [[maybe_unused]],
-                                          dd::Object_id id [[maybe_unused]]) {
+const String_type &lookup_tablespace_name(
+    Sdi_wcontext *wctx MY_ATTRIBUTE((unused)),
+    dd::Object_id id MY_ATTRIBUTE((unused))) {
   if (wctx->thd() == nullptr || id == INVALID_OBJECT_ID) {
     return empty_;
   }
@@ -412,11 +413,11 @@ bool CheckDefaultCompatibility(const RJ_Document &doc) {
 }
 
 template <class Dd_type>
-bool generic_deserialize(THD *thd, const Sdi_type &sdi,
-                         const String_type &object_type_name [[maybe_unused]],
-                         Dd_type *dst,
-                         const SdiCompatibilityChecker &comp_checker,
-                         String_type *schema_name_from_sdi) {
+bool generic_deserialize(
+    THD *thd, const Sdi_type &sdi,
+    const String_type &object_type_name MY_ATTRIBUTE((unused)), Dd_type *dst,
+    const SdiCompatibilityChecker &comp_checker,
+    String_type *schema_name_from_sdi) {
   RJ_Document doc;
   doc.Parse<0>(sdi.c_str());
   if (doc.HasParseError()) {

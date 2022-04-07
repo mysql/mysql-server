@@ -15,13 +15,12 @@ include/start_slave.inc
 #
 # Error: master doesn't set server_id
 #
-# Adding debug point 'simulate_no_server_id' to @@GLOBAL.debug
+SET GLOBAL debug= 'd,simulate_no_server_id';
 #
 # Error: Error while sending faked rotate event
 #
-# Adding debug point 'simulate_send_error' to @@GLOBAL.debug
-# Removing debug point 'simulate_no_server_id' from @@GLOBAL.debug
-# Removing debug point 'simulate_send_error' from @@GLOBAL.debug
+SET GLOBAL debug= 'd,simulate_send_error';
+SET GLOBAL debug= '';
 #
 # Error: Fail to open binlog file
 #
@@ -40,13 +39,13 @@ FLUSH BINARY LOGS;
 #
 [connection slave]
 include/stop_slave.inc
-# Adding debug point 'request_source_log_pos_3' to @@GLOBAL.debug
+SET GLOBAL debug= 'd,request_master_log_pos_3';
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 call mtr.add_suppression(".* Got fatal error 1236 from master when reading data from binary log");
 include/wait_for_slave_io_error.inc [errno=13114]
-# Removing debug point 'request_source_log_pos_3' from @@GLOBAL.debug
+SET GLOBAL debug= '$slave_debug';
 #
 # Error: Binary log is not open on master
 #
@@ -62,14 +61,13 @@ include/rpl_restart_server.inc [server_number=1]
 [connection master]
 RESET MASTER;
 CREATE TABLE t1(c1 INT);
-# Adding debug point 'simulate_kill_dump' to @@GLOBAL.debug
+SET GLOBAL debug= 'd,simulate_kill_dump';
 #
 # Error: Fail to send heartbeat with an net error
 #
 INSERT INTO t1 VALUES(1);
-# Adding debug point 'simulate_flush_error' to @@GLOBAL.debug
-# Removing debug point 'simulate_kill_dump' from @@GLOBAL.debug
-# Removing debug point 'simulate_flush_error' from @@GLOBAL.debug
+SET GLOBAL debug= 'd,simulate_flush_error';
+SET GLOBAL debug= '';
 DROP TABLE t1;
 [connection slave]
 RESET MASTER;

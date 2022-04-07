@@ -33,7 +33,7 @@ namespace unittests {
 class TransactionPayloadCodecTest : public ::testing::Test {
  protected:
   std::vector<std::size_t> m_payloads;
-  TransactionPayloadCodecTest() = default;
+  TransactionPayloadCodecTest() {}
 
   void SetUp() override { m_payloads.push_back(128); }
 

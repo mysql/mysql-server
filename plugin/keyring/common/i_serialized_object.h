@@ -39,7 +39,7 @@ class ISerialized_object {
     this->key_operation = key_operation;
   }
 
-  virtual ~ISerialized_object() = default;
+  virtual ~ISerialized_object() {}
 
  protected:
   Key_operation key_operation;

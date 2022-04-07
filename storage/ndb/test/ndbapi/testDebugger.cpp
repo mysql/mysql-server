@@ -26,6 +26,7 @@
 #include <NDBT_Test.hpp>
 #include <EventLogger.hpp>
 
+extern EventLogger* g_eventLogger;
 
 static
 Uint64
@@ -136,7 +137,6 @@ int main(int argc, const char** argv){
   NDBT_TESTSUITE_INSTANCE(testDebugger);
   testDebugger.setCreateTable(false);
   testDebugger.setRunAllTables(true);
-  testDebugger.setEnsureIndexStatTables(false);
 
   int res = testDebugger.execute(argc, argv);
 

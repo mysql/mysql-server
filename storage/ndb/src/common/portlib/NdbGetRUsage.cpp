@@ -20,7 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <cstring>
 #include <NdbGetRUsage.h>
 #include <NdbMutex.h>
 #include <ndb_config.h>
@@ -231,7 +230,7 @@ Ndb_GetRUsage(ndb_rusage* dst, bool process)
 
   if (res != 0)
   {
-    std::memset(dst, 0, sizeof(* dst));
+    bzero(dst, sizeof(* dst));
   }
   return res;
 }

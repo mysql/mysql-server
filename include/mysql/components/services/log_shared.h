@@ -223,13 +223,7 @@ typedef struct _log_item_iter log_item_iter;
 /** advisory. components must not rely on others using the same value. */
 #define LOG_BUFF_MAX 8192
 
-/**
-   size of a full ISO 8601 timestamp:
-   - 19 for date/time        2022-02-22T12:34:56
-   -  7 for microsecond part .123456
-   -  6 for tzinfo tail      +14:30
-   -  1 for terminator       \0
-*/
+/** 26 for regular timestamp, plus 7 (".123456") when using micro-seconds */
 static const int iso8601_size = 33;
 
 /**

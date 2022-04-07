@@ -138,7 +138,7 @@ Query_result::Query_result(std::shared_ptr<XProtocol> protocol,
       m_instance_id(m_query_instances->instances_fetch_begin()),
       m_context(context) {
   m_notice_handler_id = m_protocol->add_notice_handler(
-      [this](XProtocol *protocol [[maybe_unused]], const bool is_global,
+      [this](XProtocol *protocol MY_ATTRIBUTE((unused)), const bool is_global,
              const Mysqlx::Notice::Frame::Type type, const char *payload,
              const uint32_t payload_size) -> Handler_result {
         if (is_global) return Handler_result::Continue;

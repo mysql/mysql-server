@@ -2278,7 +2278,6 @@ SEARCH_INCLUDES        = YES
 # This tag requires that the tag SEARCH_INCLUDES is set to YES.
 
 INCLUDE_PATH           = . \
-                         client/include \
                          include \
                          include/mysql \
                          sql
@@ -2325,8 +2324,7 @@ PREDEFINED             = WITH_PERFSCHEMA_STORAGE_ENGINE \
                          ALWAYS_INLINE(X)=X \
                          UNIV_DEBUG \
                          UNIV_NOTHROW \
-                         __cplusplus \
-                         DOXYGEN_IF_DEBUG
+                         __cplusplus
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then this
 # tag can be used to specify a list of macro names that should be expanded. The
@@ -2350,8 +2348,7 @@ EXPAND_AS_DEFINED      = C_MODE_START \
                          DEFINE_METHOD \
                          DEFINE_BOOL_METHOD \
                          DECLARE_METHOD \
-                         DECLARE_BOOL_METHOD \
-                         IF_DEBUG
+                         DECLARE_BOOL_METHOD
 
 # If the SKIP_FUNCTION_MACROS tag is set to YES then doxygen's preprocessor will
 # remove all references to function-like macros that are alone on a line, have

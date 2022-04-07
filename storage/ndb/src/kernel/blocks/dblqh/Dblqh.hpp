@@ -150,6 +150,11 @@ class FsReadWriteReq;
 /*       VARIOUS CONSTANTS USED AS FLAGS TO THE FILE MANAGER.                */
 /* ------------------------------------------------------------------------- */
 #define ZVAR_NO_LOG_PAGE_WORD 1
+#define ZLIST_OF_PAIRS 0
+#define ZLIST_OF_PAIRS_SYNCH 16
+#define ZARRAY_OF_PAGES 1
+#define ZLIST_OF_MEM_PAGES 2
+#define ZLIST_OF_MEM_PAGES_SYNCH 18
 #define ZCLOSE_NO_DELETE 0
 #define ZCLOSE_DELETE 1
 #define ZPAGE_ZERO 0
@@ -564,7 +569,7 @@ public:
   typedef Ptr<AddFragRecord> AddFragRecordPtr;
   
   struct ScanRecord {
-    static constexpr Uint32 TYPE_ID = RT_DBLQH_SCAN_RECORD;
+    STATIC_CONST( TYPE_ID = RT_DBLQH_SCAN_RECORD);
     Uint32 m_magic;
 
     ScanRecord() :
@@ -615,9 +620,9 @@ public:
      * an ACC ptr, but all others are refs to SectionSegments containing
      * ACC ptrs.
      */
-    static constexpr Uint32 MaxScanAccSegments = (
+    STATIC_CONST( MaxScanAccSegments= (
                  (MAX_PARALLEL_OP_PER_SCAN + SectionSegment::DataLength - 1) /
-                 SectionSegment::DataLength) + 1;
+                 SectionSegment::DataLength) + 1);
 
     UintR scan_acc_op_ptr[ MaxScanAccSegments ];
     Uint32 scan_acc_index;
@@ -699,7 +704,7 @@ public:
     Uint8 m_first_match_flag;
     Uint8 m_send_early_hbrep;
   };
-  static constexpr Uint32 DBLQH_SCAN_RECORD_TRANSIENT_POOL_INDEX = 1;
+  STATIC_CONST(DBLQH_SCAN_RECORD_TRANSIENT_POOL_INDEX = 1);
   typedef Ptr<ScanRecord> ScanRecordPtr;
   typedef TransientPool<ScanRecord> ScanRecord_pool;
   typedef DLCList<ScanRecord_pool> ScanRecord_list;
@@ -1327,9 +1332,9 @@ public:
 
   struct IOTracker
   {
-    static constexpr Uint32 SAMPLE_TIME = 128;              // millis
-    static constexpr Uint32 SLIDING_WINDOW_LEN = 1024;      // millis
-    static constexpr Uint32 SLIDING_WINDOW_HISTORY_LEN = 8;
+    STATIC_CONST( SAMPLE_TIME = 128 );              // millis
+    STATIC_CONST( SLIDING_WINDOW_LEN = 1024 );      // millis
+    STATIC_CONST( SLIDING_WINDOW_HISTORY_LEN = 8 );
 
     void init(Uint32 partNo);
     Uint32 m_log_part_no;
@@ -1438,7 +1443,7 @@ public:
    */
   struct LCPFragWatchdog
   {
-    static constexpr Uint32 PollingPeriodMillis = 1000; /* 10s */
+    STATIC_CONST( PollingPeriodMillis = 1000 ); /* 10s */
     Uint32 WarnElapsedWithNoProgressMillis; /* LCP Warn, milliseconds */
     Uint32 MaxElapsedWithNoProgressMillis;  /* LCP Fail, milliseconds */
 
@@ -2246,13 +2251,9 @@ public:
     /**
      * We have to remember the log pages read. 
      * Otherwise we cannot build the linked list after the pages have 
-     * arrived to main memory.
-     *
-     * readExecSr sends 8 pages that need to be remembered in logPageArray.
-     * readExecLog supports sending up to 9 pages.
+     * arrived to main memory.  
      */
-    static constexpr unsigned LOG_PAGE_ARRAY_SIZE = 9;
-    UintR logPageArray[LOG_PAGE_ARRAY_SIZE];
+    UintR logPageArray[16];
     /**
      * A list of the pages that are part of this active operation.
      */
@@ -2591,7 +2592,7 @@ public:
       LOG_CONNECTED = 3
     };
 #ifndef DBLQH_STATE_EXTRACT
-    static constexpr Uint32 TYPE_ID = RT_DBLQH_TC_CONNECT;
+    STATIC_CONST( TYPE_ID = RT_DBLQH_TC_CONNECT);
     Uint32 m_magic;
     Uint32 ptrI;
 
@@ -2855,7 +2856,7 @@ public:
   }; /* p2c: size = 308 bytes */
 
 #ifndef DBLQH_STATE_EXTRACT
-  static constexpr Uint32 DBLQH_OPERATION_RECORD_TRANSIENT_POOL_INDEX = 0;
+  STATIC_CONST(DBLQH_OPERATION_RECORD_TRANSIENT_POOL_INDEX = 0);
   Uint32 ctcConnectReservedCount;
   Uint32 ctcConnectReserved;
   typedef Ptr<TcConnectionrec> TcConnectionrecPtr;
@@ -3561,11 +3562,10 @@ private:
                   Uint32 errcode,
                   TcConnectionrecPtr);
   void localAbortStateHandlerLab(Signal* signal, TcConnectionrecPtr);
-  void writePrepareLog(Signal* signal, TcConnectionrecPtr);
+  void writePrepareLog(Signal* signal, TcConnectionrecPtr, bool);
   void writePrepareLog_problems(Signal* signal,
                                 const TcConnectionrecPtr,
                                 LogPartRecord *logPartPtrP);
-  void doWritePrepareLog(Signal* signal, TcConnectionrecPtr);
   void update_log_problem(Signal*, LogPartRecord*, Uint32 problem, bool);
   void takeOverErrorLab(Signal* signal, TcConnectionrecPtr);
   bool checkTransporterOverloaded(Signal* signal,
@@ -4323,7 +4323,7 @@ public:
    *
    */
   struct CommitAckMarker {
-    static constexpr Uint32 TYPE_ID = RT_DBLQH_COMMIT_ACK_MARKER;
+    STATIC_CONST( TYPE_ID = RT_DBLQH_COMMIT_ACK_MARKER );
     Uint32 m_magic;
 
     CommitAckMarker() :
@@ -4353,7 +4353,7 @@ public:
       return transid1;
     }
   };
-  static constexpr Uint32 DBLQH_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX = 2;
+  STATIC_CONST(DBLQH_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX = 2);
   typedef Ptr<CommitAckMarker> CommitAckMarkerPtr;
   typedef TransientPool<CommitAckMarker> CommitAckMarker_pool;
   typedef DLHashTable<CommitAckMarker_pool> CommitAckMarker_hash;
@@ -5026,18 +5026,12 @@ Dblqh::accminupdate(Signal* signal, Uint32 opId, const Local_key* key)
     FragrecordPtr regFragptr;
     regFragptr.i = regTcPtr.p->fragmentptr;
     c_fragment_pool.getPtr(regFragptr);
-    if (regFragptr.p->m_copy_started_state == Fragrecord::AC_NR_COPY) {
-      char buf[MAX_LOG_MESSAGE_SIZE];
-      g_eventLogger->info(" LK: %s",
-                          printLocal_Key(buf, MAX_LOG_MESSAGE_SIZE, *key));
-    }
+    if (regFragptr.p->m_copy_started_state == Fragrecord::AC_NR_COPY)
+      ndbout << " LK: " << *key;
   }
 
-  if (ERROR_INSERTED(5712) || ERROR_INSERTED(5713)) {
-    char buf[MAX_LOG_MESSAGE_SIZE];
-    g_eventLogger->info(" LK: %s",
-                        printLocal_Key(buf, MAX_LOG_MESSAGE_SIZE, *key));
-  }
+  if (ERROR_INSERTED(5712) || ERROR_INSERTED(5713))
+    ndbout << " LK: " << *key;
   regTcPtr.p->m_row_id = *key;
 }
 

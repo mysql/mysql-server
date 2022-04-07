@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,8 +42,6 @@ struct MCPVIO_EXT {
   struct {
     uchar *pkt; /**< pointer into NET::buff */
     uint pkt_len;
-    /** a flag indicating that pkt, pkt_len contain valid packet to be reused */
-    bool pkt_received;
   } cached_server_reply;
   int packets_read, packets_written; /**< counters for send/received packets */
   int mysql_change_user;             /**< if it's mysql_change_user() */
@@ -92,7 +90,6 @@ struct mysql_async_auth {
 
   char *data;
   uint data_len;
-  /** set to mysql_async_connect::scramble_plugin */
   const char *data_plugin;
   const char *db;
 
@@ -105,10 +102,8 @@ struct mysql_async_auth {
   char *change_user_buff;
   int change_user_buff_len;
 
-  /** Used by caching_sha256_password plugin */
   int client_auth_plugin_state;
   authsm_function state_function;
-  uint current_factor_index;
 };
 
 /*
@@ -154,7 +149,6 @@ struct mysql_async_connect {
   char buff[NAME_LEN + USERNAME_LENGTH + 100];
   int scramble_data_len;
   char *scramble_data;
-  /** The server sends the default plugin name in Protocol::HandshakeV10 */
   const char *scramble_plugin;
   char *scramble_buffer;
   bool scramble_buffer_allocated;

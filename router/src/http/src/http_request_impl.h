@@ -25,7 +25,7 @@
 #include <system_error>
 
 #include <event2/http.h>
-#include "mysqlrouter/http_request.h"
+#include "mysqlrouter/http_common.h"
 
 class HttpRequest::impl {
  public:

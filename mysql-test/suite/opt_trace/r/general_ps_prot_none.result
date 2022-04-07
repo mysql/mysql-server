@@ -5519,13 +5519,12 @@ update t6 set d=5 where d is NULL	{
             {
               "index": "d",
               "ranges": [
-                "d = NULL"
+                "NULL <= d <= NULL"
               ] /* ranges */,
               "index_dives_for_eq_ranges": true,
               "rowid_ordered": true,
               "using_mrr": false,
               "index_only": false,
-              "in_memory": -1,
               "rows": 1,
               "cost": 0.61,
               "chosen": true
@@ -5542,7 +5541,7 @@ update t6 set d=5 where d is NULL	{
             "index": "d",
             "rows": 1,
             "ranges": [
-              "d = NULL"
+              "NULL <= d <= NULL"
             ] /* ranges */
           } /* range_access_plan */,
           "rows_for_plan": 1,
@@ -5613,13 +5612,12 @@ delete from t6 where d=5	{
             {
               "index": "d",
               "ranges": [
-                "d = 5"
+                "5 <= d <= 5"
               ] /* ranges */,
               "index_dives_for_eq_ranges": true,
               "rowid_ordered": true,
               "using_mrr": false,
               "index_only": false,
-              "in_memory": -1,
               "rows": 1,
               "cost": 0.61,
               "chosen": true
@@ -5632,7 +5630,7 @@ delete from t6 where d=5	{
             "index": "d",
             "rows": 1,
             "ranges": [
-              "d = 5"
+              "5 <= d <= 5"
             ] /* ranges */
           } /* range_access_plan */,
           "rows_for_plan": 1,
@@ -5747,7 +5745,6 @@ insert into t6 select * from t6 where d>7	{
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
-                        "in_memory": -1,
                         "rows": 2,
                         "cost": 0.465814,
                         "chosen": true
@@ -5973,7 +5970,6 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": false,
-                        "in_memory": -1,
                         "rows": 1,
                         "cost": 0.61,
                         "chosen": true
@@ -6193,7 +6189,6 @@ delete t6 from t5, t6 where d>7000	{
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
-                        "in_memory": -1,
                         "rows": 1,
                         "cost": 0.36,
                         "chosen": true
@@ -8610,7 +8605,6 @@ insert into t2 select d,100,200 from t6 where d is not null	{
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
-                        "in_memory": -1,
                         "rows": 4,
                         "cost": 0.677442,
                         "chosen": false,
@@ -9325,7 +9319,6 @@ Warnings:
 Warning	1292	Truncated incorrect INTEGER value: 'c'
 Warning	1292	Truncated incorrect INTEGER value: 'c'
 Warning	1292	Truncated incorrect INTEGER value: 'c'
-Warning	1292	Truncated incorrect INTEGER value: 'c'
 select count(*) from information_schema.OPTIMIZER_TRACE;
 count(*)
 1
@@ -9439,7 +9432,7 @@ select @trace;
               {
                 "table": "`t1`",
                 "original_table_condition": "(`t1`.`data` = 'c')",
-                "final_table_condition   ": "(`t1`.`data` = 'c')"
+                "final_table_condition   ": "(`t1`.`data` = <cache>('c'))"
               }
             ] /* finalizing_table_conditions */
           },
@@ -9471,7 +9464,6 @@ execute stmt using @param;
 count(*)
 0
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'c'
 Warning	1292	Truncated incorrect INTEGER value: 'c'
 Warning	1292	Truncated incorrect INTEGER value: 'c'
 Warning	1292	Truncated incorrect INTEGER value: 'c'

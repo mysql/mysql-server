@@ -355,23 +355,17 @@ SET @my_use_secondary_engine = @@use_secondary_engine;
 CREATE TABLE t1 (a INT) SECONDARY_ENGINE MOCK;
 INSERT INTO t1 VALUES (1);
 ALTER TABLE t1 SECONDARY_LOAD;
-CREATE TABLE t2 (a INT);
-INSERT INTO t2 VALUES (1);
 FLUSH STATUS;
 --echo # The row shall be returned from the primary storage engine.
 SET @@use_secondary_engine = OFF;
 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t2;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 --echo # The mock storage engine does not return any rows.
 SET @@use_secondary_engine = FORCED;
 SELECT * FROM t1;
--- error ER_SECONDARY_ENGINE
-INSERT INTO t1 SELECT * FROM t2;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 SET @@use_secondary_engine = ON;
 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t2;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 --echo # An error shall be returned if table is not loaded.
 ALTER TABLE t1 SECONDARY_UNLOAD;
@@ -383,7 +377,6 @@ SET @@use_secondary_engine = ON;
 SELECT * FROM t1;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 DROP TABLE t1;
-DROP TABLE t2;
 SET @@use_secondary_engine = @my_use_secondary_engine;
 
 --echo #

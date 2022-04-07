@@ -102,9 +102,3 @@ ROLLBACK;
 # Cleanup
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
-SET GLOBAL binlog_encryption= OFF;
---source include/rpl_connection_slave.inc
-SET GLOBAL binlog_encryption= OFF;
-SET GLOBAL keyring_operations= ON;

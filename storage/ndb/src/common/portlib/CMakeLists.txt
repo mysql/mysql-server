@@ -72,6 +72,6 @@ ADD_CONVENIENCE_LIBRARY(ndbportlib
 
 NDB_ADD_TEST(NdbHW-t NdbHW.cpp LIBS ndbgeneral ndbportlib)
 
-NDB_ADD_TEST(NdbDir-t NdbDir.cpp LIBS ndbgeneral ndbportlib)
+NDB_ADD_TEST(NdbDir-t NdbDir.cpp LIBS ndbportlib)
 
 NDB_ADD_TEST(NdbGetInAddr-t NdbTCP.cpp LIBS ${LIBSOCKET} ${LIBNSL})

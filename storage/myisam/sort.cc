@@ -430,7 +430,7 @@ err:
   close_cached_file(&sort_param->tempfile_for_exceptions);
 
 ok:
-  sort_param->wordroot.Clear();
+  free_root(&sort_param->wordroot, MYF(0));
   /*
     Detach from the share if the writer is involved. Avoid others to
     be blocked. This includes a flush of the write buffer. This will
@@ -795,7 +795,7 @@ static int write_merge_key_varlen(MI_SORT_PARAM *info, IO_CACHE *to_file,
   return (0);
 }
 
-static int write_merge_key(MI_SORT_PARAM *info [[maybe_unused]],
+static int write_merge_key(MI_SORT_PARAM *info MY_ATTRIBUTE((unused)),
                            IO_CACHE *to_file, uchar *key, uint sort_length,
                            uint count) {
   return my_b_write(to_file, key, (size_t)sort_length * count);

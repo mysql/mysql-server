@@ -50,9 +50,9 @@ using ::testing::WithArgs;
 */
 class GcsBaseTest : public ::testing::Test {
  public:
-  GcsBaseTest() = default;
+  GcsBaseTest() {}
 
-  virtual ~GcsBaseTest() = default;
+  virtual ~GcsBaseTest() {}
 
   /**
     Simple logging object that can be used in the test case.
@@ -67,11 +67,9 @@ class GcsBaseTest : public ::testing::Test {
 */
 class GcsBaseTestNoLogging : public ::testing::Test {
  public:
-  GcsBaseTestNoLogging() = default;
+  GcsBaseTestNoLogging() {}
 
-  virtual ~GcsBaseTestNoLogging() = default;
+  virtual ~GcsBaseTestNoLogging() {}
 };
-
-enum class XComLeaderConfiguration { ONE, ALL };
 
 #endif  // GCS_BASE_TEST_INCLUDED

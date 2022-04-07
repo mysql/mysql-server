@@ -178,18 +178,12 @@ static dberr_t trx_rollback_for_mysql_low(
 @param[in, out]	trx	transaction
 @return error code or DB_SUCCESS */
 static dberr_t trx_rollback_low(trx_t *trx) {
-  /* We are reading trx->state without mutex protection here,
-  because the rollback should either be invoked for:
-    - a running active MySQL transaction associated
-      with the current thread,
-    - or a recovered prepared transaction,
-    - or a transaction which is a victim being killed by HP transaction
-      run by the current thread, in which case it is guaranteed that
-      thread owning the transaction, which is being killed, is not
-      inside InnoDB (thanks to TRX_FORCE_ROLLBACK and TrxInInnoDB::wait()). */
-  ut_ad(trx_can_be_handled_by_current_thread_or_is_hp_victim(trx));
+  /* We are reading trx->state without holding trx_sys->mutex
+  here, because the rollback should be invoked for a running
+  active MySQL transaction (or recovered prepared transaction)
+  that is associated with the current thread. */
 
-  switch (trx->state.load(std::memory_order_relaxed)) {
+  switch (trx->state) {
     case TRX_STATE_FORCED_ROLLBACK:
     case TRX_STATE_NOT_STARTED:
       trx->will_lock = 0;
@@ -285,21 +279,13 @@ dberr_t trx_rollback_last_sql_stat_for_mysql(
 {
   dberr_t err;
 
+  /* We are reading trx->state without holding trx_sys->mutex
+  here, because the statement rollback should be invoked for a
+  running active MySQL transaction that is associated with the
+  current thread. */
   ut_ad(trx->in_mysql_trx_list);
 
-  /* We are reading trx->state without mutex protection here,
-  because the rollback should either be invoked for:
-    - a running active MySQL transaction associated
-      with the current thread,
-    - or a recovered prepared transaction,
-    - or a transaction which is a victim being killed by HP transaction
-      run by the current thread, in which case it is guaranteed that
-      thread owning the transaction, which is being killed, is not
-      inside InnoDB (thanks to TRX_FORCE_ROLLBACK and TrxInInnoDB::wait()). */
-
-  ut_ad(trx_can_be_handled_by_current_thread_or_is_hp_victim(trx));
-
-  switch (trx->state.load(std::memory_order_relaxed)) {
+  switch (trx->state) {
     case TRX_STATE_FORCED_ROLLBACK:
     case TRX_STATE_NOT_STARTED:
       return (DB_SUCCESS);
@@ -339,7 +325,10 @@ static trx_named_savept_t *trx_savepoint_find(
     trx_t *trx,       /*!< in: transaction */
     const char *name) /*!< in: savepoint name */
 {
-  for (auto savep : trx->trx_savepoints) {
+  trx_named_savept_t *savep;
+
+  for (savep = UT_LIST_GET_FIRST(trx->trx_savepoints); savep != nullptr;
+       savep = UT_LIST_GET_NEXT(trx_savepoints, savep)) {
     if (0 == ut_strcmp(savep->name, name)) {
       return (savep);
     }
@@ -355,8 +344,8 @@ static void trx_roll_savepoint_free(
 {
   UT_LIST_REMOVE(trx->trx_savepoints, savep);
 
-  ut::free(savep->name);
-  ut::free(savep);
+  ut_free(savep->name);
+  ut_free(savep);
 }
 
 /** Frees savepoint structs starting from savep.
@@ -383,10 +372,11 @@ void trx_roll_savepoints_free(trx_t *trx, trx_named_savept_t *savep) {
  were set after this savepoint are deleted.
  @return if no savepoint of the name found then DB_NO_SAVEPOINT,
  otherwise DB_SUCCESS */
-[[nodiscard]] static dberr_t trx_rollback_to_savepoint_for_mysql_low(
-    trx_t *trx,                /*!< in/out: transaction */
-    trx_named_savept_t *savep, /*!< in/out: savepoint */
-    int64_t *mysql_binlog_cache_pos)
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    trx_rollback_to_savepoint_for_mysql_low(
+        trx_t *trx,                /*!< in/out: transaction */
+        trx_named_savept_t *savep, /*!< in/out: savepoint */
+        int64_t *mysql_binlog_cache_pos)
 /*!< out: the MySQL binlog
 cache position corresponding
 to this savepoint; MySQL needs
@@ -440,6 +430,10 @@ dberr_t trx_rollback_to_savepoint_for_mysql(
 {
   trx_named_savept_t *savep;
 
+  /* We are reading trx->state without holding trx_sys->mutex
+  here, because the savepoint rollback should be invoked for a
+  running active MySQL transaction that is associated with the
+  current thread. */
   ut_ad(trx->in_mysql_trx_list);
 
   savep = trx_savepoint_find(trx, savepoint_name);
@@ -448,19 +442,7 @@ dberr_t trx_rollback_to_savepoint_for_mysql(
     return (DB_NO_SAVEPOINT);
   }
 
-  /* We are reading trx->state without mutex protection here,
-  because the rollback should either be invoked for:
-    - a running active MySQL transaction associated
-      with the current thread,
-    - or a recovered prepared transaction,
-    - or a transaction which is a victim being killed by HP transaction
-      run by the current thread, in which case it is guaranteed that
-      thread owning the transaction, which is being killed, is not
-      inside InnoDB (thanks to TRX_FORCE_ROLLBACK and TrxInInnoDB::wait()). */
-
-  ut_ad(trx_can_be_handled_by_current_thread_or_is_hp_victim(trx));
-
-  switch (trx->state.load(std::memory_order_relaxed)) {
+  switch (trx->state) {
     case TRX_STATE_NOT_STARTED:
     case TRX_STATE_FORCED_ROLLBACK:
 
@@ -482,6 +464,7 @@ dberr_t trx_rollback_to_savepoint_for_mysql(
   }
 
   ut_error;
+  return (DB_CORRUPTION);
 }
 
 /** Creates a named savepoint. If the transaction is not yet started, starts it.
@@ -508,14 +491,13 @@ dberr_t trx_savepoint_for_mysql(
 
     UT_LIST_REMOVE(trx->trx_savepoints, savep);
 
-    ut::free(savep->name);
-    ut::free(savep);
+    ut_free(savep->name);
+    ut_free(savep);
   }
 
   /* Create a new savepoint and add it as the last in the list */
 
-  savep = static_cast<trx_named_savept_t *>(
-      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*savep)));
+  savep = static_cast<trx_named_savept_t *>(ut_malloc_nokey(sizeof(*savep)));
 
   savep->name = mem_strdup(savepoint_name);
 
@@ -649,29 +631,17 @@ static ibool trx_rollback_or_clean_resurrected(
                 TRUE=roll back all non-PREPARED transactions */
 {
   ut_ad(trx_sys_mutex_own());
-  ut_ad(trx->in_rw_trx_list);
 
-  /* Generally, an HA transaction with is_recovered && state==TRX_STATE_PREPARED
-  can be committed or rolled back by a client who knows its XID at any time.
-  To prove that no such state transition is possible while our thread operates,
-  observe that we hold trx_sys->mutex which is required by both commit and
-  rollback to deregister the trx from trx_sys->rw_trx_list during
-  trx_release_impl_and_expl_locks() and we see the trx is still in this list.
-  Thus, if we see is_recovered==true, then the state can not change until we
-  release the trx_sys->mutex. Moreover for TRX_STATE_PREPARED we do nothing, so
-  we will not interfere with an HA COMMIT or ROLLBACK. So, if XA ROLLBACK or
-  COMMIT latches trx_sys->mutex before us, then we will not see the trx in the
-  rw_trx_list (so trx_rollback_or_clean_resurrected() would not be called for
-  this transaction in the first place), and if we latch first, then we will
-  leave the trx intact. */
+  /* The trx->is_recovered flag and trx->state are set
+  atomically under the protection of the trx->mutex . We do not want
+  to accidentally clean up a non-recovered transaction here. */
 
   trx_mutex_enter(trx);
-  const bool is_recovered = trx->is_recovered;
-  const trx_state_t state = trx->state.load(std::memory_order_relaxed);
+  bool is_recovered = trx->is_recovered;
+  trx_state_t state = trx->state;
   trx_mutex_exit(trx);
 
   if (!is_recovered) {
-    ut_ad(state != TRX_STATE_COMMITTED_IN_MEMORY);
     return (FALSE);
   }
 
@@ -683,14 +653,12 @@ static ibool trx_rollback_or_clean_resurrected(
 
       trx_cleanup_at_db_startup(trx);
       trx_free_resurrected(trx);
-      ut_ad(!trx->is_recovered);
       return (TRUE);
     case TRX_STATE_ACTIVE:
       if (all || trx->ddl_operation) {
         trx_sys_mutex_exit();
         trx_rollback_active(trx);
         trx_free_for_background(trx);
-        ut_ad(!trx->is_recovered);
         return (TRUE);
       }
       return (FALSE);
@@ -702,6 +670,7 @@ static ibool trx_rollback_or_clean_resurrected(
   }
 
   ut_error;
+  return (FALSE);
 }
 
 /** Rollback or clean up any incomplete transactions which were
@@ -713,6 +682,8 @@ void trx_rollback_or_clean_recovered(
                TRUE=roll back all non-PREPARED transactions */
 {
   ut_ad(!srv_read_only_mode);
+
+  trx_t *trx;
 
   ut_a(srv_force_recovery < SRV_FORCE_NO_TRX_UNDO);
   ut_ad(!all || trx_sys_need_rollback());
@@ -730,10 +701,11 @@ void trx_rollback_or_clean_recovered(
   /* Loop over the transaction list as long as there are
   recovered transactions to clean up or recover. */
 
-  trx_sys_mutex_enter();
-  for (bool need_one_more_scan = true; need_one_more_scan;) {
-    need_one_more_scan = false;
-    for (auto trx : trx_sys->rw_trx_list) {
+  do {
+    trx_sys_mutex_enter();
+
+    for (trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list); trx != nullptr;
+         trx = UT_LIST_GET_NEXT(trx_list, trx)) {
       assert_trx_in_rw_list(trx);
 
       /* In case of slow shutdown, we have to wait for the background
@@ -763,12 +735,14 @@ void trx_rollback_or_clean_recovered(
       we need to reacquire it before retrying the loop. */
       if (trx_rollback_or_clean_resurrected(trx, all)) {
         trx_sys_mutex_enter();
-        need_one_more_scan = true;
+
         break;
       }
     }
-  }
-  trx_sys_mutex_exit();
+
+    trx_sys_mutex_exit();
+
+  } while (trx != nullptr);
 
   if (all) {
     ib::info(ER_IB_MSG_TRX_RECOVERY_ROLLBACK_COMPLETED);
@@ -781,7 +755,12 @@ committed, then we clean up a possible insert undo log. If the
 transaction was not yet committed, then we roll it back.
 Note: this is done in a background thread. */
 void trx_recovery_rollback_thread() {
-  THD *thd = create_internal_thd();
+#ifdef UNIV_PFS_THREAD
+  THD *thd =
+      create_thd(false, true, true, trx_recovery_rollback_thread_key.m_value);
+#else
+  THD *thd = create_thd(false, true, true, 0);
+#endif /* UNIV_PFS_THREAD */
 
   ut_ad(!srv_read_only_mode);
 
@@ -794,7 +773,7 @@ void trx_recovery_rollback_thread() {
 
   trx_rollback_or_clean_recovered(TRUE);
 
-  destroy_internal_thd(thd);
+  destroy_thd(thd);
 }
 
 /** Tries truncate the undo logs. */

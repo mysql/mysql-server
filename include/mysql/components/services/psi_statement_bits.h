@@ -152,8 +152,8 @@ struct PSI_statement_locker_state_v1 {
   struct PSI_thread *m_thread;
   /** Timer start. */
   unsigned long long m_timer_start;
-  /** THREAD CPU time start. */
-  unsigned long long m_cpu_time_start;
+  /** Timer function. */
+  unsigned long long (*m_timer)(void);
   /** Internal data. */
   void *m_statement;
   /** Locked time. */

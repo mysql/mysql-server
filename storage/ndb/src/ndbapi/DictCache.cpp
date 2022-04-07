@@ -28,7 +28,6 @@
 #include <NdbTick.h>
 #include <NdbCondition.h>
 #include <NdbSleep.h>
-#include <EventLogger.hpp>
 
 static NdbTableImpl * f_invalid_table = 0;
 static NdbTableImpl * f_altered_table = 0;
@@ -478,9 +477,9 @@ GlobalDictCache::release(const NdbTableImpl * tab, int invalidate)
   
   for(i = 0; i<sz; i++){
     TableVersion & ver = (* vers)[i];
-    g_eventLogger->info("%d: version: %d refCount: %d status: %d impl: %p", i,
-                        ver.m_version, ver.m_refCount, ver.m_status,
-                        ver.m_impl);
+    ndbout_c("%d: version: %d refCount: %d status: %d impl: %p",
+	     i, ver.m_version, ver.m_refCount,
+	     ver.m_status, ver.m_impl);
   }
   
   abort();

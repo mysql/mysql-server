@@ -37,8 +37,8 @@ namespace thread {
 */
 class Thread {
  public:
-  Thread() = default;
-  virtual ~Thread() = default;
+  Thread() {}
+  virtual ~Thread() {}
 
   /*
     Will create a new pthread, and invoke run();

@@ -298,36 +298,36 @@ int clone_os_copy_buf_to_file(uchar *from_buffer, Ha_clone_file to_file,
   return (0);
 }
 
-int clone_os_send_from_buf(uchar *from_buffer [[maybe_unused]],
-                           uint length [[maybe_unused]],
-                           my_socket socket [[maybe_unused]],
-                           const char *src_name [[maybe_unused]]) {
+int clone_os_send_from_buf(uchar *from_buffer MY_ATTRIBUTE((unused)),
+                           uint length MY_ATTRIBUTE((unused)),
+                           my_socket socket MY_ATTRIBUTE((unused)),
+                           const char *src_name MY_ATTRIBUTE((unused))) {
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Remote Clone Send");
   return (ER_NOT_SUPPORTED_YET);
 }
 
-int clone_os_send_from_file(Ha_clone_file from_file [[maybe_unused]],
-                            uint length [[maybe_unused]],
-                            my_socket socket [[maybe_unused]],
-                            const char *src_name [[maybe_unused]]) {
+int clone_os_send_from_file(Ha_clone_file from_file MY_ATTRIBUTE((unused)),
+                            uint length MY_ATTRIBUTE((unused)),
+                            my_socket socket MY_ATTRIBUTE((unused)),
+                            const char *src_name MY_ATTRIBUTE((unused))) {
   CLONE_OS_CHECK_FILE(from_file);
 
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Remote Clone Send");
   return (ER_NOT_SUPPORTED_YET);
 }
 
-int clone_os_recv_to_buf(uchar *to_buffer [[maybe_unused]],
-                         uint length [[maybe_unused]],
-                         my_socket socket [[maybe_unused]],
-                         const char *dest_name [[maybe_unused]]) {
+int clone_os_recv_to_buf(uchar *to_buffer MY_ATTRIBUTE((unused)),
+                         uint length MY_ATTRIBUTE((unused)),
+                         my_socket socket MY_ATTRIBUTE((unused)),
+                         const char *dest_name MY_ATTRIBUTE((unused))) {
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Remote Clone Receive");
   return (ER_NOT_SUPPORTED_YET);
 }
 
-int clone_os_recv_to_file(Ha_clone_file to_file [[maybe_unused]],
-                          uint length [[maybe_unused]],
-                          my_socket socket [[maybe_unused]],
-                          const char *dest_name [[maybe_unused]]) {
+int clone_os_recv_to_file(Ha_clone_file to_file MY_ATTRIBUTE((unused)),
+                          uint length MY_ATTRIBUTE((unused)),
+                          my_socket socket MY_ATTRIBUTE((unused)),
+                          const char *dest_name MY_ATTRIBUTE((unused))) {
   CLONE_OS_CHECK_FILE(to_file);
 
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Remote Clone Receive");

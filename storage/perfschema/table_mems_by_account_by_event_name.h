@@ -55,7 +55,7 @@ class PFS_index_mems_by_account_by_event_name : public PFS_engine_index {
         m_key_2("HOST"),
         m_key_3("EVENT_NAME") {}
 
-  ~PFS_index_mems_by_account_by_event_name() override = default;
+  ~PFS_index_mems_by_account_by_event_name() override {}
 
   virtual bool match(PFS_account *pfs);
   virtual bool match(PFS_instr_class *instr_class);
@@ -122,7 +122,7 @@ class table_mems_by_account_by_event_name : public PFS_engine_table {
   table_mems_by_account_by_event_name();
 
  public:
-  ~table_mems_by_account_by_event_name() override = default;
+  ~table_mems_by_account_by_event_name() override {}
 
  private:
   int make_row(PFS_account *account, PFS_memory_class *klass);

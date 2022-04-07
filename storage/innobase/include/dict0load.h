@@ -46,7 +46,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <deque>
 
 /** A stack of table names related through foreign key constraints */
-typedef std::deque<const char *, ut::allocator<const char *>> dict_names_t;
+typedef std::deque<const char *, ut_allocator<const char *>> dict_names_t;
 
 /** enum that defines all system table IDs. @see SYSTEM_TABLE_NAME[] */
 enum dict_system_id_t {
@@ -83,7 +83,7 @@ char *dict_get_first_table_name_in_db(
 
 /** Get the first filepath from SYS_DATAFILES for a given space_id.
 @param[in]	space_id	Tablespace ID
-@return First filepath (caller must invoke ut::free() on it)
+@return First filepath (caller must invoke ut_free() on it)
 @retval NULL if no SYS_DATAFILES entry was found. */
 char *dict_get_first_path(ulint space_id);
 
@@ -132,7 +132,7 @@ void dict_load_sys_table(dict_table_t *table); /*!< in: system table */
  cache, then it is added to the output parameter (fk_tables).
 
  @return DB_SUCCESS or error code */
-[[nodiscard]] dberr_t dict_load_foreigns(
+dberr_t dict_load_foreigns(
     const char *table_name,       /*!< in: table name */
     const char **col_names,       /*!< in: column names, or NULL
                                   to use table->col_names */
@@ -142,10 +142,11 @@ void dict_load_sys_table(dict_table_t *table); /*!< in: system table */
     bool check_charsets,          /*!< in: whether to check
                                   charset compatibility */
     dict_err_ignore_t ignore_err, /*!< in: error to be ignored */
-    dict_names_t &fk_tables);     /*!< out: stack of table names
-                                 which must be loaded
-                                 subsequently to load all the
-                                 foreign key constraints. */
+    dict_names_t &fk_tables)      /*!< out: stack of table names
+                                  which must be loaded
+                                  subsequently to load all the
+                                  foreign key constraints. */
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** This function opens a system table, and return the first record.
  @return first record of the system table */

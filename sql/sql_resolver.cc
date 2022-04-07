@@ -82,15 +82,13 @@
 #include "sql/mem_root_array.h"
 #include "sql/nested_join.h"
 #include "sql/opt_hints.h"
+#include "sql/opt_range.h"  // prune_partitions
 #include "sql/opt_trace.h"  // Opt_trace_object
 #include "sql/opt_trace_context.h"
 #include "sql/parse_tree_nodes.h"  // PT_order_expr
-#include "sql/parser_yystype.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"  // Query_result
-#include "sql/range_optimizer/partition_pruning.h"
-#include "sql/range_optimizer/range_optimizer.h"  // prune_partitions
-#include "sql/sql_base.h"                         // setup_fields
+#include "sql/sql_base.h"      // setup_fields
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"  // Sql_cmd
 #include "sql/sql_const.h"
@@ -119,7 +117,6 @@ static bool simplify_const_condition(THD *thd, Item **cond,
                                      bool *ret_cond_value = nullptr);
 static Item *create_rollup_switcher(THD *thd, Query_block *query_block,
                                     Item *item, int send_group_parts);
-static bool fulltext_uses_rollup_column(const Query_block *query_block);
 
 /**
   Prepare query block for optimization.
@@ -304,7 +301,6 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   if (olap == ROLLUP_TYPE) {
     for (Item *item : fields) {
       mark_item_as_maybe_null_if_rollup_item(item);
-      item->update_used_tables();
     }
   }
 
@@ -361,11 +357,6 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
       return true;
   }
 
-  if (fulltext_uses_rollup_column(this)) {
-    my_error(ER_FULLTEXT_WITH_ROLLUP, MYF(0));
-    return true;
-  }
-
   hidden_order_field_count = fields.size() - all_fields_count;
 
   // Resolve OFFSET and LIMIT clauses
@@ -398,7 +389,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   */
   if (m_windows.elements != 0 &&
       Window::setup_windows1(thd, this, base_ref_items, get_table_list(),
-                             &fields, &m_windows))
+                             &fields, m_windows))
     return true;
 
   bool added_new_sum_funcs = false;
@@ -565,10 +556,24 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
       recurses into subqueries.
      */
     if (apply_local_transforms(thd, true)) return true;
+    /*
+      Pushing conditions down to derived tables must be done after validity
+      checks of grouped queries done by apply_local_transforms(); indeed, by
+      replacing columns with expressions, inside equalities of WHERE, pushdown
+      makes the checks impossible.
+      The said validity checks must be done after simplify_joins() has been
+      done on all query blocks. While pushdown must be done on the top query
+      block first, then on subqueries.
+      These circular dependencies explain why:
+      - pushdown is not part of apply_local_transforms
+      - a pushed-down condition cannot help to convert LEFT JOIN to inner join
+      inside a derived table's definition.
+    */
+    if (push_conditions_to_derived_tables(thd)) return true;
   }
 
   // Eliminate unused window definitions, redundant sorts etc.
-  if (!m_windows.is_empty()) Window::eliminate_unused_objects(&m_windows);
+  if (m_windows.elements != 0) Window::eliminate_unused_objects(m_windows);
 
   // Replace group by field references inside window functions with references
   // in the presence of ROLLUP.
@@ -673,16 +678,6 @@ bool Query_block::prepare_values(THD *thd) {
     resolve_place = RESOLVE_NONE;
   }
 
-  /*
-    A table value constructor may have a defined ordering, thus calling
-    setup_order() is needed, however calling setup_order_final() is
-    not necessary since this construct cannot be aggregated.
-  */
-  if (is_ordered() && setup_order(thd, base_ref_items, get_table_list(),
-                                  &fields, order_list.first)) {
-    return true;
-  }
-
   // Again, duplicating checks that are also done in Query_block::prepare for
   // resolving subqueries. This should, like the resolving of m_having_clause
   // above, be refactored such that there is less duplication of code from
@@ -693,6 +688,16 @@ bool Query_block::prepare_values(THD *thd) {
       !thd->lex->is_view_context_analysis()) {
     // Query block represents a subquery within an IN/ANY/ALL/EXISTS predicate
     if (resolve_subquery(thd)) return true;
+  }
+
+  /*
+    A table value constructor may have a defined ordering, thus calling
+    setup_order() is needed, however calling setup_order_final() is
+    not necessary since this construct cannot be aggregated.
+  */
+  if (is_ordered() && setup_order(thd, base_ref_items, get_table_list(),
+                                  &fields, order_list.first)) {
+    return true;
   }
 
   if (query_result() && query_result()->prepare(thd, fields, unit))
@@ -706,9 +711,6 @@ bool Query_block::prepare_values(THD *thd) {
   that each transformation happens on one single query block.
   Also perform partition pruning, which is most effective after transformations
   have been done.
-  This function also does condition pushdown to derived tables after all
-  the local transformations are applied although condition pushdown is
-  strictly not a local transform.
 
   @param thd      thread handler
   @param prune    if true, then prune partitions based on const conditions
@@ -796,21 +798,6 @@ bool Query_block::apply_local_transforms(THD *thd, bool prune) {
         set_empty_query();
     }
   }
-  /*
-     Pushing conditions down to derived tables must be done after validity
-     checks of grouped queries done above; indeed, by replacing columns
-     with expressions, inside equalities of WHERE, pushdown makes the checks
-     impossible.
-     The said validity checks must be done after simplify_joins() has been
-     done on all query blocks. While pushdown must be done on the outer
-     most query block first, then on subqueries.
-     These circular dependencies explain why:
-     - pushdown is done after all local transformations have been applied.
-     - a pushed-down condition cannot help to convert LEFT JOIN to inner join
-     inside a derived table's definition.
-   */
-  if (outer_query_block() == nullptr && push_conditions_to_derived_tables(thd))
-    return true;
 
   return false;
 }
@@ -3207,28 +3194,10 @@ bool Query_block::convert_subquery_to_semijoin(
     // Expressions from the SELECT list will not be used; unlike in the case of
     // IN, they are not part of sj_inner_exprs.
     // @todo in WL#6570, move this to resolve_subquery().
-    bool view_ref_with_subquery = false;
-    // Do not remove an item of type Item_view_ref. Refer to
-    // the comments in Item_cond::fix_fields on the removal of
-    // Item_view_ref type.
+    Item::Cleanup_after_removal_context ctx(this);
     for (Item *item : subq_query_block->visible_fields()) {
-      if (item->has_subquery()) {
-        WalkItem(item, enum_walk::PREFIX,
-                 [&view_ref_with_subquery](Item *inner_item) {
-                   if (inner_item->type() == Item::REF_ITEM &&
-                       down_cast<Item_ref *>(inner_item)->ref_type() ==
-                           Item_ref::VIEW_REF) {
-                     view_ref_with_subquery = true;
-                     return true;
-                   }
-                   return false;
-                 });
-      }
-      if (!view_ref_with_subquery) {
-        Item::Cleanup_after_removal_context ctx(this);
-        item->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
-                   pointer_cast<uchar *>(&ctx));
-      }
+      item->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
+                 pointer_cast<uchar *>(&ctx));
     }
   }
 
@@ -4341,14 +4310,10 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
         cleaning up), but it may contain subqueries that should be
         unlinked.
       */
-      if ((*order->item)->real_item() != (*select_item)->real_item()) {
-        Item::Cleanup_after_removal_context ctx(
-            thd->lex->current_query_block());
-
+      if ((*order->item)->real_item() != *select_item)
         (*order->item)
             ->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
-                   pointer_cast<uchar *>(&ctx));
-      }
+                   nullptr);
       order->item = &ref_item_array[counter];
       order->in_field_list = true;
       if (resolution == RESOLVED_AGAINST_ALIAS && from_field == not_found_field)
@@ -4542,8 +4507,8 @@ bool Query_block::check_only_full_group_by(THD *thd) {
       Group_check gc(this, &root);
       rc = gc.check_query(thd);
       gc.to_opt_trace(thd);
-    }  // scope, to let any destructor run before root.Clear().
-    root.Clear();
+    }  // scope, to let any destructor run before free_root().
+    free_root(&root, MYF(0));
   }
 
   if (!rc && is_distinct()) {
@@ -4643,17 +4608,10 @@ bool Query_block::setup_group(THD *thd) {
 
 ORDER *Query_block::find_in_group_list(Item *item, int *rollup_level) const {
   Item *real_item = item->real_item();
-  if (real_item->type() == Item::CACHE_ITEM) {
-    // Unwrap the cache, if any. NOTE: There should never be any caches
-    // in the GROUP BY list, so we don't need to unwrap any from there.
-    real_item = down_cast<const Item_cache *>(real_item)->get_example();
-  }
-
   ORDER *best_candidate = nullptr;
   int idx = 0;
   for (ORDER *group = group_list.first; group; group = group->next, ++idx) {
     Item *group_item = *group->item;
-    assert(group_item->real_item()->type() != Item::CACHE_ITEM);
     if (real_item->eq(group_item->real_item(), /*binary_cmp=*/false)) {
       if (item->item_name.ptr() != nullptr &&
           group_item->item_name.ptr() != nullptr &&
@@ -4726,8 +4684,11 @@ bool WalkAndReplace(
     THD *thd, Item *item,
     const function<ReplaceResult(Item *item, Item *parent,
                                  unsigned argument_idx)> &get_new_item) {
-  if (item->type() == Item::FUNC_ITEM || item->type() == Item::SUM_FUNC_ITEM) {
+  if (item->type() == Item::FUNC_ITEM) {
     Item_func *func_item = down_cast<Item_func *>(item);
+    if (func_item->m_is_window_function) {
+      return false;
+    }
     for (unsigned argument_idx = 0; argument_idx < func_item->arg_count;
          argument_idx++) {
       Item *arg = func_item->arguments()[argument_idx];
@@ -4735,36 +4696,8 @@ bool WalkAndReplace(
       if (result.action == ReplaceResult::ERROR) {
         return true;
       } else if (result.action == ReplaceResult::REPLACE) {
-        if (thd->lex->is_exec_started()) {
-          thd->change_item_tree(&func_item->arguments()[argument_idx],
-                                result.replacement);
-        } else {
-          func_item->arguments()[argument_idx] = result.replacement;
-        }
-      } else if (WalkAndReplace(thd, arg, get_new_item)) {
-        return true;
-      }
-    }
-
-    if (item->m_is_window_function) {
-      down_cast<Item_sum *>(item)->update_after_wf_arguments_changed(thd);
-    }
-  } else if (item->type() == Item::ROW_ITEM) {
-    // Pretty much exactly the same logic as functions above.
-    Item_row *row_item = down_cast<Item_row *>(item);
-    for (unsigned argument_idx = 0; argument_idx < row_item->cols();
-         argument_idx++) {
-      Item *arg = row_item->element_index(argument_idx);
-      ReplaceResult result = get_new_item(arg, item, argument_idx);
-      if (result.action == ReplaceResult::ERROR) {
-        return true;
-      } else if (result.action == ReplaceResult::REPLACE) {
-        if (thd->lex->is_exec_started()) {
-          thd->change_item_tree(row_item->addr(argument_idx),
-                                result.replacement);
-        } else {
-          *row_item->addr(argument_idx) = result.replacement;
-        }
+        Item *new_arg = result.replacement;
+        func_item->arguments()[argument_idx] = new_arg;
       } else if (WalkAndReplace(thd, arg, get_new_item)) {
         return true;
       }
@@ -4778,11 +4711,9 @@ bool WalkAndReplace(
       if (result.action == ReplaceResult::ERROR) {
         return true;
       } else if (result.action == ReplaceResult::REPLACE) {
-        if (thd->lex->is_exec_started()) {
-          thd->change_item_tree(li.ref(), result.replacement);
-        } else {
-          *li.ref() = result.replacement;
-        }
+        Item *new_arg = result.replacement;
+        assert(item != new_arg);
+        *li.ref() = new_arg;
       } else if (WalkAndReplace(thd, arg, get_new_item)) {
         return true;
       }
@@ -4847,35 +4778,6 @@ void Query_block::remove_hidden_fields() {
 }
 
 /**
-  Refreshes the comparators after ROLLUP resolving.
-
-  This is needed because ROLLUP resolving happens after the comparators have
-  been set up. In ROLLUP resolving, it may turn out that something initially
-  believed to be constant, is not constant after all (e.g., group items that may
-  be NULL in some cases). So we call set_cmp_func() to make Arg_comparator
-  adjust/remove its caches accordingly.
-*/
-static bool refresh_comparators_after_rollup(Item *item) {
-  return WalkItem(item, enum_walk::POSTFIX, [](Item *inner_item) {
-    if (inner_item->type() != Item::FUNC_ITEM) {
-      return false;
-    }
-    switch (down_cast<Item_func *>(inner_item)->functype()) {
-      case Item_func::GE_FUNC:
-      case Item_func::GT_FUNC:
-      case Item_func::LT_FUNC:
-      case Item_func::LE_FUNC:
-      case Item_func::EQ_FUNC:
-      case Item_func::NE_FUNC:
-      case Item_func::EQUAL_FUNC:
-        return down_cast<Item_bool_func2 *>(inner_item)->set_cmp_func();
-      default:
-        return false;
-    }
-  });
-}
-
-/**
   Resolve an item (and its tree) for rollup processing by replacing items
   matching grouped expressions with Item_rollup_group_items and
   updating properties (m_nullable, PROP_ROLLUP_FIELD).
@@ -4905,37 +4807,8 @@ Item *Query_block::resolve_rollup_item(THD *thd, Item *item) {
       });
   if (error) return nullptr;
   if (changed) {
-    if (refresh_comparators_after_rollup(item)) {
-      return nullptr;
-    }
+    item->set_nullable(true);
     item->update_used_tables();
-    // Since item is now nullable, mark every expression (except rollup sum
-    // functions) depending on it as also potentially nullable. (This is a
-    // conservative choice; in some cases, expressions can be proven
-    // non-nullable even for NULL arguments.)
-    class Update_nullability_for_rollup_items : public Item_tree_walker {
-     public:
-      using Item_tree_walker::is_stopped;
-      using Item_tree_walker::stop_at;
-    };
-    Update_nullability_for_rollup_items info;
-    if (WalkItem(
-            item, enum_walk::PREFIX | enum_walk::POSTFIX,
-            [&info](Item *inner_item) {
-              if (info.is_stopped(inner_item)) {
-                return false;
-              } else if (inner_item->type() == Item::SUM_FUNC_ITEM &&
-                         down_cast<Item_sum *>(inner_item)->real_sum_func() ==
-                             Item_sum::ROLLUP_SUM_SWITCHER_FUNC) {
-                info.stop_at(inner_item);
-                return false;
-              } else {
-                inner_item->set_nullable(true);
-                return false;
-              }
-            })) {
-      return nullptr;
-    }
   }
   return item;
 }
@@ -5029,49 +4902,6 @@ bool Query_block::resolve_rollup(THD *thd) {
   }
 
   thd->lex->allow_sum_func = saved_allow;
-  return false;
-}
-
-/**
-  Checks if there are any calls to the MATCH function that take a ROLLUP column
-  as argument in the SELECT list, GROUP BY clause, HAVING clause or ORDER BY
-  clause. Such calls should be rejected, since MATCH only works on base columns.
-*/
-static bool fulltext_uses_rollup_column(const Query_block *query_block) {
-  if (query_block->olap != ROLLUP_TYPE || !query_block->has_ft_funcs()) {
-    return false;
-  }
-
-  // References to ROLLUP columns in SELECT, HAVING and ORDER BY are represented
-  // by Item_rollup_group_items. So we can just check if any of the MATCH
-  // functions has such an argument.
-  for (Item_func_match &match : *query_block->ftfunc_list) {
-    if (match.has_rollup_expr()) {
-      return true;
-    }
-  }
-
-  // The references in GROUP BY are not wrapped in Item_rollup_group_item, so we
-  // need to search for them.
-  for (ORDER *group = query_block->group_list.first; group != nullptr;
-       group = group->next) {
-    if (WalkItem(*group->item, enum_walk::PREFIX, [query_block](Item *item) {
-          if (is_function_of_type(item, Item_func::FT_FUNC)) {
-            Item_func_match *match = down_cast<Item_func_match *>(item);
-            for (unsigned i = 0; i < match->arg_count; ++i) {
-              if (query_block->find_in_group_list(match->get_arg(i),
-                                                  /*rollup_level=*/nullptr) !=
-                  nullptr) {
-                return true;
-              }
-            }
-          }
-          return false;
-        })) {
-      return true;
-    }
-  }
-
   return false;
 }
 
@@ -5873,7 +5703,8 @@ static bool replace_aggregate_in_list(Item::Aggregate_replacement &info,
   @returns true on error, else false
 */
 bool Query_block::remove_aggregates(THD *thd,
-                                    [[maybe_unused]] Query_block *select) {
+                                    Query_block MY_ATTRIBUTE((unused)) *
+                                        select) {
   for (auto it = fields.begin(); it != fields.end(); ++it) {
     Item *select_expr = *it;
     if (!select_expr->m_is_window_function &&
@@ -6085,7 +5916,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
     resolve_placeholder_tables below, we can go back and modify the references
     at this level.
   */
-  std::unordered_map<Item **, bool> contrib_exprs;
+  std::vector<Item **> contrib_exprs;
 
   // We want permanent changes
   {
@@ -6245,21 +6076,18 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
 
     // We will find all fields mentioned above by checking fields, which
     // has any hidden fields induced by ORDER BY or window specifications, in
-    // addition to fields from the select expressions. We also make a note
-    // of the expression's hidden status to mark the expression as hidden
-    // when it is replaced with derived table expression later.
+    // addition to fields from the select expressions.
     for (Item *&item : fields) {
-      contrib_exprs.emplace(std::pair<Item **, bool>(&item, item->hidden));
+      contrib_exprs.push_back(&item);
     }
 
     // Collect fields in expr, but not from inside grouped aggregates.
     Item::Collect_item_fields_or_view_refs info{&item_fields_or_view_refs,
                                                 this};
     for (auto expr : contrib_exprs) {
-      if ((*expr.first)
-              ->walk(&Item::collect_item_field_or_view_ref_processor,
-                     enum_walk::SUBQUERY_PREFIX | enum_walk::POSTFIX,
-                     pointer_cast<uchar *>(&info)))
+      if ((*expr)->walk(&Item::collect_item_field_or_view_ref_processor,
+                        enum_walk::SUBQUERY_PREFIX | enum_walk::POSTFIX,
+                        pointer_cast<uchar *>(&info)))
         return true; /* purecov: inspected */
     }
 
@@ -6275,7 +6103,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
           lfi.remove();
       }
     }
-    // We now have all fields and view references; now find only unique ones.
+    // We now have all fields and view refefences; now find only unique ones.
     lfi.init(item_fields_or_view_refs);
     while ((lf = lfi++)) {
       if (lf->type() == Item::FIELD_ITEM) {
@@ -6340,7 +6168,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
 
       for (Item_sum *agg : having_aggs.list) {
         Item::Aggregate_ref_update info(agg, new_derived);
-        [[maybe_unused]] bool error = new_derived->m_having_cond->walk(
+        bool MY_ATTRIBUTE((unused)) error = new_derived->m_having_cond->walk(
             &Item::update_aggr_refs, enum_walk::PREFIX,
             pointer_cast<uchar *>(&info));
         assert(!error);
@@ -6423,27 +6251,14 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
     for (auto vr : unique_view_refs) {
       for (auto expr : contrib_exprs) {
         Item::Item_view_ref_replacement info(vr->real_item(), *field_ptr, this);
-        Item *new_item = (*expr.first)
-                             ->transform(&Item::replace_item_view_ref,
-                                         pointer_cast<uchar *>(&info));
+        Item *new_item = (*expr)->transform(&Item::replace_item_view_ref,
+                                            pointer_cast<uchar *>(&info));
         if (new_item == nullptr) return true;
-        if (new_item != *expr.first) {
-          // Replace in base_ref_items
-          for (size_t i = 0; i < fields.size(); i++) {
-            if (base_ref_items[i] == *expr.first) {
-              base_ref_items[i] = new_item;
-              break;
-            }
-          }
-          // Replace in fields
-          *expr.first = new_item;
-          // Mark this expression as hidden if it was hidden in this query
-          // block.
-          (*expr.first)->hidden = expr.second;
-        }
+        if (new_item != *expr) *expr = new_item;
       }
       ++field_ptr;
     }
+
     // field_ptr now points to the first of the fields added to the select list
     // of the derived table's query block. We now create new fields for this
     // block which will point to the corresponding fields moved to the derived
@@ -6461,37 +6276,14 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
       pair.second->context = &new_derived->context;
 
       for (auto expr : contrib_exprs) {
-        Item_field *replacement = replaces_field;
-        // If this expression was hidden, we need to make a copy of the derived
-        // table field. The same derived table field cannot be marked both
-        // hidden and visible if the field replaces two different expressions
-        // in the transforming query block.
-        if (expr.second == true) {
-          auto hidden_field = new (thd->mem_root) Item_field(*field_ptr);
-          if (hidden_field == nullptr) return true;
-          hidden_field->item_name.set(pair.second->orig_name.ptr());
-          pair.second->orig_name.set(nullptr, 0);
-          pair.second->context = &new_derived->context;
-          replacement = hidden_field;
-        }
-        Item::Item_field_replacement info(pair.first, replacement, this);
-        Item *new_item = (*expr.first)
-                             ->transform(&Item::replace_item_field,
-                                         pointer_cast<uchar *>(&info));
+        Item::Item_field_replacement info(pair.first, replaces_field, this,
+                                          (*expr)->type() == Item::FIELD_ITEM);
+        Item *new_item = (*expr)->transform(&Item::replace_item_field,
+                                            pointer_cast<uchar *>(&info));
         if (new_item == nullptr) return true;
-        if (new_item != *expr.first) {
-          // Replace in base_ref_items
-          for (size_t i = 0; i < fields.size(); i++) {
-            if (base_ref_items[i] == *expr.first) {
-              base_ref_items[i] = new_item;
-              break;
-            }
-          }
-          // Replace in fields
-          (*expr.first) = new_item;
-          (*expr.first)->hidden = expr.second;
-        }
+        if (new_item != *expr) *expr = new_item;
       }
+
       ++field_ptr;
     }
 
@@ -6525,25 +6317,16 @@ bool Query_block::replace_subquery_in_expr(THD *thd, Item::Css_info *subquery,
   Item_singlerow_subselect::Scalar_subquery_replacement info(
       subquery->item, *tr->table->field, this, subquery->m_add_coalesce);
 
-  // ROLLUP wrappers might have been added to the expression at this point. Take
-  // care to transform the inner item and keep the rollup wrappers as is.
-  bool with_rollup_wrapper = is_rollup_group_wrapper(*expr);
-  Item *orig_unwrapped_item = unwrap_rollup_group(*expr);
   Item *new_item = (*expr)->transform(&Item::replace_scalar_subquery,
                                       pointer_cast<uchar *>(&info));
   if (new_item == nullptr) return true;
 
-  // If we replaced an item contained in the transformed query block,
-  // retain its name so the metadata column name remains correct.
+  // If we replaced an item contained in the transformed query block, save it
+  // for rollback and retain its name so the metadata column name remains
+  // correct.
   if (*expr != new_item) {
     new_item->item_name.set((*expr)->item_name.ptr());
     *expr = new_item;
-  } else if (with_rollup_wrapper) {
-    // If the original expression was a rollup group item, the inner item of the
-    // expression might have changed.
-    Item *new_unwrapped_item = unwrap_rollup_group(new_item);
-    if (new_unwrapped_item != orig_unwrapped_item)
-      new_unwrapped_item->item_name.set((*expr)->item_name.ptr());
   }
 
   new_item->update_used_tables();
@@ -6666,7 +6449,7 @@ bool Query_block::nest_derived(THD *thd, Item *join_cond,
                                mem_root_deque<TABLE_LIST *> *nested_join_list,
                                TABLE_LIST *derived_table) {
   // Locate join nest in which the joinee with the condition sits
-  const bool found [[maybe_unused]] = walk_join_list(
+  const bool found MY_ATTRIBUTE((unused)) = walk_join_list(
       *nested_join_list,
       [join_cond, &nested_join_list](TABLE_LIST *tr) mutable -> bool {
         if (tr->join_cond() == join_cond) {
@@ -6771,13 +6554,6 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
   const uint first_non_hidden = hidden_fields;
   assert((fields.size() - hidden_fields) == 1);  // scalar subquery
 
-#ifndef NDEBUG
-  // Hidden fields should come before non-hidden.
-  for (uint i = 0; i < fields.size(); i++) {
-    assert((fields[i]->hidden) != (i >= hidden_fields));
-  }
-#endif
-
   Item_field *selected_field = nullptr;
   if (fields[first_non_hidden]->type() == Item::FIELD_ITEM) {
     selected_field = down_cast<Item_field *>(fields[first_non_hidden]);
@@ -6800,44 +6576,34 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
   List_iterator<Item> li(lifted_fields->m_fields);
 
   while ((field_or_ref = li++)) {
-    Item_field *const f = down_cast<Item_field *>(field_or_ref->real_item());
+    Item_field *f = down_cast<Item_field *>(field_or_ref->real_item());
     if (!field_or_ref->is_outer_reference()) {
       // Add non-correlated fields in WHERE clause to select_list if not
       // already present
       if (selected_field == nullptr || f->field != selected_field->field) {
         m_added_non_hidden_fields++;
-
-        // If f->hidden, f should be among the hidden fields in 'fields'.
-        assert(std::any_of(fields.cbegin(), fields.cbegin() + first_non_hidden,
-                           [&f](const Item *item) { return f == item; }) ==
-               f->hidden);
-
-        Item_field *inner_field;
-
-        if (f->hidden) {
-          // Make a new Item_field to avoid changing the set of hidden
-          // Item_fields.
-          inner_field = new (thd->mem_root) Item_field(thd, f);
-          assert(!inner_field->hidden);
-        } else {
-          inner_field = f;
-        }
+        // Mark the field as visible field. An earlier transformation could
+        // have added this as a hidden item to the fields list.
+        f->hidden = false;
 
         // select_n_where_fields is counted, so safe to add to base_ref_items
-        base_ref_items[fields.size()] = inner_field;
+        base_ref_items[fields.size()] = f;
 
         // Compute position in resulting derived table (TABLE::fields)
+        // We are adding visible fields after hidden fields, which breaks
+        // an earlier invariant. Hard to avoid here.
         // Note the corresponding slice position calculation performed in
-        //     - change_to_use_tmp_fields_except_sums  (example figure
-        //     expanded)
+        //     - change_to_use_tmp_fields_except_sums  (example figure expanded)
+        //     - setup_copy_fields
         //     - change_to_use_tmp_fields
         // takes this new situation into account.
         lifted_fields->m_field_positions.push_back(fields.size() -
                                                    hidden_fields);
-        fields.push_back(inner_field);
+        fields.push_back(f);
+
         // We have added to fields; master_query_expression->types must
         // always be equal to it;
-        master_query_expression()->types.push_back(inner_field);
+        master_query_expression()->types.push_back(f);
       } else {
         // This is the field present in the scalar subquery initially, so it
         // will be first in the derived table's set of fields.
@@ -6955,9 +6721,8 @@ bool Query_block::decorrelate_derived_scalar_subquery_post(
       Field *field_in_derived = derived->table->field[pos_in_fields];
       auto replaces_field = new (thd->mem_root) Item_field(field_in_derived);
       if (replaces_field == nullptr) return true;
-      assert(replaces_field->data_type() == f->data_type());
 
-      Item::Item_field_replacement info(f->field, replaces_field, this);
+      Item::Item_field_replacement info(f->field, replaces_field, this, false);
       Item *new_item = derived->join_cond()->transform(
           &Item::replace_item_field, pointer_cast<uchar *>(&info));
       if (new_item == nullptr) return true;
@@ -7108,30 +6873,26 @@ bool Query_block::transform_subquery_to_derived(
 }
 
 /**
-  Called to check if the provided correlated predicate is eligible for
-  transformation. To be eligible, it must have one non-correlated operand
-  and one correlated operand, and the non-correlated operand must be a
-  simple column reference (Else we need to group on expressions in the
-  derived table - not supported currently).
+  Called (before transforming a correlated subquery to derived table)
+  to check if the predicate that is being looked into is an equality and
+  that its non-correlated operand is a simple column reference.
+  (Else we need to group on expressions in the derived table -
+  not supported currently).
   @param  cor_pred correlated predicate that needs to be examined
-  @return true if predicate is eligible for transformation.
+  @return true if the check fails, false otherwise.
 */
-bool is_correlated_predicate_eligible(Item *cor_pred) {
-  assert(cor_pred->is_outer_reference());
+bool check_predicate_and_args(Item *cor_pred) {
   if (cor_pred->type() == Item::FUNC_ITEM &&
       down_cast<Item_func *>(cor_pred)->functype() != Item_func::EQ_FUNC)
-    return false;
+    return true;
   Item_func *eq_func = down_cast<Item_func *>(cor_pred);
-  bool non_correlated_operand = false;
   for (uint i = 0; i < eq_func->argument_count(); i++) {
     Item *item = eq_func->arguments()[i];
-    if (!item->is_outer_reference()) {
-      if (item->real_item()->type() != Item::FIELD_ITEM) return false;
-      non_correlated_operand = true;
-    }
+    if (!item->is_outer_reference() &&
+        item->real_item()->type() != Item::FIELD_ITEM)
+      return true;
   }
-  // We need to find one non-correlated operand in the correlated predicate
-  return non_correlated_operand;
+  return false;
 }
 
 /**
@@ -7182,7 +6943,7 @@ static bool extract_correlated_condition(THD *thd, Item **cond,
         else if (!cor_pred->eq(pred, false))
           continue;
         found = true;
-        if (!is_correlated_predicate_eligible(cor_pred)) return true;
+        if (check_predicate_and_args(cor_pred)) return true;
         break;
       }
     }
@@ -7407,7 +7168,7 @@ bool Query_block::supported_correlated_scalar_subquery(THD *thd,
         cor_pred = cond_part;
         cond_part = nullptr;
       }
-      if (!is_correlated_predicate_eligible(cor_pred)) return false;
+      if (check_predicate_and_args(cor_pred)) return false;
       going.push_back(cor_pred);
     }
     if (cond_part) staying.push_back(cond_part);
@@ -7418,7 +7179,7 @@ bool Query_block::supported_correlated_scalar_subquery(THD *thd,
   // expression containing this outer reference is not marked as such due to
   // some optimizations. Reject such queries for transformation (Since we
   // anyways reject queries with non-correlated operands having expressions in
-  // is_correlated_predicate_eligible())
+  // check_predicate_and_args())
   if (going.elements == 0) return false;
 
   // Construct a new, reduced, WHERE clause sans the lifted predicates, which
@@ -7688,20 +7449,13 @@ bool Query_block::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
     do {
       old_size = fields.size();
       for (Item *&select_expr : fields) {
-        // At this time, expression could be wrapped in a rollup group
-        // wrapper. It is the inner item of the rollup group item that
-        // gets replaced. We take care to retain the rollup wrappers.
-        Item *prev_value = unwrap_rollup_group(select_expr);
+        Item *prev_value = select_expr;
         if (replace_subquery_in_expr(thd, &subquery, tl, &select_expr))
           return true;
-        Item *unwrapped_select_expr = unwrap_rollup_group(select_expr);
-        if (unwrapped_select_expr != prev_value) {
-          // If we replace a subquery in the select field list, possibly
-          // hidden inside a rollup wrapper, replace corresponding item
-          // in base_ref_items
+        if (select_expr != prev_value) {
           for (size_t i = 0; i < fields.size(); i++) {
             if (base_ref_items[i] == prev_value)
-              base_ref_items[i] = unwrapped_select_expr;
+              base_ref_items[i] = select_expr;
           }
         }
         if (fields.size() != old_size) {

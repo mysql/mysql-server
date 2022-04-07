@@ -74,7 +74,7 @@ class Digest {
 
 class Literal_visitor {
  public:
-  virtual ~Literal_visitor() = default;
+  virtual ~Literal_visitor() {}
   virtual bool visit(MYSQL_ITEM item) = 0;
 };
 

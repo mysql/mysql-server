@@ -59,7 +59,7 @@ public:
   /**
    * Length of signal
    */
-  static constexpr Uint32 SignalLength = 8;
+  STATIC_CONST( SignalLength = 8 );
 
 private:
 

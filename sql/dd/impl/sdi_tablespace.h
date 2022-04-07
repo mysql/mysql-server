@@ -75,7 +75,7 @@ bool store_tsp_sdi(handlerton *hton, const Sdi_type &sdi,
   charset for the schema).
  */
 bool drop_tbl_sdi(THD *thd, const handlerton &hton, const Table &table,
-                  const Schema &schema [[maybe_unused]]);
+                  const Schema &schema MY_ATTRIBUTE((unused)));
 
 /**
   Deletes all SDIs with SDI_TYPE_TABLE from the table tablespace. In case of

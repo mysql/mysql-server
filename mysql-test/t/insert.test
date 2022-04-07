@@ -68,20 +68,15 @@ select * from t1;
 drop table t1;
 
 #
-# Test of insert ... select distinct
+# Test if insert ... select distinct
 #
 
 create table t1 (email varchar(50));
 insert into t1 values ('sasha@mysql.com'),('monty@mysql.com'),('foo@hotmail.com'),('foo@aol.com'),('bar@aol.com');
 create table t2(id int not null auto_increment primary key, t2 varchar(50), unique(t2));
 insert into t2 (t2) select distinct substring(email, locate('@', email)+1) from t1;
-# Different ordering from SELECT DISTINCT leads to different (id,t2)
-# pairs. Check each column separately so that the test doesn't rely on
-# a particular ordering.
 --sorted_result
-select id from t2;
---sorted_result
-select t2 from t2;
+select * from t2;
 drop table t1,t2;
 
 #
@@ -991,45 +986,3 @@ DEALLOCATE PREPARE stmt;
 DROP VIEW v1;
 DROP TABLE t1, t2;
 
---echo #
---echo # Bug #32169656: MYSQL GIVING QUERY RESULT FOR WRONG COLUMN
---echo #
-
-CREATE TABLE t1 (
-  Ñ INTEGER,
-  N INTEGER,
-  a INTEGER,
-  b INTEGER,
-  c INTEGER,
-  d INTEGER,
-  e INTEGER,
-  f INTEGER,
-  g INTEGER,
-  h INTEGER,
-  i INTEGER,
-  j INTEGER,
-  k INTEGER,
-  l INTEGER,
-  m INTEGER,
-  na INTEGER,
-  o INTEGER,
-  p INTEGER,
-  q INTEGER,
-  r INTEGER,
-  s INTEGER,
-  t INTEGER,
-  u INTEGER,
-  v INTEGER,
-  w INTEGER,
-  x INTEGER,
-  y INTEGER,
-  z INTEGER,
-  aa INTEGER,
-  ab INTEGER,
-  ac INTEGER,
-  ad INTEGER
-);
-
-INSERT INTO t1 (Ñ, N) VALUES (1, 2);
-
-DROP TABLE t1;

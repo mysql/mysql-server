@@ -30,7 +30,6 @@
 #include "xcom/synode_no.h"  /* synode_eq */
 #include "xcom/xcom_base.h"  /* pm_finished */
 #include "xcom/xcom_cache.h" /* pax_machine, hash_get */
-#include "xcom/xcom_memory.h"
 
 static xcom_get_synode_app_data_result can_satisfy_request(
     synode_no_array const *const synodes);
@@ -136,7 +135,7 @@ static xcom_get_synode_app_data_result prepare_reply(
   u_int const nr_synodes = synodes->synode_no_array_len;
 
   reply->synode_app_data_array_val =
-      (synode_app_data *)xcom_calloc(nr_synodes, sizeof(synode_app_data));
+      (synode_app_data *)calloc(nr_synodes, sizeof(synode_app_data));
   if (reply->synode_app_data_array_val == NULL) {
     /* purecov: begin inspected */
     error_code = XCOM_GET_SYNODE_APP_DATA_NO_MEMORY;
@@ -186,7 +185,6 @@ static xcom_get_synode_app_data_result copy_synode_app_data_to_reply(
   checked_data const *cached_data = &p->a->body.app_u_u.data;
 
   reply->synode = *synode;
-  reply->origin = p->a->unique_id;
 
   /*
    We need to copy because by the time the reply is sent, the cache may have

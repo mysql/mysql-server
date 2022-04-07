@@ -36,7 +36,7 @@ struct DbinfoScanCursor
 
 struct DbinfoScan
 {
-  static constexpr Uint32 SignalLength = 12;
+  STATIC_CONST( SignalLength = 12 );
 
   // API identifiers
   Uint32 resultData;      // Will be returned in TransIdAI::connectPtr
@@ -74,7 +74,7 @@ typedef DbinfoScan DbinfoScanConf;
 
 struct DbinfoScanRef
 {
-  static constexpr Uint32 SignalLength = 5;
+  STATIC_CONST( SignalLength = 5 );
 
   // API identifiers
   Uint32 resultData;      // Will be returned in TransIdAI::connectPtr

@@ -1,2 +1,0 @@
---replica-parallel-workers=6
---replica-transaction-retries=0

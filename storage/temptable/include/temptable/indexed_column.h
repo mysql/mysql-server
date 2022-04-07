@@ -49,9 +49,7 @@ class Indexed_column {
   const Cell_calculator &cell_calculator() const;
 
  private:
-  /** The position of the indexed column. It can range from 1 to MAX_FIELDS.
-  Use an appropriate datatype that can hold these values. */
-  uint16_t m_mysql_field_index;
+  uint8_t m_mysql_field_index;
   uint32_t m_prefix_length;
   Cell_calculator m_cell_calculator;
 };

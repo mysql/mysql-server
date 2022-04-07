@@ -41,8 +41,8 @@ const ib_uint64_t CLONE_LOC_INVALID_ID = 0;
 
 /** Maximum base length for any serialized descriptor. This is only used for
 optimal allocation and has no impact on version compatibility. */
-const uint32_t CLONE_DESC_MAX_BASE_LEN =
-    64 + Encryption::KEY_LEN + Encryption::KEY_LEN;
+const uint32_t CLONE_DESC_MAX_BASE_LEN = 64;
+
 /** Align by 4K for O_DIRECT */
 const uint32_t CLONE_ALIGN_DIRECT_IO = 4 * 1024;
 
@@ -89,7 +89,7 @@ Clone Type: HA_CLONE_HYBRID
 
 Clone Type: HA_CLONE_PAGE: Not implemented
 */
-enum Snapshot_State : uint32_t {
+enum Snapshot_State {
   /** Invalid state */
   CLONE_SNAPSHOT_NONE = 0,
 
@@ -108,9 +108,6 @@ enum Snapshot_State : uint32_t {
   /** Snapshot state at end after finishing transfer. */
   CLONE_SNAPSHOT_DONE
 };
-
-/** Total number of data transfer stages in clone. */
-const size_t CLONE_MAX_TRANSFER_STAGES = 3;
 
 /** Choose lowest descriptor version between reference locator
 and currently supported version.
@@ -483,29 +480,6 @@ struct Clone_Desc_State {
 
 /** Clone file information */
 struct Clone_File_Meta {
-  /** Set file as deleted chunk.
-  @param[in]	chunk	chunk number that is found deleted. */
-  inline void set_deleted_chunk(uint32 chunk) {
-    m_begin_chunk = chunk;
-    m_end_chunk = 0;
-    m_deleted = true;
-  }
-
-  /** @return true, iff file is deleted. */
-  bool is_deleted() const { return m_deleted; }
-
-  /** @return true, iff file is deleted. */
-  bool is_renamed() const { return m_renamed; }
-
-  /** Reset DDL state of file metadata. */
-  void reset_ddl() {
-    m_renamed = false;
-    m_deleted = false;
-  }
-
-  /* Initialize parameters. */
-  void init();
-
   /** File size in bytes */
   uint64_t m_file_size;
 
@@ -525,15 +499,6 @@ struct Clone_File_Meta {
   and is not transferred. */
   bool m_punch_hole;
 
-  /* Set file metadata as deleted. */
-  bool m_deleted;
-
-  /* Set file metadata as renamed. */
-  bool m_renamed;
-
-  /* Contains encryption key to be transferred. */
-  bool m_transfer_encryption_key;
-
   /** File system block size. */
   size_t m_fsblk_size;
 
@@ -552,17 +517,8 @@ struct Clone_File_Meta {
   /** File name length in bytes */
   size_t m_file_name_len;
 
-  /** Allocation length of name buffer. */
-  size_t m_file_name_alloc_len;
-
   /** File name */
   const char *m_file_name;
-
-  /** Encryption Key. */
-  byte m_encryption_key[Encryption::KEY_LEN]{};
-
-  /** Encryption Vector. */
-  byte m_encryption_iv[Encryption::KEY_LEN]{};
 };
 
 /** CLONE_DESC_FILE_METADATA: Descriptor for file metadata */

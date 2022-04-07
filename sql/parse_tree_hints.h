@@ -83,8 +83,8 @@ class PT_hint : public Parse_tree_node {
     @param thd             Pointer to THD object
     @param str             Pointer to String object
   */
-  virtual void append_args(const THD *thd [[maybe_unused]],
-                           String *str [[maybe_unused]]) const {}
+  virtual void append_args(const THD *thd MY_ATTRIBUTE((unused)),
+                           String *str MY_ATTRIBUTE((unused))) const {}
   bool supports_view() {
     /*
       Only index hints are supported to be used in views.

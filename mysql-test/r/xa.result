@@ -77,7 +77,8 @@ update t1 set c = 'bb' where a = 2;
 update t1 set c = 'aa' where a = 1;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 select count(*) from t1;
-ERROR XA102: XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected
+count(*)
+2
 xa end 'a','c';
 ERROR XA102: XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected
 xa rollback 'a','c';

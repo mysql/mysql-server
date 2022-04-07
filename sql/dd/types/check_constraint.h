@@ -47,7 +47,7 @@ class Check_constraint : virtual public Entity_object {
   enum enum_constraint_state { CS_NOT_ENFORCED = 1, CS_ENFORCED };
 
  public:
-  ~Check_constraint() override = default;
+  ~Check_constraint() override {}
 
   /////////////////////////////////////////////////////////////////////////
   // State. (enforced / not enforced)

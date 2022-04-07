@@ -47,8 +47,8 @@ static inline void require_fn(bool cond)
 {
   if (cond)
     return;
-  g_eventLogger->info("YYY: FATAL ERROR: %s: %s: %d: REQUIRE FAILED: %s", file,
-                      func, line, cond_str);
+  std::fprintf(stderr,"YYY: FATAL ERROR: %s: %s: %d: REQUIRE FAILED: %s\n",
+    file,func,line,cond_str);
   std::abort();
 }
 #define require(cc) require_fn<#cc,__FILE__,__func__,__LINE__>((cc))

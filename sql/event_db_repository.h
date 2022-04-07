@@ -27,10 +27,12 @@
 
 #include "lex_string.h"
 #include "my_inttypes.h"
-#include "my_time_t.h"  // my_time_t
+
 class Event_basic;
 class Event_parse_data;
 class THD;
+
+typedef long my_time_t;
 
 namespace dd {
 class Schema;
@@ -84,7 +86,7 @@ enum enum_events_table_field {
 */
 
 class Event_db_repository {
-  Event_db_repository() = default;
+  Event_db_repository() {}
 
  public:
   static bool create_event(THD *thd, Event_parse_data *parse_data,

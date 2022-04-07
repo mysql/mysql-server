@@ -23,12 +23,8 @@
 */
 
 #include <ndb_global.h>
-
-#include <time.h>
-
 #include <ndb_opts.h>
 
-#include <NdbIndexStat.hpp>
 #include "NDBT.hpp"
 #include "NDBT_Test.hpp"
 #include "my_thread_local.h"
@@ -37,7 +33,7 @@
 
 #include "my_alloc.h"
 
-static bool opt_stop_on_error = false;
+static int opt_stop_on_error = 0;
 
 NDBT_Context::NDBT_Context(Ndb_cluster_connection& con)
   : m_cluster_connection(con)
@@ -286,36 +282,10 @@ void NDBT_Context::setNumLoops(int _loops){
   loops = _loops;
 }
 
-void NDBT_Context::getRecordSubRange(int records,
-                                     int rangeCount,
-                                     int rangeId,
-                                     int& startRecord,
-                                     int& stopRecord)
-{
-  int recordsPerStep = records / rangeCount;
-  if (recordsPerStep == 0)
-  {
-    recordsPerStep = 1;
-  }
-  startRecord = rangeId * recordsPerStep;
-  stopRecord = startRecord + recordsPerStep;
-
-  if (stopRecord > records)
-  {
-    stopRecord = records;
-  }
-  if (startRecord >= records)
-  {
-    startRecord = stopRecord = 0;
-  }
-}
-
-
 NDBT_Step::NDBT_Step(NDBT_TestCase* ptest, const char* pname,
                      NDBT_TESTFUNC* pfunc) :
   m_ctx(NULL), name(pname), func(pfunc),
-  testcase(ptest), step_no(-1), step_type_no(0),
-  step_type_count(1), m_ndb(NULL)
+  testcase(ptest), step_no(-1), m_ndb(NULL)
 {
 }
 
@@ -420,13 +390,8 @@ NDBT_Context* NDBT_Step::getContext(){
 
 NDBT_ParallelStep::NDBT_ParallelStep(NDBT_TestCase* ptest, 
 				     const char* pname, 
-				     NDBT_TESTFUNC* pfunc,
-                                     int num,
-                                     int count)
+				     NDBT_TESTFUNC* pfunc)
   : NDBT_Step(ptest, pname, pfunc) {
-  require(num < count);
-  step_type_no = num;
-  step_type_count = count;
 }
 NDBT_Verifier::NDBT_Verifier(NDBT_TestCase* ptest, 
 			     const char* pname, 
@@ -889,7 +854,6 @@ NDBT_TestSuite::NDBT_TestSuite(const char* pname) :
    runonce = false;
    m_noddl = false;
    m_forceShort = false;
-   m_ensureIndexStatTables = true;
 }
 
 
@@ -937,10 +901,6 @@ bool NDBT_TestSuite::getLogging() const {
 
 bool NDBT_TestSuite::getForceShort() const {
   return m_forceShort;
-}
-
-void NDBT_TestSuite::setEnsureIndexStatTables(bool val) {
-  m_ensureIndexStatTables = val;
 }
 
 bool NDBT_TestSuite::timerIsOn(){
@@ -1310,43 +1270,6 @@ runCreateTable(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
-static int
-runEnsureIndexStatTables(NDBT_Context* ctx, NDBT_Step* step)
-{
-  Ndb ndb(&ctx->m_cluster_connection, "mysql");
-  ndb.init(1);
-
-  NdbIndexStat index_stat;
-  if (index_stat.check_systables(&ndb) == 0) {
-    return NDBT_OK;
-  }
-
-  if (index_stat.create_systables(&ndb) != 0) {
-    g_err << "runEnsureIndexStatTables: Failed to create index stat tables. "
-          << "Error = " << index_stat.getNdbError().code << ": "
-          << index_stat.getNdbError().message << endl;
-    return NDBT_FAILED;
-  }
-  // Index stat tables created successfully
-  return NDBT_OK;
-}
-
-
-static bool indexStatTablesExist(Ndb_cluster_connection *connection)
-{
-  Ndb ndb(connection, "mysql");
-  ndb.init(1);
-
-  NdbIndexStat index_stat;
-  if (index_stat.check_systables(&ndb) == 0)
-  {
-    // Stat tables exist
-    return true;
-  }
-  return false;
-}
-
-
 int
 NDBT_TestSuite::dropTables(Ndb_cluster_connection& con) const
 {
@@ -1520,19 +1443,19 @@ int NDBT_TestSuite::reportAllTables(const char* _testname){
   return result;
 }
 
-static bool opt_print = false;
-static bool opt_print_html = false;
-static bool opt_print_cases = false;
+static int opt_print = false;
+static int opt_print_html = false;
+static int opt_print_cases = false;
 static int opt_records;
 static int opt_loops;
-static bool opt_timer;
+static int opt_timer;
 static char * opt_testname = NULL;
-static bool opt_verbose;
+static int opt_verbose;
 unsigned opt_seed = 0;
-static bool opt_nologging = false;
-static bool opt_temporary = false;
-static bool opt_noddl = false;
-static bool opt_forceShort = false;
+static int opt_nologging = 0;
+static int opt_temporary = 0;
+static int opt_noddl = 0;
+static int opt_forceShort = 0;
 
 static const char *load_default_groups[]= {
                        "mysql_cluster",
@@ -1706,7 +1629,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
 
       if (!m_noddl)
       {
-        createFuncName= m_createAll ? "runCreateTables" : "runCreateTable";
+        createFuncName= m_createAll ? "runCreateTable" : "runCreateTable";
         createFunc=   m_createAll ? &runCreateTables : &runCreateTable;
         dropFuncName= m_createAll ? "runDropTables" : "runDropTable";
         dropFunc= m_createAll ? &runDropTables : &runDropTable;
@@ -1744,7 +1667,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
 
       if (!m_noddl)
       {
-        createFuncName= m_createAll ? "runCreateTables" : "runCreateTable";
+        createFuncName= m_createAll ? "runCreateTable" : "runCreateTable";
         createFunc=   m_createAll ? &runCreateTables : &runCreateTable;
         dropFuncName= m_createAll ? "runDropTables" : "runDropTable";
         dropFunc= m_createAll ? &runDropTables : &runDropTable;
@@ -1774,33 +1697,6 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     }
   }
 
-  if (m_ensureIndexStatTables && !m_noddl)
-  {
-    /* Ensure that the index stat system tables are present. This is done in an
-     * initializer which checks if the tables are present and creates them if
-     * needed
-     */
-    for (unsigned t = 0; t < tests.size(); t++)
-    {
-      NDBT_TestCaseImpl1* pt= (NDBT_TestCaseImpl1*)tests[t];
-      NDBT_Initializer* pti =
-        new NDBT_Initializer(pt,
-                             "runEnsureIndexStatTables",
-                             &runEnsureIndexStatTables);
-      pt->addInitializer(pti, true);
-    }
-
-    for (unsigned t = 0; t < explicitTests.size(); t++)
-    {
-      NDBT_TestCaseImpl1* pt= (NDBT_TestCaseImpl1*)tests[t];
-      NDBT_Initializer* pti =
-        new NDBT_Initializer(pt,
-                             "runEnsureIndexStatTables",
-                             &runEnsureIndexStatTables);
-      pt->addInitializer(pti, true);
-    }
-  }
-
   if (opt_print == true){
     printExecutionTree();
     return 0;
@@ -1822,12 +1718,6 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     return NDBT_ProgramExit(NDBT_FAILED);
   }
   con.set_optimized_node_selection(opt_ndb_optimized_node_selection);
-
-  if (m_ensureIndexStatTables && m_noddl && !indexStatTablesExist(&con))
-  {
-    ndbout << "Index stat system tables are missing and can't be created "
-           << "since --noddl is enabled." << endl;
-  }
 
   if(argc == 0){
     // No table specified

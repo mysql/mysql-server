@@ -117,66 +117,45 @@ SocketOutputStream::SocketOutputStream(NDB_SOCKET_TYPE socket,
 int
 SocketOutputStream::print(const char * fmt, ...){
   va_list ap;
-  char buf[1000];
-  char *buf2 = buf;
-  size_t size;
 
-  if (fmt != 0 && fmt[0] != 0) {
-    va_start(ap, fmt);
-    size = BaseString::vsnprintf(buf, sizeof(buf), fmt, ap);
-    va_end(ap);
+  if(timedout())
+    return -1;
 
-    /* Check if the output was truncated */
-    if (size > sizeof(buf)) {
-      buf2 = (char *)malloc(size);
-      if(buf2 == nullptr) {
-        return -1;
-      }
+  int time= 0;
+  va_start(ap, fmt);
+  int ret = vprint_socket(m_socket, m_timeout_ms, &time, fmt, ap);
+  va_end(ap);
 
-      va_start(ap, fmt);
-      BaseString::vsnprintf(buf2, size, fmt, ap);
-      va_end(ap);
-    }
+  if(ret >= 0)
+    m_timeout_remain-=time;
+  if((ret < 0 && errno==SOCKET_ETIMEDOUT) || m_timeout_remain<=0)
+  {
+    m_timedout= true;
+    ret= -1;
   }
-  else
-    return 0;
 
-  const int ret = write(buf2, size);
-  if (buf2 != buf) {
-    free(buf2);
-  }
   return ret;
 }
-
 int
 SocketOutputStream::println(const char * fmt, ...){
   va_list ap;
-  char buf[1000];
-  char *buf2 = buf;
-  size_t size;
 
-  if (fmt != 0 && fmt[0] != 0) {
-    va_start(ap, fmt);
-    size = BaseString::vsnprintf(buf, sizeof(buf), fmt, ap)+1;// extra byte for '/n'
-    va_end(ap);
+  if(timedout())
+    return -1;
 
-    /* Check if the output was truncated */
-    if(size > sizeof(buf)) {
-      buf2 = (char *)malloc(size);
-      if(buf2 == nullptr)
-        return -1;
-      va_start(ap, fmt);
-      BaseString::vsnprintf(buf2, size, fmt, ap);
-      va_end(ap);
-    }
-  } else {
-    size = 1;
+  int time= 0;
+  va_start(ap, fmt);
+  int ret = vprintln_socket(m_socket, m_timeout_ms, &time, fmt, ap);
+  va_end(ap);
+
+  if(ret >= 0)
+    m_timeout_remain-=time;
+  if ((ret < 0 && errno==SOCKET_ETIMEDOUT) || m_timeout_remain<=0)
+  {
+    m_timedout= true;
+    ret= -1;
   }
-  buf2[size-1]='\n';
 
-  int ret = write(buf2, size);
-  if(buf2 != buf)
-    free(buf2);
   return ret;
 }
 
@@ -293,82 +272,3 @@ void BufferedSockOutputStream::flush(){
   m_buffer.clear();
 }
 
-StaticBuffOutputStream::StaticBuffOutputStream(char* buff, size_t size):
-  m_buff(buff), m_size(size), m_offset(0)
-{
-  reset();
-}
-
-StaticBuffOutputStream::~StaticBuffOutputStream() {}
-
-int
-StaticBuffOutputStream::print(const char * fmt, ...)
-{
-  va_list ap;
-  size_t remain = m_size - m_offset;
-  assert(m_offset < m_size);
-
-  // Print to buffer
-  va_start(ap, fmt);
-  int idealLen = BaseString::vsnprintf(m_buff + m_offset,
-                                       remain,
-                                       fmt,
-                                       ap);
-  va_end(ap);
-
-  if (idealLen >= 0)
-  {
-    m_offset = MIN(m_offset + idealLen, m_size - 1);
-    assert(m_buff[m_offset] == '\0');
-    return 0;
-  }
-  assert(m_buff[m_offset] == '\0');
-  return -1;
-}
-
-int
-StaticBuffOutputStream::println(const char * fmt, ...)
-{
-  va_list ap;
-  size_t remain = m_size - m_offset;
-  assert(m_offset < m_size);
-
-  // Print to buffer
-  va_start(ap, fmt);
-  int idealLen = BaseString::vsnprintf(m_buff + m_offset,
-                                       remain,
-                                       fmt,
-                                       ap);
-  va_end(ap);
-
-  if (idealLen >= 0)
-  {
-    m_offset = MIN(m_offset + idealLen, m_size - 1);
-
-    return print("\n");
-  }
-  assert(m_buff[m_offset] == '\0');
-  return -1;
-}
-
-int
-StaticBuffOutputStream::write(const void * buf, size_t len)
-{
-  /* Will write as much as we can, ensuring space for
-   * terminating null
-   */
-  assert(m_offset < m_size);
-  size_t remain = m_size - m_offset;
-
-  if (remain > 1)
-  {
-    size_t copySz = MIN(len, remain -1);
-    memcpy(m_buff, buf, copySz);
-    m_offset+= copySz;
-    m_buff[m_offset]='\0';
-    return copySz;
-  }
-
-  assert(m_buff[m_offset] == '\0');
-  return 0;
-}

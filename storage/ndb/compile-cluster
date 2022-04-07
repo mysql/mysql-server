@@ -173,13 +173,9 @@ if(! -d "$opt_srcdir/libmysqld")
     push(@args, "-DWITH_ROUTER=0"); # No MySQL Router
     push(@args, "-DWITH_MEB=0"); # No MEB
     push(@args, "-DWITH_RAPID=0"); # No RAPID
-    push(@args, "-DWITH_GROUP_REPLICATION=0"); # No GR
 
-    # To speed up build it's possible to skip building the
-    # unittests with "-DWITH_UNIT_TESTS=0", however those
-    # are important and certainly well worth the time spent
-    # to detect problems early and should thus not be skipped
-    # by default.
+    # Also removing Unit tests - not unrelated
+    push(@args, "-DWITH_UNIT_TESTS=0"); # No Unit tests
   }
 
   if ($opt_autotest)

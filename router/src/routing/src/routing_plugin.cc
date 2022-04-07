@@ -36,7 +36,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/tls_server_context.h"
-#include "mysql/harness/utility/string.h"  // join, string_format
+#include "mysql/harness/utility/string.h"  // join
 #include "mysql_routing.h"
 #include "mysqlrouter/destination.h"
 #include "mysqlrouter/io_component.h"
@@ -49,10 +49,11 @@ using mysql_harness::AppInfo;
 using mysql_harness::ConfigSection;
 using mysqlrouter::URI;
 using mysqlrouter::URIError;
+using std::string;
 IMPORT_LOG_FUNCTIONS()
 
 const mysql_harness::AppInfo *g_app_info;
-static const std::string kSectionName = "routing";
+static const string kSectionName = "routing";
 
 static void validate_socket_info(const std::string &err_prefix,
                                  const mysql_harness::ConfigSection *section,
@@ -137,7 +138,6 @@ static void init(mysql_harness::PluginFuncEnv *env) {
 
   try {
     if (info->config != nullptr) {
-      MySQLRoutingComponent::get_instance().init(*info->config);
       bool have_metadata_cache = false;
       bool need_metadata_cache = false;
       std::vector<mysql_harness::TCPAddress> bind_addresses;
@@ -146,7 +146,7 @@ static void init(mysql_harness::PluginFuncEnv *env) {
         if (section->name == kSectionName) {
           io_context_work_guards.emplace_back(IoComponent::get_instance());
 
-          const auto err_prefix = mysql_harness::utility::string_format(
+          const auto err_prefix = mysqlrouter::string_format(
               "in [%s%s%s]: ", section->name.c_str(),
               section->key.empty() ? "" : ":", section->key.c_str());
           // Check the configuration
@@ -207,14 +207,18 @@ static void init(mysql_harness::PluginFuncEnv *env) {
     }
     g_app_info = info;
   } catch (const std::invalid_argument &exc) {
+    log_error("%s", exc.what());  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
 
     io_context_work_guards.clear();
   } catch (const std::exception &exc) {
+    log_error("%s", exc.what());  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kRuntimeError, "%s", exc.what());
 
     io_context_work_guards.clear();
   } catch (...) {
+    log_error(
+        "Unexpected exception");  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kUndefinedError, "Unexpected exception");
 
     io_context_work_guards.clear();
@@ -245,7 +249,7 @@ static std::string get_default_ciphers() {
 static void start(mysql_harness::PluginFuncEnv *env) {
   const mysql_harness::ConfigSection *section = get_config_section(env);
 
-  std::string name;
+  string name;
   if (!section->key.empty()) {
     name = section->name + ":" + section->key;
   } else {
@@ -297,7 +301,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
         } else {
           throw std::invalid_argument(
               "setting client_ssl_curves is not supported by the ssl library, "
-              "it should stay unset");
+              "it "
+              "should stay unset");
         }
       }
 
@@ -419,11 +424,16 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     MySQLRoutingComponent::get_instance().init(section->key, r);
     r->start(env);
   } catch (const std::invalid_argument &exc) {
+    log_error("%s", exc.what());  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
   } catch (const std::runtime_error &exc) {
+    log_error("%s: %s", name.c_str(),
+              exc.what());  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kRuntimeError, "%s: %s", name.c_str(),
               exc.what());
   } catch (...) {
+    log_error(
+        "Unexpected exception");  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kUndefinedError, "Unexpected exception");
   }
 

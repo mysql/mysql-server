@@ -87,8 +87,6 @@
   @{
 */
 
-namespace {
-
 /**
   @defgroup Instantiators Instantiator functions
 
@@ -125,8 +123,10 @@ namespace {
 
   @see Function_factory::create_func()
 */
-constexpr auto MAX_ARGLIST_SIZE =
+static const auto MAX_ARGLIST_SIZE =
     std::numeric_limits<decltype(PT_item_list().elements())>::max();
+
+namespace {
 
 /**
   Instantiates a function class with the list of arguments.
@@ -641,6 +641,8 @@ using Pointfromwkb_instantiator = G_i<I_wkb, wkb_ft::POINTFROMWKB>;
 using Polyfromwkb_instantiator = G_i<I_wkb, wkb_ft::POLYFROMWKB>;
 using Polygonfromwkb_instantiator = G_i<I_wkb, wkb_ft::POLYGONFROMWKB>;
 
+}  // namespace
+
 class Bin_instantiator {
  public:
   static const uint Min_argcount = 1;
@@ -932,27 +934,6 @@ class Make_set_instantiator {
   }
 };
 
-/// Instantiates a call to JSON_LENGTH, which may take either one or
-/// two arguments. The two-argument variant is rewritten from
-/// JSON_LENGTH(doc, path) to JSON_LENGTH(JSON_EXTRACT(doc, path)).
-class Json_length_instantiator {
- public:
-  static constexpr int Min_argcount = 1;
-  static constexpr int Max_argcount = 2;
-
-  Item *instantiate(THD *thd, PT_item_list *args) {
-    if (args->elements() == 1) {
-      return new (thd->mem_root) Item_func_json_length(POS(), (*args)[0]);
-    } else {
-      assert(args->elements() == 2);
-      auto arg = new (thd->mem_root)
-          Item_func_json_extract(thd, POS(), (*args)[0], (*args)[1]);
-      if (arg == nullptr) return nullptr;
-      return new (thd->mem_root) Item_func_json_length(POS(), arg);
-    }
-  }
-};
-
 /// @} (end of group Instantiators)
 
 uint arglist_length(const PT_item_list *args) {
@@ -970,6 +951,8 @@ bool check_argcount_bounds(THD *, LEX_STRING function_name,
   }
   return false;
 }
+
+namespace {
 
 /**
   Factory for creating function objects. Performs validation check that the
@@ -1003,7 +986,7 @@ class Function_factory : public Create_func {
   }
 
  private:
-  Function_factory() = default;
+  Function_factory() {}
   Instantiator_fn m_instantiator;
 };
 
@@ -1030,7 +1013,7 @@ class Odd_argcount_function_factory : public Create_func {
   }
 
  private:
-  Odd_argcount_function_factory() = default;
+  Odd_argcount_function_factory() {}
   Instantiator_fn m_instantiator;
 };
 
@@ -1057,7 +1040,7 @@ class Even_argcount_function_factory : public Create_func {
   }
 
  private:
-  Even_argcount_function_factory() = default;
+  Even_argcount_function_factory() {}
   Instantiator_fn m_instantiator;
 };
 
@@ -1092,7 +1075,7 @@ class Internal_function_factory : public Create_func {
   }
 
  private:
-  Internal_function_factory() = default;
+  Internal_function_factory() {}
   Instantiator_fn m_instantiator;
 };
 
@@ -1114,9 +1097,9 @@ class Create_sp_func : public Create_qfunc {
 
  protected:
   /** Constructor. */
-  Create_sp_func() = default;
+  Create_sp_func() {}
   /** Destructor. */
-  ~Create_sp_func() override = default;
+  ~Create_sp_func() override {}
 };
 
 Item *Create_qfunc::create_func(THD *thd, LEX_STRING name,
@@ -1192,7 +1175,7 @@ Item *Create_sp_func::create(THD *thd, LEX_STRING db, LEX_STRING name,
 
 /**
   Shorthand macro to reference the singleton instance when there is a
-  specialized instantiator.
+  specialized intantiatior.
 
   @param INSTANTIATOR The instantiator class.
 */
@@ -1401,7 +1384,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"JSON_CONTAINS", SQL_FN_V_LIST_THD(Item_func_json_contains, 2, 3)},
     {"JSON_CONTAINS_PATH",
      SQL_FN_V_THD(Item_func_json_contains_path, 3, MAX_ARGLIST_SIZE)},
-    {"JSON_LENGTH", SQL_FACTORY(Json_length_instantiator)},
+    {"JSON_LENGTH", SQL_FN_V_THD(Item_func_json_length, 1, 2)},
     {"JSON_DEPTH", SQL_FN(Item_func_json_depth, 1)},
     {"JSON_PRETTY", SQL_FN(Item_func_json_pretty, 1)},
     {"JSON_TYPE", SQL_FN(Item_func_json_type, 1)},
@@ -1505,7 +1488,6 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"SIN", SQL_FN(Item_func_sin, 1)},
     {"SLEEP", SQL_FN(Item_func_sleep, 1)},
     {"SOUNDEX", SQL_FN(Item_func_soundex, 1)},
-    {"SOURCE_POS_WAIT", SQL_FN_V(Item_source_pos_wait, 2, 4)},
     {"SPACE", SQL_FN(Item_func_space, 1)},
     {"STATEMENT_DIGEST", SQL_FN(Item_func_statement_digest, 1)},
     {"STATEMENT_DIGEST_TEXT", SQL_FN(Item_func_statement_digest_text, 1)},
@@ -1522,7 +1504,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"ST_ASTEXT", SQL_FN_V(Item_func_as_wkt, 1, 2)},
     {"ST_ASWKB", SQL_FN_V(Item_func_as_wkb, 1, 2)},
     {"ST_ASWKT", SQL_FN_V(Item_func_as_wkt, 1, 2)},
-    {"ST_BUFFER", SQL_FN_V_LIST(Item_func_st_buffer, 2, 5)},
+    {"ST_BUFFER", SQL_FN_V_LIST(Item_func_buffer, 2, 5)},
     {"ST_BUFFER_STRATEGY", SQL_FN_V_LIST(Item_func_buffer_strategy, 1, 2)},
     {"ST_CENTROID", SQL_FN(Item_func_centroid, 1)},
     {"ST_CONTAINS", SQL_FN(Item_func_st_contains, 2)},

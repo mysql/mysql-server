@@ -267,7 +267,7 @@ EXPLAIN
 -> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
     -> Filter: (dt1.a = (select #4))  (cost=0.62..0.70 rows=2)
-        -> Covering index lookup on dt1 using <auto_key0> (a=(select #4))
+        -> Index lookup on dt1 using <auto_key0> (a=(select #4))
             -> Materialize CTE dt if needed  (cost=0.55..0.55 rows=1)
                 -> Limit: 1 row(s)  (cost=0.45 rows=1)
                     -> Table scan on t2  (cost=0.45 rows=2)
@@ -1475,8 +1475,8 @@ JOIN LATERAL (SELECT t12a) dt;
 t11a	t11b	t12a	t12b	t12a
 99	0	100	0	100
 99	0	999	0	999
-99	3	NULL	NULL	NULL
 99	NULL	NULL	NULL	NULL
+99	3	NULL	NULL	NULL
 show status like "handler_write";
 Variable_name	Value
 Handler_write	4
@@ -1774,7 +1774,7 @@ EXPLAIN
 -> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
     -> Filter: (dt1.a = (select #4))  (cost=0.62..0.70 rows=2)
-        -> Covering index lookup on dt1 using <auto_key0> (a=(select #4))
+        -> Index lookup on dt1 using <auto_key0> (a=(select #4))
             -> Materialize CTE dt if needed  (cost=0.55..0.55 rows=1)
                 -> Limit: 1 row(s)  (cost=0.45 rows=1)
                     -> Table scan on t2  (cost=0.45 rows=2)
@@ -3019,8 +3019,8 @@ JOIN LATERAL (SELECT t12a) dt;
 t11a	t11b	t12a	t12b	t12a
 99	0	100	0	100
 99	0	999	0	999
-99	3	NULL	NULL	NULL
 99	NULL	NULL	NULL	NULL
+99	3	NULL	NULL	NULL
 show status like "handler_write";
 Variable_name	Value
 Handler_write	4
@@ -3146,6 +3146,13 @@ SELECT /*+ MERGE(qn) */ * FROM qn
 )
 GROUP BY grandparent1.col_int;
 g1
+Warnings:
+Warning	1292	Incorrect time value: '2008-03-18' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2008-03-18' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2008-03-18' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row 1
 DROP TABLE bb;
 SET SQL_MODE=DEFAULT;
 #
@@ -3324,7 +3331,7 @@ CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
 CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT ( SELECT f2 FROM v1 WHERE v1.f1 = t2.f1 ) AS f3 FROM t2;
 EXPLAIN FORMAT=TREE SELECT * FROM v2 WHERE f3 = 3;
 EXPLAIN
--> Covering index lookup on v2 using <auto_key0> (f3=3)
+-> Index lookup on v2 using <auto_key0> (f3=3)
     -> Materialize  (cost=0.45..0.45 rows=1)
         -> Table scan on t2  (cost=0.35 rows=1)
         -> Select #3 (subquery in projection; dependent)
@@ -3367,12 +3374,12 @@ Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`dt`.`a+t1.a` AS `a+t1.a` from `test`.`t1` join lateral (/* select#2 */ select (`test`.`t2`.`a` + `test`.`t1`.`a`) AS `a+t1.a` from `test`.`t2` group by `test`.`t2`.`a`) `dt`
 SELECT * FROM t1 JOIN LATERAL (SELECT a+t1.a from t2 GROUP BY a) AS dt;
 a	b	c	d	a+t1.a
-1	1	1	50	2
 1	1	1	50	NULL
-1	2	3	40	2
-1	2	3	40	NULL
-2	1	3	4	3
+1	1	1	50	2
 2	1	3	4	NULL
+2	1	3	4	3
+1	2	3	40	NULL
+1	2	3	40	2
 DROP TABLE t1, t2;
 #
 # Bug#30887665 ASSERT: `SELECT_LEX->IS_RECURSIVE()' IN JOIN::MAKE_JOIN_PLAN()
@@ -3424,40 +3431,3 @@ id	id	table_id
 1	363	363
 set optimizer_switch=DEFAULT;
 DROP TABLE t1, t2, t3;
-#
-# Bug #32729739: ASSERTION `PATH != NULLPTR' FAILED|SQL/SQL_EXECUTOR.CC
-#
-CREATE TABLE t1 ( a INTEGER );
-SELECT *
-FROM
-t1
-LEFT JOIN (
-t1 AS t2
-LEFT JOIN t1 AS t3 ON TRUE
-) ON TRUE,
-LATERAL (
-SELECT SUM(t1.a), t2.a FROM t1
-) AS d1;
-a	a	a	SUM(t1.a)	a
-DROP TABLE t1;
-#
-# Bug 32407774 - MANY INFORMATION_SCHEMA.TABLE_CONSTRAINTS
-#                RELATED QUERIES ARE BROKEN
-#
-CREATE TABLE t1(id int NOT NULL);
-INSERT into t1 VALUES (364), (365);
-CREATE TABLE t2 (id int NOT NULL);
-INSERT into t2 VALUES (365);
-SELECT * FROM t1 AS tbl1
-LEFT JOIN t1 AS tbl3 ON FALSE WHERE tbl1.id NOT IN
-(SELECT id FROM t1 AS tbl2 JOIN LATERAL
-(SELECT 1 FROM t2 WHERE id = tbl2.id LIMIT 10) AS d1);
-id	id
-364	NULL
-SELECT /*+ JOIN_PREFIX(tbl1, tbl2) */ * FROM t1 AS tbl1
-LEFT JOIN t1 AS tbl3 ON FALSE WHERE tbl1.id NOT IN
-(SELECT id FROM t1 AS tbl2 JOIN LATERAL
-(SELECT 1 FROM t2 WHERE id = tbl2.id LIMIT 10) AS d1);
-id	id
-364	NULL
-DROP TABLE t1, t2;

@@ -31,7 +31,7 @@
 
 
 struct DropTableReq {
-  static constexpr Uint32 SignalLength = 7;
+  STATIC_CONST( SignalLength = 7 );
 
   union { Uint32 clientRef, senderRef; };
   union { Uint32 clientData, senderData; };
@@ -43,7 +43,7 @@ struct DropTableReq {
 };
 
 struct DropTableConf {
-  static constexpr Uint32 SignalLength = 5;
+  STATIC_CONST( SignalLength = 5 );
   
   Uint32 senderRef;
   union { Uint32 clientData, senderData; };
@@ -53,7 +53,7 @@ struct DropTableConf {
 };
 
 struct DropTableRef {
-  static constexpr Uint32 SignalLength = 9;
+  STATIC_CONST( SignalLength = 9 );
   
   Uint32 senderRef;
   union { Uint32 clientData, senderData; };

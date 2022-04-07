@@ -299,7 +299,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
     DBUG_RETURN(-1);
   }//if
 
-  g_eventLogger->info("theStatus: %d", theStatus);
+  ndbout_c("theStatus: %d", theStatus);
   
   // If we come here, set a general errorcode
   // and exit

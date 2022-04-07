@@ -49,8 +49,8 @@ class CmvmiCfgConf  {
   friend class Ndbcntr;
   
 public:
-  static constexpr Uint32 NO_OF_WORDS = 16;
-  static constexpr Uint32 LENGTH = 17;
+  STATIC_CONST( NO_OF_WORDS = 16 );
+  STATIC_CONST( LENGTH      = 17 );
 private:
   
   Uint32 startPhase;

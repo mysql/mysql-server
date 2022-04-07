@@ -325,8 +325,8 @@ static int add_collation(CHARSET_INFO *cs) {
   Report character set initialization errors and warnings.
   Be silent by default: no warnings on the client side.
 */
-static void default_reporter(enum loglevel level [[maybe_unused]],
-                             uint ecode [[maybe_unused]], ...) {}
+static void default_reporter(enum loglevel level MY_ATTRIBUTE((unused)),
+                             uint ecode MY_ATTRIBUTE((unused)), ...) {}
 my_error_reporter my_charset_error_reporter = default_reporter;
 
 /**

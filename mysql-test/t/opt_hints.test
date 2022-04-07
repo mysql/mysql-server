@@ -39,11 +39,13 @@ set optimizer_switch=default;
 --echo # Check statistics with no hint
 FLUSH STATUS;
 SELECT f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
+--skip_if_hypergraph  # Does not support hints yet.
 SHOW STATUS LIKE 'handler_read%';
 
 --echo # Check statistics with hint
 FLUSH STATUS;
 SELECT /*+ NO_RANGE_OPTIMIZATION(t3) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
+--skip_if_hypergraph  # Does not support hints yet.
 SHOW STATUS LIKE 'handler_read%';
 
 EXPLAIN SELECT f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
@@ -94,6 +96,7 @@ FLUSH STATUS;
 --sorted_result
 SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
+--skip_if_hypergraph  # Does not support hints yet.
 SHOW STATUS LIKE 'handler_read%';
 
 --echo # Check statistics with hint
@@ -101,6 +104,7 @@ FLUSH STATUS;
 --sorted_result
 SELECT /*+ BKA() */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
+--skip_if_hypergraph  # Does not support hints yet.
 SHOW STATUS LIKE 'handler_read%';
 
 EXPLAIN SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2
@@ -277,6 +281,7 @@ WHERE tb1.f1=tb2.f1 AND tb2.f2 BETWEEN tb1.f1 and tb1.f2 and tb2.f2 + 1 >= tb1.f
 FLUSH STATUS;
 SELECT /*+ BKA(@qb1 t2) */ * FROM (SELECT /*+ QB_NAME(QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1) AS s1;
+--skip_if_hypergraph  # Does not support hints yet.
 SHOW STATUS LIKE 'handler_read%';
 
 PREPARE stmt1 FROM "SELECT /*+ BKA(@qb1 t2) */ * FROM (SELECT /*+ QB_NAME(QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
@@ -284,10 +289,12 @@ WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1) 
 
 FLUSH STATUS;
 EXECUTE stmt1;
+--skip_if_hypergraph  # Does not support hints yet.
 SHOW STATUS LIKE 'handler_read%';
 
 FLUSH STATUS;
 EXECUTE stmt1;
+--skip_if_hypergraph  # Does not support hints yet.
 SHOW STATUS LIKE 'handler_read%';
 
 DEALLOCATE PREPARE stmt1;
@@ -310,11 +317,13 @@ INSERT INTO t3 VALUES (1,1),(2,2);
 FLUSH STATUS;
 --sorted_result
 SELECT t1.* FROM t1,t2,t3;
+--skip_if_hypergraph  # Does not support hints yet.
 SHOW STATUS LIKE 'handler_read%';
 
 --echo # Check statistics with hint
 FLUSH STATUS;
 SELECT /*+ NO_BNL() */t1.* FROM t1,t2,t3;
+--skip_if_hypergraph  # Does not support hints yet.
 SHOW STATUS LIKE 'handler_read%';
 
 EXPLAIN SELECT t1.* FROM t1,t2,t3;
@@ -393,6 +402,7 @@ set optimizer_switch='mrr=on,mrr_cost_based=off';
 --echo # Check statistics without hint
 FLUSH STATUS;
 SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+--skip_if_hypergraph  # Does not support hints yet.
 SHOW STATUS LIKE 'handler_read%';
 
 --echo # Check statistics with hint

@@ -205,9 +205,8 @@ static void print_tz_as_sql(const char *tz_name, const TIME_ZONE_INFO *sp) {
         "INSERT INTO time_zone_transition \
 (Time_zone_id, Transition_time, Transition_type_id) VALUES\n");
     for (i = 0; i < sp->timecnt; i++)
-      printf("%s(@time_zone_id, %lld, %u)\n", (i == 0 ? " " : ","),
-             static_cast<long long int>(sp->ats[i]),
-             static_cast<uint>(sp->types[i]));
+      printf("%s(@time_zone_id, %ld, %u)\n", (i == 0 ? " " : ","), sp->ats[i],
+             (uint)sp->types[i]);
     printf(";\n");
   }
 
@@ -249,8 +248,7 @@ static void print_tz_leaps_as_sql(const TIME_ZONE_INFO *sp) {
         "INSERT INTO time_zone_leap_second \
 (Transition_time, Correction) VALUES\n");
     for (i = 0; i < sp->leapcnt; i++)
-      printf("%s(%lld, %ld)\n", (i == 0 ? " " : ","),
-             static_cast<long long int>(sp->lsis[i].ls_trans),
+      printf("%s(%ld, %ld)\n", (i == 0 ? " " : ","), sp->lsis[i].ls_trans,
              sp->lsis[i].ls_corr);
     printf(";\n");
   }
@@ -307,14 +305,14 @@ static bool scan_tz_dir(char *name_end) {
           return true;
         }
       } else if (MY_S_ISREG(cur_dir->dir_entry[i].mystat->st_mode)) {
-        ::new ((void *)&tz_storage) MEM_ROOT(PSI_NOT_INSTRUMENTED, 32768);
+        init_alloc_root(PSI_NOT_INSTRUMENTED, &tz_storage, 32768, 0);
         if (!tz_load(fullname, &tz_info, &tz_storage))
           print_tz_as_sql(root_name_end + 1, &tz_info);
         else
           fprintf(stderr,
                   "Warning: Unable to load '%s' as time zone. Skipping it.\n",
                   fullname);
-        tz_storage.Clear();
+        free_root(&tz_storage, MYF(0));
       } else
         fprintf(stderr, "Warning: '%s' is not regular file or directory\n",
                 fullname);
@@ -356,7 +354,7 @@ int main(int argc, char **argv) {
     }
     printf("COMMIT;\n");
   } else {
-    ::new ((void *)&tz_storage) MEM_ROOT(PSI_NOT_INSTRUMENTED, 32768);
+    init_alloc_root(PSI_NOT_INSTRUMENTED, &tz_storage, 32768, 0);
 
     if (strcmp(argv[1], "--leap") == 0) {
       if (tz_load(argv[2], &tz_info, &tz_storage)) {
@@ -374,7 +372,7 @@ int main(int argc, char **argv) {
       printf("COMMIT;\n");
     }
 
-    tz_storage.Clear();
+    free_root(&tz_storage, MYF(0));
   }
 
   return 0;

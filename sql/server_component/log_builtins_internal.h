@@ -115,9 +115,6 @@ log_service_error make_log_path(char *result, const char *name_or_ext);
 
 /**
   Acquire an exclusive lock on the error logger core.
-
-  Used e.g. to pause all logging while the previous run's
-  log is read to performance_schema.error_log.
 */
 void log_builtins_error_stack_wrlock();
 

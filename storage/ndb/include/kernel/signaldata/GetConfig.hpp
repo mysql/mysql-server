@@ -44,7 +44,7 @@ class GetConfigReq {
   friend class MgmtSrvr;
   friend bool printGET_CONFIG_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
 
   Uint32 nodeId; // Node id of the receiver node
   Uint32 senderRef;
@@ -58,7 +58,7 @@ class GetConfigRef {
   friend class MgmtSrvr;
   friend bool printGET_CONFIG_REF(FILE *, const Uint32 *, Uint32, Uint16);
 
-  static constexpr Uint32 SignalLength = 1;
+  STATIC_CONST( SignalLength = 1 );
 
   Uint32 error;
 
@@ -78,7 +78,7 @@ class GetConfigConf {
   friend class MgmtSrvr;
   friend bool printGET_CONFIG_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 
-  static constexpr Uint32 SignalLength = 1;
+  STATIC_CONST( SignalLength = 1 );
 
   Uint32 configLength; // config blob size
 };

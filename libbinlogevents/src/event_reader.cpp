@@ -161,7 +161,7 @@ void Event_reader::read_data_set(uint32_t set_len,
   PRINT_READER_STATUS("Event_reader::read_data_set");
   uint16_t len = 0;
   for (uint32_t i = 0; i < set_len; i++) {
-    len = read<uint16_t>();
+    len = read_and_letoh<uint16_t>();
     if (m_error) break;
     const char *hash = strndup<const char *>(len);
     if (m_error) break;
@@ -174,7 +174,7 @@ void Event_reader::read_data_map(uint32_t map_len,
   PRINT_READER_STATUS("Event_reader::read_data_map");
   BAPI_ASSERT(map->empty());
   for (uint32_t i = 0; i < map_len; i++) {
-    uint16_t key_len = read<uint16_t>();
+    uint16_t key_len = read_and_letoh<uint16_t>();
     if (m_error) break;
     if (!can_read(key_len)) {
       set_error("Cannot read from out of buffer bounds");
@@ -183,7 +183,7 @@ void Event_reader::read_data_map(uint32_t map_len,
     std::string key(m_ptr, key_len);
     m_ptr += key_len;
 
-    uint32_t value_len = read<uint32_t>();
+    uint32_t value_len = read_and_letoh<uint32_t>();
     if (m_error) break;
     if (!can_read(value_len)) {
       set_error("Cannot read from out of buffer bounds");

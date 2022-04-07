@@ -20,10 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <limits.h>
-#include <thread>
 
 #include "my_config.h"
 
@@ -31,29 +29,11 @@
 #include "my_inttypes.h"
 #include "my_stacktrace.h"
 #include "unittest/gunit/test_utils.h"
-#include "unittest/gunit/thread_utils.h"
 
 namespace segfault_unittest {
 
 using my_testing::Mock_error_handler;
 using my_testing::Server_initializer;
-
-MATCHER_P3(ContainsRangeOfOccurances, n, m, str, "") {
-  size_t pos = arg.find(str);
-  size_t count = 0;
-  if (pos != std::string::npos) {
-    for (;;) {
-      count++;
-      const auto new_pos = arg.substr(pos + 1).find(str);
-      if (new_pos == std::string::npos) {
-        break;
-      }
-      pos += 1 + new_pos;
-    }
-  }
-  *result_listener << "where the actual count found is " << count;
-  return n <= static_cast<int>(count) && static_cast<int>(count) <= m;
-}
 
 class FatalSignalDeathTest : public ::testing::Test {
  protected:
@@ -64,60 +44,14 @@ class FatalSignalDeathTest : public ::testing::Test {
   void TearDown() override { initializer.TearDown(); }
 
   Server_initializer initializer;
-
-  const std::string expected_backtrace_string =
-      "Attempting backtrace. You can use the following "
-      "information to find out";
 };
 
 TEST_F(FatalSignalDeathTest, Abort) {
 #if defined(_WIN32)
-  EXPECT_DEATH_IF_SUPPORTED(
-      abort(), ContainsRangeOfOccurances(1, 1, " UTC - mysqld got exception"));
+  EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got exception.*");
 #else
-  EXPECT_DEATH_IF_SUPPORTED(
-      abort(), ContainsRangeOfOccurances(1, 1, " UTC - mysqld got signal 6"));
+  EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got signal 6.*");
 #endif
-}
-
-TEST_F(FatalSignalDeathTest, CrashOnMyAbort) {
-  EXPECT_DEATH_IF_SUPPORTED(
-      my_abort(), ContainsRangeOfOccurances(1, 1, expected_backtrace_string));
-}
-TEST_F(FatalSignalDeathTest, CrashOnTerminate) {
-  EXPECT_DEATH_IF_SUPPORTED(
-      std::terminate(),
-      ContainsRangeOfOccurances(1, 1, expected_backtrace_string));
-}
-
-static void test_parallel_crash() {
-  thread::Notification go;
-  thread::Notification ready[10];
-  auto test = [&ready, &go](int i) {
-    my_thread_init();
-    ready[i].notify();
-    go.wait_for_notification();
-    my_abort();
-    my_thread_end();
-  };
-  std::thread *t[10];
-  for (int i = 0; i < 10; ++i) {
-    t[i] = new std::thread{test, i};
-  }
-  for (int i = 0; i < 10; ++i) {
-    ready[i].wait_for_notification();
-  }
-  go.notify();
-  for (int i = 0; i < 10; ++i) {
-    t[i]->join();
-    delete t[i];
-  }
-}
-
-TEST_F(FatalSignalDeathTest, CrashOnParallelAbort) {
-  EXPECT_DEATH_IF_SUPPORTED(
-      test_parallel_crash(),
-      ContainsRangeOfOccurances(2, 10, expected_backtrace_string));
 }
 
 TEST_F(FatalSignalDeathTest, Segfault) {
@@ -133,13 +67,6 @@ TEST_F(FatalSignalDeathTest, Segfault) {
 /* gcc 4.8.1 with '-fsanitize=address -O1' */
 /* Newer versions of ASAN give other error message, disable it */
 // EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*ASAN:SIGSEGV.*");
-#elif defined(__APPLE__) && defined(__aarch64__) && defined(NDEBUG)
-  // Disable also in non-debug mode on MacOS 11 arm, with -O1 or above, we get
-  // Result: died but not with expected error.
-  // Expected: contains regular expression ".* UTC - mysqld got signal .*"
-  // Actual msg:
-  // We do get: "Trace/BPT trap: 5" but not as part of the matcher input in
-  // EXPECT_DEATH(statement, matcher);
 #elif defined(HANDLE_FATAL_SIGNALS)
   int *pint = nullptr;
   /*

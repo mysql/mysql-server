@@ -96,16 +96,17 @@ class Xcl_protocol_impl_tests : public Test {
                            const uint32_t expected_payload_size,
                            const int32_t error_code = 0) {
     EXPECT_CALL(*m_mock_connection, write(_, 5))
-        .WillOnce(Invoke([this, id, expected_payload_size, error_code](
-                             const uchar *data, const std::size_t size
-                             [[maybe_unused]]) -> XError {
-          EXPECT_EQ(data[4], id);
-          auto header = this->extract_header_from_message(data);
+        .WillOnce(Invoke(
+            [this, id, expected_payload_size, error_code](
+                const uchar *data,
+                const std::size_t size MY_ATTRIBUTE((unused))) -> XError {
+              EXPECT_EQ(data[4], id);
+              auto header = this->extract_header_from_message(data);
 
-          EXPECT_EQ(expected_payload_size,
-                    *reinterpret_cast<int32_t *>(header.data()) - 1);
-          return XError{error_code, ""};
-        }));
+              EXPECT_EQ(expected_payload_size,
+                        *reinterpret_cast<int32_t *>(header.data()) - 1);
+              return XError{error_code, ""};
+            }));
   }
 
   template <typename Message_type>
@@ -150,16 +151,17 @@ class Xcl_protocol_impl_tests : public Test {
     const std::uint8_t header_size = 5;
 
     EXPECT_CALL(*m_mock_connection, write(_, header_size + payload_size))
-        .WillOnce(Invoke([this, id, payload_size, error_code](
-                             const uchar *data, const std::size_t size
-                             [[maybe_unused]]) -> XError {
-          EXPECT_EQ(data[4], id);
-          auto header = this->extract_header_from_message(data);
+        .WillOnce(Invoke(
+            [this, id, payload_size, error_code](
+                const uchar *data,
+                const std::size_t size MY_ATTRIBUTE((unused))) -> XError {
+              EXPECT_EQ(data[4], id);
+              auto header = this->extract_header_from_message(data);
 
-          EXPECT_EQ(payload_size,
-                    *reinterpret_cast<int32_t *>(header.data()) - 1);
-          return XError{error_code, ""};
-        }));
+              EXPECT_EQ(payload_size,
+                        *reinterpret_cast<int32_t *>(header.data()) - 1);
+              return XError{error_code, ""};
+            }));
   }
 
   template <typename Message_type_id>
@@ -188,7 +190,7 @@ class Xcl_protocol_impl_tests : public Test {
 
   template <typename Message_type>
   void expect_read_message_without_payload(const Message_type &message
-                                           [[maybe_unused]],
+                                               MY_ATTRIBUTE((unused)),
                                            const int32_t error_code = 0) {
     expect_read_header(Server_message<Message_type>::get_id(), 0, error_code);
   }

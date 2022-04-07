@@ -143,12 +143,6 @@ public:
                const struct NdbIndexScanOperation::IndexBound *bound);
 
   /**
-   * When returning results from a multi-range-read, over multiple 'bounds',
-   * we can get which 'range' (or bound) the returned row comes from.
-   */
-  int getRangeNo() const;
-
-  /**
    * Get the next tuple(s) from the global cursor on the query.
    *
    * Result row / columns will be updated in the respective result handlers

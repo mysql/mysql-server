@@ -37,7 +37,7 @@ class System_view_definition;
 
 class System_view {
  public:
-  virtual ~System_view() = default;
+  virtual ~System_view() {}
 
   /*
     Get name of system view.

@@ -159,10 +159,7 @@ int runScanAll(NDBT_Context* ctx, NDBT_Step* step)
       (strstr(table->getName(), "cpustat_") != nullptr);
     bool rows_may_increase2 =
       (strstr(table->getName(), "cpudata_") != nullptr);
-    bool rows_may_increase3 =
-      (strstr(table->getName(), "index_stats") != nullptr);
-    bool rows_may_increase = (rows_may_increase1 || rows_may_increase2 ||
-                              rows_may_increase3);
+    bool rows_may_increase = (rows_may_increase1 || rows_may_increase2);
     for (int l = 0; l < ctx->getNumLoops(); l++)
     {
       if (ctx->isTestStopped())
@@ -320,10 +317,7 @@ int runRatelimit(NDBT_Context* ctx, NDBT_Step* step)
       (strstr(table->getName(), "cpustat_") != nullptr);
     bool rows_may_increase2 =
       (strstr(table->getName(), "cpudata_") != nullptr);
-    bool rows_may_increase3 =
-      (strstr(table->getName(), "index_stats") != nullptr);
-    bool rows_may_increase = (rows_may_increase1 || rows_may_increase2 ||
-                              rows_may_increase3);
+    bool rows_may_increase = (rows_may_increase1 || rows_may_increase2);
     for (int l = 0; l < (int)(sizeof(limits)/sizeof(limits[0])); l++)
     {
 

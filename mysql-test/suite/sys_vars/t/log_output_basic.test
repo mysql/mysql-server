@@ -214,7 +214,6 @@ SELECT @@global.log_output;
 SET @@global.log_output = @start_value;
 SELECT @@global.log_output;
 
-TRUNCATE TABLE mysql.general_log;
 ################################################################### 
 #                    END OF log_output TESTS                      #
 ################################################################### 

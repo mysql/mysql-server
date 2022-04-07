@@ -510,7 +510,7 @@ drop table t1;
 
 create table t1 (s1 geometry not null,s2 char(100));
 create trigger t1_bu before update on t1 for each row set new.s1 = null;
---error ER_BAD_NULL_ERROR_NOT_IGNORED
+--error 1048
 insert into t1 values (null,null);
 drop table t1;
 

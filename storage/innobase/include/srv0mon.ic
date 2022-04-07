@@ -33,7 +33,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** This function is used to calculate the maximum counter value
  since the start of monitor counter
  @return max counter value since start. */
-static inline mon_type_t srv_mon_calc_max_since_start(
+UNIV_INLINE
+mon_type_t srv_mon_calc_max_since_start(
     monitor_id_t monitor) /*!< in: monitor id */
 {
   if (MONITOR_MAX_VALUE_START(monitor) == MAX_RESERVED) {
@@ -59,7 +60,8 @@ static inline mon_type_t srv_mon_calc_max_since_start(
 /** This function is used to calculate the minimum counter value
  since the start of monitor counter
  @return min counter value since start. */
-static inline mon_type_t srv_mon_calc_min_since_start(
+UNIV_INLINE
+mon_type_t srv_mon_calc_min_since_start(
     monitor_id_t monitor) /*!< in: monitor id */
 {
   if (MONITOR_MIN_VALUE_START(monitor) == MIN_RESERVED) {
@@ -83,8 +85,8 @@ static inline mon_type_t srv_mon_calc_min_since_start(
 }
 
 /** This function resets all values of a monitor counter */
-static inline void srv_mon_reset_all(
-    monitor_id_t monitor) /*!< in: monitor id */
+UNIV_INLINE
+void srv_mon_reset_all(monitor_id_t monitor) /*!< in: monitor id */
 {
   /* Do not reset all counter values if monitor is still on. */
   if (MONITOR_IS_ON(monitor)) {

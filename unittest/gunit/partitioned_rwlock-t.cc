@@ -22,6 +22,9 @@
 
 /* Simple unit tests for thread id partitioned rwlocks. */
 
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
+
 #include <gtest/gtest.h>
 #include <sys/types.h>
 

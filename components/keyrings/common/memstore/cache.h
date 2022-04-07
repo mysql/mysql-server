@@ -49,7 +49,7 @@ class Datacache final {
   Datacache &operator=(Datacache &&src) = delete;
 
   /** Destructor */
-  ~Datacache() = default;
+  ~Datacache() {}
 
   /**
     Retrieve an element from cache

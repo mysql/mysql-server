@@ -101,7 +101,7 @@ static void srv_enter_innodb_with_tickets(
  ON. When set, we want to wait in the queue for as little time as possible.
  However, very short waits will result in a lot of context switches and that
  is also not desirable. When threads need to sleep multiple times we increment
- srv_thread_sleep_delay by one. When we see threads getting a slot without
+ os_thread_sleep_delay by one. When we see threads getting a slot without
  waiting and there are no other threads waiting in the queue, we try and reduce
  the wait as much as we can. Currently we reduce it by half each time. If the
  thread only had to wait for one turn before it was able to enter InnoDB we

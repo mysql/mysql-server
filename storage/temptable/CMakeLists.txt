@@ -24,7 +24,7 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-SET(TEMPTABLE_SOURCES
+MYSQL_ADD_PLUGIN(temptable
   src/allocator.cc
   src/block.cc
   src/column.cc
@@ -36,14 +36,7 @@ SET(TEMPTABLE_SOURCES
   src/result.cc
   src/row.cc
   src/table.cc
-  )
 
-IF(NOT LINUX)
-  LIST(REMOVE_ITEM TEMPTABLE_SOURCES src/memutils.cc)
-ENDIF()
-
-MYSQL_ADD_PLUGIN(temptable
-  ${TEMPTABLE_SOURCES}
   STORAGE_ENGINE
   MANDATORY
 )

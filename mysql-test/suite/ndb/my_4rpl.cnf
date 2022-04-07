@@ -56,7 +56,7 @@ ndb-cluster-connection-pool-nodeids=49,63,127
 # This suite(--suite=ndb) is designed to be run without binogging,
 # turn off binlogging(and thus also slave updates) for this mysqld
 skip-log-bin
-skip-log-replica-updates
+skip-log-slave-updates
 
 [mysqld.2.1]
 # Specify which nodeids the connection pool on second mysqld should use
@@ -64,7 +64,7 @@ ndb-cluster-connection-pool-nodeids=16,32,48
 # This suite(--suite=ndb) is designed to be run without binogging,
 # turn off binlogging(and thus also slave updates) for this mysqld
 skip-log-bin
-skip-log-replica-updates
+skip-log-slave-updates
 
 [ndb_restore]
 exclude-databases=mysql

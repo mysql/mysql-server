@@ -25,13 +25,12 @@
 
 #include <stddef.h>
 #include <sys/types.h>
-
 #include <map>
 #include <set>
-#include <string>
 #include <utility>
 #include <vector>
 
+#include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
@@ -46,7 +45,6 @@ class KEY;
 class THD;
 class handler;
 struct CHARSET_INFO;
-struct MEM_ROOT;
 struct TABLE;
 struct TABLE_LIST;
 struct handlerton;
@@ -85,23 +83,6 @@ static const uint NO_DD_COMMIT = 1 << 3;
 static const uint NO_FK_RENAME = 1 << 4;
 /** Don't change generated check constraint names while renaming table. */
 static const uint NO_CC_RENAME = 1 << 5;
-
-// MDL lock types used for ALTER TABLE SECONDARY_LOAD.
-
-/** The MDL type used when initially opening a table for SECONDARY_LOAD */
-constexpr enum_mdl_type SECLOAD_SCAN_START_MDL = MDL_SHARED_NO_WRITE;
-
-/**
-  The weaker MDL which the secondary engine plugin may downgrade to after
-  a parallel scan has been started
-*/
-constexpr enum_mdl_type SECLOAD_PAR_SCAN_MDL = MDL_SHARED_UPGRADABLE;
-
-/**
-  The MDL which must be acquired before the old table definition
-  can be evicted from the table definition cache.
-*/
-constexpr enum_mdl_type SECLOAD_TDC_EVICT_MDL = MDL_EXCLUSIVE;
 
 handlerton *get_viable_handlerton_for_create(THD *thd, const char *table_name,
                                              const HA_CREATE_INFO &ci);
@@ -190,11 +171,11 @@ bool adjust_fk_parents(THD *thd, const char *db, const char *name,
 
   @retval operation outcome, false if no error.
 */
-[[nodiscard]] bool adjust_fk_children_after_parent_def_change(
+bool adjust_fk_children_after_parent_def_change(
     THD *thd, bool check_charsets, const char *parent_table_db,
     const char *parent_table_name, handlerton *hton,
     const dd::Table *parent_table_def, Alter_info *parent_alter_info,
-    bool invalidate_tdc);
+    bool invalidate_tdc) MY_ATTRIBUTE((warn_unused_result));
 
 /**
   Check if new definition of parent table is compatible with foreign keys
@@ -224,10 +205,10 @@ inline bool adjust_fk_children_after_parent_def_change(
 
   @retval operation outcome, false if no error.
 */
-[[nodiscard]] bool collect_fk_children(THD *thd, const char *schema,
-                                       const char *table_name, handlerton *hton,
-                                       enum_mdl_type lock_type,
-                                       MDL_request_list *mdl_requests);
+bool collect_fk_children(THD *thd, const char *schema, const char *table_name,
+                         handlerton *hton, enum_mdl_type lock_type,
+                         MDL_request_list *mdl_requests)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /**
   Add MDL requests for lock of specified type on tables referenced by the
@@ -248,11 +229,12 @@ inline bool adjust_fk_children_after_parent_def_change(
 
   @retval operation outcome, false if no error.
 */
-[[nodiscard]] bool collect_fk_parents_for_new_fks(
+bool collect_fk_parents_for_new_fks(
     THD *thd, const char *db_name, const char *table_name,
     const Alter_info *alter_info, enum_mdl_type lock_type, handlerton *hton,
     MDL_request_list *mdl_requests,
-    Foreign_key_parents_invalidator *fk_invalidator);
+    Foreign_key_parents_invalidator *fk_invalidator)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /**
   Add MDL requests for exclusive metadata locks on names of foreign keys
@@ -299,10 +281,11 @@ bool collect_fk_names_for_new_fks(THD *thd, const char *db_name,
 
   @retval operation outcome, false if no error.
 */
-[[nodiscard]] bool collect_and_lock_fk_tables_for_rename_table(
+bool collect_and_lock_fk_tables_for_rename_table(
     THD *thd, const char *db, const char *table_name,
     const dd::Table *table_def, const char *new_db, const char *new_table_name,
-    handlerton *hton, Foreign_key_parents_invalidator *fk_invalidator);
+    handlerton *hton, Foreign_key_parents_invalidator *fk_invalidator)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /**
   Update referenced table names and the unique constraint name for FKs
@@ -317,11 +300,10 @@ bool collect_fk_names_for_new_fks(THD *thd, const char *db_name,
 
   @retval operation outcome, false if no error.
 */
-[[nodiscard]] bool adjust_fks_for_rename_table(THD *thd, const char *db,
-                                               const char *table_name,
-                                               const char *new_db,
-                                               const char *new_table_name,
-                                               handlerton *hton);
+bool adjust_fks_for_rename_table(THD *thd, const char *db,
+                                 const char *table_name, const char *new_db,
+                                 const char *new_table_name, handlerton *hton)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /*
   Check if parent key for the foreign key exists, set foreign key's unique
@@ -350,12 +332,11 @@ bool collect_fk_names_for_new_fks(THD *thd, const char *db_name,
 
   @retval Operation result. False if success.
 */
-[[nodiscard]] bool prepare_fk_parent_key(handlerton *hton,
-                                         const dd::Table *parent_table_def,
-                                         const dd::Table *old_parent_table_def,
-                                         const dd::Table *old_child_table_def,
-                                         bool is_self_referencing_fk,
-                                         dd::Foreign_key *fk);
+bool prepare_fk_parent_key(handlerton *hton, const dd::Table *parent_table_def,
+                           const dd::Table *old_parent_table_def,
+                           const dd::Table *old_child_table_def,
+                           bool is_self_referencing_fk, dd::Foreign_key *fk)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /**
   Prepare Create_field and Key_spec objects for ALTER and upgrade.
@@ -429,8 +410,8 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
   @retval False - Success.
   @retval True  - Failure.
 */
-[[nodiscard]] bool rm_table_do_discovery_and_lock_fk_tables(THD *thd,
-                                                            TABLE_LIST *tables);
+bool rm_table_do_discovery_and_lock_fk_tables(THD *thd, TABLE_LIST *tables)
+    MY_ATTRIBUTE((warn_unused_result));
 
 bool quick_rm_table(THD *thd, handlerton *base, const char *db,
                     const char *table_name, uint flags);
@@ -451,9 +432,6 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions);
   Prepares the column definitions for table creation.
 
   @param thd                       Thread object.
-  @param error_schema_name         Schema name of the table used for error
-  reporting.
-  @param error_table_name          Table name used for error reporting.
   @param create_info               Create information.
   @param[in,out] create_list       List of columns to create.
   @param[in,out] select_field_pos  Position where the SELECT columns start
@@ -466,9 +444,7 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions);
   @retval true    error
 */
 
-bool prepare_create_field(THD *thd, const char *error_schema_name,
-                          const char *error_table_name,
-                          HA_CREATE_INFO *create_info,
+bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
                           List<Create_field> *create_list,
                           int *select_field_pos, handler *file,
                           Create_field *sql_field, int field_no);

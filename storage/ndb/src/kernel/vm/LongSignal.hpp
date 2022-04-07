@@ -57,7 +57,7 @@
  */
 struct SectionSegment {
 
-  static constexpr Uint32 DataLength = NDB_SECTION_SEGMENT_SZ;
+  STATIC_CONST( DataLength = NDB_SECTION_SEGMENT_SZ );
   
   union {
     Uint32 m_sz;

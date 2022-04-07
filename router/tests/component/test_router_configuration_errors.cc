@@ -27,7 +27,7 @@
 #include "config_builder.h"
 #include "mysql/harness/utility/string.h"
 #include "router_component_test.h"
-#include "test/temp_directory.h"
+#include "temp_dir.h"
 
 using namespace std::chrono_literals;
 
@@ -53,7 +53,7 @@ TEST_P(RouterTestBrokenConfig, ensure) {
   init_keyring(default_section, conf_dir_.name());
 
   const std::string conf_file{create_config_file(
-      conf_dir_.name(), mysql_harness::join(GetParam().sections, ""),
+      conf_dir_.name(), mysql_harness::join(GetParam().sections, "\n"),
       &default_section)};
   auto &router{
       launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s)};
@@ -514,8 +514,8 @@ TEST_F(RouterCmdlineTest, one_plugin_works) {
   std::vector<std::string> sections{
       mysql_harness::ConfigBuilder::build_section("routertestplugin_magic", {}),
   };
-  const std::string conf_file{
-      create_config_file(conf_dir_.name(), mysql_harness::join(sections, ""))};
+  const std::string conf_file{create_config_file(
+      conf_dir_.name(), mysql_harness::join(sections, "\n"))};
   auto &router{launch_router({"-c", conf_file})};
 
   check_exit_code(router, EXIT_SUCCESS);

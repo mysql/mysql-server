@@ -24,9 +24,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <assert.h>
-#include <array>
-
-#include "my_alloc.h"
 
 /**
    A wrapper class which provides array bounds checking.
@@ -37,8 +34,6 @@
    We want the compiler-generated versions of:
    - the copy CTOR (memberwise initialization)
    - the assignment operator (memberwise assignment)
-
-   This is roughly analogous to C++20's std::span.
 
    @tparam Element_type The type of the elements of the container.
  */
@@ -52,19 +47,6 @@ class Bounds_checked_array {
 
   Bounds_checked_array(Element_type *el, size_t size_arg)
       : m_array(el), m_size(size_arg) {}
-
-  // NOTE: non-const reference intentional; mirrors std::span's constructor.
-  template <class T, size_t N>
-  explicit Bounds_checked_array(std::array<T, N> &arr)
-      : m_array(arr.data()), m_size(arr.size()) {}
-
-  // Not a constructor because it does something else from the other
-  // constructors (allocates new memory instead of wrapping existing memory),
-  // and also because nullptr for the first argument be ambiguous. The latter
-  // could be solved with an explicit nullptr_t overload, though.
-  static Bounds_checked_array Alloc(MEM_ROOT *mem_root, size_t size) {
-    return {mem_root->ArrayAlloc<Element_type>(size), size};
-  }
 
   void reset() {
     m_array = nullptr;
@@ -85,19 +67,6 @@ class Bounds_checked_array {
     assert(new_size <= m_size);
     m_size = new_size;
   }
-
-  /**
-    Like resize(), but returns a new view of the array without modifying
-    this one.
-   */
-  Bounds_checked_array prefix(size_t new_size) {
-    assert(new_size <= m_size);
-    return Bounds_checked_array(m_array, new_size);
-  }
-
-  Element_type *data() { return m_array; }
-
-  const Element_type *data() const { return m_array; }
 
   Element_type &operator[](size_t n) {
     assert(n < m_size);
@@ -122,14 +91,8 @@ class Bounds_checked_array {
   /// end   : Returns a pointer to the past-the-end element in the array.
   const_iterator end() const { return m_array + size(); }
 
-  Bounds_checked_array without_back() const {
-    assert(m_size > 0);
-    return Bounds_checked_array{m_array, m_size - 1};
-  }
-
   size_t element_size() const { return sizeof(Element_type); }
   size_t size() const { return m_size; }
-  bool empty() const { return m_size == 0; }
 
   bool is_null() const { return m_array == nullptr; }
 

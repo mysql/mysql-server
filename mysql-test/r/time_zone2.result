@@ -227,6 +227,12 @@ convert_tz('2003-10-26 04:00:00', 'MET', 'UTC')
 select convert_tz('2038-01-19 04:14:07', 'MET', 'UTC');
 convert_tz('2038-01-19 04:14:07', 'MET', 'UTC')
 2038-01-19 03:14:07
+select convert_tz('2038-01-19 04:14:08', 'MET', 'UTC');
+convert_tz('2038-01-19 04:14:08', 'MET', 'UTC')
+2038-01-19 04:14:08
+select convert_tz('2103-01-01 04:00:00', 'MET', 'UTC');
+convert_tz('2103-01-01 04:00:00', 'MET', 'UTC')
+2103-01-01 04:00:00
 create table t1 (tz varchar(3));
 insert into t1 (tz) values ('MET'), ('UTC');
 select tz, convert_tz('2003-12-31 00:00:00',tz,'UTC'), convert_tz('2003-12-31 00:00:00','UTC',tz) from t1 order by tz;

@@ -53,12 +53,10 @@ Country_record country_array[] =
 
 #define MAX_BUFFER_LENGTH 80
 
-#define WRITE_LOG(lit_log_text)                                               \
-  if (outfile) {                                                              \
-    strcpy(log_text, lit_log_text);                                           \
-    if (fwrite((uchar *)log_text, sizeof(char), strlen(log_text), outfile) != \
-        strlen(log_text))                                                     \
-      return true;                                                            \
+#define WRITE_LOG(lit_log_text)                                         \
+  if (outfile) {                                                        \
+    strcpy(log_text, lit_log_text);                                     \
+    fwrite((uchar *)log_text, sizeof(char), strlen(log_text), outfile); \
   }
 
 /* Log file */

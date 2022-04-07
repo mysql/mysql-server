@@ -51,7 +51,7 @@ class StopPermReq {
   friend class Ndbcntr;
 
 public:
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
 public:
   
   Uint32 senderRef;
@@ -71,7 +71,7 @@ class StopPermConf {
   friend class Ndbcntr;
 
 public:
-  static constexpr Uint32 SignalLength = 1;
+  STATIC_CONST( SignalLength = 1 );
   
 private:
   Uint32 senderData;
@@ -90,7 +90,7 @@ class StopPermRef {
   friend class Ndbcntr;
 
 public:
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
 
   enum ErrorCode {
     StopOK = 0,

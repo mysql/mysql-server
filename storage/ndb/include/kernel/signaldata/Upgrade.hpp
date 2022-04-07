@@ -35,7 +35,7 @@ struct UpgradeProtocolOrd
    */
   friend class Dbdih;
 
-  static constexpr Uint32 SignalLength = 1;
+  STATIC_CONST( SignalLength = 1 );
 
   enum {
     UPO_ENABLE_MICRO_GCP = 1

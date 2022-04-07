@@ -68,7 +68,7 @@ class Esalary_POS {
   unsigned int m_index;
 
  public:
-  ~Esalary_POS() = default;
+  ~Esalary_POS() {}
   Esalary_POS() { m_index = 0; }
 
   bool has_more() {

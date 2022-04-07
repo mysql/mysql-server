@@ -29,8 +29,8 @@ if (mysqld.global.primary_id === undefined) {
   mysqld.global.primary_id = 0;
 }
 
-if (mysqld.global.update_attributes_count === undefined) {
-  mysqld.global.update_attributes_count = 0;
+if (mysqld.global.update_version_count === undefined) {
+  mysqld.global.update_version_count = 0;
 }
 
 if (mysqld.global.update_last_check_in_count === undefined) {
@@ -39,26 +39,6 @@ if (mysqld.global.update_last_check_in_count === undefined) {
 
 if (mysqld.global.router_version === undefined) {
   mysqld.global.router_version = "";
-}
-
-if (mysqld.global.router_rw_classic_port === undefined) {
-  mysqld.global.router_rw_classic_port = "";
-}
-
-if (mysqld.global.router_ro_classic_port === undefined) {
-  mysqld.global.router_ro_classic_port = "";
-}
-
-if (mysqld.global.router_rw_x_port === undefined) {
-  mysqld.global.router_rw_x_port = "";
-}
-
-if (mysqld.global.router_ro_x_port === undefined) {
-  mysqld.global.router_ro_x_port = "";
-}
-
-if (mysqld.global.router_metadata_user === undefined) {
-  mysqld.global.router_metadata_user = "";
 }
 
 if (mysqld.global.perm_error_on_version_update === undefined) {
@@ -101,11 +81,6 @@ var options = {
   gr_id: mysqld.global.gr_id,
   cluster_type: "gr",
   router_version: mysqld.global.router_version,
-  router_rw_classic_port: mysqld.global.router_rw_classic_port,
-  router_ro_classic_port: mysqld.global.router_ro_classic_port,
-  router_rw_x_port: mysqld.global.router_rw_x_port,
-  router_ro_x_port: mysqld.global.router_ro_x_port,
-  router_metadata_user: mysqld.global.router_metadata_user,
 };
 
 // first node is PRIMARY
@@ -127,8 +102,8 @@ var common_responses = common_stmts.prepare_statement_responses(
     ],
     options);
 
-var router_update_attributes_strict_v2 =
-    common_stmts.get("router_update_attributes_strict_v2", options);
+var router_update_version_strict_v2 =
+    common_stmts.get("router_update_version_strict_v2", options);
 
 var router_update_last_check_in_v2 =
     common_stmts.get("router_update_last_check_in_v2", options);
@@ -154,8 +129,8 @@ var router_start_transaction =
     } else if (stmt === router_start_transaction.stmt) {
       mysqld.global.transaction_count++;
       return router_start_transaction;
-    } else if (stmt === router_update_attributes_strict_v2.stmt) {
-      mysqld.global.update_attributes_count++;
+    } else if (stmt === router_update_version_strict_v2.stmt) {
+      mysqld.global.update_version_count++;
       if (mysqld.global.perm_error_on_version_update === 1) {
         return {
           error: {
@@ -166,7 +141,7 @@ var router_start_transaction =
           }
         }
       } else
-        return router_update_attributes_strict_v2;
+        return router_update_version_strict_v2;
     } else if (stmt === router_update_last_check_in_v2.stmt) {
       mysqld.global.update_last_check_in_count++;
       return router_update_last_check_in_v2;

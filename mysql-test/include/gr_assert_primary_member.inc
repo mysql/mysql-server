@@ -4,12 +4,8 @@
 #
 # ==== Usage ====
 #
-# [--let $skip_wait_for_disabled_read_only= 0]
 # --source include/gr_assert_primary_member.inc
 #
-# Parameters:
-#   $skip_wait_for_disabled_read_only
-#     Skip the wait for super_read_only and read_only variables are disabled
 
 --let $include_filename= gr_assert_primary_member.inc
 --source include/begin_include_file.inc
@@ -28,12 +24,8 @@
 
 --let $server_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
-if (!$skip_wait_for_disabled_read_only)
-{
-  --let $wait_condition= SELECT @@GLOBAL.super_read_only = '0'
-  --source include/wait_condition_or_abort.inc
-}
---let $skip_wait_for_disabled_read_only=
+--let $wait_condition= SELECT @@GLOBAL.super_read_only = '0'
+--source include/wait_condition_or_abort.inc
 
 --let $assert_text= 'Primary is correctly set'
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE member_role="PRIMARY" AND member_id="$server_uuid"] = 1

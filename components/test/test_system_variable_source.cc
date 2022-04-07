@@ -34,11 +34,9 @@ char log_text[MAX_BUFFER_LENGTH];
 FILE *outfile;
 const char *filename = "test_system_variable_source.log";
 
-#define WRITE_LOG(lit_log_text)                                         \
-  log_text_len = sprintf(log_text, "%s", lit_log_text);                 \
-  if (fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile) != \
-      static_cast<size_t>(log_text_len))                                \
-    return true;
+#define WRITE_LOG(lit_log_text)                         \
+  log_text_len = sprintf(log_text, "%s", lit_log_text); \
+  fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile)
 
 REQUIRES_SERVICE_PLACEHOLDER(system_variable_source);
 

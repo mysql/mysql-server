@@ -860,13 +860,11 @@ public:
      */
     bool equal(const Table&) const;
 
-#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     /**
      * Get frm file stored with this table
      */
     const void* getFrmData() const;
     Uint32 getFrmLength() const;
-#endif
 
     /**
      * Get default NdbRecord object for this table
@@ -1023,12 +1021,10 @@ public:
      */
     int getObjectId() const override;
 
-#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     /**
      * Set frm file to store with this table
      */ 
     int setFrm(const void* data, Uint32 len);
-#endif
 
     /**
       Set unpacked extra metadata for this table
@@ -1243,7 +1239,7 @@ public:
     Uint32 getPartitionId(Uint32 hashvalue) const ;
 
     /*
-     * Return true if any of the columns in the table have a
+     * Return TRUE if any of the columns in the table have a 
      * non NULL default value defined
      */ 
     bool hasDefaultValues() const;
@@ -2561,8 +2557,8 @@ public:
      * Table instance to new definition is supported
      * @param f Table to alter
      * @param t New definition of table
-     * @return  true supported      <br>
-     *          false not supported <br>
+     * @return  TRUE supported      <br>
+     *          FALSE not supported <br>
      */
     bool supportedAlterTable(const Table & f, const Table & t);
 

@@ -55,10 +55,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
           if empty list */
 
 /** Writes a file address. */
-static inline void flst_write_addr(
-    fil_faddr_t *faddr, /*!< in: pointer to file faddress */
-    fil_addr_t addr,    /*!< in: file address */
-    mtr_t *mtr)         /*!< in: mini-transaction handle */
+UNIV_INLINE
+void flst_write_addr(fil_faddr_t *faddr, /*!< in: pointer to file faddress */
+                     fil_addr_t addr,    /*!< in: file address */
+                     mtr_t *mtr)         /*!< in: mini-transaction handle */
 {
   ut_ad(faddr && mtr);
   ut_ad(mtr_memo_contains_page_flagged(
@@ -72,7 +72,8 @@ static inline void flst_write_addr(
 
 /** Reads a file address.
  @return file address */
-static inline fil_addr_t flst_read_addr(
+UNIV_INLINE
+fil_addr_t flst_read_addr(
     const fil_faddr_t *faddr, /*!< in: pointer to file faddress */
     mtr_t *mtr)               /*!< in: mini-transaction handle */
 {
@@ -88,9 +89,9 @@ static inline fil_addr_t flst_read_addr(
 }
 
 /** Initializes a list base node. */
-static inline void flst_init(
-    flst_base_node_t *base, /*!< in: pointer to base node */
-    mtr_t *mtr)             /*!< in: mini-transaction handle */
+UNIV_INLINE
+void flst_init(flst_base_node_t *base, /*!< in: pointer to base node */
+               mtr_t *mtr)             /*!< in: mini-transaction handle */
 {
   ut_ad(mtr_memo_contains_page_flagged(
       mtr, base, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
@@ -103,13 +104,15 @@ static inline void flst_init(
 /** Get the length of a list.
 @param[in]	base	base node
 @return length */
-static inline ulint flst_get_len(const flst_base_node_t *base) {
+UNIV_INLINE
+ulint flst_get_len(const flst_base_node_t *base) {
   return (mach_read_from_4(base + FLST_LEN));
 }
 
 /** Gets list first node address.
  @return file address */
-static inline fil_addr_t flst_get_first(
+UNIV_INLINE
+fil_addr_t flst_get_first(
     const flst_base_node_t *base, /*!< in: pointer to base node */
     mtr_t *mtr)                   /*!< in: mini-transaction handle */
 {
@@ -118,7 +121,8 @@ static inline fil_addr_t flst_get_first(
 
 /** Gets list last node address.
  @return file address */
-static inline fil_addr_t flst_get_last(
+UNIV_INLINE
+fil_addr_t flst_get_last(
     const flst_base_node_t *base, /*!< in: pointer to base node */
     mtr_t *mtr)                   /*!< in: mini-transaction handle */
 {
@@ -127,7 +131,8 @@ static inline fil_addr_t flst_get_last(
 
 /** Gets list next node address.
  @return file address */
-static inline fil_addr_t flst_get_next_addr(
+UNIV_INLINE
+fil_addr_t flst_get_next_addr(
     const flst_node_t *node, /*!< in: pointer to node */
     mtr_t *mtr)              /*!< in: mini-transaction handle */
 {
@@ -136,7 +141,8 @@ static inline fil_addr_t flst_get_next_addr(
 
 /** Gets list prev node address.
  @return file address */
-static inline fil_addr_t flst_get_prev_addr(
+UNIV_INLINE
+fil_addr_t flst_get_prev_addr(
     const flst_node_t *node, /*!< in: pointer to node */
     mtr_t *mtr)              /*!< in: mini-transaction handle */
 {

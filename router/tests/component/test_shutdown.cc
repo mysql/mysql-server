@@ -34,6 +34,8 @@
 #include <gmock/gmock.h>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
+// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
+// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 #include <rapidjson/document.h>
@@ -43,6 +45,7 @@
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
+#include "tcp_port_pool.h"
 
 using ::testing::Eq;
 using namespace std::chrono_literals;
@@ -143,6 +146,7 @@ class ShutdownTest : public RouterComponentTest {
     }
   }
 
+  TcpPortPool port_pool_;
   unsigned wait_for_cache_ready_timeout_ = 1000;
 };
 

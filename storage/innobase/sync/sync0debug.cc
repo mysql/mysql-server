@@ -49,8 +49,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sync0rw.h"
 #include "ut0mutex.h"
 
-#include <scope_guard.h>
-
 #ifndef UNIV_NO_ERR_MSGS
 #include "srv0start.h"
 #endif /* !UNIV_NO_ERR_MSGS */
@@ -58,9 +56,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0new.h"
 
 #ifdef UNIV_DEBUG
-#ifndef UNIV_NO_ERR_MSGS
-#include <current_thd.h>
-#endif /* !UNIV_NO_ERR_MSGS */
 
 bool srv_sync_debug;
 
@@ -108,7 +103,7 @@ struct Latched {
 };
 
 /** Thread specific latches. This is ordered on level in descending order. */
-typedef std::vector<Latched, ut::allocator<Latched>> Latches;
+typedef std::vector<Latched, ut_allocator<Latched>> Latches;
 
 /** The deadlock detector. */
 struct LatchDebug {
@@ -118,7 +113,7 @@ struct LatchDebug {
 
   /** For tracking a thread's latches. */
   typedef std::map<std::thread::id, Latches *, std::less<std::thread::id>,
-                   ut::allocator<std::pair<const std::thread::id, Latches *>>>
+                   ut_allocator<std::pair<const std::thread::id, Latches *>>>
       ThreadMap;
 
   /** Constructor */
@@ -317,7 +312,7 @@ struct LatchDebug {
   static void create_instance() UNIV_NOTHROW {
     ut_ad(s_instance == nullptr);
 
-    s_instance = ut::new_withkey<LatchDebug>(UT_NEW_THIS_FILE_PSI_KEY);
+    s_instance = UT_NEW_NOKEY(LatchDebug());
   }
 
  private:
@@ -361,7 +356,7 @@ struct LatchDebug {
   };
 
   typedef std::map<latch_level_t, std::string, latch_level_less,
-                   ut::allocator<std::pair<const latch_level_t, std::string>>>
+                   ut_allocator<std::pair<const latch_level_t, std::string>>>
       Levels;
 
   /** Mutex protecting the deadlock detector data structures. */
@@ -447,8 +442,6 @@ LatchDebug::LatchDebug() {
   LEVEL_MAP_INSERT(SYNC_THREADS);
   LEVEL_MAP_INSERT(SYNC_TRX);
   LEVEL_MAP_INSERT(SYNC_TRX_SYS);
-  LEVEL_MAP_INSERT(SYNC_TRX_SYS_SHARD);
-  LEVEL_MAP_INSERT(SYNC_TRX_SYS_SERIALISATION);
   LEVEL_MAP_INSERT(SYNC_LOCK_SYS_GLOBAL);
   LEVEL_MAP_INSERT(SYNC_LOCK_SYS_SHARDED);
   LEVEL_MAP_INSERT(SYNC_LOCK_WAIT_SYS);
@@ -595,7 +588,6 @@ bool LatchDebug::basic_check(const Latches *latches,
 @return	pointer to a thread's acquired latches. */
 Latches *LatchDebug::thread_latches(bool add) UNIV_NOTHROW {
   m_mutex.enter();
-  auto mutex_guard = create_scope_guard([this]() { m_mutex.exit(); });
 
   auto thread_id = std::this_thread::get_id();
   ThreadMap::iterator lb = m_threads.lower_bound(thread_id);
@@ -603,21 +595,27 @@ Latches *LatchDebug::thread_latches(bool add) UNIV_NOTHROW {
   if (lb != m_threads.end() && !(m_threads.key_comp()(thread_id, lb->first))) {
     Latches *latches = lb->second;
 
+    m_mutex.exit();
+
     return (latches);
 
   } else if (!add) {
+    m_mutex.exit();
+
     return (nullptr);
 
   } else {
     typedef ThreadMap::value_type value_type;
 
-    Latches *latches = ut::new_withkey<Latches>(UT_NEW_THIS_FILE_PSI_KEY);
+    Latches *latches = UT_NEW_NOKEY(Latches());
 
     ut_a(latches != nullptr);
 
     latches->reserve(32);
 
     m_threads.insert(lb, value_type(thread_id, latches));
+
+    m_mutex.exit();
 
     return (latches);
   }
@@ -702,8 +700,6 @@ Latches *LatchDebug::check_order(const latch_t *latch,
     case SYNC_LOCK_SYS_GLOBAL:
     case SYNC_LOCK_WAIT_SYS:
     case SYNC_TRX_SYS:
-    case SYNC_TRX_SYS_SHARD:
-    case SYNC_TRX_SYS_SERIALISATION:
     case SYNC_IBUF_BITMAP_MUTEX:
     case SYNC_TEMP_SPACE_RSEG:
     case SYNC_UNDO_SPACE_RSEG:
@@ -962,7 +958,7 @@ void LatchDebug::unlock(const latch_t *latch) UNIV_NOTHROW {
 
         m_mutex.exit();
 
-        ut::delete_(latches);
+        UT_DELETE(latches);
       }
 
       return;
@@ -1139,7 +1135,7 @@ void LatchDebug::shutdown() UNIV_NOTHROW {
     return;
   }
 
-  ut::delete_(s_instance);
+  UT_DELETE(s_instance);
 
   LatchDebug::s_instance = nullptr;
 }
@@ -1210,8 +1206,6 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
 
   LATCH_ADD_MUTEX(AUTOINC, SYNC_DICT_AUTOINC_MUTEX, autoinc_mutex_key);
 
-  LATCH_ADD_MUTEX(DDL_AUTOINC, SYNC_NO_ORDER_CHECK, ddl_autoinc_mutex_key);
-
 #ifdef PFS_SKIP_BUFFER_MUTEX_RWLOCK
   LATCH_ADD_MUTEX(BUF_BLOCK_MUTEX, SYNC_BUF_BLOCK, PFS_NOT_INSTRUMENTED);
 #else
@@ -1235,6 +1229,9 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
                   buf_pool_flush_state_mutex_key);
 
   LATCH_ADD_MUTEX(BUF_POOL_ZIP, SYNC_BUF_BLOCK, buf_pool_zip_mutex_key);
+
+  LATCH_ADD_MUTEX(CACHE_LAST_READ, SYNC_TRX_I_S_LAST_READ,
+                  cache_last_read_mutex_key);
 
   LATCH_ADD_MUTEX(DICT_FOREIGN_ERR, SYNC_NO_ORDER_CHECK,
                   dict_foreign_err_mutex_key);
@@ -1378,11 +1375,6 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
 
   LATCH_ADD_MUTEX(TRX_SYS, SYNC_TRX_SYS, trx_sys_mutex_key);
 
-  LATCH_ADD_MUTEX(TRX_SYS_SHARD, SYNC_TRX_SYS_SHARD, trx_sys_shard_mutex_key);
-
-  LATCH_ADD_MUTEX(TRX_SYS_SERIALISATION, SYNC_TRX_SYS_SERIALISATION,
-                  trx_sys_serialisation_mutex_key);
-
   LATCH_ADD_MUTEX(SRV_SYS, SYNC_THREADS, srv_sys_mutex_key);
 
   LATCH_ADD_MUTEX(SRV_SYS_TASKS, SYNC_ANY_LATCH, srv_threads_mutex_key);
@@ -1525,7 +1517,7 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
 static void sync_latch_meta_destroy() {
   for (LatchMetaData::iterator it = latch_meta.begin(); it != latch_meta.end();
        ++it) {
-    ut::delete_(*it);
+    UT_DELETE(*it);
   }
 
   latch_meta.clear();
@@ -1627,7 +1619,7 @@ struct CreateTracker {
 
   /** Map the mutex instance to where it was created */
   typedef std::map<const void *, File, std::less<const void *>,
-                   ut::allocator<std::pair<const void *const, File>>>
+                   ut_allocator<std::pair<const void *const, File>>>
       Files;
 
   typedef OSMutex Mutex;
@@ -1671,14 +1663,16 @@ void sync_check_init(size_t max_threads) {
   ut_d(LatchDebug::s_initialized = true);
 
   /** For collecting latch statistic - SHOW ... MUTEX */
-  mutex_monitor = ut::new_withkey<MutexMonitor>(UT_NEW_THIS_FILE_PSI_KEY);
+  mutex_monitor = UT_NEW_NOKEY(MutexMonitor());
 
   /** For trcking mutex creation location */
-  create_tracker = ut::new_withkey<CreateTracker>(UT_NEW_THIS_FILE_PSI_KEY);
+  create_tracker = UT_NEW_NOKEY(CreateTracker());
 
   sync_latch_meta_init();
 
-  /* Init the mutex list and create the mutex to protect it. */
+  /* Init the rw-lock & mutex list and create the mutex to protect it. */
+
+  UT_LIST_INIT(rw_lock_list, &rw_lock_t::list);
 
   mutex_create(LATCH_ID_RW_LOCK_LIST, &rw_lock_list_mutex);
 
@@ -1696,86 +1690,13 @@ void sync_check_close() {
 
   sync_array_close();
 
-  ut::delete_(mutex_monitor);
+  UT_DELETE(mutex_monitor);
 
   mutex_monitor = nullptr;
 
-  ut::delete_(create_tracker);
+  UT_DELETE(create_tracker);
 
   create_tracker = nullptr;
 
   sync_latch_meta_destroy();
 }
-
-#ifdef UNIV_DEBUG
-std::mutex Sync_point::s_mutex{};
-Sync_point::Sync_points Sync_point::s_sync_points{};
-
-void Sync_point::add(const THD *thd, const std::string &target) noexcept {
-  const std::lock_guard<std::mutex> lock(s_mutex);
-
-  auto r1 = std::find_if(
-      std::begin(s_sync_points), std::end(s_sync_points),
-      [=](const Sync_point &sync_point) { return thd == sync_point.m_thd; });
-
-  if (r1 != s_sync_points.end()) {
-    const auto &b = std::begin(r1->m_targets);
-    const auto &e = std::end(r1->m_targets);
-    const auto r2 = std::find(b, e, target);
-
-    if (r2 == e) {
-      r1->m_targets.push_back(target);
-    }
-  } else {
-    s_sync_points.push_back(Sync_point{thd});
-    s_sync_points.back().m_targets.push_back(target);
-  }
-}
-
-bool Sync_point::enabled(const THD *thd, const std::string &target) noexcept {
-  const std::lock_guard<std::mutex> lock(s_mutex);
-
-  auto r1 = std::find_if(
-      std::begin(s_sync_points), std::end(s_sync_points),
-      [=](const Sync_point &sync_point) { return thd == sync_point.m_thd; });
-
-  if (r1 == s_sync_points.end()) {
-    return false;
-  }
-
-  const auto &b = std::begin(r1->m_targets);
-  const auto &e = std::end(r1->m_targets);
-  const auto r2 = std::find(b, e, target);
-
-  return r2 != e;
-}
-
-bool Sync_point::enabled(const std::string &target) noexcept {
-#ifndef UNIV_NO_ERR_MSGS
-  return enabled(current_thd, target);
-#else
-  return false;
-#endif /* !UNIV_NO_ERR_MSGS */
-}
-
-void Sync_point::erase(const THD *thd, const std::string &target) noexcept {
-  const std::lock_guard<std::mutex> lock(s_mutex);
-
-  auto r1 = std::find_if(
-      std::begin(s_sync_points), std::end(s_sync_points),
-      [=](const Sync_point &sync_point) { return thd == sync_point.m_thd; });
-
-  if (r1 != s_sync_points.end()) {
-    const auto &b = std::begin(r1->m_targets);
-    const auto &e = std::end(r1->m_targets);
-    const auto r2 = std::find(b, e, target);
-
-    if (r2 != e) {
-      r1->m_targets.erase(r2);
-      if (r1->m_targets.empty()) {
-        s_sync_points.erase(r1);
-      }
-    }
-  }
-}
-#endif /* UNIV_DEBUG */

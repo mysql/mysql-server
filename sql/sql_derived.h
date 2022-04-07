@@ -71,7 +71,7 @@ class Condition_pushdown {
 
  private:
   Item *extract_cond_for_table(Item *cond);
-  bool replace_columns_in_cond(Item **cond, bool is_having);
+  bool replace_columns_in_cond();
   void push_past_window_functions();
   void push_past_group_by();
   bool attach_cond_to_derived(Item *derived_cond, Item *cond_to_attach,

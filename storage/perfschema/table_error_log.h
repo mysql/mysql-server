@@ -68,7 +68,7 @@ class PFS_key_error_log_logged : public PFS_key_ulonglong {
  public:
   PFS_key_error_log_logged(const char *name) : PFS_key_ulonglong(name) {}
 
-  ~PFS_key_error_log_logged() override = default;
+  ~PFS_key_error_log_logged() override {}
 
   virtual void read(PFS_key_reader &reader,
                     enum ha_rkey_function find_flag) override {
@@ -87,7 +87,7 @@ class PFS_index_error_log_by_logged : public PFS_index_error_log {
   PFS_index_error_log_by_logged()
       : PFS_index_error_log(&m_key), m_key("LOGGED") {}
 
-  ~PFS_index_error_log_by_logged() override = default;
+  ~PFS_index_error_log_by_logged() override {}
 
   virtual bool match(log_sink_pfs_event *row) override;
 
@@ -100,7 +100,7 @@ class PFS_key_error_log_thread_id : public PFS_key_ulonglong {
  public:
   PFS_key_error_log_thread_id(const char *name) : PFS_key_ulonglong(name) {}
 
-  ~PFS_key_error_log_thread_id() = default;
+  ~PFS_key_error_log_thread_id() {}
 
   bool match(const log_sink_pfs_event *row);
 };
@@ -111,7 +111,7 @@ class PFS_index_error_log_by_thread_id : public PFS_index_error_log {
   PFS_index_error_log_by_thread_id()
       : PFS_index_error_log(&m_key), m_key("THREAD_ID") {}
 
-  ~PFS_index_error_log_by_thread_id() override = default;
+  ~PFS_index_error_log_by_thread_id() override {}
 
   virtual bool match(log_sink_pfs_event *row) override;
 
@@ -125,7 +125,7 @@ class PFS_key_error_log_prio : public PFS_key_object_type_enum {
   PFS_key_error_log_prio(const char *name)
       : PFS_key_object_type_enum(name), m_prio(PS_ERROR_LOG_PRIO_ERROR) {}
 
-  ~PFS_key_error_log_prio() override = default;
+  ~PFS_key_error_log_prio() override {}
 
   void read(PFS_key_reader &reader, enum ha_rkey_function find_flag) override;
 
@@ -140,7 +140,7 @@ class PFS_index_error_log_by_prio : public PFS_index_error_log {
  public:
   PFS_index_error_log_by_prio() : PFS_index_error_log(&m_key), m_key("PRIO") {}
 
-  ~PFS_index_error_log_by_prio() override = default;
+  ~PFS_index_error_log_by_prio() override {}
 
   virtual bool match(log_sink_pfs_event *row) override;
 
@@ -154,7 +154,7 @@ class PFS_index_error_log_by_error_code : public PFS_index_error_log {
   PFS_index_error_log_by_error_code()
       : PFS_index_error_log(&m_key), m_key("ERROR_CODE") {}
 
-  ~PFS_index_error_log_by_error_code() override = default;
+  ~PFS_index_error_log_by_error_code() override {}
 
   virtual bool match(log_sink_pfs_event *row) override;
 
@@ -168,7 +168,7 @@ class PFS_index_error_log_by_subsys : public PFS_index_error_log {
   PFS_index_error_log_by_subsys()
       : PFS_index_error_log(&m_key), m_key("SUBSYSTEM") {}
 
-  ~PFS_index_error_log_by_subsys() override = default;
+  ~PFS_index_error_log_by_subsys() override {}
 
   virtual bool match(log_sink_pfs_event *row) override;
 
@@ -195,7 +195,7 @@ class table_error_log : public cursor_by_error_log {
   virtual int index_init(uint idx, bool sorted) override;
 
  public:
-  ~table_error_log() override = default;
+  ~table_error_log() override {}
 
  private:
   /** Copy an event from the ring-buffer into this class's buffer. */

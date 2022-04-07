@@ -90,8 +90,6 @@ class udf_handler {
   uchar is_null{0};
   /// True when handler has been initialized and use count incremented
   bool m_initialized{false};
-  /// True when init function has been called
-  bool m_init_func_called{false};
   Item **args;
   Udf_args_extension m_args_extension; /**< A struct that holds the extension
                                           arguments for each UDF argument */

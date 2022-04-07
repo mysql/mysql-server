@@ -76,7 +76,7 @@ typedef std::basic_string<unsigned char> Key_string;
 */
 class Stream_cipher {
  public:
-  virtual ~Stream_cipher() = default;
+  virtual ~Stream_cipher() {}
 
   /**
     Open the cipher with given password.

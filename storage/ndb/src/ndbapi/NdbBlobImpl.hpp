@@ -28,25 +28,25 @@
 
 class NdbBlobImpl {
 public:
-  static constexpr Uint32 BlobTableNameSize = 40;
+  STATIC_CONST( BlobTableNameSize = 40 );
   // "Invalid blob attributes or invalid blob parts table"
-  static constexpr Uint32 ErrTable = 4263;
+  STATIC_CONST( ErrTable = 4263 );
   // "Invalid usage of blob attribute" 
-  static constexpr Uint32 ErrUsage = 4264;
+  STATIC_CONST( ErrUsage = 4264 );
   // "The blob method is not valid in current blob state"
-  static constexpr Uint32 ErrState = 4265;
+  STATIC_CONST( ErrState = 4265 );
   // "Invalid blob seek position"
-  static constexpr Uint32 ErrSeek = 4266;
+  STATIC_CONST( ErrSeek = 4266 );
   // "Corrupted blob value"
-  static constexpr Uint32 ErrCorrupt = 4267;
+  STATIC_CONST( ErrCorrupt = 4267 );
   // "Error in blob head update forced rollback of transaction"
-  static constexpr Uint32 ErrAbort = 4268;
+  STATIC_CONST( ErrAbort = 4268 );
   // "Unknown blob error"
-  static constexpr Uint32 ErrUnknown = 4270;
+  STATIC_CONST( ErrUnknown = 4270 );
   // "Corrupted main table PK in blob operation"
-  static constexpr Uint32 ErrCorruptPK = 4274;
+  STATIC_CONST( ErrCorruptPK = 4274 );
   // "The blob method is incompatible with operation type or lock mode"
-  static constexpr Uint32 ErrCompat = 4275;
+  STATIC_CONST( ErrCompat = 4275 );
 };
 
 #endif

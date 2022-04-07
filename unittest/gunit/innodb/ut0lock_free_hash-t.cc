@@ -22,6 +22,9 @@
 
 /* See http://code.google.com/p/googletest/wiki/Primer */
 
+/* First include (the generated) my_config.h to get correct platform defines. */
+#include "my_config.h"
+
 /* Enable this to have the tests below run lots of iterations, suitable for
 perf testing and comparison, but not suitable for daily automated testing
 where CPU time is scarce. */

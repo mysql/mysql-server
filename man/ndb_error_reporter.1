@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: ndb_error_reporter
+.\"     Title: \fBndb_error_reporter\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2021
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_ERROR_REPORTER" "1" "11/26/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_ERROR_REPORTER\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -38,9 +38,10 @@ ndb_error_reporter \- NDB error\-reporting utility
 creates an archive from data node and management node log files that can be used to help diagnose bugs or other problems with a cluster\&.
 \fIIt is highly recommended that you make use of this utility when filing reports of bugs in NDB Cluster\fR\&.
 .PP
-Options that can be used with
-\fBndb_error_reporter\fR
-are shown in the following table\&. Additional descriptions follow the table\&.
+The following table includes command options specific to the NDB Cluster program
+\fBndb_error_reporter\fR\&. Additional descriptions follow the table\&. For options common to most NDB Cluster programs (including
+\fBndb_error_reporter\fR), see
+Options Common to NDB Cluster Programs(1)\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
@@ -61,11 +62,10 @@ T}
 lB l l
 lB l l
 lB l l
-lB l l
 lB l l.
 T{
 .PP
-\fB \fR\fB--connection-timeout=#\fR\fB \fR
+\fB \fR\fB--connection-timeout=timeout\fR\fB \fR
 T}:T{
 Number of seconds to wait when connecting to nodes before timing out
 T}:T{
@@ -76,7 +76,7 @@ T{
 .PP
 \fB \fR\fB--dry-scp\fR\fB \fR
 T}:T{
-Disable scp with remote hosts; used in testing only
+Disable scp with remote hosts; used only for testing
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -93,18 +93,7 @@ T}:T{
 T}
 T{
 .PP
-\fB--help\fR,
-.PP
-\fB \fR\fB-?\fR\fB \fR
-T}:T{
-Display help text and exit
-T}:T{
-.PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--skip-nodegroup=#\fR\fB \fR
+\fB \fR\fB--skip-nodegroup=nodegroup_id\fR\fB \fR
 T}:T{
 Skip all nodes in the node group having this ID
 T}:T{
@@ -153,7 +142,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---connection-timeout=#
+--connection-timeout=timeout
 T}
 T{
 Type
@@ -181,11 +170,23 @@ Wait this many seconds when trying to connect to nodes before timing out\&.
 \fB\-\-dry\-scp\fR
 .TS
 allbox tab(:);
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --dry-scp
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+TRUE
 T}
 .TE
 .sp 1
@@ -202,36 +203,26 @@ without using scp from remote hosts\&. Used for testing only\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-help\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---help
-T}
-.TE
-.sp 1
-Display help text and exit\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-fs\fR
 .TS
 allbox tab(:);
+lB l
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --fs
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
 T}
 .TE
 .sp 1
@@ -259,7 +250,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---connection-timeout=#
+--connection-timeout=timeout
 T}
 T{
 Type

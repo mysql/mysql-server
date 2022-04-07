@@ -33,7 +33,6 @@ struct NDB_SHARE;
 class Ndb_cluster_connection;
 struct SHOW_VAR;
 struct SYS_VAR;
-struct Ndb_index_stat_proc;
 
 class Ndb_index_stat_thread : public Ndb_component {
   // Someone is waiting for stats
@@ -56,7 +55,7 @@ class Ndb_index_stat_thread : public Ndb_component {
   void wakeup();
 
   /* are we setup */
-  static bool is_setup_complete();
+  bool is_setup_complete();
 
  private:
   int do_init() override;
@@ -65,13 +64,13 @@ class Ndb_index_stat_thread : public Ndb_component {
   // Wakeup for stop
   void do_wakeup() override;
 
-  int check_or_create_systables(const Ndb_index_stat_proc &pr) const;
-  int check_or_create_sysevents(const Ndb_index_stat_proc &pr) const;
-  void drop_ndb(Ndb_index_stat_proc *const pr) const;
-  int start_listener(const Ndb_index_stat_proc &pr) const;
-  int create_ndb(Ndb_index_stat_proc *const pr,
-                 Ndb_cluster_connection *const connection) const;
-  void stop_listener(const Ndb_index_stat_proc &pr) const;
+  int check_or_create_systables(struct Ndb_index_stat_proc &pr);
+  int check_or_create_sysevents(struct Ndb_index_stat_proc &pr);
+  void drop_ndb(struct Ndb_index_stat_proc &pr);
+  int start_listener(struct Ndb_index_stat_proc &pr);
+  int create_ndb(struct Ndb_index_stat_proc &pr,
+                 Ndb_cluster_connection *connection);
+  void stop_listener(struct Ndb_index_stat_proc &pr);
 };
 
 /* free entries from share or at end */

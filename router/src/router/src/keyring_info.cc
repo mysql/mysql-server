@@ -25,7 +25,7 @@
 #define MYSQL_ROUTER_LOG_DOMAIN \
   ::mysql_harness::logging::kMainLogger  // must precede #include "logging.h"
 
-#include "mysqlrouter/keyring_info.h"
+#include "keyring_info.h"
 
 #include <array>
 #include <chrono>
@@ -40,6 +40,8 @@
 #include "mysql/harness/logging/logging.h"
 #include "process_launcher.h"
 #include "random_generator.h"
+#include "router_config.h"
+#include "utils.h"
 
 IMPORT_LOG_FUNCTIONS()
 

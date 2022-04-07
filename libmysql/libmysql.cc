@@ -125,9 +125,9 @@ struct MYSQL_STMT_EXT {
     1  could not initialize environment (out of memory or thread keys)
 */
 
-int STDCALL mysql_server_init(int argc [[maybe_unused]],
-                              char **argv [[maybe_unused]],
-                              char **groups [[maybe_unused]]) {
+int STDCALL mysql_server_init(int argc MY_ATTRIBUTE((unused)),
+                              char **argv MY_ATTRIBUTE((unused)),
+                              char **groups MY_ATTRIBUTE((unused))) {
   int result = 0;
   if (!mysql_client_init) {
     mysql_client_init = true;
@@ -140,7 +140,7 @@ int STDCALL mysql_server_init(int argc [[maybe_unused]],
 
     if (!mysql_port) {
       char *env;
-      struct servent *serv_ptr [[maybe_unused]];
+      struct servent *serv_ptr MY_ATTRIBUTE((unused));
 
       mysql_port = MYSQL_PORT;
 
@@ -235,7 +235,7 @@ static void append_wild(char *to, char *end, const char *wild) {
   Init debugging if MYSQL_DEBUG environment variable is found
 **************************************************************************/
 
-void STDCALL mysql_debug(const char *debug [[maybe_unused]]) {
+void STDCALL mysql_debug(const char *debug MY_ATTRIBUTE((unused))) {
 #ifndef NDEBUG
   char *env;
   if (debug) {
@@ -306,9 +306,7 @@ bool STDCALL mysql_change_user(MYSQL *mysql, const char *user,
     my_free(saved_db);
 
     /* alloc new connect information */
-    if (!mysql->db)
-      mysql->db =
-          db ? my_strdup(PSI_NOT_INSTRUMENTED, db, MYF(MY_WME)) : nullptr;
+    mysql->db = db ? my_strdup(PSI_NOT_INSTRUMENTED, db, MYF(MY_WME)) : nullptr;
   } else {
     /* Free temporary connect information */
     my_free(mysql->user);
@@ -527,7 +525,7 @@ struct default_local_infile_data {
 */
 
 static int default_local_infile_init(void **ptr, const char *filename,
-                                     void *userdata [[maybe_unused]]) {
+                                     void *userdata MY_ATTRIBUTE((unused))) {
   default_local_infile_data *data;
   char tmp_name[FN_REFLEN];
 
@@ -627,7 +625,12 @@ static int default_local_infile_error(void *ptr, char *error_msg,
   return CR_OUT_OF_MEMORY;
 }
 
-void mysql_set_local_infile_handler(
+/*
+  Explicit extern "C" because otherwise solaris studio thinks
+  that the function pointer arguments have C++ linkage,
+  and then it overloads the declaration in include/mysql.h
+ */
+extern "C" void mysql_set_local_infile_handler(
     MYSQL *mysql, int (*local_infile_init)(void **, const char *, void *),
     int (*local_infile_read)(void *, char *, uint),
     void (*local_infile_end)(void *),
@@ -808,7 +811,7 @@ MYSQL_RES *STDCALL mysql_list_processes(MYSQL *mysql) {
 
 int STDCALL mysql_shutdown(MYSQL *mysql,
                            enum mysql_enum_shutdown_level shutdown_level
-                           [[maybe_unused]]) {
+                               MY_ATTRIBUTE((unused))) {
   if (mysql_get_server_version(mysql) < 50709)
     return simple_command(mysql, COM_DEPRECATED_1, nullptr, 0, 0);
   else
@@ -1306,7 +1309,7 @@ bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt) {
     /* skip parameters data: we don't support it yet */
     if (!(cli_read_metadata(mysql, param_count, 7))) return true;
     /* free memory allocated by cli_read_metadata() for parameters data */
-    mysql->field_alloc->Clear();
+    free_root(mysql->field_alloc, MYF(0));
   }
 
   if (field_count != 0) {
@@ -1382,8 +1385,8 @@ MYSQL_STMT *STDCALL mysql_stmt_init(MYSQL *mysql) {
     return nullptr;
   }
 
-  ::new ((void *)stmt->mem_root) MEM_ROOT(PSI_NOT_INSTRUMENTED, 2048);
-  ::new ((void *)stmt->result.alloc) MEM_ROOT(PSI_NOT_INSTRUMENTED, 4096);
+  init_alloc_root(PSI_NOT_INSTRUMENTED, stmt->mem_root, 2048, 2048);
+  init_alloc_root(PSI_NOT_INSTRUMENTED, stmt->result.alloc, 4096, 4096);
   mysql->stmts = list_add(mysql->stmts, &stmt->list);
   stmt->list.data = stmt;
   stmt->state = MYSQL_STMT_INIT_DONE;
@@ -1393,8 +1396,8 @@ MYSQL_STMT *STDCALL mysql_stmt_init(MYSQL *mysql) {
   my_stpcpy(stmt->sqlstate, not_error_sqlstate);
   /* The rest of statement members was zeroed inside malloc */
 
-  ::new ((void *)&stmt->extension->fields_mem_root)
-      MEM_ROOT(PSI_NOT_INSTRUMENTED, 2048);
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &stmt->extension->fields_mem_root, 2048,
+                  0);
 
   return stmt;
 }
@@ -1463,8 +1466,8 @@ int STDCALL mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query,
     stmt->bind_param_done = false;
     stmt->bind_result_done = false;
     stmt->param_count = stmt->field_count = 0;
-    stmt->mem_root->ClearForReuse();
-    stmt->extension->fields_mem_root.Clear();
+    free_root(stmt->mem_root, MYF(MY_KEEP_PREALLOC));
+    free_root(&stmt->extension->fields_mem_root, MYF(0));
 
     int4store(buff, stmt->stmt_id);
 
@@ -1524,7 +1527,7 @@ static void alloc_stmt_fields(MYSQL_STMT *stmt) {
 
   assert(stmt->field_count);
 
-  fields_mem_root->Clear();
+  free_root(fields_mem_root, MYF(0));
 
   /*
     mysql->fields is NULL when the client set CLIENT_OPTIONAL_RESULTSET_METADATA
@@ -1725,22 +1728,12 @@ static inline int add_binary_row(NET *net, MYSQL_STMT *stmt, ulong pkt_len,
   return 0;
 }
 
-/**
+/*
   Auxilary function to send COM_STMT_EXECUTE packet to server and read reply.
-
-  Used from @ref cli_stmt_execute, which is in turn used by
-  @ref mysql_stmt_execute.
-
-  @param stmt the stmt to execute
-  @param packet the data for the parameters
-  @param length number of bytes in the buffer "data"
-  @param send_param_count ON if the server properly processes the
-     PARAMETER_COUNT_AVAILABLE flag, so we can send it.
-  @retval false success
-  @retval true failure. error set
+  Used from cli_stmt_execute, which is in turn used by mysql_stmt_execute.
 */
-static bool execute(MYSQL_STMT *stmt, char *packet, ulong length,
-                    bool send_param_count) {
+
+static bool execute(MYSQL_STMT *stmt, char *packet, ulong length) {
   MYSQL *mysql = stmt->mysql;
   NET *net = &mysql->net;
   uchar buff[4 /* size of stmt id */ + 5 /* execution flags */];
@@ -1752,22 +1745,7 @@ static bool execute(MYSQL_STMT *stmt, char *packet, ulong length,
   DBUG_DUMP("packet", (uchar *)packet, length);
 
   int4store(buff, stmt->stmt_id); /* Send stmt id to server */
-  uchar flags = (uchar)stmt->flags;
-
-  /*
-    If the server supports query attributes raise the flag that we
-    are going to be sending the parameter block.
-    Unfortunately there's a bug in processing the flags in servers
-    earlier than 8.0.26 that conflates all the flags into a single
-    boolean. Thus we need to cut off sending PARAMETER_COUNT_AVAILABLE
-    for these
-  */
-  if ((mysql->server_capabilities & CLIENT_QUERY_ATTRIBUTES) != 0 &&
-      send_param_count) {
-    DBUG_PRINT("prep_stmt_exec", ("Setting PARAMETER_COUNT_AVAILABLE"));
-    flags |= PARAMETER_COUNT_AVAILABLE;
-  }
-  buff[4] = (char)(flags);
+  buff[4] = (char)stmt->flags;
   int4store(buff + 5, 1); /* iteration count */
 
   res = (cli_advanced_command(mysql, COM_STMT_EXECUTE, buff, sizeof(buff),
@@ -1844,24 +1822,16 @@ static bool execute(MYSQL_STMT *stmt, char *packet, ulong length,
 
 int cli_stmt_execute(MYSQL_STMT *stmt) {
   DBUG_TRACE;
-  MYSQL *mysql = stmt->mysql;
-  bool send_named_params =
-      (mysql->server_capabilities & CLIENT_QUERY_ATTRIBUTES) != 0;
-  bool can_deal_with_flags =
-      mysql->server_version && mysql_get_server_version(mysql) >= 80026;
-  /*
-    When the server can deal with flags properly we should send the 0 param
-    count even when there's no parameters when the server supports named
-    parameters to signify there's no query attributes either. We are setting the
-    PARAMETER_COUNT_AVAILABLE later on the same condition in execute()
-  */
-  if (stmt->param_count || send_named_params) {
+
+  if (stmt->param_count) {
+    MYSQL *mysql = stmt->mysql;
     uchar *param_data = nullptr;
     bool result;
     unsigned long param_length = 0;
+    bool send_named_params =
+        (mysql->server_capabilities & CLIENT_QUERY_ATTRIBUTES) != 0;
 
-    if (!stmt->bind_param_done &&
-        (!send_named_params || stmt->param_count != 0)) {
+    if (!stmt->bind_param_done) {
       set_stmt_error(stmt, CR_PARAMS_NOT_BOUND, unknown_sqlstate, nullptr);
       return 1;
     }
@@ -1880,19 +1850,18 @@ int cli_stmt_execute(MYSQL_STMT *stmt) {
 
     if (mysql_int_serialize_param_data(
             &mysql->net, stmt->param_count, stmt->params, NULL, 1, &param_data,
-            &param_length, stmt->send_types_to_server, send_named_params, false,
-            can_deal_with_flags)) {
+            &param_length, stmt->send_types_to_server, send_named_params,
+            false)) {
       set_stmt_errmsg(stmt, &mysql->net);
       return 1;
     }
 
-    result = execute(stmt, pointer_cast<char *>(param_data), param_length,
-                     can_deal_with_flags);
+    result = execute(stmt, pointer_cast<char *>(param_data), param_length);
     stmt->send_types_to_server = false;
     my_free(param_data);
     return result;
   }
-  return (int)execute(stmt, nullptr, 0, can_deal_with_flags);
+  return (int)execute(stmt, nullptr, 0);
 }
 
 /*
@@ -1999,7 +1968,7 @@ static int stmt_read_row_from_cursor(MYSQL_STMT *stmt, unsigned char **row) {
     MYSQL_DATA *result = &stmt->result;
     uchar buff[4 /* statement id */ + 4 /* number of rows to fetch */];
 
-    result->alloc->ClearForReuse();
+    free_root(result->alloc, MYF(MY_KEEP_PREALLOC));
     result->data = nullptr;
     result->rows = 0;
     /* Send row request to the server */
@@ -2030,13 +1999,14 @@ static int stmt_read_row_from_cursor(MYSQL_STMT *stmt, unsigned char **row) {
   case of wrong sequence of API calls.
 */
 
-static int stmt_read_row_no_data(MYSQL_STMT *stmt [[maybe_unused]],
-                                 unsigned char **row [[maybe_unused]]) {
+static int stmt_read_row_no_data(MYSQL_STMT *stmt MY_ATTRIBUTE((unused)),
+                                 unsigned char **row MY_ATTRIBUTE((unused))) {
   return MYSQL_NO_DATA;
 }
 
-static int stmt_read_row_no_result_set(MYSQL_STMT *stmt [[maybe_unused]],
-                                       unsigned char **row [[maybe_unused]]) {
+static int stmt_read_row_no_result_set(MYSQL_STMT *stmt MY_ATTRIBUTE((unused)),
+                                       unsigned char **row
+                                           MY_ATTRIBUTE((unused))) {
   set_stmt_error(stmt, CR_NO_RESULT_SET, unknown_sqlstate, nullptr);
   return 1;
 }
@@ -3287,7 +3257,7 @@ static void fetch_result_short(MYSQL_BIND *param, MYSQL_FIELD *field,
 }
 
 static void fetch_result_int32(MYSQL_BIND *param,
-                               MYSQL_FIELD *field [[maybe_unused]],
+                               MYSQL_FIELD *field MY_ATTRIBUTE((unused)),
                                uchar **row) {
   bool field_is_unsigned = (field->flags & UNSIGNED_FLAG);
   uint32 data = (uint32)sint4korr(*row);
@@ -3297,7 +3267,7 @@ static void fetch_result_int32(MYSQL_BIND *param,
 }
 
 static void fetch_result_int64(MYSQL_BIND *param,
-                               MYSQL_FIELD *field [[maybe_unused]],
+                               MYSQL_FIELD *field MY_ATTRIBUTE((unused)),
                                uchar **row) {
   bool field_is_unsigned = (field->flags & UNSIGNED_FLAG);
   ulonglong data = (ulonglong)sint8korr(*row);
@@ -3307,7 +3277,7 @@ static void fetch_result_int64(MYSQL_BIND *param,
 }
 
 static void fetch_result_float(MYSQL_BIND *param,
-                               MYSQL_FIELD *field [[maybe_unused]],
+                               MYSQL_FIELD *field MY_ATTRIBUTE((unused)),
                                uchar **row) {
   float value = float4get(*row);
   floatstore(pointer_cast<uchar *>(param->buffer), value);
@@ -3315,7 +3285,7 @@ static void fetch_result_float(MYSQL_BIND *param,
 }
 
 static void fetch_result_double(MYSQL_BIND *param,
-                                MYSQL_FIELD *field [[maybe_unused]],
+                                MYSQL_FIELD *field MY_ATTRIBUTE((unused)),
                                 uchar **row) {
   double value = float8get(*row);
   doublestore(pointer_cast<uchar *>(param->buffer), value);
@@ -3323,28 +3293,29 @@ static void fetch_result_double(MYSQL_BIND *param,
 }
 
 static void fetch_result_time(MYSQL_BIND *param,
-                              MYSQL_FIELD *field [[maybe_unused]],
+                              MYSQL_FIELD *field MY_ATTRIBUTE((unused)),
                               uchar **row) {
   MYSQL_TIME *tm = (MYSQL_TIME *)param->buffer;
   read_binary_time(tm, row);
 }
 
 static void fetch_result_date(MYSQL_BIND *param,
-                              MYSQL_FIELD *field [[maybe_unused]],
+                              MYSQL_FIELD *field MY_ATTRIBUTE((unused)),
                               uchar **row) {
   MYSQL_TIME *tm = (MYSQL_TIME *)param->buffer;
   read_binary_date(tm, row);
 }
 
 static void fetch_result_datetime(MYSQL_BIND *param,
-                                  MYSQL_FIELD *field [[maybe_unused]],
+                                  MYSQL_FIELD *field MY_ATTRIBUTE((unused)),
                                   uchar **row) {
   MYSQL_TIME *tm = (MYSQL_TIME *)param->buffer;
   read_binary_datetime(tm, row);
 }
 
 static void fetch_result_bin(MYSQL_BIND *param,
-                             MYSQL_FIELD *field [[maybe_unused]], uchar **row) {
+                             MYSQL_FIELD *field MY_ATTRIBUTE((unused)),
+                             uchar **row) {
   ulong length = net_field_length(row);
   ulong copy_length = std::min(length, param->buffer_length);
   memcpy(param->buffer, (char *)*row, copy_length);
@@ -3354,7 +3325,8 @@ static void fetch_result_bin(MYSQL_BIND *param,
 }
 
 static void fetch_result_str(MYSQL_BIND *param,
-                             MYSQL_FIELD *field [[maybe_unused]], uchar **row) {
+                             MYSQL_FIELD *field MY_ATTRIBUTE((unused)),
+                             uchar **row) {
   ulong length = net_field_length(row);
   ulong copy_length = std::min(length, param->buffer_length);
   memcpy(param->buffer, (char *)*row, copy_length);
@@ -3372,14 +3344,15 @@ static void fetch_result_str(MYSQL_BIND *param,
 */
 
 static void skip_result_fixed(MYSQL_BIND *param,
-                              MYSQL_FIELD *field [[maybe_unused]], uchar **row)
+                              MYSQL_FIELD *field MY_ATTRIBUTE((unused)),
+                              uchar **row)
 
 {
   (*row) += param->pack_length;
 }
 
-static void skip_result_with_length(MYSQL_BIND *param [[maybe_unused]],
-                                    MYSQL_FIELD *field [[maybe_unused]],
+static void skip_result_with_length(MYSQL_BIND *param MY_ATTRIBUTE((unused)),
+                                    MYSQL_FIELD *field MY_ATTRIBUTE((unused)),
                                     uchar **row)
 
 {
@@ -3387,7 +3360,7 @@ static void skip_result_with_length(MYSQL_BIND *param [[maybe_unused]],
   (*row) += length;
 }
 
-static void skip_result_string(MYSQL_BIND *param [[maybe_unused]],
+static void skip_result_string(MYSQL_BIND *param MY_ATTRIBUTE((unused)),
                                MYSQL_FIELD *field, uchar **row)
 
 {
@@ -3854,10 +3827,6 @@ int cli_read_binary_rows(MYSQL_STMT *stmt) {
 
   while ((pkt_len = cli_safe_read(mysql, &is_data_packet)) != packet_error) {
     cp = net->read_pos;
-    if (pkt_len < 1) {
-      set_stmt_error(stmt, CR_MALFORMED_PACKET, unknown_sqlstate, nullptr);
-      return 1;
-    }
     if (*cp == 0 || is_data_packet) {
       if (add_binary_row(net, stmt, pkt_len, &prev_ptr)) goto err;
     } else {
@@ -3866,13 +3835,8 @@ int cli_read_binary_rows(MYSQL_STMT *stmt) {
       /* read warning count from OK packet or EOF packet if it is old client */
       if (mysql->server_capabilities & CLIENT_DEPRECATE_EOF && !is_data_packet)
         read_ok_ex(mysql, pkt_len);
-      else {
-        if (pkt_len < 3) {
-          set_stmt_error(stmt, CR_MALFORMED_PACKET, unknown_sqlstate, nullptr);
-          return 1;
-        }
+      else
         mysql->warning_count = uint2korr(cp + 1);
-      }
       /*
         OUT parameters result sets has SERVER_PS_OUT_PARAMS and
         SERVER_MORE_RESULTS_EXISTS flags in first EOF_Packet only.
@@ -3886,10 +3850,6 @@ int cli_read_binary_rows(MYSQL_STMT *stmt) {
         So we need to preserve SERVER_MORE_RESULTS_EXISTS flag for OUT
         parameters result set.
       */
-      if (pkt_len < 5) {
-        set_stmt_error(stmt, CR_MALFORMED_PACKET, unknown_sqlstate, nullptr);
-        return 1;
-      }
       if (mysql->server_status & SERVER_PS_OUT_PARAMS) {
         mysql->server_status =
             uint2korr(cp + 3) | SERVER_PS_OUT_PARAMS |
@@ -4024,7 +3984,7 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt) {
   }
 
   if ((*mysql->methods->read_binary_rows)(stmt)) {
-    result->alloc->ClearForReuse();
+    free_root(result->alloc, MYF(MY_KEEP_PREALLOC));
     result->data = nullptr;
     result->rows = 0;
     mysql->status = MYSQL_STATUS_READY;
@@ -4118,7 +4078,7 @@ static bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags) {
     */
     if (flags & RESET_STORE_RESULT) {
       /* Result buffered */
-      result->alloc->ClearForReuse();
+      free_root(result->alloc, MYF(MY_KEEP_PREALLOC));
       result->data = nullptr;
       result->rows = 0;
       stmt->data_cursor = nullptr;
@@ -4192,9 +4152,9 @@ bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt) {
   int rc = 0;
   DBUG_TRACE;
 
-  stmt->result.alloc->Clear();
-  stmt->mem_root->Clear();
-  stmt->extension->fields_mem_root.Clear();
+  free_root(stmt->result.alloc, MYF(0));
+  free_root(stmt->mem_root, MYF(0));
+  free_root(&stmt->extension->fields_mem_root, MYF(0));
 
   if (mysql) {
     mysql->stmts = list_delete(mysql->stmts, &stmt->list);

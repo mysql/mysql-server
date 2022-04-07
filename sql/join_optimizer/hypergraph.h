@@ -41,14 +41,21 @@
 #include <algorithm>
 #include <vector>
 
-#include "sql/join_optimizer/node_map.h"
-
 namespace hypergraph {
+
+// Since our graphs can never have more than 61 tables, node sets and edge lists
+// are implemented using 64-bit bit sets. This allows for a compact
+// representation and very fast set manipulation; the algorithm does a fair
+// amount of intersections and unions. If we should need extensions to larger
+// graphs later (this will require additional heuristics for reducing the search
+// space), we can use dynamic bit sets, although at a performance cost (we'd
+// probably templatize off the NodeMap type).
+using NodeMap = uint64_t;
 
 struct Node {
   // List of edges (indexes into the hypergraph's “edges” array) that touch this
   // node. We split these into simple edges (only one node on each side) and
-  // complex edges (all others), because we can often quickly discard all simple
+  // complex edges (all others), becaues we can often quickly discard all simple
   // edges by testing the set of interesting nodes against the
   // “simple_neighborhood” bitmap.
   //

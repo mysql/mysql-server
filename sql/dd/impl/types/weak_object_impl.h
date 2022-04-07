@@ -46,9 +46,9 @@ class Raw_record;
 template <bool use_pfs>
 class Weak_object_impl_ : virtual public Weak_object {
  public:
-  Weak_object_impl_() = default;
+  Weak_object_impl_() {}
 
-  ~Weak_object_impl_() override = default;
+  ~Weak_object_impl_() override {}
 
   void *operator new(size_t size, const std::nothrow_t &nt) noexcept {
     /*

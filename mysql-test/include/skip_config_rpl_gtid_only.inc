@@ -1,1 +1,0 @@
---let $skip_configuration_rpl_gtid_only = 'skip'

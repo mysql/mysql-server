@@ -169,7 +169,7 @@ class Upgrade_status {
  private:
   bool open(int flags);
   enum_stage read();
-  [[nodiscard]] bool write(enum_stage status);
+  bool write(enum_stage status);
   bool close();
 
  private:

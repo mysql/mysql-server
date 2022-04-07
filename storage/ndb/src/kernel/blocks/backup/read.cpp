@@ -24,7 +24,6 @@
 
 #include <ndb_global.h>
 
-#include <cstring>
 #include <NdbTCP.h>
 #include <NdbOut.hpp>
 #include "BackupFormat.hpp"
@@ -49,10 +48,9 @@ static ndb_password_state opt_backup_password_state("backup", nullptr);
 static ndb_password_option opt_backup_password(opt_backup_password_state);
 static ndb_password_from_stdin_option opt_backup_password_from_stdin(
                                           opt_backup_password_state);
-static void print_utility_help();
 
 static bool opt_print_restored_rows = false;
-static int opt_print_restored_rows_ctl_dir = -1;
+static int opt_print_restored_rows_ctl_dir = 0;
 static int opt_print_restored_rows_fid = -1;
 static bool opt_num_data_words = false;
 static bool opt_show_ignored_rows = false;
@@ -86,12 +84,10 @@ static struct my_option my_long_options[] =
     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr },
   { "control-directory-number", 'c', "control directory number",
     &opt_print_restored_rows_ctl_dir, &opt_print_restored_rows_ctl_dir, 0,
-    GET_INT, REQUIRED_ARG, opt_print_restored_rows_ctl_dir,
-    opt_print_restored_rows_ctl_dir, 1, nullptr, 0, nullptr },
+    GET_INT, REQUIRED_ARG, 0, 0, 1, nullptr, 0, nullptr },
   { "fragment-id", 'f', "fragment id",
     &opt_print_restored_rows_fid, &opt_print_restored_rows_fid, 0,
-    GET_INT, REQUIRED_ARG, opt_print_restored_rows_fid,
-    opt_print_restored_rows_fid, 0, nullptr, 0, nullptr },
+    GET_INT, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr },
   { "print-header-words", 'h', "print header words",
     &opt_num_data_words, &opt_num_data_words, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr },
@@ -108,8 +104,7 @@ static struct my_option my_long_options[] =
     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr },
   { "table-id", 't', "table id",
     &opt_print_restored_rows_table, &opt_print_restored_rows_table, 0,
-    GET_INT, REQUIRED_ARG, opt_print_restored_rows_table,
-    opt_print_restored_rows_table, 0, nullptr, 0, nullptr },
+    GET_INT, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr },
   { "print-rows", 'U', "do print rows",
     &opt_print_rows_flag, &opt_print_rows_flag, 0,
     GET_BOOL, NO_ARG, 1, 0, 0, nullptr, 0, nullptr },
@@ -183,16 +178,11 @@ static RowEntry **row_all_entries = NULL;
 
 static bool get_one_option(int optid, const struct my_option *opt, char *arg)
 {
-  switch (optid) {
-    case 'u':
-      opt_print_rows_flag = false;
-      break;
-    case '?':
-      print_utility_help();
-      ndb_std_get_one_option(optid, opt, arg);
-      break;
-    default:
-      return ndb_std_get_one_option(optid, opt, arg);
+  switch (optid)
+  {
+  case 'u': opt_print_rows_flag = false; break;
+  default:
+    return ndb_std_get_one_option(optid, opt, arg);
   }
   return false;
 }
@@ -433,8 +423,6 @@ void check_data(const char *file_input)
       }
     }
     fclose(file);
-  } else {
-    ndbout_c("check_data: Failed to open file '%s'", file_input);
   }
 }
 
@@ -500,7 +488,7 @@ void delete_all()
   }
 }
 
-void handle_print_restored_rows()
+void handle_print_restored_rows(const char *file_input)
 {
   ndbout_c("Print restored rows for T%uF%u",
            opt_print_restored_rows_table,
@@ -529,7 +517,8 @@ void handle_print_restored_rows()
   }
   if(r == -1)
   {
-    ndbout_c("Failed to open ctl file '%s', error: %d", buf, r);
+    ndbout_c("Failed to open file '%s', error: %d",
+             buf, r);
     ndb_end_and_exit(1);
   }
   ndbxfrm_readfile* f = &fo;
@@ -568,7 +557,7 @@ void handle_print_restored_rows()
     ndbout << "Malloc failure" << endl;
     ndb_end_and_exit(1);
   }
-  std::memset(row_entries, 0, sizeof(RowEntry*) * max_pages);
+  memset(row_entries, 0, sizeof(RowEntry*) * max_pages);
 
   row_all_entries = (RowEntry**)malloc(sizeof(RowEntry*) * max_pages);
   if (row_all_entries == NULL)
@@ -576,7 +565,7 @@ void handle_print_restored_rows()
     ndbout << "Malloc failure" << endl;
     ndb_end_and_exit(1);
   }
-  std::memset(row_all_entries, 0, sizeof(RowEntry*) * max_pages);
+  memset(row_all_entries, 0, sizeof(RowEntry*) * max_pages);
 
   Uint32 last_file = lcpCtlFilePtr.LastDataFileNumber;
   Uint32 num_parts = lcpCtlFilePtr.NumPartPairs;
@@ -589,20 +578,14 @@ void handle_print_restored_rows()
     Uint32 first_ignore =
       move_part_forward(first_all, lcpCtlFilePtr.partPairs[inx].numParts);
     inx++;
-    std::memset(&parts_array[0], 0, sizeof(parts_array));
+    memset(&parts_array[0], 0, sizeof(parts_array));
     for (Uint32 j = first_change; j != first_all; j = move_part_forward(j,1))
     {
       parts_array[j] = CHANGE_PART;
       assert(j < BackupFormat::NDB_MAX_LCP_PARTS);
     }
-    /**
-     * Fill in all parts, including non-partial case where
-     * PartPair covers all parts, such that first_all == first_ignore
-     */
-    assert(num_parts > 0);
-    Uint32 all_part_count = 0;
-    for (Uint32 j = first_all; ((all_part_count++) == 0) || (j != first_ignore);
-         j = move_part_forward(j, 1)) {
+    for (Uint32 j = first_all; j != first_ignore; j = move_part_forward(j,1))
+    {
       parts_array[j] = ALL_PART;
       assert(j < BackupFormat::NDB_MAX_LCP_PARTS);
     }
@@ -621,6 +604,7 @@ void handle_print_restored_rows()
              i,
              opt_print_restored_rows_table,
              opt_print_restored_rows_fid);
+    bzero(&fo, sizeof(fo));
     BaseString::snprintf(buf, sizeof(buf),
                          "%u/T%uF%u.Data",
                          i,
@@ -640,11 +624,11 @@ void handle_print_restored_rows()
     }
     if(r == -1)
     {
-      ndbout_c("Failed to open data file '%s', error: %d", buf, r);
+      ndbout_c("Failed to open file '%s', error: %d",
+               buf, r);
       //ndb_end_and_exit(1);
       continue;
     }
-
     if (!readHeader(f, &fileHeader))
     {
       ndbout << "Invalid file!" << endl;
@@ -782,7 +766,6 @@ main(int argc, char * argv[])
   Ndb_opts opts(argc, argv, my_long_options, load_defaults_groups);
   if (opts.handle_options(&get_one_option))
   {
-    print_utility_help();
     opts.usage();
     ndb_end_and_exit(1);
   }
@@ -795,33 +778,29 @@ main(int argc, char * argv[])
     {
       fprintf(stderr, "Error: backup password: %s\n", err_msg.c_str());
     }
-    print_utility_help();
     opts.usage();
     ndb_end_and_exit(1);
   }
 
-  if (opt_print_restored_rows) {
-    if (opt_print_restored_rows_table == -1 ||
-        opt_print_restored_rows_ctl_dir == -1 ||
-        opt_print_restored_rows_fid == -1) {
-      ndbout_c(
-          "Missing table -t or fragment -f or control-directory -c argument");
-      print_utility_help();
-      opts.usage();
-      ndb_end_and_exit(1);
-    }
-    if (argc > 0) {
-      fprintf(stderr, "Ignoring %s for print-restored-rows\n", argv[0]);
-    }
-    handle_print_restored_rows();
-  }
-
-  if (argc != 1) {
+  if (argc != 1)
+  {
     fprintf(stderr, "Error: Need one filename for a backup file to print.\n");
     ndb_end_and_exit(1);
   }
 
   const char *file_name = argv[0];
+
+  if (opt_print_restored_rows)
+  {
+    if (opt_print_restored_rows_table == -1 ||
+        opt_print_restored_rows_fid == -1)
+    {
+      opts.usage();
+      ndb_end_and_exit(1);
+    }
+    handle_print_restored_rows(opt_file_input);
+  }
+
   ndb_file file;
   ndbxfrm_readfile fo;
 
@@ -1706,21 +1685,3 @@ operator<<(NdbOut& ndbout, const BackupFormat::CtlFile::GCPEntry & hf) {
   return ndbout;
 }
 
-void print_utility_help() {
-  fprintf(stdout,
-          "\n"
-          "There are 3 ways ndb_print_backup_file could be used:\n"
-          "1. Can be used to check backup generated files individually (CTL, "
-          "DATA, LOG)\n"
-          "   Usage: ndb_print_backup_file BACKUP-x.x.ctl | BACKUP-x-x.x.Data "
-          "| BACKUP-x.x.log [OPTIONS]\n"
-          "2. Can be used to check LCP Data and CTL files individually\n"
-          "   Usage: ndb_print_backup_file LCP/c/TtFf.ctl | LCP/c/TtFf.Data "
-          "[OPTIONS]\n"
-          "3. Can be used to check a set of LCP CTL + DATA files that will be "
-          "used to restore a fragment\n"
-          "   (Should be run from 'data-dir/ndb_x_fs/LCP' directory)\n"
-          "   Usage: ndb_print_backup_file -c <control-directory-number> -t "
-          "<table-id> -f <fragment-id> --print-restored-rows\n"
-          "\n");
-}

@@ -24,7 +24,6 @@
 
 #ifdef TEST_MT_SEND
 
-#include <cstring>
 #include "mt-asm.h"
 #include "mt-lock.hpp"
 #include <NdbTick.h>
@@ -116,7 +115,7 @@ typedef Bitmask<(MAX_TRANSPORTERS+31)/32> TransporterMask;
 struct Producer
 {
   Producer() {
-    std::memset(val, 0, sizeof(val));
+    bzero(val, sizeof(val));
     pendingcount = 0;
   }
 
@@ -167,7 +166,7 @@ struct Thread
 struct Consumer
 {
   Consumer() {
-    m_force_send = 0; std::memset(val, 0, sizeof(val));
+    m_force_send = 0; bzero(val, sizeof(val));
   }
 
   void init() {}

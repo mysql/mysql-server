@@ -58,9 +58,9 @@ class Query_result_union : public Query_result_interceptor {
 
     @return false on success, true on failure
   */
-  virtual bool postponed_prepare(THD *thd [[maybe_unused]],
+  virtual bool postponed_prepare(THD *thd MY_ATTRIBUTE((unused)),
                                  const mem_root_deque<Item *> &types
-                                 [[maybe_unused]]) {
+                                     MY_ATTRIBUTE((unused))) {
     return false;
   }
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;

@@ -118,7 +118,7 @@ class Restrictions {
  public:
   explicit Restrictions();
 
-  Restrictions(const Restrictions &) = default;
+  Restrictions(const Restrictions &);
   Restrictions(Restrictions &&);
   Restrictions &operator=(const Restrictions &);
   Restrictions &operator=(Restrictions &&);

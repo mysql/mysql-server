@@ -3036,42 +3036,24 @@ DROP PROCEDURE p1;
 #
 # Bug#32227101: CREATE TABLE PRODUCES CORE
 #
-# Bug#33114368: 'SHOW TABLE STATUS' WITH HUGE AVG_ROW_LENGTH:
-# DD::PROPERTIES::GET: ASSERTION `FALSE' FAILED.
-#
-# These issues are related and arise from insufficient input checking
-# of numeric table options.
-# From bug#33114368 we see that even if no overflow occurs on CREATE,
-# there can be a risk of overflow when the option value is used
-# elsewhere.
-# The safest thing to do is to constrain values to the largest
-# value permitted by the frm-file format (unless the range of the option
-# value has been explicitly changed in 8.0).
-#
-# key_block_size, parser type: signed_num (int)
-# std::uint32_t HA_CREATE_INFO::key_block_size
-# 2 bytes in frm
-# Only settable for myisam, but also used in Innodb
-# key_block_size = 2^31-1 - rejected by explicit check 
+# key_block_size = 2^31-1 - rejected by Innodb
 CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 2147483647;
-ERROR 42000: The valid range for key_block_size is [0,65535]. Error near '2147483647' at line 1
-# key_block_size = -(2^31)+1 - rejected by parser (parser switched
-# back to using ulong_num now that there is an explicit check).
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+# key_block_size = -(2^31)+1 - rejected by Innodb
 CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = -2147483647;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-2147483647' at line 1
-# key_block_size = 2^31 - rejected by explicit check
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+# key_block_size = 2^31 - now rejected by parser
 CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 2147483648;
-ERROR 42000: The valid range for key_block_size is [0,65535]. Error near '2147483648' at line 1
-# key_block_size = -2^31 - rejected by parser (parser switched
-# back to using ulong_num now that there is an explicit check).
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '2147483648' at line 1
+# key_block_size = -2^31 - now rejected by parser
 CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = -2147483648;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-2147483648' at line 1
-# key_block_size = 2^32-1 - rejected by explicit check
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '2147483648' at line 1
+# key_block_size = 2^32-1 - now rejected by parser
 CREATE TABLE t2(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 4294967295;
-ERROR 42000: The valid range for key_block_size is [0,65535]. Error near '4294967295' at line 1
-# key_block_size = 2^32 - rejected by explicit check
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '4294967295' at line 1
+# key_block_size = 2^32 - now rejected by parser
 CREATE TABLE t3(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 4294967296;
-ERROR 42000: The valid range for key_block_size is [0,65535]. Error near '4294967296' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '4294967296' at line 1
 # key_block_size = 3927749503218772669 - now rejected by parser
 CREATE TABLE t4(
 c0 DECIMAL ZEROFILL  UNIQUE KEY STORAGE MEMORY,
@@ -3079,51 +3061,4 @@ c1 DECIMAL ZEROFILL  PRIMARY KEY COLUMN_FORMAT DYNAMIC UNIQUE KEY STORAGE MEMORY
 c2 FLOAT ZEROFILL  COMMENT 'asdf'  COLUMN_FORMAT FIXED NULL STORAGE MEMORY,
 c3 TINYINT(120) ZEROFILL   STORAGE DISK UNIQUE KEY NULL COMMENT 'asdf'
 ) CHECKSUM = 1, AUTO_INCREMENT = 1093400439, KEY_BLOCK_SIZE = 3927749503218772669, COMPRESSION = 'NONE';
-ERROR 42000: The valid range for key_block_size is [0,65535]. Error near '3927749503218772669, COMPRESSION = 'NONE'' at line 6
-# Only values which will fit in the two bytes allocated in the frm file
-# format are accepted.
-CREATE TABLE t1(a INT) ENGINE=myisam key_block_size=65535;
-SHOW TABLE STATUS LIKE 't1';
-Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MyISAM	10	Fixed	0	0	0	1970324836974591	1024	0	1	@ts@	@ts@	NULL	utf8mb4_0900_ai_ci	NULL	KEY_BLOCK_SIZE=65535	
-DROP TABLE t1;
-#
-# Bug #33114368	'SHOW TABLE STATUS' WITH HUGE AVG_ROW_LENGTH:
-# DD::PROPERTIES::GET: ASSERTION `FALSE' FAILED.
-#
-# avg_row_length, parser type: ulong_num (ulong) 
-# ulong HA_CREATE_INFO::avg_row_length
-# 4 bytes in frm
-CREATE TABLE t1(a INT) avg_row_length=18446744073709551615;
-ERROR 42000: The valid range for avg_row_length is [0,4294967295]. Error near '18446744073709551615' at line 1
-CREATE TABLE t1(a INT) avg_row_length=4294967296;
-ERROR 42000: The valid range for avg_row_length is [0,4294967295]. Error near '4294967296' at line 1
-# Only values which will fit in the four bytes allocated in the frm file
-# format are accepted.
-CREATE TABLE t1(a INT) avg_row_length=4294967295;
-SHOW TABLE STATUS LIKE 't1';
-Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Dynamic	0	0	16384	0	0	0	NULL	@ts@	@ts@	NULL	utf8mb4_0900_ai_ci	NULL	avg_row_length=4294967295	
-DROP TABLE t1;
-# max_rows, parser type: ulonglong_num (ulonglong)
-# ulonglong HA_CREATE_INFO::max_rows
-# 4 bytes in frm
-# max_rows is capped and a warning produced
-CREATE TABLE t1(a INT) max_rows=18446744073709551615;
-Warnings:
-Warning	4074	max_rows=18446744073709551615 is outside the valid range [0,4294967295]. 4294967295 will be used.
-SHOW TABLE STATUS LIKE 't1';
-Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Dynamic	0	0	16384	0	0	0	NULL	@ts@	@ts@	NULL	utf8mb4_0900_ai_ci	NULL	max_rows=4294967295	
-DROP TABLE t1;
-# min_rows, parser type: ulonglong_num (ulonglong)
-# ulonglong HA_CREATE_INFO::min_rows
-# 4 bytes in frm
-# min_rows is capped and a warning produced
-CREATE TABLE t1(a INT) min_rows=18446744073709551615;
-Warnings:
-Warning	4074	min_rows=18446744073709551615 is outside the valid range [0,4294967295]. 4294967295 will be used.
-SHOW TABLE STATUS LIKE 't1';
-Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Dynamic	0	0	16384	0	0	0	NULL	@ts@	@ts@	NULL	utf8mb4_0900_ai_ci	NULL	min_rows=4294967295	
-DROP TABLE t1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '3927749503218772669, COMPRESSION = 'NONE'' at line 6

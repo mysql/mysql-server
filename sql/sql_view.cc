@@ -72,6 +72,7 @@
 #include "sql/sql_base.h"   // get_table_def_key
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
+#include "sql/sql_digest_stream.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
@@ -103,11 +104,7 @@ class Schema;
     column. In case the name that was created this way already exists, we
     add a numeric postfix to its end (i.e. "1") and increase the number
     until the name becomes unique. If the generated name is longer than
-    NAME_CHAR_LEN code points, it is truncated.
-
-    We truncate to the nearest code point, which means that in rare
-    cases we may truncate in the middle of some grapheme cluster, but
-    the result is still treated as a valid name by the data dictionary.
+    NAME_LEN, it is truncated.
 */
 
 static void make_unique_view_field_name(Item *target,
@@ -120,6 +117,7 @@ static void make_unique_view_field_name(Item *target,
   char buff[NAME_LEN + 1];
 
   for (attempt = 0;; attempt++) {
+    Item *check;
     bool ok = true;
 
     if (attempt)
@@ -128,23 +126,14 @@ static void make_unique_view_field_name(Item *target,
     else
       name_len = snprintf(buff, NAME_LEN, SYNTHETIC_FIELD_NAME "%s", name);
 
-    size_t name_len_mb = system_charset_info->cset->numchars(
-        system_charset_info, buff, buff + name_len);
-    if (name_len_mb > NAME_CHAR_LEN) {
-      size_t num_bytes = system_charset_info->cset->charpos(
-          system_charset_info, buff, buff + name_len, NAME_CHAR_LEN);
-      buff[num_bytes] = '\0';
-      name_len = num_bytes;
-    }
-
-    for (Item *itc : VisibleFields(item_list)) {
-      if (itc != target && itc->item_name.eq(buff)) {
+    auto itc = item_list.begin();
+    do {
+      check = *itc++;
+      if (check != target && check->item_name.eq(buff)) {
         ok = false;
         break;
       }
-      if (itc == last_element) break;
-    }
-
+    } while (check != last_element);
     if (ok) break;
   }
 
@@ -596,7 +585,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   /* prepare select to resolve all fields */
   lex->context_analysis_only |= CONTEXT_ANALYSIS_ONLY_VIEW;
   if (!unit->is_prepared()) {
-    Prepared_stmt_arena_holder ps_arena_holder(thd);
     /*
       @todo - the following code is duplicated in mysql_test_create_view.
               ensure that we have a single preparation function for create view.
@@ -1010,15 +998,9 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
     This is a temporary workaround to be removed once we stop accepting
     invalid UTF8 in literals and fix bugs in view body printing.
   */
-  std::string invalid_sub_str;
   if (is_invalid_string(LEX_CSTRING{is_query.ptr(), is_query.length()},
-                        system_charset_info, invalid_sub_str)) {
-    // Provide contextual information
-    my_error(ER_DEFINITION_CONTAINS_INVALID_STRING, MYF(0), "view", view->db,
-             view->alias, replace_utf8_utf8mb3(system_charset_info->csname),
-             invalid_sub_str.c_str());
+                        system_charset_info))
     return true;
-  }
 
   if (lex_string_strmake(thd->mem_root, &view->view_body_utf8, is_query.ptr(),
                          is_query.length())) {
@@ -1169,7 +1151,7 @@ bool open_and_read_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref) {
 */
 class DD_table_access_error_handler : public Internal_error_handler {
  public:
-  DD_table_access_error_handler() = default;
+  DD_table_access_error_handler() {}
 
   bool handle_condition(THD *, uint sql_errno, const char *,
                         Sql_condition::enum_severity_level *,
@@ -1285,6 +1267,9 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
   // Needed for correct units markup for EXPLAIN
   view_lex->explain_format = old_lex->explain_format;
 
+  if (thd->m_digest != nullptr)
+    thd->m_digest->reset(thd->m_token_array, max_digest_length);
+
   /*
     Push error handler allowing DD table access. Creating views referring
     to DD tables is rejected except for the I_S views. Thus, when parsing
@@ -1310,10 +1295,6 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
   {
     // Switch off modes which can prevent normal parsing of VIEW
     Sql_mode_parse_guard parse_guard(thd);
-
-    // Do not pollute the current statement
-    // with a digest of the view definition
-    assert(!parser_state.m_input.m_has_digest);
 
     // Parse the query text of the view
     result = parse_sql(thd, &parser_state, view_ref->view_creation_ctx);

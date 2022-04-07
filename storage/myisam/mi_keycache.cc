@@ -56,7 +56,8 @@
     #  Error code
 */
 
-int mi_assign_to_key_cache(MI_INFO *info, ulonglong key_map [[maybe_unused]],
+int mi_assign_to_key_cache(MI_INFO *info,
+                           ulonglong key_map MY_ATTRIBUTE((unused)),
                            KEY_CACHE *key_cache) {
   int error = 0;
   MYISAM_SHARE *share = info->s;

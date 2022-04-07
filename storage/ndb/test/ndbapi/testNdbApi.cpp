@@ -22,7 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <cstring>
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <HugoTransactions.hpp>
@@ -31,7 +30,6 @@
 #include <NdbRestarts.hpp>
 #include <Vector.hpp>
 #include <random.h>
-#include <NdbSleep.h>
 #include <NdbTick.h>
 #include <my_sys.h>
 #include "../../src/ndbapi/SignalSender.hpp"
@@ -281,29 +279,16 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
         continue;
       }
 
-      const NdbError err = hugoOps.getNdbError();
-      require(execResult == 0 ||
-              execResult == err.code);
-
       switch(execResult){
       case NDBT_OK:
         break;
 
       default:
         result = NDBT_FAILED;
-        //  261: //Increased beyond MaxDMLOperationsPerTransaction or MaxNoOfConcurrentOperations
-        ndbout_c("Got unexpected error %u %s for non DML transaction", err.code, err.message);
-        [[fallthrough]];
-      case 233:  // Out of operation records in transaction coordinator - SharedGlobalMemory
-      case 234:  // Out of operation records in transaction coordinator - MaxNoOfConcurrentOperations
+        // Fall through - to '233' which also terminate test, but not 'FAILED'
+      case 233:  // Out of operation records in transaction coordinator  
       case 1217:  // Out of operation records in local data manager (increase MaxNoOfLocalOperations)
-
-        /* Ok, check that error is temporary */
-        if (err.status != NdbError::TemporaryError)
-        {
-          ndbout_c("Error : non temporary error %u %s returned", err.code, err.message);
-          result = NDBT_FAILED;
-        }
+      case 261: //Increased beyond MaxDMLOperationsPerTransaction or MaxNoOfConcurrentOperations
         // OK - end test
         endTest = true;
         break;
@@ -2089,7 +2074,7 @@ int runTestExecuteAsynch(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
   if (pOp == NULL){
-    NDB_ERR(pCon->getNdbError());
+    NDB_ERR(pOp->getNdbError());
     pNdb->closeTransaction(pCon);
     delete pNdb;
     return NDBT_FAILED;
@@ -2310,8 +2295,8 @@ testNdbRecordPkAmbiguity(NDBT_Context* ctx, NDBT_Step* step)
   const Uint32 sizeOfTabRec= NdbDictionary::getRecordRowLength(tabRec);
   char keyRowBuf[ NDB_MAX_TUPLE_SIZE_IN_WORDS << 2 ];
   char attrRowBuf[ NDB_MAX_TUPLE_SIZE_IN_WORDS << 2 ];
-  std::memset(keyRowBuf, 0, sizeof(keyRowBuf));
-  std::memset(attrRowBuf, 0, sizeof(attrRowBuf));
+  bzero(keyRowBuf, sizeof(keyRowBuf));
+  bzero(attrRowBuf, sizeof(attrRowBuf));
 
   HugoCalculator calc(*pTab);
 
@@ -2404,7 +2389,7 @@ testNdbRecordPkAmbiguity(NDBT_Context* ctx, NDBT_Step* step)
       trans->close();
       
       /* Now read back */
-      std::memset(attrRowBuf, 0, sizeOfTabRec);
+      memset(attrRowBuf, 0, sizeOfTabRec);
       
       Uint32 pkVal= 0;
       memcpy(&pkVal, NdbDictionary::getValuePtr(tabRec,
@@ -2802,7 +2787,7 @@ testNdbRecordCICharPKUpdate(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(memcmp(ucPkPtr, readPkPtr, ucPkPtr[0]) == 0);
     CHECK(memcmp(ucDataPtr, readDataPtr, sizeof(int)) == 0);
     
-    std::memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
+    memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
 
     /* Read with lower case */
     trans=pNdb->startTransaction();
@@ -2819,7 +2804,7 @@ testNdbRecordCICharPKUpdate(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(memcmp(ucPkPtr, readPkPtr, ucPkPtr[0]) == 0);
     CHECK(memcmp(ucDataPtr, readDataPtr, sizeof(int)) == 0);
     
-    std::memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
+    memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
 
     /* Now update just the PK column to lower case */
     trans= pNdb->startTransaction();
@@ -2836,7 +2821,7 @@ testNdbRecordCICharPKUpdate(NDBT_Context* ctx, NDBT_Step* step)
     trans->close();
 
     /* Now check that we can read with the upper case key */
-    std::memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
+    memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
     
     trans=pNdb->startTransaction();
     CHECK(trans != 0);
@@ -2853,7 +2838,7 @@ testNdbRecordCICharPKUpdate(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(memcmp(lcDataPtr, readDataPtr, sizeof(int)) == 0);
 
     /* Now check that we can read with the lower case key */
-    std::memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
+    memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
     
     trans=pNdb->startTransaction();
     CHECK(trans != 0);
@@ -3246,7 +3231,7 @@ int testApiFailReqImpl(NDBT_Context* ctx, NDBT_Step* step)
   ctx->setProperty(ApiFailTestRun, (Uint32)0);
 
   /* Wait a little */
-  NdbSleep_SecSleep(1);
+  sleep(1);
 
   /* Active more stringent checking of behaviour after
    * API_FAILREQ
@@ -3260,7 +3245,7 @@ int testApiFailReqImpl(NDBT_Context* ctx, NDBT_Step* step)
   restarter.insertErrorInAllNodes(8078);
   
   /* Wait a little longer */
-  NdbSleep_SecSleep(1);
+  sleep(1);
   
   /* Now cause our connection to disconnect
    * This results in TC receiving an API_FAILREQ
@@ -3614,7 +3599,7 @@ runBug51775(NDBT_Context* ctx, NDBT_Step* step)
     NdbOperation * pOp = pTrans1->getNdbOperation(ctx->getTab()->getName());
     if (pOp == NULL)
     {
-      NDB_ERR(pTrans1->getNdbError());
+      NDB_ERR(pOp->getNdbError());
       return NDBT_FAILED;
     }
     
@@ -3632,7 +3617,7 @@ runBug51775(NDBT_Context* ctx, NDBT_Step* step)
     NdbOperation * pOp = pTrans2->getNdbOperation(ctx->getTab()->getName());
     if (pOp == NULL)
     {
-      NDB_ERR(pTrans2->getNdbError());
+      NDB_ERR(pOp->getNdbError());
       return NDBT_FAILED;
     }
     
@@ -3770,7 +3755,7 @@ int testFragmentedApiFailImpl(NDBT_Context* ctx, NDBT_Step* step)
   ctx->setProperty(ApiFailTestRun, (Uint32)0);
 
   /* Wait a little */
-  NdbSleep_SecSleep(1);
+  sleep(1);
 
   /* Now cause our connection to disconnect
    * This results in NDBD running API failure
@@ -4927,7 +4912,7 @@ public:
   }
 
   NodeIdReservations() {
-    std::memset(m_ids, 0, sizeof(m_ids));
+    bzero(m_ids, sizeof(m_ids));
     NdbMutex_Init(&m_mutex);
   }
 
@@ -5549,7 +5534,7 @@ public:
         return -1;
       }
       case 2:
-        [[fallthrough]];
+        /* Fall through */
       case 3:
       {
         /* Body fragment */
@@ -6105,8 +6090,8 @@ testNdbRecordSpecificationCompatibility(NDBT_Context* ctx, NDBT_Step* step)
 
   char keyRowBuf[ NDB_MAX_TUPLE_SIZE_IN_WORDS << 2 ];
   char attrRowBuf[ NDB_MAX_TUPLE_SIZE_IN_WORDS << 2 ];
-  std::memset(keyRowBuf, 0, sizeof(keyRowBuf));
-  std::memset(attrRowBuf, 0, sizeof(attrRowBuf));
+  bzero(keyRowBuf, sizeof(keyRowBuf));
+  bzero(attrRowBuf, sizeof(attrRowBuf));
 
   HugoCalculator calc(*pTab);
 

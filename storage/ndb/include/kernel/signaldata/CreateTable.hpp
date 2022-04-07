@@ -31,7 +31,7 @@
 
 
 struct CreateTableReq {
-  static constexpr Uint32 SignalLength = 5;
+  STATIC_CONST( SignalLength = 5 );
   
   union { Uint32 clientRef, senderRef; };
   union { Uint32 clientData, senderData; };
@@ -43,7 +43,7 @@ struct CreateTableReq {
 };
 
 struct CreateTableConf {
-  static constexpr Uint32 SignalLength = 5;
+  STATIC_CONST( SignalLength = 5 );
 
   Uint32 senderRef;
   union { Uint32 clientData, senderData; };
@@ -53,7 +53,7 @@ struct CreateTableConf {
 };
 
 struct CreateTableRef {
-  static constexpr Uint32 SignalLength = 9;
+  STATIC_CONST( SignalLength = 9 );
 
   enum ErrorCode {
     NoError = 0,

@@ -26,7 +26,6 @@
 #define FILE_H
 
 #include <ndb_global.h>
-#include <time.h>
 
 /**
  * This class provides a file abstraction . It has operations

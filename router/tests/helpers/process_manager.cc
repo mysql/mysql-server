@@ -27,10 +27,8 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
-#include <fstream>
 #include <iterator>
 #include <stdexcept>
-#include <string_view>
 #include <system_error>
 #include <thread>
 
@@ -49,14 +47,13 @@
 
 #include <fcntl.h>
 
-#include "config_builder.h"
 #include "dim.h"
-#include "mysql/harness/filesystem.h"
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/local.h"
 #include "mysql/harness/stdx/expected.h"
-#include "mysqlrouter/mysql_session.h"
+#include "mysql/harness/stdx/string_view.h"
+#include "mysql_session.h"
 #include "mysqlrouter/rest_client.h"
 #include "mysqlrouter/utils.h"
 #include "process_launcher.h"
@@ -115,8 +112,7 @@ stdx::expected<ProcessManager::notify_socket_t, std::error_code> accept_until(
   return stdx::make_unexpected(make_error_code(std::errc::timed_out));
 }
 
-stdx::expected<void, std::error_code>
-ProcessManager::Spawner::wait_for_notified(
+stdx::expected<void, std::error_code> ProcessManager::wait_for_notified(
     wait_socket_t &sock, const std::string &expected_notification,
     std::chrono::milliseconds timeout) {
   using clock_type = std::chrono::system_clock;
@@ -125,23 +121,23 @@ ProcessManager::Spawner::wait_for_notified(
 
   sock.native_non_blocking(true);
 
+  auto accept_res = accept_until<clock_type>(sock, end_time);
+  if (!accept_res) {
+    return accept_res.get_unexpected();
+  }
+
+  auto accepted = std::move(accept_res.value());
+
+  // make the read non-blocking.
+  const auto non_block_res = accepted.native_non_blocking(true);
+  if (!non_block_res) {
+    return non_block_res.get_unexpected();
+  }
+
+  const size_t BUFF_SIZE = 512;
+  std::array<char, BUFF_SIZE> buff;
+
   do {
-    auto accept_res = accept_until<clock_type>(sock, end_time);
-    if (!accept_res) {
-      return accept_res.get_unexpected();
-    }
-
-    auto accepted = std::move(accept_res.value());
-
-    // make the read non-blocking.
-    const auto non_block_res = accepted.native_non_blocking(true);
-    if (!non_block_res) {
-      return non_block_res.get_unexpected();
-    }
-
-    const size_t BUFF_SIZE = 512;
-    std::array<char, BUFF_SIZE> buff;
-
     const auto read_res =
         net::read(accepted, net::buffer(buff), net::transfer_at_least(1));
     if (!read_res) {
@@ -156,8 +152,8 @@ ProcessManager::Spawner::wait_for_notified(
       const auto bytes_read = read_res.value();
 
       if (bytes_read >= expected_notification.size()) {
-        if (expected_notification ==
-            std::string_view(buff.data(), expected_notification.size())) {
+        if (stdx::string_view(expected_notification) ==
+            stdx::string_view(buff.data(), expected_notification.size())) {
           return {};
         }
       } else {
@@ -173,8 +169,7 @@ ProcessManager::Spawner::wait_for_notified(
 }
 
 #else
-stdx::expected<void, std::error_code>
-ProcessManager::Spawner::wait_for_notified(
+stdx::expected<void, std::error_code> ProcessManager::wait_for_notified(
     wait_socket_t &sock, const std::string &expected_notification,
     std::chrono::milliseconds timeout) {
   const size_t BUFF_SIZE = 512;
@@ -200,8 +195,8 @@ ProcessManager::Spawner::wait_for_notified(
       const auto bytes_read = read_res.value();
 
       if (bytes_read >= expected_notification.size()) {
-        if (expected_notification ==
-            std::string_view(buff.data(), expected_notification.size())) {
+        if (stdx::string_view(expected_notification) ==
+            stdx::string_view(buff.data(), expected_notification.size())) {
           return {};
         }
       } else {
@@ -214,15 +209,14 @@ ProcessManager::Spawner::wait_for_notified(
 
 #endif
 
-stdx::expected<void, std::error_code>
-ProcessManager::Spawner::wait_for_notified_ready(
+stdx::expected<void, std::error_code> ProcessManager::wait_for_notified_ready(
     wait_socket_t &sock, std::chrono::milliseconds timeout) {
   return wait_for_notified(sock, "READY=1", timeout);
 }
 
 stdx::expected<void, std::error_code>
-ProcessManager::Spawner::wait_for_notified_stopping(
-    wait_socket_t &sock, std::chrono::milliseconds timeout) {
+ProcessManager::wait_for_notified_stopping(wait_socket_t &sock,
+                                           std::chrono::milliseconds timeout) {
   return wait_for_notified(
       sock, "STOPPING=1\nSTATUS=Router shutdown in progress\n", timeout);
 }
@@ -243,59 +237,45 @@ static std::string generate_notify_socket_path(const std::string &tmp_dir) {
 #endif
 }
 
-ProcessWrapper &ProcessManager::Spawner::launch_command(
+ProcessWrapper &ProcessManager::launch_command(
     const std::string &command, const std::vector<std::string> &params,
-    const std::vector<std::pair<std::string, std::string>> &env_vars) {
-  std::unique_ptr<ProcessWrapper> pw{new ProcessWrapper(
-      command, params, env_vars, catch_stderr_, output_responder_)};
+    int expected_exit_code, bool catch_stderr,
+    std::vector<std::pair<std::string, std::string>> env_vars) {
+  ProcessWrapper process(command, params, env_vars, catch_stderr);
 
-  processes_.emplace_back(std::move(pw), expected_exit_code_);
+  processes_.emplace_back(std::move(process), expected_exit_code);
 
-  return *std::get<0>(processes_.back()).get();
+  return std::get<0>(processes_.back());
 }
 
-ProcessWrapper &ProcessManager::Spawner::launch_command_and_wait(
+ProcessWrapper &ProcessManager::launch_command(
     const std::string &command, const std::vector<std::string> &params,
-    std::vector<std::pair<std::string, std::string>> env_vars) {
+    int expected_exit_code, bool catch_stderr,
+    std::chrono::milliseconds wait_notified_ready) {
   if (command.empty())
     throw std::logic_error("path to launchable executable must not be empty");
 
-  if (sync_point_ == SyncPoint::NONE || sync_point_timeout_ < 0s) {
-    return launch_command(command, params, env_vars);
-  }
+  std::vector<std::pair<std::string, std::string>> env_vars;
 
   net::io_context io_ctx;
 
   ProcessManager::wait_socket_t notify_socket{io_ctx};
 
-  const std::string socket_node = notify_socket_path_;
+  if (wait_notified_ready >= 0ms) {
+    const std::string socket_node =
+        generate_notify_socket_path(get_test_temp_dir_name());
 
-  EXPECT_NO_ERROR(notify_socket.open());
-  EXPECT_NO_ERROR(notify_socket.bind({socket_node}));
+    EXPECT_NO_ERROR(notify_socket.open());
+    EXPECT_NO_ERROR(notify_socket.bind({socket_node}));
 
-  env_vars.emplace_back("NOTIFY_SOCKET", socket_node);
+    env_vars.emplace_back("NOTIFY_SOCKET", socket_node);
+  }
 
-  auto &result = launch_command(command, params, env_vars);
+  auto &result = launch_command(command, params, expected_exit_code,
+                                catch_stderr, env_vars);
 
-  switch (sync_point_) {
-    case SyncPoint::READY: {
-      result.wait_for_sync_point_result(
-          wait_for_notified_ready(notify_socket, sync_point_timeout_));
-
-      EXPECT_TRUE(result.wait_for_sync_point_result())
-          << "waiting for READY on socket: " << socket_node;
-    } break;
-    case SyncPoint::RUNNING: {
-      result.wait_for_sync_point_result(wait_for_notified(
-          notify_socket, "STATUS=running", sync_point_timeout_));
-
-      EXPECT_TRUE(result.wait_for_sync_point_result())
-          << "waiting for RUNNING on socket: " << socket_node;
-
-    } break;
-    case SyncPoint::NONE:
-      // nothing to do.
-      break;
+  if (wait_notified_ready >= 0ms) {
+    EXPECT_TRUE(wait_for_notified_ready(notify_socket, wait_notified_ready));
   }
 
   return result;
@@ -329,10 +309,12 @@ static std::vector<std::string> build_exec_args(
   return args;
 }
 
-ProcessWrapper &ProcessManager::Spawner::spawn(
-    const std::vector<std::string> &params,
-    const std::vector<std::pair<std::string, std::string>> &env_vars) {
-  std::vector<std::string> args = build_exec_args(executable_, with_sudo_);
+ProcessWrapper &ProcessManager::launch_router(
+    const std::vector<std::string> &params, int expected_exit_code /*= 0*/,
+    bool catch_stderr /*= true*/, bool with_sudo /*= false*/,
+    std::chrono::milliseconds wait_for_notify_ready /*= 5s*/) {
+  std::vector<std::string> args =
+      build_exec_args(mysqlrouter_exec_.str(), with_sudo);
 
   // 1st argument is special - it needs to be passed as "command" to
   // launch_command()
@@ -340,75 +322,12 @@ ProcessWrapper &ProcessManager::Spawner::spawn(
   args.erase(args.begin());
   std::copy(params.begin(), params.end(), std::back_inserter(args));
 
-  auto &process = launch_command_and_wait(cmd, args, env_vars);
+  auto &router = launch_command(cmd, args, expected_exit_code, catch_stderr,
+                                wait_for_notify_ready);
+  router.logging_dir_ = logging_dir_.name();
+  router.logging_file_ = "mysqlrouter.log";
 
-  process.logging_dir_ = logging_dir_;
-  process.logging_file_ = logging_file_;
-
-  return process;
-}
-
-ProcessManager::Spawner ProcessManager::spawner(std::string executable,
-                                                std::string logging_file) {
-  return {executable, logging_dir_.name(), logging_file,
-          generate_notify_socket_path(get_test_temp_dir_name()), processes_};
-}
-
-stdx::expected<void, std::error_code> ProcessManager::wait_for_notified(
-    wait_socket_t &sock, const std::string &expected_notification,
-    std::chrono::milliseconds timeout) {
-  return Spawner::wait_for_notified(sock, expected_notification, timeout);
-}
-
-stdx::expected<void, std::error_code> ProcessManager::wait_for_notified_ready(
-    wait_socket_t &sock, std::chrono::milliseconds timeout) {
-  return Spawner::wait_for_notified_ready(sock, timeout);
-}
-
-stdx::expected<void, std::error_code>
-ProcessManager::wait_for_notified_stopping(wait_socket_t &sock,
-                                           std::chrono::milliseconds timeout) {
-  return Spawner::wait_for_notified_stopping(sock, timeout);
-}
-
-ProcessWrapper &ProcessManager::launch_command(
-    const std::string &command, const std::vector<std::string> &params,
-    int expected_exit_code, bool catch_stderr,
-    std::vector<std::pair<std::string, std::string>> env_vars,
-    OutputResponder output_resp) {
-  return spawner(command)
-      .catch_stderr(catch_stderr)
-      .expected_exit_code(expected_exit_code)
-      .wait_for_notify_ready(-1s)
-      .output_responder(std::move(output_resp))
-      .spawn(params, env_vars);
-}
-
-ProcessWrapper &ProcessManager::launch_command(
-    const std::string &command, const std::vector<std::string> &params,
-    int expected_exit_code, bool catch_stderr,
-    std::chrono::milliseconds wait_for_notify_ready,
-    OutputResponder output_resp) {
-  return spawner(command)
-      .catch_stderr(catch_stderr)
-      .expected_exit_code(expected_exit_code)
-      .wait_for_notify_ready(wait_for_notify_ready)
-      .output_responder(std::move(output_resp))
-      .spawn(params);
-}
-
-ProcessWrapper &ProcessManager::launch_router(
-    const std::vector<std::string> &params, int expected_exit_code /*= 0*/,
-    bool catch_stderr /*= true*/, bool with_sudo /*= false*/,
-    std::chrono::milliseconds wait_for_notify_ready /*= 5s*/,
-    OutputResponder output_resp) {
-  return router_spawner()
-      .with_sudo(with_sudo)
-      .catch_stderr(catch_stderr)
-      .expected_exit_code(expected_exit_code)
-      .wait_for_notify_ready(wait_for_notify_ready)
-      .output_responder(std::move(output_resp))
-      .spawn(params);
+  return router;
 }
 
 std::vector<std::string> ProcessManager::mysql_server_mock_cmdline_args(
@@ -416,10 +335,9 @@ std::vector<std::string> ProcessManager::mysql_server_mock_cmdline_args(
     uint16_t x_port, const std::string &module_prefix /* = "" */,
     const std::string &bind_address /*= "0.0.0.0"*/) {
   std::vector<std::string> server_params{
-      "--filename",       json_file,             //
-      "--port",           std::to_string(port),  //
-      "--bind-address",   bind_address,
-      "--logging-folder", get_test_temp_dir_name(),
+      "--filename",     json_file,             //
+      "--port",         std::to_string(port),  //
+      "--bind-address", bind_address,
   };
 
   server_params.emplace_back("--module-prefix");
@@ -443,19 +361,10 @@ std::vector<std::string> ProcessManager::mysql_server_mock_cmdline_args(
 }
 
 ProcessWrapper &ProcessManager::launch_mysql_server_mock(
-    const std::vector<std::string> &server_params, unsigned port,
-    int expected_exit_code,
+    const std::vector<std::string> &server_params, int expected_exit_code,
     std::chrono::milliseconds wait_for_notify_ready /*= 5s*/) {
-  auto &result = spawner(mysqlserver_mock_exec_.str())
-                     .expected_exit_code(expected_exit_code)
-                     .wait_for_notify_ready(wait_for_notify_ready)
-                     .catch_stderr(true)
-                     .spawn(server_params);
-
-  result.set_logging_path(get_test_temp_dir_name(),
-                          "mock_server_" + std::to_string(port) + ".log");
-
-  return result;
+  return launch_command(mysqlserver_mock_exec_.str(), server_params,
+                        expected_exit_code, true, wait_for_notify_ready);
 }
 
 ProcessWrapper &ProcessManager::launch_mysql_server_mock(
@@ -474,7 +383,7 @@ ProcessWrapper &ProcessManager::launch_mysql_server_mock(
     server_params.emplace_back("--verbose");
   }
 
-  return launch_mysql_server_mock(server_params, port, expected_exit_code,
+  return launch_mysql_server_mock(server_params, expected_exit_code,
                                   wait_for_notify_ready);
 }
 
@@ -509,35 +418,6 @@ std::string ProcessManager::make_DEFAULT_section(
                       "runtime_folder = " + origin_dir_.str() + "\n" +
                       "config_folder = " + origin_dir_.str() + "\n" +
                       "data_folder = " + origin_dir_.str() + "\n\n";
-}
-
-std::string ProcessManager::ConfigWriter::write(const std::string &name) {
-  const auto file_path = Path(directory_).join(name).str();
-  std::ofstream ofs(file_path);
-
-  if (!ofs.good()) {
-    throw(std::runtime_error("Could not create config file " + file_path));
-  }
-
-  for (auto const &section : sections_) {
-    ofs << mysql_harness::ConfigBuilder::build_section(section.first,
-                                                       section.second)
-        << "\n";
-  }
-
-  return file_path;
-}
-
-ProcessManager::ConfigWriter ProcessManager::config_writer(
-    const std::string &directory) {
-  ConfigWriter::sections_type sections;
-
-  sections["DEFAULT"] = get_DEFAULT_defaults();
-  sections["io"] = {{"threads", "1"}};
-  sections["logger"] = {{"level", "DEBUG"},
-                        {"timestamp_precision", "millisecond"}};
-
-  return {directory, std::move(sections)};
 }
 
 std::string ProcessManager::create_config_file(
@@ -584,7 +464,7 @@ std::string ProcessManager::create_state_file(const std::string &dir_name,
 void ProcessManager::shutdown_all() {
   // stop all the processes
   for (auto &proc : processes_) {
-    std::get<0>(proc)->send_shutdown_event();
+    std::get<0>(proc).send_shutdown_event();
   }
 }
 
@@ -592,13 +472,13 @@ void ProcessManager::dump_all() {
   std::stringstream ss;
   for (auto &proc : processes_) {
     ss << "# Process: \n"
-       << std::get<0>(proc)->get_command_line() << "\n"
+       << std::get<0>(proc).get_command_line() << "\n"
        << "PID:\n"
-       << std::get<0>(proc)->get_pid() << "\n"
+       << std::get<0>(proc).get_pid() << "\n"
        << "Console output:\n"
-       << std::get<0>(proc)->get_current_output() + "\n"
+       << std::get<0>(proc).get_current_output() + "\n"
        << "Log content:\n"
-       << std::get<0>(proc)->get_full_logfile() + "\n";
+       << std::get<0>(proc).get_full_logfile() + "\n";
   }
 
   FAIL() << ss.str();
@@ -607,9 +487,9 @@ void ProcessManager::dump_all() {
 void ProcessManager::ensure_clean_exit() {
   for (auto &proc : processes_) {
     try {
-      check_exit_code(*std::get<0>(proc), std::get<1>(proc));
+      check_exit_code(std::get<0>(proc), std::get<1>(proc));
     } catch (const std::exception &) {
-      FAIL() << "PID: " << std::get<0>(proc)->get_pid()
+      FAIL() << "PID: " << std::get<0>(proc).get_pid()
              << " didn't exit as expected";
     }
   }
@@ -626,8 +506,7 @@ void ProcessManager::check_exit_code(ProcessWrapper &process,
   try {
     result = process.wait_for_exit(timeout);
   } catch (const std::exception &e) {
-    FAIL() << "waiting for " << timeout.count() << "ms for PID "
-           << process.get_pid() << " to exit failed: " << e.what();
+    FAIL() << "Process wait for exit failed. " << e.what();
   }
 
   ASSERT_EQ(expected_exit_code, result);
@@ -696,6 +575,3 @@ void ProcessManager::set_origin(const Path &dir) {
 
   data_dir_ = COMPONENT_TEST_DATA_DIR;
 }
-
-const ProcessManager::OutputResponder ProcessManager::kEmptyResponder{
-    [](const std::string &) -> std::string { return ""; }};

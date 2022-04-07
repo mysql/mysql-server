@@ -750,7 +750,7 @@ err_no_lock:
   switch (errpos) {
     case 3:
       (void)mysql_file_close(dfile, MYF(0));
-      [[fallthrough]];
+      /* fall through */
     case 2:
       if (!(flags & HA_DONT_TOUCH_DATA))
         mysql_file_delete_with_symlink(
@@ -758,7 +758,7 @@ err_no_lock:
             fn_format(filename, name, "", MI_NAME_DEXT,
                       MY_UNPACK_FILENAME | MY_APPEND_EXT),
             MYF(0));
-      [[fallthrough]];
+      /* fall through */
     case 1:
       (void)mysql_file_close(file, MYF(0));
       if (!(flags & HA_DONT_TOUCH_DATA))

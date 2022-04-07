@@ -34,7 +34,7 @@ struct SyncReq
   Uint32 senderData;
   Uint32 prio;
 
-  static constexpr Uint32 SignalLength = 3;
+  STATIC_CONST( SignalLength = 3 );
 };
 
 struct SyncRef
@@ -43,7 +43,7 @@ struct SyncRef
   Uint32 senderData;
   Uint32 errorCode;
 
-  static constexpr Uint32 SignalLength = 3;
+  STATIC_CONST( SignalLength = 3 );
 
   enum ErrorCode
   {
@@ -57,7 +57,7 @@ struct SyncConf
   Uint32 senderRef;
   Uint32 senderData;
 
-  static constexpr Uint32 SignalLength = 3;
+  STATIC_CONST( SignalLength = 3 );
 };
 
 struct SyncPathReq
@@ -68,8 +68,7 @@ struct SyncPathReq
   Uint32 pathlen;
   Uint32 path[1];
 
-  static constexpr Uint32 SignalLength = 4;
-  static constexpr Uint32 MaxPathLen = 25 - SignalLength;
+  STATIC_CONST( SignalLength = 4 );
 };
 
 struct SyncPathConf
@@ -77,33 +76,33 @@ struct SyncPathConf
   Uint32 senderData;
   Uint32 count;
 
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
 };
 
 struct FreezeThreadReq
 {
   Uint32 nodeId;
   Uint32 senderRef;
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2);
 };
 
 struct FreezeThreadConf
 {
   Uint32 nodeId;
-  static constexpr Uint32 SignalLength = 1;
+  STATIC_CONST( SignalLength = 1);
 };
 
 struct FreezeActionReq
 {
   Uint32 nodeId;
   Uint32 senderRef;
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2);
 };
 
 struct FreezeActionConf
 {
   Uint32 nodeId;
-  static constexpr Uint32 SignalLength = 1;
+  STATIC_CONST( SignalLength = 1);
 };
 
 struct ActivateTrpReq
@@ -112,7 +111,7 @@ struct ActivateTrpReq
   Uint32 trpId;
   Uint32 numTrps;
   Uint32 senderRef;
-  static constexpr Uint32 SignalLength = 4;
+  STATIC_CONST( SignalLength = 4);
 };
 
 struct ActivateTrpConf
@@ -120,7 +119,7 @@ struct ActivateTrpConf
   Uint32 nodeId;
   Uint32 trpId;
   Uint32 senderRef;
-  static constexpr Uint32 SignalLength = 3;
+  STATIC_CONST( SignalLength = 3);
 };
 
 struct AddEpollTrpReq
@@ -128,7 +127,7 @@ struct AddEpollTrpReq
   Uint32 nodeId;
   Uint32 trpId;
   Uint32 senderRef;
-  static constexpr Uint32 SignalLength = 3;
+  STATIC_CONST( SignalLength = 3);
 };
 
 struct AddEpollTrpConf
@@ -136,27 +135,27 @@ struct AddEpollTrpConf
   Uint32 nodeId;
   Uint32 trpId;
   Uint32 senderRef;
-  static constexpr Uint32 SignalLength = 3;
+  STATIC_CONST( SignalLength = 3);
 };
 
 struct SwitchMultiTrpReq
 {
   Uint32 nodeId;
   Uint32 senderRef;
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2);
 };
 
 struct SwitchMultiTrpConf
 {
   Uint32 nodeId;
-  static constexpr Uint32 SignalLength = 1;
+  STATIC_CONST( SignalLength = 1);
 };
 
 struct SwitchMultiTrpRef
 {
   Uint32 nodeId;
   Uint32 errorCode;
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2);
   enum ErrorCode
   {
     SMTR_NOT_READY_FOR_SWITCH = 1

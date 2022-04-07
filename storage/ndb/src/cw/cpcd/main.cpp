@@ -77,7 +77,7 @@ static struct my_option my_long_options[] =
 };
 
 static bool
-get_one_option(int optid, const struct my_option *opt [[maybe_unused]],
+get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument)
 {
   return 0;
@@ -173,7 +173,7 @@ int main(int argc, char** argv){
   unsigned short real_port= port; // correct type
   if(!ss->setup(serv, &real_port)){
     logger.critical("Cannot setup server: %s", strerror(errno));
-    NdbSleep_SecSleep(1);
+    sleep(1);
     delete ss;
     delete serv;
     return 1;

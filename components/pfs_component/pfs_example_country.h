@@ -69,7 +69,7 @@ class Country_POS {
   unsigned int m_index;
 
  public:
-  ~Country_POS() = default;
+  ~Country_POS() {}
   Country_POS() { m_index = 0; }
 
   bool has_more() {
@@ -91,7 +91,7 @@ class Country_POS {
 
 class Country_index {
  public:
-  virtual ~Country_index() = default;
+  virtual ~Country_index() {}
 
   virtual bool match(Country_record *record) = 0;
 };

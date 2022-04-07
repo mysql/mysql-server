@@ -33,16 +33,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef dyn0types_h
 #define dyn0types_h
 
-#include <cstddef>
-
 /** Value of dyn_block_t::magic_n */
-constexpr size_t DYN_BLOCK_MAGIC_N = 375767;
+#define DYN_BLOCK_MAGIC_N 375767
 
 /** This is the initial 'payload' size of a dynamic array;
 this must be > MLOG_BUF_MARGIN + 30! */
-constexpr size_t DYN_ARRAY_DATA_SIZE = 512;
+#define DYN_ARRAY_DATA_SIZE 512
 
 /** Flag for dyn_block_t::used that indicates a full block */
-constexpr size_t DYN_BLOCK_FULL_FLAG = 0x1000000UL;
+#define DYN_BLOCK_FULL_FLAG 0x1000000UL
 
 #endif /* dyn0types_h */

@@ -52,8 +52,8 @@ class NdbSttor {
 
   friend bool printNDB_STTOR(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  static constexpr Uint32 SignalLength = 5;
-  static constexpr Uint32 DataLength = 16;
+  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( DataLength = 16 );
 private:
 
   Uint32 senderRef;
@@ -87,7 +87,7 @@ class NdbSttorry {
 
   friend bool printNDB_STTORRY(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  static constexpr Uint32 SignalLength = 1;
+  STATIC_CONST( SignalLength = 1 );
 private:
 
   Uint32 senderRef;

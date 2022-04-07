@@ -83,8 +83,8 @@ namespace lob {
 const ulint MAX_SIZE = UINT32_MAX;
 
 /** The compressed LOB is stored as a collection of zlib streams.  The
-uncompressed LOB is divided into chunks of size Z_CHUNK_SIZE and each of
-these chunks are compressed individually and stored as compressed LOB.
+ * uncompressed LOB is divided into chunks of size Z_CHUNK_SIZE and each of
+ * these chunks are compressed individually and stored as compressed LOB.
 data. */
 #define KB128 (128 * 1024)
 #define Z_CHUNK_SIZE KB128
@@ -226,7 +226,10 @@ struct ref_t {
   @return true if LOB is big enough, false otherwise. */
   static bool is_big(const page_size_t &page_size, const ulint lob_length) {
     /* Disable a performance optimization */
-    return true;
+    return (true);
+
+    const ulint limit = page_size.physical() * LOB_BIG_THRESHOLD_SIZE;
+    return (lob_length >= limit);
   }
 
   /** Check if this LOB is big enough to do partial update.
@@ -234,7 +237,11 @@ struct ref_t {
   @return true if LOB is big enough, false otherwise. */
   bool is_big(const page_size_t &page_size) const {
     /* Disable a performance optimization */
-    return true;
+    return (true);
+
+    const ulint limit = page_size.physical() * LOB_BIG_THRESHOLD_SIZE;
+    const ulint lob_length = length();
+    return (lob_length >= limit);
   }
 
   /** Parse the LOB reference object and copy data into the given
@@ -264,6 +271,12 @@ struct ref_t {
   /** Set the external field reference to the given memory location.
   @param[in]	ptr	the new external field reference. */
   void set_ref(byte *ptr) { m_ref = ptr; }
+
+  /** Set the external field reference to null.
+  @param[in,out]	mtr	Mini-transaction. */
+  void set_null(mtr_t *mtr) {
+    mlog_write_string(m_ref, field_ref_zero, FIELD_REF_SIZE, mtr);
+  }
 
   /** Check if the field reference is made of zeroes except the being_modified
   bit.
@@ -576,9 +589,11 @@ the file, in case the file was somehow truncated in the crash.
                                 index. can be committed and restarted.
 @param[in]	op		operation code
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-[[nodiscard]] dberr_t btr_store_big_rec_extern_fields(
-    trx_t *trx, btr_pcur_t *pcur, const upd_t *upd, ulint *offsets,
-    const big_rec_t *big_rec_vec, mtr_t *btr_mtr, opcode op);
+dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
+                                        const upd_t *upd, ulint *offsets,
+                                        const big_rec_t *big_rec_vec,
+                                        mtr_t *btr_mtr, opcode op)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Copies an externally stored field of a record to mem heap.
 @param[in]	trx		the current transaction.
@@ -651,17 +666,6 @@ class BtrContext {
         m_rec(nullptr),
         m_offsets(nullptr),
         m_block(nullptr),
-        m_op(OPCODE_UNKNOWN),
-        m_btr_page_no(FIL_NULL) {}
-
-  /** Constructor **/
-  BtrContext(mtr_t *mtr, dict_index_t *index, buf_block_t *block)
-      : m_mtr(mtr),
-        m_pcur(nullptr),
-        m_index(index),
-        m_rec(nullptr),
-        m_offsets(nullptr),
-        m_block(block),
         m_op(OPCODE_UNKNOWN),
         m_btr_page_no(FIL_NULL) {}
 
@@ -770,11 +774,9 @@ class BtrContext {
   @param[in]	undo_no		undo number within a transaction whose
                                   LOB is being freed.
   @param[in]	rollback	performing rollback?
-  @param[in]	rec_type	undo record type.
-  @param[in]	node		purge node or nullptr */
+  @param[in]	rec_type	undo record type.*/
   void free_externally_stored_fields(trx_id_t trx_id, undo_no_t undo_no,
-                                     bool rollback, ulint rec_type,
-                                     purge_node_t *node);
+                                     bool rollback, ulint rec_type);
 
   /** Frees the externally stored fields for a record, if the field
   is mentioned in the update vector.
@@ -1006,7 +1008,7 @@ class BtrContext {
 
   /** Get flush observer
   @return flush observer */
-  Flush_observer *get_flush_observer() const {
+  FlushObserver *get_flush_observer() const {
     return (m_mtr->get_flush_observer());
   }
 
@@ -1539,14 +1541,21 @@ The clustered index record must be protected by a lock or a page latch.
                                 part; must be protected by a lock or a page
                                 latch.
 @param[in]	page_size	BLOB page size
-@param[in]	local_len	length of data
-@param[in]	is_sdi		true for SDI Indexes
+@param[in]	local_len	length of data */
+#ifdef UNIV_DEBUG
+/**
+@param[in]	is_sdi		true for SDI Indexes */
+#endif /* UNIV_DEBUG */
+/**
 @param[in,out]	heap		mem heap
 @return the whole field copied to heap */
 byte *btr_copy_externally_stored_field_func(
     trx_t *trx, const dict_index_t *index, ulint *len, size_t *lob_version,
     const byte *data, const page_size_t &page_size, ulint local_len,
-    IF_DEBUG(bool is_sdi, ) mem_heap_t *heap);
+#ifdef UNIV_DEBUG
+    bool is_sdi,
+#endif /* UNIV_DEBUG */
+    mem_heap_t *heap);
 
 /** Gets the externally stored size of a record, in units of a database page.
 @param[in]	rec	record
@@ -1561,11 +1570,9 @@ ulint btr_rec_get_externally_stored_len(const rec_t *rec, const ulint *offsets);
 @param[in]	undo_no		during rollback to savepoint, purge only upto
                                 this undo number.
 @param[in]	rec_type	undo record type.
-@param[in]	uf		the update vector for the field.
-@param[in]	node		the purge node or nullptr. */
+@param[in]	uf		the update vector for the field. */
 void purge(lob::DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
-           undo_no_t undo_no, ulint rec_type, const upd_field_t *uf,
-           purge_node_t *node);
+           undo_no_t undo_no, ulint rec_type, const upd_field_t *uf);
 
 /** Update a portion of the given LOB.
 @param[in]	ctx		update operation context information.

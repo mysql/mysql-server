@@ -23,8 +23,6 @@
 
 #include <ndb_global.h>
 
-#include <time.h>
-
 #include "getarg.h"
 
 #ifndef HAVE_STRLCPY
@@ -63,6 +61,13 @@ strlcat (char *dst, const char *src, size_t dst_sz)
 extern char *__progname;
 #endif
 
+#ifndef TRUE
+#define TRUE 1
+#endif
+
+#ifndef FALSE
+#define FALSE 0
+#endif
 
 static size_t
 print_arg (char *string, size_t len, int mdoc, int longp, struct getargs *arg)
@@ -451,7 +456,7 @@ arg_match_long(struct getargs *args, size_t num_args,
     case arg_collect:{
 	struct getarg_collect_info *c = (getarg_collect_info *)current->value;
 	int o = (int)(argv - rargv[*optind]);
-        return (*c->func)(false, argc, rargv, optind, &o, c->data);
+	return (*c->func)(FALSE, argc, rargv, optind, &o, c->data);
     }
 
     default:
@@ -488,7 +493,7 @@ arg_match_short (struct getargs *args, size_t num_args,
 		if(args[k].type == arg_collect) {
 		    struct getarg_collect_info *c = (getarg_collect_info *)args[k].value;
 
-                    if ((*c->func)(true, argc, rargv, optind, &j, c->data))
+		    if((*c->func)(TRUE, argc, rargv, optind, &j, c->data))
 			return ARG_ERR_BAD_ARG;
 		    break;
 		}

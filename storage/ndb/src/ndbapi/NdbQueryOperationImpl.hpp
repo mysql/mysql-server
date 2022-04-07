@@ -182,13 +182,6 @@ public:
   int setBound(const NdbRecord *keyRecord,
                const NdbIndexScanOperation::IndexBound *bound);
 
-  /**
-   * If multiple ranges/bounds were specified, getRangeNo will return the
-   * IndexBound::range_no specified for the 'bound' used to locate the
-   * current tuple.
-   */
-  int getRangeNo() const;
-
   /** Prepare for execution. 
    *  @return possible error code.
    */
@@ -582,9 +575,6 @@ private:
    */
   FetchResult awaitMoreResults(bool forceSend);
 
-  /** True of this query reads back the RANGE_NO - see getRangeNo() */
-  bool needRangeNo() const { return m_num_bounds > 1; }
-
   /** Check if we have received an error from TC, or datanodes.
    * @return 'true' if an error is pending, 'false' otherwise.
    */
@@ -783,17 +773,9 @@ public:
   const NdbRecord* getNdbRecord() const
   { return m_ndbRecord; }
 
-  /**
-   * Returns true if this operation need to know which RANGE_NO any returned row
-   * originated from. Note that only the root operation will return a RANGE_NO.
-   * (As well as setBound's, which are the origin of the RANGE_NO)
-   */
-  bool needRangeNo() const
-  { return m_queryImpl.needRangeNo() && getInternalOpNo() == 0; }
-
 private:
 
-  static constexpr Uint32 MAGIC = 0xfade1234;
+  STATIC_CONST (MAGIC = 0xfade1234);
 
   /** Interface for the application developer.*/
   NdbQueryOperation m_interface;

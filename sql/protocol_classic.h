@@ -215,7 +215,7 @@ class Protocol_classic : public Protocol {
 
 class Protocol_text : public Protocol_classic {
  public:
-  Protocol_text() = default;
+  Protocol_text() {}
   Protocol_text(THD *thd_arg) : Protocol_classic(thd_arg) {}
   bool store_null() override;
   bool store_tiny(longlong from, uint32 zerofill) override;
@@ -240,7 +240,7 @@ class Protocol_binary final : public Protocol_text {
   uint bit_fields;
 
  public:
-  Protocol_binary() = default;
+  Protocol_binary() {}
   Protocol_binary(THD *thd_arg) : Protocol_text(thd_arg) {}
   void start_row() override;
   bool store_null() override;

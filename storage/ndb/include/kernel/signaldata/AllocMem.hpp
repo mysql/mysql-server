@@ -32,7 +32,7 @@
 
 struct AllocMemReq
 {
-  static constexpr Uint32 SignalLength = 5;
+  STATIC_CONST( SignalLength = 5 );
 
   enum RequestType
   {
@@ -51,7 +51,7 @@ struct AllocMemReq
 
 struct AllocMemRef
 {
-  static constexpr Uint32 SignalLength = 4;
+  STATIC_CONST( SignalLength = 4 );
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -61,7 +61,7 @@ struct AllocMemRef
 
 struct AllocMemConf
 {
-  static constexpr Uint32 SignalLength = 5;
+  STATIC_CONST( SignalLength = 5 );
 
   Uint32 senderRef;
   Uint32 senderData;

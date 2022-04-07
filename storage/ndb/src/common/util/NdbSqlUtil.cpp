@@ -1255,7 +1255,6 @@ void determineParams(Uint32 typeId,
     }
   }
   // Fall through - for Blob v2
-  [[fallthrough]];
   default:
     /* Default determined by meta-info */
     convSize = 1 << typeLog2Size;

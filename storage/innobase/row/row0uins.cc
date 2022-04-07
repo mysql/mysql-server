@@ -64,8 +64,8 @@ introduced where a call to log_free_check() is bypassed. */
 /** Removes a clustered index record. The pcur in node was positioned on the
  record, now it is detached.
  @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-[[nodiscard]] static dberr_t row_undo_ins_remove_clust_rec(
-    undo_node_t *node) /*!< in: undo node */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_ins_remove_clust_rec(undo_node_t *node) /*!< in: undo node */
 {
   btr_cur_t *btr_cur;
   ibool success;
@@ -134,8 +134,7 @@ retry:
   ut_a(success);
 
   btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, true, node->trx->id,
-                             node->undo_no, node->rec_type, &mtr, &node->pcur,
-                             nullptr);
+                             node->undo_no, node->rec_type, &mtr, &node->pcur);
 
   /* The delete operation may fail if we have little
   file space left: TODO: easiest to crash the database
@@ -167,11 +166,10 @@ func_exit:
 @param[in]	thr	query thread
 @param[in]	node	undo node
 @return DB_SUCCESS, DB_FAIL, or DB_OUT_OF_FILE_SPACE */
-[[nodiscard]] static dberr_t row_undo_ins_remove_sec_low(ulint mode,
-                                                         dict_index_t *index,
-                                                         dtuple_t *entry,
-                                                         que_thr_t *thr,
-                                                         undo_node_t *node) {
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_ins_remove_sec_low(ulint mode, dict_index_t *index,
+                                dtuple_t *entry, que_thr_t *thr,
+                                undo_node_t *node) {
   btr_pcur_t pcur;
   btr_cur_t *btr_cur;
   dberr_t err = DB_SUCCESS;
@@ -252,8 +250,7 @@ func_exit:
     only matters when deleting a record that contains
     externally stored columns. */
     ut_ad(!index->is_clustered());
-    btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, false, 0, 0, 0, &mtr,
-                               &pcur, nullptr);
+    btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, false, 0, 0, 0, &mtr);
   }
 func_exit:
   btr_pcur_close(&pcur);
@@ -270,10 +267,9 @@ func_exit_no_pcur:
 @param[in]	thr	query thread
 @param[in]	node	undo node
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-[[nodiscard]] static dberr_t row_undo_ins_remove_sec(dict_index_t *index,
-                                                     dtuple_t *entry,
-                                                     que_thr_t *thr,
-                                                     undo_node_t *node) {
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_ins_remove_sec(dict_index_t *index, dtuple_t *entry,
+                            que_thr_t *thr, undo_node_t *node) {
   dberr_t err;
   ulint n_tries = 0;
 
@@ -394,9 +390,9 @@ static dberr_t row_undo_ins_remove_multi_sec(dict_index_t *index,
 
 /** Removes secondary index records.
  @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-[[nodiscard]] static dberr_t row_undo_ins_remove_sec_rec(
-    undo_node_t *node, /*!< in/out: row undo node */
-    que_thr_t *thr)    /*!< in: query thread */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_ins_remove_sec_rec(undo_node_t *node, /*!< in/out: row undo node */
+                                que_thr_t *thr)    /*!< in: query thread */
 {
   dberr_t err = DB_SUCCESS;
   dict_index_t *index = node->index;

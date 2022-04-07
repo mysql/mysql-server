@@ -24,8 +24,6 @@
 
 #include "BufferedLogHandler.hpp"
 
-#include <time.h>
-
 struct ThreadData
 {
   BufferedLogHandler* buf_loghandler;
@@ -79,7 +77,6 @@ BufferedLogHandler::~BufferedLogHandler()
   NdbThread_WaitFor(m_log_threadvar, NULL);
   NdbThread_Destroy(&m_log_threadvar);
   delete m_logbuf;
-  delete m_dest_loghandler;
 }
 
 bool

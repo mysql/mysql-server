@@ -37,7 +37,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Checks if a table name contains the string "/#sql" which denotes temporary
  tables in MySQL.
  @return true if temporary table */
-[[nodiscard]] bool row_is_mysql_tmp_table_name(const char *name);
+bool row_is_mysql_tmp_table_name(const char *name)
+    MY_ATTRIBUTE((warn_unused_result));
 /*!< in: table name in the form
 'database/tablename' */
 
@@ -45,7 +46,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
  A generated constraint has a name of the format dbname/tablename_ibfk_NUMBER,
  where the numbers start from 1, and are given locally for this table, that is,
  the number is not global, as it used to be before MySQL 4.0.18.  */
-static inline dberr_t dict_create_add_foreign_id(
+UNIV_INLINE
+dberr_t dict_create_add_foreign_id(
     ulint *id_nr,            /*!< in/out: number to use in id generation;
                              incremented if used */
     const char *name,        /*!< in: table name */
@@ -99,7 +101,8 @@ of Sys_columns. The column number includes both its virtual column sequence
 @param[in]	v_pos		virtual column sequence
 @param[in]	col_pos		column position in original table definition
 @return composed column position number */
-static inline ulint dict_create_v_col_pos(ulint v_pos, ulint col_pos) {
+UNIV_INLINE
+ulint dict_create_v_col_pos(ulint v_pos, ulint col_pos) {
   ut_ad(v_pos <= REC_MAX_N_FIELDS);
   ut_ad(col_pos <= REC_MAX_N_FIELDS);
 
@@ -110,12 +113,12 @@ static inline ulint dict_create_v_col_pos(ulint v_pos, ulint col_pos) {
 original table), stored in the "POS" field of Sys_columns
 @param[in]	pos		virtual column position
 @return column position in original table */
-static inline ulint dict_get_v_col_mysql_pos(ulint pos) {
-  return (pos & 0xFFFF);
-}
+UNIV_INLINE
+ulint dict_get_v_col_mysql_pos(ulint pos) { return (pos & 0xFFFF); }
 
 /** Get a virtual column sequence (the "nth" virtual column) for a
 virtual column, stord in the "POS" field of Sys_columns
 @param[in]	pos		virtual column position
 @return virtual column sequence */
-static inline ulint dict_get_v_col_pos(ulint pos) { return ((pos >> 16) - 1); }
+UNIV_INLINE
+ulint dict_get_v_col_pos(ulint pos) { return ((pos >> 16) - 1); }

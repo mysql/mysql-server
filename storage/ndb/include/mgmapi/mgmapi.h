@@ -25,6 +25,12 @@
 #ifndef MGMAPI_H
 #define MGMAPI_H
 
+#if defined(__cplusplus)
+#if __cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)
+#include <memory> // std::unique_ptr for ndb_mgm_config_unique_ptr
+#endif
+#endif
+
 #ifdef _WIN32
 #include <WinSock2.h>
 #include <ws2tcpip.h>
@@ -1575,6 +1581,26 @@ extern "C" {
 
 #ifdef __cplusplus
 }
+#endif
+
+#if defined(__cplusplus)
+#if __cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)
+/*
+ * Helper class to ease use of C++11 unique pointer with
+ * ndb_mgm_configuration.
+ */
+struct ndb_mgm_configuration_deleter
+{
+  void operator()(ndb_mgm_configuration* conf)
+  {
+    ndb_mgm_destroy_configuration(conf);
+  }
+};
+
+using ndb_mgm_config_unique_ptr =
+  std::unique_ptr<ndb_mgm_configuration, ndb_mgm_configuration_deleter>;
+
+#endif
 #endif
 
 /** @} */

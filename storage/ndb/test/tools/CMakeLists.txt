@@ -53,9 +53,4 @@ TARGET_LINK_LIBRARIES(ndb_cpcc ndbNDBT ndbclient_static)
 IF(NOT WIN32)
   NDB_ADD_EXECUTABLE(spj_performance_test spj_performance_test.cpp
     NDBTEST NDBCLIENT MYSQLCLIENT)
-  IF(MY_COMPILER_IS_CLANG)
-    ADD_COMPILE_FLAGS(spj_performance_test.cpp COMPILE_FLAGS
-      " -Wno-error=undefined-reinterpret-cast")
-  ENDIF()
-
 ENDIF()

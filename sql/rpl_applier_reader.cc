@@ -25,9 +25,9 @@
 #include "mysql/components/services/log_builtins.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"
-#include "sql/rpl_replica.h"
 #include "sql/rpl_rli.h"
 #include "sql/rpl_rli_pdb.h"
+#include "sql/rpl_slave.h"
 #include "sql/sql_backup_lock.h"
 
 /**
@@ -82,8 +82,8 @@ class Rpl_applier_reader::Stage_controller {
 
 Rpl_applier_reader::Rpl_applier_reader(Relay_log_info *rli)
     : m_relaylog_file_reader(
-          opt_replica_sql_verify_checksum,
-          std::max(replica_max_allowed_packet,
+          opt_slave_sql_verify_checksum,
+          std::max(slave_max_allowed_packet,
                    binlog_row_event_max_size + MAX_LOG_EVENT_HEADER)),
       m_rli(rli) {}
 
@@ -181,7 +181,7 @@ Log_event *Rpl_applier_reader::read_next_event() {
         However, workers are executing their assigned jobs and as such
         the checkpoint routine must be periodically invoked.
 
-        mta_checkpoint_routine has to be called before enter_stage().
+        mts_checkpoint_routine has to be called before enter_stage().
         Otherwise, it will cause a deadlock with STOP SLAVE or other
         thread has the same lock pattern.
         STOP SLAVE Thread                   Coordinator Thread
@@ -191,15 +191,15 @@ Log_event *Rpl_applier_reader::read_next_event() {
         lock LOCK_binlog_end_pos
         in THD::awake
                                             lock LOCK_thd_data in
-                                            mta_checkpoint_routine()
+                                            mts_checkpoint_routine()
                                               flush_info()
                                                 ...
                                                 close_thread_table()
       */
       mysql_mutex_unlock(&m_rli->data_lock);
-      if ((m_rli->is_time_for_mta_checkpoint() ||
-           DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0)) &&
-          mta_checkpoint_routine(m_rli, false)) {
+      if ((m_rli->is_time_for_mts_checkpoint() ||
+           DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0)) &&
+          mts_checkpoint_routine(m_rli, false)) {
         m_errmsg = "Failed to compute mts checkpoint";
         mysql_mutex_lock(&m_rli->data_lock);
         return nullptr;
@@ -209,7 +209,7 @@ Log_event *Rpl_applier_reader::read_next_event() {
       /* Lock LOCK_binlog_end_pos before wait */
       Stage_controller stage_controller(
           m_rli->info_thd, m_rli->relay_log.get_binlog_end_pos_lock(),
-          m_rli->relay_log.get_log_cond(), stage_replica_has_read_all_relay_log,
+          m_rli->relay_log.get_log_cond(), stage_slave_has_read_all_relay_log,
           Stage_controller::LOCKED);
 
       /* Check it again to avoid missing update signals from receiver thread */
@@ -286,11 +286,11 @@ bool Rpl_applier_reader::wait_for_new_event() {
 
   int ret = 0;
   if (m_rli->is_parallel_exec() &&
-      (opt_mta_checkpoint_period != 0 ||
-       DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0))) {
+      (opt_mts_checkpoint_period != 0 ||
+       DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))) {
     struct timespec waittime;
-    set_timespec_nsec(&waittime, opt_mta_checkpoint_period * 1000000ULL);
-    DBUG_EXECUTE_IF("check_replica_debug_group",
+    set_timespec_nsec(&waittime, opt_mts_checkpoint_period * 1000000ULL);
+    DBUG_EXECUTE_IF("check_slave_debug_group",
                     { set_timespec_nsec(&waittime, 10000000); });
     ret = m_rli->relay_log.wait_for_update(&waittime);
   } else
@@ -415,7 +415,7 @@ bool Rpl_applier_reader::purge_applied_logs() {
   if (is_instance_locked == Is_instance_backup_locked_result::LOCKED)
     return false;
 
-  if (m_rli->flush_info(Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT)) {
+  if (m_rli->flush_info(true)) {
     m_errmsg = "Error purging processed logs";
     return true;
   }
@@ -541,7 +541,7 @@ void Rpl_applier_reader::reset_seconds_behind_master() {
   /*
     We say in Seconds_Behind_Master that we have "caught up". Note that for
     example if network link is broken but I/O slave thread hasn't noticed it
-    (replica_net_timeout not elapsed), then we'll say "caught up" whereas we're
+    (slave_net_timeout not elapsed), then we'll say "caught up" whereas we're
     not really caught up. Fixing that would require internally cutting timeout
     in smaller pieces in network read. Another example: SQL has caught up on
     I/O, now I/O has read a new event and is queuing it; the false "0" will
@@ -552,18 +552,18 @@ void Rpl_applier_reader::reset_seconds_behind_master() {
     which provides the slave the status of the master at time the master does
     not have any new update to send. Seconds_Behind_Master would be zero only
     when master has no more updates in binlog for slave. The heartbeat can be
-    sent in a (small) fraction of replica_net_timeout. Until it's done
+    sent in a (small) fraction of slave_net_timeout. Until it's done
     m_rli->last_master_timestamp is temporarely (for time of waiting for the
     following event) reset whenever EOF is reached.
 
     Note, in MTS case Seconds_Behind_Master resetting follows
     slightly different schema where reaching EOF is not enough.  The status
     parameter is updated per some number of processed group of events. The
-    number can't be greater than @@global.replica_checkpoint_group and anyway
-    SBM updating rate does not exceed @@global.replica_checkpoint_period. Notice
-    that SBM is set to a new value after processing the terminal event (e.g
-    Commit) of a group.  Coordinator resets SBM when notices no more groups left
-    neither to read from Relay-log nor to process by Workers.
+    number can't be greater than @@global.slave_checkpoint_group and anyway SBM
+    updating rate does not exceed @@global.slave_checkpoint_period. Notice that
+    SBM is set to a new value after processing the terminal event (e.g Commit)
+    of a group.  Coordinator resets SBM when notices no more groups left neither
+    to read from Relay-log nor to process by Workers.
   */
   if (!m_rli->is_parallel_exec() || m_rli->gaq->empty())
     m_rli->last_master_timestamp = 0;

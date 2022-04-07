@@ -246,7 +246,6 @@ static Secondary_engine *secondary_engine = nullptr;
 
 static uint opt_zstd_compress_level = default_zstd_compression_level;
 static char *opt_compress_algorithm = nullptr;
-static uint opt_test_ssl_fips_mode = 0;
 
 #ifdef _WIN32
 static DWORD opt_safe_process_pid;
@@ -678,7 +677,7 @@ class AsyncTimer {
   ~AsyncTimer() {
     auto now = std::chrono::system_clock::now();
     auto delta = now - start_;
-    [[maybe_unused]] ulonglong micros =
+    ulonglong MY_ATTRIBUTE((unused)) micros =
         std::chrono::duration_cast<std::chrono::microseconds>(delta).count();
     DBUG_PRINT("async_timing",
                ("%s total micros: %llu", label_.c_str(), micros));
@@ -688,7 +687,7 @@ class AsyncTimer {
     auto now = std::chrono::system_clock::now();
     auto delta = now - time_;
     time_ = now;
-    [[maybe_unused]] ulonglong micros =
+    ulonglong MY_ATTRIBUTE((unused)) micros =
         std::chrono::duration_cast<std::chrono::microseconds>(delta).count();
     DBUG_PRINT("async_timing", ("%s op micros: %llu", label_.c_str(), micros));
   }
@@ -1702,8 +1701,7 @@ void flush_ds_res() {
       cleanup_and_exit(1);
 
     if (!result_file_name) {
-      if (std::fwrite(ds_res.str, 1, ds_res.length, stdout) != ds_res.length)
-        cleanup_and_exit(1);
+      std::fwrite(ds_res.str, 1, ds_res.length, stdout);
       std::fflush(stdout);
     }
 
@@ -2208,7 +2206,7 @@ static void check_result() {
       break; /* ok */
     case RESULT_LENGTH_MISMATCH:
       mess = "Result length mismatch\n";
-      [[fallthrough]];
+      /* Fallthrough */
     case RESULT_CONTENT_MISMATCH: {
       /*
         Result mismatched, dump results to .reject file
@@ -2790,19 +2788,12 @@ static void alloc_var(VAR *var, size_t length) {
 }
 
 /**
-  Process a "let $variable = escape(CHARACTERS,TEXT)" command.
+  Process a "let $variable = escape(CHARACTER,TEXT)" command.
 
   This will parse the text starting after 'escape'.  If parsing is
-  successful, it inserts a backslash character before each character
-  in 'TEXT' that occurs in 'CHARACTERS' and stores the result in
-  $variable.  If parsing fails, it prints an error message and aborts
-  the program.
-
-  CHARACTERS is a string of at least one character, where ',' must not
-  occur except as the first character.  Newlines are not allowed.
-  Backslashes are not treated as escape characters when parsing
-  CHARACTERS, so escape(\',$x) will replace both backslashes and
-  single quotes in $x.
+  successful, it inserts a backslash character before each occurrence
+  of 'CHARACTER' in 'TEXT' and stores the result to $variable.  If
+  parsing fails, it prints an error message and aborts the progrma.
 
   @param command The st_command structure, where the 'first_argument'
   member points to the character just after 'escape'.
@@ -2810,100 +2801,33 @@ static void alloc_var(VAR *var, size_t length) {
   @param dst VAR object representing $variable
 */
 static void var_set_escape(struct st_command *command, VAR *dst) {
-  /*
-    Parse and return the arguments.
-
-    This expects the format:
-
-    ^\([^\n\r][^,\n\r]*,.*\)$
-
-    I.e., an opening parenthesis, followed by a newline-free string of
-    at least one character which does not have commas except possibly
-    in the first character, followed by a comma, followed by an
-    arbitrary string, followed by a closing parenthesis.
-
-    Returns a triple containing:
-    - The first string,
-    - the second string,
-    - a bool that is false if the parsing succeeded; true if it failed.
-  */
-  auto parse_args = [&]() -> auto {
-    // command->first_argument contains '(characters,text)'
-    char *p = command->first_argument;
-    // Find (
-    if (*p == '(') {
-      ++p;
-      // Find [^\n\r][^,\n\r]*
-      char *char_start = p;
-      if (*p != '\0' && *p != '\n' && *p != '\r') {
-        ++p;
-        while (*p != '\0' && *p != ',' && *p != '\n' && *p != '\r') ++p;
-        // Find ,
-        if (*p == ',') {
-          size_t char_len = p - char_start;
-          ++p;
-          // Find .*$
-          char *text_start = p;
-          while (*p != '\0') ++p;
-          // Find )
-          --p;
-          if (*p == ')') {
-            size_t text_len = p - text_start;
-            return std::make_tuple(std::string(char_start, char_len),
-                                   std::string(text_start, text_len), false);
-          }
-        }
-      }
+  // command->query contains the statement escape(character,text)
+  static const std::regex arg_re("^\\(([^\\r\\n]),((?:.|[\\r\\n])*)\\)$",
+                                 std::regex::optimize);
+  // Parse arguments.
+  std::cmatch arg_match;
+  if (std::regex_search(command->first_argument, arg_match, arg_re)) {
+    std::string character_str = arg_match[1];
+    char character = character_str[0];
+    std::string src = arg_match[2];
+    // Compute length of escaped string
+    auto dst_len = src.length();
+    for (char c : src)
+      if (c == character) dst_len++;
+    // Allocate space for escaped string
+    alloc_var(dst, dst_len);
+    auto dst_char = dst->str_val;
+    // Compute escaped string
+    for (char c : src) {
+      if (c == character) *dst_char++ = '\\';
+      *dst_char++ = c;
     }
-    return std::make_tuple(std::string(), std::string(), true);
-  };
-
-  std::string chars;
-  std::string src;
-  bool error;
-  std::tie(chars, src, error) = parse_args();
-  /*
-  // This is the same, implemented with a regular expression.
-  // Unfortunately it crashes on windows. Not sure but maybe a bug in
-  // the regex library on windows?
-  auto parse_args_regex = [&]() -> auto {
-    // command->first_argument contains '(characters,text)'
-    static const std::regex arg_re("^\\((.[^\\r\\n,]*),((?:.|[\\r\\n])*)\\)$",
-                                   std::regex::optimize);
-    // Parse arguments.
-    std::cmatch arg_match;
-    if (std::regex_search(command->first_argument, arg_match, arg_re))
-      return std::make_tuple(std::string(arg_match[1]),
-                             std::string(arg_match[2]),
-                             false);
-    return std::make_tuple(std::string(), std::string(), true);
-  };
-  std::string character_str2, src2;
-  bool error2;
-  std::tie(character_str2, src2, error2) = parse_args_regex();
-  assert(character_str == character_str2);
-  assert(src == src2);
-  assert(error == error2);
-  */
-  if (error)
+    dst->str_val_len = dst_len;
+  } else {
     die("Invalid format of 'escape' arguments: <%.100s>",
         command->first_argument);
-
-  auto begin = chars.begin();
-  auto end = chars.end();
-  // Compute length of escaped string
-  auto dst_len = src.length();
-  for (char c : src)
-    if (std::find(begin, end, c) != end) dst_len++;
-  // Allocate space for escaped string
-  alloc_var(dst, dst_len);
-  auto dst_char = dst->str_val;
-  // Compute escaped string
-  for (char c : src) {
-    if (std::find(begin, end, c) != end) *dst_char++ = '\\';
-    *dst_char++ = c;
+    return;
   }
-  dst->str_val_len = dst_len;
 }
 
 /*
@@ -3196,7 +3120,7 @@ static void do_source(struct st_command *command) {
 }
 
 static FILE *my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
-                      struct st_command *command [[maybe_unused]]) {
+                      struct st_command *command MY_ATTRIBUTE((unused))) {
 #ifdef _WIN32
   /*
     --execw is for tests executing commands containing non-ASCII characters.
@@ -4927,7 +4851,8 @@ static int do_echo(struct st_command *command) {
   return 0;
 }
 
-static void do_wait_for_slave_to_stop(struct st_command *c [[maybe_unused]]) {
+static void do_wait_for_slave_to_stop(
+    struct st_command *c MY_ATTRIBUTE((unused))) {
   static int SLAVE_POLL_INTERVAL = 300000;
   MYSQL *mysql = &cur_con->mysql;
   for (;;) {
@@ -4968,7 +4893,7 @@ static void do_sync_with_master2(struct st_command *command, long offset) {
   if (!master_pos.file[0])
     die("Calling 'sync_with_master' without calling 'save_master_pos'");
 
-  sprintf(query_buf, "select source_pos_wait('%s', %ld, %d)", master_pos.file,
+  sprintf(query_buf, "select master_pos_wait('%s', %ld, %d)", master_pos.file,
           master_pos.pos + offset, timeout);
 
   if (mysql_query_wrapper(mysql, query_buf))
@@ -4989,7 +4914,7 @@ static void do_sync_with_master2(struct st_command *command, long offset) {
   mysql_free_result_wrapper(res);
 
   if (!result_str || result < 0) {
-    /* source_pos_wait returned NULL or < 0 */
+    /* master_pos_wait returned NULL or < 0 */
     show_query(mysql, "SHOW MASTER STATUS");
     show_query(mysql, "SHOW SLAVE STATUS");
     show_query(mysql, "SHOW PROCESSLIST");
@@ -4997,7 +4922,7 @@ static void do_sync_with_master2(struct st_command *command, long offset) {
 
     if (!result_str) {
       /*
-        source_pos_wait returned NULL. This indicates that
+        master_pos_wait returned NULL. This indicates that
         slave SQL thread is not started, the slave's master
         information is not initialized, the arguments are
         incorrect, or an error has occurred
@@ -5661,7 +5586,7 @@ static bool kill_process(int pid) {
   @param pid  Process id.
   @param path Path to create minidump file in.
 */
-static void abort_process(int pid, const char *path [[maybe_unused]]) {
+static void abort_process(int pid, const char *path MY_ATTRIBUTE((unused))) {
 #ifdef _WIN32
   HANDLE proc;
   proc = OpenProcess(PROCESS_ALL_ACCESS, false, pid);
@@ -6598,7 +6523,7 @@ static void do_connect(struct st_command *command) {
   static DYNAMIC_STRING ds_connection_name;
   static DYNAMIC_STRING ds_host;
   static DYNAMIC_STRING ds_user;
-  static DYNAMIC_STRING ds_password1;
+  static DYNAMIC_STRING ds_password;
   static DYNAMIC_STRING ds_database;
   static DYNAMIC_STRING ds_port;
   static DYNAMIC_STRING ds_sock;
@@ -6607,14 +6532,12 @@ static void do_connect(struct st_command *command) {
   static DYNAMIC_STRING ds_shm;
   static DYNAMIC_STRING ds_compression_algorithm;
   static DYNAMIC_STRING ds_zstd_compression_level;
-  static DYNAMIC_STRING ds_password2;
-  static DYNAMIC_STRING ds_password3;
   const struct command_arg connect_args[] = {
       {"connection name", ARG_STRING, true, &ds_connection_name,
        "Name of the connection"},
       {"host", ARG_STRING, true, &ds_host, "Host to connect to"},
       {"user", ARG_STRING, false, &ds_user, "User to connect as"},
-      {"passsword", ARG_STRING, false, &ds_password1,
+      {"passsword", ARG_STRING, false, &ds_password,
        "Password used when connecting"},
       {"database", ARG_STRING, false, &ds_database,
        "Database to select after connect"},
@@ -6629,11 +6552,7 @@ static void do_connect(struct st_command *command) {
       {"default_zstd_compression_level", ARG_STRING, false,
        &ds_zstd_compression_level,
        "Default compression level to use "
-       "when using zstd compression."},
-      {"second_passsword", ARG_STRING, false, &ds_password2,
-       "Password used when connecting"},
-      {"third_passsword", ARG_STRING, false, &ds_password3,
-       "Password used when connecting"}};
+       "when using zstd compression."}};
 
   DBUG_TRACE;
   DBUG_PRINT("enter", ("connect: %s", command->first_argument));
@@ -6810,30 +6729,12 @@ static void do_connect(struct st_command *command) {
     mysql_options(&con_slot->mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN,
                   (char *)&con_cleartext_enable);
 
-  unsigned int factor = 0;
-  if (ds_password1.length) {
-    factor = 1;
-    mysql_options4(&con_slot->mysql, MYSQL_OPT_USER_PASSWORD, &factor,
-                   ds_password1.str);
-  }
-  /* set second and third password */
-  if (ds_password2.length) {
-    factor = 2;
-    mysql_options4(&con_slot->mysql, MYSQL_OPT_USER_PASSWORD, &factor,
-                   ds_password2.str);
-  }
-  if (ds_password3.length) {
-    factor = 3;
-    mysql_options4(&con_slot->mysql, MYSQL_OPT_USER_PASSWORD, &factor,
-                   ds_password3.str);
-  }
-
   /* Special database to allow one to connect without a database name */
   if (ds_database.length && !std::strcmp(ds_database.str, "*NO-ONE*"))
     dynstr_set(&ds_database, "");
 
   if (connect_n_handle_errors(command, &con_slot->mysql, ds_host.str,
-                              ds_user.str, ds_password1.str, ds_database.str,
+                              ds_user.str, ds_password.str, ds_database.str,
                               con_port, ds_sock.str)) {
     DBUG_PRINT("info", ("Inserting connection %s in connection pool",
                         ds_connection_name.str));
@@ -6851,7 +6752,7 @@ static void do_connect(struct st_command *command) {
   dynstr_free(&ds_connection_name);
   dynstr_free(&ds_host);
   dynstr_free(&ds_user);
-  dynstr_free(&ds_password1);
+  dynstr_free(&ds_password);
   dynstr_free(&ds_database);
   dynstr_free(&ds_port);
   dynstr_free(&ds_sock);
@@ -6860,8 +6761,6 @@ static void do_connect(struct st_command *command) {
   dynstr_free(&ds_shm);
   dynstr_free(&ds_compression_algorithm);
   dynstr_free(&ds_zstd_compression_level);
-  dynstr_free(&ds_password2);
-  dynstr_free(&ds_password3);
 }
 
 static int do_done(struct st_command *command) {
@@ -6967,14 +6866,11 @@ static void do_block(enum block_cmd cmd, struct st_command *command) {
 
   /* If this block is ignored */
   if (!cur_block->ok) {
-    if (cmd == cmd_if || cmd == cmd_while) {
-      /* Inner block which comes with the command should be ignored */
-      cur_block++;
-      cur_block->cmd = cmd;
-      cur_block->ok = false;
-      cur_block->delim[0] = '\0';
-    }
-    /* No need to evaulate the condition */
+    /* Inner block should be ignored too */
+    cur_block++;
+    cur_block->cmd = cmd;
+    cur_block->ok = false;
+    cur_block->delim[0] = '\0';
     return;
   }
 
@@ -7718,7 +7614,7 @@ static struct my_option my_long_options[] = {
     {"no-skip", OPT_NO_SKIP, "Force the test to run without skip.", &no_skip,
      &no_skip, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"no-skip-exclude-list", 'n',
-     "Contains comma-separated list of to be excluded inc files.",
+     "Contains comma seperated list of to be excluded inc files.",
      &excluded_string, &excluded_string, nullptr, GET_STR, REQUIRED_ARG, 0, 0,
      0, nullptr, 0, nullptr},
     {"offload-count-file", OPT_OFFLOAD_COUNT_FILE, "Offload count report file",
@@ -7812,12 +7708,6 @@ static struct my_option my_long_options[] = {
      "inclusive. Default is 3.",
      &opt_zstd_compress_level, &opt_zstd_compress_level, nullptr, GET_UINT,
      REQUIRED_ARG, 3, 1, 22, nullptr, 0, nullptr},
-    {"test-ssl-fips-mode", 0,
-     "Toggle SSL FIPS mode on or off, to see whether FIPS is supported. "
-     "Prints the result to stdout, and then exits. "
-     "Used by mtr to enable/disable FIPS tests. ",
-     &opt_test_ssl_fips_mode, nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
-     nullptr, 0, nullptr},
 
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
@@ -7838,13 +7728,6 @@ static void usage() {
 
 static bool get_one_option(int optid, const struct my_option *opt,
                            char *argument) {
-  if (opt_test_ssl_fips_mode) {
-    char ssl_err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
-    int fips_test = test_ssl_fips_mode(ssl_err_string);
-    fprintf(stdout, "--test-ssl-fips-mode %d %s\n", fips_test,
-            fips_test == 0 ? ssl_err_string : "Success");
-    exit(0);
-  }
   switch (optid) {
     case '#':
 #ifndef NDEBUG
@@ -9878,7 +9761,7 @@ int main(int argc, char **argv) {
             command->query = command->first_argument;
             command->first_word_len = 0;
           }
-          [[fallthrough]];
+          /* fall through */
         case Q_QUERY:
         case Q_REAP: {
           bool old_display_result_vertically = display_result_vertically;
@@ -10417,8 +10300,7 @@ void replace_numeric_round_append(int round, DYNAMIC_STRING *result,
           to 1.2000000
         */
         if (size1 < (size_t)r) r = size1;
-        // fallthrough: all cases till next break are executed
-        [[fallthrough]];
+      // fallthrough: all cases till next break are executed
       case 'e':
       case 'E':
         if (isdigit(*(from + size + 1))) {
@@ -10549,7 +10431,7 @@ struct REPLACE_STRING {
 };
 
 void replace_strings_append(REPLACE *rep, DYNAMIC_STRING *ds, const char *str,
-                            size_t len [[maybe_unused]]) {
+                            size_t len MY_ATTRIBUTE((unused))) {
   REPLACE *rep_pos;
   REPLACE_STRING *rep_str;
   const char *start, *from;

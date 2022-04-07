@@ -39,7 +39,7 @@ class Connection_event_coordinator_services;
 class Error_handler {
  public:
   virtual void handle_error(longlong errcode, ...) = 0;
-  virtual ~Error_handler() = default;
+  virtual ~Error_handler() {}
 };
 
 /**

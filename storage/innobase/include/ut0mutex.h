@@ -50,8 +50,9 @@ extern ulong srv_force_recovery_crash;
 
 #ifdef UNIV_DEBUG
 #define mutex_validate(M) (M)
-/* Since mutexes are disabled under UNIV_LIBRARY, the following is OK. */
-#define mutex_own(m) ((m) != nullptr)
+/* Since mutexes are disabled under UNIV_LIBRARY, the following is OK
+and necessary to suppress compiler warnings. */
+#define mutex_own(M) ((M) || false)
 #endif /* UNIV_DEBUG */
 typedef OSMutex SysMutex;
 typedef OSMutex ib_mutex_t;
@@ -131,11 +132,6 @@ struct IB_mutex_guard {
     mutex_enter(in_mutex);
   }
 
-  IB_mutex_guard(ib_mutex_t *in_mutex, const ut::Location &loc)
-      : m_mutex(in_mutex) {
-    mutex_enter_inline(in_mutex, loc);
-  }
-
   /** Destructor to release mutex */
   ~IB_mutex_guard() { mutex_exit(m_mutex); }
 
@@ -173,10 +169,10 @@ typedef meb::Mutex ib_bpmutex_t;
 class MutexMonitor {
  public:
   /** Constructor */
-  MutexMonitor() = default;
+  MutexMonitor() {}
 
   /** Destructor */
-  ~MutexMonitor() = default;
+  ~MutexMonitor() {}
 
   /** Enable the mutex monitoring */
   void enable();
@@ -244,20 +240,7 @@ template <typename Mutex>
 void mutex_destroy(Mutex *mutex) {
   mutex->destroy();
 }
-
-class IB_mutex : public ib_mutex_t {
- public:
-  explicit IB_mutex(latch_id_t latch_id) {
-    mutex_create(latch_id, static_cast<ib_mutex_t *>(this));
-  }
-  ~IB_mutex() { mutex_free(static_cast<ib_mutex_t *>(this)); }
-  void lock(const ut::Location &loc) {
-    mutex_enter_inline(static_cast<ib_mutex_t *>(this), loc);
-  }
-  void unlock() { exit(); }
-};
-
-#endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_LIBRARY */
+#endif /* !UNIV_HOTBACKUP */
 
 #endif /* ut0mutex_h */

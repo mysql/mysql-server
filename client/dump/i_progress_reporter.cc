@@ -26,4 +26,4 @@
 
 using namespace Mysql::Tools::Dump;
 
-I_progress_reporter::~I_progress_reporter() = default;
+I_progress_reporter::~I_progress_reporter() {}

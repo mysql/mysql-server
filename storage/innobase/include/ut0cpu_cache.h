@@ -50,9 +50,6 @@ not handle over-aligned types.
 template <typename T>
 struct Cacheline_padded : public T {
   char pad[INNODB_CACHE_LINE_SIZE];
-
-  template <class... Args>
-  Cacheline_padded(Args &&... args) : T{std::forward<Args>(args)...} {}
 };
 } /* namespace ut */
 

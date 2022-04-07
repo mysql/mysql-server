@@ -66,7 +66,7 @@ Routine_impl::Routine_impl()
       m_connection_collation_id(INVALID_OBJECT_ID),
       m_schema_collation_id(INVALID_OBJECT_ID) {}
 
-Routine_impl::~Routine_impl() = default;
+Routine_impl::~Routine_impl() {}
 
 ///////////////////////////////////////////////////////////////////////////
 

@@ -368,7 +368,7 @@ class Xcom_member_state {
 */
 class Gcs_xcom_state_exchange_interface {
  public:
-  virtual ~Gcs_xcom_state_exchange_interface() = default;
+  virtual ~Gcs_xcom_state_exchange_interface() {}
 
   /**
     Accomplishes all necessary initialization steps.
@@ -714,7 +714,7 @@ class Gcs_xcom_state_exchange : public Gcs_xcom_state_exchange_interface {
 */
 class Gcs_xcom_view_change_control_interface {
  public:
-  virtual ~Gcs_xcom_view_change_control_interface() = default;
+  virtual ~Gcs_xcom_view_change_control_interface() {}
 
   virtual void start_view_exchange() = 0;
   virtual void end_view_exchange() = 0;
@@ -738,10 +738,6 @@ class Gcs_xcom_view_change_control_interface {
   virtual void set_belongs_to_group(bool belong) = 0;
   virtual void set_unsafe_current_view(Gcs_view *current_view) = 0;
   virtual Gcs_view *get_unsafe_current_view() = 0;
-
-  // Keep track if GCS as a whole has been ordered to finalize;
-  virtual void finalize() = 0;
-  virtual bool is_finalized() = 0;
 };
 
 /*
@@ -775,9 +771,6 @@ class Gcs_xcom_view_change_control
   void set_unsafe_current_view(Gcs_view *current_view) override;
   Gcs_view *get_unsafe_current_view() override;
 
-  void finalize() override;
-  bool is_finalized() override;
-
  private:
   bool m_view_changing;
   bool m_leaving;
@@ -802,10 +795,6 @@ class Gcs_xcom_view_change_control
     Whether the current node belongs to a group or not.
   */
   bool m_belongs_to_group;
-
-  /*
-   */
-  std::atomic<bool> m_finalized;
 
   /*
     Disabling the copy constructor and assignment operator.

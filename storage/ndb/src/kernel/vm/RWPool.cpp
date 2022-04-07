@@ -25,6 +25,7 @@
 #if 0
 #include "RWPool.hpp"
 #include <ndbd_exit_codes.h>
+#include <NdbOut.hpp>
 
 #define JAM_FILE_ID 278
 #endif
@@ -51,8 +52,7 @@ RWPool<T>::init(const Record_info& ri, const Pool_context& pc)
   m_record_info.m_offset_next_pool = ((ri.m_offset_next_pool + 3) >> 2);
   m_memroot = (RWPage*)m_ctx.get_memroot();
 #ifdef VM_TRACE
-  g_eventLogger->info("RWPool::init(%x, %d)", ri.m_type_id,
-                      m_record_info.m_size);
+  ndbout_c("RWPool::init(%x, %d)",ri.m_type_id, m_record_info.m_size);
 #endif
 }
 

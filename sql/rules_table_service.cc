@@ -56,10 +56,7 @@ const char *table_name = "rewrite_rules";
 
 int Cursor::read() {
   TABLE *table = m_table_list->table;
-  // Read the next non-deleted record.
-  do {
-    m_last_read_status = table->file->ha_rnd_next(table->record[0]);
-  } while (m_last_read_status == HA_ERR_RECORD_DELETED);
+  m_last_read_status = table->file->ha_rnd_next(table->record[0]);
   if (m_last_read_status != 0) m_is_finished = true;
   return m_last_read_status;
 }

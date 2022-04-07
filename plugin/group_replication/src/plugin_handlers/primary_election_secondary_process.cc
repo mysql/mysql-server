@@ -244,15 +244,15 @@ end:
   global_thd_manager_remove_thd(thd);
   delete thd;
 
-  Gcs_interface_factory::cleanup_thread_communication_resources(
-      Gcs_operations::get_gcs_engine());
-
-  my_thread_end();
-
   mysql_mutex_lock(&election_lock);
   election_process_thd_state.set_terminated();
   mysql_cond_broadcast(&election_cond);
   mysql_mutex_unlock(&election_lock);
+
+  Gcs_interface_factory::cleanup_thread_communication_resources(
+      Gcs_operations::get_gcs_engine());
+
+  my_thread_end();
 
   return error;
 }

@@ -54,7 +54,7 @@ Handshake::Handshake(const char *ssp, side_t side)
   // Obtain credentials for the authentication handshake.
 
   ret = AcquireCredentialsHandle(
-      NULL, const_cast<SEC_CHAR *>(ssp),
+      NULL, (SEC_CHAR *)ssp,
       side == SERVER ? SECPKG_CRED_INBOUND : SECPKG_CRED_OUTBOUND, NULL, NULL,
       NULL, NULL, &m_cred, &m_expire);
 

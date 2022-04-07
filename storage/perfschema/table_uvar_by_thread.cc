@@ -56,6 +56,7 @@ class Find_thd_user_var : public Find_THD_Impl {
       return false;
     }
 
+    mysql_mutex_lock(&thd->LOCK_thd_data);
     return true;
   }
 
@@ -232,7 +233,7 @@ int table_uvar_by_thread::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_uvar_by_thread::index_init(uint idx [[maybe_unused]], bool) {
+int table_uvar_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_uvar_by_thread *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_uvar_by_thread);
@@ -286,12 +287,13 @@ int table_uvar_by_thread::materialize(PFS_thread *thread) {
   }
 
   Find_thd_user_var finder(unsafe_thd);
-  THD_ptr safe_thd = Global_THD_manager::get_instance()->find_thd(&finder);
-  if (!safe_thd) {
+  THD *safe_thd = Global_THD_manager::get_instance()->find_thd(&finder);
+  if (safe_thd == nullptr) {
     return 1;
   }
 
-  m_THD_cache.materialize(thread, safe_thd.get());
+  m_THD_cache.materialize(thread, safe_thd);
+  mysql_mutex_unlock(&safe_thd->LOCK_thd_data);
   return 0;
 }
 

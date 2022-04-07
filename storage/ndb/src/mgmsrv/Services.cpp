@@ -46,6 +46,7 @@
 
 extern bool g_StopServer;
 extern bool g_RestartServer;
+extern EventLogger * g_eventLogger;
 
 /**
    const char * name;
@@ -1140,18 +1141,14 @@ MgmApiSession::getStatus(Parser<MgmApiSession>::Context &,
     }
   }
 
-  enum ndb_mgm_node_type types[NDB_MGM_NODE_TYPE_MAX+1];
+  enum ndb_mgm_node_type types[10];
   if (args.get("types", typestring))
   {
     Vector<BaseString> tmp;
     typestring.split(tmp, " ");
-    for (i = 0; i < tmp.size() && i < NDB_MGM_NODE_TYPE_MAX; i++)
+    for (i = 0; i < tmp.size(); i++)
     {
       types[i] = ndb_mgm_match_node_type(tmp[i].c_str());
-      if (types[i] == NDB_MGM_NODE_TYPE_UNKNOWN) {
-        // Either end of typestring or junk found
-        break;
-      }
     }
     types[i] = NDB_MGM_NODE_TYPE_UNKNOWN;    
   }
@@ -1932,18 +1929,14 @@ MgmApiSession::report_event(Parser_t::Context &ctx,
 {
   Uint32 length;
   const char *data_string;
-  Uint32 data[MAX_EVENT_LENGTH];
+  Uint32 data[25];
 
   args.get("length", &length);
-  assert(length < MAX_EVENT_LENGTH);
   args.get("data", &data_string);
 
   BaseString tmp(data_string);
   Vector<BaseString> item;
   tmp.split(item, " ");
-  if (length > MAX_EVENT_LENGTH)
-    // Data is going to be truncated
-    length = MAX_EVENT_LENGTH;
   for (int i = 0; (Uint32) i < length ; i++)
   {
     sscanf(item[i].c_str(), "%u", data+i);

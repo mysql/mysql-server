@@ -79,29 +79,30 @@ struct btr_latch_leaves_t {
 #ifdef UNIV_DEBUG
 /** Returns the page cursor component of a tree cursor.
  @return pointer to page cursor component */
-static inline page_cur_t *btr_cur_get_page_cur(
+UNIV_INLINE
+page_cur_t *btr_cur_get_page_cur(
     const btr_cur_t *cursor); /*!< in: tree cursor */
 /** Returns the buffer block on which the tree cursor is positioned.
  @return pointer to buffer block */
-static inline buf_block_t *btr_cur_get_block(
-    const btr_cur_t *cursor); /*!< in: tree cursor */
+UNIV_INLINE
+buf_block_t *btr_cur_get_block(const btr_cur_t *cursor); /*!< in: tree cursor */
 /** Returns the record pointer of a tree cursor.
  @return pointer to record */
-static inline rec_t *btr_cur_get_rec(
-    const btr_cur_t *cursor); /*!< in: tree cursor */
-#else                         /* UNIV_DEBUG */
+UNIV_INLINE
+rec_t *btr_cur_get_rec(const btr_cur_t *cursor); /*!< in: tree cursor */
+#else                                            /* UNIV_DEBUG */
 #define btr_cur_get_page_cur(cursor) (&(cursor)->page_cur)
 #define btr_cur_get_block(cursor) ((cursor)->page_cur.block)
 #define btr_cur_get_rec(cursor) ((cursor)->page_cur.rec)
 #endif /* UNIV_DEBUG */
 /** Returns the compressed page on which the tree cursor is positioned.
  @return pointer to compressed page, or NULL if the page is not compressed */
-static inline page_zip_des_t *btr_cur_get_page_zip(
-    btr_cur_t *cursor); /*!< in: tree cursor */
+UNIV_INLINE
+page_zip_des_t *btr_cur_get_page_zip(btr_cur_t *cursor); /*!< in: tree cursor */
 /** Returns the page of a tree cursor.
  @return pointer to page */
-static inline page_t *btr_cur_get_page(
-    btr_cur_t *cursor); /*!< in: tree cursor */
+UNIV_INLINE
+page_t *btr_cur_get_page(btr_cur_t *cursor); /*!< in: tree cursor */
 /** Returns the index of a cursor.
  @param cursor b-tree cursor
  @return index */
@@ -112,8 +113,9 @@ static inline page_t *btr_cur_get_page(
 @param[in]	rec	record in tree
 @param[in]	block	buffer block of rec
 @param[in]	cursor	cursor */
-static inline void btr_cur_position(dict_index_t *index, rec_t *rec,
-                                    buf_block_t *block, btr_cur_t *cursor);
+UNIV_INLINE
+void btr_cur_position(dict_index_t *index, rec_t *rec, buf_block_t *block,
+                      btr_cur_t *cursor);
 
 /** Optimistically latches the leaf page or pages requested.
 @param[in]	block		Guessed buffer block
@@ -245,7 +247,7 @@ bool btr_cur_open_at_rnd_pos_func(
  one record on the page, the insert will always succeed; this is to
  prevent trying to split a page with just one record.
  @return DB_SUCCESS, DB_WAIT_LOCK, DB_FAIL, or error number */
-[[nodiscard]] dberr_t btr_cur_optimistic_insert(
+dberr_t btr_cur_optimistic_insert(
     ulint flags,         /*!< in: undo logging and locking flags: if not
                          zero, the parameters index and thr should be
                          specified */
@@ -260,18 +262,19 @@ bool btr_cur_open_at_rnd_pos_func(
                          be stored externally by the caller, or
                          NULL */
     que_thr_t *thr,      /*!< in: query thread or NULL */
-    mtr_t *mtr);         /*!< in/out: mini-transaction;
-                        if this function returns DB_SUCCESS on
-                        a leaf page of a secondary index in a
-                        compressed tablespace, the caller must
-                        mtr_commit(mtr) before latching
-                        any further pages */
+    mtr_t *mtr)          /*!< in/out: mini-transaction;
+                         if this function returns DB_SUCCESS on
+                         a leaf page of a secondary index in a
+                         compressed tablespace, the caller must
+                         mtr_commit(mtr) before latching
+                         any further pages */
+    MY_ATTRIBUTE((warn_unused_result));
 /** Performs an insert on a page of an index tree. It is assumed that mtr
  holds an x-latch on the tree and on the cursor page. If the insert is
  made on the leaf level, to avoid deadlocks, mtr must also own x-latches
  to brothers of page, if those brothers exist.
  @return DB_SUCCESS or error number */
-[[nodiscard]] dberr_t btr_cur_pessimistic_insert(
+dberr_t btr_cur_pessimistic_insert(
     uint32_t flags,      /*!< in: undo logging and locking flags: if not
                          zero, the parameter thr should be
                          specified; if no undo logging is specified,
@@ -290,7 +293,8 @@ bool btr_cur_open_at_rnd_pos_func(
                          be stored externally by the caller, or
                          NULL */
     que_thr_t *thr,      /*!< in: query thread or NULL */
-    mtr_t *mtr);         /*!< in/out: mini-transaction */
+    mtr_t *mtr)          /*!< in/out: mini-transaction */
+    MY_ATTRIBUTE((warn_unused_result));
 /** See if there is enough place in the page modification log to log
  an update-in-place.
 
@@ -302,7 +306,7 @@ bool btr_cur_open_at_rnd_pos_func(
  a secondary index leaf page. This has to be done either within the
  same mini-transaction, or by invoking ibuf_reset_free_bits() before
  mtr_commit(mtr). */
-[[nodiscard]] bool btr_cur_update_alloc_zip_func(
+bool btr_cur_update_alloc_zip_func(
     page_zip_des_t *page_zip, /*!< in/out: compressed page */
     page_cur_t *cursor,       /*!< in/out: B-tree page cursor */
     dict_index_t *index,      /*!< in: the index corresponding to cursor */
@@ -312,7 +316,8 @@ bool btr_cur_open_at_rnd_pos_func(
     ulint length,   /*!< in: size needed */
     bool create,    /*!< in: true=delete-and-insert,
                     false=update-in-place */
-    mtr_t *mtr);    /*!< in/out: mini-transaction */
+    mtr_t *mtr)     /*!< in/out: mini-transaction */
+    MY_ATTRIBUTE((warn_unused_result));
 #ifdef UNIV_DEBUG
 #define btr_cur_update_alloc_zip(page_zip, cursor, index, offsets, len, cr, \
                                  mtr)                                       \
@@ -339,11 +344,10 @@ must mtr_commit(mtr) before latching any further pages
 @retval DB_SUCCESS on success
 @retval DB_ZIP_OVERFLOW if there is not enough space left
 on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
-[[nodiscard]] dberr_t btr_cur_update_in_place(ulint flags, btr_cur_t *cursor,
-                                              ulint *offsets,
-                                              const upd_t *update,
-                                              ulint cmpl_info, que_thr_t *thr,
-                                              trx_id_t trx_id, mtr_t *mtr);
+dberr_t btr_cur_update_in_place(ulint flags, btr_cur_t *cursor, ulint *offsets,
+                                const upd_t *update, ulint cmpl_info,
+                                que_thr_t *thr, trx_id_t trx_id, mtr_t *mtr)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Writes a redo log record of updating a record in-place.
 @param[in] flags Undo logging and locking flags
@@ -369,7 +373,7 @@ fields of the record do not change.
 @retval DB_UNDERFLOW if the page would become too empty
 @retval DB_ZIP_OVERFLOW if there is not enough space left
 on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
-[[nodiscard]] dberr_t btr_cur_optimistic_update(
+dberr_t btr_cur_optimistic_update(
     ulint flags,         /*!< in: undo logging and locking flags */
     btr_cur_t *cursor,   /*!< in: cursor on the record to update;
                          cursor stays valid and positioned on the
@@ -386,10 +390,11 @@ on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
                          | BTR_CREATE_FLAG
                          | BTR_KEEP_SYS_FLAG) */
     trx_id_t trx_id,     /*!< in: transaction id */
-    mtr_t *mtr);         /*!< in/out: mini-transaction; if this
-                        is a secondary index, the caller must
-                        mtr_commit(mtr) before latching any
-                        further pages */
+    mtr_t *mtr)          /*!< in/out: mini-transaction; if this
+                         is a secondary index, the caller must
+                         mtr_commit(mtr) before latching any
+                         further pages */
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Performs an update of a record on a page of a tree. It is assumed
 that mtr holds an x-latch on the tree and on the cursor page. If the
@@ -422,18 +427,18 @@ LOB.
 latching any further pages
 @param[in]     pcur          The persistent cursor on the record to update.
 @return DB_SUCCESS or error code */
-[[nodiscard]] dberr_t btr_cur_pessimistic_update(
+dberr_t btr_cur_pessimistic_update(
     ulint flags, btr_cur_t *cursor, ulint **offsets, mem_heap_t **offsets_heap,
     mem_heap_t *entry_heap, big_rec_t **big_rec, upd_t *update, ulint cmpl_info,
     que_thr_t *thr, trx_id_t trx_id, undo_no_t undo_no, mtr_t *mtr,
-    btr_pcur_t *pcur = nullptr);
+    btr_pcur_t *pcur = nullptr) MY_ATTRIBUTE((warn_unused_result));
 
 /** Marks a clustered index record deleted. Writes an undo log record to
  undo log on this delete marking. Writes in the trx id field the id
  of the deleting transaction, and in the roll ptr field pointer to the
  undo log record created.
  @return DB_SUCCESS, DB_LOCK_WAIT, or error number */
-[[nodiscard]] dberr_t btr_cur_del_mark_set_clust_rec(
+dberr_t btr_cur_del_mark_set_clust_rec(
     ulint flags,           /*!< in: undo logging and locking flags */
     buf_block_t *block,    /*!< in/out: buffer block of the record */
     rec_t *rec,            /*!< in/out: record */
@@ -441,15 +446,17 @@ latching any further pages
     const ulint *offsets,  /*!< in: rec_get_offsets(rec) */
     que_thr_t *thr,        /*!< in: query thread */
     const dtuple_t *entry, /*!< in: dtuple for the deleting record */
-    mtr_t *mtr);           /*!< in/out: mini-transaction */
+    mtr_t *mtr)            /*!< in/out: mini-transaction */
+    MY_ATTRIBUTE((warn_unused_result));
 /** Sets a secondary index record delete mark to TRUE or FALSE.
  @return DB_SUCCESS, DB_LOCK_WAIT, or error number */
-[[nodiscard]] dberr_t btr_cur_del_mark_set_sec_rec(
+dberr_t btr_cur_del_mark_set_sec_rec(
     ulint flags,       /*!< in: locking flag */
     btr_cur_t *cursor, /*!< in: cursor */
     ibool val,         /*!< in: value to set */
     que_thr_t *thr,    /*!< in: query thread */
-    mtr_t *mtr);       /*!< in/out: mini-transaction */
+    mtr_t *mtr)        /*!< in/out: mini-transaction */
+    MY_ATTRIBUTE((warn_unused_result));
 /** Tries to compress a page of the tree if it seems useful. It is assumed
  that mtr holds an x-latch on the tree and on the cursor page. To avoid
  deadlocks, mtr must also own x-latches to brothers of page, if those
@@ -467,7 +474,7 @@ ibool btr_cur_compress_if_useful(
  that the mtr has an x-latch on the page where the cursor is positioned,
  but no latch on the whole tree.
  @return true if success, i.e., the page did not become too empty */
-[[nodiscard]] ibool btr_cur_optimistic_delete_func(
+ibool btr_cur_optimistic_delete_func(
     btr_cur_t *cursor, /*!< in: cursor on the record to delete;
                        cursor stays valid: if deletion succeeds,
                        on function exit it points to the successor
@@ -475,10 +482,11 @@ ibool btr_cur_compress_if_useful(
 #ifdef UNIV_DEBUG
     ulint flags, /*!< in: BTR_CREATE_FLAG or 0 */
 #endif           /* UNIV_DEBUG */
-    mtr_t *mtr); /*!< in: mtr; if this function returns
-                TRUE on a leaf page of a secondary
-                index, the mtr must be committed
-                before latching any further pages */
+    mtr_t *mtr)  /*!< in: mtr; if this function returns
+                 TRUE on a leaf page of a secondary
+                 index, the mtr must be committed
+                 before latching any further pages */
+    MY_ATTRIBUTE((warn_unused_result));
 #ifdef UNIV_DEBUG
 #define btr_cur_optimistic_delete(cursor, flags, mtr) \
   btr_cur_optimistic_delete_func(cursor, flags, mtr)
@@ -504,20 +512,19 @@ ibool btr_cur_compress_if_useful(
                   occur, the cursor stays valid: it points to successor of
                   deleted record on function exit
 @param[in] flags  BTR_CREATE_FLAG or 0
-@param[in] rollback     True if performing rollback, false otherwise.
-@param[in] trx_id       The current transaction id.
-@param[in] undo_no      Undo number of the transaction. This is needed for
-                        rollback to savepoint of partially updated LOB.
-@param[in] rec_type     Undo record type.
-@param[in] mtr          The mini transaction
-@param[in] pcur         Persistent cursor on the record to delete.
-@param[in,out] node     purge node or nullptr
+@param[in] rollback True if performing rollback, false otherwise.
+@param[in] trx_id The current transaction id.
+@param[in] undo_no Undo number of the transaction. This is needed for
+rollback to savepoint of partially updated LOB.
+@param[in] rec_type Undo record type.
+@param[in] mtr Mini-transaction
+@param[in] pcur   Persistent cursor on the record to delete.
 @return true if compression occurred */
 ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
                                  btr_cur_t *cursor, uint32_t flags,
                                  bool rollback, trx_id_t trx_id,
                                  undo_no_t undo_no, ulint rec_type, mtr_t *mtr,
-                                 btr_pcur_t *pcur, purge_node_t *node);
+                                 btr_pcur_t *pcur = nullptr);
 
 /** Parses a redo log record of updating a record in-place.
  @return end of log record or NULL */
@@ -611,9 +618,8 @@ void btr_cur_set_deleted_flag_for_ibuf(
 @param[in,out]	rec		physical record
 @param[in,out]	page_zip	compressed page (or NULL)
 @param[in]	flag		nonzero if delete marked */
-static inline void btr_rec_set_deleted_flag(rec_t *rec,
-                                            page_zip_des_t *page_zip,
-                                            ulint flag);
+UNIV_INLINE
+void btr_rec_set_deleted_flag(rec_t *rec, page_zip_des_t *page_zip, ulint flag);
 
 /** Latches the leaf page or pages requested.
 @param[in]	block		Leaf page where the search converged
@@ -767,9 +773,8 @@ struct btr_cur_t {
 @param[in,out]	rec		physical record
 @param[in,out]	page_zip	compressed page (or NULL)
 @param[in]	flag		nonzero if delete marked */
-static inline void btr_rec_set_deleted_flag(rec_t *rec,
-                                            page_zip_des_t *page_zip,
-                                            ulint flag);
+UNIV_INLINE
+void btr_rec_set_deleted_flag(rec_t *rec, page_zip_des_t *page_zip, ulint flag);
 
 /** If pessimistic delete fails because of lack of file space, there
 is still a good change of success a little later.  Try this many

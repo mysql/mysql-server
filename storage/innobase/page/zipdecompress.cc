@@ -87,9 +87,9 @@ static void *page_zip_zalloc(void *opaque, /*!< in/out: memory heap */
 }
 
 /** Deallocate memory for zlib. */
-static void page_zip_free(void *opaque [[maybe_unused]], /*!< in: memory heap */
-                          void *address
-                          [[maybe_unused]]) /*!< in: object to free */
+static void page_zip_free(
+    void *opaque MY_ATTRIBUTE((unused)),  /*!< in: memory heap */
+    void *address MY_ATTRIBUTE((unused))) /*!< in: object to free */
 {}
 
 } /* extern "C" */
@@ -122,7 +122,7 @@ void page_zip_set_alloc(void *stream, mem_heap_t *heap) {
 
 /** Populate the sparse page directory from the dense directory.
  @return true on success, false on failure */
-[[nodiscard]] static ibool page_zip_dir_decode(
+static MY_ATTRIBUTE((warn_unused_result)) ibool page_zip_dir_decode(
     const page_zip_des_t *page_zip, /*!< in: dense page directory on
                                    compressed page */
     page_t *page,                   /*!< in: compact page with valid header;
@@ -654,7 +654,7 @@ static ibool page_zip_decompress_node_ptrs(
         if (!d_stream->avail_out) {
           break;
         }
-        [[fallthrough]];
+        /* fall through */
       default:
         page_zip_fail(
             ("page_zip_decompress_node_ptrs:"
@@ -686,7 +686,7 @@ static ibool page_zip_decompress_node_ptrs(
         if (!d_stream->avail_out) {
           break;
         }
-        [[fallthrough]];
+        /* fall through */
       default:
         page_zip_fail(
             ("page_zip_decompress_node_ptrs:"
@@ -831,7 +831,7 @@ static ibool page_zip_decompress_sec(
           if (!d_stream->avail_out) {
             break;
           }
-          [[fallthrough]];
+          /* fall through */
         default:
           page_zip_fail(
               ("page_zip_decompress_sec:"
@@ -1053,7 +1053,7 @@ static ibool page_zip_decompress_clust_ext(
           if (!d_stream->avail_out) {
             break;
           }
-          [[fallthrough]];
+          /* fall through */
         default:
           page_zip_fail(
               ("page_zip_decompress_clust_ext:"
@@ -1083,7 +1083,7 @@ static ibool page_zip_decompress_clust_ext(
           if (!d_stream->avail_out) {
             break;
           }
-          [[fallthrough]];
+          /* fall through */
         default:
           page_zip_fail(
               ("page_zip_decompress_clust_ext:"
@@ -1157,7 +1157,7 @@ static ibool page_zip_decompress_clust(
         if (UNIV_LIKELY(!d_stream->avail_out)) {
           break;
         }
-        [[fallthrough]];
+        /* fall through */
       default:
         page_zip_fail(
             ("page_zip_decompress_clust:"
@@ -1205,7 +1205,7 @@ static ibool page_zip_decompress_clust(
           if (!d_stream->avail_out) {
             break;
           }
-          [[fallthrough]];
+          /* fall through */
         default:
           page_zip_fail(
               ("page_zip_decompress_clust:"
@@ -1235,7 +1235,7 @@ static ibool page_zip_decompress_clust(
         if (!d_stream->avail_out) {
           break;
         }
-        [[fallthrough]];
+        /* fall through */
       default:
         page_zip_fail(
             ("page_zip_decompress_clust:"

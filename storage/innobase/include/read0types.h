@@ -56,7 +56,7 @@ class ReadView {
 
     /**
     Destructor */
-    ~ids_t() { ut::delete_arr(m_ptr); }
+    ~ids_t() { UT_DELETE_ARRAY(m_ptr); }
 
     /** Try and increase the size of the array. Old elements are copied across.
     It is a no-op if n is < current size.
@@ -159,8 +159,8 @@ class ReadView {
   @param[in]	id	transaction id to check against the view
   @param[in]	name	table name
   @return whether the view sees the modifications of id. */
-  [[nodiscard]] bool changes_visible(trx_id_t id,
-                                     const table_name_t &name) const {
+  bool changes_visible(trx_id_t id, const table_name_t &name) const
+      MY_ATTRIBUTE((warn_unused_result)) {
     ut_ad(id > 0);
 
     if (id < m_up_limit_id || id == m_creator_trx_id) {

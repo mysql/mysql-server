@@ -64,7 +64,7 @@ class dict_intrinsic_table_t {
 /** InnoDB private data that is cached in THD */
 typedef std::map<
     std::string, dict_intrinsic_table_t *, std::less<std::string>,
-    ut::allocator<std::pair<const std::string, dict_intrinsic_table_t *>>>
+    ut_allocator<std::pair<const std::string, dict_intrinsic_table_t *>>>
     table_cache_t;
 
 class innodb_session_t {

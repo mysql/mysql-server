@@ -510,15 +510,12 @@ SET @my_use_secondary_engine = @@use_secondary_engine;
 CREATE TABLE t1 (a INT) SECONDARY_ENGINE MOCK;
 INSERT INTO t1 VALUES (1);
 ALTER TABLE t1 SECONDARY_LOAD;
-CREATE TABLE t2 (a INT);
-INSERT INTO t2 VALUES (1);
 FLUSH STATUS;
 # The row shall be returned from the primary storage engine.
 SET @@use_secondary_engine = OFF;
 SELECT * FROM t1;
 a
 1
-INSERT INTO t1 SELECT * FROM t2;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	0
@@ -526,15 +523,12 @@ Secondary_engine_execution_count	0
 SET @@use_secondary_engine = FORCED;
 SELECT * FROM t1;
 a
-INSERT INTO t1 SELECT * FROM t2;
-ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	1
 SET @@use_secondary_engine = ON;
 SELECT * FROM t1;
 a
-INSERT INTO t1 SELECT * FROM t2;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	2
@@ -550,13 +544,10 @@ SET @@use_secondary_engine = ON;
 SELECT * FROM t1;
 a
 1
-1
-1
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	2
 DROP TABLE t1;
-DROP TABLE t2;
 SET @@use_secondary_engine = @my_use_secondary_engine;
 #
 # Queries not referencing any base tables shall be executed without

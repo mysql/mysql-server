@@ -63,9 +63,7 @@
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/sd_notify.h"
-#include "mysql/harness/stdx/monitor.h"
-#include "mysql/harness/utility/string.h"  // join
-#include "utilities.h"                     // make_range
+#include "utilities.h"
 IMPORT_LOG_FUNCTIONS()
 
 #include "my_compiler.h"
@@ -77,6 +75,7 @@ using mysql_harness::utility::reverse;
 using mysql_harness::Config;
 using mysql_harness::Path;
 
+using std::ostringstream;
 using namespace std::chrono_literals;
 
 #if !defined(_WIN32)
@@ -84,11 +83,6 @@ using namespace std::chrono_literals;
 #endif
 
 static std::atomic<size_t> num_of_non_ready_services{0};
-
-static const char kLogReopenServiceName[] = "log_reopen";
-#if defined(USE_POSIX_SIGNALS)
-static const char kSignalHandlerServiceName[] = "signal_handler";
-#endif
 
 /**
  * @defgroup Loader Plugin loader
@@ -117,7 +111,8 @@ static std::string shutdown_fatal_error_message;
 std::mutex log_reopen_cond_mutex;
 std::condition_variable log_reopen_cond;
 
-Monitor<mysql_harness::LogReopenThread *> g_reopen_thread{nullptr};
+std::mutex g_reopen_thread_mtx;
+mysql_harness::LogReopenThread *g_reopen_thread{nullptr};
 
 // application defined pointer to function called at log rename completion
 static log_reopen_callback g_log_reopen_complete_callback_fp =
@@ -146,31 +141,32 @@ void request_application_shutdown(const ShutdownReason reason) {
  * @param dst rename old logfile to filename before reopen
  * @throws std::system_error same as std::unique_lock::lock does
  */
-void request_log_reopen(const std::string &dst) {
-  g_reopen_thread([dst](const auto &thr) {
-    if (thr) thr->request_reopen(dst);
-  });
+void request_log_reopen(const std::string dst) {
+  std::lock_guard<std::mutex> lk(g_reopen_thread_mtx);
+
+  if (g_reopen_thread) g_reopen_thread->request_reopen(dst);
 }
 
 /**
  * check reopen completed
  */
 bool log_reopen_completed() {
-  return g_reopen_thread([](const auto &thr) {
-    if (thr) return thr->is_completed();
-    return true;
-  });
+  std::lock_guard<std::mutex> lk(g_reopen_thread_mtx);
+
+  if (g_reopen_thread) return g_reopen_thread->is_completed();
+
+  return true;
 }
 
 /**
  * get last log reopen error
  */
 std::string log_reopen_get_error() {
-  return g_reopen_thread([](auto *thr) -> std::string {
-    if (thr) return thr->get_last_error();
+  std::lock_guard<std::mutex> lk(g_reopen_thread_mtx);
 
-    return {};
-  });
+  if (g_reopen_thread) return g_reopen_thread->get_last_error();
+
+  return std::string("");
 }
 
 namespace {
@@ -203,8 +199,7 @@ static void block_all_nonfatal_signals() {
 
 // GCC defines __SANITIZE_ADDRESS
 // clang has __has_feature and 'address_sanitizer'
-#if defined(__SANITIZE_ADDRESS__) || (__has_feature(address_sanitizer)) || \
-    (__has_feature(thread_sanitizer))
+#if defined(__SANITIZE_ADDRESS__) || (__has_feature(address_sanitizer))
 #define HAS_FEATURE_ASAN
 #endif
 
@@ -539,7 +534,7 @@ void Loader::spawn_signal_handler_thread() {
 
     return signal_thread_ready_;
   });
-  on_service_ready(kSignalHandlerServiceName);
+  on_service_ready("signal handler");
 #endif
 }
 
@@ -630,7 +625,7 @@ const Plugin *Loader::load_from(const std::string &plugin_name,
   auto plugin = info.plugin();
   if ((plugin->abi_version & 0xFF00) != (PLUGIN_ABI_VERSION & 0xFF00) ||
       (plugin->abi_version & 0xFF) > (PLUGIN_ABI_VERSION & 0xFF)) {
-    std::ostringstream buffer;
+    ostringstream buffer;
     buffer.setf(std::ios::hex, std::ios::basefield);
     buffer.setf(std::ios::showbase);
     buffer << "Bad ABI version - plugin version: " << plugin->abi_version
@@ -677,13 +672,13 @@ const Plugin *Loader::load_from(const std::string &plugin_name,
   // If all went well, we register the plugin and return a
   // pointer to it.
   plugins_.emplace(plugin_name, std::move(info));
-
+  log_debug("  plugin '%s' loaded ok", plugin_name.c_str());
   return plugin;
 }
 
 const Plugin *Loader::load(const std::string &plugin_name,
                            const std::string &key) {
-  log_debug("  loading '%s'.", plugin_name.c_str());
+  log_debug("  plugin '%s:%s' loading", plugin_name.c_str(), key.c_str());
 
   if (BuiltinPlugins::instance().has(plugin_name)) {
     Plugin *plugin = BuiltinPlugins::instance().get_plugin(plugin_name);
@@ -702,7 +697,7 @@ const Plugin *Loader::load(const std::string &plugin_name,
 }
 
 const Plugin *Loader::load(const std::string &plugin_name) {
-  log_debug("  loading '%s'.", plugin_name.c_str());
+  log_debug("  plugin '%s' loading", plugin_name.c_str());
 
   if (BuiltinPlugins::instance().has(plugin_name)) {
     Plugin *plugin = BuiltinPlugins::instance().get_plugin(plugin_name);
@@ -789,17 +784,10 @@ size_t Loader::external_plugins_to_load_count() {
 }
 
 void Loader::load_all() {
+  log_debug("Loading all plugins.");
+
   std::string section_name;
   std::string section_key;
-
-  std::vector<std::string> loadable_plugins;
-  for (auto const &section : available()) {
-    std::tie(section_name, section_key) = section;
-
-    loadable_plugins.push_back(section_name);
-  }
-  log_debug("Loading plugins: %s.",
-            mysql_harness::join(loadable_plugins, ", ").c_str());
 
   for (auto const &section : available()) {
     try {
@@ -839,9 +827,9 @@ std::exception_ptr Loader::run() {
   // run plugins if initialization didn't fail
   if (!first_eptr) {
     try {
-      // reset the global reopen-thread when we leave the block.
       std::shared_ptr<void> exit_guard(nullptr, [](void *) {
-        g_reopen_thread([](auto &thr) { thr = nullptr; });
+        std::lock_guard<std::mutex> lk(g_reopen_thread_mtx);
+        g_reopen_thread = nullptr;
       });
 
       start_all();  // if start() throws, exception is forwarded to
@@ -849,11 +837,10 @@ std::exception_ptr Loader::run() {
 
       // may throw std::system_error
       LogReopenThread log_reopen_thread;
-
-      g_reopen_thread([thread_func = &log_reopen_thread](auto &thr) {
-        thr = thread_func;
-        on_service_ready(kLogReopenServiceName);
-      });
+      {
+        std::lock_guard<std::mutex> lk(g_reopen_thread_mtx);
+        g_reopen_thread = &log_reopen_thread;
+      }
 
       first_eptr = main_loop();
     } catch (const std::exception &e) {
@@ -933,10 +920,11 @@ static void call_plugin_function(PluginFuncEnv *env, std::exception_ptr &eptr,
 
     // error handling
     if (env->exit_ok()) {
-      if (plugin_key && strlen(plugin_key) > 0)
-        log_debug("  %s '%s:%s' succeeded.", fnc_name, plugin_name, plugin_key);
+      if (plugin_key)
+        log_debug("  plugin '%s:%s' %s exit ok", plugin_name, plugin_key,
+                  fnc_name);
       else
-        log_debug("  %s '%s' succeeded.", fnc_name, plugin_name);
+        log_debug("  plugin '%s' %s exit ok", plugin_name, fnc_name);
     } else {
       std::string message;
       if (!eptr) {
@@ -944,12 +932,11 @@ static void call_plugin_function(PluginFuncEnv *env, std::exception_ptr &eptr,
       } else {
         std::tie(message, std::ignore) = env->pop_error();
       }
-
-      if (plugin_key && strlen(plugin_key) > 0)
-        log_error("  %s '%s:%s' failed: %s", fnc_name, plugin_name, plugin_key,
-                  message.c_str());
+      if (plugin_key)
+        log_error("  plugin '%s:%s' %s failed: %s", plugin_name, plugin_key,
+                  fnc_name, message.c_str());
       else
-        log_error("  %s '%s' failed: %s", fnc_name, plugin_name,
+        log_error("  plugin '%s' %s failed: %s", plugin_name, fnc_name,
                   message.c_str());
     }
 
@@ -974,30 +961,21 @@ std::exception_ptr Loader::init_all() {
   // if possible
   register_fatal_signal_handler();
 
+  log_debug("Initializing all plugins.");
+
   if (!topsort()) throw std::logic_error("Circular dependencies in plugins");
   order_.reverse();  // we need reverse-topo order for non-built-in plugins
-
-  // build is list of plugins that have an init function, in init-order.
-  std::vector<std::string> plugin_names;
-  for (const auto &plugin_name : order_) {
-    PluginInfo &info = plugins_.at(plugin_name);
-
-    if (info.plugin()->init) {
-      plugin_names.push_back(plugin_name);
-    }
-  }
-
-  log_debug("Initializing plugins: %s.",
-            mysql_harness::join(plugin_names, ", ").c_str());
 
   for (auto it = order_.begin(); it != order_.end(); ++it) {
     const std::string &plugin_name = *it;
     PluginInfo &info = plugins_.at(plugin_name);
 
     if (!info.plugin()->init) {
+      log_debug("  plugin '%s' doesn't implement init()", plugin_name.c_str());
       continue;
     }
 
+    log_debug("  plugin '%s' initializing", plugin_name.c_str());
     PluginFuncEnv env(&appinfo_, nullptr);
 
     std::exception_ptr eptr;
@@ -1015,62 +993,40 @@ std::exception_ptr Loader::init_all() {
   return nullptr;
 }
 
-static std::string section_to_string(const ConfigSection *section) {
-  if (section->key.empty()) return section->name;
-
-  return section->name + ":" + section->key;
-}
-
 // forwards first exception triggered by start() to main_loop()
 void Loader::start_all() {
-  std::vector<std::string> startable_sections;
-  std::vector<std::string> waitable_sections;
+  log_debug("Starting all plugins.");
 
   for (const ConfigSection *section : config_.sections()) {
-    const auto &plugin = plugins_.at(section->name);
-
-    const bool has_start = plugin.plugin()->start;
-    const bool declares_readiness = plugin.plugin()->declares_readiness;
-
-    if (has_start || declares_readiness) {
-      const auto section_name = section_to_string(section);
-      if (has_start) {
-        startable_sections.push_back(section_name);
+    PluginInfo &plugin = plugins_.at(section->name);
+    if (plugin.plugin()->declares_readiness) {
+      std::string plugin_service_name{section->name};
+      if (!section->key.empty()) {
+        plugin_service_name += ":" + section->key;
       }
-
-      if (declares_readiness) {
-        waitable_sections.push_back(section_name);
-
-        num_of_non_ready_services++;
-      }
+      log_debug(
+          "Plugin's '%s' service needs to report ready before the whole "
+          "service is ready",
+          plugin_service_name.c_str());
+      num_of_non_ready_services++;
     }
-  }
-
-  if (!startable_sections.empty()) {
-    log_debug("Starting: %s.",
-              mysql_harness::join(startable_sections, ", ").c_str());
   }
 
 #ifdef USE_POSIX_SIGNALS
   // 1 is for the signal handler that we also want to notify it is ready
-  waitable_sections.emplace_back(kSignalHandlerServiceName);
   num_of_non_ready_services++;
 #endif
 
   // this one is for the log rotation handler that we also want to notify it is
   // ready
   num_of_non_ready_services++;
-  waitable_sections.emplace_back(kLogReopenServiceName);
 
   // if there are no services that we should wait for let's declare the
   // readiness right away
-  if (waitable_sections.empty()) {
+  if (num_of_non_ready_services == 0) {
     log_debug("Service ready!");
     notify_ready();
   }
-
-  log_debug("Waiting for readiness of: %s",
-            mysql_harness::join(waitable_sections, ", ").c_str());
 
   try {
     // start all the plugins (call plugin's start() function)
@@ -1079,6 +1035,9 @@ void Loader::start_all() {
       void (*fptr)(PluginFuncEnv *) = plugin.plugin()->start;
 
       if (!fptr) {
+        log_debug("  plugin '%s:%s' doesn't implement start()",
+                  section->name.c_str(), section->key.c_str());
+
         // create a env object for later
         assert(plugin_start_env_.count(section) == 0);
         plugin_start_env_[section] =
@@ -1092,6 +1051,9 @@ void Loader::start_all() {
 
       // plugin start() will run in this new thread
       std::thread plugin_thread([fptr, section, &env_promise, this]() {
+        log_debug("  plugin '%s:%s' starting", section->name.c_str(),
+                  section->key.c_str());
+
         // init env object and unblock harness thread
         std::shared_ptr<PluginFuncEnv> this_thread_env =
             std::make_shared<PluginFuncEnv>(nullptr, section, true);
@@ -1154,7 +1116,11 @@ void Loader::start_all() {
  * @retval nullptr if no exception was returned
  */
 std::exception_ptr Loader::main_loop() {
-  notify_status("running");
+  // RouterRoutingTest::RoutingPluginCantSpawnMoreThreads is waiting for this
+  // log-message to appear in the log to get a predictible test-scenario.
+  //
+  // Changing or moving this message, will break that test.
+  log_debug("Running.");
 
   std::exception_ptr first_eptr;
   // wait for a reason to shutdown
@@ -1221,22 +1187,7 @@ std::exception_ptr Loader::stop_and_wait_all() {
 std::exception_ptr Loader::stop_all() {
   // This function runs exactly once - it will be called even if all plugins
   // exit by themselves (thus there's nothing to stop).
-  std::vector<std::string> stoppable_sections;
-
-  for (const ConfigSection *section : config_.sections()) {
-    PluginInfo &plugin = plugins_.at(section->name);
-
-    if (plugin.plugin()->stop) {
-      stoppable_sections.push_back(section_to_string(section));
-    }
-  }
-
-  if (stoppable_sections.empty()) {
-    log_debug("Shutting down.");
-  } else {
-    log_debug("Shutting down. Signaling stop to: %s.",
-              mysql_harness::join(stoppable_sections, ", ").c_str());
-  }
+  log_debug("Shutting down. Stopping all plugins.");
   notify_stopping();
 
   // iterate over all plugin instances
@@ -1251,7 +1202,14 @@ std::exception_ptr Loader::stop_all() {
     // flag plugin::start() to exit (if one exists and it's running)
     plugin_start_env_[section]->clear_running();
 
-    if (!fptr) continue;
+    if (!fptr) {
+      log_debug("  plugin '%s:%s' doesn't implement stop()",
+                section->name.c_str(), section->key.c_str());
+      continue;
+    }
+
+    log_debug("  plugin '%s:%s' stopping", section->name.c_str(),
+              section->key.c_str());
 
     PluginFuncEnv stop_env(nullptr, section);
     call_plugin_function(&stop_env, first_eptr, fptr, "stop",
@@ -1264,37 +1222,25 @@ std::exception_ptr Loader::stop_all() {
 
 // returns first exception triggered by deinit()
 std::exception_ptr Loader::deinit_all() {
+  log_debug("Deinitializing all plugins.");
+
   // we could just reverse order_ and that would work too,
   // but by leaving it intact it's easier to unit-test it
   std::list<std::string> deinit_order = order_;
   deinit_order.reverse();
 
-  {
-    std::vector<std::string> deinitable_sections;
-    for (const std::string &plugin_name : deinit_order) {
-      const PluginInfo &info = plugins_.at(plugin_name);
-
-      if (info.plugin()->deinit) {
-        deinitable_sections.push_back(plugin_name);
-      }
-    }
-
-    if (!deinitable_sections.empty()) {
-      log_debug("Deinitializing plugins: %s.",
-                mysql_harness::join(deinitable_sections, ", ").c_str());
-    }
-  }
-
   // call deinit() on all plugins that support the call
   std::exception_ptr first_eptr;
-
   for (const std::string &plugin_name : deinit_order) {
     const PluginInfo &info = plugins_.at(plugin_name);
 
     if (!info.plugin()->deinit) {
+      log_debug("  plugin '%s' doesn't implement deinit()",
+                plugin_name.c_str());
       continue;
     }
 
+    log_debug("  plugin '%s' deinitializing", plugin_name.c_str());
     PluginFuncEnv env(&appinfo_, nullptr);
 
     call_plugin_function(&env, first_eptr, info.plugin()->deinit, "deinit",
@@ -1394,10 +1340,16 @@ LogReopenThread::~LogReopenThread() {
  */
 void LogReopenThread::log_reopen_thread_function(LogReopenThread *t) {
   auto &logging_registry = mysql_harness::DIM::instance().get_LoggingRegistry();
+  bool notified_ready{false};
 
   while (true) {
     {
       std::unique_lock<std::mutex> lk(log_reopen_cond_mutex);
+
+      if (!notified_ready) {
+        on_service_ready("Log rotate thread");
+        notified_ready = true;
+      }
 
       if (g_shutdown_pending) {
         break;
@@ -1438,7 +1390,7 @@ void LogReopenThread::log_reopen_thread_function(LogReopenThread *t) {
 /*
  * request reopen
  */
-void LogReopenThread::request_reopen(const std::string &dst) {
+void LogReopenThread::request_reopen(const std::string dst) {
   std::unique_lock<std::mutex> lk(log_reopen_cond_mutex);
 
   if (state_ == REOPEN_ACTIVE) {
@@ -1452,15 +1404,16 @@ void LogReopenThread::request_reopen(const std::string &dst) {
 }
 
 void on_service_ready(const std::string &name) {
-  log_debug("  ready '%s'", name.c_str());
+  log_debug("Service '%s' ready", name.c_str());
   if (--num_of_non_ready_services == 0) {
-    log_debug("Ready, signaling notify socket");
+    log_debug("Service ready!");
     notify_ready();
   }
 }
 
 void on_service_ready(PluginFuncEnv *plugin_env) {
-  return on_service_ready(section_to_string(get_config_section(plugin_env)));
+  return on_service_ready(get_config_section(plugin_env)->name + ":" +
+                          get_config_section(plugin_env)->key);
 }
 
 }  // namespace mysql_harness

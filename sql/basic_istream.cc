@@ -26,15 +26,17 @@
 #include <mysql/psi/mysql_file.h>
 #include "my_dbug.h"
 
-IO_CACHE_istream::IO_CACHE_istream() = default;
+IO_CACHE_istream::IO_CACHE_istream() {}
 
 IO_CACHE_istream::~IO_CACHE_istream() { close(); }
 
 bool IO_CACHE_istream::open(
 #ifdef HAVE_PSI_INTERFACE
-    PSI_file_key log_file_key [[maybe_unused]], PSI_file_key log_cache_key,
+    PSI_file_key log_file_key MY_ATTRIBUTE((unused)),
+    PSI_file_key log_cache_key,
 #endif
-    const char *file_name, myf flags [[maybe_unused]], size_t cache_size) {
+    const char *file_name, myf flags MY_ATTRIBUTE((unused)),
+    size_t cache_size) {
   File file = -1;
 
   file = mysql_file_open(log_file_key, file_name, O_RDONLY, MYF(MY_WME));
@@ -79,7 +81,7 @@ bool IO_CACHE_istream::seek(my_off_t offset) {
   return res;
 }
 
-Stdin_istream::Stdin_istream() = default;
+Stdin_istream::Stdin_istream() {}
 
 Stdin_istream::~Stdin_istream() { close(); }
 

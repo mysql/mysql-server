@@ -55,13 +55,13 @@
 #define PFS_AUTOSIZE_VALUE (-1)
 
 #ifndef PFS_MAX_MUTEX_CLASS
-#define PFS_MAX_MUTEX_CLASS 350
+#define PFS_MAX_MUTEX_CLASS 300
 #endif
 #ifndef PFS_MAX_RWLOCK_CLASS
 #define PFS_MAX_RWLOCK_CLASS 60
 #endif
 #ifndef PFS_MAX_COND_CLASS
-#define PFS_MAX_COND_CLASS 150
+#define PFS_MAX_COND_CLASS 100
 #endif
 #ifndef PFS_MAX_THREAD_CLASS
 #define PFS_MAX_THREAD_CLASS 100
@@ -116,7 +116,6 @@ struct PFS_global_param {
   bool m_consumer_events_stages_current_enabled;
   bool m_consumer_events_stages_history_enabled;
   bool m_consumer_events_stages_history_long_enabled;
-  bool m_consumer_events_statements_cpu_enabled;
   bool m_consumer_events_statements_current_enabled;
   bool m_consumer_events_statements_history_enabled;
   bool m_consumer_events_statements_history_long_enabled;
@@ -295,6 +294,14 @@ struct PFS_global_param {
   This global variable is set when parsing server startup options.
 */
 extern PFS_global_param pfs_param;
+
+/**
+  Global flag used to enable and disable SHOW PROCESSLIST in the
+  performance schema. This flag only takes effect if the performance schema
+  is configured to support SHOW PROCESSLIST.
+  @sa performance-schema-enable-processlist
+*/
+extern bool pfs_processlist_enabled;
 
 /**
   Null initialization.

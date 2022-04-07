@@ -42,7 +42,7 @@ namespace dd {
 // Check_constraint_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-Check_constraint_impl::Check_constraint_impl() = default;
+Check_constraint_impl::Check_constraint_impl() {}
 
 Check_constraint_impl::Check_constraint_impl(Table_impl *table)
     : m_table(table) {}

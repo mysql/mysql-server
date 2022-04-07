@@ -30,7 +30,7 @@
 
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
-#include "mysqlrouter/mysql_session.h"
+#include "mysql_session.h"
 #include "rest_metadata_client.h"
 #include "router_component_test.h"
 #include "router_test_helpers.h"
@@ -142,18 +142,10 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
         mysql_harness::Path(config_dir).join("users").str();
 
     {
-      ProcessWrapper::OutputResponder responder{
-          [](const std::string &line) -> std::string {
-            if (line == "Please enter password: ")
-              return std::string(kRestApiPassword) + "\n";
-
-            return "";
-          }};
-
-      auto &cmd = launch_command(
-          get_origin().join("mysqlrouter_passwd").str(),
-          {"set", passwd_filename, kRestApiUsername}, EXIT_SUCCESS, true,
-          std::vector<std::pair<std::string, std::string>>{}, responder);
+      auto &cmd = launch_command(get_origin().join("mysqlrouter_passwd").str(),
+                                 {"set", passwd_filename, kRestApiUsername},
+                                 EXIT_SUCCESS, true);
+      cmd.register_response("Please enter password", kRestApiPassword + "\n");
       check_exit_code(cmd, EXIT_SUCCESS);
     }
 
@@ -250,6 +242,7 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     EXPECT_EQ(server->wait_for_exit(), 0);
   }
 
+  TcpPortPool port_pool_;
   std::chrono::milliseconds wait_for_cache_ready_timeout{1000};
   std::chrono::milliseconds wait_for_static_ready_timeout{100};
   std::chrono::milliseconds wait_for_process_exit_timeout{10000};

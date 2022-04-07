@@ -47,7 +47,13 @@ Data::Data(Data &&src) noexcept {
 }
 
 /* Assignment operator */
-Data &Data::operator=(const Data &src) = default;
+Data &Data::operator=(const Data &src) {
+  data_ = src.data_;
+  type_ = src.type_;
+  valid_ = src.valid_;
+
+  return *this;
+}
 
 Data &Data::operator=(Data &&src) noexcept {
   std::swap(src.data_, data_);

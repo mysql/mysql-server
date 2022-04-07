@@ -30,40 +30,69 @@
 #include <type_traits>
 #include <vector>
 
-#include "sql/join_optimizer/interesting_orders_defs.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
-#include "sql/join_optimizer/node_map.h"
-#include "sql/join_optimizer/overflow_bitset.h"
-#include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_type.h"
 #include "sql/mem_root_array.h"
-#include "sql/sql_array.h"
 #include "sql/sql_class.h"
 
-template <class T>
-class Bounds_checked_array;
 class Common_table_expr;
 class Filesort;
 class Item;
-class Item_func_match;
+class Item_func_eq;
 class JOIN;
 class KEY;
 class RowIterator;
 class QEP_TAB;
-class QUICK_RANGE;
+class QUICK_SELECT_I;
 class SJ_TMP_TABLE;
 class Table_function;
 class Temp_table_param;
-class Window;
 struct AccessPath;
-struct GroupIndexSkipScanParameters;
-struct IndexSkipScanParameters;
-struct KEY_PART;
 struct ORDER;
 struct POSITION;
-struct RelationalExpression;
 struct TABLE;
 struct TABLE_REF;
+
+/**
+  Represents an expression tree in the relational algebra of joins.
+  Expressions are either tables, or joins of two expressions.
+  (Joins can have join conditions, but more general filters are
+  not represented in this structure.)
+
+  These are used as an abstract precursor to the join hypergraph;
+  they represent the joins in the query block more or less directly,
+  without any reordering. (The parser should largely have output a
+  structure like this instead of TABLE_LIST, but we are not there yet.)
+  The only real manipulation we do on them is pushing down conditions
+  and identifying equijoin conditions from other join conditions.
+ */
+struct RelationalExpression {
+  explicit RelationalExpression(THD *thd)
+      : join_conditions(thd->mem_root), equijoin_conditions(thd->mem_root) {}
+
+  enum Type {
+    INNER_JOIN = static_cast<int>(JoinType::INNER),
+    LEFT_JOIN = static_cast<int>(JoinType::OUTER),
+    SEMIJOIN = static_cast<int>(JoinType::SEMI),
+    ANTIJOIN = static_cast<int>(JoinType::ANTI),
+    TABLE = 100,
+    CARTESIAN_PRODUCT = 101,
+  } type;
+  table_map tables_in_subtree;
+
+  // If type == TABLE.
+  const TABLE_LIST *table;
+
+  // If type != TABLE. Note that equijoin_conditions will be split off
+  // from join_conditions fairly late (at CreateHashJoinConditions()),
+  // so often, you will see equijoin conditions in join_condition..
+  RelationalExpression *left, *right;
+  Mem_root_array<Item *> join_conditions;
+  Mem_root_array<Item_func_eq *> equijoin_conditions;
+
+  // TODO(sgunders): When we support LATERAL, add a bit to signal
+  // a dependent join.
+};
 
 /**
   A specification that two specific relational expressions
@@ -72,39 +101,8 @@ struct TABLE_REF;
   live inside the “expr” object, as does the join type etc.
  */
 struct JoinPredicate {
-  RelationalExpression *expr;
+  const RelationalExpression *expr;
   double selectivity;
-
-  // If this join is made using a hash join, estimates the width
-  // of each row as stored in the hash table, in bytes.
-  size_t estimated_bytes_per_row;
-
-  // The set of (additional) functional dependencies that are active
-  // after this join predicate has been applied. E.g. if we're joining
-  // on t1.x = t2.x, there will be a bit for that functional dependency.
-  // We don't currently support more complex join conditions, but there's
-  // no conceptual reason why we couldn't, e.g. a join on a = b + c
-  // could give rise to the FD {b, c} → a and possibly even {a, b} → c
-  // or {a, c} → b.
-  //
-  // Used in the processing of interesting orders.
-  FunctionalDependencySet functional_dependencies;
-
-  // A less compact form of functional_dependencies, used during building
-  // (FunctionalDependencySet bitmaps are only available after all functional
-  // indexes have been collected and Build() has been called).
-  Mem_root_array<int> functional_dependencies_idx;
-
-  // If this is a suitable semijoin: Contains the grouping given by the
-  // join key. If the rows are in this grouping, then the join optimizer will
-  // consider deduplicating on it and inverting the join. -1 otherwise.
-  int ordering_idx_needed_for_semijoin_rewrite = -1;
-
-  // Same as ordering_idx_needed_for_semijoin_rewrite, but given to the
-  // RemoveDuplicatesIterator for doing the actual grouping. Allocated
-  // on the MEM_ROOT. Can be empty, in which case a LIMIT 1 would do.
-  Item **semijoin_group = nullptr;
-  int semijoin_group_size = 0;
 };
 
 /**
@@ -115,47 +113,17 @@ struct JoinPredicate {
 struct Predicate {
   Item *condition;
 
-  // condition->used_tables(), converted to a NodeMap.
-  hypergraph::NodeMap used_nodes;
-
   // tables referred to by the condition, plus any tables whose values
   // can null any of those tables. (Even when reordering outer joins,
   // at least one of those tables will still be present on the
   // left-hand side of the outer join, so this is sufficient.)
   //
+  // This is a NodeMap (we just don't want to pull in the typedef here).
   // As a special case, we allow setting RAND_TABLE_BIT, even though it
   // is normally part of a table_map, not a NodeMap.
-  hypergraph::NodeMap total_eligibility_set;
+  uint64_t total_eligibility_set;
 
   double selectivity;
-
-  // Whether this predicate is a join condition after all; it was promoted
-  // to a WHERE predicate since it was part of a cycle (see the comment in
-  // AddCycleEdges()). If it is, it is usually ignored so that we don't
-  // double-apply join conditions -- but if the join in question was not
-  // applied (because the cycle was broken at this point), the predicate
-  // would come into play. This is normally registered on the join itself
-  // (see RelationalExpression::join_predicate_bitmap), but having the bit
-  // on the predicate itself is used to avoid trying to push it down as a
-  // sargable predicate.
-  bool was_join_condition = false;
-
-  // If this is a join condition that came from a multiple equality,
-  // and we have decided to create a mesh from that multiple equality,
-  // returns the index of it into the “multiple_equalities” array
-  // in MakeJoinHypergraph(). (You don't actually need the array to
-  // use this; it's just an opaque index to deduplicate between different
-  // predicates.) Otherwise, -1.
-  int source_multiple_equality_idx = -1;
-
-  // See the equivalent fields in JoinPredicate.
-  FunctionalDependencySet functional_dependencies;
-  Mem_root_array<int> functional_dependencies_idx;
-
-  // The list of all subqueries referred to in this predicate, if any.
-  // The optimizer uses this to add their materialized/non-materialized
-  // costs when evaluating filters.
-  Mem_root_array<ContainedSubquery> contained_subqueries;
 };
 
 struct AppendPathParameters {
@@ -186,7 +154,7 @@ struct AppendPathParameters {
   planning structure.
  */
 struct AccessPath {
-  enum Type : uint8_t {
+  enum Type {
     // Basic access paths (those with no children, at least nominally).
     TABLE_SCAN,
     INDEX_SCAN,
@@ -199,11 +167,6 @@ struct AccessPath {
     MRR,
     FOLLOW_TAIL,
     INDEX_RANGE_SCAN,
-    INDEX_MERGE,
-    ROWID_INTERSECTION,
-    ROWID_UNION,
-    INDEX_SKIP_SCAN,
-    GROUP_INDEX_SKIP_SCAN,
     DYNAMIC_INDEX_RANGE_SCAN,
 
     // Basic access paths that don't correspond to a specific table.
@@ -230,15 +193,11 @@ struct AccessPath {
     MATERIALIZE,
     MATERIALIZE_INFORMATION_SCHEMA_TABLE,
     APPEND,
-    WINDOW,
+    WINDOWING,
     WEEDOUT,
     REMOVE_DUPLICATES,
-    REMOVE_DUPLICATES_ON_INDEX,
     ALTERNATIVE,
-    CACHE_INVALIDATOR,
-
-    // Access paths that modify tables.
-    DELETE_ROWS,
+    CACHE_INVALIDATOR
   } type;
 
   /// Whether this access path counts as one that scans a base table,
@@ -246,40 +205,6 @@ struct AccessPath {
   /// seem a bit arbitrary which iterators count towards examined_rows
   /// and which ones do not, so the only canonical reference is the tests.
   bool count_examined_rows = false;
-
-  /// A general enum to describe the safety of a given operation.
-  /// Currently we only use this to describe row IDs, but it can easily
-  /// be reused for safety of updating a table we're reading from
-  /// (the Halloween problem), or just generally unreproducible results
-  /// (e.g. a TABLESAMPLE changing due to external factors).
-  ///
-  /// Less safe values have higher numerical values.
-  enum Safety : uint8_t {
-    /// The given operation is always safe on this access path.
-    SAFE = 0,
-
-    /// The given operation is safe if this access path is scanned once,
-    /// but not if it's scanned multiple times (e.g. used on the inner side
-    /// of a nested-loop join). A typical example of this is a derived table
-    /// or CTE that is rematerialized on each scan, so that references to
-    /// the old values (such as row IDs) are no longer valid.
-    SAFE_IF_SCANNED_ONCE = 1,
-
-    /// The given operation is unsafe on this access path, no matter how many
-    /// or few times it's scanned. Often, it may help to materialize it
-    /// (assuming the materialization itself doesn't use the operation
-    /// in question).
-    UNSAFE = 2
-  };
-
-  /// Whether it is safe to get row IDs (for sorting) from this access path.
-  Safety safe_for_rowid = SAFE;
-
-  /// Which ordering the rows produced by this path follow, if any
-  /// (see interesting_orders.h). This is really a LogicalOrderings::StateIndex,
-  /// but we don't want to add a dependency on interesting_orders.h from
-  /// this file, so we use the base type instead of the typedef here.
-  int ordering_state = 0;
 
   /// If an iterator has been instantiated for this access path, points to the
   /// iterator. Used for constructing iterators that need to talk to each other
@@ -302,105 +227,38 @@ struct AccessPath {
   /// -1.0 for unknown.
   double init_cost{-1.0};
 
-  /// Of init_cost, how much of the initialization needs only to be done
-  /// once per query block. (This is a cost, not a proportion.)
-  /// Ie., if the access path can reuse some its initialization work
-  /// if Init() is called multiple times, this member will be nonzero.
-  /// A typical example is a materialized table with rematerialize=false;
-  /// the second time Init() is called, it's a no-op. Most paths will have
-  /// init_once_cost = 0.0, ie., repeated scans will cost the same.
-  /// We do not intend to use this field to model cache effects.
-  ///
-  /// This is currently not printed in EXPLAIN, only optimizer trace.
-  double init_once_cost{0.0};
-
   /// If no filter, identical to num_output_rows, cost, respectively.
   /// init_cost is always the same (filters have zero initialization cost).
   double num_output_rows_before_filter{-1.0}, cost_before_filter{-1.0};
 
   /// Bitmap of WHERE predicates that we are including on this access path,
   /// referring to the “predicates” array internal to the join optimizer.
-  /// Since bit masks are much cheaper to deal with than creating Item
-  /// objects, and we don't invent new conditions during join optimization
-  /// (all of them are known when we begin optimization), we stick to
-  /// manipulating bit masks during optimization, saying which filters will be
-  /// applied at this node (a 1-bit means the filter will be applied here; if
-  /// there are multiple ones, they are ANDed together).
+  /// Since bit masks are much cheaper to deal with than creating Item objects,
+  /// and we don't invent new conditions during join optimization (all of them
+  /// are known when we begin optimization), we stick to manipulating bit masks
+  /// during optimization, saying which filters will be applied at this node
+  /// (a 1-bit means the filter will be applied here; if there are multiple
+  /// ones, they are ANDed together).
   ///
   /// This is used during join optimization only; before iterators are
   /// created, we will add FILTER access paths to represent these instead,
-  /// removing the dependency on the array. Said FILTER paths are by
-  /// convention created with materialize_subqueries = false, since the by far
-  /// most common case is that there are no subqueries in the predicate.
-  /// In other words, if you wish to represent a filter with
-  /// materialize_subqueries = true, you will need to make an explicit FILTER
-  /// node.
+  /// removing the dependency on the array.
   ///
-  /// See also nested_loop_join().equijoin_predicates, which is for filters
-  /// being applied _before_ nested-loop joins, but is otherwise the same idea.
-  OverflowBitset filter_predicates{0};
+  /// TODO(sgunders): Add some technique for “overflow bitset” to allow
+  /// having more than 64 predicates. (For now, we refuse queries that have
+  /// more.)
+  uint64_t filter_predicates{0};
 
-  /// Bitmap of sargable join predicates that have already been applied
-  /// in this access path by means of an index lookup (ref access),
-  /// again referring to “predicates”, and thus should not be counted again
-  /// for selectivity. Note that the filter may need to be applied
-  /// nevertheless (especially in case of type conversions); see
-  /// subsumed_sargable_join_predicates.
-  ///
-  /// Since these refer to the same array as filter_predicates, they will
-  /// never overlap with filter_predicates, and so we can reuse the same
-  /// memory using an alias (a union would not be allowed, since OverflowBitset
-  /// is a class with non-trivial default constructor), even though the meaning
-  /// is entirely separate. If N = num_where_predictes in the hypergraph, then
-  /// bits 0..(N-1) belong to filter_predicates, and the rest to
-  /// applied_sargable_join_predicates.
-  OverflowBitset &applied_sargable_join_predicates() {
-    return filter_predicates;
-  }
-  const OverflowBitset &applied_sargable_join_predicates() const {
-    return filter_predicates;
-  }
-
-  /// Bitmap of WHERE predicates that touch tables we have joined in,
+  /// Bitmap of WHERE predicates that we touch tables we have joined in,
   /// but that we could not apply yet (for instance because they reference
   /// other tables, or because because we could not push them down into
   /// the nullable side of outer joins). Used during planning only
   /// (see filter_predicates).
-  OverflowBitset delayed_predicates{0};
-
-  /// Similar to applied_sargable_join_predicates, bitmap of sargable
-  /// join predicates that have been applied and will subsume the join
-  /// predicate entirely, ie., not only should the selectivity not be
-  /// double-counted, but the predicate itself is redundant and need not
-  /// be applied as a filter. (It is an error to have a bit set here but not
-  /// in applied_sargable_join_predicates.)
-  OverflowBitset &subsumed_sargable_join_predicates() {
-    return delayed_predicates;
-  }
-  const OverflowBitset &subsumed_sargable_join_predicates() const {
-    return delayed_predicates;
-  }
-
-  /// If nonzero, a bitmap of other tables whose joined-in rows must already be
-  /// loaded when rows from this access path are evaluated; that is, this
-  /// access path must be put on the inner side of a nested-loop join (or
-  /// multiple such joins) where the outer side includes all of the given
-  /// tables.
   ///
-  /// The most obvious case for this is dependent tables in LATERAL, but a more
-  /// common case is when we have pushed join conditions referring to those
-  /// tables; e.g., if this access path represents t1 and we have a condition
-  /// t1.x=t2.x that is pushed down into an index lookup (ref access), t2 will
-  /// be set in this bitmap. We can still join in other tables, deferring t2,
-  /// but the bit(s) will then propagate, and we cannot be on the right side of
-  /// a hash join until parameter_tables is zero again.
-  ///
-  /// As a special case, we allow setting RAND_TABLE_BIT, even though it
-  /// is normally part of a table_map, not a NodeMap. In this case, it specifies
-  /// that the access path is entirely noncachable, because it depends on
-  /// something nondeterministic or an outer reference, and thus can never be on
-  /// the right side of a hash join, ever.
-  hypergraph::NodeMap parameter_tables{0};
+  /// TODO(sgunders): Add some technique for “overflow bitset” to allow
+  /// having more than 64 predicates. (For now, we refuse queries that have
+  /// more.)
+  uint64_t delayed_predicates{0};
 
   /// Auxiliary data used by a secondary storage engine while processing the
   /// access path during optimization and execution. The secondary storage
@@ -499,46 +357,6 @@ struct AccessPath {
   const auto &index_range_scan() const {
     assert(type == INDEX_RANGE_SCAN);
     return u.index_range_scan;
-  }
-  auto &index_merge() {
-    assert(type == INDEX_MERGE);
-    return u.index_merge;
-  }
-  const auto &index_merge() const {
-    assert(type == INDEX_MERGE);
-    return u.index_merge;
-  }
-  auto &rowid_intersection() {
-    assert(type == ROWID_INTERSECTION);
-    return u.rowid_intersection;
-  }
-  const auto &rowid_intersection() const {
-    assert(type == ROWID_INTERSECTION);
-    return u.rowid_intersection;
-  }
-  auto &rowid_union() {
-    assert(type == ROWID_UNION);
-    return u.rowid_union;
-  }
-  const auto &rowid_union() const {
-    assert(type == ROWID_UNION);
-    return u.rowid_union;
-  }
-  auto &index_skip_scan() {
-    assert(type == INDEX_SKIP_SCAN);
-    return u.index_skip_scan;
-  }
-  const auto &index_skip_scan() const {
-    assert(type == INDEX_SKIP_SCAN);
-    return u.index_skip_scan;
-  }
-  auto &group_index_skip_scan() {
-    assert(type == GROUP_INDEX_SKIP_SCAN);
-    return u.group_index_skip_scan;
-  }
-  const auto &group_index_skip_scan() const {
-    assert(type == GROUP_INDEX_SKIP_SCAN);
-    return u.group_index_skip_scan;
   }
   auto &dynamic_index_range_scan() {
     assert(type == DYNAMIC_INDEX_RANGE_SCAN);
@@ -700,13 +518,13 @@ struct AccessPath {
     assert(type == APPEND);
     return u.append;
   }
-  auto &window() {
-    assert(type == WINDOW);
-    return u.window;
+  auto &windowing() {
+    assert(type == WINDOWING);
+    return u.windowing;
   }
-  const auto &window() const {
-    assert(type == WINDOW);
-    return u.window;
+  const auto &windowing() const {
+    assert(type == WINDOWING);
+    return u.windowing;
   }
   auto &weedout() {
     assert(type == WEEDOUT);
@@ -724,14 +542,6 @@ struct AccessPath {
     assert(type == REMOVE_DUPLICATES);
     return u.remove_duplicates;
   }
-  auto &remove_duplicates_on_index() {
-    assert(type == REMOVE_DUPLICATES_ON_INDEX);
-    return u.remove_duplicates_on_index;
-  }
-  const auto &remove_duplicates_on_index() const {
-    assert(type == REMOVE_DUPLICATES_ON_INDEX);
-    return u.remove_duplicates_on_index;
-  }
   auto &alternative() {
     assert(type == ALTERNATIVE);
     return u.alternative;
@@ -747,14 +557,6 @@ struct AccessPath {
   const auto &cache_invalidator() const {
     assert(type == CACHE_INVALIDATOR);
     return u.cache_invalidator;
-  }
-  auto &delete_rows() {
-    assert(type == DELETE_ROWS);
-    return u.delete_rows;
-  }
-  const auto &delete_rows() const {
-    assert(type == DELETE_ROWS);
-    return u.delete_rows;
   }
 
  private:
@@ -800,14 +602,13 @@ struct AccessPath {
       TABLE *table;
       TABLE_REF *ref;
       bool use_order;
-      bool use_limit;
-      Item_func_match *ft_func;
     } full_text_search;
     struct {
       TABLE *table;
       TABLE_REF *ref;
     } const_table;
     struct {
+      Item *cache_idx_cond;
       TABLE *table;
       TABLE_REF *ref;
       AccessPath *bka_path;
@@ -818,104 +619,9 @@ struct AccessPath {
       TABLE *table;
     } follow_tail;
     struct {
-      // The key part(s) we are scanning on. Note that this may be an array.
-      // You can get the table we are working on by looking into
-      // used_key_parts[0].field->table (it is not stored directly, to avoid
-      // going over the AccessPath size limits).
-      KEY_PART *used_key_part;
-
-      // The actual ranges we are scanning over (originally derived from “key”).
-      // Not a Bounds_checked_array, to save 4 bytes on the length.
-      QUICK_RANGE **ranges;
-      unsigned num_ranges;
-
-      unsigned mrr_flags;
-      unsigned mrr_buf_size;
-
-      // Which index (in the TABLE) we are scanning over, and how many of its
-      // key parts we are using.
-      unsigned index;
-      unsigned num_used_key_parts;
-
-      // If true, the scan can return rows in rowid order.
-      bool can_be_used_for_ror : 1;
-
-      // If true, the scan _should_ return rows in rowid order.
-      // Should only be set if can_be_used_for_ror == true.
-      bool need_rows_in_rowid_order : 1;
-
-      // If true, this plan can be used for index merge scan.
-      bool can_be_used_for_imerge : 1;
-
-      // See row intersection for more details.
-      bool reuse_handler : 1;
-
-      // Whether we are scanning over a geometry key part.
-      bool geometry : 1;
-
-      // Whether we need a reverse scan. Only supported if geometry == false.
-      bool reverse : 1;
-
-      // For a reverse scan, if we are using extended key parts. It is needed,
-      // to set correct flags when retrieving records.
-      bool using_extended_key_parts : 1;
+      TABLE *table;
+      QUICK_SELECT_I *quick;
     } index_range_scan;
-    struct {
-      TABLE *table;
-      bool forced_by_hint;
-      Mem_root_array<AccessPath *> *children;
-    } index_merge;
-    struct {
-      TABLE *table;
-      Mem_root_array<AccessPath *> *children;
-
-      // Clustered primary key scan, if any.
-      AccessPath *cpk_child;
-
-      bool forced_by_hint;
-      bool retrieve_full_rows;
-      bool need_rows_in_rowid_order;
-
-      // If true, the first child scan should reuse table->file instead of
-      // creating its own. This is true if the intersection is the topmost
-      // range scan, but _not_ if it's below a union. (The reasons for this
-      // are unknown.) It can also be negated by logic involving
-      // retrieve_full_rows and is_covering, again for unknown reasons.
-      //
-      // This is not only for performance; multi-table delete has a hidden
-      // dependency on this behavior when running against certain types of
-      // tables (e.g. MyISAM), as it assumes table->file is correctly positioned
-      // when deleting (and not all table types can transfer the position of one
-      // handler to another by using position()).
-      bool reuse_handler;
-
-      // true if no row retrieval phase is necessary.
-      bool is_covering;
-    } rowid_intersection;
-    struct {
-      TABLE *table;
-      Mem_root_array<AccessPath *> *children;
-      bool forced_by_hint;
-    } rowid_union;
-    struct {
-      TABLE *table;
-      unsigned index;
-      unsigned num_used_key_parts;
-      bool forced_by_hint;
-
-      // Large, and has nontrivial destructors, so split out into
-      // its own allocation.
-      IndexSkipScanParameters *param;
-    } index_skip_scan;
-    struct {
-      TABLE *table;
-      unsigned index;
-      unsigned num_used_key_parts;
-      bool forced_by_hint;
-
-      // Large, so split out into its own allocation.
-      GroupIndexSkipScanParameters *param;
-    } group_index_skip_scan;
     struct {
       TABLE *table;
       QEP_TAB *qep_tab;  // Used only for buffering.
@@ -953,7 +659,6 @@ struct AccessPath {
       const JoinPredicate *join_predicate;
       bool allow_spill_to_disk;
       bool store_rowids;  // Whether we are below a weedout or not.
-      bool rewrite_semi_to_inner;
       table_map tables_to_get_rowid_for;
     } hash_join;
     struct {
@@ -966,24 +671,9 @@ struct AccessPath {
     } bka_join;
     struct {
       AccessPath *outer, *inner;
-      JoinType join_type;  // Somewhat redundant wrt. join_predicate.
+      JoinType join_type;
       bool pfs_batch_mode;
-      bool already_expanded_predicates;
-      const JoinPredicate *join_predicate;
-
-      // Equijoin filters to apply before the join, if any.
-      // Indexes into join_predicate->expr->equijoin_conditions.
-      // Non-equijoin conditions are always applied.
-      // If already_expanded_predicates is true, do not re-expand.
-      OverflowBitset equijoin_predicates;
-
-      // NOTE: Due to the nontrivial constructor on equijoin_predicates,
-      // this struct needs an initializer, or the union would not be
-      // default-constructible. If we need more than one union member
-      // with such an initializer, we would probably need to change
-      // equijoin_predicates into a uint64_t type-punned to an OverflowBitset.
-    } nested_loop_join = {nullptr, nullptr, JoinType::INNER, false, false,
-                          nullptr, {}};
+    } nested_loop_join;
     struct {
       AccessPath *outer, *inner;
       const TABLE *table;
@@ -994,28 +684,11 @@ struct AccessPath {
     struct {
       AccessPath *child;
       Item *condition;
-
-      // This parameter, unlike nearly all others, is not passed to the the
-      // actual iterator. Instead, if true, it signifies that when creating
-      // the iterator, all materializable subqueries in “condition” should be
-      // materialized (with any in2exists condition removed first). In the
-      // very rare case that there are two or more such subqueries, this is
-      // an all-or-nothing decision, for simplicity.
-      //
-      // See FinalizeMaterializedSubqueries().
-      bool materialize_subqueries;
     } filter;
     struct {
       AccessPath *child;
       Filesort *filesort;
       table_map tables_to_get_rowid_for;
-
-      // If filesort is nullptr: A new filesort will be created at the
-      // end of optimization, using this order and flags. Otherwise: Ignored.
-      ORDER *order;
-      bool remove_duplicates;
-      bool unwrap_rollup;
-      bool use_limit;
     } sort;
     struct {
       AccessPath *child;
@@ -1047,9 +720,6 @@ struct AccessPath {
       int ref_slice;
     } stream;
     struct {
-      // NOTE: The only legal access paths within table_path are
-      // TABLE_SCAN, REF, REF_OR_NULL, EQ_REF, ALTERNATIVE and
-      // CONST_TABLE (the latter is somewhat nonsensical).
       AccessPath *table_path;
 
       // Large, and has nontrivial destructors, so split out
@@ -1066,12 +736,10 @@ struct AccessPath {
     } append;
     struct {
       AccessPath *child;
-      Window *window;
-      TABLE *temp_table;
       Temp_table_param *temp_table_param;
       int ref_slice;
       bool needs_buffering;
-    } window;
+    } windowing;
     struct {
       AccessPath *child;
       SJ_TMP_TABLE *weedout_table;
@@ -1079,15 +747,10 @@ struct AccessPath {
     } weedout;
     struct {
       AccessPath *child;
-      Item **group_items;
-      int group_items_size;
-    } remove_duplicates;
-    struct {
-      AccessPath *child;
       TABLE *table;
       KEY *key;
       unsigned loosescan_key_len;
-    } remove_duplicates_on_index;
+    } remove_duplicates;
     struct {
       AccessPath *table_scan_path;
 
@@ -1099,11 +762,6 @@ struct AccessPath {
       AccessPath *child;
       const char *name;
     } cache_invalidator;
-    struct {
-      AccessPath *child;
-      table_map tables_to_delete_from;
-      table_map immediate_tables;
-    } delete_rows;
   } u;
 };
 static_assert(std::is_trivially_destructible<AccessPath>::value,
@@ -1111,19 +769,15 @@ static_assert(std::is_trivially_destructible<AccessPath>::value,
               "on the MEM_ROOT and not wrapped in unique_ptr_destroy_only"
               "(because multiple candidates during planning could point to "
               "the same access paths, and refcounting would be expensive)");
-static_assert(sizeof(AccessPath) <= 136,
+static_assert(sizeof(AccessPath) <= 120,
               "We are creating a lot of access paths in the join "
               "optimizer, so be sure not to bloat it without noticing. "
-              "(96 bytes for the base, 40 bytes for the variant.)");
+              "(80 bytes for the base, 40 bytes for the variant.)");
 
-inline void CopyBasicProperties(const AccessPath &from, AccessPath *to) {
+inline void CopyCosts(const AccessPath &from, AccessPath *to) {
   to->num_output_rows = from.num_output_rows;
   to->cost = from.cost;
   to->init_cost = from.init_cost;
-  to->init_once_cost = from.init_once_cost;
-  to->parameter_tables = from.parameter_tables;
-  to->safe_for_rowid = from.safe_for_rowid;
-  to->ordering_state = from.ordering_state;
 }
 
 // Trivial factory functions for all of the types of access paths above.
@@ -1202,9 +856,7 @@ inline AccessPath *NewPushedJoinRefAccessPath(THD *thd, TABLE *table,
 }
 
 inline AccessPath *NewFullTextSearchAccessPath(THD *thd, TABLE *table,
-                                               TABLE_REF *ref,
-                                               Item_func_match *ft_func,
-                                               bool use_order, bool use_limit,
+                                               TABLE_REF *ref, bool use_order,
                                                bool count_examined_rows) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::FULL_TEXT_SEARCH;
@@ -1212,8 +864,6 @@ inline AccessPath *NewFullTextSearchAccessPath(THD *thd, TABLE *table,
   path->full_text_search().table = table;
   path->full_text_search().ref = ref;
   path->full_text_search().use_order = use_order;
-  path->full_text_search().use_limit = use_limit;
-  path->full_text_search().ft_func = ft_func;
   return path;
 }
 
@@ -1226,16 +876,17 @@ inline AccessPath *NewConstTableAccessPath(THD *thd, TABLE *table,
   path->num_output_rows = 1.0;
   path->cost = 0.0;
   path->init_cost = 0.0;
-  path->init_once_cost = 0.0;
   path->const_table().table = table;
   path->const_table().ref = ref;
   return path;
 }
 
-inline AccessPath *NewMRRAccessPath(THD *thd, TABLE *table, TABLE_REF *ref,
+inline AccessPath *NewMRRAccessPath(THD *thd, Item *cache_idx_cond,
+                                    TABLE *table, TABLE_REF *ref,
                                     int mrr_flags) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::MRR;
+  path->mrr().cache_idx_cond = cache_idx_cond;
   path->mrr().table = table;
   path->mrr().ref = ref;
   path->mrr().mrr_flags = mrr_flags;
@@ -1252,6 +903,17 @@ inline AccessPath *NewFollowTailAccessPath(THD *thd, TABLE *table,
   path->type = AccessPath::FOLLOW_TAIL;
   path->count_examined_rows = count_examined_rows;
   path->follow_tail().table = table;
+  return path;
+}
+
+inline AccessPath *NewIndexRangeScanAccessPath(THD *thd, TABLE *table,
+                                               QUICK_SELECT_I *quick,
+                                               bool count_examined_rows) {
+  AccessPath *path = new (thd->mem_root) AccessPath;
+  path->type = AccessPath::INDEX_RANGE_SCAN;
+  path->count_examined_rows = count_examined_rows;
+  path->index_range_scan().table = table;
+  path->index_range_scan().quick = quick;
   return path;
 }
 
@@ -1310,7 +972,6 @@ inline AccessPath *NewFilterAccessPath(THD *thd, AccessPath *child,
   path->type = AccessPath::FILTER;
   path->filter().child = child;
   path->filter().condition = condition;
-  path->filter().materialize_subqueries = false;
   return path;
 }
 
@@ -1377,8 +1038,6 @@ inline AccessPath *NewLimitOffsetAccessPath(THD *thd, AccessPath *child,
     path->init_cost = child->init_cost +
                       fraction_start_read * (child->cost - child->init_cost);
   }
-  path->init_once_cost = child->init_once_cost;
-  path->ordering_state = child->ordering_state;
 
   return path;
 }
@@ -1391,7 +1050,6 @@ inline AccessPath *NewFakeSingleRowAccessPath(THD *thd,
   path->num_output_rows = 1.0;
   path->cost = 0.0;
   path->init_cost = 0.0;
-  path->init_once_cost = 0.0;
   return path;
 }
 
@@ -1404,7 +1062,6 @@ inline AccessPath *NewZeroRowsAccessPath(THD *thd, AccessPath *child,
   path->num_output_rows = 0.0;
   path->cost = 0.0;
   path->init_cost = 0.0;
-  path->init_once_cost = 0.0;
   return path;
 }
 
@@ -1441,7 +1098,7 @@ inline AccessPath *NewStreamingAccessPath(THD *thd, AccessPath *child,
 
 inline Mem_root_array<MaterializePathParameters::QueryBlock>
 SingleMaterializeQueryBlock(THD *thd, AccessPath *path, int select_number,
-                            JOIN *join, bool copy_items,
+                            JOIN *join, bool copy_fields_and_items,
                             Temp_table_param *temp_table_param) {
   assert(path != nullptr);
   Mem_root_array<MaterializePathParameters::QueryBlock> array(thd->mem_root, 1);
@@ -1450,7 +1107,7 @@ SingleMaterializeQueryBlock(THD *thd, AccessPath *path, int select_number,
   query_block.select_number = select_number;
   query_block.join = join;
   query_block.disable_deduplication_by_hash_field = false;
-  query_block.copy_items = copy_items;
+  query_block.copy_fields_and_items = copy_fields_and_items;
   query_block.temp_table_param = temp_table_param;
   return array;
 }
@@ -1491,12 +1148,6 @@ inline AccessPath *NewMaterializeAccessPath(
   path->type = AccessPath::MATERIALIZE;
   path->materialize().table_path = table_path;
   path->materialize().param = param;
-  if (rematerialize) {
-    path->safe_for_rowid = AccessPath::SAFE_IF_SCANNED_ONCE;
-  } else {
-    // The default; this is just to be explicit in the code.
-    path->safe_for_rowid = AccessPath::SAFE;
-  }
   return path;
 }
 
@@ -1517,26 +1168,18 @@ inline AccessPath *NewAppendAccessPath(
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::APPEND;
   path->append().children = children;
-  path->cost = 0.0;
-  path->init_cost = 0.0;
-  path->init_once_cost = 0.0;
-  for (const AppendPathParameters &child : *children) {
-    path->cost += child.path->cost;
-    path->init_cost += child.path->init_cost;
-    path->init_once_cost += child.path->init_once_cost;
-  }
   return path;
 }
 
-inline AccessPath *NewWindowAccessPath(THD *thd, AccessPath *child,
-                                       Temp_table_param *temp_table_param,
-                                       int ref_slice, bool needs_buffering) {
+inline AccessPath *NewWindowingAccessPath(THD *thd, AccessPath *child,
+                                          Temp_table_param *temp_table_param,
+                                          int ref_slice, bool needs_buffering) {
   AccessPath *path = new (thd->mem_root) AccessPath;
-  path->type = AccessPath::WINDOW;
-  path->window().child = child;
-  path->window().temp_table_param = temp_table_param;
-  path->window().ref_slice = ref_slice;
-  path->window().needs_buffering = needs_buffering;
+  path->type = AccessPath::WINDOWING;
+  path->windowing().child = child;
+  path->windowing().temp_table_param = temp_table_param;
+  path->windowing().ref_slice = ref_slice;
+  path->windowing().needs_buffering = needs_buffering;
   return path;
 }
 
@@ -1552,25 +1195,14 @@ inline AccessPath *NewWeedoutAccessPath(THD *thd, AccessPath *child,
 }
 
 inline AccessPath *NewRemoveDuplicatesAccessPath(THD *thd, AccessPath *child,
-                                                 Item **group_items,
-                                                 int group_items_size) {
+                                                 TABLE *table, KEY *key,
+                                                 unsigned loosescan_key_len) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::REMOVE_DUPLICATES;
   path->remove_duplicates().child = child;
-  path->remove_duplicates().group_items = group_items;
-  path->remove_duplicates().group_items_size = group_items_size;
-  return path;
-}
-
-inline AccessPath *NewRemoveDuplicatesOnIndexAccessPath(
-    THD *thd, AccessPath *child, TABLE *table, KEY *key,
-    unsigned loosescan_key_len) {
-  AccessPath *path = new (thd->mem_root) AccessPath;
-  path->type = AccessPath::REMOVE_DUPLICATES_ON_INDEX;
-  path->remove_duplicates_on_index().child = child;
-  path->remove_duplicates_on_index().table = table;
-  path->remove_duplicates_on_index().key = key;
-  path->remove_duplicates_on_index().loosescan_key_len = loosescan_key_len;
+  path->remove_duplicates().table = table;
+  path->remove_duplicates().key = key;
+  path->remove_duplicates().loosescan_key_len = loosescan_key_len;
   return path;
 }
 
@@ -1594,37 +1226,10 @@ inline AccessPath *NewInvalidatorAccessPath(THD *thd, AccessPath *child,
   return path;
 }
 
-AccessPath *NewDeleteRowsAccessPath(THD *thd, AccessPath *child,
-                                    table_map delete_tables,
-                                    table_map immediate_tables);
-
 void FindTablesToGetRowidFor(AccessPath *path);
 
-/**
-  If the path is a FILTER path marked that subqueries are to be materialized,
-  do so. If not, do nothing.
-
-  It is important that this is not called until the entire plan is ready;
-  not just when planning a single query block. The reason is that a query
-  block A with materializable subqueries may itself be part of a materializable
-  subquery B, so if one calls this when planning A, the subqueries in A will
-  irrevocably be materialized, even if that is not the optimal plan given B.
-  Thus, this is done when creating iterators.
- */
-bool FinalizeMaterializedSubqueries(THD *thd, JOIN *join, AccessPath *path);
-
 unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
-    THD *thd, MEM_ROOT *mem_root, AccessPath *path, JOIN *join,
-    bool eligible_for_batch_mode);
-
-// A short form of CreateIteratorFromAccessPath() that implicitly uses the THD's
-// MEM_ROOT for storage, which is nearly always what you want. (The only caller
-// that does anything else is DynamicRangeIterator.)
-inline unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
-    THD *thd, AccessPath *path, JOIN *join, bool eligible_for_batch_mode) {
-  return CreateIteratorFromAccessPath(thd, thd->mem_root, path, join,
-                                      eligible_for_batch_mode);
-}
+    THD *thd, AccessPath *path, JOIN *join, bool eligible_for_batch_mode);
 
 void SetCostOnTableAccessPath(const Cost_model_server &cost_model,
                               const POSITION *pos, bool is_after_filter,
@@ -1640,21 +1245,8 @@ void SetCostOnTableAccessPath(const Cost_model_server &cost_model,
   RAND_TABLE_BIT will be set as a convention and none of that access path's
   children will be included in the map. In this case, the caller will need to
   manually go in and find said access path, to ask it for its TABLE object.
-
-  If include_pruned_tables = true, tables that are hidden under a ZERO_ROWS
-  access path (ie., pruned away due to impossible join conditions) will be
-  included in the map. This is normally what you want, as those tables need to
-  be included whenever you store NULL flags and the likes, but if you don't
-  want them (perhaps to specifically check for conditions referring to pruned
-  tables), you can set it to false.
  */
-table_map GetUsedTableMap(const AccessPath *path, bool include_pruned_tables);
-
-/**
-  Find the list of all tables used by this root, stopping at materializations.
-  Used for knowing which tables to sort.
- */
-Mem_root_array<TABLE *> CollectTables(THD *thd, AccessPath *root_path);
+table_map GetUsedTables(const AccessPath *path);
 
 /**
   For each access path in the (sub)tree rooted at “path”, expand any use of
@@ -1666,13 +1258,16 @@ Mem_root_array<TABLE *> CollectTables(THD *thd, AccessPath *root_path);
   “join” is the join that “path” is part of.
  */
 void ExpandFilterAccessPaths(THD *thd, AccessPath *path, const JOIN *join,
-                             const Mem_root_array<Predicate> &predicates,
-                             unsigned num_where_predicates);
+                             const Mem_root_array<Predicate> &predicates);
 
-/// Like ExpandFilterAccessPaths(), but expands only the single access path
-/// at “path”.
-void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
-                                  const Mem_root_array<Predicate> &predicates,
-                                  unsigned num_where_predicates);
+/// Creates an empty bitmap of access path types. This is the base
+/// case for the function template with the same name below.
+inline constexpr uint64_t AccessPathTypeBitmap() { return 0; }
+
+/// Creates a bitmap representing a set of access path types.
+template <typename... Args>
+constexpr uint64_t AccessPathTypeBitmap(AccessPath::Type type1, Args... rest) {
+  return (uint64_t{1} << type1) | AccessPathTypeBitmap(rest...);
+}
 
 #endif  // SQL_JOIN_OPTIMIZER_ACCESS_PATH_H

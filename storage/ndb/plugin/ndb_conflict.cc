@@ -39,7 +39,6 @@ extern st_ndb_slave_state g_ndb_slave_state;
 #include "storage/ndb/plugin/ndb_mi.h"
 
 extern ulong opt_ndb_slave_conflict_role;
-extern bool opt_ndb_applier_allow_skip_epoch;
 
 typedef NdbDictionary::Table NDBTAB;
 typedef NdbDictionary::Column NDBCOL;
@@ -778,11 +777,11 @@ st_ndb_slave_state::st_ndb_slave_state()
 
   /* Init conflict handling state memroot */
   const size_t CONFLICT_MEMROOT_BLOCK_SIZE = 32768;
-  ::new ((void *)&conflict_mem_root)
-      MEM_ROOT(PSI_INSTRUMENT_ME, CONFLICT_MEMROOT_BLOCK_SIZE);
+  init_alloc_root(PSI_INSTRUMENT_ME, &conflict_mem_root,
+                  CONFLICT_MEMROOT_BLOCK_SIZE, 0);
 }
 
-st_ndb_slave_state::~st_ndb_slave_state() {}
+st_ndb_slave_state::~st_ndb_slave_state() { free_root(&conflict_mem_root, 0); }
 
 /**
    resetPerAttemptCounters
@@ -915,8 +914,7 @@ void st_ndb_slave_state::atTransactionCommit(Uint64 epoch) {
 
   current_master_server_epoch_committed = true;
 
-  if (DBUG_EVALUATE_IF("ndb_replica_fail_marking_epoch_committed", true,
-                       false)) {
+  if (DBUG_EVALUATE_IF("ndb_slave_fail_marking_epoch_committed", true, false)) {
     fprintf(stderr,
             "Replica clearing epoch committed flag "
             "for epoch %llu/%llu (%llu)\n",
@@ -1055,43 +1053,23 @@ bool st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
       if (!current_master_server_epoch_committed) {
         /**
            We've moved onto a new epoch without committing
-           the last - could be a bug, or perhaps the user
-           has configured slave-skip-errors?
+           the last - probably a bug in transaction retry
         */
-        if (!opt_ndb_applier_allow_skip_epoch) {
-          ndb_log_error(
-              "NDB Replica: SQL thread stopped as attempting to "
-              "apply new epoch %llu/%llu (%llu) while lower "
-              "received epoch %llu/%llu (%llu) has not been "
-              "committed.  Source Server id : %u.  "
-              "Group Source Log : %s  "
-              "Group Source Log Pos : %." PRIu64,
-              next_epoch >> 32, next_epoch & 0xffffffff, next_epoch,
-              current_master_server_epoch >> 32,
-              current_master_server_epoch & 0xffffffff,
-              current_master_server_epoch, master_server_id,
-              ndb_mi_get_group_master_log_name(),
-              ndb_mi_get_group_master_log_pos());
-          /* Stop the slave */
-          return false;
-        } else {
-          ndb_log_warning(
-              "NDB Replica: SQL thread attempting to "
-              "apply new epoch %llu/%llu (%llu) while lower "
-              "received epoch %llu/%llu (%llu) has not been "
-              "committed.  Source Server id : %u.  "
-              "Group Source Log : %s  "
-              "Group Source Log Pos : %." PRIu64
-              ".  "
-              "Continuing as ndb_applier_allow_skip_epoch set.",
-              next_epoch >> 32, next_epoch & 0xffffffff, next_epoch,
-              current_master_server_epoch >> 32,
-              current_master_server_epoch & 0xffffffff,
-              current_master_server_epoch, master_server_id,
-              ndb_mi_get_group_master_log_name(),
-              ndb_mi_get_group_master_log_pos());
-          /* Continue */
-        }
+        ndb_log_error(
+            "NDB Replica: SQL thread stopped as attempting to "
+            "apply new epoch %llu/%llu (%llu) while lower "
+            "received epoch %llu/%llu (%llu) has not been "
+            "committed.  Source Server id : %u.  "
+            "Group Source Log : %s  "
+            "Group Source Log Pos : %." PRIu64,
+            next_epoch >> 32, next_epoch & 0xffffffff, next_epoch,
+            current_master_server_epoch >> 32,
+            current_master_server_epoch & 0xffffffff,
+            current_master_server_epoch, master_server_id,
+            ndb_mi_get_group_master_log_name(),
+            ndb_mi_get_group_master_log_pos());
+        /* Stop the slave */
+        return false;
       } else {
         /* Normal case of next epoch after committing last */
       }
@@ -1256,7 +1234,7 @@ void st_ndb_slave_state::atEndTransConflictHandling() {
     current_trans_in_conflict_count =
         trans_dependency_tracker->get_conflict_count();
     trans_dependency_tracker = NULL;
-    conflict_mem_root.ClearForReuse();
+    free_root(&conflict_mem_root, MY_MARK_BLOCKS_FREE);
   }
 }
 
@@ -2391,8 +2369,7 @@ int setup_conflict_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
         return -1;
       }
     }
-      /* Fall through - for the rest of the EPOCH* processing... */
-      [[fallthrough]];
+    /* Fall through - for the rest of the EPOCH* processing... */
     case CFT_NDB_EPOCH:
     case CFT_NDB_EPOCH_TRANS: {
       if (num_args > 1) {

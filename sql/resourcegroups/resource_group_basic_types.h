@@ -31,7 +31,7 @@ namespace resourcegroups {
 // Definitions for resource group basic types.
 enum class Type { SYSTEM_RESOURCE_GROUP = 1, USER_RESOURCE_GROUP };
 struct Range {
-  Range() = default;
+  Range() {}
   Range(platform::cpu_id_t start, platform::cpu_id_t end)
       : m_start(start), m_end(end) {}
   platform::cpu_id_t m_start;

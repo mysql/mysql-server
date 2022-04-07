@@ -192,7 +192,7 @@ MACRO(MYSQL_CHECK_CURL_DLLS)
           "CURL dll import library not found under '${WITH_CURL}'")
       ENDIF()
       GET_FILENAME_COMPONENT(CURL_DLL_NAME "${HAVE_CURL_DLL}" NAME)
-      MY_ADD_CUSTOM_TARGET(copy_curl_dlls ALL
+      ADD_CUSTOM_TARGET(copy_curl_dlls ALL
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${HAVE_CURL_DLL}"
         "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${CURL_DLL_NAME}"
@@ -227,7 +227,7 @@ MACRO(MYSQL_CHECK_CURL_DLLS)
         INSTALL(FILES "${HAVE_ZLIB_DLL}"
           DESTINATION "${INSTALL_BINDIR}" COMPONENT SharedLibraries)
         GET_FILENAME_COMPONENT(ZLIB_DLL_NAME "${HAVE_ZLIB_DLL}" NAME)
-        MY_ADD_CUSTOM_TARGET(copy_zlib_dlls ALL
+        ADD_CUSTOM_TARGET(copy_zlib_dlls ALL
           COMMAND ${CMAKE_COMMAND} -E copy_if_different
           "${HAVE_ZLIB_DLL}"
           "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${ZLIB_DLL_NAME}"

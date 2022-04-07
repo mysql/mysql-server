@@ -26,4 +26,4 @@
 
 using namespace Mysql::Tools::Dump;
 
-I_chain_element::~I_chain_element() = default;
+I_chain_element::~I_chain_element() {}

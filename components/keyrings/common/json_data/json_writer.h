@@ -47,7 +47,7 @@ class Json_writer {
               const std::string array_key = "elements");
 
   /** Destructor */
-  virtual ~Json_writer() = default;
+  virtual ~Json_writer() {}
 
   bool set_data(const std::string data);
 

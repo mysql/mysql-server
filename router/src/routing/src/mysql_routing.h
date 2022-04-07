@@ -66,13 +66,12 @@
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/stdx/monitor.h"
 #include "mysql_router_thread.h"
-#include "mysql_routing_base.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/routing_export.h"
 #include "mysqlrouter/uri.h"
 #include "plugin_config.h"
 #include "protocol/base_protocol.h"
-#include "socket_container.h"
+#include "router_config.h"
 #include "ssl_mode.h"
 #include "tcp_address.h"
 
@@ -80,9 +79,124 @@ namespace mysql_harness {
 class PluginFuncEnv;
 }
 
+/**
+ * container of sockets.
+ *
+ * allows to disconnect all of them.
+ *
+ * thread-safe.
+ */
+template <class Protocol>
+class SocketContainer {
+  using protocol_type = Protocol;
+  using socket_type = typename protocol_type::socket;
+
+  // as a ref will get returned, the socket_type' object needs a stable address.
+  // - std::list<socket_type> provide that.
+  // - std::vector<std::unique_ptr<socket_type>> should work too.
+  using container_type = std::list<socket_type>;
+
+ public:
+  /**
+   * move ownership of socket_type to the container.
+   *
+   * @return a ref to the stored socket.
+   */
+  socket_type &push_back(socket_type &&sock) {
+    std::lock_guard<std::mutex> lk(mtx_);
+
+    sockets_.push_back(std::move(sock));
+
+    return sockets_.back();
+  }
+
+  /**
+   * move ownership of socket_type to the container.
+   *
+   * @return a ref to the stored socket.
+   */
+  template <class... Args>
+  socket_type &emplace_back(Args &&... args) {
+    std::lock_guard<std::mutex> lk(mtx_);
+
+    sockets_.emplace_back(std::forward<Args>(args)...);
+
+    return sockets_.back();
+  }
+
+  /**
+   * release socket from container.
+   *
+   * moves ownership of the socket to the caller.
+   *
+   * @return socket
+   */
+  socket_type release(socket_type &client_sock) {
+    std::lock_guard<std::mutex> lk(mtx_);
+
+    return release_unlocked(client_sock);
+  }
+
+  socket_type release_unlocked(socket_type &client_sock) {
+    for (auto cur = sockets_.begin(); cur != sockets_.end(); ++cur) {
+      if (cur->native_handle() == client_sock.native_handle()) {
+        auto sock = std::move(*cur);
+        sockets_.erase(cur);
+        return sock;
+      }
+    }
+
+    // not found.
+    return socket_type{client_sock.get_executor().context()};
+  }
+
+  template <class F>
+  auto run(F &&f) {
+    std::lock_guard<std::mutex> lk(mtx_);
+
+    return f();
+  }
+
+  /**
+   * disconnect all sockets.
+   */
+
+  void disconnect_all() {
+    std::lock_guard<std::mutex> lk(mtx_);
+
+    for (auto &sock : sockets_) {
+      sock.cancel();
+    }
+  }
+
+  /**
+   * check if the container is empty.
+   */
+  bool empty() const {
+    std::lock_guard<std::mutex> lk(mtx_);
+    return sockets_.empty();
+  }
+
+  /**
+   * get size of container.
+   */
+  size_t size() const {
+    std::lock_guard<std::mutex> lk(mtx_);
+    return sockets_.size();
+  }
+
+ private:
+  container_type sockets_;
+
+  mutable std::mutex mtx_;
+};
+
+using mysqlrouter::URI;
+using std::string;
+
 struct Nothing {};
 
-/** @class MySQLRouting
+/** @class MySQLRouter
  *  @brief Manage Connections from clients to MySQL servers
  *
  *  The class MySQLRouter is used to start a service listening on a particular
@@ -113,7 +227,7 @@ struct Nothing {};
  *  use 10.0.11.6 to setup the connection routing.
  *
  */
-class MySQLRouting : public MySQLRoutingBase {
+class MySQLRouting {
  public:
   /** @brief Default constructor
    *
@@ -141,9 +255,9 @@ class MySQLRouting : public MySQLRoutingBase {
       net::io_context &io_ctx, routing::RoutingStrategy routing_strategy,
       uint16_t port, const Protocol::Type protocol,
       const routing::AccessMode access_mode = routing::AccessMode::kUndefined,
-      const std::string &bind_address = {"0.0.0.0"},
+      const string &bind_address = string{"0.0.0.0"},
       const mysql_harness::Path &named_socket = mysql_harness::Path(),
-      const std::string &route_name = {},
+      const string &route_name = string{},
       int max_connections = routing::kDefaultMaxConnections,
       std::chrono::milliseconds destination_connect_timeout =
           routing::kDefaultDestinationConnectionTimeout,
@@ -219,7 +333,7 @@ class MySQLRouting : public MySQLRoutingBase {
    *
    * @return Maximum as int
    */
-  int get_max_connections() const noexcept override { return max_connections_; }
+  int get_max_connections() const noexcept { return max_connections_; }
 
   /**
    * create new connection to MySQL Server than can handle client's
@@ -239,13 +353,13 @@ class MySQLRouting : public MySQLRoutingBase {
       typename ServerProtocol::socket server_socket,
       const typename ServerProtocol::endpoint &server_endpoint);
 
-  routing::RoutingStrategy get_routing_strategy() const override;
+  routing::RoutingStrategy get_routing_strategy() const;
 
-  routing::AccessMode get_mode() const override;
+  routing::AccessMode get_mode() const;
 
-  std::vector<mysql_harness::TCPAddress> get_destinations() const override;
+  std::vector<mysql_harness::TCPAddress> get_destinations() const;
 
-  std::vector<MySQLRoutingAPI::ConnData> get_connections() override;
+  std::vector<MySQLRoutingAPI::ConnData> get_connections();
 
   RouteDestination *destinations() { return destination_.get(); }
 
@@ -263,7 +377,7 @@ class MySQLRouting : public MySQLRoutingBase {
    *
    * @retval true if we are accepting connections, false otherwise
    */
-  bool is_accepting_connections() const override;
+  bool is_accepting_connections() const;
 
  private:
   /**
@@ -307,7 +421,7 @@ class MySQLRouting : public MySQLRoutingBase {
       mysql_harness::PluginFuncEnv *env);
 
  public:
-  MySQLRoutingContext &get_context() override { return context_; }
+  MySQLRoutingContext &get_context() { return context_; }
 
  private:
   /** Monitor for notifying socket acceptor */
@@ -321,7 +435,7 @@ class MySQLRouting : public MySQLRoutingBase {
   /** @brief Destination object to use when getting next connection */
   std::unique_ptr<RouteDestination> destination_;
 
-  bool is_destination_standalone_{false};
+  bool is_destination_standalone{false};
 
   /** @brief Routing strategy to use when getting next destination */
   routing::RoutingStrategy routing_strategy_;

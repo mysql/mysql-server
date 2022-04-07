@@ -1,1 +1,1 @@
---replica-transaction-retries=0 --sync_source_info=1 --binlog-direct-non-transactional-updates
+--slave-transaction-retries=0 --sync_master_info=1 --binlog-direct-non-transactional-updates

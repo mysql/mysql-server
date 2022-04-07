@@ -91,4 +91,8 @@ void destroy(const Arguments &args) {
 
 void AsyncNdbContext_initOnLoad(Local<Object> target) {
   DEFINE_JS_FUNCTION(target, "AsyncNdbContext", createAsyncNdbContext);
+  DEFINE_JS_CONSTANT(target, MULTIWAIT_ENABLED);
+#ifdef USE_OLD_MULTIWAIT_API
+  DEFINE_JS_CONSTANT(target, USE_OLD_MULTIWAIT_API);
+#endif
 }

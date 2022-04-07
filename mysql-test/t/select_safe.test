@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 --source include/not_hypergraph.inc  # The hypergraph optimizer does not support safe limits.
 
 #
@@ -31,7 +36,7 @@ delete from t1 where b="test";
 --error 1175
 delete from t1 where a+0=1;
 --error ER_TOO_BIG_SELECT
-select 1 from t1,t1 as t2,t1 as t3,t1 as t4,t1 as t5, t1 as t6;
+select 1 from t1,t1 as t2,t1 as t3,t1 as t4,t1 as t5;
 
 # The following should be ok:
 update t1 set b="a" limit 1;
@@ -53,14 +58,13 @@ SET MAX_JOIN_SIZE=1;
 --error ER_TOO_BIG_SELECT
 SELECT * from t1;
 SET MAX_JOIN_SIZE=DEFAULT;
-SELECT * from t1 order by a;
+SELECT * from t1;
 
 #
 # Test MAX_SEEKS_FOR_KEY
 #
 analyze table t1;
 insert into t1 values (null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a");
-ANALYZE TABLE t1;
 explain select STRAIGHT_JOIN * from t1,t1 as t2 where t1.b=t2.b;
 set MAX_SEEKS_FOR_KEY=1;
 explain select STRAIGHT_JOIN * from t1,t1 as t2 where t1.b=t2.b;

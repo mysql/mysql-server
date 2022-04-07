@@ -20,6 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
 #include "univ.i"
 
 #include <atomic>
@@ -114,11 +116,6 @@ constexpr int LOG_TEST_N_STEPS = 20;
 
 fil_space_t *log_space;
 
-extern SERVICE_TYPE_NO_CONST(registry) * srv_registry;
-
-extern ulong srv_log_checkpoint_every;
-extern ulong srv_log_wait_for_flush_timeout;
-
 static bool log_test_general_init() {
   ut_new_boot_safe();
 
@@ -134,7 +131,7 @@ static bool log_test_general_init() {
   srv_log_wait_for_flush_timeout = 100000;
   srv_log_write_max_size = 4096;
   srv_log_writer_spin_delay = 25000;
-  srv_log_checkpoint_every = INNODB_LOG_CHECKPOINT_EVERY_DEFAULT;
+  srv_log_checkpoint_every = 1000000000;
   srv_log_flusher_spin_delay = 25000;
   srv_log_write_notifier_spin_delay = 0;
   srv_log_flush_notifier_spin_delay = 0;
@@ -170,9 +167,6 @@ static bool log_test_general_init() {
 
   const size_t max_n_open_files = 1000;
 
-  /* Below function will initialize the srv_registry variable which is
-  required for the mysql_plugin_registry_acquire() */
-  minimal_chassis_init(&srv_registry, NULL);
   fil_init(max_n_open_files);
 
   log_space = fil_space_create(
@@ -187,6 +181,8 @@ static bool log_test_general_init() {
   ut_ad(fil_validate());
   return (true);
 }
+
+extern SERVICE_TYPE_NO_CONST(registry) * srv_registry;
 
 static bool log_test_init() {
   if (!log_test_general_init()) {
@@ -263,7 +259,11 @@ static bool log_test_init() {
 
   log_start(log, 1, lsn, lsn);
 
+  /* Below function will initialize the srv_registry variable which is
+  required for the mysql_plugin_registry_acquire() */
+  minimal_chassis_init(&srv_registry, NULL);
   log_start_background_threads(log);
+  minimal_chassis_deinit(srv_registry, NULL);
 
   srv_is_being_started = false;
   return (true);
@@ -541,8 +541,6 @@ static void log_test_general_close() {
 
   fil_close();
 
-  minimal_chassis_deinit(srv_registry, NULL);
-
   os_thread_close();
 
   sync_check_close();
@@ -681,7 +679,7 @@ static void test_single(const std::string &group) {
 
 class Log_test_disturber {
  public:
-  virtual ~Log_test_disturber() = default;
+  virtual ~Log_test_disturber() {}
 
   virtual void disturb() = 0;
 };

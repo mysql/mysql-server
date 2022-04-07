@@ -232,5 +232,5 @@ disconnect con1;
 #
 --echo # must find the pattern
 --let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
---let SEARCH_PATTERN= 'wait_timeout' period of .* seconds was exceeded for .*\. The idle time since last command was too long\.
+--let SEARCH_PATTERN=The wait_timeout period was exceeded, the idle time since last command was too long.
 source include/search_pattern.inc;

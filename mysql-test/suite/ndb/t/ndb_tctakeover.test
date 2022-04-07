@@ -22,7 +22,7 @@ insert into t select x + 40, y + 40 from t;
 show warnings;
 insert into t select x + 80, y + 80 from t;
 exec $NDB_MGM -e "2 error 8030";
---error ER_ERROR_DURING_COMMIT
+error 0,1296;
 commit;
 show warnings;
 

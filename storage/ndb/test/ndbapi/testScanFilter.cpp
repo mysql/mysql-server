@@ -976,7 +976,7 @@ int runScanFilterConstructorFail(NDBT_Context* ctx, NDBT_Step* step)
   
   if (trans == NULL)
   {
-    APIERROR(myNdb->getNdbError());
+    APIERROR(trans->getNdbError());
     return NDBT_FAILED;
   }
   
@@ -1045,7 +1045,7 @@ int runScanFilterConstructorFail(NDBT_Context* ctx, NDBT_Step* step)
   
   if (trans == NULL)
   {
-    APIERROR(myNdb->getNdbError());
+    APIERROR(trans->getNdbError());
     return NDBT_FAILED;
   }
   

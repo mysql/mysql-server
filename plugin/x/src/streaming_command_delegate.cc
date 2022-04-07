@@ -486,7 +486,7 @@ int Streaming_command_delegate::get_string(const char *const value,
         m_proto->row_builder()->field_set(conv.get_ptr(), conv.get_length());
         break;
       }
-      [[fallthrough]];
+      /* fall through */
     default: {
       Convert_if_necessary conv(m_resultcs, value, length, valuecs);
       m_proto->row_builder()->field_string(conv.get_ptr(), conv.get_length());

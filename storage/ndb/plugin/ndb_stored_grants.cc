@@ -57,7 +57,7 @@ static std::mutex local_granted_users_mutex;
 /* Utility functions */
 
 bool op_grants_or_revokes_ndb_storage(ChangeNotice *notice) {
-  for (const ChangeNotice::Priv priv : notice->get_dynamic_privilege_list())
+  for (const std::string &priv : notice->get_dynamic_privilege_list())
     if (!native_strncasecmp(priv.c_str(), "NDB_STORED_USER", priv.length()))
       return true;
   return false;
@@ -110,7 +110,6 @@ class ThreadContext : public Ndb_local_connection {
 
   bool get_local_user(const std::string &) const;
   int get_grants_for_user(std::string);
-  bool show_create_user(std::string, std::string &);
   void get_create_user(std::string, int);
   void create_user(std::string &, std::string &);
 
@@ -287,19 +286,19 @@ void ThreadContext::deserialize_users(std::string &str) {
 /* returns false on success */
 bool ThreadContext::exec_sql(const std::string &statement) {
   assert(m_closed);
+  uint ignore_mysql_errors[1] = {0};  // Don't ignore any errors
+  MYSQL_LEX_STRING sql_text = {const_cast<char *>(statement.c_str()),
+                               statement.length()};
   /* execute_query_iso() returns false on success */
-  m_closed = execute_query_iso(statement, nullptr);
+  m_closed = execute_query_iso(sql_text, ignore_mysql_errors, nullptr);
   return m_closed;
 }
 
-/* Run SHOW CREATE USER, and place the result SQL in result.
-   Return true on success.
-*/
-bool ThreadContext::show_create_user(std::string user, std::string &result) {
+void ThreadContext::get_create_user(std::string user, int ngrants) {
   std::string statement("SHOW CREATE USER " + user);
   if (exec_sql(statement)) {
     ndb_log_error("Failed SHOW CREATE USER for %s", user.c_str());
-    return false;
+    return;
   }
 
   List<Ed_row> results = *get_results();
@@ -307,25 +306,16 @@ bool ThreadContext::show_create_user(std::string user, std::string &result) {
   if (results.elements != 1) {
     ndb_log_error("%s returned %d rows", statement.c_str(), results.elements);
     close();
-    return false;
+    return;
   }
 
   Ed_row *result_row = results[0];
   const MYSQL_LEX_STRING *result_sql = result_row->get_column(0);
-  result.assign(result_sql->str, result_sql->length);
+  unsigned int note = ngrants;
+  char *row = Row(TYPE_USER, user, 0, &note,
+                  std::string(result_sql->str, result_sql->length));
+  m_current_rows.push_back(row);
   close();
-  return true;
-}
-
-/* Run SHOW CREATE USER, create a row, and push it to m_current_rows
- */
-void ThreadContext::get_create_user(std::string user, int ngrants) {
-  std::string show_create;
-  if (show_create_user(user, show_create)) {
-    unsigned int note = ngrants;
-    char *row = Row(TYPE_USER, user, 0, &note, show_create);
-    m_current_rows.push_back(row);
-  }
   return;
 }
 
@@ -643,16 +633,8 @@ void ThreadContext::create_user(std::string &name, std::string &statement) {
       " WITH MAX_QUERIES_PER_HOUR 0 MAX_UPDATES_PER_HOUR 0 "
       " MAX_CONNECTIONS_PER_HOUR 0 MAX_USER_CONNECTIONS 0");
 
-  const bool exists_local = get_local_user(name);
-
-  if (exists_local) {
-    std::string show_create;
-    if (show_create_user(name, show_create) && show_create == statement)
-      return;  // Current SHOW CREATE USER already matches snapshot
-  }
-
-  if (!exists_local) {
-    /* Create the user with a random password */
+  /* Run statement CREATE USER IF NOT EXISTS */
+  if (!get_local_user(name)) {
     ndb_log_info("From stored snapshot, adding NDB stored user: %s",
                  name.c_str());
     run_acl_statement(create_user + name + random_pass);
@@ -694,7 +676,7 @@ void ThreadContext::create_user(std::string &name, std::string &statement) {
  */
 void ThreadContext::apply_current_snapshot() {
   for (const char *row : m_current_rows) {
-    unsigned int note = 0;
+    unsigned int note;
     size_t str_length;
     const char *str_start;
     bool is_null;
@@ -774,7 +756,7 @@ int ThreadContext::get_user_lists_for_statement(ChangeNotice *notice) {
   assert(m_statement_users.size() == 0);
   assert(m_intersection.size() == 0);
 
-  for (const ChangeNotice::User notice_user : notice->get_user_list()) {
+  for (const ChangeNotice::User &notice_user : notice->get_user_list()) {
     std::string user;
     format_user(user, notice_user);
     m_statement_users.push_back(user);
@@ -948,13 +930,6 @@ bool Ndb_stored_grants::setup(THD *thd, Thd_ndb *thd_ndb) {
 
   metadata_table.setup(thd_ndb->ndb->getDictionary(),
                        sql_metadata_table.get_table());
-  const NdbError &err = metadata_table.initializeSnapshotLock(thd_ndb->ndb);
-  if (err.status != NdbError::Success) {
-    ndb_log_error("ndb_stored_grants initalizeSnapshotLock failure: %d %s",
-                  err.code, err.message);
-    return false;
-  }
-
   return true;
 }
 
@@ -1045,18 +1020,4 @@ bool Ndb_stored_grants::update_users_from_snapshot(THD *thd,
   context.apply_current_snapshot();
   context.handle_dropped_users();
   return true;  // success
-}
-
-NdbTransaction *Ndb_stored_grants::acquire_snapshot_lock(THD *thd) {
-  NdbTransaction *transaction;
-  Ndb *ndb = get_thd_ndb(thd)->ndb;
-  const NdbError &err = metadata_table.acquireSnapshotLock(ndb, transaction);
-  if (err.status != NdbError::Success)
-    ndb_log_error("acquire_snapshot_lock: Error %d '%s'", err.code,
-                  err.message);
-  return transaction;
-}
-
-void Ndb_stored_grants::release_snapshot_lock(NdbTransaction *transaction) {
-  metadata_table.releaseSnapshotLock(transaction);
 }

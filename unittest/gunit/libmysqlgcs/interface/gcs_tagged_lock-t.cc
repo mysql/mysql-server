@@ -28,7 +28,7 @@ namespace gcs_tagged_lock_unittest {
 
 class GcsTaggedLock : public GcsBaseTest {
  protected:
-  GcsTaggedLock() = default;
+  GcsTaggedLock() {}
 };
 
 TEST_F(GcsTaggedLock, SuccessfulOptimisticRead) {

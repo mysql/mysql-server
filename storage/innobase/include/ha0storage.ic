@@ -55,7 +55,8 @@ struct ha_storage_node_t {
 /** Creates a hash storage. If any of the parameters is 0, then a default
  value is used.
  @return own: hash storage */
-static inline ha_storage_t *ha_storage_create(
+UNIV_INLINE
+ha_storage_t *ha_storage_create(
     ulint initial_heap_bytes, /*!< in: initial heap's size */
     ulint initial_hash_cells) /*!< in: initial number of cells
                               in the hash table */
@@ -86,8 +87,8 @@ static inline ha_storage_t *ha_storage_create(
 /** Empties a hash storage, freeing memory occupied by data chunks.
  This invalidates any pointers previously returned by ha_storage_put().
  The hash storage is not invalidated itself and can be used again. */
-static inline void ha_storage_empty(
-    ha_storage_t **storage) /*!< in/out: hash storage */
+UNIV_INLINE
+void ha_storage_empty(ha_storage_t **storage) /*!< in/out: hash storage */
 {
   ha_storage_t temp_storage;
 
@@ -107,8 +108,8 @@ static inline void ha_storage_empty(
 /** Frees a hash storage and everything it contains, it cannot be used after
  this call.
  This invalidates any pointers previously returned by ha_storage_put(). */
-static inline void ha_storage_free(
-    ha_storage_t *storage) /*!< in, own: hash storage */
+UNIV_INLINE
+void ha_storage_free(ha_storage_t *storage) /*!< in, own: hash storage */
 {
   /* order is important because the pointer storage->hash is
   within the heap */
@@ -118,8 +119,8 @@ static inline void ha_storage_free(
 
 /** Gets the size of the memory used by a storage.
  @return bytes used */
-static inline ulint ha_storage_get_size(
-    const ha_storage_t *storage) /*!< in: hash storage */
+UNIV_INLINE
+ulint ha_storage_get_size(const ha_storage_t *storage) /*!< in: hash storage */
 {
   ulint ret;
 

@@ -28,6 +28,7 @@
 #include "NdbEventOperationImpl.hpp"
 #include "NdbDictionaryImpl.hpp"
 #include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 NdbEventOperation::NdbEventOperation(Ndb *theNdb,const char* eventName) 
   : m_impl(* new NdbEventOperationImpl(*this,theNdb,eventName))

@@ -884,6 +884,9 @@ redo log file header.
 @return true if success. */
 bool log_rotate_encryption();
 
+/** Rotate default master key for redo log encryption. */
+void redo_rotate_default_master_key();
+
 /** Computes lsn up to which sync flush should be done or returns 0
 if there is no need to execute sync flush now.
 @param[in,out]  log  redo log
@@ -1071,13 +1074,12 @@ checkpoint_lsn and current lsn. Block for current_lsn must
 be properly initialized in the log buffer prior to calling
 this function. Therefore a proper value of first_rec_group
 must be set for that block before log_start is called.
-@param[in,out]  log                redo log
-@param[in]      checkpoint_no      checkpoint no (sequential number)
-@param[in]      checkpoint_lsn     checkpoint lsn
-@param[in]      start_lsn          current lsn to start at
-@param[in]      allow_checkpoints  true iff allows writing newer checkpoints */
+@param[in,out]  log             redo log
+@param[in]      checkpoint_no	  checkpoint no (sequential number)
+@param[in]      checkpoint_lsn  checkpoint lsn
+@param[in]      start_lsn       current lsn to start at */
 void log_start(log_t &log, checkpoint_no_t checkpoint_no, lsn_t checkpoint_lsn,
-               lsn_t start_lsn, bool allow_checkpoints = true);
+               lsn_t start_lsn);
 
 /** Validates that the log writer thread is active.
 Used only to assert, that the state is correct.
@@ -1299,7 +1301,7 @@ inline bool log_checkpointer_is_active();
 @param[in]      iv           encryption iv
 @param[in]      is_boot      if it's for bootstrap
 @param[in]      encrypt_key  encrypt with master key */
-bool log_file_header_fill_encryption(byte *buf, const byte *key, const byte *iv,
+bool log_file_header_fill_encryption(byte *buf, byte *key, byte *iv,
                                      bool is_boot, bool encrypt_key);
 
 /** Disable redo logging and persist the information.
@@ -1313,9 +1315,6 @@ void log_persist_enable(log_t &log);
 /** Persist the information that it is safe to restart server.
 @param[in,out]	log	redo log */
 void log_persist_crash_safe(log_t &log);
-
-/* PFS key for the redo log buffer's memory */
-extern PSI_memory_key log_buffer_memory_key;
 
 #else /* !UNIV_HOTBACKUP */
 

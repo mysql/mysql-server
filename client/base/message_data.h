@@ -48,7 +48,7 @@ enum Message_type {
 class Message_data {
  public:
   Message_data(uint64 code, std::string message, Message_type message_type);
-  virtual ~Message_data() = default;
+  virtual ~Message_data() {}
   uint64 get_code() const;
   std::string get_message() const;
   Message_type get_message_type() const;

@@ -100,7 +100,7 @@
 class Rpl_transaction_write_set_ctx {
  public:
   Rpl_transaction_write_set_ctx();
-  virtual ~Rpl_transaction_write_set_ctx() = default;
+  virtual ~Rpl_transaction_write_set_ctx() {}
 
   /**
     Function to add the write set of the hash of the PKE in the std::vector

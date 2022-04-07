@@ -653,21 +653,9 @@ show status like "Com_stmt_reprepare";
 prepare s from 'select ADDDATE(?, INTERVAL ? DAY_SECOND)';
 eval $show_trace;
 
-# explicit type of date/datetime argument:
-prepare s from 'select ADDDATE(?, INTERVAL 1 MONTH)';
-eval $show_trace;
-
-prepare s from 'select ADDDATE(CAST(? AS DATE), INTERVAL 1 MONTH)';
-eval $show_trace;
-
-prepare s from 'select ADDDATE(CAST(? AS DATETIME), INTERVAL 1 SECOND)';
-eval $show_trace;
-
 # ADDTIME
 
 prepare s from 'select ADDTIME(?,?)';
-eval $show_trace;
-prepare s from "select ADDTIME(?, time'01:01:01')";
 eval $show_trace;
 
 # AES_DECRYPT
@@ -1798,13 +1786,13 @@ eval $show_trace;
 prepare s from 'select MAKETIME(?,?,?)';
 eval $show_trace;
 
-# SOURCE_POS_WAIT
+# MASTER_POS_WAIT
 
-prepare s from 'select SOURCE_POS_WAIT(?,?)';
+prepare s from 'select MASTER_POS_WAIT(?,?)';
 eval $show_trace;
-prepare s from 'select SOURCE_POS_WAIT(?,?,?)';
+prepare s from 'select MASTER_POS_WAIT(?,?,?)';
 eval $show_trace;
-prepare s from 'select SOURCE_POS_WAIT(?,?,?,?)';
+prepare s from 'select MASTER_POS_WAIT(?,?,?,?)';
 eval $show_trace;
 
 # MAX
@@ -1936,21 +1924,6 @@ eval $show_trace;
 # NULLIF
 
 prepare s from 'select NULLIF(?,?)';
-eval $show_trace;
-
-prepare s from 'select NULLIF(100,?)';
-eval $show_trace;
-
-prepare s from 'select NULLIF(?,100)';
-eval $show_trace;
-
-prepare s from 'select 200 + NULLIF(?,?)';
-eval $show_trace;
-
-prepare s from 'select 200 + NULLIF("100",?)';
-eval $show_trace;
-
-prepare s from 'select 200 + NULLIF(?,"100")';
 eval $show_trace;
 
 # OCT
@@ -2688,16 +2661,6 @@ eval $show_trace;
 # SUBDATE
 
 prepare s from 'select SUBDATE(?,?)';
-eval $show_trace;
-
-# explicit type of date/datetime argument:
-prepare s from 'select SUBDATE(?, INTERVAL 1 MONTH)';
-eval $show_trace;
-
-prepare s from 'select SUBDATE(CAST(? AS DATE), INTERVAL 1 MONTH)';
-eval $show_trace;
-
-prepare s from 'select SUBDATE(CAST(? AS DATETIME), INTERVAL 1 SECOND)';
 eval $show_trace;
 
 # SUBSTR

@@ -68,6 +68,34 @@ struct st_row_rpl_async_conn_failover {
   uint managed_name_length;
 };
 
+class PFS_index_rpl_async_conn_failover : public PFS_engine_index {
+ public:
+  PFS_index_rpl_async_conn_failover()
+      : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3, &m_key_4, &m_key_5),
+        m_key_1("CHANNEL_NAME"),
+        m_key_2("HOST"),
+        m_key_3("PORT"),
+        m_key_4("NETWORK_NAMESPACE"),
+        m_key_5("MANAGED_NAME") {}
+
+  ~PFS_index_rpl_async_conn_failover() override {}
+
+  /**
+    Match fetched row with searched values.
+
+    @param source_conn_detail  the tuple contains source network configuration
+                               details to be matched.
+  */
+  virtual bool match(RPL_FAILOVER_SOURCE_TUPLE source_conn_detail);
+
+ private:
+  PFS_key_name m_key_1;  // channel_name key
+  PFS_key_name m_key_2;  // host key
+  PFS_key_port m_key_3;  // port key
+  PFS_key_name m_key_4;  // network_namespace key
+  PFS_key_name m_key_5;  // managed_name key
+};
+
 /**
   Table
   PERFORMANCE_SCHEMA.TABLE_REPLICATION_ASYNCHRONOUS_CONNECTION_FAILOVER.
@@ -78,17 +106,7 @@ class table_replication_asynchronous_connection_failover
   typedef PFS_simple_index pos_t;
 
  private:
-  /**
-    Stores current row (i.e.index) values for the table into m_row struct
-    members. This stored data is read later through read_row_values().
-
-    @param[in] index  current row position.
-
-    @return Operation status
-      @retval 0     Success
-      @retval != 0  Error (error code returned)
-  */
-  int make_row(uint index);
+  int make_row(RPL_FAILOVER_SOURCE_TUPLE source_tuple);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -109,10 +127,10 @@ class table_replication_asynchronous_connection_failover
   /**
     Read the current row values.
 
-    @param[in] table            Table handle
-    @param[in] buf              row buffer
-    @param[in] fields           Table fields
-    @param[in] read_all         true if all columns are read.
+    @param table            Table handle
+    @param buf              row buffer
+    @param fields           Table fields
+    @param read_all         true if all columns are read.
   */
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                       bool read_all) override;
@@ -128,7 +146,7 @@ class table_replication_asynchronous_connection_failover
   /**
     Open table function.
 
-    @param[in] tbs  Table share object
+    @param tbs  Table share object
   */
   static PFS_engine_table *create(PFS_engine_table_share *tbs);
 
@@ -145,8 +163,8 @@ class table_replication_asynchronous_connection_failover
   /**
     Initialize table for random read or scan.
 
-    @param[in] scan  if true: Initialize for random scans through rnd_next()
-                     if false: Initialize for random reads through rnd_pos()
+    @param scan  if true: Initialize for random scans through rnd_next()
+                 if false: Initialize for random reads through rnd_pos()
 
     @return Operation status
       @retval 0     Success
@@ -166,7 +184,7 @@ class table_replication_asynchronous_connection_failover
   /**
     Read row via random scan from position.
 
-    @param[in]      pos  Position from position() call
+    @param      pos  Position from position() call
 
     @return Operation status
       @retval 0     Success
@@ -174,9 +192,36 @@ class table_replication_asynchronous_connection_failover
   */
   int rnd_pos(const void *pos) override;
 
+  /**
+    Initialize use of index.
+
+    @param idx     Index to use
+    @param sorted  Use sorted order
+
+    @return Operation status
+      @retval 0     Success
+      @retval != 0  Error (error code returned)
+  */
+  int index_init(uint idx, bool sorted) override;
+
+  /**
+    Read next row via random scan.
+
+    @return Operation status
+      @retval 0     Success
+      @retval != 0  Error (error code returned)
+  */
+  int index_next() override;
+
  private:
+  /* Index object to get match searched values */
+  PFS_index_rpl_async_conn_failover *m_opened_index;
+
   /* Stores the data being read i.e. source connection details. */
-  RPL_FAILOVER_SOURCE_LIST m_source_conn_detail{};
+  RPL_FAILOVER_SOURCE_LIST source_conn_detail;
+
+  /* Stores error happened while reading rows */
+  bool read_error;
 
   /* Stores the current number of rows read. */
   static ha_rows num_rows;

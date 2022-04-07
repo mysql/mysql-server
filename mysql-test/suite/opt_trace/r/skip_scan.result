@@ -217,21 +217,21 @@ EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) A
                       "d"
                     ],
                     "prefix ranges": [
-                      "a = 1 AND b = 1",
-                      "a = 1 AND b = 2",
-                      "a = 1 AND b = 3",
-                      "a = 2 AND b = 1",
-                      "a = 2 AND b = 2",
-                      "a = 2 AND b = 3",
-                      "a = 3 AND b = 1",
-                      "a = 3 AND b = 2",
-                      "a = 3 AND b = 3",
-                      "a = 4 AND b = 1",
-                      "a = 4 AND b = 2",
-                      "a = 4 AND b = 3",
-                      "a = 5 AND b = 1",
-                      "a = 5 AND b = 2",
-                      "a = 5 AND b = 3"
+                      "1 <= a <= 1 AND 1 <= b <= 1",
+                      "1 <= a <= 1 AND 2 <= b <= 2",
+                      "1 <= a <= 1 AND 3 <= b <= 3",
+                      "2 <= a <= 2 AND 1 <= b <= 1",
+                      "2 <= a <= 2 AND 2 <= b <= 2",
+                      "2 <= a <= 2 AND 3 <= b <= 3",
+                      "3 <= a <= 3 AND 1 <= b <= 1",
+                      "3 <= a <= 3 AND 2 <= b <= 2",
+                      "3 <= a <= 3 AND 3 <= b <= 3",
+                      "4 <= a <= 4 AND 1 <= b <= 1",
+                      "4 <= a <= 4 AND 2 <= b <= 2",
+                      "4 <= a <= 4 AND 3 <= b <= 3",
+                      "5 <= a <= 5 AND 1 <= b <= 1",
+                      "5 <= a <= 5 AND 2 <= b <= 2",
+                      "5 <= a <= 5 AND 3 <= b <= 3"
                     ],
                     "range": [
                       "98 <= d"
@@ -243,27 +243,26 @@ EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) A
                       {
                         "index": "PRIMARY",
                         "ranges": [
-                          "a = 1 AND b = 1",
-                          "a = 1 AND b = 2",
-                          "a = 1 AND b = 3",
-                          "a = 2 AND b = 1",
-                          "a = 2 AND b = 2",
-                          "a = 2 AND b = 3",
-                          "a = 3 AND b = 1",
-                          "a = 3 AND b = 2",
-                          "a = 3 AND b = 3",
-                          "a = 4 AND b = 1",
-                          "a = 4 AND b = 2",
-                          "a = 4 AND b = 3",
-                          "a = 5 AND b = 1",
-                          "a = 5 AND b = 2",
-                          "a = 5 AND b = 3"
+                          "1 <= a <= 1 AND 1 <= b <= 1",
+                          "1 <= a <= 1 AND 2 <= b <= 2",
+                          "1 <= a <= 1 AND 3 <= b <= 3",
+                          "2 <= a <= 2 AND 1 <= b <= 1",
+                          "2 <= a <= 2 AND 2 <= b <= 2",
+                          "2 <= a <= 2 AND 3 <= b <= 3",
+                          "3 <= a <= 3 AND 1 <= b <= 1",
+                          "3 <= a <= 3 AND 2 <= b <= 2",
+                          "3 <= a <= 3 AND 3 <= b <= 3",
+                          "4 <= a <= 4 AND 1 <= b <= 1",
+                          "4 <= a <= 4 AND 2 <= b <= 2",
+                          "4 <= a <= 4 AND 3 <= b <= 3",
+                          "5 <= a <= 5 AND 1 <= b <= 1",
+                          "5 <= a <= 5 AND 2 <= b <= 2",
+                          "5 <= a <= 5 AND 3 <= b <= 3"
                         ],
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
                         "using_mrr": false,
                         "index_only": true,
-                        "in_memory": 1,
                         "rows": 750,
                         "cost": 79.0151,
                         "chosen": true
@@ -271,15 +270,14 @@ EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) A
                       {
                         "index": "b",
                         "ranges": [
-                          "b = 1 AND 98 <= d",
-                          "b = 2 AND 98 <= d",
-                          "b = 3 AND 98 <= d"
+                          "1 <= b <= 1 AND 98 <= d",
+                          "2 <= b <= 2 AND 98 <= d",
+                          "3 <= b <= 3 AND 98 <= d"
                         ],
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
-                        "in_memory": 1,
                         "rows": 3,
                         "cost": 0.561462,
                         "chosen": true
@@ -296,9 +294,9 @@ EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) A
                       "index": "b",
                       "rows": 3,
                       "ranges": [
-                        "b = 1 AND 98 <= d AND 1 <= a",
-                        "b = 2 AND 98 <= d AND 1 <= a",
-                        "b = 3 AND 98 <= d AND 1 <= a"
+                        "1 <= b <= 1 AND 98 <= d",
+                        "2 <= b <= 2 AND 98 <= d",
+                        "3 <= b <= 3 AND 98 <= d"
                       ]
                     },
                     "rows_for_plan": 3,
@@ -517,7 +515,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 4 AND d < 3	{
                       "c"
                     ],
                     "prefix ranges": [
-                      "a = 5"
+                      "5 <= a <= 5"
                     ],
                     "range": [
                       "4 < c"
@@ -529,13 +527,12 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 4 AND d < 3	{
                       {
                         "index": "PRIMARY",
                         "ranges": [
-                          "a = 5"
+                          "5 <= a <= 5"
                         ],
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
                         "using_mrr": false,
                         "index_only": true,
-                        "in_memory": 1,
                         "rows": 250,
                         "cost": 25.345,
                         "chosen": false,
@@ -562,7 +559,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 4 AND d < 3	{
                         "c"
                       ],
                       "prefix ranges": [
-                        "a = 5"
+                        "5 <= a <= 5"
                       ],
                       "range": [
                         "4 < c"
@@ -801,7 +798,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND d < 3	{
                       "d"
                     ],
                     "prefix ranges": [
-                      "a = 5"
+                      "5 <= a <= 5"
                     ],
                     "range": [
                       "d < 3"
@@ -813,13 +810,12 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND d < 3	{
                       {
                         "index": "PRIMARY",
                         "ranges": [
-                          "a = 5"
+                          "5 <= a <= 5"
                         ],
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
                         "using_mrr": false,
                         "index_only": true,
-                        "in_memory": 1,
                         "rows": 250,
                         "cost": 25.345,
                         "chosen": true
@@ -841,7 +837,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND d < 3	{
                       "index": "PRIMARY",
                       "rows": 250,
                       "ranges": [
-                        "a = 5"
+                        "5 <= a <= 5"
                       ]
                     },
                     "rows_for_plan": 250,

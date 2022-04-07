@@ -10,7 +10,7 @@
 # Rename table leaves old tables names behind in
 # performance_schema.objects_summary_global_by_type
 #
-SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
   WHERE object_schema='test';
 
 CREATE TABLE test.t_before(a INT);
@@ -18,7 +18,7 @@ INSERT INTO test.t_before VALUES (1);
 
 # The new table should appear in OBJECTS_SUMMARY_GLOBAL_BY_TYPE.
 
-SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
   WHERE object_schema='test';
 
 RENAME TABLE test.t_before TO test.t_after;
@@ -28,49 +28,14 @@ RENAME TABLE test.t_before TO test.t_after;
 
 SELECT COUNT(*) FROM test.t_after;
 
-SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
   WHERE object_schema='test';
 
 DROP TABLE test.t_after;
 
 # The renamed table should not appear in OBJECTS_SUMMARY_GLOBAL_BY_TYPE.
 
-SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
-  WHERE object_schema='test';
-
-#
-# Bug#33059358 ALTER EVENT RENAME LEAVES OLD EVENT NAME IN PERFORMANCE_SCHEMA
-#
-# ALTER EVENT RENAME leaves old event names behind in
-# performance_schema.objects_summary_global_by_type
-#
-SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
-  WHERE object_schema='test';
-
-CREATE EVENT test.e_before ON SCHEDULE EVERY 1 SECOND DO SELECT 1;
-
-SELECT sleep(5);
-
-# The new event should appear in OBJECTS_SUMMARY_GLOBAL_BY_TYPE.
-
-SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
-  WHERE object_schema='test';
-
-ALTER EVENT test.e_before RENAME TO test.e_after;
-
-# The renamed event should appear in OBJECTS_SUMMARY_GLOBAL_BY_TYPE, but only
-# after it is accessed.
-
-SELECT sleep(5);
-
-SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
-  WHERE object_schema='test';
-
-DROP EVENT test.e_after;
-
-# The renamed event should not appear in OBJECTS_SUMMARY_GLOBAL_BY_TYPE.
-
-SELECT object_type, object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
   WHERE object_schema='test';
 
 #

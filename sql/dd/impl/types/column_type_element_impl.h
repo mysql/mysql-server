@@ -58,7 +58,7 @@ class Column_type_element_impl : public Weak_object_impl,
   Column_type_element_impl(const Column_type_element_impl &src,
                            Column_impl *parent);
 
-  ~Column_type_element_impl() override = default;
+  ~Column_type_element_impl() override {}
 
  public:
   const Object_table &object_table() const override;

@@ -34,14 +34,11 @@
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
 #include "storage/ndb/plugin/ndb_table_map.h"
 
-Ndb_event_data::Ndb_event_data(NDB_SHARE *the_share, size_t num_columns,
-                               size_t ndbtab_num_attribs,
-                               bool ndbtab_have_blobs)
-    : shadow_table(nullptr),
-      share(the_share),
-      ndb_value{std::make_unique<NdbValue[]>(ndbtab_num_attribs),
-                std::make_unique<NdbValue[]>(ndbtab_num_attribs)},
-      have_blobs(ndbtab_have_blobs) {
+Ndb_event_data::Ndb_event_data(NDB_SHARE *the_share, size_t num_columns)
+    : shadow_table(nullptr), share(the_share) {
+  ndb_value[0] = nullptr;
+  ndb_value[1] = nullptr;
+
   // Initialize bitmaps, using dynamically allocated bitbuf
   bitmap_init(&stored_columns, nullptr, num_columns);
   bitmap_init(&pk_bitmap, nullptr, num_columns);
@@ -51,14 +48,19 @@ Ndb_event_data::Ndb_event_data(NDB_SHARE *the_share, size_t num_columns,
 }
 
 Ndb_event_data::~Ndb_event_data() {
-  if (shadow_table) {
-    closefrm(shadow_table, true);
-  }
+  if (shadow_table) closefrm(shadow_table, 1);
+  shadow_table = nullptr;
 
   bitmap_free(&stored_columns);
   bitmap_free(&pk_bitmap);
 
-  mem_root.Clear();
+  free_root(&mem_root, MYF(0));
+  share = nullptr;
+  /*
+    ndbvalue[] allocated with my_multi_malloc -> only
+    first pointer need to be freed
+  */
+  my_free(ndb_value[0]);
 }
 
 /*
@@ -122,9 +124,7 @@ void Ndb_event_data::init_stored_columns() {
   if (Ndb_table_map::has_virtual_gcol(shadow_table)) {
     for (uint i = 0; i < shadow_table->s->fields; i++) {
       Field *field = shadow_table->field[i];
-      if (field->stored_in_db) {
-        bitmap_set_bit(&stored_columns, i);
-      }
+      if (field->stored_in_db) bitmap_set_bit(&stored_columns, i);
     }
   } else {
     bitmap_set_all(&stored_columns);  // all columns are stored
@@ -134,7 +134,8 @@ void Ndb_event_data::init_stored_columns() {
 TABLE *Ndb_event_data::open_shadow_table(THD *thd, const char *db,
                                          const char *table_name,
                                          const char *key,
-                                         const dd::Table *table_def) {
+                                         const dd::Table *table_def,
+                                         THD *owner_thd) {
   DBUG_TRACE;
   assert(table_def);
 
@@ -167,14 +168,7 @@ TABLE *Ndb_event_data::open_shadow_table(THD *thd, const char *db,
   lex_string_strmake(&mem_root, &shadow_table->s->table_name, table_name,
                      strlen(table_name));
 
-  // The shadow table is not really "in_use" by the thd who opened it, rather
-  // only used later on to tell injector which table data changes are for.
-  // NOTE! There is small chance that opening of the shadow table have
-  // side-effects on the THD or vice versa that shadow table is affected by some
-  // setting in THD, in such case this need to be changed so that shadow table
-  // are opened by it's own THD object.
-  assert(shadow_table->in_use == thd);
-  shadow_table->in_use = nullptr;
+  shadow_table->in_use = owner_thd;
 
   // Can't use 'use_all_columns()' as the file object is not setup
   // yet (and never will)
@@ -184,54 +178,38 @@ TABLE *Ndb_event_data::open_shadow_table(THD *thd, const char *db,
   return shadow_table;
 }
 
-/**
-   @brief Create event data used for receiving event for NDB table.
-   This includes opening a shadow table which is used when injecting the
-   received event into injector.
+/*
+  Create event data for the table given in share. This includes
+  opening a shadow table. The shadow table is used when
+  receiving and event from the data nodes which need to be written
+  to the binlog injector.
+*/
 
-   @param thd             Thread handle (for creating the shadow table)
-   @param db              Database of table to create event data for
-   @param table_name      Name of table to create event data for
-   @param key             Key of table to create event data for
-   @param share           Pointer to the NDB_SHARE (opaque type in this module)
-   @param table_def       Pointer to MySQL table definition for shadow table
-   @param ndbtab_num_attribs Number of attributes in the NDB table (for
-                          sizing the value arrays storing attributes received
-                          in events)
-   @param ndbtab_have_blobs Does the NDB table have blobs.
-
-   @return Pointer to the newly created Ndb_event_data or nullptr if create
-   fails.
- */
-const Ndb_event_data *Ndb_event_data::create_event_data(
-    THD *thd, const char *db, const char *table_name, const char *key,
-    NDB_SHARE *share, const dd::Table *table_def, size_t ndbtab_num_attribs,
-    bool ndbtab_have_blobs) {
+Ndb_event_data *Ndb_event_data::create_event_data(
+    THD *thd, NDB_SHARE *share, const char *db, const char *table_name,
+    const char *key, THD *owner_thd, const dd::Table *table_def) {
   DBUG_TRACE;
   assert(table_def);
 
   const size_t num_columns = ndb_dd_table_get_num_columns(table_def);
 
-  auto event_data = std::make_unique<Ndb_event_data>(
-      share, num_columns, ndbtab_num_attribs, ndbtab_have_blobs);
+  Ndb_event_data *event_data = new Ndb_event_data(share, num_columns);
 
-  // Setup THR_MALLOC to allocate memory for shadow table from the MEM_ROOT in
-  // the newly created Ndb_event_data
+  // Setup THR_MALLOC to allocate memory from the MEM_ROOT in the
+  // newly created Ndb_event_data
   MEM_ROOT **root_ptr = THR_MALLOC;
   MEM_ROOT *old_root = *root_ptr;
   *root_ptr = &event_data->mem_root;
 
   // Create the shadow table
-  TABLE *shadow_table =
-      event_data->open_shadow_table(thd, db, table_name, key, table_def);
+  TABLE *shadow_table = event_data->open_shadow_table(thd, db, table_name, key,
+                                                      table_def, owner_thd);
   if (!shadow_table) {
     DBUG_PRINT("error", ("failed to open shadow table"));
+    delete event_data;
     *root_ptr = old_root;
     return nullptr;
   }
-
-  // Restore original MEM_ROOT
-  *root_ptr = old_root;
 
   // Check that number of columns from table_def match the
   // number in shadow_table
@@ -243,7 +221,14 @@ const Ndb_event_data *Ndb_event_data::create_event_data(
   event_data->init_pk_bitmap();
   event_data->init_stored_columns();
 
-  return event_data.release();
+  // Calculate if the assigned shadow_table have blobs and save that
+  // information for later when events are received
+  event_data->have_blobs = Ndb_table_map::have_physical_blobs(shadow_table);
+
+  // Restore old root
+  *root_ptr = old_root;
+
+  return event_data;
 }
 
 void Ndb_event_data::destroy(const Ndb_event_data *event_data) {
@@ -258,28 +243,4 @@ uint32 Ndb_event_data::unpack_uint32(unsigned attr_id) const {
 
 const char *Ndb_event_data::unpack_string(unsigned attr_id) const {
   return ndb_value[0][attr_id].rec->aRef();
-}
-
-bool Ndb_event_data::check_custom_data(void *check_event_data_ptr,
-                                       const NDB_SHARE *check_share) {
-  Ndb_event_data *event_data =
-      static_cast<Ndb_event_data *>(check_event_data_ptr);
-
-  // No event_data pointer is not allowed
-  if (!event_data) {
-    return false;
-  }
-
-  if (event_data->shadow_table == nullptr ||
-      event_data->ndb_value[0] == nullptr ||
-      event_data->ndb_value[1] == nullptr) {
-    return false;
-  }
-
-  // The share pointer should match, unless checking against nullptr
-  if (check_share && event_data->share != check_share) {
-    return false;
-  }
-
-  return true;
 }

@@ -497,35 +497,6 @@ JSON_LENGTH(histogram->'$.buckets') <= 255
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2, col1 WITH 10 BUCKETS;
 ERROR 42S21: Duplicate column name 'col1'
 DROP TABLE t1;
-#
-# ANALYZE ... UPDATE HISTOGRAM and LOCK TABLES.
-#
-CREATE TABLE t1 (c1 INT);
-INSERT INTO t1 (c1) VALUES (10), (20), (30);
-CREATE TABLE t2 (c2 INT);
-INSERT INTO t2 (c2) VALUES (10), (20), (30);
-#
-# Check that ANALYZE TABLE UPDATE HISTOGRAM fails under LOCK TABLES
-# if table is not locked at least for READ.
-#
-LOCK TABLES t2 READ;
-ANALYZE TABLE t1 UPDATE HISTOGRAM ON c1 WITH 10 BUCKETS;
-Table	Op	Msg_type	Msg_text
-test.t1	histogram	Error	Table 't1' was not locked with LOCK TABLES
-# There should be no histograms.
-SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
-should_be_0
-0
-ANALYZE TABLE t2 UPDATE HISTOGRAM ON c2 WITH 10 BUCKETS;
-Table	Op	Msg_type	Msg_text
-test.t2	histogram	status	Histogram statistics created for column 'c2'.
-# There should be histograms for t2.
-SELECT schema_name, table_name, column_name
-FROM information_schema.COLUMN_STATISTICS;
-SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
-test	t2	c2
-UNLOCK TABLES;
-DROP TABLES t1, t2;
 ################
 # DROP HISTOGRAM
 ################
@@ -604,14 +575,6 @@ ANALYZE TABLE foo DROP HISTOGRAM ON foobar;
 Table	Op	Msg_type	Msg_text
 test.foo	histogram	Error	No histogram statistics found for column 'foobar'.
 #
-# Temporary table
-#
-CREATE TEMPORARY TABLE temp_table (col1 INT);
-ANALYZE TABLE temp_table DROP HISTOGRAM ON col1;
-Table	Op	Msg_type	Msg_text
-test.temp_table	histogram	Error	Cannot create histogram statistics for a temporary table.
-DROP TABLE temp_table;
-#
 # The same column specified multiple times
 #
 ANALYZE TABLE foo DROP HISTOGRAM ON foobar, foobar;
@@ -625,43 +588,6 @@ ANALYZE TABLE t1, t2 DROP HISTOGRAM ON col1;
 Table	Op	Msg_type	Msg_text
 	histogram	Error	Only one table can be specified while modifying histogram statistics.
 DROP TABLE t1, t2;
-#
-# ANALYZE ... DROP HISTOGRAM and LOCK TABLES.
-#
-CREATE TABLE t1 (c1 INT);
-INSERT INTO t1 (c1) VALUES (10), (20), (30);
-ANALYZE TABLE t1 UPDATE HISTOGRAM ON c1 WITH 10 BUCKETS;
-Table	Op	Msg_type	Msg_text
-test.t1	histogram	status	Histogram statistics created for column 'c1'.
-CREATE TABLE t2 (c2 INT);
-INSERT INTO t2 (c2) VALUES (10), (20), (30);
-ANALYZE TABLE t2 UPDATE HISTOGRAM ON c2 WITH 10 BUCKETS;
-Table	Op	Msg_type	Msg_text
-test.t2	histogram	status	Histogram statistics created for column 'c2'.
-#
-# Check that ANALYZE TABLE DROP HISTOGRAM fails under LOCK TABLES
-# if table is not locked at least for READ.
-#
-LOCK TABLES t2 READ;
-ANALYZE TABLE t1 DROP HISTOGRAM ON c1;
-Table	Op	Msg_type	Msg_text
-test.t1	histogram	Error	Table 't1' was not locked with LOCK TABLES
-# We should still have two histograms.
-SELECT schema_name, table_name, column_name
-FROM information_schema.COLUMN_STATISTICS;
-SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
-test	t1	c1
-test	t2	c2
-ANALYZE TABLE t2 DROP HISTOGRAM ON c2;
-Table	Op	Msg_type	Msg_text
-test.t2	histogram	status	Histogram statistics removed for column 'c2'.
-# There should be only histogram for t1 now.
-SELECT schema_name, table_name, column_name
-FROM information_schema.COLUMN_STATISTICS;
-SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
-test	t1	c1
-UNLOCK TABLES;
-DROP TABLES t1, t2;
 #####################################
 # HISTOGRAM REMOVAL ON DDL STATEMENTS
 #####################################
@@ -2043,17 +1969,6 @@ AND OUTR . col_varchar_key IS NULL
 HAVING x <= 3
 ORDER BY OUTR . pk , OUTR . pk;
 x
-#
-# Bug#104108 CUMULATIVE FREQUENCY MAY GROW OVER 1.0 DUE TO FLOAT ERRORS
-#
-ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_datetime WITH 100 BUCKETS;
-Table	Op	Msg_type	Msg_text
-test.t2	histogram	status	Histogram statistics created for column 'col_datetime'.
-SELECT schema_name, table_name, column_name,
-JSON_REMOVE(histogram, '$."last-updated"')
-FROM information_schema.COLUMN_STATISTICS WHERE table_name = 't2' and column_name = 'col_datetime';
-SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t2	col_datetime	{"buckets": [["1900-01-01 00:00:00.000000", 0.3], ["2001-01-20 12:47:23.000000", 0.35], ["2001-07-25 08:40:24.000000", 0.4], ["2001-10-22 11:13:24.000000", 0.45], ["2002-08-25 20:35:06.000000", 0.5], ["2002-12-08 11:34:58.000000", 0.55], ["2003-03-12 02:00:34.000000", 0.6], ["2003-12-04 11:14:26.000000", 0.65], ["2005-08-15 00:00:00.000000", 0.7], ["2006-09-11 18:25:21.000000", 0.75], ["2007-04-10 12:16:04.000000", 0.8], ["2008-05-16 08:09:06.000000", 0.85], ["2008-07-02 00:00:00.000000", 0.9], ["2009-06-07 13:48:58.000000", 0.95], ["2009-11-07 00:00:00.000000", 1.0]], "data-type": "datetime", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 100}
 DROP TABLE t1, t2;
 SET @@SESSION.sql_mode=DEFAULT;
 #

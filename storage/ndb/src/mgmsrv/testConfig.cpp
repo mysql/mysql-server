@@ -514,6 +514,7 @@ test_hostname_mycnf(void)
 #include <NdbTap.hpp>
 
 #include <EventLogger.hpp>
+extern EventLogger* g_eventLogger;
 
 TAPTEST(MgmConfig)
 {

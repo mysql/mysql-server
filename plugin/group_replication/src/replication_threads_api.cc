@@ -137,8 +137,8 @@ int Replication_thread_api::start_threads(bool start_receiver,
     thread_mask |= CHANNEL_RECEIVER_THREAD;
   }
 
-  int error = channel_start(interface_channel, &info, thread_mask,
-                            wait_for_connection, true);
+  int error =
+      channel_start(interface_channel, &info, thread_mask, wait_for_connection);
 
   if (view_id) {
     delete[] cview_id;
@@ -335,20 +335,6 @@ bool Replication_thread_api::get_channel_credentials(std::string &username,
   if (error) {
     username.clear();
     password.clear();
-  }
-
-  return (error != 0);
-}
-
-bool Replication_thread_api::get_channel_network_namespace(
-    std::string &net_ns, const char *channel_name) {
-  DBUG_TRACE;
-  const char *name = channel_name ? channel_name : interface_channel;
-
-  int error;
-  error = channel_get_network_namespace(name, net_ns);
-  if (error) {
-    net_ns.clear();
   }
 
   return (error != 0);

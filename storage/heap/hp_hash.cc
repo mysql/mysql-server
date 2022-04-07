@@ -448,8 +448,7 @@ int hp_key_cmp(HP_KEYDEF *keydef, const uchar *rec, const uchar *key) {
        key += (seg++)->length) {
     if (seg->null_bit) {
       bool found_null = (rec[seg->null_pos] & seg->null_bit);
-      assert(*key == 0x00 || *key == 0x01);
-      if (found_null != (bool)*key++) return 1;
+      if (found_null != (int)*key++) return 1;
       if (found_null) {
         /* Add key pack length (2) to key for VARCHAR segments */
         if (seg->type == HA_KEYTYPE_VARTEXT1) key += 2;
@@ -687,7 +686,8 @@ uint hp_rb_pack_key(const HP_KEYDEF *keydef, uchar *key, const uchar *old,
   return (uint)(key - start_key);
 }
 
-uint hp_rb_key_length(HP_KEYDEF *keydef, const uchar *key [[maybe_unused]]) {
+uint hp_rb_key_length(HP_KEYDEF *keydef,
+                      const uchar *key MY_ATTRIBUTE((unused))) {
   return keydef->length;
 }
 

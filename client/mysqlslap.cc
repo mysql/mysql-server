@@ -141,7 +141,8 @@ native_cond_t sleep_threshold;
 char **primary_keys;
 unsigned long long primary_keys_number_of;
 
-static char *host = nullptr, *user_supplied_query = nullptr,
+static char *host = nullptr, *opt_password = nullptr,
+            *user_supplied_query = nullptr,
             *user_supplied_pre_statements = nullptr,
             *user_supplied_post_statements = nullptr, *default_engine = nullptr,
             *pre_system = nullptr, *post_system = nullptr,
@@ -158,7 +159,7 @@ const char *create_schema_string = "mysqlslap";
 static bool opt_preserve = true, opt_no_drop = false;
 static bool debug_info_flag = false, debug_check_flag = false;
 static bool opt_only_print = false;
-static bool opt_compress = false, opt_silent = false,
+static bool opt_compress = false, tty_password = false, opt_silent = false,
             auto_generate_sql_autoincrement = false,
             auto_generate_sql_guid_primary = false, auto_generate_sql = false;
 const char *auto_generate_sql_type = "mixed";
@@ -200,8 +201,6 @@ const char *opt_csv_str;
 File csv_file;
 
 static uint opt_protocol = 0;
-
-#include "multi_factor_passwordopt-vars.h"
 
 static int get_options(int *argc, char ***argv);
 static uint opt_mysql_port = 0;
@@ -380,9 +379,8 @@ int main(int argc, char **argv) {
                   (char *)&opt_enable_cleartext_plugin);
   set_server_public_key(&mysql);
   set_get_server_public_key_option(&mysql);
-  set_password_options(&mysql);
   if (!opt_only_print) {
-    if (!(mysql_real_connect(&mysql, host, user, nullptr, nullptr,
+    if (!(mysql_real_connect(&mysql, host, user, opt_password, nullptr,
                              opt_mysql_port, opt_mysql_unix_port,
                              connect_flags))) {
       fprintf(stderr, "%s: Error when connecting to server: %s\n", my_progname,
@@ -429,7 +427,7 @@ int main(int argc, char **argv) {
   mysql_close(&mysql); /* Close & free connection */
 
   /* now free all the strings we created */
-  free_passwords();
+  my_free(opt_password);
   my_free(concurrency);
 
   statement_cleanup(create_statements);
@@ -656,7 +654,11 @@ static struct my_option my_long_options[] = {
      "been done.",
      &opt_only_print, &opt_only_print, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
-#include "multi_factor_passwordopt-longopts.h"
+    {"password", 'p',
+     "Password to use when connecting to server. If password is not given it's "
+     "asked from the tty.",
+     nullptr, nullptr, nullptr, GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
 #ifdef _WIN32
     {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
      NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -745,7 +747,24 @@ static bool get_one_option(int optid, const struct my_option *opt,
     case 'v':
       verbose++;
       break;
-      PARSE_COMMAND_LINE_PASSWORD_OPTION;
+    case 'p':
+      if (argument == disabled_my_option) {
+        // Don't require password
+        static char empty_password[] = {'\0'};
+        assert(empty_password[0] ==
+               '\0');  // Check that it has not been overwritten
+        argument = empty_password;
+      }
+      if (argument) {
+        char *start = argument;
+        my_free(opt_password);
+        opt_password = my_strdup(PSI_NOT_INSTRUMENTED, argument, MYF(MY_FAE));
+        while (*argument) *argument++ = 'x'; /* Destroy argument */
+        if (*start) start[1] = 0;            /* Cut length of argument */
+        tty_password = false;
+      } else
+        tty_password = true;
+      break;
     case 'W':
 #ifdef _WIN32
       opt_protocol = MYSQL_PROTOCOL_PIPE;
@@ -1396,6 +1415,8 @@ static int get_options(int *argc, char ***argv) {
       return 1;
     }
   }
+
+  if (tty_password) opt_password = get_tty_password(NullS);
   return 0;
 }
 
@@ -2033,15 +2054,10 @@ int slap_connect(MYSQL *mysql) {
   /* Connect to server */
   static ulong connection_retry_sleep = 100000; /* Microseconds */
   int x, connect_error = 1;
-  /* mysql options should be set to worker threads too */
-  set_password_options(mysql);
-  if (using_opt_enable_cleartext_plugin)
-    mysql_options(mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN,
-                  (char *)&opt_enable_cleartext_plugin);
   for (x = 0; x < 10; x++) {
-    if (mysql_real_connect(mysql, host, user, nullptr, create_schema_string,
-                           opt_mysql_port, opt_mysql_unix_port,
-                           connect_flags)) {
+    if (mysql_real_connect(mysql, host, user, opt_password,
+                           create_schema_string, opt_mysql_port,
+                           opt_mysql_unix_port, connect_flags)) {
       /* Connect suceeded */
       connect_error = 0;
       break;

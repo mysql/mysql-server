@@ -49,7 +49,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Get a minimum bounding box from a Predicate
  @return	the minimum bounding box */
-static inline rtr_mbr_t *prdt_get_mbr_from_prdt(
+UNIV_INLINE
+rtr_mbr_t *prdt_get_mbr_from_prdt(
     const lock_prdt_t *prdt) /*!< in: the lock predicate */
 {
   rtr_mbr_t *mbr_loc = reinterpret_cast<rtr_mbr_t *>(prdt->data);
@@ -70,8 +71,8 @@ lock_prdt_t *lock_get_prdt_from_lock(const lock_t *lock) /*!< in: the lock */
 
 /** Get a minimum bounding box directly from a lock
  @return	the minimum bounding box*/
-static inline rtr_mbr_t *lock_prdt_get_mbr_from_lock(
-    const lock_t *lock) /*!< in: the lock */
+UNIV_INLINE
+rtr_mbr_t *lock_prdt_get_mbr_from_lock(const lock_t *lock) /*!< in: the lock */
 {
   ut_ad(lock->type_mode & LOCK_PREDICATE);
 
@@ -211,14 +212,14 @@ bool lock_prdt_has_to_wait(
 /** Checks if a transaction has a GRANTED stronger or equal predicate lock
  on the page
  @return	lock or NULL */
-static inline lock_t *lock_prdt_has_lock(
-    ulint precise_mode,       /*!< in: LOCK_S or LOCK_X */
-    ulint type_mode,          /*!< in: LOCK_PREDICATE etc. */
-    const buf_block_t *block, /*!< in: buffer block
-                              containing the record */
-    lock_prdt_t *prdt,        /*!< in: The predicate to be
-                              attached to the new lock */
-    const trx_t *trx)         /*!< in: transaction */
+UNIV_INLINE
+lock_t *lock_prdt_has_lock(ulint precise_mode, /*!< in: LOCK_S or LOCK_X */
+                           ulint type_mode,    /*!< in: LOCK_PREDICATE etc. */
+                           const buf_block_t *block, /*!< in: buffer block
+                                                     containing the record */
+                           lock_prdt_t *prdt, /*!< in: The predicate to be
+                                              attached to the new lock */
+                           const trx_t *trx)  /*!< in: transaction */
 {
   lock_t *lock;
 
@@ -502,7 +503,7 @@ dberr_t lock_prdt_insert_check_and_lock(
   switch (err) {
     case DB_SUCCESS_LOCKED_REC:
       err = DB_SUCCESS;
-      [[fallthrough]];
+      /* fall through */
     case DB_SUCCESS:
       /* Update the page max trx id field */
       page_update_max_trx_id(block, buf_block_get_page_zip(block), trx->id,

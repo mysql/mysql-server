@@ -51,19 +51,40 @@ Table::Table(TABLE *table) : table(table), columns(PSI_NOT_INSTRUMENTED) {
 // with no columns, like t2 in the following query:
 //
 //   SELECT t1.col1 FROM t1, t2;  # t2 will be included without any columns.
-TableCollection::TableCollection(const Prealloced_array<TABLE *, 4> &tables,
+TableCollection::TableCollection(const JOIN *join, table_map tables,
                                  bool store_rowids,
                                  table_map tables_to_get_rowid_for)
-    : m_tables_bitmap(0),
+    : m_tables_bitmap(tables),
       m_store_rowids(store_rowids),
       m_tables_to_get_rowid_for(tables_to_get_rowid_for) {
   if (!store_rowids) {
     assert(m_tables_to_get_rowid_for == table_map{0});
   }
-  for (TABLE *table : tables) {
-    AddTable(table);
-    if (table->pos_in_table_list != nullptr) {
-      m_tables_bitmap |= table->pos_in_table_list->map();
+
+  // Hypergraph queries don't have QEP_TABs, so we use leaf_tables instead.
+  // It does not currently contain tables for semijoin materialization
+  // (so we can't use it for the non-hypergraph optimizer), but the hypergraph
+  // optimizer does not use semijoin materialization.
+  if (join->thd->lex->using_hypergraph_optimizer) {
+    for (TABLE_LIST *tl = join->query_block->leaf_tables; tl;
+         tl = tl->next_leaf) {
+      TABLE *table = tl->table;
+      if (table == nullptr || table->pos_in_table_list == nullptr) {
+        continue;
+      }
+      if (Overlaps(tables, table->pos_in_table_list->map())) {
+        AddTable(table);
+      }
+    }
+  } else {
+    for (uint table_idx = 0; table_idx < join->tables; ++table_idx) {
+      TABLE *table = join->qep_tab[table_idx].table();
+      if (table == nullptr || table->pos_in_table_list == nullptr) {
+        continue;
+      }
+      if (Overlaps(tables, table->pos_in_table_list->map())) {
+        AddTable(table);
+      }
     }
   }
 }

@@ -56,8 +56,8 @@ Plugin_table table_ees_by_account_by_error::m_table_def(
     "  SQL_STATE VARCHAR(5),\n"
     "  SUM_ERROR_RAISED  BIGINT unsigned not null,\n"
     "  SUM_ERROR_HANDLED BIGINT unsigned not null,\n"
-    "  FIRST_SEEN TIMESTAMP(0) null,\n"
-    "  LAST_SEEN TIMESTAMP(0) null,\n"
+    "  FIRST_SEEN TIMESTAMP(0) null default 0,\n"
+    "  LAST_SEEN TIMESTAMP(0) null default 0,\n"
     "  UNIQUE KEY `ACCOUNT` (USER, HOST, ERROR_NUMBER) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -167,7 +167,8 @@ int table_ees_by_account_by_error::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_ees_by_account_by_error::index_init(uint idx [[maybe_unused]], bool) {
+int table_ees_by_account_by_error::index_init(uint idx MY_ATTRIBUTE((unused)),
+                                              bool) {
   PFS_index_ees_by_account_by_error *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_ees_by_account_by_error);

@@ -48,7 +48,7 @@ class PrepDropTabReq {
 
   friend bool printPREP_DROP_TAB_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  static constexpr Uint32 SignalLength = 4;
+  STATIC_CONST( SignalLength = 4 );
 
 private:
   Uint32 senderRef;
@@ -75,7 +75,7 @@ class PrepDropTabConf {
 
   friend bool printPREP_DROP_TAB_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  static constexpr Uint32 SignalLength = 3;
+  STATIC_CONST( SignalLength = 3 );
 
 private:
   Uint32 senderRef;
@@ -101,7 +101,7 @@ class PrepDropTabRef {
 
   friend bool printPREP_DROP_TAB_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  static constexpr Uint32 SignalLength = 4;
+  STATIC_CONST( SignalLength = 4 );
 
   enum ErrorCode {
     OK = 0,

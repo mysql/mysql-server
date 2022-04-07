@@ -24,10 +24,8 @@
 
 
 #include <ndb_global.h>
-#include <cstring>
 
 #include <NdbMutex.h>
-#include <EventLogger.hpp>
 
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
 #include "NdbMutex_DeadlockDetector.h"
@@ -111,7 +109,7 @@ int NdbMutex_InitWithName_local(NdbMutex* pNdbMutex,
   (void)name;
 
 #ifdef NDB_MUTEX_STRUCT
-  std::memset(pNdbMutex, 0, sizeof(NdbMutex));
+  bzero(pNdbMutex, sizeof(NdbMutex));
   p = &pNdbMutex->mutex;
 
 #ifdef NDB_MUTEX_STAT
@@ -211,7 +209,7 @@ int NdbMutex_Destroy(NdbMutex* p_mutex)
   if (p_mutex == NULL)
     return -1;
   result = NdbMutex_Deinit(p_mutex);
-  std::memset(p_mutex, 0xff, sizeof(NdbMutex));
+  memset(p_mutex, 0xff, sizeof(NdbMutex));
   free(p_mutex);
   return result;
 }
@@ -377,10 +375,8 @@ int NdbMutex_Trylock(NdbMutex* p_mutex)
 #ifndef NDEBUG
   if (result && result != EBUSY)
   {
-    g_eventLogger->info(
-        "NdbMutex_TryLock, unexpected result %d returned from "
-        "pthread_mutex_trylock: '%s'",
-        result, strerror(result));
+    fprintf(stderr, "NdbMutex_TryLock, unexpected result %d returned from "
+            "pthread_mutex_trylock: '%s'\n", result, strerror(result));
   }
 #endif
   assert(result == 0 || result == EBUSY);

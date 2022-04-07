@@ -48,9 +48,6 @@
 /* View timeout (seconds) */
 #define VIEW_MODIFICATION_TIMEOUT 60
 
-/* View timeout for Force Members (seconds) */
-#define FORCE_MEMBERS_VIEW_MODIFICATION_TIMEOUT 120
-
 /*
   Transaction wait timeout before kill (seconds)
   This value comes from innodb_lock_wait_timeout that can make some of the

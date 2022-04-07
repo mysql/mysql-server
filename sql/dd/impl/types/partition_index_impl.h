@@ -62,7 +62,7 @@ class Partition_index_impl : public Weak_object_impl, public Partition_index {
   Partition_index_impl(const Partition_index_impl &src, Partition_impl *parent,
                        Index *index);
 
-  ~Partition_index_impl() override = default;
+  ~Partition_index_impl() override {}
 
  public:
   const Object_table &object_table() const override;

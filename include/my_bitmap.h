@@ -31,7 +31,6 @@
 #define MY_BIT_NONE (~(uint)0)
 
 #include <assert.h>
-#include <limits.h>
 #include <string.h>
 #include <sys/types.h>
 
@@ -53,7 +52,6 @@ extern bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size);
 extern bool bitmap_is_set_all(const MY_BITMAP *map);
 extern bool bitmap_is_subset(const MY_BITMAP *map1, const MY_BITMAP *map2);
 extern bool bitmap_is_overlapping(const MY_BITMAP *map1, const MY_BITMAP *map2);
-extern bool bitmap_is_valid(const MY_BITMAP *map);
 extern bool bitmap_test_and_set(MY_BITMAP *map, uint bitmap_bit);
 extern uint bitmap_set_next(MY_BITMAP *map);
 extern uint bitmap_get_first(const MY_BITMAP *map);
@@ -69,8 +67,6 @@ extern void bitmap_union(MY_BITMAP *map, const MY_BITMAP *map2);
 extern void bitmap_xor(MY_BITMAP *map, const MY_BITMAP *map2);
 extern void bitmap_invert(MY_BITMAP *map);
 extern void bitmap_copy(MY_BITMAP *map, const MY_BITMAP *map2);
-extern uint bitmap_n_copy(MY_BITMAP *dst, const MY_BITMAP *src,
-                          uint max_bits_to_copy = UINT_MAX);
 
 #define bitmap_buffer_size(bits) (((bits) + 31) / 32) * 4
 #define no_bytes_in_map(map) (((map)->n_bits + 7) / 8)

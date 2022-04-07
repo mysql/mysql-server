@@ -605,37 +605,10 @@ DECLARE_METHOD(int, dedicated_errstream, (void *my_errstream));
 
   @param       my_stream  a handle describing the log file
 
-  @returns    LOG_SERVICE_SUCCESS on success
+  @returns     LOG_SERVICE_SUCCESS          success
+  @returns     otherwise                    failure
 */
 DECLARE_METHOD(log_service_error, close_errstream, (void **my_errstream));
-
-/**
-  re-open an error log file
-  (primarily to facilitate flush/log-rotation)
-
-  If the new file can be opened, update the my_errstream descriptor to
-  use it and close the old file. Otherwise, keep using the old file.
-
-  @param       name_or_ext   if beginning with '.':
-                               @@global.log_error, except with this extension
-                             otherwise:
-                               use this as file name in the same location as
-                               @@global.log_error
-
-                             Value may not contain folder separators!
-
-                             In the general case, the caller will be a
-                             log-writer, the log-writer will just pass
-                             its preferred file extension, and the resulting
-                             file name and path will therefore be the same
-                             as for the original log file.
-
-  @param[in,out]  my_errstream  an error log handle
-
-  @returns LOG_SERVICE_INVALID_ARGUMENT, or the result of open_errstream()
-*/
-DECLARE_METHOD(log_service_error, reopen_errstream,
-               (const char *file, void **my_errstream));
 
 END_SERVICE_DEFINITION(log_builtins)
 
@@ -838,8 +811,8 @@ void log_sink_buffer_check_timeout(void);
 
 #else
 
-inline void dummy_log_message(longlong severity [[maybe_unused]],
-                              longlong ecode [[maybe_unused]], ...) {
+inline void dummy_log_message(longlong severity MY_ATTRIBUTE((unused)),
+                              longlong ecode MY_ATTRIBUTE((unused)), ...) {
   return;
 }
 
@@ -1502,9 +1475,9 @@ inline bool init_logging_service_for_plugin(
   @retval     true   Failed.
 */
 inline bool init_logging_service_for_plugin(
-    SERVICE_TYPE(registry) * *reg_srv [[maybe_unused]],
-    SERVICE_TYPE(log_builtins) * *log_bi [[maybe_unused]],
-    SERVICE_TYPE(log_builtins_string) * *log_bs [[maybe_unused]])
+    SERVICE_TYPE(registry) * *reg_srv MY_ATTRIBUTE((unused)),
+    SERVICE_TYPE(log_builtins) * *log_bi MY_ATTRIBUTE((unused)),
+    SERVICE_TYPE(log_builtins_string) * *log_bs MY_ATTRIBUTE((unused)))
 
 {
   return false;
@@ -1518,9 +1491,9 @@ inline bool init_logging_service_for_plugin(
   param[in,out]  log_bs     String service for error logging.
 */
 inline void deinit_logging_service_for_plugin(
-    SERVICE_TYPE(registry) * *reg_srv [[maybe_unused]],
-    SERVICE_TYPE(log_builtins) * *log_bi [[maybe_unused]],
-    SERVICE_TYPE(log_builtins_string) * *log_bs [[maybe_unused]]) {}
+    SERVICE_TYPE(registry) * *reg_srv MY_ATTRIBUTE((unused)),
+    SERVICE_TYPE(log_builtins) * *log_bi MY_ATTRIBUTE((unused)),
+    SERVICE_TYPE(log_builtins_string) * *log_bs MY_ATTRIBUTE((unused))) {}
 
 #endif  // MYSQL_DYNAMIC_PLUGIN
 

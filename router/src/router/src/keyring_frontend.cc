@@ -31,6 +31,8 @@
 #include <vector>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
+// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
+// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -45,7 +47,6 @@
 #include "mysqlrouter/utils.h"
 #include "print_version.h"  // build_version
 #include "random_generator.h"
-#include "router_config.h"             // MYSQL_ROUTER_PACKAGE_NAME
 #include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 using namespace std::string_literals;

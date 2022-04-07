@@ -28,6 +28,14 @@ add_test_file(test_time.cc
   LIB_DEPENDS http_client
   )
 
+add_test_file(test_posix_re.cc
+  MODULE http
+  )
+TARGET_INCLUDE_DIRECTORIES(routertest_http_posix_re
+  PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/../src/
+  )
+
 add_test_file(test_http_uri.cc
   MODULE http
   LIB_DEPENDS http_common

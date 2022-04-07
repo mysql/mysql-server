@@ -7,8 +7,7 @@ WarpSQL is a GPL v2 open source distribution of MySQL. WarpSQL is not
 intended to be a hard fork of MySQL like MariaDB, but is more like 
 Percona Server, which is an enhanced MySQL server which strives to be 
 nearly 100% compatible with upstream MySQL.
-Copyright (c) 2000, 2022, Oracle and/or its affiliates.
-
+Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
 WARP storage engine
 ------------------------------------------------------------------------------------

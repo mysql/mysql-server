@@ -47,7 +47,7 @@ class Function : virtual public Routine {
                               const String_type &name);
 
  public:
-  ~Function() override = default;
+  ~Function() override {}
 
  public:
   /////////////////////////////////////////////////////////////////////////
@@ -127,14 +127,6 @@ class Function : virtual public Routine {
     @return pointer to dynamically allocated copy
   */
   Function *clone() const override = 0;
-
-  /**
-    Allocate a new object which can serve as a placeholder for the original
-    object in the Dictionary_client's dropped registry. Such object has the
-    same keys as the original but has no other info and as result occupies
-    less memory.
-  */
-  Function *clone_dropped_object_placeholder() const override = 0;
 
   static void create_mdl_key(const String_type &schema_name,
                              const String_type &name, MDL_key *key) {

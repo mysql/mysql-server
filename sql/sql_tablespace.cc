@@ -23,7 +23,6 @@
 #include "sql/sql_tablespace.h"
 
 #include <string.h>
-
 #include <memory>
 #include <string>
 #include <utility>
@@ -523,19 +522,6 @@ bool Sql_cmd_create_tablespace::execute(THD *thd) {
     tablespace->options().set("encryption", encrypt_type);
   } else if (encrypt_tablespace) {
     my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "ENCRYPTION");
-    return true;
-  }
-
-  // Validate tablespace comment string
-  std::string invalid_sub_str;
-  if (is_invalid_string(
-          LEX_CSTRING{m_options->ts_comment.str, m_options->ts_comment.length},
-          system_charset_info, invalid_sub_str)) {
-    // Provide contextual information
-    my_error(ER_COMMENT_CONTAINS_INVALID_STRING, MYF(0), "tablespace",
-             m_tablespace_name.str,
-             replace_utf8_utf8mb3(system_charset_info->csname),
-             invalid_sub_str.c_str());
     return true;
   }
 

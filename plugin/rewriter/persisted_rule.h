@@ -23,10 +23,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <memory>
-#include <optional>
 #include <string>
 #include "my_config.h"
 #include "mysql/service_rules_table.h"
+#include "nullable.h"
 
 namespace rts = rules_table_service;
 
@@ -41,25 +41,25 @@ namespace rts = rules_table_service;
 class Persisted_rule {
  public:
   /// The rewrite rule's pattern string.
-  std::optional<std::string> pattern;
+  Mysql::Nullable<std::string> pattern;
 
   /// The pattern's current database.
-  std::optional<std::string> pattern_db;
+  Mysql::Nullable<std::string> pattern_db;
 
   /// The rewrite rule's replacement string.
-  std::optional<std::string> replacement;
+  Mysql::Nullable<std::string> replacement;
 
   /// True if the rule is enabled.
   bool is_enabled;
 
   /// The plugin's message, write-only.
-  std::optional<std::string> message;
+  Mysql::Nullable<std::string> message;
 
   /// The pattern's digest, write-only.
-  std::optional<std::string> pattern_digest;
+  Mysql::Nullable<std::string> pattern_digest;
 
   /// The normalized pattern, write-only.
-  std::optional<std::string> normalized_pattern;
+  Mysql::Nullable<std::string> normalized_pattern;
 
   /**
     Constructs a Persisted_rule object that copies all data into the current
@@ -81,17 +81,17 @@ class Persisted_rule {
 
   /// Convenience function, may be called with a const char*.
   void set_message(const std::string &message_arg) {
-    message = std::optional<std::string>(message_arg);
+    message = Mysql::Nullable<std::string>(message_arg);
   }
 
   /// Convenience function, may be called with a const char*.
   void set_pattern_digest(const std::string &s) {
-    pattern_digest = std::optional<std::string>(s);
+    pattern_digest = Mysql::Nullable<std::string>(s);
   }
 
   /// Convenience function, may be called with a const char*.
   void set_normalized_pattern(const std::string &s) {
-    normalized_pattern = std::optional<std::string>(s);
+    normalized_pattern = Mysql::Nullable<std::string>(s);
   }
 
   /**
@@ -111,11 +111,11 @@ class Persisted_rule {
 
  private:
   /**
-    Reads from a Cursor and writes to a property of type std::optional<string>
+    Reads from a Cursor and writes to a property of type Nullable<string>
     after forcing a copy of the string buffer. The function calls a member
     function in Cursor that is located in the server's dynamic library.
   */
-  void copy_and_set(std::optional<std::string> *property, rts::Cursor *c,
+  void copy_and_set(Mysql::Nullable<std::string> *property, rts::Cursor *c,
                     int colno) {
     const char *value = c->fetch_string(colno);
     if (value != nullptr) {
@@ -128,7 +128,7 @@ class Persisted_rule {
 
   /// Writes a string value to the cursor's column if it exists.
   void set_if_present(rts::Cursor *cursor, rts::Cursor::column_id column,
-                      std::optional<std::string> value) {
+                      Mysql::Nullable<std::string> value) {
     if (column == rts::Cursor::ILLEGAL_COLUMN_ID) return;
     if (!value.has_value()) {
       cursor->set(column, nullptr, 0);

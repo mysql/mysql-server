@@ -64,6 +64,7 @@ dberr_t insert(trx_id_t trxid, ref_t ref, byte *blob, ulint len) {
   Fname("lob::insert");
 
   dberr_t ret = DB_SUCCESS;
+  ulint total_written = 0;
   byte *ptr = blob;
 
   LOG("LOB length = " << len);
@@ -73,6 +74,7 @@ dberr_t insert(trx_id_t trxid, ref_t ref, byte *blob, ulint len) {
   flst_base_node_t *index_list = page.index_list();
 
   ulint to_write = page.write(trxid, ptr, len);
+  total_written += to_write;
   ulint remaining = len;
   LOG("Remaining = " << remaining);
 
@@ -96,6 +98,7 @@ dberr_t insert(trx_id_t trxid, ref_t ref, byte *blob, ulint len) {
 
     LOG("Copy data into the new LOB page");
     to_write = data_page.write(trxid, ptr, remaining);
+    total_written += to_write;
     data_page.set_trx_id(trxid);
 
     /* Allocate a new index entry */

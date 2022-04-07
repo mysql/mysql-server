@@ -82,7 +82,7 @@ class Mem_root_allocator_wrapper : public Mem_root_allocator<T> {
     memcpy(&m_mem_root, &other.m_mem_root, sizeof(m_mem_root));
   }
 
-  ~Mem_root_allocator_wrapper() { m_mem_root.Clear(); }
+  ~Mem_root_allocator_wrapper() { free_root(&m_mem_root, MYF(0)); }
 };
 
 /*

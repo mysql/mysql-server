@@ -46,7 +46,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <mysql_com.h>
 #endif /* !UNIV_HOTBACKUP */
 
-#include "my_compiler.h"
 #include "mysql_com.h"
 #include "os0thread.h"
 #include "ut0ut.h"
@@ -62,6 +61,49 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 namespace ut {
 ulong spin_wait_pause_multiplier = 50;
+}
+
+/** Returns system time. We do not specify the format of the time returned:
+ the only way to manipulate it is to use the function ut_difftime.
+ @return system time */
+ib_time_t ut_time(void) { return (time(nullptr)); }
+
+/** Returns the number of microseconds since epoch. Uses the monotonic clock.
+ @return us since epoch or 0 if failed to retrieve */
+ib_time_monotonic_us_t ut_time_monotonic_us(void) {
+  const auto now = std::chrono::steady_clock::now();
+  return (std::chrono::duration_cast<std::chrono::microseconds>(
+              now.time_since_epoch())
+              .count());
+}
+
+/** Returns the number of milliseconds since epoch. Uses the monotonic clock.
+ @return ms since epoch */
+ib_time_monotonic_ms_t ut_time_monotonic_ms(void) {
+  const auto now = std::chrono::steady_clock::now();
+  return (std::chrono::duration_cast<std::chrono::milliseconds>(
+              now.time_since_epoch())
+              .count());
+}
+
+/** Returns the number of seconds since epoch. Uses the monotonic clock.
+ @return us since epoch or 0 if failed to retrieve */
+ib_time_monotonic_t ut_time_monotonic(void) {
+  const auto now = std::chrono::steady_clock::now();
+
+  const auto ret =
+      std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch())
+          .count();
+
+  return (ret);
+}
+
+/** Returns the difference of two times in seconds.
+ @return time2 - time1 expressed in seconds */
+double ut_difftime(ib_time_t time2, /*!< in: time */
+                   ib_time_t time1) /*!< in: time */
+{
+  return (difftime(time2, time1));
 }
 
 #ifdef UNIV_HOTBACKUP
@@ -189,7 +231,7 @@ char *ut_format_name(const char *name, char *formatted, ulint formatted_size) {
   switch (formatted_size) {
     case 1:
       formatted[0] = '\0';
-      [[fallthrough]];
+      /* FALL-THROUGH */
     case 0:
       return (formatted);
   }
@@ -288,6 +330,8 @@ The returned string is static and should not be freed or modified.
 @return string, describing the error */
 const char *ut_strerr(dberr_t num) {
   switch (num) {
+    case DB_CACHE_RECORDS:
+      return ("Request caller to copy tuple");
     case DB_SUCCESS:
       return ("Success");
     case DB_SUCCESS_LOCKED_REC:
@@ -479,10 +523,6 @@ const char *ut_strerr(dberr_t num) {
       return ("Too many nested sub-expressions in a full-text search");
     case DB_PAGE_IS_STALE:
       return "Page was discarded, was not written to storage.";
-    case DB_AUTOINC_READ_ERROR:
-      return "Auto-increment read failed";
-    case DB_FILE_READ_BEYOND_SIZE:
-      return "File read failure because of the read being beyond file size.";
     case DB_ERROR_UNSET:;
       /* Fall through. */
 
@@ -510,26 +550,15 @@ void logger::log_event(std::string msg) {
 }
 logger::~logger() { log_event(m_oss.str()); }
 
-/*
-MSVS complains: Warning C4722: destructor never returns, potential memory leak.
-But, the whole point of using ib::fatal temporary object is to cause an abort.
-*/
-MY_COMPILER_DIAGNOSTIC_PUSH()
-MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4722)
-
 fatal::~fatal() {
   log_event("[FATAL] " + m_oss.str());
-  ut_dbg_assertion_failed("ib::fatal triggered", m_location.filename,
-                          m_location.line);
+  ut_error;
 }
-// Restore the MSVS checks for Warning C4722, silenced for ib::fatal::~fatal().
-MY_COMPILER_DIAGNOSTIC_POP()
 
 fatal_or_error::~fatal_or_error() {
   if (m_fatal) {
     log_event("[FATAL] " + m_oss.str());
-    ut_dbg_assertion_failed("ib::fatal_or_error triggered", m_location.filename,
-                            m_location.line);
+    ut_error;
   }
 }
 

@@ -36,10 +36,9 @@
 
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/utility/string.h"  // mysql_harness::join
-#include "mysqlrouter/utils.h"             // set_prompt_password
-#include "print_version.h"                 // build_version
-#include "router_config.h"                 // MYSQL_ROUTER_NAME
-#include "welcome_copyright_notice.h"      // ORACLE_WELCOME_COPYRIGHT_NOTICE
+#include "mysqlrouter/utils.h"
+#include "print_version.h"             // build_version
+#include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 constexpr const char kAppExeFileName[]{"mysqlrouter_passwd"};
 

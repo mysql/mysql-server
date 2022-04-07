@@ -98,7 +98,7 @@ static void test_noop() {
   psi_table_service->close_table(nullptr, nullptr);
   psi_file_service->create_file(1, nullptr, 2);
   /* TODO: spawn thread */
-  thread = psi_thread_service->new_thread(1, 0, nullptr, 2);
+  thread = psi_thread_service->new_thread(1, nullptr, 2);
   ok(thread == nullptr, "no thread");
   psi_thread_service->set_thread_id(nullptr, 1);
   thread = psi_thread_service->get_thread();

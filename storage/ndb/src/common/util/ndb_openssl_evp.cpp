@@ -1025,7 +1025,6 @@ int main(int argc, char*argv[])
   using byte = unsigned char;
   const char* pwd = "Not so secret";
 
-  ndb_init();
   ndb_openssl_evp enc;
   ndb_openssl_evp::operation op(&enc);
 
@@ -1080,7 +1079,6 @@ int main(int argc, char*argv[])
   }
 
   enc.reset();
-  ndb_end(0);
   return 0;
 }
 

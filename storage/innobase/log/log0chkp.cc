@@ -74,8 +74,9 @@ the file COPYING.Google.
 static void log_update_limits_low(log_t &log);
 
 /** Updates lsn available for checkpoint.
-@param[in,out]  log redo log */
-static void log_update_available_for_checkpoint_lsn(log_t &log);
+@param[in,out]  log redo log
+@return the updated lsn value */
+static lsn_t log_update_available_for_checkpoint_lsn(log_t &log);
 
 /** Calculates margin which has to be used in log_free_check() call,
 when checking if user thread should wait for more space in redo log.
@@ -102,9 +103,8 @@ in the buffer pool, and writes information about the lsn in log files.
 static void log_checkpoint(log_t &log);
 
 /** Calculates time that elapsed since last checkpoint.
-@return Time duration elapsed since the last checkpoint */
-static std::chrono::steady_clock::duration log_checkpoint_time_elapsed(
-    const log_t &log);
+@return number of microseconds since the last checkpoint */
+static uint64_t log_checkpoint_time_elapsed(const log_t &log);
 
 /** Requests a checkpoint written for lsn greater or equal to provided one.
 The log.checkpointer_mutex has to be acquired before it is called, and it
@@ -235,7 +235,7 @@ static lsn_t log_compute_available_for_checkpoint_lsn(const log_t &log) {
   of log block. In future we could get rid of this assumption, but
   we would need to ensure that recovery handles that properly.
 
-  For that, we would better refactor log0recv.cc and separate two
+  For that we would better refactor log0recv.cc and seperate two
   phases:
           1. Looking for the proper mtr boundary to start at (only parse).
           2. Actual parsing and applying changes. */
@@ -263,16 +263,7 @@ static lsn_t log_compute_available_for_checkpoint_lsn(const log_t &log) {
   return (lsn);
 }
 
-static void log_update_available_for_checkpoint_lsn(log_t &log) {
-  /* Note: log.m_allow_checkpoints is set to true after recovery is finished,
-  and changes gathered in srv_dict_metadata are applied to dict_table_t
-  objects; or in log_start() if recovery was not needed. We can't trust
-  flush lists until recovery is finished, so we must not update lsn available
-  for checkpoint (as update would be based on what we can see inside them). */
-  if (!log.m_allow_checkpoints.load(std::memory_order_acquire)) {
-    return;
-  }
-
+static lsn_t log_update_available_for_checkpoint_lsn(log_t &log) {
   /* Update lsn available for checkpoint. */
   log.recent_closed.advance_tail();
   const lsn_t oldest_lsn = log_compute_available_for_checkpoint_lsn(log);
@@ -290,7 +281,11 @@ static void log_update_available_for_checkpoint_lsn(log_t &log) {
     log.available_for_checkpoint_lsn = oldest_lsn;
   }
 
+  const lsn_t result = log.available_for_checkpoint_lsn;
+
   log_limits_mutex_exit(log);
+
+  return (result);
 }
 
 /** @} */
@@ -486,7 +481,6 @@ void log_files_downgrade(log_t &log) {
 
 static lsn_t log_determine_checkpoint_lsn(log_t &log) {
   ut_ad(log_checkpointer_mutex_own(log));
-  ut_ad(log.m_allow_checkpoints.load());
 
   log_limits_mutex_enter(log);
 
@@ -573,7 +567,6 @@ static void log_checkpoint(log_t &log) {
   ut_ad(log_checkpointer_mutex_own(log));
   ut_a(!srv_read_only_mode);
   ut_ad(!srv_checkpoint_disabled);
-  ut_ad(log.m_allow_checkpoints.load());
 
   /* Read the comment from log_should_checkpoint() from just before
   acquiring the limits mutex. It is ok if available_for_checkpoint_lsn
@@ -732,7 +725,7 @@ static void log_wait_for_checkpoint(const log_t &log, lsn_t requested_lsn) {
     return (log.last_checkpoint_lsn.load() >= requested_lsn);
   };
 
-  ut::wait_for(0, std::chrono::microseconds{100}, stop_condition);
+  ut_wait_for(0, 100, stop_condition);
 }
 
 static bool log_request_checkpoint_validate(const log_t &log) {
@@ -830,8 +823,7 @@ static bool log_request_sync_flush(const log_t &log, lsn_t new_oldest) {
 
     os_event_set(buf_flush_event);
 
-    os_event_wait_time_low(buf_flush_tick_event, std::chrono::seconds{1},
-                           sig_count);
+    os_event_wait_time_low(buf_flush_tick_event, 1000000, sig_count);
 
     return (true);
 
@@ -841,15 +833,6 @@ static bool log_request_sync_flush(const log_t &log, lsn_t new_oldest) {
 }
 
 lsn_t log_sync_flush_lsn(log_t &log) {
-  /* Note: log.m_allow_checkpoints is set to true after recovery is finished,
-  and changes gathered in srv_dict_metadata are applied to dict_table_t
-  objects; or in log_start() if recovery was not needed. Until that happens
-  checkpoints are disallowed, so sync flush decisions (based on checkpoint age)
-  should be postponed. */
-  if (!log.m_allow_checkpoints.load(std::memory_order_acquire)) {
-    return 0;
-  }
-
   log_update_available_for_checkpoint_lsn(log);
 
   /* We acquire limits mutex only for a short period. Afterwards these
@@ -920,11 +903,20 @@ static void log_consider_sync_flush(log_t &log) {
   }
 }
 
-static std::chrono::steady_clock::duration log_checkpoint_time_elapsed(
-    const log_t &log) {
+static uint64_t log_checkpoint_time_elapsed(const log_t &log) {
   ut_ad(log_checkpointer_mutex_own(log));
 
-  return std::chrono::high_resolution_clock::now() - log.last_checkpoint_time;
+  const auto current_time = std::chrono::high_resolution_clock::now();
+
+  const auto checkpoint_time = log.last_checkpoint_time;
+
+  if (current_time < log.last_checkpoint_time) {
+    return (0);
+  }
+
+  return (std::chrono::duration_cast<std::chrono::microseconds>(current_time -
+                                                                checkpoint_time)
+              .count());
 }
 
 static bool log_should_checkpoint(log_t &log) {
@@ -933,6 +925,7 @@ static bool log_should_checkpoint(log_t &log) {
   lsn_t current_lsn;
   lsn_t requested_checkpoint_lsn;
   lsn_t checkpoint_age;
+  uint64_t checkpoint_time_elapsed;
   bool periodical_checkpoints_enabled;
 
   ut_ad(log_checkpointer_mutex_own(log));
@@ -942,14 +935,6 @@ static bool log_should_checkpoint(log_t &log) {
     return (false);
   }
 #endif /* UNIV_DEBUG */
-
-  /* Note: log.allow_checkpoints is set to true after recovery is finished,
-  and changes gathered in srv_dict_metadata are applied to dict_table_t
-  objects; or in log_start() if recovery was not needed. We can't reclaim
-  free space in redo log until DD dynamic metadata records are safe. */
-  if (!log.m_allow_checkpoints.load(std::memory_order_acquire)) {
-    return false;
-  }
 
   last_checkpoint_lsn = log.last_checkpoint_lsn.load();
 
@@ -986,7 +971,7 @@ static bool log_should_checkpoint(log_t &log) {
 
   checkpoint_age = current_lsn + margin - last_checkpoint_lsn;
 
-  const auto checkpoint_time_elapsed = log_checkpoint_time_elapsed(log);
+  checkpoint_time_elapsed = log_checkpoint_time_elapsed(log);
 
   /* Update checkpoint_lsn stored in header of log files if:
           a) more than 1s elapsed since last checkpoint
@@ -998,7 +983,7 @@ static bool log_should_checkpoint(log_t &log) {
                   periodical_checkpoints_enabled = false;);
 
   if ((periodical_checkpoints_enabled &&
-       checkpoint_time_elapsed >= get_srv_log_checkpoint_every()) ||
+       checkpoint_time_elapsed >= srv_log_checkpoint_every * 1000ULL) ||
       checkpoint_age >= log.max_checkpoint_age_async ||
       (requested_checkpoint_lsn > last_checkpoint_lsn &&
        requested_checkpoint_lsn <= oldest_lsn)) {
@@ -1068,7 +1053,7 @@ void log_checkpointer(log_t *log_ptr) {
         requested_checkpoint_lsn >
             log.last_checkpoint_lsn.load(std::memory_order_acquire) ||
         log_checkpoint_time_elapsed(log) >=
-            log_busy_checkpoint_interval * get_srv_log_checkpoint_every()) {
+            log_busy_checkpoint_interval * srv_log_checkpoint_every * 1000ULL) {
       /* Consider flushing some dirty pages. */
       log_consider_sync_flush(log);
 
@@ -1085,8 +1070,8 @@ void log_checkpointer(log_t *log_ptr) {
       /* not satisfied. retry. */
       error = 0;
     } else {
-      error = os_event_wait_time_low(log.checkpointer_event,
-                                     get_srv_log_checkpoint_every(), sig_count);
+      error = os_event_wait_time_low(
+          log.checkpointer_event, srv_log_checkpoint_every * 1000, sig_count);
     }
 
     /* Check if we should close the thread. */
@@ -1341,8 +1326,7 @@ void log_free_check_wait(log_t &log) {
     return (current_lsn <= limit_lsn);
   };
 
-  const auto wait_stats =
-      ut::wait_for(0, std::chrono::microseconds{100}, stop_condition);
+  const auto wait_stats = ut_wait_for(0, 100, stop_condition);
 
   MONITOR_INC_WAIT_STATS(MONITOR_LOG_ON_FILE_SPACE_, wait_stats);
 }

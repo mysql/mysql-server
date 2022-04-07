@@ -29,8 +29,7 @@
 
 #include "mysql/harness/config_option.h"
 #include "mysql/harness/filesystem.h"  // Path
-#include "mysql/harness/plugin_config.h"
-#include "mysqlrouter/routing.h"  // RoutingStrategy, AccessMode
+#include "mysqlrouter/routing.h"       // RoutingStrategy, AccessMode
 #include "mysqlrouter/routing_export.h"
 #include "protocol/protocol.h"  // Protocol::Type
 #include "ssl_mode.h"
@@ -39,8 +38,7 @@
 /**
  * route specific configuration.
  */
-class ROUTING_EXPORT RoutingPluginConfig
-    : public mysql_harness::BasePluginConfig {
+class ROUTING_EXPORT RoutingPluginConfig {
  private:
   // is this [routing] entry for static routing or metadata-cache ?
   // it's mutable because we discover it while calling getter for
@@ -53,12 +51,6 @@ class ROUTING_EXPORT RoutingPluginConfig
    * @param section from configuration file provided as ConfigSection
    */
   RoutingPluginConfig(const mysql_harness::ConfigSection *section);
-
-  std::string get_default(const std::string &option) const override;
-  bool is_required(const std::string &option) const override;
-
-  uint16_t get_option_max_connections(
-      const mysql_harness::ConfigSection *section);
 
   const Protocol::Type protocol;                 //!< protocol (classic, x)
   const std::string destinations;                //!< destinations

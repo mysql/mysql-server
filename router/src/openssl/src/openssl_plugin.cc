@@ -24,23 +24,47 @@
 
 #include "mysqlrouter/router_openssl_export.h"
 
-#include <memory>
+#include <openssl/conf.h>
+#include <openssl/engine.h>
+#include <openssl/err.h>
+#include <openssl/opensslv.h>
+#include <openssl/ssl.h>
 
 #include "mysql/harness/plugin.h"
-#include "mysql/harness/tls_context.h"
 
 extern "C" {
 
-std::unique_ptr<TlsLibraryContext> tls_library_context;
-
 static void init(mysql_harness::PluginFuncEnv *) {
-  // let the TlsLibraryContext constructor do the SSL initialization
-  tls_library_context = std::make_unique<TlsLibraryContext>();
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  SSL_library_init();
+#else
+  OPENSSL_init_ssl(0, nullptr);
+#endif
+  SSL_load_error_strings();
+  ERR_load_crypto_strings();
 }
 
 static void deinit(mysql_harness::PluginFuncEnv *) {
-  // let the TlsLibraryContext destructor do the SSL cleanup
-  tls_library_context.reset();
+  // in case any of this is needed for cleanup
+#if 0
+  FIPS_mode_set(0);
+  CRYPTO_set_locking_callback(nullptr);
+  CRYPTO_set_id_callback(nullptr);
+
+  SSL_COMP_free_compression_methods();
+
+  ENGINE_cleanup();
+
+  CONF_modules_free();
+  CONF_modules_unload(1);
+
+  COMP_zlib_cleanup();
+
+  ERR_free_strings();
+  EVP_cleanup();
+
+  CRYPTO_cleanup_all_ex_data();
+#endif
 }
 
 mysql_harness::Plugin ROUTER_OPENSSL_EXPORT harness_plugin_router_openssl = {

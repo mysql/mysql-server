@@ -38,7 +38,10 @@
 #include <fcntl.h>
 #endif
 
-#include "mysql/harness/access_rights.h"
+#ifdef _WIN32
+#include <aclapi.h>
+#endif
+
 #include "mysql/harness/stdx/expected.h"
 
 namespace mysql_harness {
@@ -534,6 +537,30 @@ std::string get_plugin_dir(const std::string &runtime_dir);
 
 HARNESS_EXPORT
 std::string get_tests_data_dir(const std::string &runtime_dir);
+
+#ifdef _WIN32
+/**
+ * Deleter for smart pointers pointing to objects allocated with `std::malloc`.
+ */
+template <typename T>
+class StdFreeDeleter {
+ public:
+  void operator()(T *ptr) { std::free(ptr); }
+};
+
+/**
+ * Retrieves file's DACL security descriptor.
+ *
+ * @param[in] file_name File name.
+ *
+ * @return File's DACL security descriptor.
+ *
+ * @throw std::exception Failed to retrieve security descriptor.
+ */
+HARNESS_EXPORT std::unique_ptr<SECURITY_DESCRIPTOR, decltype(&free)>
+get_security_descriptor(const std::string &file_name);
+
+#endif
 
 #ifndef _WIN32
 using perm_mode = mode_t;

@@ -113,11 +113,6 @@ class Resource_group_impl : public Entity_object_impl, public Resource_group {
   Resource_group *clone() const override {
     return new Resource_group_impl(*this);
   }
-
-  Resource_group *clone_dropped_object_placeholder() const override {
-    // Play simple. Proper placeholder will take the same memory as clone.
-    return clone();
-  }
 };
 
 }  // namespace dd

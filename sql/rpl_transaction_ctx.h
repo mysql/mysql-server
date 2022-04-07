@@ -24,7 +24,6 @@
 #define RPL_TRANSACTION_CTX_H
 
 #include "mysql/service_rpl_transaction_ctx.h"  // Transaction_termination_ctx
-#include "sql/rpl_gtid.h"                       // rpl_gno
 
 /**
   Server side support to provide a service to plugins to report if
@@ -35,7 +34,7 @@
 class Rpl_transaction_ctx {
  public:
   Rpl_transaction_ctx();
-  virtual ~Rpl_transaction_ctx() = default;
+  virtual ~Rpl_transaction_ctx() {}
 
   /**
     Set transaction context, that is, notify the server that for
@@ -81,7 +80,7 @@ class Rpl_transaction_ctx {
 
     @return gno   gno value.
   */
-  rpl_gno get_gno();
+  long long int get_gno();
 
   /**
    Reset transaction context to default values.

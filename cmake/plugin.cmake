@@ -33,8 +33,6 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
     STATIC_ONLY
     STORAGE_ENGINE
     TEST_ONLY
-    VISIBILITY_HIDDEN # Add -fvisibility=hidden on UNIX
-                      # TODO(tdidriks) make this default if MODULE_ONLY
     )
   SET(PLUGIN_ONE_VALUE_KW
     MODULE_OUTPUT_NAME
@@ -275,20 +273,7 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
     TARGET_LINK_LIBRARIES (${target} ${ARG_LINK_LIBRARIES})
   ENDIF()
 
-  IF(BUILD_PLUGIN AND ARG_VISIBILITY_HIDDEN AND UNIX)
-    TARGET_COMPILE_OPTIONS(${target} PRIVATE "-fvisibility=hidden")
-  ENDIF()
-
-  IF(BUILD_PLUGIN AND ARG_MODULE_ONLY)
-    ADD_OBJDUMP_TARGET(show_${target} "$<TARGET_FILE:${target}>"
-      DEPENDS ${target})
-  ENDIF()
-
-  IF(BUILD_PLUGIN)
-    ADD_DEPENDENCIES(plugin_all ${target})
-  ENDIF()
-
-ENDMACRO(MYSQL_ADD_PLUGIN)
+ENDMACRO()
 
 
 # Add all CMake projects under storage  and plugin 

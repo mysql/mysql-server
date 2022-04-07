@@ -179,9 +179,8 @@ select convert_tz('2003-10-26 02:00:00', 'MET', 'UTC');
 select convert_tz('2003-10-26 02:59:59', 'MET', 'UTC');
 select convert_tz('2003-10-26 04:00:00', 'MET', 'UTC');
 select convert_tz('2038-01-19 04:14:07', 'MET', 'UTC');
-# moved to func_unixtime.inc
-# select convert_tz('2038-01-19 04:14:08', 'MET', 'UTC');
-# select convert_tz('2103-01-01 04:00:00', 'MET', 'UTC');
+select convert_tz('2038-01-19 04:14:08', 'MET', 'UTC');
+select convert_tz('2103-01-01 04:00:00', 'MET', 'UTC');
 
 # Let us test variable time zone argument
 create table t1 (tz varchar(3));

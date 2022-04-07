@@ -664,43 +664,4 @@ ndbd_support_backup_file_encryption(Uint32 x)
 {
   return x >= NDBD_SUPPORT_BACKUP_FILE_ENCRYPTION;
 }
-
-/*
- * NdbInterpreter may compare NULL values according to the semantic
- * specified by the SQL standard, which is what MySQL expect. (WL#14476)
- */
-#define NDBD_SUPPORT_SQL_COMPARE_SEMANTICS NDB_MAKE_VERSION(8,0,26)
-static
-inline
-int
-ndbd_support_sql_compare_semantics(Uint32 x)
-{
-  return x >= NDBD_SUPPORT_SQL_COMPARE_SEMANTICS;
-}
-
-/*
- * Only send GSN_TRP_KEEP_ALIVE to data nodes from 8.0.27 and newer.
- */
-#define NDBD_SUPPORT_TRP_KEEP_ALIVE NDB_MAKE_VERSION(8,0,27)
-static
-inline
-bool
-ndbd_support_trp_keep_alive(Uint32 x)
-{
-  return x >= NDBD_SUPPORT_TRP_KEEP_ALIVE;
-}
-
-/*
- * SPJ implemented support for creating parameters to be sent in attrInfo
- * section to LDMs, together with the Interpreter code. (WL#14388)
- */
-#define NDBD_SUPPORT_PARAM_CMP NDB_MAKE_VERSION(8,0,27)
-static
-inline
-int
-ndbd_support_param_cmp(Uint32 x)
-{
-  return x >= NDBD_SUPPORT_PARAM_CMP;
-}
-
 #endif

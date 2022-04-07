@@ -1474,8 +1474,6 @@ id	name	val
 32	mx	63616161
 32	sp	--------------------------------
 ALTER TABLE t1 MODIFY a VARCHAR(32) CHARACTER SET ucs2;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT * FROM v1;
 id	name	val
 1	a	
@@ -1607,9 +1605,6 @@ id	name	val
 32	mx	00630061006100610061006100610061
 32	sp	--------------------------------
 ALTER TABLE t1 MODIFY a VARCHAR(32) CHARACTER SET ucs2 COLLATE ucs2_unicode_ci;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_unicode_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT * FROM v1;
 id	name	val
 1	a	
@@ -1741,9 +1736,6 @@ id	name	val
 32	mx	00630061006100610061006100610061
 32	sp	--------------------------------
 ALTER TABLE t1 MODIFY a VARCHAR(32) CHARACTER SET ucs2 COLLATE ucs2_czech_ci;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_czech_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT * FROM v1;
 id	name	val
 1	a	
@@ -1875,9 +1867,6 @@ id	name	val
 32	mx	00630061006100610061006100610061
 32	sp	--------------------------------
 ALTER TABLE t1 MODIFY a VARCHAR(32) CHARACTER SET ucs2 COLLATE ucs2_danish_ci;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_danish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT * FROM v1;
 id	name	val
 1	a	

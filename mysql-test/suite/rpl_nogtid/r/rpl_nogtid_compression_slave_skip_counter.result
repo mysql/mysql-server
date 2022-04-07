@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 CREATE TABLE t(a int);
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-SET GLOBAL sql_replica_skip_counter = 1;
+SET GLOBAL sql_slave_skip_counter = 1;
 include/start_slave.inc
 [connection master]
 SET SESSION binlog_transaction_compression = ON;

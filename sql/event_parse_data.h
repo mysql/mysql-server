@@ -121,7 +121,7 @@ class Event_parse_data {
     return;
   }
 
-  ~Event_parse_data() = default;
+  ~Event_parse_data() {}
 
  private:
   void init_definer(THD *thd);

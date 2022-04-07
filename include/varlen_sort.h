@@ -106,7 +106,7 @@ class varlen_iterator {
   varlen_element operator->() const { return varlen_element{ptr, elem_size}; }
 
   // DefaultConstructible (required for ForwardIterator).
-  varlen_iterator() = default;
+  varlen_iterator() {}
 
   // ForwardIterator (required for RandomAccessIterator).
   varlen_iterator operator++(int) {

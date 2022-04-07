@@ -26,7 +26,6 @@
 #define NDB_INTERPRETER_HPP
 
 #include <ndb_types.h>
-#include <EventLogger.hpp>
 
 #define JAM_FILE_ID 215
 
@@ -57,33 +56,33 @@ public:
   /**
    * Instructions
    */
-  static constexpr Uint32 READ_ATTR_INTO_REG = 1;
-  static constexpr Uint32 WRITE_ATTR_FROM_REG = 2;
-  static constexpr Uint32 LOAD_CONST_NULL = 3;
-  static constexpr Uint32 LOAD_CONST16 = 4;
-  static constexpr Uint32 LOAD_CONST32 = 5;
-  static constexpr Uint32 LOAD_CONST64 = 6;
-  static constexpr Uint32 ADD_REG_REG = 7;
-  static constexpr Uint32 SUB_REG_REG = 8;
-  static constexpr Uint32 BRANCH = 9;
-  static constexpr Uint32 BRANCH_REG_EQ_NULL = 10;
-  static constexpr Uint32 BRANCH_REG_NE_NULL = 11;
-  static constexpr Uint32 BRANCH_EQ_REG_REG = 12;
-  static constexpr Uint32 BRANCH_NE_REG_REG = 13;
-  static constexpr Uint32 BRANCH_LT_REG_REG = 14;
-  static constexpr Uint32 BRANCH_LE_REG_REG = 15;
-  static constexpr Uint32 BRANCH_GT_REG_REG = 16;
-  static constexpr Uint32 BRANCH_GE_REG_REG = 17;
-  static constexpr Uint32 EXIT_OK = 18;
-  static constexpr Uint32 EXIT_REFUSE = 19;
-  static constexpr Uint32 CALL = 20;
-  static constexpr Uint32 RETURN = 21;
-  static constexpr Uint32 EXIT_OK_LAST = 22;
-  static constexpr Uint32 BRANCH_ATTR_OP_ARG = 23;
-  static constexpr Uint32 BRANCH_ATTR_EQ_NULL = 24;
-  static constexpr Uint32 BRANCH_ATTR_NE_NULL = 25;
-  static constexpr Uint32 BRANCH_ATTR_OP_PARAM = 26;
-  static constexpr Uint32 BRANCH_ATTR_OP_ATTR = 27;
+  STATIC_CONST( READ_ATTR_INTO_REG    = 1 );
+  STATIC_CONST( WRITE_ATTR_FROM_REG   = 2 );
+  STATIC_CONST( LOAD_CONST_NULL       = 3 );
+  STATIC_CONST( LOAD_CONST16          = 4 );
+  STATIC_CONST( LOAD_CONST32          = 5 );
+  STATIC_CONST( LOAD_CONST64          = 6 );
+  STATIC_CONST( ADD_REG_REG           = 7 );
+  STATIC_CONST( SUB_REG_REG           = 8 );
+  STATIC_CONST( BRANCH                = 9 );
+  STATIC_CONST( BRANCH_REG_EQ_NULL    = 10 );
+  STATIC_CONST( BRANCH_REG_NE_NULL    = 11 );
+  STATIC_CONST( BRANCH_EQ_REG_REG     = 12 );
+  STATIC_CONST( BRANCH_NE_REG_REG     = 13 );
+  STATIC_CONST( BRANCH_LT_REG_REG     = 14 );
+  STATIC_CONST( BRANCH_LE_REG_REG     = 15 );
+  STATIC_CONST( BRANCH_GT_REG_REG     = 16 );
+  STATIC_CONST( BRANCH_GE_REG_REG     = 17 );
+  STATIC_CONST( EXIT_OK               = 18 );
+  STATIC_CONST( EXIT_REFUSE           = 19 );
+  STATIC_CONST( CALL                  = 20 );
+  STATIC_CONST( RETURN                = 21 );
+  STATIC_CONST( EXIT_OK_LAST          = 22 );
+  STATIC_CONST( BRANCH_ATTR_OP_ARG    = 23 );
+  STATIC_CONST( BRANCH_ATTR_EQ_NULL   = 24 );
+  STATIC_CONST( BRANCH_ATTR_NE_NULL   = 25 );
+  STATIC_CONST( BRANCH_ATTR_OP_ARG_2  = 26 );
+  STATIC_CONST( BRANCH_ATTR_OP_ATTR   = 27 );
 
   /**
    * Macros for creating code
@@ -104,15 +103,14 @@ public:
   /**
    * Branch OP_ARG (Attr1 <op> <value arg>)
    *
-   * i = Instruction              -  6 Bits ( 0 - 5 ) max 63
-   * n = NULL cmp semantic        -  2 bits ( 6 - 7 )
+   * i = Instruction              -  5 Bits ( 0 - 5 ) max 63
    * a = Attribute id             -  16 bits
    * l = Length of string (bytes) -  16 bits OP_ARG
-   * p = parameter no             -  16 bits OP_PARAM
+   * p = parameter no             -  16 bits OP_ARG_2
    * b = Branch offset (words)    -  16 bits
    * t = branch type              -  4 bits
-   * d = Array length diff  // UNUSED
-   * v = Varchar flag       // UNUSED
+   * d = Array length diff
+   * v = Varchar flag
    *
    *           1111111111222222222233
    * 01234567890123456789012345678901
@@ -121,12 +119,11 @@ public:
    * -string....                    -
    *
    *
-   * Branch OP_PARAM (Attr1 <op> <ParamNo>)
+   * Branch OP_ARG_2 (Attr1 <op> <ParamNo>)
    *
-   * i = Instruction              -  6 Bits ( 0 - 5 ) max 63
-   * n = NULL cmp semantic        -  2 bits ( 6 - 7 )
+   * i = Instruction              -  5 Bits ( 0 - 5 ) max 63
    * a = Attribute id             -  16 bits
-   * p = parameter no             -  16 bits OP_PARAM
+   * p = parameter no             -  16 bits OP_ARG_2
    * b = Branch offset (words)    -  16 bits
    * t = branch type              -  4 bits
    *
@@ -138,8 +135,7 @@ public:
    *
    * Branch OP_ATTR (Attr1 <op> Attr2)
    *
-   * i = Instruction              -  6 Bits ( 0 - 5 ) max 63
-   * n = NULL cmp semantic        -  2 bits ( 6 - 7 )
+   * i = Instruction              -  5 Bits ( 0 - 5 ) max 63
    * a = Attribute id1            -  16 bits
    * A = Attribute id2            -  16 bits
    * b = Branch offset (words)    -  16 bits
@@ -170,28 +166,24 @@ public:
     AND_EQ_ZERO = 10,
     AND_NE_ZERO = 11
   };
-
-  enum NullSemantics {
-    NULL_CMP_EQUAL = 0x0,    // Old cmp mode; 'NULL == NULL' and 'NULL < x'
-    IF_NULL_BREAK_OUT = 0x2, // Jump to branch destination IF NULL
-    IF_NULL_CONTINUE = 0x3   // Ignore IF NULL, continue with next OP
-  };
-
   // Compare Attr with literal
-  static Uint32 BranchCol(BinaryCondition cond, NullSemantics nulls);
+  // TODO : Remove other 2 unused parameters.
+  static Uint32 BranchCol(BinaryCondition cond, 
+			  Uint32 arrayLengthDiff, Uint32 varchar);
   static Uint32 BranchCol_2(Uint32 AttrId);
   static Uint32 BranchCol_2(Uint32 AttrId, Uint32 Len);
 
   // Compare Attr with parameter
-  static Uint32 BranchColParameter(BinaryCondition cond, NullSemantics nulls);
+  static Uint32 BranchColParameter(BinaryCondition cond);
   static Uint32 BranchColParameter_2(Uint32 AttrId, Uint32 ParamNo);
 
   // Compare two Attr from same table
-  static Uint32 BranchColAttrId(BinaryCondition cond, NullSemantics nulls);
+  static Uint32 BranchColAttrId(BinaryCondition cond);
   static Uint32 BranchColAttrId_2(Uint32 AttrId1, Uint32 AttrId2);
 
-  static Uint32 getNullSemantics(Uint32 op);
   static Uint32 getBinaryCondition(Uint32 op1);
+  static Uint32 getArrayLengthDiff(Uint32 op1);
+  static Uint32 isVarchar(Uint32 op1);
   static Uint32 getBranchCol_AttrId(Uint32 op2);
   static Uint32 getBranchCol_AttrId2(Uint32 op2);
   static Uint32 getBranchCol_Len(Uint32 op2);
@@ -280,10 +272,9 @@ Interpreter::Branch(Uint32 Inst, Uint32 Reg1, Uint32 Reg2){
 
 inline
 Uint32
-Interpreter::BranchColAttrId(BinaryCondition cond, NullSemantics nulls) {
+Interpreter::BranchColAttrId(BinaryCondition cond) {
   return
     BRANCH_ATTR_OP_ATTR +     // Compare two ATTRs
-    (nulls << 6) +
     (cond << 12);
 }
 
@@ -295,21 +286,23 @@ Interpreter::BranchColAttrId_2(Uint32 AttrId1, Uint32 AttrId2) {
 
 inline
 Uint32
-Interpreter::BranchCol(BinaryCondition cond, NullSemantics nulls){
+Interpreter::BranchCol(BinaryCondition cond, 
+		       Uint32 arrayLengthDiff,
+		       Uint32 varchar){
+  //ndbout_c("BranchCol: cond=%d diff=%u varchar=%u",
+      //cond, arrayLengthDiff, varchar);
   return 
-    BRANCH_ATTR_OP_ARG +
-    (nulls << 6) +
+    BRANCH_ATTR_OP_ARG + 
+    (arrayLengthDiff << 9) + 
+    (varchar << 11) +
     (cond << 12);
 }
 
 inline
 Uint32
-Interpreter::BranchColParameter(BinaryCondition cond, NullSemantics nulls)
+Interpreter::BranchColParameter(BinaryCondition cond)
 {
-  return
-    BRANCH_ATTR_OP_PARAM +
-    (nulls << 6) +
-    (cond << 12);
+  return BRANCH_ATTR_OP_ARG_2 + (cond << 12);
 }
 
 inline
@@ -332,14 +325,20 @@ Interpreter::BranchCol_2(Uint32 AttrId){
 
 inline
 Uint32
-Interpreter::getNullSemantics(Uint32 op){
-  return ((op >> 6) & 0x3);
+Interpreter::getBinaryCondition(Uint32 op){
+  return (op >> 12) & 0xf;
 }
 
 inline
 Uint32
-Interpreter::getBinaryCondition(Uint32 op){
-  return (op >> 12) & 0xf;
+Interpreter::getArrayLengthDiff(Uint32 op){
+  return (op >> 9) & 0x3;
+}
+
+inline
+Uint32
+Interpreter::isVarchar(Uint32 op){
+  return (op >> 11) & 1;
 }
 
 inline
@@ -456,7 +455,7 @@ Interpreter::getInstructionPreProcessingInfo(Uint32 *op,
     Uint32 wordLength= (byteLength + 3) >> 2;
     return op + 2 + wordLength;
   }
-  case BRANCH_ATTR_OP_PARAM:
+  case BRANCH_ATTR_OP_ARG_2:
   case BRANCH_ATTR_OP_ATTR:
   {
     /* Second word of the branch instruction refer either paramNo

@@ -22,7 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <cstring>
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <HugoTransactions.hpp>
@@ -33,7 +32,7 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <NodeBitmask.hpp>
 #include <NdbEnv.h>
-#include "portlib/NdbSleep.h"
+
 
 #define DBG(x) \
   do { g_info << x << " at line " << __LINE__ << endl; } while (0)
@@ -225,13 +224,13 @@ runMixedDML(NDBT_Context* ctx, NDBT_Step* step)
         }
         lastrow = rowId;
 
-        std::memset(pRow, 0, len);
+        bzero(pRow, len);
 
         HugoCalculator calc(* pTab);
         calc.setValues(pRow, pRowRecord, rowId, rand());
 
         NdbOperation::OperationOptions opts;
-        std::memset(&opts, 0, sizeof(opts));
+        bzero(&opts, sizeof(opts));
         if (deferred)
         {
           opts.optionsPresent =
@@ -923,7 +922,7 @@ runRSSsnapshotCheck(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter restarter;
   g_info << "check all resource usage" << endl;
-  NdbSleep_SecSleep(2);
+  sleep(2);
   int dump1[] = { DumpStateOrd::SchemaResourceCheckLeak };
   restarter.dumpStateAllNodes(dump1, 1);
   return NDBT_OK;
@@ -1193,13 +1192,13 @@ runMixedCascade(NDBT_Context* ctx, NDBT_Step* step)
         }
         lastrow = rowId;
 
-        std::memset(pRow, 0, len);
+        bzero(pRow, len);
 
         HugoCalculator calc(* pTab);
         calc.setValues(pRow, pRowRecord, rowId, rand());
 
         NdbOperation::OperationOptions opts;
-        std::memset(&opts, 0, sizeof(opts));
+        bzero(&opts, sizeof(opts));
         if (deferred)
         {
           opts.optionsPresent =

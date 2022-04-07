@@ -40,8 +40,8 @@ typedef u_short sa_family_t;
  */
 class Gcs_sock_probe_interface {
  public:
-  Gcs_sock_probe_interface() = default;
-  virtual ~Gcs_sock_probe_interface() = default;
+  Gcs_sock_probe_interface() {}
+  virtual ~Gcs_sock_probe_interface() {}
 
   virtual int init_sock_probe(sock_probe *s) = 0;
   virtual int number_of_interfaces(sock_probe *s) = 0;
@@ -68,7 +68,7 @@ class Gcs_sock_probe_interface {
 class Gcs_sock_probe_interface_impl : public Gcs_sock_probe_interface {
  public:
   Gcs_sock_probe_interface_impl() : Gcs_sock_probe_interface() {}
-  ~Gcs_sock_probe_interface_impl() override = default;
+  ~Gcs_sock_probe_interface_impl() override {}
 
   int init_sock_probe(sock_probe *s) override;
   int number_of_interfaces(sock_probe *s) override;
@@ -169,7 +169,7 @@ class Gcs_ip_allowlist_entry {
    */
   Gcs_ip_allowlist_entry(std::string addr, std::string mask);
 
-  virtual ~Gcs_ip_allowlist_entry() = default;
+  virtual ~Gcs_ip_allowlist_entry() {}
 
   /**
    Entry initialization.

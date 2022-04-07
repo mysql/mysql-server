@@ -51,7 +51,7 @@ class mock_gcs_sock_probe_interface : public Gcs_sock_probe_interface {
 class GcsXComNetworking : public GcsBaseTest {
  protected:
   GcsXComNetworking() : m_sock_probe_mock() {}
-  ~GcsXComNetworking() override = default;
+  ~GcsXComNetworking() override {}
 
   void SetUp() override {
     m_sock_probe_mock.mock_gcs_sock_probe_interface_default();

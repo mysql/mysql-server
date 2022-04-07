@@ -26,20 +26,28 @@
 #define MYSQLROUTER_UTILS_INCLUDED
 
 #include <chrono>
+#include <cstdarg>
 #include <cstdint>
 #include <functional>
 #include <sstream>
+#include <stdexcept>
 #include <string>
-
-#include "my_compiler.h"  // MY_ATTRIBUTE
-
-#include "mysql/harness/stdx/expected.h"
-
-#ifdef _WIN32
-extern "C" {
-extern bool g_windows_service;
-}
+#include <vector>
+#ifndef _WIN32
+#include <netdb.h>
+#include <pwd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #endif
+
+#include <stdio.h>
+#include <fstream>
+#include <iostream>
+#include <map>
+
+#include "my_compiler.h"
+
+#include "router_config.h"
 
 namespace mysqlrouter {
 
@@ -61,6 +69,18 @@ std::string to_string(const T &data) {
 
 // represent milliseconds as floating point seconds
 std::string ms_to_seconds_string(const std::chrono::milliseconds &msec);
+
+/** @brief Returns string formatted using given data
+ *
+ * Returns string formatted using given data accepting the same arguments
+ * and format specifies as the typical printf.
+ *
+ * @param format specify how to format the data
+ * @param ... variable argument list containing the data
+ * @returns formatted text as string
+ */
+MY_ATTRIBUTE((format(printf, 1, 2)))
+std::string string_format(const char *format, ...);
 
 /**
  * Validates a string containing a TCP port
@@ -87,9 +107,24 @@ uint16_t get_tcp_port(const std::string &data);
  *
  * @param buffer char array or front of vector<uint8_t>
  * @param count number of bytes to dump
+ * @param start from where to start dumping
+ * @param literals whether to show a-zA-Z as-is
  * @return string containing the dump
  */
-std::string hexdump(const unsigned char *buffer, size_t count);
+std::string hexdump(const unsigned char *buffer, size_t count, long start = 0,
+                    bool literals = false);
+
+/** @brief Returns the platform specific error code of last operation
+ * Using errno in UNIX & Linux systems and GetLastError in Windows systems.
+ * If myerrnum arg is not zero will use GetLastError in Windows (if myerrnum is
+ * zero in Unix will read the *current* errno).
+ * @return the error code description
+ */
+std::string get_last_error(int myerrnum = 0);
+
+/** @brief Returns error number of the last failed socket operation
+ */
+int get_socket_errno() noexcept;
 
 /** @brief Prompts for a password from the console.
  */
@@ -152,18 +187,11 @@ bool my_check_access(const std::string &path);
  */
 void copy_file(const std::string &from, const std::string &to);
 
-/**
- * renames file.
+/** @brief renames file, returns 0 if succeed, or positive error code if fails.
  *
  * The function will overwrite the 'to' file if already exists.
- *
- * @param from old filename
- * @param to   new filename
- *
- * @returns stdx::expected<void, std::error_code>
  */
-stdx::expected<void, std::error_code> rename_file(const std::string &from,
-                                                  const std::string &to);
+int rename_file(const std::string &from, const std::string &to);
 
 /** @brief Returns whether the socket name passed as parameter is valid
  */
@@ -201,9 +229,135 @@ int strtoi_checked(const char *value, signed int default_result = 0) noexcept;
 unsigned strtoui_checked(const char *value,
                          unsigned int default_result = 0) noexcept;
 
-uint64_t strtoull_checked(const char *value,
-                          uint64_t default_result = 0) noexcept;
+#ifndef _WIN32
+
+/** @class SysUserOperationsBase
+ * @brief Base class to allow multiple SysUserOperations implementations
+ */
+class SysUserOperationsBase {
+ public:
+#ifdef __APPLE__
+  using gid_type = int;
+#else
+  using gid_type = gid_t;
+#endif
+  virtual ~SysUserOperationsBase() = default;
+
+  virtual int initgroups(const char *user, gid_type gid) = 0;
+  virtual int setgid(gid_t gid) = 0;
+  virtual int setuid(uid_t uid) = 0;
+  virtual int setegid(gid_t gid) = 0;
+  virtual int seteuid(uid_t uid) = 0;
+  virtual uid_t geteuid(void) = 0;
+  virtual struct passwd *getpwnam(const char *name) = 0;
+  virtual struct passwd *getpwuid(uid_t uid) = 0;
+  virtual int chown(const char *file, uid_t owner, gid_t group) = 0;
+};
+
+/** @class SysUserOperations
+ * @brief This class provides implementations of SysUserOperationsBase methods
+ */
+class SysUserOperations : public SysUserOperationsBase {
+ public:
+  static SysUserOperations *instance();
+
+  /** @brief Thin wrapper around system initgroups() */
+  int initgroups(const char *user, gid_type gid) override;
+
+  /** @brief Thin wrapper around system setgid() */
+  int setgid(gid_t gid) override;
+
+  /** @brief Thin wrapper around system setuid() */
+  int setuid(uid_t uid) override;
+
+  /** @brief Thin wrapper around system setegid() */
+  int setegid(gid_t gid) override;
+
+  /** @brief Thin wrapper around system seteuid() */
+  int seteuid(uid_t uid) override;
+
+  /** @brief Thin wrapper around system geteuid() */
+  uid_t geteuid() override;
+
+  /** @brief Thin wrapper around system getpwnam() */
+  struct passwd *getpwnam(const char *name) override;
+
+  /** @brief Thin wrapper around system getpwuid() */
+  struct passwd *getpwuid(uid_t uid) override;
+
+  /** @brief Thin wrapper around system chown() */
+  int chown(const char *file, uid_t owner, gid_t group) override;
+
+ private:
+  SysUserOperations(const SysUserOperations &) = delete;
+  SysUserOperations operator=(const SysUserOperations &) = delete;
+  SysUserOperations() = default;
+};
+
+/** @brief Sets the owner of selected file/directory if it exists.
+ *
+ * @throws std::runtime_error in case of an error
+ *
+ * @param filepath              path to the file/directory this operation
+ * applies to
+ * @param username              name of the system user that should be new owner
+ * of the file
+ * @param user_info_arg         passwd structure for the system user that should
+ * be new owner of the file
+ * @param sys_user_operations   object for the system specific operation that
+ * should be used by the function
+ */
+void set_owner_if_file_exists(
+    const std::string &filepath, const std::string &username,
+    struct passwd *user_info_arg,
+    mysqlrouter::SysUserOperationsBase *sys_user_operations);
+
+/** @brief Sets effective user of the calling process.
+ *
+ * @throws std::runtime_error in case of an error
+ *
+ * @param username            name of the system user that the process should
+ * switch to
+ * @param permanently         if it's tru then if the root is dropping
+ * privileges it can't be regained after this call
+ * @param sys_user_operations object for the system specific operation that
+ * should be used by the function
+ */
+void set_user(const std::string &username, bool permanently = false,
+              mysqlrouter::SysUserOperationsBase *sys_user_operations =
+                  SysUserOperations::instance());
+
+/** @brief Checks if the given user can be switched to or made an owner of a
+ * selected file.
+ *
+ * @throws std::runtime_error in case of an error
+ *
+ * @param username            name of the system user to check
+ * @param must_be_root        make sure that the current user is root
+ * @param sys_user_operations object for the system specific operation that
+ * should be used by the function
+ * @return pointer to the user's passwd structure if the user can be switched to
+ * or nullptr otherwise
+ *
+ */
+struct passwd *check_user(
+    const std::string &username, bool must_be_root,
+    mysqlrouter::SysUserOperationsBase *sys_user_operations);
+
+#endif  // ! _WIN32
 
 }  // namespace mysqlrouter
+
+/** @brief Declare test (class)
+ *
+ * When using FRIEND_TEST() on classes that are not in the same namespace
+ * as the test, the test (class) needs to be forward-declared. This marco
+ * eases this.
+ *
+ * @note We need this for unit tests, BUT on the TESTED code side (not in unit
+ * test code)
+ */
+#define DECLARE_TEST(test_case_name, test_name) \
+  class test_case_name##_##test_name##_Test
 
 #endif  // MYSQLROUTER_UTILS_INCLUDED

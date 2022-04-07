@@ -310,7 +310,7 @@ SPATIAL KEY(g)
 );
 ERROR HY000: The used table type doesn't support SPATIAL indexes
 CREATE TABLE t1 ( a INT AUTO_INCREMENT, KEY ( a ) );
-ERROR HY000: Can't create table 't1' (use SHOW WARNINGS for more info).
+ERROR HY000: Can't create table 't1'
 #
 # Bug#24660093: REMOVING AN INVISIBLE INDEX BREAKS EXPLAIN
 #

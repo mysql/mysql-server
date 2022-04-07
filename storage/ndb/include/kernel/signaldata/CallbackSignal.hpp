@@ -34,7 +34,7 @@
  */
 
 struct CallbackConf {
-  static constexpr Uint32 SignalLength = 6;
+  STATIC_CONST( SignalLength = 6 );
   Uint32 senderData;    // callee: e.g. lgman logfile_group_id
   Uint32 senderRef;     // callee
   Uint32 callbackIndex; // caller: index into own CallbackTable passed in Req
@@ -44,7 +44,7 @@ struct CallbackConf {
 };
 
 struct CallbackAck {
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
   Uint32 senderData;    // from CallbackConf
   Uint32 callbackInfo;  // from CallbackConf
 };

@@ -45,12 +45,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0types.h"
 #include "trx0types.h"
 
-class Alter_stage;
+class ut_stage_alter_t;
 
 /** Allocate the row log for an index and flag the index
  for online creation.
  @retval true if success, false if not */
-[[nodiscard]] bool row_log_allocate(
+bool row_log_allocate(
     dict_index_t *index, /*!< in/out: index */
     dict_table_t *table, /*!< in/out: new table being rebuilt,
                          or NULL when creating a secondary index */
@@ -61,26 +61,27 @@ class Alter_stage;
     added columns, or NULL */
     const ulint *col_map, /*!< in: mapping of old column
                           numbers to new ones, or NULL if !table */
-    const char *path);    /*!< in: where to create temporary file */
+    const char *path)     /*!< in: where to create temporary file */
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Free the row log for an index that was being created online. */
 void row_log_free(row_log_t *&log); /*!< in,own: row log */
 
-#ifndef UNIV_HOTBACKUP
 /** Free the row log for an index on which online creation was aborted. */
-static inline void row_log_abort_sec(
-    dict_index_t *index); /*!< in/out: index (x-latched) */
+UNIV_INLINE
+void row_log_abort_sec(dict_index_t *index); /*!< in/out: index (x-latched) */
 
 /** Try to log an operation to a secondary index that is
  (or was) being created.
  @retval true if the operation was logged or can be ignored
  @retval false if online index creation is not taking place */
-[[nodiscard]] static inline bool row_log_online_op_try(
+UNIV_INLINE
+bool row_log_online_op_try(
     dict_index_t *index,   /*!< in/out: index, S or X latched */
     const dtuple_t *tuple, /*!< in: index tuple */
-    trx_id_t trx_id);      /*!< in: transaction ID for insert,
-                          or 0 for delete */
-#endif                     /* !UNIV_HOTBACKUP */
+    trx_id_t trx_id)       /*!< in: transaction ID for insert,
+                           or 0 for delete */
+    MY_ATTRIBUTE((warn_unused_result));
 /** Logs an operation to a secondary index that is (or was) being created. */
 void row_log_online_op(
     dict_index_t *index,   /*!< in/out: index, S or X latched */
@@ -91,9 +92,10 @@ void row_log_online_op(
 
 /** Gets the error status of the online index rebuild log.
  @return DB_SUCCESS or error code */
-[[nodiscard]] dberr_t row_log_table_get_error(
-    const dict_index_t *index); /*!< in: clustered index of a table
+dberr_t row_log_table_get_error(
+    const dict_index_t *index) /*!< in: clustered index of a table
                                that is being rebuilt online */
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Check whether a virtual column is indexed in the new table being
 created during alter table
@@ -136,7 +138,7 @@ void row_log_table_update(
  of a table that is being rebuilt.
  @return tuple of PRIMARY KEY,DB_TRX_ID,DB_ROLL_PTR in the rebuilt table,
  or NULL if the PRIMARY KEY definition does not change */
-[[nodiscard]] const dtuple_t *row_log_table_get_pk(
+const dtuple_t *row_log_table_get_pk(
     trx_t *trx,           /*!< in: the current transaction. */
     const rec_t *rec,     /*!< in: clustered index leaf page record,
                           page X-latched */
@@ -147,7 +149,7 @@ void row_log_table_update(
     byte *sys,            /*!< out: DB_TRX_ID,DB_ROLL_PTR for
                           row_log_table_delete(), or NULL */
     mem_heap_t **heap)    /*!< in/out: memory heap where allocated */
-    UNIV_COLD;
+    UNIV_COLD MY_ATTRIBUTE((warn_unused_result));
 
 /** Logs an insert to a table that is being rebuilt.
  This will be merged in row_log_table_apply_insert(). */
@@ -178,16 +180,16 @@ void row_log_table_blob_alloc(
 ALTER TABLE. stage->begin_phase_log_table() will be called initially and then
 stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */
-[[nodiscard]] dberr_t row_log_table_apply(que_thr_t *thr,
-                                          dict_table_t *old_table,
-                                          struct TABLE *table,
-                                          Alter_stage *stage);
+dberr_t row_log_table_apply(que_thr_t *thr, dict_table_t *old_table,
+                            struct TABLE *table, ut_stage_alter_t *stage)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Get the latest transaction ID that has invoked row_log_online_op()
  during online creation.
  @return latest transaction ID, or 0 if nothing was logged */
-[[nodiscard]] trx_id_t row_log_get_max_trx(
-    dict_index_t *index); /*!< in: index, must be locked */
+trx_id_t row_log_get_max_trx(
+    dict_index_t *index) /*!< in: index, must be locked */
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Apply the row log to the index upon completing index creation.
 @param[in]	trx	transaction (for checking if the operation was
@@ -198,8 +200,9 @@ interrupted)
 ALTER TABLE. stage->begin_phase_log_index() will be called initially and then
 stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */
-[[nodiscard]] dberr_t row_log_apply(const trx_t *trx, dict_index_t *index,
-                                    struct TABLE *table, Alter_stage *stage);
+dberr_t row_log_apply(const trx_t *trx, dict_index_t *index,
+                      struct TABLE *table, ut_stage_alter_t *stage)
+    MY_ATTRIBUTE((warn_unused_result));
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
 /** Estimate how much work is to be done by the log apply phase

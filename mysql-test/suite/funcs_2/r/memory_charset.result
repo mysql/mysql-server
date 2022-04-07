@@ -6010,14 +6010,7 @@ DE	1
 DF	1
 DROP TABLE test.t1;
 SET NAMES dec8;
-Warnings:
-Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET dec8 COLLATE dec8_bin) ENGINE=Memory CHARACTER SET dec8 COLLATE dec8_bin;
-Warnings:
-Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'dec8_bin' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
-Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'dec8_bin' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	dec8_bin	#	#	#
@@ -6246,14 +6239,7 @@ FC	1
 FD	1
 DROP TABLE test.t1;
 SET NAMES dec8;
-Warnings:
-Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET dec8 COLLATE dec8_swedish_ci) ENGINE=Memory CHARACTER SET dec8 COLLATE dec8_swedish_ci;
-Warnings:
-Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
-Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	dec8_swedish_ci	#	#	#
@@ -8886,14 +8872,7 @@ FD	1
 DF	1
 DROP TABLE test.t1;
 SET NAMES hp8;
-Warnings:
-Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET hp8 COLLATE hp8_bin) ENGINE=Memory CHARACTER SET hp8 COLLATE hp8_bin;
-Warnings:
-Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'hp8_bin' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead.
-Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'hp8_bin' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	hp8_bin	#	#	#
@@ -9122,14 +9101,7 @@ FC	1
 FD	1
 DROP TABLE test.t1;
 SET NAMES hp8;
-Warnings:
-Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET hp8 COLLATE hp8_english_ci) ENGINE=Memory CHARACTER SET hp8 COLLATE hp8_english_ci;
-Warnings:
-Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'hp8_english_ci' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead.
-Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'hp8_english_ci' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	hp8_english_ci	#	#	#
@@ -15083,14 +15055,7 @@ A1	1
 A5	1
 DROP TABLE test.t1;
 SET NAMES macce;
-Warnings:
-Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET macce COLLATE macce_bin) ENGINE=Memory CHARACTER SET macce COLLATE macce_bin;
-Warnings:
-Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'macce_bin' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
-Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'macce_bin' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	macce_bin	#	#	#
@@ -15319,14 +15284,7 @@ FC	1
 FD	1
 DROP TABLE test.t1;
 SET NAMES macce;
-Warnings:
-Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET macce COLLATE macce_general_ci) ENGINE=Memory CHARACTER SET macce COLLATE macce_general_ci;
-Warnings:
-Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'macce_general_ci' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
-Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'macce_general_ci' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	macce_general_ci	#	#	#
@@ -15555,14 +15513,7 @@ E2	1
 E3	1
 DROP TABLE test.t1;
 SET NAMES macroman;
-Warnings:
-Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET macroman COLLATE macroman_bin) ENGINE=Memory CHARACTER SET macroman COLLATE macroman_bin;
-Warnings:
-Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'macroman_bin' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
-Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'macroman_bin' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	macroman_bin	#	#	#
@@ -15791,14 +15742,7 @@ FC	1
 FD	1
 DROP TABLE test.t1;
 SET NAMES macroman;
-Warnings:
-Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET macroman COLLATE macroman_general_ci) ENGINE=Memory CHARACTER SET macroman COLLATE macroman_general_ci;
-Warnings:
-Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'macroman_general_ci' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
-Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'macroman_general_ci' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	macroman_general_ci	#	#	#
@@ -17497,9 +17441,6 @@ t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_bin;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_bin' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
 SELECT HEX(ORD(a)) AS a_ord, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ord	a_len
@@ -20046,9 +19987,6 @@ t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_czech_ci;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_czech_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
 SELECT HEX(ORD(a)) AS a_ord, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ord	a_len
@@ -22595,9 +22533,6 @@ t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_danish_ci;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_danish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
 SELECT HEX(ORD(a)) AS a_ord, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ord	a_len
@@ -25144,9 +25079,6 @@ t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_estonian_ci;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_estonian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
 SELECT HEX(ORD(a)) AS a_ord, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ord	a_len
@@ -27693,9 +27625,6 @@ t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_general_ci;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
 SELECT HEX(ORD(a)) AS a_ord, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ord	a_len
@@ -30242,9 +30171,6 @@ t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_hungarian_ci;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_hungarian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
 SELECT HEX(ORD(a)) AS a_ord, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ord	a_len
@@ -32791,9 +32717,6 @@ t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_icelandic_ci;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_icelandic_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
 SELECT HEX(ORD(a)) AS a_ord, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ord	a_len
@@ -35340,9 +35263,6 @@ t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_latvian_ci;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_latvian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
 SELECT HEX(ORD(a)) AS a_ord, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ord	a_len
@@ -37889,9 +37809,6 @@ t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_lithuanian_ci;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_lithuanian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
 SELECT HEX(ORD(a)) AS a_ord, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ord	a_len
@@ -40438,9 +40355,6 @@ t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_persian_ci;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_persian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
 SELECT HEX(ORD(a)) AS a_ord, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ord	a_len
@@ -42987,9 +42901,6 @@ t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_polish_ci;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_polish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
 SELECT HEX(ORD(a)) AS a_ord, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ord	a_len
@@ -45536,9 +45447,6 @@ t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_roman_ci;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_roman_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
 SELECT HEX(ORD(a)) AS a_ord, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ord	a_len
@@ -48085,9 +47993,6 @@ t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_romanian_ci;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_romanian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
 SELECT HEX(ORD(a)) AS a_ord, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ord	a_len
@@ -50634,9 +50539,6 @@ t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_slovak_ci;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_slovak_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
 SELECT HEX(ORD(a)) AS a_ord, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ord	a_len
@@ -53183,9 +53085,6 @@ t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_slovenian_ci;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_slovenian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
 SELECT HEX(ORD(a)) AS a_ord, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ord	a_len
@@ -55732,9 +55631,6 @@ t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_spanish2_ci;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_spanish2_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
 SELECT HEX(ORD(a)) AS a_ord, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ord	a_len
@@ -58281,9 +58177,6 @@ t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_spanish_ci;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_spanish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
 SELECT HEX(ORD(a)) AS a_ord, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ord	a_len
@@ -60830,9 +60723,6 @@ t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_swedish_ci;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_swedish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
 SELECT HEX(ORD(a)) AS a_ord, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ord	a_len
@@ -63379,9 +63269,6 @@ t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_turkish_ci;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_turkish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
 SELECT HEX(ORD(a)) AS a_ord, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ord	a_len
@@ -65928,9 +65815,6 @@ t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
 LOAD DATA INFILE 
 'MYSQL_TEST_DIR/suite/funcs_2/data/charset_utf8.txt' INTO TABLE test.t1;
 ALTER TABLE test.t1 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_unicode_ci;
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	4079	'ucs2_unicode_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
 SELECT HEX(ORD(a)) AS a_ord, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 a_ord	a_len

@@ -101,7 +101,7 @@ class PFS_index_threads_by_thread_id : public PFS_index_threads {
   PFS_index_threads_by_thread_id()
       : PFS_index_threads(&m_key), m_key("THREAD_ID") {}
 
-  ~PFS_index_threads_by_thread_id() override = default;
+  ~PFS_index_threads_by_thread_id() override {}
 
   bool match(PFS_thread *pfs) override;
 
@@ -114,7 +114,7 @@ class PFS_index_threads_by_processlist_id : public PFS_index_threads {
   PFS_index_threads_by_processlist_id()
       : PFS_index_threads(&m_key), m_key("PROCESSLIST_ID") {}
 
-  ~PFS_index_threads_by_processlist_id() override = default;
+  ~PFS_index_threads_by_processlist_id() override {}
 
   bool match(PFS_thread *pfs) override;
 
@@ -126,7 +126,7 @@ class PFS_index_threads_by_name : public PFS_index_threads {
  public:
   PFS_index_threads_by_name() : PFS_index_threads(&m_key), m_key("NAME") {}
 
-  ~PFS_index_threads_by_name() override = default;
+  ~PFS_index_threads_by_name() override {}
 
   bool match(PFS_thread *pfs) override;
 
@@ -141,7 +141,7 @@ class PFS_index_threads_by_user_host : public PFS_index_threads {
         m_key_1("PROCESSLIST_USER"),
         m_key_2("PROCESSLIST_HOST") {}
 
-  ~PFS_index_threads_by_user_host() override = default;
+  ~PFS_index_threads_by_user_host() override {}
 
   bool match(PFS_thread *pfs) override;
 
@@ -155,7 +155,7 @@ class PFS_index_threads_by_host : public PFS_index_threads {
   PFS_index_threads_by_host()
       : PFS_index_threads(&m_key), m_key("PROCESSLIST_HOST") {}
 
-  ~PFS_index_threads_by_host() override = default;
+  ~PFS_index_threads_by_host() override {}
 
   bool match(PFS_thread *pfs) override;
 
@@ -168,7 +168,7 @@ class PFS_index_threads_by_thread_os_id : public PFS_index_threads {
   PFS_index_threads_by_thread_os_id()
       : PFS_index_threads(&m_key), m_key("THREAD_OS_ID") {}
 
-  ~PFS_index_threads_by_thread_os_id() override = default;
+  ~PFS_index_threads_by_thread_os_id() override {}
 
   bool match(PFS_thread *pfs) override;
 
@@ -181,7 +181,7 @@ class PFS_index_threads_by_resource_group : public PFS_index_threads {
   PFS_index_threads_by_resource_group()
       : PFS_index_threads(&m_key), m_key("RESOURCE_GROUP") {}
 
-  ~PFS_index_threads_by_resource_group() override = default;
+  ~PFS_index_threads_by_resource_group() override {}
 
   bool match(PFS_thread *pfs) override;
 
@@ -209,7 +209,7 @@ class table_threads : public cursor_by_thread {
   int index_init(uint idx, bool sorted) override;
 
  public:
-  ~table_threads() override = default;
+  ~table_threads() override {}
 
  private:
   int make_row(PFS_thread *pfs) override;

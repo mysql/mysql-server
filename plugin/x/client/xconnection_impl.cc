@@ -72,18 +72,17 @@ const char *const ER_TEXT_CANT_SET_TIMEOUT_WHEN_NOT_CONNECTED =
 const char *const ER_TEXT_TLS_ALREADY_ACTIVATED = "TLS already activated";
 const char *const ER_TEXT_TLS_NOT_CONFIGURATED = "TLS not configured";
 const char *const ER_TEXT_INVALID_SOCKET = "Invalid socket";
+const char *const ER_TEXT_UN_SOCKET_FILE_NOT_SET =
+    "UNIX Socket file was not specified";
 const char *const ER_TEXT_CANT_TIMEOUT_WHILE_READING =
     "Read operation failed because of a timeout";
 const char *const ER_TEXT_CANT_TIMEOUT_WHILE_WRITTING =
     "Write operation failed because of a timeout";
 
-#if defined(HAVE_SYS_UN_H)
-const char *const ER_TEXT_UN_SOCKET_FILE_NOT_SET =
-    "UNIX Socket file was not specified";
-#else
+#if !defined(HAVE_SYS_UN_H)
 const char *const ER_TEXT_UN_SOCKET_NOT_SUPPORTED =
     "UNIX sockets aren't supported on current OS";
-#endif  // defined(HAVE_SYS_UN_H)
+#endif  // !defined(HAVE_SYS_UN_H)
 
 namespace details {
 
@@ -693,7 +692,7 @@ XError Connection_impl::activate_tls() {
 
   // When mode it set to Ssl_config::Mode_ssl_verify_ca
   // then lower layers are going to verify it
-  unsigned long error{false};  // NOLINT
+  unsigned long error;  // NOLINT
   if (0 != sslconnect(m_vioSslFd, m_vio, 60, &error, nullptr)) {
     return get_ssl_error(error);
   }

@@ -180,16 +180,11 @@ b
 1
 INSERT INTO t2 values (1),(2),(3);
 INSERT INTO t3 VALUES (1,'1'),(2,'2'),(1,'1'),(2,'2');
-ANALYZE TABLE t1, t2, t3;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
-test.t2	analyze	status	OK
-test.t3	analyze	status	OK
 explain SELECT distinct t3.a FROM t3,t2,t1 WHERE t3.a=t1.b AND t1.a=t2.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	a	a	4	NULL	5	100.00	Using index; Using temporary
 1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.a	1	100.00	Using where
-1	SIMPLE	t3	NULL	ref	a	a	5	test.t1.b	3	100.00	Using index
+1	SIMPLE	t3	NULL	ref	a	a	5	test.t1.b	2	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t3`.`a` AS `a` from `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`b`))
 SELECT distinct t3.a FROM t3,t2,t1 WHERE t3.a=t1.b AND t1.a=t2.a;
@@ -222,7 +217,7 @@ a
 show status like 'Handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	5
+Handler_read_key	4
 Handler_read_last	0
 Handler_read_next	4
 Handler_read_prev	0
@@ -235,7 +230,7 @@ select distinct 1 from t1,t3 where t1.a=t3.a;
 show status like 'Handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	5
+Handler_read_key	4
 Handler_read_last	0
 Handler_read_next	208
 Handler_read_prev	0
@@ -404,9 +399,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	index	id	id	8	NULL	1	100.00	Using index; Distinct; Using join buffer (hash join)
 1	SIMPLE	t3	NULL	index	id	id	8	NULL	1	100.00	Using index; Distinct; Using join buffer (hash join)
 1	SIMPLE	j_lj_t2	NULL	index	id	id	4	NULL	2	100.00	Using where; Using index; Distinct; Using join buffer (hash join)
-1	SIMPLE	t2_lj	NULL	ref	id	id	4	test.j_lj_t2.id	1	100.00	Using where; Using index; Distinct
+1	SIMPLE	t2_lj	NULL	index	id	id	8	NULL	1	100.00	Using where; Using index; Distinct; Using join buffer (hash join)
 1	SIMPLE	j_lj_t3	NULL	index	id	id	4	NULL	2	100.00	Using where; Using index; Distinct; Using join buffer (hash join)
-1	SIMPLE	t3_lj	NULL	ref	id	id	4	test.j_lj_t3.id	1	100.00	Using where; Using index; Distinct
+1	SIMPLE	t3_lj	NULL	index	id	id	8	NULL	1	100.00	Using where; Using index; Distinct; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`id` AS `id` from `test`.`t1` straight_join `test`.`t2` straight_join `test`.`t3` straight_join `test`.`t1` `j_lj_t2` left join `test`.`t2` `t2_lj` on((`test`.`t2_lj`.`id` = `test`.`j_lj_t2`.`id`)) straight_join `test`.`t1` `j_lj_t3` left join `test`.`t3` `t3_lj` on((`test`.`t3_lj`.`id` = `test`.`j_lj_t3`.`id`)) where ((((`test`.`j_lj_t2`.`id` = `test`.`t1`.`id`) and (`test`.`t2_lj`.`id` is null)) or ((`test`.`t2`.`idx` = 2) and (`test`.`t2`.`id` = `test`.`t1`.`id`))) and (((`test`.`j_lj_t3`.`id` = `test`.`t1`.`id`) and (`test`.`t3_lj`.`id` is null)) or ((`test`.`t3`.`idx` = 2) and (`test`.`t3`.`id` = `test`.`t1`.`id`))))
 SELECT DISTINCT
@@ -668,9 +663,6 @@ a	2	b
 DROP TABLE t1,t2;
 CREATE TABLE t1(a INT PRIMARY KEY, b INT);
 INSERT INTO t1 VALUES (1,1), (2,1), (3,1);
-ANALYZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
 EXPLAIN SELECT DISTINCT a FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	3	100.00	Using index
@@ -712,9 +704,6 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 CREATE TABLE t2(a INT, b INT NOT NULL, c INT NOT NULL, d INT, 
 PRIMARY KEY (a,b));
 INSERT INTO t2 VALUES (1,1,1,50), (1,2,3,40), (2,1,3,4);
-ANALYZE TABLE t2;
-Table	Op	Msg_type	Msg_text
-test.t2	analyze	status	OK
 EXPLAIN SELECT DISTINCT a FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	PRIMARY	PRIMARY	8	NULL	3	100.00	Using index
@@ -746,9 +735,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`d` AS `d` from `test`.`t2` group by `test`.`t2`.`c`,`test`.`t2`.`b`,`test`.`t2`.`d`
 CREATE UNIQUE INDEX c_b_unq ON t2 (c,b);
-ANALYZE TABLE t2;
-Table	Op	Msg_type	Msg_text
-test.t2	analyze	status	OK
 EXPLAIN SELECT DISTINCT a,b,d FROM t2 GROUP BY c,b,d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
@@ -765,9 +751,6 @@ id	IFNULL(dsc, '-')
 drop table t1;
 CREATE TABLE t1 (a int primary key, b int);
 INSERT INTO t1 (a,b) values (1,1), (2,3), (3,2);
-ANALYZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
 explain SELECT DISTINCT a, b FROM t1 ORDER BY b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
@@ -808,9 +791,6 @@ INSERT INTO t1 SELECT a + 1, a + 101 FROM t1;
 INSERT INTO t1 SELECT a + 2, a + 102 FROM t1;
 INSERT INTO t1 SELECT a + 4, a + 104 FROM t1;
 INSERT INTO t1 SELECT a + 8, a + 108 FROM t1;
-ANALYZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
 EXPLAIN SELECT DISTINCT a,a FROM t1 WHERE b < 12 ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	8	NULL	16	33.33	Using where; Using index
@@ -897,16 +877,13 @@ Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'A'
 SELECT DISTINCT a FROM t1 WHERE a=0;
 a
-0
 A
-Warning	1292	Truncated incorrect DOUBLE value: 'A'
+0
 Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'A'
 DROP TABLE t1;
 CREATE TABLE t1 (a DATE);
 INSERT INTO t1 VALUES ('1972-07-29'), ('1972-02-06');
-ANALYZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
 EXPLAIN SELECT (SELECT DISTINCT a FROM t1 WHERE a = '2002-08-03');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -936,9 +913,6 @@ set names utf8mb4;
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a INT, UNIQUE (a));
 INSERT INTO t1 VALUES (4),(null),(2),(1),(null),(3);
-ANALYZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
 EXPLAIN SELECT DISTINCT a FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	a	a	5	NULL	6	100.00	Using index
@@ -991,9 +965,6 @@ INSERT IGNORE INTO t1(a, b, c) VALUES (1, 1, 1),
 Warnings:
 Warning	1364	Field 'd' doesn't have a default value
 Warning	1364	Field 'e' doesn't have a default value
-ANALYZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
 EXPLAIN SELECT DISTINCT a, b, d, c FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	PRIMARY,a	a	16	NULL	6	100.00	Using index
@@ -1025,9 +996,6 @@ INSERT INTO t1 SELECT 5 + 10000 * RAND(), '5' FROM t1;
 INSERT INTO t1 SELECT 5 + 10000 * RAND(), '5' FROM t1;
 INSERT INTO t1 SELECT 5 + 10000 * RAND(), '5' FROM t1;
 INSERT INTO t1 SELECT 5 + 10000 * RAND(), '5' FROM t1;
-ANALYZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
 SELECT c1, c2, COUNT(*) FROM t1 GROUP BY c1 LIMIT 4;
 c1	c2	COUNT(*)
 1	1	2
@@ -1040,7 +1008,7 @@ EXPLAIN
     -> Filter: (count(0) > 1)
         -> Table scan on <temporary>
             -> Aggregate using temporary table
-                -> Table scan on t1  (cost=154.85 rows=1536)
+                -> Table scan on t1  (cost=155.98 rows=1536)
 
 SELECT DISTINCT c2 FROM t1 GROUP BY c1 HAVING COUNT(*) > 1;
 c2
@@ -1115,9 +1083,6 @@ b INT NOT NULL
 INSERT INTO t1 VALUES (1,2), (3,3);
 SET @save_optimizer_switch= @@optimizer_switch;
 SET @@SESSION.optimizer_switch="derived_merge=off";
-ANALYZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
 
 EXPLAIN SELECT DISTINCT subselect.b
 FROM t1 LEFT JOIN 
@@ -1154,22 +1119,17 @@ b INT,
 PRIMARY KEY (b)
 );
 INSERT INTO t3 VALUES (2001,1), (2007,2);
-ANALYZE TABLE t1, t2, t3;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
-test.t2	analyze	status	OK
-test.t3	analyze	status	OK
 EXPLAIN SELECT DISTINCT t3.a AS t3_date
 FROM t1
 LEFT JOIN t2 ON false
 LEFT JOIN t3 ON t2.b = t3.b
 LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+1	SIMPLE	t3	NULL	const	PRIMARY	NULL	NULL	NULL	1	100.00	Impossible ON condition
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.b	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select distinct `test`.`t3`.`a` AS `t3_date` from `test`.`t1` left join `test`.`t2` on(false) left join `test`.`t3` on((`test`.`t3`.`b` = `test`.`t2`.`b`)) where true limit 1
+Note	1003	/* select#1 */ select distinct NULL AS `t3_date` from `test`.`t1` left join `test`.`t3` on(multiple equal(NULL, NULL)) where true limit 1
 SELECT DISTINCT t3.a AS t3_date
 FROM t1
 LEFT JOIN t2 ON false
@@ -1187,8 +1147,8 @@ INSERT INTO t1 VALUES (1,3), (2,4), (1,5),
 (3,2), (3,1), (2,4);
 SELECT DISTINCT (COUNT(DISTINCT b) + 1) AS c FROM t1 GROUP BY a;
 c
-3
 4
+3
 DROP TABLE t1;
 # End of test for Bug#22686994
 #
@@ -1234,9 +1194,6 @@ f3 varchar(255)
 INSERT INTO t1 VALUES (14,7,'G','W');
 INSERT INTO t1 VALUES (16,8,'W','p');
 INSERT INTO t1 VALUES (23,NULL,'q','w');
-ANALYZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
 SELECT DISTINCT table1.pk FROM t1 AS table1 LEFT JOIN t1 AS table2 ON table1.f2=table2.f3 WHERE table2.f1 IS NULL;
 pk
 14
@@ -1245,12 +1202,12 @@ pk
 EXPLAIN FORMAT=tree SELECT DISTINCT table1.pk FROM t1 AS table1 LEFT JOIN t1 AS table2 ON table1.f2=table2.f3 WHERE table2.f1 IS NULL;
 EXPLAIN
 -> Table scan on <temporary>  (cost=0.85..2.54 rows=3)
-    -> Temporary table with deduplication  (cost=3.95..5.64 rows=3)
-        -> Filter: (table2.f1 is null)  (cost=2.80 rows=3)
-            -> Nested loop left join  (cost=2.80 rows=3)
-                -> Table scan on table1  (cost=0.55 rows=3)
-                -> Filter: (table1.f2 = table2.f3)  (cost=0.48 rows=1)
-                    -> Table scan on table2  (cost=0.48 rows=3)
+    -> Temporary table with deduplication  (cost=4.96..6.65 rows=3)
+        -> Filter: (table2.f1 is null)  (cost=3.81 rows=3)
+            -> Nested loop left join  (cost=3.81 rows=3)
+                -> Table scan on table1  (cost=0.80 rows=3)
+                -> Filter: (table1.f2 = table2.f3)  (cost=0.74 rows=1)
+                    -> Table scan on table2  (cost=0.74 rows=3)
 
 DROP TABLE t1;
 CREATE TABLE t1 (
@@ -1269,26 +1226,16 @@ f3 integer
 );
 INSERT INTO t3 VALUES (56,0,4);
 INSERT INTO t3 VALUES (97,3,4);
-ANALYZE TABLE t1, t2, t3;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
-test.t2	analyze	status	OK
-test.t3	analyze	status	OK
 SELECT /*+JOIN_ORDER(t2,t3,t1) */ DISTINCT t2.pk FROM t1 LEFT JOIN t2 RIGHT OUTER JOIN t3 ON t2.f1 = t3.f3 ON t1.pk = t3.f2 WHERE t3.pk <> t2.pk;
 pk
 12
 EXPLAIN FORMAT=tree SELECT /*+JOIN_ORDER(t2,t3,t1) */ DISTINCT t2.pk FROM t1 LEFT JOIN t2 RIGHT OUTER JOIN t3 ON t2.f1 = t3.f3 ON t1.pk = t3.f2 WHERE t3.pk <> t2.pk;
 EXPLAIN
--> Table scan on <temporary>  (cost=2.51..2.51 rows=1)
-    -> Temporary table with deduplication  (cost=3.76..3.76 rows=1)
-        -> Nested loop inner join  (cost=1.15 rows=1)
-            -> Nested loop inner join  (cost=0.80 rows=1)
-                -> Table scan on t2  (cost=0.35 rows=1)
-                -> Filter: ((t3.f3 = t2.f1) and (t3.pk <> t2.pk))  (cost=0.35 rows=1)
-                    -> Table scan on t3  (cost=0.35 rows=2)
-            -> Limit: 1 row(s)  (cost=0.35 rows=1)
-                -> Filter: (t1.pk = t3.f2)  (cost=0.35 rows=1)
-                    -> Table scan on t1  (cost=0.35 rows=1)
+-> Limit: 1 row(s)  (cost=3.31..3.31 rows=1)
+    -> Table scan on <temporary>  (cost=2.51..2.51 rows=1)
+        -> Temporary table  (cost=3.31..3.31 rows=1)
+            -> Filter: ((t3.f2 = '3') and (t3.f3 = '4') and (t3.pk <> '12'))  (cost=0.70 rows=1)
+                -> Table scan on t3  (cost=0.70 rows=2)
 
 DROP TABLE t1, t2, t3;
 SET optimizer_switch=@old_optimizer_switch;
@@ -1305,16 +1252,13 @@ INSERT INTO t1 SELECT RAND() FROM t1 AS t1, t1 AS t2;
 INSERT INTO t1 SELECT RAND() FROM t1 AS t1, t1 AS t2;
 INSERT INTO t1 SELECT RAND() FROM t1;
 INSERT INTO t1 SELECT RAND() FROM t1;
-ANALYZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT DISTINCT COUNT(*) AS num FROM t1 GROUP BY f HAVING num=1;
 EXPLAIN
 -> Sort with duplicate removal: num
     -> Filter: (num = 1)
         -> Table scan on <temporary>
             -> Aggregate using temporary table
-                -> Table scan on t1  (cost=726.40 rows=7224)
+                -> Table scan on t1  (cost=725.99 rows=7224)
 
 SELECT DISTINCT COUNT(*) AS num FROM t1 GROUP BY f HAVING num=1;
 num
@@ -1343,10 +1287,10 @@ EXPLAIN FORMAT=tree SELECT DISTINCT SQL_BIG_RESULT a FROM t1 GROUP BY a,b ORDER 
 EXPLAIN
 -> Sort: t1.a DESC, t1.b
     -> Sort with duplicate removal: t1.a DESC
-        -> Stream results  (cost=0.85 rows=3)
-            -> Group (no aggregates)  (cost=0.85 rows=3)
-                -> Sort: t1.a DESC, t1.b  (cost=0.55 rows=3)
-                    -> Table scan on t1  (cost=0.55 rows=3)
+        -> Stream results
+            -> Group (no aggregates)
+                -> Sort: t1.a DESC, t1.b  (cost=0.80 rows=3)
+                    -> Table scan on t1  (cost=0.80 rows=3)
 
 SELECT DISTINCT SQL_BIG_RESULT a FROM t1 GROUP BY a,b ORDER BY a DESC;
 a
@@ -1364,16 +1308,3 @@ f1	LENGTH(F2)
 1	3
 1	4
 DROP TABLE t1;
-#
-# Bug #33148369: HYPERGRAPH-OPTIMIZER: HIT ASSERT(COUNT>0) IN MAKE_SORTORDER() WHILE FINALIZEPLAN
-#
-CREATE TABLE t1 ( a INTEGER );
-CREATE TABLE t2 ( a INTEGER );
-CREATE TABLE t3 ( a INTEGER );
-SELECT DISTINCT t1.a
-FROM t1, t2, t3
-WHERE t1.a = t2.a AND t2.a IS NULL
-HAVING t1.a = 8
-ORDER BY t1.a;
-a
-DROP TABLE t1, t2, t3;

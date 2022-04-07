@@ -68,7 +68,7 @@ class MySQLSessionReplayer : public mysqlrouter::MySQLSession {
   virtual unsigned warning_count() noexcept override;
 
   virtual std::string quote(const std::string &s,
-                            char qchar = '\'') const override;
+                            char qchar = '\'') noexcept override;
 
   virtual const char *last_error() override;
   virtual unsigned int last_errno() override;
@@ -109,7 +109,7 @@ class MySQLSessionReplayer : public mysqlrouter::MySQLSession {
 
  private:
   struct CallInfo {
-    CallInfo() = default;
+    CallInfo() {}
     CallInfo(const CallInfo &ci);
 
     enum Type { Connect, Execute, Query, QueryOne };

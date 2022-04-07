@@ -1,1 +1,1 @@
---replica-allow-batching=0
+--slave-allow-batching=0

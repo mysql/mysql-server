@@ -33,8 +33,8 @@
 #include <winsock2.h>
 #endif
 
-#include "my_time_t.h"   // my_time_t
-#include "mysql_time.h"  // MYSQL_TIME
+#include "mysql_time.h"        // MYSQL_TIME
+#include "time_zone_common.h"  // my_time_t
 
 class String;
 class THD;
@@ -53,30 +53,25 @@ class Time_zone {
   enum tz_type { TZ_DB = 1, TZ_OFFSET = 2, TZ_SYSTEM = 3, TZ_UTC = 4 };
 
   /**
-    Converts local time in MYSQL_TIME representation to
-    my_time_t (UTC seconds since Epoch) representation.
+    Converts local time in broken down MYSQL_TIME representation to
+    my_time_t (UTC seconds since Epoch) represenation.
     Returns 0 in case of error. Sets in_dst_time_gap to true if date provided
     falls into spring time-gap (or lefts it untouched otherwise).
   */
   virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
                                     bool *in_dst_time_gap) const = 0;
   /**
-   Converts UTC epoch seconds to time in MYSQL_TIME representation.
-
-   @param[out]   tmp  equivalent time point in MYSQL_TIME representation
-   @param[in]    t    number of seconds in UNIX epoch
-   */
+    Converts time in my_time_t representation to local time in
+    broken down MYSQL_TIME representation.
+  */
   virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const = 0;
   /**
-    Converts UTC epoch seconds and microseconds to time in
-    MYSQL_TIME representation.
-
-    @param[in]    tv   number of seconds and microseconds in UNIX epoch
-    @param[out]   tmp  equivalent time point in MYSQL_TIME representation
+    Comverts "struct timeval" to local time in
+    broken down MYSQL_TIME represendation.
   */
-  void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_timeval tv) const {
-    gmt_sec_to_TIME(tmp, (my_time_t)tv.m_tv_sec);
-    tmp->second_part = tv.m_tv_usec;
+  void gmt_sec_to_TIME(MYSQL_TIME *tmp, struct timeval tv) const {
+    gmt_sec_to_TIME(tmp, (my_time_t)tv.tv_sec);
+    tmp->second_part = tv.tv_usec;
   }
   /**
     Because of constness of String returned by get_name() time zone name

@@ -65,8 +65,8 @@ typedef std::map<std::string, Rpl_filter *> filter_map;
   to a slave.
 
   The important objects for a slave are the following:
-  i) Master_info and Relay_log_info (replica_parallel_workers == 0)
-  ii) Master_info, Relay_log_info and Slave_worker(replica_parallel_workers >0 )
+  i) Master_info and Relay_log_info (slave_parallel_workers == 0)
+  ii) Master_info, Relay_log_info and Slave_worker(slave_parallel_workers >0 )
 
   Master_info is always assosiated with a Relay_log_info per channel.
   So, it is enough to store Master_infos and call the corresponding
@@ -215,17 +215,10 @@ class Multisource_info {
     replication_channel_map and sets index in the  multisource_mi to 0;
     And also delete the {mi, rli} pair corresponding to this channel
 
-    @note this requires the caller to hold the mi->channel_wrlock.
-    If the method succeeds the master info object is deleted and the lock
-    is released. If the an error occurs and the method return true, the {mi}
-    object wont be deleted and the caller should release the channel_wrlock.
-
     @param[in]    channel_name     Name of the channel for a Master_info
                                    object which must exist.
-
-    @return true if an error occurred, false otherwise
   */
-  bool delete_mi(const char *channel_name);
+  void delete_mi(const char *channel_name);
 
   /**
     Get the default channel for this multisourced_slave;
@@ -295,7 +288,7 @@ class Multisource_info {
     }
 
 #ifndef NDEBUG
-    if (Source_IO_monitor::get_instance()->is_monitoring_process_running()) {
+    if (Source_IO_monitor::get_instance().is_monitoring_process_running()) {
       assert(count > 0);
     }
 #endif

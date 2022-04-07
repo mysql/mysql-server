@@ -33,6 +33,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef buf0buddy_h
 #define buf0buddy_h
 
+#ifdef UNIV_MATERIALIZE
+#undef UNIV_INLINE
+#define UNIV_INLINE
+#endif
+
 #include "buf0types.h"
 #include "univ.i"
 
@@ -44,15 +49,16 @@ block->mutex.
 @param[in]	size		compressed page size, between
                                 UNIV_ZIP_SIZE_MIN and UNIV_PAGE_SIZE
 @return allocated block, never NULL */
-static inline byte *buf_buddy_alloc(buf_pool_t *buf_pool, ulint size)
-    MY_ATTRIBUTE((malloc));
+UNIV_INLINE
+byte *buf_buddy_alloc(buf_pool_t *buf_pool, ulint size) MY_ATTRIBUTE((malloc));
 
 /** Deallocate a block.
 @param[in,out]	buf_pool	buffer pool in which the block resides
 @param[in]	buf		block to be freed, must not be pointed to
                                 by the buffer pool
 @param[in]	size		block size, up to UNIV_PAGE_SIZE */
-static inline void buf_buddy_free(buf_pool_t *buf_pool, void *buf, ulint size);
+UNIV_INLINE
+void buf_buddy_free(buf_pool_t *buf_pool, void *buf, ulint size);
 
 /** Try to reallocate a block.
 @param[in]	buf_pool	buffer pool instance

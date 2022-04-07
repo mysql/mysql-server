@@ -198,7 +198,6 @@ trace
                               "rowid_ordered": false,
                               "using_mrr": false,
                               "index_only": false,
-                              "in_memory": 1,
                               "rows": 1,
                               "cost": 0.61,
                               "chosen": true
@@ -212,7 +211,6 @@ trace
                               "rowid_ordered": false,
                               "using_mrr": false,
                               "index_only": false,
-                              "in_memory": 1,
                               "rows": 1,
                               "cost": 0.61,
                               "chosen": false,
@@ -328,17 +326,11 @@ trace
                       "write_method": "write_all_rows"
                     },
                     {
-                      "adding_tmp_table_in_plan_at_position": 2,
-                      "cause": "output_for_window_functions",
-                      "with_buffer": true,
-                      "write_method": "write_all_rows"
-                    },
-                    {
                       "creating_tmp_table": {
                         "tmp_table_info": {
                           "table": "intermediate_tmp_table",
                           "columns": 3,
-                          "row_length": 13,
+                          "row_length": 14,
                           "key_length": 0,
                           "unique_constraint": false,
                           "makes_grouped_rows": false,
@@ -348,8 +340,14 @@ trace
                       }
                     },
                     {
-                      "filesort": {
-                        "adding_sort_to_table": ""
+                      "adding_tmp_table_in_plan_at_position": 2,
+                      "cause": "output_for_window_functions",
+                      "with_buffer": true,
+                      "write_method": "write_all_rows",
+                      "adding_sort_to_previous_table": {
+                        "filesort": {
+                          "adding_sort_to_table": ""
+                        }
                       }
                     }
                   ]

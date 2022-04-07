@@ -58,6 +58,7 @@ extern "C" struct srv_session_info_service_st {
 } * srv_session_info_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
+
 #define srv_session_info_get_thd(session) \
   srv_session_info_service->get_thd((session))
 #define srv_session_info_get_session_id(sess) \
@@ -71,8 +72,8 @@ extern "C" struct srv_session_info_service_st {
 #define srv_session_info_set_connection_type(sess, type) \
   srv_session_info_service->set_connection_type((sess), (type))
 #define srv_session_info_killed(sess) srv_session_info_service->killed((sess))
-#define srv_session_info_session_count() \
-  srv_session_info_service->session_count()
+#define srv_session_info_session_count(sess) \
+  srv_session_info_service->session_count(sess)
 #define srv_session_info_thread_count(plugin) \
   srv_session_info_service->thread_count(plugin)
 

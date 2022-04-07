@@ -29,8 +29,6 @@
 #include "my_inttypes.h"
 #include "plugin/group_replication/include/gcs_plugin_messages.h"
 
-class Gcs_message_data;
-
 /*
   @class Transaction_message_interface
 
@@ -41,25 +39,14 @@ class Transaction_message_interface : public Plugin_gcs_message,
  public:
   explicit Transaction_message_interface(enum_cargo_type cargo_type)
       : Plugin_gcs_message(cargo_type) {}
-  ~Transaction_message_interface() override = default;
+  ~Transaction_message_interface() override {}
 
   /**
-     Length of the message.
+     Length of data in data vector
 
-     @return message length
+     @return data length
   */
-  virtual uint64_t length() = 0;
-
-  /**
-     Get the Gcs_message_data object, which contains the serialized
-     transaction data.
-     The internal Gcs_message_data is nullified, to avoid further usage
-     of this Transaction object and the caller receives a pointer to the
-     previously internal Gcs_message_data, which whom it is now responsible.
-
-     @return the serialized transaction data in a Gcs_message_data object
-  */
-  virtual Gcs_message_data *get_message_data_and_reset() = 0;
+  virtual my_off_t length() = 0;
 };
 
 #endif /* TRANSACTION_MESSAGE_INTERFACE_INCLUDED */

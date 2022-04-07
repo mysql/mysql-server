@@ -12,7 +12,6 @@ INSERT INTO t1 VALUES (4, 201);
 # 2. Confirm default value on M1, M2
 [connection server1]
 include/assert.inc [write_concurrency is supposed to be 10 by default]
-include/assert.inc [write_concurrency (10) should be 10]
 [connection server2]
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("Could not execute Write_rows event on table test.t2; Duplicate entry '11'*");
@@ -23,24 +22,19 @@ call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave 
 call mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state*");
 SET SESSION sql_log_bin = 1;
 include/assert.inc [write_concurrency is supposed to be 10 by default]
-include/assert.inc [write_concurrency (10) should be 10]
 ###############################################################################
 # 3. Increase write_concurrency via M1, confirm on M1, M2
 [connection server1]
 SELECT group_replication_set_write_concurrency(42);
 group_replication_set_write_concurrency(42)
 UDF is asynchronous, check log or call group_replication_get_write_concurrency().
-include/assert.inc [write_concurrency (42) should be 42]
 [connection server2]
-include/assert.inc [write_concurrency (42) should be 42]
 ###############################################################################
 # 4. Decrease write_concurrency via M2, confirm on M1, M2
 SELECT group_replication_set_write_concurrency(10);
 group_replication_set_write_concurrency(10)
 UDF is asynchronous, check log or call group_replication_get_write_concurrency().
-include/assert.inc [write_concurrency (10) should be 10]
 [connection server1]
-include/assert.inc [write_concurrency (10) should be 10]
 ###############################################################################
 # 5. Confirm invalid calls to group_replication_get_write_concurrency
 SELECT group_replication_get_write_concurrency(1);

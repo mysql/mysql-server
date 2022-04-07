@@ -29,9 +29,9 @@
 #include <cstddef>  // std::nullptr_t
 #include <memory>   // std::unique_ptr
 #include <new>
-#include <optional>
 
 #include "my_inttypes.h"
+#include "nullable.h"
 #include "sql/dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
 #include "sql/dd/impl/types/weak_object_impl.h"
 #include "sql/dd/object_id.h"
@@ -130,34 +130,35 @@ class Spatial_reference_system_impl : public Entity_object_impl,
   // organization
   /////////////////////////////////////////////////////////////////////////
 
-  const std::optional<String_type> &organization() const override {
+  const Mysql::Nullable<String_type> &organization() const override {
     return m_organization;
   }
 
   void set_organization(const String_type &organization) override {
-    m_organization = std::optional<String_type>(organization);
+    m_organization = Mysql::Nullable<String_type>(organization);
   }
 
   void set_organization(std::nullptr_t) override {
-    m_organization = std::optional<String_type>();
+    m_organization = Mysql::Nullable<String_type>();
   }
 
   /////////////////////////////////////////////////////////////////////////
   // organization_coordsys_id
   /////////////////////////////////////////////////////////////////////////
 
-  const std::optional<gis::srid_t> &organization_coordsys_id() const override {
+  const Mysql::Nullable<gis::srid_t> &organization_coordsys_id()
+      const override {
     return m_organization_coordsys_id;
   }
 
   void set_organization_coordsys_id(
       gis::srid_t organization_coordsys_id) override {
     m_organization_coordsys_id =
-        std::optional<gis::srid_t>(organization_coordsys_id);
+        Mysql::Nullable<gis::srid_t>(organization_coordsys_id);
   }
 
   void set_organization_coordsys_id(std::nullptr_t) override {
-    m_organization_coordsys_id = std::optional<gis::srid_t>();
+    m_organization_coordsys_id = Mysql::Nullable<gis::srid_t>();
   }
 
   /////////////////////////////////////////////////////////////////////////
@@ -314,16 +315,16 @@ class Spatial_reference_system_impl : public Entity_object_impl,
   // description
   /////////////////////////////////////////////////////////////////////////
 
-  const std::optional<String_type> &description() const override {
+  const Mysql::Nullable<String_type> &description() const override {
     return m_description;
   }
 
   void set_description(const String_type &description) override {
-    m_description = std::optional<String_type>(description);
+    m_description = Mysql::Nullable<String_type>(description);
   }
 
   void set_description(std::nullptr_t) override {
-    m_description = std::optional<String_type>();
+    m_description = Mysql::Nullable<String_type>();
   }
 
   // Fix "inherits ... via dominance" warnings
@@ -356,26 +357,14 @@ class Spatial_reference_system_impl : public Entity_object_impl,
   // Fields
   ulonglong m_created;
   ulonglong m_last_altered;
-  std::optional<String_type> m_organization;
-  std::optional<gis::srid_t> m_organization_coordsys_id;
+  Mysql::Nullable<String_type> m_organization;
+  Mysql::Nullable<gis::srid_t> m_organization_coordsys_id;
   String_type m_definition;
   std::unique_ptr<gis::srs::Spatial_reference_system> m_parsed_definition;
-  std::optional<String_type> m_description;
+  Mysql::Nullable<String_type> m_description;
 
   Spatial_reference_system *clone() const override {
     return new Spatial_reference_system_impl(*this);
-  }
-
-  Spatial_reference_system *clone_dropped_object_placeholder() const override {
-    /*
-      Even though we don't drop SRSes en masse we still create slimmed
-      down version for consistency sake.
-    */
-    Spatial_reference_system_impl *placeholder =
-        new Spatial_reference_system_impl();
-    placeholder->set_id(id());
-    placeholder->set_name(name());
-    return placeholder;
   }
 };
 

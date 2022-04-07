@@ -1029,7 +1029,6 @@ CREATE TEMPORARY TABLE tmp_digests (
   sum_sort_scan BIGINT UNSIGNED NOT NULL,
   sum_no_index_used BIGINT UNSIGNED NOT NULL,
   sum_no_good_index_used BIGINT UNSIGNED NOT NULL,
-  sum_cpu_time BIGINT UNSIGNED NOT NULL,
   first_seen TIMESTAMP NULL DEFAULT NULL,
   last_seen TIMESTAMP NULL DEFAULT NULL,
   quantile_95 BIGINT UNSIGNED NOT NULL,
@@ -1135,7 +1134,6 @@ WHERE (field1, ( SELECT COUNT( col_int_key ) FROM t1 )) IN (
        ON table2.col_int_key = table1.col_int_key
 );
 
---sorted_result
 eval $query;
 eval EXPLAIN $query;
 
@@ -2196,99 +2194,4 @@ ANALYZE TABLE t1;
 SELECT SUM(pk) FROM t1 WHERE ( pk >= ANY ( SELECT MAX(1) FROM DUAL) );
 DROP TABLE t1;
 
---echo #
---echo # Bug #32859025: MYSQLD CRASH - ASSERTION `N < M_SIZE' FAILED|SQL/SQL_ARRAY.H
---echo #
-
-CREATE TABLE t1 ( pk INTEGER );
-
-# The old optimizer calls both queries COUNT(*); the hypergraph optimizer
-# gets the names f1 and f2 right. We only really care that it doesn't crash,
-# so accept both.
-SELECT
-  (SELECT COUNT(*) FROM t1) AS f1,
-  (SELECT COUNT(*) FROM t1) AS f2
-FROM t1
-GROUP BY f1, f2 WITH ROLLUP;
-
-DROP TABLE t1;
-
---echo #
---echo # Bug#33057397: FIELD NAMES ARE DISPLAYED INCORRECTLY WITH ROLLUP AND
---echo #               SUBQUERY_TO_DERIVED
-
-CREATE TABLE t1 ( f1 INTEGER);
-INSERT INTO t1 VALUES (0);
-
-# Name of the expression should be displayed as "field1".
-# Used to be "min".
-SELECT (SELECT MIN(f1) AS min FROM t1 ) AS field1 FROM t1 GROUP BY
-field1 WITH ROLLUP;
-
-DROP TABLE t1;
-
---echo #
---echo # Bug#33104036: ASSERTION FAILURE IN FIND_SUBQUERY_IN_SELECT_LIST AT
---echo #               ../SQL/ITEM_SUBSELECT.CC
-
-CREATE TABLE t1 (f1 INTEGER);
-# Should not crash
-SELECT (SELECT SUM(f1) AS SQ1_field1 FROM t1) as field1
- FROM t1 GROUP BY f1 WITH ROLLUP ORDER BY f1;
-DROP TABLE t1;
-
---echo Original repro case
-CREATE TABLE t1 (pk integer auto_increment,
-                 col_int int ,
-                 col_datetime datetime ,
-                 col_char_255 char(255) ,
-                 col_smallint smallint ,
-                 col_decimal_10_8 decimal(10,8),
-                 primary key(pk)) ;
-
-set sql_mode='';
-
-let $query =
-SELECT alias1.col_decimal_10_8 AS field1 ,
-       ( SELECT SUM(table1.col_smallint ) AS SQ1_field1
-         FROM ( t1 as table1 RIGHT JOIN t1 as table2 ON 1 )
-       ) AS field2 ,
-       GROUPING( LOG(alias1.col_int) ) AS field3
-FROM ( t1 AS alias1
-       JOIN
-       t1 AS alias2 ON 1  )
-WHERE alias2.pk IN ( SELECT col_char_255 FROM t1 )
-GROUP BY field1, field2, LOG(alias1.col_int)
-WITH ROLLUP
-ORDER BY alias1.col_datetime, field1, field2, LOG(alias1.col_int) ;
-
-eval $query;
-eval EXPLAIN $query;
-set sql_mode=default;
-
-DROP TABLE t1;
-
---echo #
---echo # Bug#33079592: ASSERTION `SELECT->BASE_REF_ITEMS[ITEM_IDX] == ITEM' FAILED
---echo #
-
-CREATE TABLE t1 (f1 INTEGER);
-SET optimizer_switch='subquery_to_derived=default';
-# This will throw error
---error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
-SELECT SUM(f1), ROW_NUMBER() OVER (PARTITION BY f1), (SELECT MIN(f1) FROM t1) FROM t1;
-# This should throw error. But does not because before the full group by verification
-# happens, order by elements are removed (not correct for this case).
-SELECT SUM(f1), ROW_NUMBER() OVER (), (SELECT MIN(f1) FROM t1) FROM t1 ORDER BY f1;
-SET optimizer_switch='subquery_to_derived=on';
-# This will throw error (not as precise as when the transformation is off)
---error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
-SELECT SUM(f1), ROW_NUMBER() OVER (PARTITION BY f1), (SELECT MIN(f1) FROM t1) FROM t1;
-# This will throw error. Since the order by field is now visible in the derived
-# table.
---error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
-SELECT SUM(f1), ROW_NUMBER() OVER (), (SELECT MIN(f1) FROM t1) FROM t1 ORDER BY f1;
---error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
-SELECT SUM(f1), SUM(f1) OVER (), f1, (SELECT MIN(f1) FROM t1) sq FROM t1 ORDER BY f1;
-DROP TABLE t1;
 SET optimizer_switch='subquery_to_derived=default';

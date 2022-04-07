@@ -34,6 +34,7 @@
 #include <Configuration.hpp>
 #include <signaldata/RedoStateRep.hpp>
 #include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 472
 
@@ -58,7 +59,6 @@ Backup::Backup(Block_context& ctx,
     addRecSignal(GSN_STTOR, &Backup::execSTTOR);
     addRecSignal(GSN_DUMP_STATE_ORD, &Backup::execDUMP_STATE_ORD);
     addRecSignal(GSN_READ_NODESCONF, &Backup::execREAD_NODESCONF);
-    addRecSignal(GSN_NODE_START_REP, &Backup::execNODE_START_REP, true);
     addRecSignal(GSN_NODE_FAILREP, &Backup::execNODE_FAILREP);
     addRecSignal(GSN_INCL_NODEREQ, &Backup::execINCL_NODEREQ);
     addRecSignal(GSN_CONTINUEB, &Backup::execCONTINUEB);
@@ -362,12 +362,11 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   c_fragmentPool.setSize(noBackups * noFrags + 2);
   c_deleteLcpFilePool.setSize(noDeleteLcpFile);
 
-  c_tableMapSize = noBackups * noTables;
   c_tableMap = (Uint32*)allocRecord("c_tableMap",
                                     sizeof(Uint32),
-                                    c_tableMapSize);
+                                    noBackups * noTables);
 
-  for (Uint32 i = 0; i < c_tableMapSize; i++)
+  for (Uint32 i = 0; i < (noBackups * noTables); i++)
   {
     c_tableMap[i] = RNIL;
   }
@@ -562,8 +561,8 @@ void Backup::calculate_real_disk_write_speed_parameters(void)
      * we will remove the adaptiveness of the LCP speed.
      */
     jam();
-    g_eventLogger->info(
-        "Setting MaxDiskWriteSpeed to MinDiskWriteSpeed since max < min");
+    ndbout << "Setting MaxDiskWriteSpeed to MinDiskWriteSpeed since max < min"
+           << endl;
     c_defaults.m_disk_write_speed_max = c_defaults.m_disk_write_speed_min;
   }
 
@@ -576,9 +575,8 @@ void Backup::calculate_real_disk_write_speed_parameters(void)
      * at other nodes restarts.
      */
     jam();
-    g_eventLogger->info(
-        "MaxDiskWriteSpeed larger than MaxDiskWriteSpeedOtherNodeRestart"
-        " setting both to MaxDiskWriteSpeed");
+    ndbout << "MaxDiskWriteSpeed larger than MaxDiskWriteSpeedOtherNodeRestart"
+           << " setting both to MaxDiskWriteSpeed" << endl;
     c_defaults.m_disk_write_speed_max_other_node_restart =
       c_defaults.m_disk_write_speed_max;
   }
@@ -592,9 +590,9 @@ void Backup::calculate_real_disk_write_speed_parameters(void)
      * LCP speed at other nodes restarts.
      */
     jam();
-    g_eventLogger->info(
-        "Setting MaxDiskWriteSpeedOwnRestart to "
-        "MaxDiskWriteSpeedOtherNodeRestart since it was smaller");
+    ndbout << "Setting MaxDiskWriteSpeedOwnRestart to "
+           << " MaxDiskWriteSpeedOtherNodeRestart since it was smaller"
+           << endl;
     c_defaults.m_disk_write_speed_max_own_restart =
       c_defaults.m_disk_write_speed_max_other_node_restart;
   }

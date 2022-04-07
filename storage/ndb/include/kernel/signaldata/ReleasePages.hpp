@@ -32,7 +32,7 @@ struct ReleasePagesReq {
   enum {
     RT_RELEASE_UNLOCKED = 1
   };
-  static constexpr Uint32 SignalLength = 4;
+  STATIC_CONST( SignalLength = 4 );
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 requestType;
@@ -40,7 +40,7 @@ struct ReleasePagesReq {
 };
 
 struct ReleasePagesConf {
-  static constexpr Uint32 SignalLength = 2;
+  STATIC_CONST( SignalLength = 2 );
   Uint32 senderData;
   Uint32 senderRef;
 };

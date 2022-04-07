@@ -72,13 +72,12 @@ enum enum_timer_name {
   TIMER_NAME_NANOSEC = 2,
   TIMER_NAME_MICROSEC = 3,
   TIMER_NAME_MILLISEC = 4,
-  TIMER_NAME_THREAD_CPU = 5,
 };
 
 /** Integer, first value of @sa enum_timer_name. */
 #define FIRST_TIMER_NAME (static_cast<int>(TIMER_NAME_CYCLE))
 /** Integer, last value of @sa enum_timer_name. */
-#define LAST_TIMER_NAME (static_cast<int>(TIMER_NAME_THREAD_CPU))
+#define LAST_TIMER_NAME (static_cast<int>(TIMER_NAME_MILLISEC))
 /** Integer, number of values of @sa enum_timer_name. */
 #define COUNT_TIMER_NAME (LAST_TIMER_NAME - FIRST_TIMER_NAME + 1)
 

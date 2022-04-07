@@ -255,8 +255,8 @@ int table_events_transactions_common::make_row(
   m_normalizer->to_pico(transaction->m_timer_start, timer_end,
                         &m_row.m_timer_start, &m_row.m_timer_end,
                         &m_row.m_timer_wait);
-  m_row.m_name = klass->m_name.str();
-  m_row.m_name_length = klass->m_name.length();
+  m_row.m_name = klass->m_name;
+  m_row.m_name_length = klass->m_name_length;
 
   make_source_column(transaction->m_source_file, transaction->m_source_line,
                      m_row.m_source, sizeof(m_row.m_source),
@@ -558,8 +558,8 @@ int table_events_transactions_current::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_events_transactions_current::index_init(uint idx [[maybe_unused]],
-                                                  bool) {
+int table_events_transactions_current::index_init(
+    uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_events_transactions *result;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_events_transactions);
@@ -677,8 +677,8 @@ int table_events_transactions_history::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_events_transactions_history::index_init(uint idx [[maybe_unused]],
-                                                  bool) {
+int table_events_transactions_history::index_init(
+    uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_events_transactions *result;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_events_transactions);

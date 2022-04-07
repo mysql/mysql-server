@@ -29,7 +29,7 @@
 
 using std::vector;
 
-extern void do_cb_xcom_receive_data(synode_no message_id, synode_no origin,
+extern void do_cb_xcom_receive_data(synode_no message_id,
                                     Gcs_xcom_nodes *xcom_nodes,
                                     synode_no last_removed, u_int size,
                                     char *data);
@@ -81,8 +81,7 @@ TEST_F(GcsInterfaceTest, ReceiveEmptyMessageTest) {
   gcs->initialize(if_params);
 
   // invoke the callback with a message with size zero
-  do_cb_xcom_receive_data(null_synode, null_synode, nullptr, null_synode, 0,
-                          nullptr);
+  do_cb_xcom_receive_data(null_synode, nullptr, null_synode, 0, nullptr);
 
   // finalize the interface
   gcs->finalize();

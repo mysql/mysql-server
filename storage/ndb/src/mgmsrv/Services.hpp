@@ -130,8 +130,6 @@ public:
 
   void get_mgmd_nodeid(Parser_t::Context &ctx, Properties const &args);
 
-  static const unsigned MAX_EVENT_LENGTH = 25;
-
   void report_event(Parser_t::Context &ctx, Properties const &args);
 
   void listSessions(Parser_t::Context &ctx, Properties const &args);

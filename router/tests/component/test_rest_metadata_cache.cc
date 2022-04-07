@@ -26,6 +26,8 @@
 #include <thread>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
+// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
+// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -38,11 +40,11 @@
 #include "config_builder.h"
 #include "dim.h"
 #include "mysql/harness/utility/string.h"  // ::join
-#include "mysqlrouter/mysql_session.h"
+#include "mysql_session.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
-#include "test/temp_directory.h"
+#include "temp_dir.h"
 
 #include "mysqlrouter/rest_client.h"
 
@@ -115,15 +117,14 @@ TEST_P(RestMetadataCacheApiWithoutClusterTest, DISABLED_ensure_openapi) {
       }));
 
   std::string conf_file{create_config_file(
-      conf_dir_.name(), mysql_harness::join(config_sections, ""),
+      conf_dir_.name(), mysql_harness::join(config_sections, "\n"),
       &default_section_)};
   ProcessWrapper &http_server{launch_router({"-c", conf_file})};
 
   g_refresh_failed = 0;
   g_time_last_refresh_failed = "";
 
-  ASSERT_NO_FATAL_FAILURE(
-      fetch_and_validate_schema_and_resource(GetParam(), http_server));
+  fetch_and_validate_schema_and_resource(GetParam(), http_server);
 
   // this part is relevant only for Get OK, otherwise let's avoid useless sleep
   if (GetParam().status_code == HttpMethod::Get &&
@@ -133,8 +134,7 @@ TEST_P(RestMetadataCacheApiWithoutClusterTest, DISABLED_ensure_openapi) {
 
     // check the resources again, we want to compare them against the previous
     // ones
-    ASSERT_NO_FATAL_FAILURE(
-        fetch_and_validate_schema_and_resource(GetParam(), http_server));
+    fetch_and_validate_schema_and_resource(GetParam(), http_server);
   }
 }
 
@@ -384,7 +384,7 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
       }));
 
   std::string conf_file{create_config_file(
-      conf_dir_.name(), mysql_harness::join(config_sections, ""),
+      conf_dir_.name(), mysql_harness::join(config_sections, "\n"),
       &default_section_)};
 
   auto &router_proc{launch_router({"-c", conf_file})};
@@ -402,7 +402,7 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
                                   metadata_cache_section_name + "/status"));
   }
 
-  ASSERT_NO_FATAL_FAILURE(
+  EXPECT_NO_FATAL_FAILURE(
       fetch_and_validate_schema_and_resource(GetParam(), router_proc));
 
   // this part is relevant only for Get OK, otherwise let's avoid useless sleep
@@ -413,7 +413,7 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
 
     // check the resources again, we want to compare them against the previous
     // ones
-    ASSERT_NO_FATAL_FAILURE(
+    EXPECT_NO_FATAL_FAILURE(
         fetch_and_validate_schema_and_resource(GetParam(), router_proc));
   }
 }
@@ -800,8 +800,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
-     RestApiComponentTest::get_json_method_not_allowed_verifiers(),
-     kMetadataSwaggerPaths},
+     RestApiComponentTest::kProblemJsonMethodNotAllowed, kMetadataSwaggerPaths},
 
     {"metadata_status_invalid_methods",
      std::string(rest_api_basepath) + "/metadata/" +
@@ -813,8 +812,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
-     RestApiComponentTest::get_json_method_not_allowed_verifiers(),
-     kMetadataSwaggerPaths},
+     RestApiComponentTest::kProblemJsonMethodNotAllowed, kMetadataSwaggerPaths},
 
     {"metadata_config_invalid_methods",
      std::string(rest_api_basepath) + "/metadata/" +
@@ -826,8 +824,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
-     RestApiComponentTest::get_json_method_not_allowed_verifiers(),
-     kMetadataSwaggerPaths},
+     RestApiComponentTest::kProblemJsonMethodNotAllowed, kMetadataSwaggerPaths},
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -861,7 +858,7 @@ TEST_F(RestMetadataCacheApiTest, metadata_cache_api_no_auth) {
   const std::string router_output = router.get_full_logfile();
   EXPECT_THAT(router_output,
               ::testing::HasSubstr(
-                  "  init 'rest_metadata_cache' failed: option "
+                  "plugin 'rest_metadata_cache' init failed: option "
                   "require_realm in [rest_metadata_cache] is required"))
       << router_output;
 }
@@ -949,7 +946,7 @@ TEST_F(RestMetadataCacheApiTest, rest_metadata_cache_section_twice) {
       mysql_harness::ConfigBuilder::build_section("rest_metadata_cache", {}));
 
   const std::string conf_file{create_config_file(
-      conf_dir_.name(), mysql_harness::join(config_sections, ""))};
+      conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
   auto &router =
       launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
@@ -982,10 +979,11 @@ TEST_F(RestMetadataCacheApiTest, rest_metadata_cache_section_has_key) {
   check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_logfile();
-  EXPECT_THAT(router_output,
-              ::testing::HasSubstr(
-                  "  init 'rest_metadata_cache' failed: [rest_metadata_cache] "
-                  "section does not expect a key, found 'A'"))
+  EXPECT_THAT(
+      router_output,
+      ::testing::HasSubstr(
+          "plugin 'rest_metadata_cache' init failed: [rest_metadata_cache] "
+          "section does not expect a key, found 'A'"))
       << router_output;
 }
 

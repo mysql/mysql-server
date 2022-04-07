@@ -1,6 +1,7 @@
 ## XPLUGIN: Following test cases for mysqlx plugin ssl connection testing
 ##          with SSL cert verification on client side.
 
+--source include/not_have_tlsv13.inc
 --source include/xplugin_preamble.inc
 --source include/xplugin_ssl_warnings_suppression.inc
 --source include/xplugin_create_user.inc
