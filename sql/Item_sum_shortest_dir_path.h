@@ -3,38 +3,39 @@
 
 #include "sql/item_sum.h"
 #include "sql/Dijkstras_functor.h"
+#include "sql/json_dom.h"
+#include "include/map_helpers.h"
+#include "sql/psi_memory_key.h"
 
 class Item_sum_shortest_dir_path final : public Item_sum_json {
-
   int m_begin_node, m_end_node;
-  std::unordered_multimap<int, Edge*> m_edge_map;
-  /// Accumulates the final value.
-  unique_ptr_destroy_only<Json_object> m_json_object;
-  /// Buffer used to get the value of the key.
-  String m_tmp_key_value;
-  /**
-     Map of keys in Json_object and the count for each key
-     within a window frame. It is used in handling rows
-     leaving a window frame when rows are not sorted
-     according to the key in Json_object.
-   */
-  std::map<std::string, int> m_key_map;
-  /**
-    If window provides ordering on the key in Json_object,
-    a key_map is not needed to handle rows leaving a window
-    frame. In this case, process_buffered_windowing_record()
-    will set flags when a key/value pair can be removed from
-    the Json_object.
-  */
-  bool m_optimize{false};
-
+  // * accumulated edges from ::add. map key = node id of edge origin (i.e. Edge.from)
+  malloc_unordered_multimap<int, const Edge*> m_edge_map;
+  // * accumulated points from ::add. map key = node id
+  // TODO use
+  malloc_unordered_map<int, const gis::Point*> m_point_map;
  public:
+ /**
+  * @brief Construct a new Item_sum_shortest_dir_path object
+  * 
+  * @param thd 
+  * @param item 
+  * @param wrapper
+  */
   Item_sum_shortest_dir_path(THD *thd, Item_sum *item,
-                       unique_ptr_destroy_only<Json_wrapper> wrapper,
-                       unique_ptr_destroy_only<Json_object> object);
-  Item_sum_shortest_dir_path(const POS &pos, PT_item_list *args, PT_window *w,
-                       unique_ptr_destroy_only<Json_wrapper> wrapper,
-                       unique_ptr_destroy_only<Json_object> object);
+                       unique_ptr_destroy_only<Json_wrapper> wrapper);
+  /**
+   * @brief Construct a new Item_sum_shortest_dir_path object
+   * 
+   * @param pos 
+   * @param args 
+   * @param w
+   * @param wrapper
+   * ! wrapper not needed
+   * TODO inherit from Item_sum?
+   */
+  Item_sum_shortest_dir_path(const POS &pos, PT_item_list *args,
+                       unique_ptr_destroy_only<Json_wrapper> wrapper);
 
   ~Item_sum_shortest_dir_path() override = default;
 
@@ -51,11 +52,44 @@ class Item_sum_shortest_dir_path final : public Item_sum_json {
                            Window_evaluation_requirements *reqs) override;
 
  private:
-  bool verify_const_id_argument(int i);
-  bool verify_id_argument(int i);
-  bool verify_cost_argument(int i);
-  Json_dom *jsonify_to_heap(int i);
-  Json_dom *jsonify_to_heap(double d);
+  /**
+   * @brief verifies that item is a valid const id
+   * 
+   * @param item 
+   * @return true if valid
+   * @return false if invalid
+   */
+  inline bool verify_const_id_argument(Item *item);
+  /**
+   * @brief verifies that item is a valid id
+   * 
+   * @param item 
+   * @return true if valid
+   * @return false if invalid
+   */
+  inline bool verify_id_argument(Item *item);
+  /**
+   * @brief verifies that item is a valid dijkstra weight (cost)
+   * 
+   * @param item 
+   * @return true if valid
+   * @return false if invalid
+   */
+  inline bool verify_cost_argument(Item *item);
+  /**
+   * @brief allocates Json_int on heap with given value
+   * 
+   * @param i value
+   * @return Json_dom_ptr to Json_int
+   */
+  inline Json_dom_ptr jsonify_to_heap(const int& i);
+  /**
+   * @brief allocates Json_double on heap with given value
+   * 
+   * @param d value
+   * @return Json_dom_ptr to Json_double
+   */
+  inline Json_dom_ptr jsonify_to_heap(const double& d);
 };
 
 #endif /* ITEM_SUM_SHORTEST_DIR_PATH_INCLUDED */

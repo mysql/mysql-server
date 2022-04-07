@@ -7,7 +7,8 @@
 #include <optional>
 #include <string>
 #include <utility>  // std::forward
-#include <stdlib.h>
+#include <functional>
+
 #include "decimal.h"
 #include "my_alloc.h"
 #include "my_base.h"
@@ -33,7 +34,6 @@
 #include "sql/item_func.h"
 #include "sql/item_json_func.h"
 #include "sql/item_subselect.h"
-#include "sql/json_dom.h"
 #include "sql/key_spec.h"
 #include "sql/mysqld.h"
 #include "sql/parse_tree_helpers.h"    // PT_item_list
@@ -59,65 +59,87 @@
 #include "sql/window.h"
 
 Item_sum_shortest_dir_path::Item_sum_shortest_dir_path(
-    THD *thd, Item_sum *item, unique_ptr_destroy_only<Json_wrapper> wrapper,
-    unique_ptr_destroy_only<Json_object> object)
+    THD *thd, Item_sum *item, unique_ptr_destroy_only<Json_wrapper> wrapper)
     : Item_sum_json(std::move(wrapper), thd, item),
-      m_json_object(std::move(object)) {}
+      m_edge_map(key_memory_Dijkstra), m_point_map(key_memory_Dijkstra) {}
 
 Item_sum_shortest_dir_path::Item_sum_shortest_dir_path(
-    const POS &pos, PT_item_list *args, PT_window *w,
-    unique_ptr_destroy_only<Json_wrapper> wrapper,
-    unique_ptr_destroy_only<Json_object> object)
-    : Item_sum_json(std::move(wrapper), pos, args, w),
-      m_json_object(std::move(object)) {}
+    const POS &pos, PT_item_list *args,
+    unique_ptr_destroy_only<Json_wrapper> wrapper)
+    : Item_sum_json(std::move(wrapper), pos, args, nullptr),
+      m_edge_map(key_memory_Dijkstra), m_point_map(key_memory_Dijkstra) {}
 
 bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
-  assert(false);
+  assert(!m_is_window_function);
 
-  return Item_sum_json::val_json(wr);
+  const THD *thd = base_query_block->parent_lex->thd;
+  static std::function stop_dijkstra = [&thd]() -> bool {
+    return thd->is_error() || thd->is_fatal_error() || thd->is_killed();
+  };
+  static std::function null_heuristic = [](const int&) -> double {
+    return 0.0;
+  };
+  static std::function geom_heuristic = [](const int&) -> double {
+    return 0.0; // TODO implement
+  };
+  std::function<double(const int&)>& heuristic = true ? null_heuristic : geom_heuristic;
+
+  try {
+    Json_array_ptr arr(new (std::nothrow) Json_array());
+    if (arr == nullptr)
+      return error_json();
+    Dijkstra dijkstra(&m_edge_map, heuristic, key_memory_Dijkstra);
+    double cost;
+    std::vector<const Edge*> path = dijkstra(m_begin_node, m_end_node, cost, stop_dijkstra);
+    if (stop_dijkstra())
+      return error_json();
+    // jsonifying path from dijkstra into arr
+    for (const Edge* edge : path) {
+      Json_object_ptr json_edge(new (std::nothrow) Json_object());
+      if (
+        json_edge == nullptr ||
+        json_edge->add_alias("id", jsonify_to_heap(edge->id)) ||
+        json_edge->add_alias("cost", jsonify_to_heap(edge->cost)) ||
+        //json_edge->add_alias("from", jsonify_to_heap(edge->from)) ||
+        //json_edge->add_alias("to", jsonify_to_heap(edge->to)) ||
+        arr->append_alias(std::move(json_edge)))
+          return error_json();
+    }
+    // inserting path and cost into obj
+    Json_object_ptr obj = Json_object_ptr(new (std::nothrow) Json_object());
+    if (
+      obj == nullptr ||
+      obj->add_alias("path", std::move(arr)) ||
+      obj->add_alias("cost", jsonify_to_heap(cost)))
+        return error_json();
+    
+    *wr = Json_wrapper(std::move(obj));
+    return false;
+  } catch(...) { // expects to catch std::bad_alloc
+    handle_std_exception(func_name());
+    return error_json();
+  }
 }
 String *Item_sum_shortest_dir_path::val_str(String *str) {
   assert(!m_is_window_function);
 
-  const THD *thd = base_query_block->parent_lex->thd;  
-  if (thd->is_error()) return error_str();
-
-  Json_array *arr = new (std::nothrow) Json_array();
-  Dijkstra dijkstra(m_edge_map);
-  double cost;
-
-  for (const Edge* edge : dijkstra(m_begin_node, m_end_node, cost)) {
-    Json_object *json_edge = new (std::nothrow) Json_object();
-    if (json_edge->add_alias("id", jsonify_to_heap(edge->id)) ||
-        json_edge->add_alias("cost", jsonify_to_heap(edge->cost)) ||
-        arr->append_alias(json_edge))
-          return error_str();
-
-  }
-  Json_object *object = down_cast<Json_object *>(m_wrapper->to_dom(thd));
-  object->clear();
-  if( object->add_alias("path", arr) ||
-      object->add_alias("cost", jsonify_to_heap(cost)))
-        return error_str();
+  Json_wrapper wr;
+  if (val_json(&wr))
+    return error_str();
 
   str->length(0);
-  if (m_wrapper->to_string(str, true, func_name())) return error_str();
+  if (wr.to_string(str, true, func_name()))
+    return error_str();
 
   if(aggr) aggr->endup();
 
-  return str; //Item_sum_json::val_str(str);
+  return str;
 }
 
 void Item_sum_shortest_dir_path::clear() {
   null_value = true;
-  m_json_object->clear();
 
-  for (auto& pair : m_edge_map) delete pair.second;
   m_edge_map.clear();
-  // Set the object to the m_wrapper, but let a_star_ting keep the
-  // ownership.
-  *m_wrapper = Json_wrapper(m_json_object.get(), true);
-  m_key_map.clear();
 }
 
 bool Item_sum_shortest_dir_path::add() {
@@ -136,37 +158,52 @@ bool Item_sum_shortest_dir_path::add() {
   int id, from_id, to_id;
   double cost;
 
-  for (size_t i = 0; i <= 2; i++) verify_id_argument(i);
-  verify_cost_argument(3);
-  for (size_t i = 4; i <= 5; i++) verify_const_id_argument(i);
+  // verify arg 0, 1, 2
+  for (size_t i = 0; i < 3; i++)
+    if (verify_id_argument(args[i]))
+      return true;
+  // verify arg 3
+  if (verify_cost_argument(args[3]))
+    return true;
+  // verify arg 4, 5
+  // TODO only once per agg
+  for (size_t i = 4; i < 6; i++)
+    if (verify_const_id_argument(args[i]))
+      return true;
 
+  // get data
   id = args[0]->val_int();
   from_id = args[1]->val_int();
   to_id = args[2]->val_int();
   cost = args[3]->val_real();
+  // TODO only once per agg
   m_begin_node = args[4]->val_int();
   m_end_node = args[5]->val_int();
+  
+  // catch any leftover type errors
   if (thd->is_error()) return true;
-  for (int i = 0; i < 4; i++) if (args[i]->null_value) return true;
+  for (int i = 0; i < 4; i++)
+    if (args[i]->null_value)
+      return true;
 
-  m_edge_map.insert(std::pair<int, Edge*>(from_id, new Edge{id, from_id, to_id, cost}));
-
-
+  // store edge
+  Edge *edge = new (thd->mem_root, std::nothrow) Edge{ id, from_id, to_id, cost };
+  if (edge == nullptr)
+    return true;
+  try {
+    m_edge_map.insert(std::pair(from_id, edge));
+  } catch (...) { // expects to catch std::bad_alloc
+    handle_std_exception(func_name());
+    return true;
+  }
   return false;
 }
 
 Item *Item_sum_shortest_dir_path::copy_or_same(THD *thd) {
-  if (m_is_window_function) return this;
-
+  assert(!m_is_window_function);
   auto wrapper = make_unique_destroy_only<Json_wrapper>(thd->mem_root);
   if (wrapper == nullptr) return nullptr;
-
-  unique_ptr_destroy_only<Json_object> object{::new (thd->mem_root)
-                                                  Json_object};
-  if (object == nullptr) return nullptr;
-
-  return new (thd->mem_root)
-      Item_sum_shortest_dir_path(thd, this, std::move(wrapper), std::move(object));
+  return new (thd->mem_root) Item_sum_shortest_dir_path(thd, this, std::move(wrapper));
 }
 
 bool Item_sum_shortest_dir_path::check_wf_semantics1(THD *thd, Query_block *select,
@@ -174,39 +211,33 @@ bool Item_sum_shortest_dir_path::check_wf_semantics1(THD *thd, Query_block *sele
   return Item_sum::check_wf_semantics1(thd, select, reqs);
 }
 
-bool Item_sum_shortest_dir_path::verify_const_id_argument(int i) {
-
-    if (!args[i]->const_item() ||
-        (!args[i]->is_null() &&
-         (args[i]->result_type() != INT_RESULT))) {
+inline bool Item_sum_shortest_dir_path::verify_const_id_argument(Item *item) {
+    if (!item->const_item() || item->is_null() || item->result_type() != INT_RESULT) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
       return true;
-    } 
+    }
     return false;
 }
 
-bool Item_sum_shortest_dir_path::verify_id_argument(int i) {
-
-    if (!args[i]->is_null() && (args[i]->result_type() != INT_RESULT)) {
+inline bool Item_sum_shortest_dir_path::verify_id_argument(Item *item) {
+    if (item->is_null() || item->result_type() != INT_RESULT) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
       return true;
-    } 
+    }
     return false;
 }
 
-bool Item_sum_shortest_dir_path::verify_cost_argument(int i) {
-
-  if (!args[i]->is_null() && (args[i]->result_type() != REAL_RESULT)) {
+inline bool Item_sum_shortest_dir_path::verify_cost_argument(Item *item) {
+  if (item->is_null() || item->result_type() != REAL_RESULT) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
       return true;
-    } 
+    }
     return false;
 }
 
-Json_dom *Item_sum_shortest_dir_path::jsonify_to_heap(int i) {
-  return new (std::nothrow) Json_int(i);
+inline Json_dom_ptr Item_sum_shortest_dir_path::jsonify_to_heap(const int& i) {
+  return Json_dom_ptr(new (std::nothrow) Json_int(i));
 }
-Json_dom *Item_sum_shortest_dir_path::jsonify_to_heap(double d) {
-  return new (std::nothrow) Json_double(d);
+inline Json_dom_ptr Item_sum_shortest_dir_path::jsonify_to_heap(const double& d) {
+  return Json_dom_ptr(new (std::nothrow) Json_double(d));
 }
-

@@ -1,21 +1,54 @@
-create table paths(
-id int primary key,
-from_id int,
-to_id int,
-cost double,
-type varchar(50)
+# This test tests the ST_SHORTEST_DIR_PATH function.
+
+--echo # ---------------------
+--echo # |[0] creating tables|
+--echo # ---------------------
+
+CREATE TABLE paths (
+  id INT PRIMARY KEY,
+  from_id INT,
+  to_id INT,
+  cost DOUBLE,
+  type ENUM("undefined", "car", "bike", "pedestrian")
 );
 
-insert into paths values
+--echo # --------------------------------------------
+--echo # |[1] testing Dijkstra i.e. without geometry|
+--echo # --------------------------------------------
+
+INSERT INTO paths VALUES
+(50, 0, 1, 3.0, "undefined"),
+(51, 0, 2, 5.0, "undefined"),
+(52, 0, 3, 8.0, "undefined"),
+(53, 1, 4, 1.0, "undefined"),
+(54, 4, 3, 2.0, "undefined"),
+(55, 3, 5, 6.0, "undefined"),
+(56, 2, 5, 12.0, "undefined"),
+(57, 4, 5, 10.0, "undefined")
+;
+
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, 0, 6) FROM paths;
+
+INSERT INTO paths VALUES
 (10, 0, 1, 2.0, "car"),
 (11, 1, 2, 3.0, "car"),
 (12, 0, 2, 8.0, "car"),
 
 (20, 0, 1, 20.0, "bike"),
 (21, 1, 2, 25.0, "bike"),
-(22, 0, 2, 40.0, "bike")
+(22, 0, 2, 40.0, "bike"),
+
+(30, 0, 1, 80.0, "pedestrian"),
+(31, 1, 2, 100.0, "pedestrian"),
+(32, 0, 2, 200.0, "pedestrian"),
+(33, 1, 3, 40.0, "pedestrian"),
+(34, 3, 2, 20.0, "pedestrian")
 ;
 
-select st_shortest_dir_path(id, from_id, to_id, cost, 0, 2) from paths group by type;
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, 0, 2) FROM paths GROUP BY type;
 
-drop table paths;
+DROP TABLE paths;
+
+--echo # -----------------------------------
+--echo # |[2] testing A* i.e. with geometry|
+--echo # -----------------------------------
