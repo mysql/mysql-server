@@ -42,6 +42,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /* std::memory_order_* */
 #include <atomic>
 
+/* thd_wait_begin() / thd_wait_end() */
+#include <mysql/service_thd_wait.h>
+
 /* std::memcpy, std::memset */
 #include <cstring>
 
@@ -924,9 +927,12 @@ static Wait_stats log_wait_for_flush(const log_t &log, lsn_t lsn,
 
   const size_t slot = log_compute_flush_event_slot(log, lsn);
 
+  thd_wait_begin(nullptr, THD_WAIT_GROUP_COMMIT);
   const auto wait_stats =
       os_event_wait_for(log.flush_events[slot], max_spins,
                         get_srv_log_wait_for_flush_timeout(), stop_condition);
+
+  thd_wait_end(nullptr);
 
   MONITOR_INC_WAIT_STATS(MONITOR_LOG_ON_FLUSH_, wait_stats);
 

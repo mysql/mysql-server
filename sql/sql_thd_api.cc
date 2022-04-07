@@ -585,26 +585,23 @@ void *thd_memdup(MYSQL_THD thd, const void *str, size_t size) {
 //
 //////////////////////////////////////////////////////////
 
-/*
+/**
   Interface for MySQL Server, plugins and storage engines to report
   when they are going to sleep/stall.
 
-  SYNOPSIS
-  thd_wait_begin()
-  thd                     Thread object
-  wait_type               Type of wait
-                          1 -- short wait (e.g. for mutex)
-                          2 -- medium wait (e.g. for disk io)
-                          3 -- large wait (e.g. for locked row/table)
-  NOTES
-    This is used by the threadpool to have better knowledge of which
-    threads that currently are actively running on CPUs. When a thread
-    reports that it's going to sleep/stall, the threadpool scheduler is
-    free to start another thread in the pool most likely. The expected wait
-    time is simply an indication of how long the wait is expected to
-    become, the real wait time could be very different.
+  This is currently only implemented by by the threadpool and used to have
+  better knowledge of which threads that currently are actively running on CPUs.
+  When not running with TP this makes a call, possibly through a service,
+  to an empty function.
 
   thd_wait_end MUST be called immediately after waking up again.
+
+  More info can be found in the TP documentation.
+
+  @param thd Calling thread context. If nullptr is passed, current_thd is used.
+  @param wait_type An enum value from the enum thd_wait_type (defined
+                   in include/mysql/service_thd_wait.h) but passed as int
+                   to preserve compatibility with exported service api.
 */
 void thd_wait_begin(MYSQL_THD thd, int wait_type) {
   MYSQL_CALLBACK(Connection_handler_manager::event_functions, thd_wait_begin,
@@ -615,7 +612,14 @@ void thd_wait_begin(MYSQL_THD thd, int wait_type) {
   Interface for MySQL Server, plugins and storage engines to report
   when they waking up from a sleep/stall.
 
-  @param  thd   Thread handle
+  This is currently only implemented by by the threadpool and used to have
+  better knowledge of which threads that currently are actively running on CPUs.
+  When not running with TP this makes a call, possibly through a service,
+  to an empty function.
+
+  More info can be found in the TP documentation.
+
+  @param thd Calling thread context. If nullptr is passed, current_thd is used.
 */
 void thd_wait_end(MYSQL_THD thd) {
   MYSQL_CALLBACK(Connection_handler_manager::event_functions, thd_wait_end,
