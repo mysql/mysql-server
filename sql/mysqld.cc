@@ -1845,15 +1845,15 @@ struct System_status_var *get_thd_status_var(THD *thd, bool *aggregated) {
 #ifndef NDEBUG
 bool thd_mem_cnt_alloc(THD *thd, size_t size, const char *key_name) {
   thd->current_key_name = key_name;
-  return thd->mem_cnt->alloc_cnt(size);
+  return thd->m_mem_cnt.alloc_cnt(size);
 }
 #else
 bool thd_mem_cnt_alloc(THD *thd, size_t size) {
-  return thd->mem_cnt->alloc_cnt(size);
+  return thd->m_mem_cnt.alloc_cnt(size);
 }
 #endif
 
-void thd_mem_cnt_free(THD *thd, size_t size) { thd->mem_cnt->free_cnt(size); }
+void thd_mem_cnt_free(THD *thd, size_t size) { thd->m_mem_cnt.free_cnt(size); }
 
 static void option_error_reporter(enum loglevel level, uint ecode, ...) {
   va_list args;

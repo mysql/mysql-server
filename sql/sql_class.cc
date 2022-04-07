@@ -128,8 +128,6 @@ char empty_c_string[1] = {0}; /* used for not defined db */
 const char *const THD::DEFAULT_WHERE = "field list";
 extern PSI_stage_info stage_waiting_for_disk_space;
 
-Thd_mem_cnt_noop thd_cnt_noop;
-
 #ifndef NDEBUG
 /**
    For debug purpose only. Used for
@@ -150,15 +148,26 @@ bool fail_on_alloc(THD *thd) {
 }
 #endif
 
+void Thd_mem_cnt::disable() {
+  if (m_enabled) {
+    flush();
+    m_enabled = false;
+  }
+}
+
 /**
    Increase memory counter at 'alloc' operation. Update
    global memory counter.
 
    @param size   amount of memory allocated.
 
-   @returns always true
+   @returns true if memory consumption is controlled
 */
-bool Thd_mem_cnt_conn::alloc_cnt(size_t size) {
+bool Thd_mem_cnt::alloc_cnt(size_t size) {
+  if (!m_enabled) {
+    return false;
+  }
+
   assert(!opt_initialize && m_thd->get_psi() != nullptr);
   assert(!m_thd->kill_immunizer || !m_thd->kill_immunizer->is_active() ||
          !is_error_mode());
@@ -223,7 +232,11 @@ bool Thd_mem_cnt_conn::alloc_cnt(size_t size) {
 
    @param size   amount of memory freed.
 */
-void Thd_mem_cnt_conn::free_cnt(size_t size) {
+void Thd_mem_cnt::free_cnt(size_t size) {
+  if (!m_enabled) {
+    return;
+  }
+
   assert(mem_counter >= size);
   mem_counter -= size;
 }
@@ -234,7 +247,7 @@ void Thd_mem_cnt_conn::free_cnt(size_t size) {
 
    @returns -1 if OOM error, 0 otherwise.
 */
-int Thd_mem_cnt_conn::reset() {
+int Thd_mem_cnt::reset() {
   restore_mode();
   max_conn_mem = mem_counter;
   if (m_thd->variables.conn_global_mem_tracking &&
@@ -272,7 +285,7 @@ int Thd_mem_cnt_conn::reset() {
 /**
    Function flushes memory counters before deleting the memory counter object.
 */
-void Thd_mem_cnt_conn::flush() {
+void Thd_mem_cnt::flush() {
   max_conn_mem = mem_counter = 0;
   if (glob_mem_counter > 0) {
     MUTEX_LOCK(lock, &LOCK_global_conn_mem_limit);
@@ -293,8 +306,8 @@ void Thd_mem_cnt_conn::flush() {
 
    @returns -1 if OOM error is generated, 0 otherwise.
 */
-int Thd_mem_cnt_conn::generate_error(int err_no, ulonglong mem_limit,
-                                     ulonglong mem_size) {
+int Thd_mem_cnt::generate_error(int err_no, ulonglong mem_limit,
+                                ulonglong mem_size) {
   if (is_error_mode()) {
     int err_no_tmp = 0;
     bool is_log_err = is_error_log_mode();
@@ -337,7 +350,7 @@ int Thd_mem_cnt_conn::generate_error(int err_no, ulonglong mem_limit,
 /**
    Set THD error status using memory counter diagnostics area.
 */
-void Thd_mem_cnt_conn::set_thd_error_status() {
+void Thd_mem_cnt::set_thd_error_status() const {
   m_thd->get_stmt_da()->set_overwrite_status(true);
   m_thd->get_stmt_da()->set_error_status(
       m_da.mysql_errno(), m_da.message_text(), m_da.returned_sqlstate());
@@ -832,7 +845,7 @@ THD::THD(bool enable_plugins)
 #endif
   set_system_user(false);
   set_connection_admin(false);
-  mem_cnt = &thd_cnt_noop;
+  m_mem_cnt.set_thd(this);
 }
 
 void THD::copy_table_access_properties(THD *thd) {
@@ -1456,7 +1469,6 @@ THD::~THD() {
   }
 
   m_thd_life_cycle_stage = enum_thd_life_cycle_stages::DISPOSED;
-  assert(mem_cnt == &thd_cnt_noop);
 }
 
 /**
@@ -2108,9 +2120,9 @@ Prepared_statement_map::~Prepared_statement_map() {
 
 void THD::send_kill_message() const {
   int err = killed;
-  if (mem_cnt->is_error()) {
+  if (m_mem_cnt.is_error()) {
     assert(err == KILL_CONNECTION);
-    mem_cnt->set_thd_error_status();
+    m_mem_cnt.set_thd_error_status();
     return;
   }
   if (err && !get_stmt_da()->is_set()) {
@@ -3171,32 +3183,6 @@ void THD::inc_lock_usec(ulonglong lock_usec) {
 void THD::update_slow_query_status() {
   if (my_micro_time() > start_utime + variables.long_query_time)
     server_status |= SERVER_QUERY_WAS_SLOW;
-}
-
-/**
-  Enable memory counter object.
-
-  @returns true if OOM.
-*/
-bool THD::enable_mem_cnt() {
-  assert(mem_cnt == &thd_cnt_noop);
-  if (m_psi != nullptr) {
-    Thd_mem_cnt *tmp_mem_cnt = new Thd_mem_cnt_conn(this);
-    if (tmp_mem_cnt == nullptr) return true;
-    mem_cnt = tmp_mem_cnt;
-  }
-  return false;
-}
-
-/**
-  Disable memory counter object.
-*/
-void THD::disable_mem_cnt() {
-  if (mem_cnt != &thd_cnt_noop) {
-    mem_cnt->flush();
-    delete mem_cnt;
-    mem_cnt = &thd_cnt_noop;
-  }
 }
 
 /**

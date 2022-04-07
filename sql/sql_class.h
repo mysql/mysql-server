@@ -237,37 +237,9 @@ enum enum_mem_cnt_mode {
 };
 
 class Thd_mem_cnt {
- public:
-  Thd_mem_cnt() = default;
-  virtual ~Thd_mem_cnt() = default;
-  virtual bool alloc_cnt(size_t size) = 0;
-  virtual void free_cnt(size_t size) = 0;
-  virtual int reset() = 0;
-  virtual void flush() = 0;
-  virtual void restore_mode() = 0;
-  virtual void no_error_mode() = 0;
-  virtual void set_curr_mode(uint mode_arg) = 0;
-  virtual void set_orig_mode(uint mode_arg) = 0;
-  virtual bool is_error() = 0;
-  virtual void set_thd_error_status() = 0;
-};
-
-class Thd_mem_cnt_noop : public Thd_mem_cnt {
- public:
-  bool alloc_cnt(size_t) override { return false; }
-  void free_cnt(size_t) override {}
-  int reset() override { return 0; }
-  void flush() override {}
-  void restore_mode() override {}
-  void no_error_mode() override {}
-  void set_curr_mode(uint) override {}
-  void set_orig_mode(uint) override {}
-  bool is_error() override { return false; }
-  void set_thd_error_status() override {}
-};
-
-class Thd_mem_cnt_conn : public Thd_mem_cnt {
-  THD *m_thd;                       // Pointer to THD object.
+ private:
+  bool m_enabled{false};
+  THD *m_thd{nullptr};              // Pointer to THD object.
   Diagnostics_area m_da{false};     // Diagnostics area.
   ulonglong mem_counter{0};         // Amount of memory consumed by thread.
   ulonglong max_conn_mem{0};        // Max amount memory consumed by thread.
@@ -280,22 +252,27 @@ class Thd_mem_cnt_conn : public Thd_mem_cnt {
                                     // resets to false after successful
                                     // connection.
  public:
-  Thd_mem_cnt_conn(THD *thd_arg) : m_thd(thd_arg) {}
-  ~Thd_mem_cnt_conn() override {
+  Thd_mem_cnt() {}
+  ~Thd_mem_cnt() {
+    assert(!m_enabled);
     assert(mem_counter == 0 && glob_mem_counter == 0);
   }
-  bool alloc_cnt(size_t size) override;
-  void free_cnt(size_t size) override;
-  int reset() override;
-  void flush() override;
+  void set_thd(THD *thd) { m_thd = thd; }
+  void enable() { m_enabled = true; }
+  void disable();
+
+  bool alloc_cnt(size_t size);
+  void free_cnt(size_t size);
+  int reset();
+  void flush();
   /**
     Restore original memory counter mode.
   */
-  void restore_mode() override { curr_mode = orig_mode; }
+  void restore_mode() { curr_mode = orig_mode; }
   /**
     Set NO ERROR memory counter mode.
   */
-  void no_error_mode() override {
+  void no_error_mode() {
     curr_mode &= ~(MEM_CNT_GENERATE_ERROR | MEM_CNT_GENERATE_LOG_ERROR);
   }
   /**
@@ -303,20 +280,20 @@ class Thd_mem_cnt_conn : public Thd_mem_cnt {
 
      @param mode_arg         current memory counter mode.
   */
-  void set_curr_mode(uint mode_arg) override { curr_mode = mode_arg; }
+  void set_curr_mode(uint mode_arg) { curr_mode = mode_arg; }
   /**
      Function sets original memory counter mode.
 
      @param mode_arg         original memory counter mode.
   */
-  void set_orig_mode(uint mode_arg) override { orig_mode = mode_arg; }
+  void set_orig_mode(uint mode_arg) { orig_mode = mode_arg; }
   /**
     Check if memory counter error is issued.
 
     @retval true if memory counter error is issued, false otherwise.
   */
-  bool is_error() override { return m_da.is_error(); }
-  void set_thd_error_status() override;
+  bool is_error() const { return m_da.is_error(); }
+  void set_thd_error_status() const;
 
  private:
   int generate_error(int err_no, ulonglong mem_limit, ulonglong mem_size);
@@ -943,6 +920,14 @@ struct PS_PARAM;
 class THD : public MDL_context_owner,
             public Query_arena,
             public Open_tables_state {
+ public:
+  /**
+    Controlled memory stats for this session.
+    This member is the first in THD,
+    to initialize Thd_mem_cnt() before allocating more memory.
+  */
+  Thd_mem_cnt m_mem_cnt;
+
  private:
   inline bool is_stmt_prepare() const {
     assert(0);
@@ -4625,9 +4610,8 @@ class THD : public MDL_context_owner,
   mysql_mutex_t LOCK_group_replication_connection_mutex;
   mysql_cond_t COND_group_replication_connection_cond_var;
 
-  Thd_mem_cnt *mem_cnt;
-  bool enable_mem_cnt();
-  void disable_mem_cnt();
+  void enable_mem_cnt() { m_mem_cnt.enable(); }
+  void disable_mem_cnt() { m_mem_cnt.disable(); }
 
 #ifndef NDEBUG
   const char *current_key_name;
