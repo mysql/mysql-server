@@ -33,7 +33,7 @@
 #include "storage/innobase/include/ut0crc32.h"
 #include "storage/innobase/include/ut0rnd.h"
 
-#include "xxhash.h"
+#include "my_xxhash.h"
 
 namespace innodb_ut0rnd_unittest {
 
