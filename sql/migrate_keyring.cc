@@ -346,8 +346,6 @@ bool Migrate_keyring::execute() {
   return false;
 
 error:
-  /* clear the SSL error stack first as the connection could be encrypted */
-  ERR_clear_error();
   /*
    Enable keyring_operations in case of error
   */
@@ -547,6 +545,10 @@ bool Migrate_keyring::disable_keyring_operations() {
 bool Migrate_keyring::enable_keyring_operations() {
   DBUG_TRACE;
   const char query[] = "SET GLOBAL KEYRING_OPERATIONS=1";
+
+  /* clear the SSL error stack first as the connection could be encrypted */
+  ERR_clear_error();
+
   if (mysql && mysql_real_query(mysql, query, strlen(query))) {
     LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED,
            "Failed to enable keyring_operations variable.");
