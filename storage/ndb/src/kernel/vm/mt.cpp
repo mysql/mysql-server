@@ -1491,11 +1491,6 @@ struct alignas(NDB_CL) thr_data
   unsigned m_max_extra_signals;
 
   /**
-   * max signals to execute before recomputing m_max_signals_per_jb
-   */
-  unsigned m_max_exec_signals;
-
-  /**
    * Flag indicating that we have sent a local Prio A signal. Used to know
    * if to scan for more prio A signals after executing those signals.
    * This is used to ensure that if we execute at prio A level and send a
@@ -7105,7 +7100,6 @@ run_job_buffers(thr_data *selfptr,
         else
 	{
           extra = selfptr->m_max_extra_signals;
-          selfptr->m_max_exec_signals = 0; //Force recalc
         }
         selfptr->m_max_extra_signals -= extra;
       }
@@ -8009,18 +8003,18 @@ has_full_in_queues(struct thr_data* selfptr)
 }
 
 /**
- * update_sched_config
+ * handle_full_job_buffers
  *
- *   In order to prevent "job-buffer-full", i.e
- *     that one thread(T1) produces so much signals to another thread(T2)
- *     so that the ring-buffer from T1 to T2 gets full
- *     the main loop have 2 "config" variables
- *   - m_max_exec_signals
- *     This is the *total* no of signals T1 can execute before calling
- *     this method again
- *   - m_max_signals_per_jb
- *     This is the max no of signals T1 can execute from each other thread
- *     in system
+ * One or more job buffers are 'full', such that we could not continue
+ * without using the RESERVED signals.
+ *
+ * We need to either yield() the CPU in order to wait for the consumer
+ * to make more job buffers available, or continue using 'extra' signals
+ * from the RESERVED area.
+ *
+ * As a last resort we may also time-out on the wait and let the thread
+ * continue with a small m_max_signals_per_jb quota, possibly with some
+ * 'extra_signals' in order to solve circular wait queues.
  *
  *   Assumption: each signal may send *at most* 4 signals
  *     - this assumption is made the same in ndbd and ndbmtd and is
@@ -8031,43 +8025,17 @@ has_full_in_queues(struct thr_data* selfptr)
  *      risking job-buffer-full)
  */
 static
-Uint32
-compute_min_free_out_buffers(Uint32 thr_no)
-{
-  const Uint32 jbb_instance = thr_no % NUM_JOB_BUFFERS_PER_THREAD;
-  Uint32 minfree = thr_job_queue::SIZE;
-  const struct thr_repository* rep = g_thr_repository;
-  const struct thr_data *thrptr = rep->m_thread;
-
-  for (unsigned i = 0; i < glob_num_threads; i++, thrptr++)
-  {
-    const thr_job_queue *q = thrptr->m_jbb + jbb_instance;
-    unsigned free = compute_free_buffers_in_queue(q);
-    if (free < minfree)
-      minfree = free;
-  }
-  return minfree;
-}
-
-static
 bool
-update_sched_config(struct thr_data* selfptr,
-                    bool pending_send,
-                    Uint32 & send_sum,
-                    Uint32 & flush_sum)
+handle_full_job_buffers(struct thr_data* selfptr,
+                        bool pending_send,
+                        Uint32 & send_sum,
+                        Uint32 & flush_sum)
 {
   Uint32 sleeploop = 0;
   Uint32 loops = 0;
   selfptr->m_watchdog_counter = 16;
+
 loop:
-  Uint32 minfree = compute_min_free_out_buffers(selfptr->m_thr_no);
-  Uint32 reserved = (minfree > thr_job_queue::RESERVED)
-                   ? thr_job_queue::RESERVED
-                   : minfree;
-
-  Uint32 avail = compute_max_signals_to_execute(minfree - reserved);
-  selfptr->m_max_exec_signals = avail;
-
   Uint32 perjb = selfptr->m_max_signals_per_jb;
   if (unlikely(perjb == 0))
   {
@@ -8100,15 +8068,16 @@ loop:
       send_sum = 0;
       flush_sum = 0;
     }
-    const Uint32 nano_wait = 1000*1000;    /* -> 1 ms */
-    NDB_TICKS before = NdbTick_getCurrentTicks();
+    const Uint32 nano_wait_1ms = 1000*1000;    /* -> 1 ms */
+    const NDB_TICKS before = NdbTick_getCurrentTicks();
     const bool waited = yield(&selfptr->m_congestion_waiter,
-                              nano_wait,
+                              nano_wait_1ms,
                               get_congested_job_queue,
                               g_thr_repository);
     if (waited)
     {
-      NDB_TICKS after = NdbTick_getCurrentTicks();
+      const NDB_TICKS after = NdbTick_getCurrentTicks();
+      selfptr->m_curr_ticks = after;
       selfptr->m_read_jbb_state_consumed = true;
       selfptr->m_buffer_full_micros_sleep +=
         NdbTick_Elapsed(before, after).microSec();
@@ -8392,8 +8361,6 @@ mt_job_thread_main(void *thr_arg)
             selfptr->m_stat.m_loop_cnt += loops;
             selfptr->m_read_jbb_state_consumed = true;
             init_jbb_estimate(selfptr, now);
-            /* Always recalculate how many signals to execute after sleep */
-            selfptr->m_max_exec_signals = 0;
             if (selfptr->m_overload_status <=
                 (OverloadStatus)MEDIUM_LOAD_CONST)
             {
@@ -8427,29 +8394,23 @@ mt_job_thread_main(void *thr_arg)
     }
 
     /**
-     * Check if we executed enough signals,
-     *   and if so recompute how many signals to execute
+     * If job-buffers are full, we need to handle that somehow:
+     *  - yield() and wait for more JB's to become available.
+     *  - continue using the 'extra' signal quota (see RESERVED)
      */
-    now = NdbTick_getCurrentTicks();
-    if (sum >= selfptr->m_max_exec_signals)
+    if (unlikely(selfptr->m_max_signals_per_jb == 0))  // JB's are full?
     {
-      if (update_sched_config(selfptr,
-                              send_sum + Uint32(pending_send),
-                              send_sum,
-                              flush_sum))
+      if (handle_full_job_buffers(selfptr,
+                                  send_sum + Uint32(pending_send),
+                                  send_sum,
+                                  flush_sum))
       {
-        /* Update current time after sleeping */
-        selfptr->m_curr_ticks = now;
         selfptr->m_stat.m_wait_cnt += waits;
         selfptr->m_stat.m_loop_cnt += loops;
         waits = loops = 0;
         update_rt_config(selfptr, real_time, BlockThread);
         calculate_max_signals_parameters(selfptr);
       }
-    }
-    else
-    {
-      selfptr->m_max_exec_signals -= sum;
     }
 
     /**
@@ -9331,6 +9292,8 @@ pack_local_signals(struct thr_data *selfptr)
  *
  * If 'max_signals_per_jb' became '0', we are blocked from further
  * signal execution. (Except where 'extra' signals are assigned).
+ * Upper level will call handle_full_job_buffers(), which
+ * decide how to handle the 'full'.
  */
 static
 void
@@ -9831,7 +9794,6 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
   selfptr->m_thr_no = thr_no;
   selfptr->m_next_jbb_no = 0;
   selfptr->m_max_signals_per_jb = MAX_SIGNALS_PER_JB;
-  selfptr->m_max_exec_signals = 0;
   selfptr->m_max_extra_signals =
       compute_max_signals_to_execute(thr_job_queue::RESERVED);
   selfptr->m_first_free = 0;
