@@ -4946,6 +4946,44 @@ unsigned get_free_estimate_out_queue(thr_job_queue *q)
   return calc_fifo_free(read_index, write_index, q->m_size);
 }
 
+/**
+ * Callback functions used by yield() to recheck
+ * 'job buffers congested/full' condition before going to sleep.
+ * Set write_lock as required. (if having multiple writers)
+ *
+ * Check if the specified congested waitfor-thread (arg) still has
+ * job buffer congestion (-> outgoing JBs too full), return true if so.
+ */
+static bool
+check_congested_job_queue(thr_job_queue *waitfor)
+{
+  unsigned free;
+  if (unlikely(glob_use_write_lock_mutex))
+  {
+    lock(&waitfor->m_write_lock);
+    free = get_free_estimate_out_queue(waitfor);
+    unlock(&waitfor->m_write_lock);
+  } else {
+    free = get_free_estimate_out_queue(waitfor);
+  }
+  return (free <= thr_job_queue::CONGESTED);
+}
+
+static bool
+check_full_job_queue(thr_job_queue *waitfor)
+{
+  unsigned free;
+  if (unlikely(glob_use_write_lock_mutex))
+  {
+    lock(&waitfor->m_write_lock);
+    free = get_free_estimate_out_queue(waitfor);
+    unlock(&waitfor->m_write_lock);
+  } else {
+    free = get_free_estimate_out_queue(waitfor);
+  }
+  return (free <= thr_job_queue::RESERVED);
+}
+
 static bool
 get_congested_recv_queue(struct thr_repository* rep)
 {
@@ -4953,11 +4991,78 @@ get_congested_recv_queue(struct thr_repository* rep)
   return rep->m_first_congestion_level.load() != 0;
 }
 
-static bool
-get_congested_job_queue(struct thr_repository* rep)
+/**
+ * Get a FULL JB-queue, preferably not 'self'.
+ *
+ * Get the thread whose our out-JB-queue is most congested on, preferably
+ * a full queue.
+ * Exception is our 'self-queue', which we only return as a last resort.
+ * (We can not wait on 'self')
+ *
+ * Assumption is that function is called only when execution thread has
+ * reached m_max_signals_per_jb == 0. Thus, one of the congested thread should
+ * have reached the 'RESERVED' limit.
+ *
+ * Note that we 'get_free_estimate' without holding the write_lock.
+ * Thus, congestion can later get more severe due to other writers, or it
+ * could have cleared due to yet undetected read-consumption. Anyhow,
+ * we will later set lock and recheck in the yield-callback function
+ * before suspending the thread. We might then possibly not yield,
+ * which results in a 'recheck_congested_job_buffers', and another
+ * call to this function.
+ *
+ * If full: Return 'thr_data*' for (one of) the thread(s)
+ *          which we have to wait for. (to consume from queue)
+ */
+static thr_data*
+get_congested_job_queue(thr_data *selfptr)
 {
-  rmb();
-  return rep->m_second_congestion_level.load() != 0;
+  thr_repository* rep = g_thr_repository;
+  const Uint32 self = selfptr->m_thr_no;
+  const Uint32 self_jbb = self % NUM_JOB_BUFFERS_PER_THREAD;
+  Uint32 min_free = thr_job_queue::SIZE;
+  thr_data *waitfor = nullptr;
+  bool self_is_full = false;
+
+  // Precondition: Had full job_queues:
+  assert(selfptr->m_max_signals_per_jb == 0);
+
+  for (unsigned congested = selfptr->m_congested_signals_mask.find_first();
+       congested != BitmaskImpl::NotFound;
+       congested = selfptr->m_congested_signals_mask.find_next(congested+1))
+  {
+    thr_data *congested_thr = &rep->m_thread[congested];
+    thr_job_queue *congested_queue = &congested_thr->m_jbb[self_jbb];
+    const unsigned free = get_free_estimate_out_queue(congested_queue);
+
+    if (free <= thr_job_queue::RESERVED) {  // is 'FULL'
+      /**
+       * We try to find another thread then 'self' to wait for:
+       * - If self_is_full, we just note it for later.
+       * - Any other non-self thread is returned immediately
+       */
+      if (congested != self) {
+        return congested_thr;
+      } else {
+        self_is_full = true;
+      }
+    }
+    if (free < min_free)
+    {
+      waitfor = congested_thr;
+      min_free = free;
+    }
+  }
+  if (self_is_full) {
+    return selfptr;
+  }
+
+  /**
+   * We might return a 'non-full' waiter, even if we searched for a 'full'.
+   * However, it is still a good candidate for being full in the yield-callback.
+   * (One of the congested queues *were* full quite recently.)
+   */
+  return waitfor;
 }
 
 int
@@ -8033,11 +8138,10 @@ handle_full_job_buffers(struct thr_data* selfptr,
 {
   Uint32 sleeploop = 0;
   Uint32 loops = 0;
+  const Uint32 self_jbb = selfptr->m_thr_no % NUM_JOB_BUFFERS_PER_THREAD;
   selfptr->m_watchdog_counter = 16;
 
-loop:
-  Uint32 perjb = selfptr->m_max_signals_per_jb;
-  if (unlikely(perjb == 0))
+  while (selfptr->m_max_signals_per_jb == 0)  // or return
   {
     if (sleeploop != 0)
     {
@@ -8052,11 +8156,17 @@ loop:
       return true;
     }
 
+    struct thr_data* congested = get_congested_job_queue(selfptr);
+    if (congested == selfptr)
+    {
+      // Found a 'self' congestion - can't wait for FULL blockage on 'self'
+      return sleeploop > 0;
+    }
     if (has_full_in_queues(selfptr) &&
         selfptr->m_max_extra_signals > 0)
     {
       /**
-       * 'extra_signals' used to drain 'full_in_queues'.
+       * 'extra_signals' need to be used to drain 'full_in_queues'.
        */
       return sleeploop > 0;
     }
@@ -8068,12 +8178,19 @@ loop:
       send_sum = 0;
       flush_sum = 0;
     }
+    thr_job_queue *congested_queue = &congested->m_jbb[self_jbb];
     const Uint32 nano_wait_1ms = 1000*1000;    /* -> 1 ms */
+    /**
+     * Wait for congested-thread' to consume some of the
+     * pending signals from its jbb queue.
+     * Will recheck queue status with 'check_full_job_queue'
+     * after latch has been set, and *before* going to sleep.
+     */
     const NDB_TICKS before = NdbTick_getCurrentTicks();
     const bool waited = yield(&selfptr->m_congestion_waiter,
                               nano_wait_1ms,
-                              get_congested_job_queue,
-                              g_thr_repository);
+                              check_full_job_queue,
+                              congested_queue);
     if (waited)
     {
       const NDB_TICKS after = NdbTick_getCurrentTicks();
@@ -8093,7 +8210,6 @@ loop:
      * Recheck if it cleared while we (not-)waited.
      */
     recheck_congested_job_buffers(selfptr);
-    goto loop;
   }
 
   return sleeploop > 0;
