@@ -260,7 +260,7 @@ inline bool Item_sum_shortest_dir_path::add_geom(Item *arg, const int& node_id, 
       return true;
     case ResultType::NullValue:
       if (!m_point_map.empty()){
-        my_error(ER_ALL_OR_NONE_NULL, MYF(0), my_func());
+        my_error(ER_ALL_OR_NONE_NULL, MYF(0), func_name());
         return true;
       }
       return false;
