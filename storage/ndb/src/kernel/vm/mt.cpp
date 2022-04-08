@@ -5069,6 +5069,9 @@ int
 mt_checkDoJob(Uint32 recv_thread_idx)
 {
   struct thr_repository* rep = g_thr_repository;
+  // Find the thr_data for the specified recv_thread
+  const unsigned recv_thr_no = first_receiver_thread_no + recv_thread_idx;
+  struct thr_data *recv_thr = &rep->m_thread[recv_thr_no];
 
   /**
    * Return '1' if we are not allowed to receive more signals
@@ -5084,7 +5087,7 @@ mt_checkDoJob(Uint32 recv_thread_idx)
    *   handling open/close of connections, and catching
    *   its own shutdown events
    */
-  return (get_congested_recv_queue(rep));
+  return !recv_thr->m_congested_signals_mask.isclear();
 }
 
 /**
@@ -8034,12 +8037,25 @@ mt_receiver_thread_main(void *thr_arg)
         /**
          * Will wait for congestion to disappear or 1 ms has passed.
          */
-        const Uint32 nano_wait = 1000*1000;    /* -> 1 ms */
+        watchDogCounter = 18;  // "Yielding to OS"
+        static constexpr Uint32 nano_wait_1ms = 1000*1000;    /* -> 1 ms */
         NDB_TICKS before = NdbTick_getCurrentTicks();
+
+        /**
+         * Find (one of) the congested receive queues we need to wait for
+         * in order to get out of 'buffersFull' state. We will be woken up
+         * when consumer has freed a JB-page from the 'congested_queue'.
+         */
+        assert(!selfptr->m_congested_signals_mask.isclear());
+        const int congested = selfptr->m_congested_signals_mask.find_first();
+        struct thr_data *congested_thr = &rep->m_thread[congested];
+        const Uint32 self_jbb = thr_no % NUM_JOB_BUFFERS_PER_THREAD;
+        thr_job_queue *congested_queue = &congested_thr->m_jbb[self_jbb];
+
         const bool waited = yield(&selfptr->m_congestion_waiter,
-                                  nano_wait,
-                                  get_congested_recv_queue,
-                                  rep);
+                                  nano_wait_1ms,
+                                  check_congested_job_queue,
+                                  congested_queue);
         if (waited)
         {
           NDB_TICKS after = NdbTick_getCurrentTicks();
@@ -8179,13 +8195,14 @@ handle_full_job_buffers(struct thr_data* selfptr,
       flush_sum = 0;
     }
     thr_job_queue *congested_queue = &congested->m_jbb[self_jbb];
-    const Uint32 nano_wait_1ms = 1000*1000;    /* -> 1 ms */
+    static constexpr Uint32 nano_wait_1ms = 1000*1000;    /* -> 1 ms */
     /**
      * Wait for congested-thread' to consume some of the
      * pending signals from its jbb queue.
      * Will recheck queue status with 'check_full_job_queue'
      * after latch has been set, and *before* going to sleep.
      */
+    selfptr->m_watchdog_counter = 18;  // "Yielding to OS"
     const NDB_TICKS before = NdbTick_getCurrentTicks();
     const bool waited = yield(&selfptr->m_congestion_waiter,
                               nano_wait_1ms,
