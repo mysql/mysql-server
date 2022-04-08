@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,13 +20,29 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET(CPACK_COMPONENTS_USED 
-    "Server;Client;DataFiles;Development;SharedLibraries;Documentation;IniFiles;Readme;Server_Scripts")
+SET(CPACK_COMPONENTS_USED
+  Client
+  DataFiles
+  Development
+  Documentation
+  Info
+  IniFiles
+  Readme
+  Server
+  Server_Scripts
+  SharedLibraries
+  )
 
 IF("${VERSION}" MATCHES "-ndb-")
   MESSAGE(STATUS "This is Cluster build, append additional components")
-  SET(CPACK_COMPONENTS_USED
-    "${CPACK_COMPONENTS_USED};ClusterTools;ClusterDataNode;ClusterManagementServer;ClusterManagementClient;ClusterJ;nodejs")
+  LIST(APPEND CPACK_COMPONENTS_USED
+    ClusterTools
+    ClusterDataNode
+    ClusterManagementServer
+    ClusterManagementClient
+    ClusterJ
+    nodejs
+    )
 ENDIF()
 
 # Some components like Embedded are optional
