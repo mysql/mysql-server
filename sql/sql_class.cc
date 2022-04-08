@@ -168,7 +168,7 @@ bool Thd_mem_cnt::alloc_cnt(size_t size) {
     return false;
   }
 
-  assert(!opt_initialize && m_thd->get_psi() != nullptr);
+  assert(!opt_initialize && m_thd != nullptr);
   assert(!m_thd->kill_immunizer || !m_thd->kill_immunizer->is_active() ||
          !is_error_mode());
   assert(m_thd->is_killable);
