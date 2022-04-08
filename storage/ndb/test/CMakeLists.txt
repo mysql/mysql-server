@@ -29,6 +29,7 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
   INCLUDE(CheckCXXCompilerFlag)
   FOREACH(warning
       "cast-qual"
+      "maybe-uninitialized"
       "restrict"
       "unused-but-set-variable"
       "unused-parameter"
