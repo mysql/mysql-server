@@ -201,7 +201,7 @@ bool Item_sum_shortest_dir_path::add() {
     m_end_node = args[6]->val_int();
   }
   else if (m_begin_node != args[5]->val_int() || m_end_node != args[6]->val_int()){
-    // TODO my_error
+    my_error(ER_START_AND_END_NODE_CONSTANT, MYF(0), func_name());
     return true;
   }
 
@@ -253,7 +253,8 @@ inline bool Item_sum_shortest_dir_path::add_geom(Item *arg, const int& node_id, 
       return true;
     case ResultType::NullValue:
       if (!m_point_map.empty()){
-        // TODO my_error(ER_ALL_OR_NONE_MUST_BE_NULL)
+        my_error(ER_ALL_OR_NONE_NULL, MYF(0), my_func());
+        return true;
       }
       return false;
     default: break;
@@ -271,8 +272,8 @@ inline bool Item_sum_shortest_dir_path::add_geom(Item *arg, const int& node_id, 
   std::unique_ptr<gis::Geometry> geom = geomRes.GetValue();
 
   if (geom.get()->type() != gis::Geometry_type::kPoint){
-    // TODO make error my_error(ER_GIS_WRONG_GEOM_TYPE, MYF(0), func_name(), "Point");
-    return true;
+    my_error(ER_GIS_WRONG_GEOM_TYPE, MYF(0), func_name());
+    return true;  
   }
 
   try {
