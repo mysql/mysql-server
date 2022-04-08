@@ -200,12 +200,19 @@ inline bool Item_sum_shortest_dir_path::add_geom(Item *arg, const int& node_id, 
     case ResultType::Error:
       return true;
     case ResultType::NullValue:
+      // null geom after non null geom
       if (!m_point_map.empty()){
         my_error(ER_ALL_OR_NONE_NULL, MYF(0), func_name());
         return true;
       }
       return false;
-    default: break;
+    default:
+      // non null geom after null geom
+      // * expects add_geom to be called before adding first edge to m_edge_map
+      if (m_point_map.empty() && !m_edge_map.empty()) {
+        my_error(ER_ALL_OR_NONE_NULL, MYF(0), func_name());
+        return true;
+      }
   }
 
   gis::srid_t srid = geomRes.GetSrid();
@@ -221,7 +228,18 @@ inline bool Item_sum_shortest_dir_path::add_geom(Item *arg, const int& node_id, 
 
   if (geom.get()->type() != gis::Geometry_type::kPoint){
     my_error(ER_GIS_WRONG_GEOM_TYPE, MYF(0), func_name());
-    return true;  
+    return true;
+  }
+
+  // redefinition of already defined geom
+  if (m_point_map.find(node_id) != m_point_map.end()){
+    gis::Point* _p = down_cast<gis::Point*>(&*m_point_map.at(node_id));
+    gis::Point* p  = down_cast<gis::Point*>(&*geom);
+    static constexpr double tol = 0.001;
+    if (std::abs(_p->x() - p->x()) > tol || std::abs(_p->y() - p->y()) > tol) {
+      // TODO my_error(ERR_GEOMETRY_REDEFINED)
+      return true;
+    }
   }
 
   try {
