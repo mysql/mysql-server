@@ -76,28 +76,37 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
   assert(!m_is_window_function);
 
   const THD *thd = base_query_block->parent_lex->thd;
+
   static std::function stop_dijkstra = [&thd]() -> bool {
     return thd->is_error() || thd->is_fatal_error() || thd->is_killed();
   };
   static std::function null_heuristic = [](const int&) -> double {
     return 0.0;
   };
-  // m_point_map.at() should always find something (enforced in ::add_geom())
-  gis::Geometry* end_geom = m_point_map.empty() ? nullptr : &*m_point_map.at(m_end_node);
-  std::function geom_heuristic = [this, &end_geom](const int& node) -> double {
-    static gis::Distance dst(NAN, NAN);
-    std::unique_ptr<gis::Geometry>& geom = this->m_point_map.at(node);
-    return dst(end_geom, &*geom);
-  };
-  std::function<double(const int&)>& heuristic = m_point_map.empty() ? null_heuristic : geom_heuristic;
+  
+  gis::Geometry* end_geom = nullptr;
+  std::function<double(const int&)>& heuristic = null_heuristic;
+
+  if (!m_point_map.empty()){
+    // m_point_map.at(Edge.to_id) should always find something (enforced in ::add_geom())
+    end_geom = &*m_point_map.at(m_end_node);
+    std::function spatial_heuristic = [this, &end_geom](const int& node) -> double {
+      static gis::Distance dst(NAN, NAN);
+      std::unique_ptr<gis::Geometry>& geom = this->m_point_map.at(node);
+      return dst(end_geom, &*geom);
+    };
+    heuristic = spatial_heuristic;
+  }
 
   try {
     Json_array_ptr arr(new (std::nothrow) Json_array());
     if (arr == nullptr)
       return error_json();
+    // TODO move try catch: try {
     Dijkstra dijkstra(&m_edge_map, heuristic, key_memory_Dijkstra);
     double cost;
     std::vector<const Edge*> path = dijkstra(m_begin_node, m_end_node, cost, stop_dijkstra);
+    // TODO move try catch: } catch
 
     if (path.empty()) {
       my_error(ER_NO_PATH_FOUND, MYF(0), func_name());
@@ -199,15 +208,13 @@ bool Item_sum_shortest_dir_path::add() {
   if (m_edge_map.empty()){
     m_begin_node = args[5]->val_int();
     m_end_node = args[6]->val_int();
+    if (m_begin_node == m_end_node) {
+      my_error(ER_START_AND_END_NODE_CONFLICT, MYF(0), func_name());
+      return true;
+    }
   }
   else if (m_begin_node != args[5]->val_int() || m_end_node != args[6]->val_int()){
     // TODO my_error
-    return true;
-  }
-
-  if (m_begin_node == m_end_node)
-  {
-    my_error(ER_START_AND_END_NODE_CONFLICT, MYF(0), func_name());
     return true;
   }
   
