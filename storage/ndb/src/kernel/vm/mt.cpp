@@ -1414,8 +1414,9 @@ struct alignas(NDB_CL) thr_data
   alignas(NDB_CL) unsigned m_thr_no;
 
   /**
-   * Thread 0 doesn't necessarily handle all threads in a loop.
-   * This variable keeps track of which to handle next.
+   * JBB resume point: We might return from run_job_buffers without executing
+   * signals from all the JBB buffers.
+   * This variable keeps track of where to resume execution from in next 'run'.
    */
   unsigned m_next_jbb_no;
 
@@ -7026,12 +7027,11 @@ run_job_buffers(thr_data *selfptr,
   rmb();
 
   /**
-   * For the main thread we can stop at any job buffer, so we proceed from
-   * where we stopped to make different job buffers be equal in importance.
-   *
-   * For all other threads m_next_jbb_no should always be 0 when we reach here.
+   * We might have a JBB resume point:
+   *  - For the main thread we can stop at any job buffer.
+   *  - Other threads could stop execution due to JB congestion.
    */
-  Uint32 first_jbb_no = selfptr->m_next_jbb_no;
+  const Uint32 first_jbb_no = selfptr->m_next_jbb_no;
   selfptr->m_watchdog_counter = 13;
   for (unsigned jbb_instance = selfptr->m_jbb_read_mask.find_next(first_jbb_no);
        jbb_instance != BitmaskImpl::NotFound;
@@ -7162,14 +7162,20 @@ run_job_buffers(thr_data *selfptr,
         scan_zero_queue(selfptr);
         selfptr->m_watchdog_counter = 13;
       }
-      if (selfptr->m_thr_no == 0)
+      /**
+       * We might return before all JBB's has been executed when:
+       * 1. When execution in main thread, which can sometimes be a bit
+       *    more lengthy.
+       * 2. Last execute_signals() filled the job_buffers to a level
+       *    where normal execution can't continue.
+       *
+       * We ensure that we don't miss out on heartbeats and other
+       * important things by returning to upper levels, where we handle_full,
+       * checking scan_time_queues and decide further scheduling strategies.
+       */
+      if (selfptr->m_thr_no == 0 ||                            // 1.
+          (selfptr->m_max_signals_per_jb == 0 && perjb > 0))   // 2.
       {
-        /**
-         * Execution in main thread can sometimes be a bit more lengthy,
-         * so we ensure that we don't miss out on heartbeats and other
-         * important things by returning to checking scan_time_queues
-         * more often.
-         */
         // We will resume execution from next jbb_instance later.
         jbb_instance = selfptr->m_jbb_read_mask.find_next(jbb_instance+1);
         if (jbb_instance == BitmaskImpl::NotFound)
@@ -7181,6 +7187,7 @@ run_job_buffers(thr_data *selfptr,
       }
     }
   }
+  // We completed all jbb_instances
   selfptr->m_read_jbb_state_consumed = true;
   selfptr->m_next_jbb_no = 0;
   return signal_count;
