@@ -1530,6 +1530,11 @@ INSERT INTO mysql.global_grants
   SELECT user, host, 'AUDIT_ABORT_EXEMPT', IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N')
    FROM mysql.global_grants WHERE priv = 'SYSTEM_USER' AND @hadAuditAbortExempt = 0;
 
+-- grant FIREWALL_EXEMPT to all current holders of SYSTEM_USER
+SET @hadFirewallExempt = (SELECT COUNT(*) FROM global_grants WHERE priv = 'FIREWALL_EXEMPT');
+INSERT INTO mysql.global_grants
+  SELECT user, host, 'FIREWALL_EXEMPT', IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N')
+   FROM mysql.global_grants WHERE priv = 'SYSTEM_USER' AND @hadFirewallExempt = 0;
 
 -- add the PK for mysql.firewall_membership, if missing and if the table is present
 SET @had_firewall_membership =
