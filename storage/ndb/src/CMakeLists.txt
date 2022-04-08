@@ -72,7 +72,6 @@ SET(LIBS_TO_MERGE
   mysys
   mytime
   ndbapi
-  ndbconf
   ndbgeneral
   ndblogger
   ndbmgmapi

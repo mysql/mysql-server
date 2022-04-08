@@ -37,16 +37,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon
   )
 
-ADD_CONVENIENCE_LIBRARY(ndbconf
-  Config.cpp
-  ConfigInfo.cpp
-  InitConfigFileParser.cpp
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon/ConfigObject.cpp
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon/ConfigSection.cpp
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/vm/mt_thr_config.cpp
-  LINK_LIBRARIES ndbmgmapi
-  )
-
 IF(WITHOUT_SERVER)
   RETURN()
 ENDIF()
@@ -87,12 +77,10 @@ MYSQL_ADD_EXECUTABLE(ndb_mgmd
   LINK_LIBRARIES
   ${EDITLINE_LIBRARY}
   ndbclient_static
-  ndbconf
+  ndbmgmcommon
   ndbmgmclient
   )
 
 NDB_ADD_TEST(MgmConfig-t testConfig.cpp
-  LIBS ndbmgmapi ndbtrace ndbconf ndblogger ndbgeneral ndbportlib
+  LIBS ndbmgmapi ndbmgmcommon ndbtrace ndblogger ndbgeneral ndbportlib
   )
-NDB_ADD_TEST(InitConfigFileParser-t InitConfigFileParser.cpp
-  LIBS ndbconf ndbgeneral ndbportlib)

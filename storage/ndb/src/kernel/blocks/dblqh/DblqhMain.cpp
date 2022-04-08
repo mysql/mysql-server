@@ -96,6 +96,7 @@
 
 #include "../suma/Suma.hpp"
 #include "DblqhCommon.hpp"
+#include "portlib/mt-asm.h"
 
 /**
  * overload handling...

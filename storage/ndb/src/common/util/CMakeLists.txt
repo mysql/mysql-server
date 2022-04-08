@@ -97,5 +97,5 @@ FOREACH(tests
     testSimpleProperties
     testProp
     )
-  NDB_ADD_TEST("${tests}-t" "${tests}.cpp" LIBS ndbgeneral ndbportlib)
+  NDB_ADD_TEST("${tests}-t" "${tests}.cpp" LIBS ndbmgmapi ndbgeneral ndbportlib)
 ENDFOREACH(tests)

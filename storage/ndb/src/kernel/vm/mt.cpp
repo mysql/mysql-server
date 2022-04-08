@@ -51,7 +51,7 @@
 #include <Pool.hpp>
 #include <NdbSpin.h>
 
-#include "mt-asm.h"
+#include "portlib/mt-asm.h"
 #include "mt-lock.hpp"
 
 #include "ThreadConfig.hpp"

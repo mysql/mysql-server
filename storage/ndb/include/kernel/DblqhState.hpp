@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,26 +22,43 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef DBQLQH_H
-#define DBQLQH_H
+#ifndef DBLQH_STATE_HPP
+#define DBLQH_STATE_HPP
 
-#include "Dblqh.hpp"
-
-#define JAM_FILE_ID 517
-
-class Dbqlqh : public Dblqh
+/*
+ * The state values are published in
+ * ndbinfo.ndb$dblqh_tcconnect_state.state_int_value and
+ * ndbinfo.ndb$operations.state and should not be changed as long as any
+ * supported version of data nodes expose them anywhere such in
+ * ndbinfo.ndb$operations.state.
+ *
+ * The values of dblqh_tcconnect_state should match values in
+ * Dblqh::TcConnectionrec::TransactionState.
+ */
+struct dblqh_tcconnect_state
 {
-  friend class DbqlqhProxy;
-
-public:
-  Dbqlqh(Block_context& ctx,
-         Uint32 instanceNumber = 0);
-  virtual ~Dbqlqh();
-
-  static Uint64 getTransactionMemoryNeed();
-private:
-  BLOCK_DEFINES(Dblqh);
+  enum
+  {
+    IDLE = 0,
+    WAIT_ACC = 1,
+    WAIT_TUP = 4,
+    LOG_QUEUED = 6,
+    PREPARED = 7,
+    LOG_COMMIT_WRITTEN_WAIT_SIGNAL = 8,
+    LOG_COMMIT_QUEUED_WAIT_SIGNAL = 9,
+    LOG_COMMIT_QUEUED = 11,
+    COMMITTED = 13,
+    WAIT_TUP_COMMIT = 35,
+    WAIT_ACC_ABORT = 14,
+    LOG_ABORT_QUEUED = 18,
+    WAIT_TUP_TO_ABORT = 19,
+    SCAN_STATE_USED = 21,
+    SCAN_TUPKEY = 30,
+    COPY_TUPKEY = 31,
+    TC_NOT_CONNECTED = 32,
+    PREPARED_RECEIVED_COMMIT = 33,
+    LOG_COMMIT_WRITTEN = 34
+  };
 };
 
-#undef JAM_FILE_ID
 #endif

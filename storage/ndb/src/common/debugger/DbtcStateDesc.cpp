@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,14 +22,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <kernel/statedesc.hpp>
-#define DBTC_STATE_EXTRACT
-#include "Dbtc.hpp"
+#include "kernel/statedesc.hpp"
+#include "kernel/DbtcState.hpp"
 
 #define JAM_FILE_ID 351
 
 
-#define SDESC(a,b,c) { (unsigned)Dbtc::a, #a, b, c }
+#define SDESC(a,b,c) { (unsigned)dbtc_apiconnect_state::a, #a, b, c }
 
 /**
  * Value

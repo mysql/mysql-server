@@ -914,7 +914,7 @@ public:
 };
 
 #include "mgmapi/mgmapi_config_parameters.h"
-#include "../mgmsrv/ConfigInfo.hpp"
+#include "mgmcommon/ConfigInfo.hpp"
 class ConfigParamsTable : public VirtualTable
 {
   ConfigInfo m_config_info;

@@ -36,7 +36,6 @@
 #include <Bitmask.hpp>
 #include <ndb_opts.h>
 #include <ndb_version.h>
-#include "../src/kernel/vm/mt-asm.h"
 
 #include <portlib/ndb_localtime.h>
 #include <NdbTCP.h>
@@ -5799,7 +5798,7 @@ checkThreadPrioSpec(InitConfigFileParser::Context & ctx, const char * unused)
   return true;
 }
 
-#include "../kernel/vm/mt_thr_config.hpp"
+#include "mgmcommon/thr_config.hpp"
 
 static bool
 check_2n_number_less_32(Uint32 num)
