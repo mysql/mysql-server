@@ -206,6 +206,14 @@ futex_wake(volatile unsigned * addr)
   return syscall(SYS_futex, addr, FUTEX_WAKE, 1, 0, 0, 0) == 0 ? 0 : errno;
 }
 
+static inline
+int
+futex_wake_all(volatile unsigned * addr)
+{
+  return syscall(SYS_futex,
+                 addr, FUTEX_WAKE, INT_MAX, 0, 0, 0) == 0 ? 0 : errno;
+}
+
 struct alignas(NDB_CL) thr_wait
 {
   volatile unsigned m_futex_state;
@@ -236,11 +244,7 @@ yield(struct thr_wait* wait, const Uint32 nsec,
       bool (*check_callback)(T*), T* check_arg)
 {
   volatile unsigned * val = &wait->m_futex_state;
-#ifndef NDEBUG
-  int old =
-#endif
-    xcng(val, thr_wait::FS_SLEEPING);
-  assert(old == thr_wait::FS_RUNNING);
+  xcng(val, thr_wait::FS_SLEEPING);
 
   /**
    * At this point, we need to re-check the condition that made us decide to
@@ -284,6 +288,23 @@ wakeup(struct thr_wait* wait)
   if (xcng(val, thr_wait::FS_RUNNING) == thr_wait::FS_SLEEPING)
   {
     return futex_wake(val);
+  }
+  return 0;
+}
+
+static inline
+int
+wakeup_all(struct thr_wait* wait)
+{
+  volatile unsigned * val = &wait->m_futex_state;
+  /**
+   * We must ensure that any state update (new data in buffers...) are visible
+   * to the other thread before we can look at the sleep state of that other
+   * thread.
+   */
+  if (xcng(val, thr_wait::FS_RUNNING) == thr_wait::FS_SLEEPING)
+  {
+    return futex_wake_all(val);
   }
   return 0;
 }
@@ -371,6 +392,21 @@ wakeup(struct thr_wait* wait)
   {
     wait->m_need_wakeup = false;
     NdbCondition_Signal(wait->m_cond);
+  }
+  NdbMutex_Unlock(wait->m_mutex);
+  return 0;
+}
+
+static inline
+int
+wakeup_all(struct thr_wait* wait)
+{
+  NdbMutex_Lock(wait->m_mutex);
+  // We should avoid signaling when not waiting for wakeup
+  if (wait->m_need_wakeup)
+  {
+    wait->m_need_wakeup = false;
+    NdbCondition_Broadcast(wait->m_cond);
   }
   NdbMutex_Unlock(wait->m_mutex);
   return 0;
@@ -6985,6 +7021,7 @@ execute_signals(thr_data *selfptr,
         r->m_read_buffer = read_buffer;
         r->m_read_pos = read_pos;
         r->m_read_end = read_end;
+        wakeup_all(&selfptr->m_congestion_waiter);
       }
     }
     /*
@@ -8052,7 +8089,7 @@ mt_receiver_thread_main(void *thr_arg)
         const Uint32 self_jbb = thr_no % NUM_JOB_BUFFERS_PER_THREAD;
         thr_job_queue *congested_queue = &congested_thr->m_jbb[self_jbb];
 
-        const bool waited = yield(&selfptr->m_congestion_waiter,
+        const bool waited = yield(&congested_thr->m_congestion_waiter,
                                   nano_wait_1ms,
                                   check_congested_job_queue,
                                   congested_queue);
@@ -8204,7 +8241,7 @@ handle_full_job_buffers(struct thr_data* selfptr,
      */
     selfptr->m_watchdog_counter = 18;  // "Yielding to OS"
     const NDB_TICKS before = NdbTick_getCurrentTicks();
-    const bool waited = yield(&selfptr->m_congestion_waiter,
+    const bool waited = yield(&congested->m_congestion_waiter,
                               nano_wait_1ms,
                               check_full_job_queue,
                               congested_queue);
@@ -9059,30 +9096,10 @@ check_congestion(thr_data *selfptr)
       if (congestion_level < thr_job_queue::LEVEL_1_CONGESTION)
       {
         rep->m_first_congestion_level--;
-        if (rep->m_first_congestion_level.load() == 0)
-        {
-          wmb();
-          /* Wake all threads up. */
-          for (Uint32 i = 0; i < glob_num_threads; i++)
-          {
-            thr_data *dstptr = &rep->m_thread[i];
-            wakeup(&(dstptr->m_congestion_waiter));
-          }
-        }
       }
       else if (congestion_level == thr_job_queue::LEVEL_1_CONGESTION)
       {
         rep->m_second_congestion_level--;
-        if (rep->m_second_congestion_level.load() == 0)
-        {
-          wmb();
-          /* Wake all threads up. */
-          for (Uint32 i = 0; i < glob_num_threads; i++)
-          {
-            thr_data *dstptr = &rep->m_thread[i];
-            wakeup(&(dstptr->m_congestion_waiter));
-          }
-        }
       }
       else
       {
