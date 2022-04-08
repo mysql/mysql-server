@@ -7,7 +7,7 @@
 #include <algorithm>        // std::push_heap & std::reverse
 #include <cmath>            // INFINITY
 
-#include "include/map_helpers.h"
+#include "include/map_helpers.h" // malloc_unordered_multimap
 
 /**
  * @brief Edge data for Dijkstra functor

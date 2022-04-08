@@ -1,11 +1,17 @@
 #ifndef ITEM_SUM_SHORTEST_DIR_PATH_INCLUDED
 #define ITEM_SUM_SHORTEST_DIR_PATH_INCLUDED
 
-#include "sql/item_sum.h"
-#include "sql/Dijkstras_functor.h"
-#include "sql/json_dom.h"
-#include "include/map_helpers.h"
-#include "sql/psi_memory_key.h"
+#include <functional> // std::function
+
+#include "sql/item_sum.h"                 // Item_sum_json
+#include "sql/gis/geometries.h"           // gis::Point
+#include "sql/gis/geometry_extraction.h"  // ExtractGeometry
+#include "sql/sql_exception_handler.h"    // handle_std_exception
+#include "sql/gis/distance_functor.h"     // Distance
+#include "sql/Dijkstras_functor.h"        // Dijkstra
+#include "sql/json_dom.h"                 // Json_dom
+#include "include/map_helpers.h"          // Malloc_unordered_map
+#include "sql/psi_memory_key.h"           // PSI_memory_key
 
 class Item_sum_shortest_dir_path final : public Item_sum_json {
   int m_begin_node, m_end_node;
