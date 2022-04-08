@@ -147,7 +147,7 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue);
     1   s > t
 */
 
-int sortcmp_lex_string(LEX_CSTRING s, LEX_CSTRING t, CHARSET_INFO *cs) {
+int sortcmp_lex_string(LEX_CSTRING s, LEX_CSTRING t, const CHARSET_INFO *cs) {
   return cs->coll->strnncollsp(cs, pointer_cast<const uchar *>(s.str), s.length,
                                pointer_cast<const uchar *>(t.str), t.length);
 }
