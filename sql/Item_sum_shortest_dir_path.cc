@@ -237,7 +237,7 @@ inline bool Item_sum_shortest_dir_path::add_geom(Item *arg, const int& node_id, 
     gis::Point* p  = down_cast<gis::Point*>(&*geom);
     static constexpr double tol = 0.001;
     if (std::abs(_p->x() - p->x()) > tol || std::abs(_p->y() - p->y()) > tol) {
-      // TODO my_error(ERR_GEOMETRY_REDEFINED)
+      my_error(ER_GEOMETRY_REDEFINED, MYF(0), func_name(), node_id);
       return true;
     }
   }

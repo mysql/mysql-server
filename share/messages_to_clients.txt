@@ -8604,6 +8604,9 @@ ER_GEOMETRY_PARAM_LONGITUDE_OUT_OF_RANGE 22S02
 ER_GEOMETRY_PARAM_LATITUDE_OUT_OF_RANGE 22S03
   eng "A parameter of function %.192s contains a geometry with latitude %f, which is out of range. It must be within [%f, %f]."
 
+ER_GEOMETRY_REDEFINED
+  eng "A parameter of function %.192s contains different geometries to define same node [id: %d]"
+
 ER_FK_CANNOT_USE_VIRTUAL_COLUMN
   eng "Foreign key '%s' uses virtual column '%s' which is not supported."
 
