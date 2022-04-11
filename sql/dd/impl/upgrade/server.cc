@@ -842,7 +842,6 @@ bool upgrade_system_schemas(THD *thd) {
 
   LogErr(SYSTEM_LEVEL, ER_SERVER_UPGRADE_STATUS, server_version,
          MYSQL_VERSION_ID, "started");
-  log_sink_buffer_check_timeout();
   sysd::notify("STATUS=Server upgrade in progress\n");
 
   bootstrap_error_handler.set_log_error(false);
@@ -870,7 +869,6 @@ bool upgrade_system_schemas(THD *thd) {
   if (!err)
     LogErr(SYSTEM_LEVEL, ER_SERVER_UPGRADE_STATUS, server_version,
            MYSQL_VERSION_ID, "completed");
-  log_sink_buffer_check_timeout();
   sysd::notify("STATUS=Server upgrade complete\n");
 
   /*

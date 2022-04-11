@@ -49,6 +49,37 @@
 #endif
 
 /**
+  typedef for log-processing functions ("buffer this event",
+  "process this event", etc.)
+*/
+typedef bool (*log_line_processor)(log_line *ll);
+
+/**
+  Set the log-event processor.
+
+  When a log-event is submitted, a function is applied to that event.
+  That function usually either buffers the event for later processing,
+  or filters and logs the event.
+
+  That function can be set here.
+
+  @param llp   A log-processor
+*/
+extern void log_line_process_hook_set(log_line_processor llp);
+
+/**
+  Get current log-event processor.
+
+  When a log-event is submitted, a function is applied to that event.
+  That function usually either buffers the event for later processing,
+  or filters and logs the event.
+  log_line_process_hook_get() returns a pointer to that function.
+
+  @retval      a pointer to a log-event processing function
+*/
+log_line_processor log_line_process_hook_get(void);
+
+/**
   Primitives for services to interact with the structured logger:
   functions pertaining to log_line and log_item data
 */
@@ -743,22 +774,6 @@ extern SERVICE_TYPE(log_builtins_string) * log_bs;
 #define log_set_lexstring log_item_set_lexstring
 #define log_set_cstring log_item_set_cstring
 
-/**
-  Very long-running functions during server start-up can use this
-  function to check whether the time-out for buffered logging has
-  been reached. If so and we have urgent information, all buffered
-  log events will be flushed to the log using built-in default-logger
-  for the time being.  The information will be kept until start-up
-  completes in case it later turns out the user configured a loadable
-  logger, in which case we'll also flush the buffered information to
-  that logger later once the logger becomes available.
-
-  This function should only be used during start-up; once external
-  components are loaded by the component framework, this function
-  should no longer be called (as log events are no longer buffered,
-  but logged immediately).
-*/
-void log_sink_buffer_check_timeout(void);
 #endif  // LOG_H
 
 #ifndef DISABLE_ERROR_LOGGING

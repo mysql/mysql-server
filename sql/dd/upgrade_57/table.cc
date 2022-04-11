@@ -1971,8 +1971,6 @@ bool migrate_all_frm_to_dd(THD *thd, const char *dbname,
       // Skip NDB tables which are upgraded later by the ndbcluster plugin
       if (is_skipped_ndb_table(schema_name, table_name)) continue;
 
-      log_sink_buffer_check_timeout();
-
       // Create an entry in the new DD.
       bool result = false;
       result = migrate_table_to_dd(thd, schema_name, table_name,

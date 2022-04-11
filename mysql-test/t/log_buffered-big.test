@@ -1,151 +1,32 @@
-# WL#11875
+# With the addition of WL#14793, this test is mostly of historical interest.
+# It could eventually be removed.
 
-# 11875 completely rewrites the "buffered logging" subsystem, wherein we
-# collect error log events until we receive command-line options telling
-# us where to actually send them.
-# Previously, info was formatted when the event was created, and appended
-# to a string containing all buffered lines which would eventually be
-# flushed.
-# Now, we keep all key/value pairs around, and flush them only once
-# a) we know where to (as before)
-# b) external components are available (as the user may wish to use
-#    a loadable log-writer or log-filter).
-#    This requires the availability of the component framework
-#    as well as InnoDB (wherein the framework stores its setup).
-# This allows us to flush the data in one or several log formats
-# of the user's choice, and lets us apply filtering of the user's
-# choice. (It also handles local<->UTC timestamps correctly).
-# All of the above is tested in log_components*.test and
-# log_options_cmdline.test.
+# When loadable logging-components were first introduced, their configuration
+# was persisted in an InnoDB-table. This meant that we could only load those
+# components once InnoDB was available. All error-events up to that point
+# where saved in memory, and flushed to the loadable components once those
+# components were available. At the same time, if start-up took a long time
+# (e.g. due to a data dictionary upgrade, binlog replay, etc.), we would
+# flush status to the built-in logger even before InnoDB became available,
+# so the user would not consider the server frozen.
+#
+# The original version of this test primarily demonstrated some of the
+# "long start-up" features (as introduced by WL#11875).
+#
+# WL#14793 re-organizes the loading of logging components so they are
+# available very early during start-up. Because of this, most of the
+# "intermediate updates" logic could be removed. Consequently, it also
+# removed much of this test.
 
-# As a final new feature, if InnoDB initialization takes very long
-# (e.g. when another instance of the server has already claimed
-# the database file), we start giving updates using the built-in
-# log-writer (which is already available), which deferring the
-# writing of any other formats (the writers for which haven't been,
-# and can't be, loaded yet). As this mechanism only kicks in once
-# a certain time-out has been reached, this test must needs take a
-# bit of time (in the ballpark of 2 minutes), so we don't run it by
-# default:
-
-# This test takes rather long time so let us run it only in --big-test mode
 --source include/big_test.inc
 --source include/not_windows.inc
 --source include/not_asan.inc
+--source include/not_parallel.inc
 
 --let $MYSQLD_DATADIR=`SELECT @@datadir`
 
-# Case 1: Let the second server abort as it uses the same data
-#         directory as the first server
-
---let $MYSQLD_LOG=$MYSQL_TMP_DIR/buffered.log
-
---let ENV_LOG_FILE=$MYSQLD_LOG
---let ENV_LOG_SERVICES="log_filter_internal,log_filter_internal,log_sink_internal"
---let ENV_DATADIR=$MYSQLD_DATADIR
-
-# Bug#30019632:
-# "ERROR LOG REPORTING DELAYED DURING INNODB START-UP WHEN UNNECESSARY"
-#
-# This improvement results in the deferred error-logging during InnoDB
-# start-up only being active in rare configurations where it is needed,
-# but being inactive by default. Therefore to trigger the delay, we must
-# create the corner case below by using a non-standard log-error-services
-# and at the same time use stderr (instead of a named file) as a logging
-# destination. Finally due to the workings of the original test, the
-# server must run concurrently to mysql-test so the latter can get the
-# timing right. This specific combination can not be created by
-# --exec_in_background, so we use a specially crafted perl snippet
-# to give us everything we need. -T-
-
---perl
-  use File::Copy;
-
-  # Run the server with a non-standard log-error-services.
-  # Do not supply log-error, but do pipe stderr into a file
-  # so we can evaluate the output-over-time later.
-  system("$ENV{'MYSQLD'} --no-defaults --datadir=$ENV{'ENV_DATADIR'} --secure-file-priv=\"\" --port=$ENV{'MASTER_MYPORT'} --socket=$ENV{'MASTER_MYSOCK'} --log-error-services=$ENV{'ENV_LOG_SERVICES'} 2>$ENV{'ENV_LOG_FILE'} &");
-
-  # Wait till just before the initial timeout. Log should still be empty.
-  sleep 55;
-  # Save the error log messages that were output so far.
-  copy($ENV{'ENV_LOG_FILE'}, $ENV{'MYSQL_TMP_DIR'}."/errlog_after_55s");
-
-  # Wait till just after the initial timeout. Log should contain first batch.
-  sleep 10;
-  # Save the error log messages that were output so far.
-  copy($ENV{'ENV_LOG_FILE'}, $ENV{'MYSQL_TMP_DIR'}."/errlog_after_65s");
-
-  # Wait till after first subsequent timeout.
-  # Log should contain first 2 batches.
-  sleep 10;
-  # Save the error log messages that were output so far.
-  copy($ENV{'ENV_LOG_FILE'}, $ENV{'MYSQL_TMP_DIR'}."/errlog_after_75s");
-
-  # Wait for the server to give up trying to get a lock on the Inno
-  # database and abort.
-  sleep 30;
-EOF
-
-# Here ends the main change for Bug#30019632; while we had to make
-# some changes above to create the same situation as before, the
-# output should be generally the same as before, and so should the
-# processing below.
-
-
-# Verify that the second server has aborted
---let SEARCH_FILE=$MYSQLD_LOG
---let SEARCH_PATTERN=ERROR.*InnoDB.*Resource temporarily unavailable
---source include/search_pattern.inc
---let SEARCH_PATTERN=ERROR.*Server.*Aborting
---source include/search_pattern.inc
---let SEARCH_PATTERN=System.*Server.*Shutdown complete
---source include/search_pattern.inc
-
-# Verify that buffered log messages are flushed initially after a
-# timeout of 60s and that further buffered messages are flushed
-# after regular intervals of 10s
---perl
-  open(FILE55,$ENV{'MYSQL_TMP_DIR'}."/errlog_after_55s")
-    or die("Unable to open log file after 55s $!\n");
-  my @log_lines_55s=<FILE55>;
-  close(FILE55);
-  if (scalar(@log_lines_55s) != 0 ) {
-    die("Error log after 55 seconds should not contain any entries");
-  }
-
-  open(FILE65,$ENV{'MYSQL_TMP_DIR'}."/errlog_after_65s")
-    or die("Unable to open log file after 65s $!\n");
-  my @log_lines_65s=<FILE65>;
-  close(FILE65);
-  if (scalar(@log_lines_65s) == 0 ) {
-    die("Error log after 65 seconds should have flushed log messages".
-        "as initial timeout is exceeded");
-  }
-
-  open(FILE75,$ENV{'MYSQL_TMP_DIR'}."/errlog_after_75s")
-    or die("Unable to open log file after 75s $!\n");
-  my @log_lines_75s=<FILE75>;
-  close(FILE75);
-  if (not (scalar(@log_lines_75s) > scalar(@log_lines_65s))) {
-    die("Error log after 75 seconds should have more flushed ".
-        "messages as the incremental timeout is exceeded");
-  }
-EOF
-
-# Cleanup
---remove_files_wildcard $MYSQL_TMP_DIR errlog_after_*
---remove_file $MYSQLD_LOG
-
-
-# Case 2: Shutdown the first server during the waiting period of the
-#         second server and verify that the content of JSON and the
-#         traditional log of the second server has the same messages
-
-# We can add the JSON-writer to the components-set in this instance
-# and have it picked up in the other (once the other instance gains
-# access to the tables). The prettiness of this is debatable.
-INSTALL COMPONENT "file://component_log_sink_json";
+# Restart with both trad and JSON logs and verify that both logs show
+# the same events.
 
 --let LOG_FILE_TRAD=$MYSQL_TMP_DIR/buffered1.err
 --let LOG_FILE_JSON=$MYSQL_TMP_DIR/buffered1.err.00.json
@@ -155,30 +36,22 @@ INSTALL COMPONENT "file://component_log_sink_json";
 # To test filtering on non-buffered messages
 --let SUPPRESSED_ERRCODE2=convert_error(ER_DD_INIT_FAILED)
 
+# restart the server so it will write both trad and JSON error logs,
+# with some messages suppressed:
 --let $log_services="log_filter_internal,log_sink_internal,log_sink_json"
---let $log_sup_list="ER_CHANGED_MAX_OPEN_FILES,ER_DD_INIT_FAILED"
+--let $log_sup_list="ER_CHANGED_MAX_OPEN_FILES,ER_DD_INIT_FAILED,ER_SEC_FILE_PRIV_DIRECTORY_PERMISSIONS,ER_SEC_FILE_PRIV_DIRECTORY_PERMISSIONS,ER_BASEDIR_SET_TO,ER_WARN_COMPONENTS_INFRASTRUCTURE_MANIFEST_NOT_RO"
 
---exec_in_background $MYSQLD_CMD --socket=$MASTER_MYSOCK --port $MASTER_MYPORT --log-error=$LOG_FILE_TRAD $LOGGING_COMPONENTS_OPT --log-error-services=$log_services --log-error-suppression-list=$log_sup_list
---enable_reconnect
+--let LOG_FILE1= $MYSQLTEST_VARDIR/tmp/test1.err
+--let restart_parameters="restart: --log-error=$LOG_FILE_TRAD --log-error-services=$log_services --log-error-suppression-list=$log_sup_list"
+--replace_result $LOG_FILE_TRAD LOG_FILE_TRAD
+--source include/restart_mysqld.inc
 
-# Wait for some time before taking down the first server
---sleep 10
---let $_server_id= `SELECT @@server_id`
---let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
---exec echo "wait" > $_expect_file_name
---shutdown_server
-
-# The second instance should automatically be up and running now
---let $wait_counter=3000
---source include/wait_until_connected_again.inc
-SELECT @@log_error_services;
---disable_reconnect
-
-# Restart with default parameters
+# We should have our logs; restart with default file names.
 --let $restart_parameters =
 --source include/restart_mysqld.inc
 
-# Now compare the content of traditional and JSON error log
+# Now convert the JSON log to trad format, so we can more easily compare
+# the contents of the two:
 --perl
    use strict;
    use JSON;
@@ -186,18 +59,25 @@ SELECT @@log_error_services;
    my $file_json= $ENV{'LOG_FILE_JSON'};
    my $file_conv= $ENV{'LOG_FILE_JSON_TO_TRAD'};
 
-   open(my $outfh,">",$file_conv) or
-     die("Unable to open file '$file_conv' for writing $!\n");
-
+   # read trad log
    open(FILET,"$file_trad") or die("Unable to open $file_trad $!\n");
    my @log_lines_trad=<FILET>;
    close(FILET);
 
+#  s/^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* *(\[.*)$/$1/ for @log_lines_trad;
+
+   # Read JSON log.
    open(FILEJ,"$file_json") or die("Unable to open $file_json $!\n");
    my @log_lines_json=<FILEJ>;
    close(FILEJ);
 
-   # Test for validity of the json docs in error log
+   # Write trad log output generated from JSON input
+   # (so that we may use diff to show the trad log and the JSON log
+   # contain the same events).
+   open(my $outfh,">",$file_conv) or
+     die("Unable to open file '$file_conv' for writing $!\n");
+
+   # Test for validity of the JSON docs in error log.
    my $string = "[\n".join("", @log_lines_json)."\n]";
    $string =~ s/\}\n\{/\},\n\{/g ;
    my $parsed_json;
@@ -216,8 +96,8 @@ SELECT @@log_error_services;
         my $errcode_formatted= sprintf("%06d", $item->{'err_code'});
 
         # Verify that the --log-error-suppression-list works for
-        # buffered messages flushed after timeout as well as non
-        # buffered messages
+        # buffered messages flushed after timeout as well as for
+        # non-buffered messages.
         if ($errcode_formatted =~ $ENV{'SUPPRESSED_ERRCODE1'} or
             $errcode_formatted =~ $ENV{'SUPPRESSED_ERRCODE2'}) {
           die("Error message with error code suppressed using ".
@@ -226,18 +106,51 @@ SELECT @@log_error_services;
         my $thread_id= defined $item->{'thread'} ? $item->{'thread'} : 0;
         my $label= ($item->{'label'} =~ "Error") ? uc $item->{'label'}
                                                  : $item->{'label'};
-        print $outfh $item->{'time'}." ".$thread_id." [".$label."] [MY-".
-                     $errcode_formatted."] [".$item->{'subsystem'}."] ".
-                     $item->{'msg'} . "\n";
+        my $msg= $item->{'msg'};
+        # log_sink_trad does '\n' -> ' ', so we need to emulate that.
+        $msg =~ s/\n/ /g;
 
+        print $outfh $item->{'time'}." ".$thread_id." "."[".$label."] [MY-".$errcode_formatted."] [".
+                     $item->{'subsystem'}."] ".$msg . "\n";
      }
    }
    close($outfh);
  EOF
 
---diff_files $LOG_FILE_JSON_TO_TRAD $LOG_FILE_TRAD
+# Now, compare the two logs ("native" trad log, and JSON-converted-to-trad):
+--perl
+   use strict;
+   use File::Compare;
+
+   my $file_trad= $ENV{'LOG_FILE_TRAD'};
+   my $file_conv= $ENV{'LOG_FILE_JSON_TO_TRAD'};
+
+   my $compare = compare($file_conv, $file_trad);
+
+   if ($compare == 0) {
+     print "Success: trad log and JSON-converted-to-trad log are the same.\n";
+   }
+   else {
+     print "Failure: trad log and JSON-converted-to-trad log are NOT the same.\n";
+     $/ = undef;
+     my $contents;
+
+     print "\nContents of converted file, ".$file_conv."\n";
+     open my $fh, '<', $file_conv or die;
+     $contents = <$fh>;
+     close $fh;
+     print $contents;
+
+     print "\nContents of native trad file, ".$file_trad."\n";
+     open my $fh, '<', $file_trad or die;
+     $contents = <$fh>;
+     close $fh;
+     print $contents;
+
+     print "--- end of inserted log ---\n\n";
+   }
+ EOF
 
 # Cleanup
 SET GLOBAL log_error_services=default;
-UNINSTALL COMPONENT "file://component_log_sink_json";
 --remove_files_wildcard $MYSQL_TMP_DIR buffered1*

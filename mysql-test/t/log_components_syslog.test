@@ -1,9 +1,7 @@
-#
 --echo #
 --echo # WL#9343:  log TNG: log writers
 --echo #
 
---echo #
 --echo # This test verifies the interaction with the 'ix syslog.
 --echo # It is disabled by default, to be run manually, so we
 --echo # won't spam the test host's syslog on a regular and concurrent
@@ -14,8 +12,22 @@
 --echo # default, and is not expect to pass on all platforms.
 --echo #
 
-# on systemd systems: journalctl SYSLOG_IDENTIFIER=mysqld-wl9343
-# on syslog  systems: grep mysqld-wl9343 /var/log/messages|cut -d: -f4-
+--echo # Loading of logging components is now implicit when log_error_services
+--echo # is set. Using INSTALL/UNINSTALL is no longer necessary (but possible
+--echo # e.g. when you wish to load but not immediately activate a component,
+--echo # like we do here for testing).
+--echo # Mixing the two (e.g. by using INSTALL and then implicitly loading
+--echo # the same component implicitly by setting --log-error-services from
+--echo # the command-line on restart as well) results in a warning that we
+--echo # failed to load a component (as trying to restore the configuration
+--echo # persisted with INSTALL COMPONENT will try to load a component a
+--echo # second time that was already loaded implicitly by listing it in
+--echo # --log-error-services=...).
+--echo #
+
+--echo # on systemd systems: journalctl SYSLOG_IDENTIFIER=mysqld-wl9343
+--echo # on syslog  systems: grep mysqld-wl9343 /var/log/messages|cut -d: -f4-
+--echo #
 
 --source include/have_debug.inc
 --source include/linux.inc
@@ -50,6 +62,7 @@ SELECT @@global.log_error_services;
 --error ER_UNKNOWN_SYSTEM_VARIABLE
 SELECT @@syseventlog.tag;
 
+# Component is not present, INSTALL should succeed
 SELECT "*** SWITCHING ERROR LOG TO SYSEVENTLOG ***";
 INSTALL COMPONENT "file://component_log_sink_syseventlog";
 
@@ -87,8 +100,13 @@ SET PERSIST syseventlog.include_pid = OFF;
 SET PERSIST syseventlog.facility = "local1";
 SET PERSIST syseventlog.tag = "wl11828";
 
+# We uninstall the component we explicitly installed above so we can use
+# implicitly loading from the command-line below without the server
+# complaining that we're mixing both.
+UNINSTALL COMPONENT "file://component_log_sink_syseventlog";
+
 --let $log_services="log_filter_internal;log_sink_syseventlog;log_sink_internal"
---let restart_parameters="restart: --no-console --log-error-services=$log_services "
+--let restart_parameters="restart: --no-console --log-error-services=$log_services --syseventlog.tag=override"
 --source include/restart_mysqld.inc
 
 # Verify value of the persisted variable
@@ -133,7 +151,16 @@ SELECT @@syseventlog.tag;
 SET GLOBAL log_error_services= default;
 --echo
 
+# Implicitly load the component.
+SET GLOBAL log_error_services= "log_filter_internal;log_sink_syseventlog";
+# Now we have the component loaded and active (because of the implicit
+# loading), and we have an entry in mysql.component.
+# Unfortunately, they don't belong to each other. The component
+# framework detects this:
+--error ER_COMPONENTS_UNLOAD_CANT_UNREGISTER_SERVICE
 UNINSTALL COMPONENT "file://component_log_sink_syseventlog";
+# Unload the implicitly loaded component.
+SET GLOBAL log_error_services= default;
 
 SET @@session.debug="-d,parser_stmt_to_error_log_with_system_prio";
 SET @@session.debug="-d,parser_stmt_to_error_log";

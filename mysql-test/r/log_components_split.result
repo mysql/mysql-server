@@ -212,7 +212,6 @@ FLUSH ERROR LOGS;
 #
 
 # Set up logging via PERSISTs. Order of the PERSISTs matters!
-INSTALL COMPONENT "file://component_log_sink_json";
 RESET PERSIST;
 SET PERSIST log_error_verbosity=3;
 SET PERSIST log_error_services="log_filter_internal; log_sink_internal; log_sink_json";
@@ -232,7 +231,6 @@ all
 # Reset PERSISTs.
 RESET PERSIST;
 SET GLOBAL log_error_services=DEFAULT;
-UNINSTALL COMPONENT "file://component_log_sink_json";
 # Log file analysis:
 SUCCESS!
 # Restart server with all defaults

@@ -1680,7 +1680,8 @@ mysql_service_status_t log_filter_init() {
             log_bf->filter_ruleset_new(&rule_tag_dragnet, 0)) == nullptr) ||
       mysql_service_component_sys_variable_register->register_variable(
           LOG_FILTER_LANGUAGE_NAME, LOG_FILTER_SYSVAR_NAME,
-          PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC,
+          PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC |
+              PLUGIN_VAR_PERSIST_AS_READ_ONLY,
           "Error log filter rules (for the dragnet filter "
           "configuration language)",
           check_var_filter_rules, update_var_filter_rules,
