@@ -42,7 +42,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   - Bytes received ("bytes_received") Byte count received from the client.
   - Bytes sent     ("bytes_sent")     Byte count sent to the client.
 
-  @section Initialization
+  @section longlong_service_init Initialization
 
   The service can be instantiated using the registry service with the
   "mysql_audit_print_service_double_data_source" name.
@@ -56,7 +56,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   }
   @endcode
 
-  @section Query Time
+  @section longlong_service_query_time Query Time
 
   Query Time represents query execution time in microseconds.
 
