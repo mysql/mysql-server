@@ -979,13 +979,6 @@ calc_fifo_used(Uint32 ri, Uint32 wi, Uint32 sz)
  */
 struct alignas(NDB_CL) thr_job_queue
 {
-  enum
-  {
-    NO_CONGESTION = 0,
-    CAN_EXECUTE = 1,
-    LEVEL_1_CONGESTION = 2,
-    LEVEL_2_CONGESTION = 3
-  };
   /**
    * Size of A and B buffer must be in the form 2^n since we
    * use & (size - 1) for modulo which only works when it is
@@ -1030,17 +1023,12 @@ struct alignas(NDB_CL) thr_job_queue
    */
   static constexpr unsigned CONGESTED = RESERVED + 4;  // 4+4
 
-  /////// 'limits' and 'levels' below will be deprecated in later patches ////
   /**
    * When free buffer count drops below ALMOST_FULL, we
    * are allowed to start using RESERVED buffers to prevent
    * circular wait-locks.
    */
   static constexpr unsigned ALMOST_FULL = RESERVED + 2;
-  static constexpr unsigned RECEIVE_LIMIT = 10;
-
-  static constexpr unsigned FIRST_CONGESTION_LEVEL = SIZE - RECEIVE_LIMIT;
-  static constexpr unsigned SECOND_CONGESTION_LEVEL = SIZE - ALMOST_FULL;
 
   /**
    * As there are multiple writers, 'm_write_lock' has to be set before
@@ -1438,8 +1426,6 @@ struct alignas(NDB_CL) thr_data
    */
   alignas(NDB_CL) struct thr_job_queue m_jbb[NUM_JOB_BUFFERS_PER_THREAD];
 
-  alignas(NDB_CL) Uint32 m_congestion_level[NUM_JOB_BUFFERS_PER_THREAD];
-
   /**
    * The remainder of the variables in thr_data are thread-local,
    * meaning that they are always updated by the thread that owns those
@@ -1834,9 +1820,7 @@ struct thr_repository
       m_section_lock("sectionlock"),
       m_mem_manager_lock("memmanagerlock"),
       m_jb_pool("jobbufferpool"),
-      m_sb_pool("sendbufferpool"),
-      m_first_congestion_level(0),
-      m_second_congestion_level(0)
+      m_sb_pool("sendbufferpool")
   {
     // Verify assumed cacheline allignment
     assert((((UintPtr)this) % NDB_CL) == 0);
@@ -1873,13 +1857,6 @@ struct thr_repository
    * isn't a good idea
    */
   alignas(NDB_CL) struct thr_data m_thread[MAX_BLOCK_THREADS];
-
-  /**
-   * Global counters of number of threads in first and second congestion
-   * levels. When 0 no congestion exists.
-   */
-  alignas(NDB_CL) std::atomic<unsigned int> m_first_congestion_level;
-  alignas(NDB_CL) std::atomic<unsigned int> m_second_congestion_level;
 
   /* The buffers that are to be sent */
   struct send_buffer
@@ -7915,8 +7892,6 @@ update_spin_config(struct thr_data *selfptr,
   min_spin_timer = selfptr->m_spintime;
 }
 
-static void check_congestion(thr_data *selfptr);
-
 extern "C"
 void *
 mt_receiver_thread_main(void *thr_arg)
@@ -8001,7 +7976,6 @@ mt_receiver_thread_main(void *thr_arg)
     {
       watchDogCounter = 6;
       flush_all_local_signals_and_wakeup(selfptr);
-      check_congestion(selfptr);
     }
 
     const bool pending_send = do_send(selfptr, true, false);
@@ -8451,7 +8425,6 @@ mt_job_thread_main(void *thr_arg)
         do_flush(selfptr);
         flush_sum = 0;
       }
-      check_congestion(selfptr);
     }
     /**
      * Scheduler is not allowed to yield until its internal
@@ -9037,87 +9010,6 @@ mt_getNumThreads()
   return glob_num_threads;
 }
 
-static
-inline
-Uint32 get_free_level(Uint32 read_index, Uint32 write_index)
-{
-  unsigned used = calc_fifo_used(read_index,
-                                 write_index,
-                                 thr_job_queue::SIZE);
-  if (used <= thr_job_queue::FIRST_CONGESTION_LEVEL)
-    return thr_job_queue::NO_CONGESTION;
-  else if (used <= thr_job_queue::SECOND_CONGESTION_LEVEL)
-    return thr_job_queue::LEVEL_1_CONGESTION;
-  else
-    return thr_job_queue::LEVEL_2_CONGESTION;
-}
-
-static void
-check_congestion(thr_data *selfptr)
-{
-  /**
-   * check_congestion is called after executing a bunch of signals
-   * and is only used to decrease congestion levels. Thus in the
-   * case of no congestion we can avoid checking the congestion
-   * levels. The read index is not a problem to read since it is
-   * only written by this thread. The write_index is constantly
-   * updated by us and others, but is required to get the correct
-   * free level.
-   */
-  struct thr_repository* rep = g_thr_repository;
-  for (Uint32 jbb_instance = 0;
-       jbb_instance < glob_num_job_buffers_per_thread;
-       jbb_instance++)
-  {
-    thr_job_queue *jbb = selfptr->m_jbb + jbb_instance;
-    if (selfptr->m_congestion_level[jbb_instance] <
-          thr_job_queue::LEVEL_1_CONGESTION)
-    {
-      continue;
-    }
-    if (unlikely(glob_use_write_lock_mutex))
-    {
-      lock(&jbb->m_write_lock);
-    }
-    Uint32 congestion_level = get_free_level(jbb->m_read_index,
-                                             jbb->m_write_index);
-    if (unlikely(glob_use_write_lock_mutex))
-    {
-      unlock(&jbb->m_write_lock);
-    }
-    if (congestion_level < selfptr->m_congestion_level[jbb_instance])
-    {
-      if (selfptr->m_congestion_level[jbb_instance] >
-            thr_job_queue::LEVEL_1_CONGESTION)
-      {
-        /**
-         * Step down one step at a time from extreme congestion.
-         */
-        congestion_level = thr_job_queue::LEVEL_1_CONGESTION;
-      }
-      selfptr->m_congestion_level[jbb_instance] = congestion_level;
-      if (congestion_level < thr_job_queue::LEVEL_1_CONGESTION)
-      {
-        rep->m_first_congestion_level--;
-      }
-      else if (congestion_level == thr_job_queue::LEVEL_1_CONGESTION)
-      {
-        rep->m_second_congestion_level--;
-      }
-      else
-      {
-        require(false);
-      }
-    }
-  }
-}
-
-static void inline
-handle_sent_signals(struct thr_data *selfptr,
-                    struct thr_data *dstptr,
-                    struct thr_job_queue *q);
-
-
 /**
  * Copy out signals one-by-one from the 'm_local_buffer' into the thread-shared
  * 'm_current_write_buffer'. If the write_buffer becomes full, the available
@@ -9278,8 +9170,6 @@ flush_local_signals(struct thr_data *selfptr,
     lock(&q->m_write_lock);
     num_signals = copy_out_local_buffer(selfptr, q, next_signal);
   }
-
-  handle_sent_signals(selfptr, dstptr, q);
 
   // Check *total* pending_signals in this queue, wakeup consumer?
   bool need_wakeup = false;
@@ -9616,101 +9506,6 @@ sendlocal(Uint32 self,
   insert_local_signal(selfptr, s, data, secPtr, dst);
 }
 
-static void inline
-handle_sent_signals(struct thr_data *selfptr,
-                    struct thr_data *dstptr,
-                    struct thr_job_queue *q)
-{
-  /**
-   * At this point in time we need to check congestion, we have inserted
-   * a signal into the job buffer. This could potentially create a situation
-   * where a congestion have occurred. Setting congestion states is handled
-   * entirely from here. Resetting those states is entirely by the threads
-   * after executing a set of signals.
-   *
-   * We use two congestion levels. The first levels stops execution of signals
-   * in most threads. Only congested threads are allowed to continue executing.
-   * The second level of congestion will also stop receive threads from
-   * inserting signals into the job buffers.
-   *
-   * The reason for continuing to receive signals even as we reach the first
-   * congestion level is to be able to handle higher priority level signals
-   * as much as possible. We will also avoid stopping the main thread until
-   * we block the receive threads from progressing.
-   *
-   * So there are a number of job buffer levels:
-   * CAN_EXECUTE: This level is around 1 MByte, threads having more than this
-   *   level is allowed to continue executing until we reach the second
-   *   congestion level.
-   * LEVEL_1_CONGESTION: This level is around 16 Mbytes and when any thread
-   *   has reached this level it will ensure that all threads that are not in
-   *   CAN_EXECUTE level will be held off from executing. Threads that are in
-   *   LEVEL_1_CONGESTION will be allowed to execute even when any thread are
-   *   LEVEL_2_CONGESTION.
-   * LEVEL_2_CONGESTION: This level is around 20 MBytes and when this level is
-   *   reached we will no longer receive from receive threads and no longer
-   *   execute from threads in CAN_EXECUTE mode.
-   *
-   * The job buffer can contain up to 32 MBytes of signal data.
-   *
-   * The owner of the m_write_lock can change the state a thread is in
-   * upwards. The thread itself can decrease the congestion state of a thread
-   * is in when holding this mutex.
-   *
-   * Whenever a thread goes up to LEVEL_1_CONGESTION an atomic counter will
-   * be increased, similarly when it drops below LEVEL_1_CONGESTION the same
-   * atomic counter will be decreased. So this atomic variable being larger
-   * than 0 means that any thread is in LEVEL_1_CONGESTION state.
-   *
-   * There is a similar atomic variable for LEVEL_2_CONGESTION.
-   *
-   * We optimise this function by using the cached_read_index first. If there
-   * is no congestion with the cached read index, then there is certainly no
-   * congestion on the real m_read_index since the cached_read_index is always
-   * going to show a smaller free level.
-   *
-   * If there isn't enough space according to the cached read index, we read
-   * the real m_read_index and at the same time we move the cached_read_index
-   * forward to ensure it is kept as much up to date as possible.
-   *
-   * This means that we often manage to avoid reading the m_read_index which
-   * is very often going to be a cache miss since it is updated by the
-   * executing thread very often.
-   */
-  const Uint32 self = selfptr->m_thr_no;
-  struct thr_repository* rep = g_thr_repository;
-  Uint32 cached_read_index = q->m_cached_read_index;
-  Uint32 write_index = q->m_write_index;
-  const Uint32 jbb_instance = self % NUM_JOB_BUFFERS_PER_THREAD;
-  Uint32 congestion_level = get_free_level(cached_read_index, write_index);
-  if (likely(congestion_level <= dstptr->m_congestion_level[jbb_instance] ||
-             congestion_level < thr_job_queue::LEVEL_1_CONGESTION))
-  {
-    return;
-  }
-  Uint32 read_index = q->m_read_index;
-  q->m_cached_read_index = read_index;
-  congestion_level = get_free_level(read_index, write_index);
-
-  if (unlikely(congestion_level > dstptr->m_congestion_level[jbb_instance] &&
-               congestion_level >= thr_job_queue::LEVEL_1_CONGESTION))
-  {
-    dstptr->m_congestion_level[jbb_instance] = congestion_level;
-    if (congestion_level == thr_job_queue::LEVEL_1_CONGESTION)
-    {
-      rep->m_first_congestion_level++;
-    }
-    else if (congestion_level == thr_job_queue::LEVEL_2_CONGESTION)
-    {
-      rep->m_second_congestion_level++;
-    }
-    else
-    {
-      require(false);
-    }
-  }
-}
-
 void
 sendprioa(Uint32 self, const SignalHeader *s, const uint32 *data,
           const Uint32 secPtr[3])
@@ -10003,7 +9798,6 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
     BaseString::snprintf(buf, sizeof(buf), "jbblock(%u)", i);
     register_lock(&selfptr->m_jbb[i].m_write_lock, buf);
 
-    selfptr->m_congestion_level[i] = thr_job_queue::NO_CONGESTION;
     selfptr->m_jbb[i].m_read_index = 0;
     selfptr->m_jbb[i].m_write_index = 0;
     selfptr->m_jbb[i].m_pending_signals = 0;
