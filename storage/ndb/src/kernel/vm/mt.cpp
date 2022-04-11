@@ -4983,6 +4983,20 @@ unsigned get_free_estimate_out_queue(thr_job_queue *q)
 }
 
 /**
+ * Compute free buffers in specified in-queue.
+ *
+ * Is lock free, with same assumption as rest of JB-queue
+ * algorithms. .. Only a single reader (this) which do not need locks.
+ * Concurrent writer(s) might have written more though, which we
+ * will not see until rechecked again later.
+ */
+static
+unsigned get_free_in_queue(const thr_job_queue *q)
+{
+  return calc_fifo_free(q->m_read_index, q->m_write_index, q->m_size);
+}
+
+/**
  * Callback functions used by yield() to recheck
  * 'job buffers congested/full' condition before going to sleep.
  * Set write_lock as required. (if having multiple writers)
@@ -5018,13 +5032,6 @@ check_full_job_queue(thr_job_queue *waitfor)
     free = get_free_estimate_out_queue(waitfor);
   }
   return (free <= thr_job_queue::RESERVED);
-}
-
-static bool
-get_congested_recv_queue(struct thr_repository* rep)
-{
-  rmb();
-  return rep->m_first_congestion_level.load() != 0;
 }
 
 /**
@@ -8114,6 +8121,7 @@ mt_receiver_thread_main(void *thr_arg)
   return NULL;                  // Return value not currently used
 }
 
+
 /**
  * has_full_in_queues()
  *
@@ -8133,31 +8141,23 @@ static
 bool
 has_full_in_queues(struct thr_data* selfptr)
 {
-  for (Uint32 i = 0; i < glob_num_job_buffers_per_thread; i++)
+  // Precondition: About to execute signals while being FULL-congested
+  assert(!selfptr->m_congested_signals_mask.isclear());
+  assert(selfptr->m_max_signals_per_jb == 0);
+
+  // Check the JBB in-queues known to contain signals to be executed
+  for (unsigned jbb_instance = selfptr->m_jbb_read_mask.find_first();
+       jbb_instance != BitmaskImpl::NotFound;
+       jbb_instance = selfptr->m_jbb_read_mask.find_next(jbb_instance+1))
   {
-    if (selfptr->m_congestion_level[i] >= thr_job_queue::LEVEL_1_CONGESTION)
-    {
+    thr_job_queue *queue = &selfptr->m_jbb[jbb_instance];
+    const unsigned free = get_free_in_queue(queue);
+    if (free <= thr_job_queue::CONGESTED) {
+      // In-queue is congested as well.
       return true;
     }
   }
-  bool found = false;
-  for (Uint32 i = 0; i < glob_num_job_buffers_per_thread; i++)
-  {
-    if (selfptr->m_congestion_level[i] != thr_job_queue::NO_CONGESTION)
-    {
-      found = true;
-      break;
-    }
-  }
-  if (found == false)
-  {
-    return false;
-  }
-  if (get_congested_recv_queue(g_thr_repository))
-  {
-    return false;
-  }
-  return true;
+  return false;
 }
 
 /**
@@ -8215,6 +8215,9 @@ handle_full_job_buffers(struct thr_data* selfptr,
       // Found a 'self' congestion - can't wait for FULL blockage on 'self'
       return sleeploop > 0;
     }
+    /**
+     * Avoid 'self-wait', where 'self' participate in a cyclic wait graph.
+     */
     if (has_full_in_queues(selfptr) &&
         selfptr->m_max_extra_signals > 0)
     {
