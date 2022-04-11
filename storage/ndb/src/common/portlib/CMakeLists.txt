@@ -44,6 +44,10 @@ ELSE()
   SET(EXTRA_SRC ${EXTRA_SRC} ndb_file_posix.cpp)
 ENDIF()
 
+IF(CMAKE_CXX_FLAGS MATCHES " -DNDB_MUTEX_DEADLOCK_DETECTOR")
+  SET(EXTRA_SRC ${EXTRA_SRC} NdbMutex_DeadlockDetector.cpp)
+ENDIF()
+
 ADD_CONVENIENCE_LIBRARY(ndbportlib
   NdbCondition.cpp
   NdbMutex.cpp
@@ -63,7 +67,6 @@ ADD_CONVENIENCE_LIBRARY(ndbportlib
   ndb_stacktrace.cpp
   ${EXTRA_SRC}
   NdbNuma.cpp
-  NdbMutex_DeadlockDetector.cpp
   NdbGetRUsage.cpp
   NdbLockCpuUtil.cpp
   NdbSpin.cpp

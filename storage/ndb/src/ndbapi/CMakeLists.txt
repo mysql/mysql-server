@@ -47,7 +47,6 @@ ADD_CONVENIENCE_LIBRARY(ndbapi
   NdbOperationDefine.cpp
   NdbOperationExec.cpp
   NdbOperationInt.cpp
-  NdbOperationScan.cpp
   NdbOperationSearch.cpp
   NdbPool.cpp
   NdbPoolImpl.cpp
