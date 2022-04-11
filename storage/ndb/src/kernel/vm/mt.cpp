@@ -1024,13 +1024,6 @@ struct alignas(NDB_CL) thr_job_queue
   static constexpr unsigned CONGESTED = RESERVED + 4;  // 4+4
 
   /**
-   * When free buffer count drops below ALMOST_FULL, we
-   * are allowed to start using RESERVED buffers to prevent
-   * circular wait-locks.
-   */
-  static constexpr unsigned ALMOST_FULL = RESERVED + 2;
-
-  /**
    * As there are multiple writers, 'm_write_lock' has to be set before
    * updating the m_write_index.
    */
@@ -1473,6 +1466,22 @@ struct alignas(NDB_CL) thr_data
   alignas(NDB_CL) unsigned m_max_signals_per_jb;
 
   /**
+   * Extra JBB signal execute quota allowed to be used to
+   * drain (almost) full in-buffers. Reserved for usage where
+   * we are about to end up in a circular wait-lock between
+   * threads where none of them will be able to proceed.
+   * Allocated from the RESERVED signal quota.
+   */
+  unsigned m_total_extra_signals;
+
+  /**
+   * Extra signals allowed to be execute from each specific JBB.
+   * Allocated to each job_buffer from the m_total_extra_signals.
+   * Only set up / to be used, if thread is JBB congested.
+   */
+  unsigned m_extra_signals[NUM_JOB_BUFFERS_PER_THREAD];
+
+  /**
    * This state show how much assistance we are to provide to the
    * send threads in sending. At OVERLOAD we provide no assistance
    * and at MEDIUM we take care of our own generated sends and
@@ -1503,14 +1512,6 @@ struct alignas(NDB_CL) thr_data
    * assist the send threads.
    */
   OverloadStatus m_node_overload_status;
-
-  /**
-   * Extra JBB signal execute quota allowed to be used to
-   * drain (almost) full in-buffers. Reserved for usage where
-   * we are about to end up in a circular wait-lock between
-   * threads where none if them will be able to proceed.
-   */
-  unsigned m_max_extra_signals;
 
   /**
    * Flag indicating that we have sent a local Prio A signal. Used to know
@@ -4750,7 +4751,7 @@ compute_max_signals_per_jb(Uint32 max_signals_to_execute)
  * Reduce the 'm_max_signals_per_jb' execute quota to account for this.
  * In case we have reached the 'RESERVED' congestion level, we stop the
  * 'normal' execute paths by setting 'm_max_signals_per_jb = 0'. In this
- * state we can only execute extra signals from the 'm_max_extra_signals'
+ * state we can only execute extra signals from the 'm_extra_signals[]'
  * quota. These are assigned to drain from in-queues which at detected
  * to be comgested as well.
  *
@@ -4771,7 +4772,7 @@ set_congested_jb_quotas(thr_data *selfptr, Uint32 congested, Uint32 free)
     const Uint32 extra = compute_max_signals_to_execute(reserved);
     selfptr->m_congested_signals_mask.set(congested);
     selfptr->m_max_signals_per_jb = 0;
-    selfptr->m_max_extra_signals  = MIN(extra, selfptr->m_max_extra_signals);
+    selfptr->m_total_extra_signals  = MIN(extra, selfptr->m_total_extra_signals);
   }
   else
   {
@@ -4787,7 +4788,6 @@ set_congested_jb_quotas(thr_data *selfptr, Uint32 congested, Uint32 free)
     }
   }
 }
-
 
 static
 void
@@ -6948,6 +6948,84 @@ void handle_scheduling_decisions(thr_data *selfptr,
   void mt_clear_global_variables(thr_data*);
 #endif
 
+
+/**
+ * prepare_congested_execution()
+ *
+ * If this thread is in a congested JBB state, its perjb-quota will be
+ * reduced, possibly even set to '0'. If we didn't get a max 'perjb' quota,
+ * our out buffers are about to fill up. This thread is thus effectively
+ * slowed down in order to let other threads consume from our out buffers.
+ * Eventually, when 'perjb==0', we will have to wait/sleep for buffers to
+ * become available.
+ *
+ * This can bring us into a circular wait-lock, where threads are stalled
+ * due to full out buffers. The same thread may also have full in buffers,
+ * thus blocking other threads from progressing. The entire scheduler will
+ * then be stuck.
+ *
+ * This function check the JBB queues we are about to execute signals from.
+ * if they are filled to a level where the producer will detect a congestion,
+ * we allow some 'extra_signals' to be executed from this JBB, such that the
+ * congestion hopefully can be reduced.
+ *
+ * The amount of extra_signals allowed are scaled proportional to
+ * the congestion level in each job buffer.
+ */
+static
+void
+prepare_congested_execution(thr_data *selfptr)
+{
+  unsigned congestion[NUM_JOB_BUFFERS_PER_THREAD];
+  unsigned total_congestion = 0;
+
+  // Assumed precondition:
+  assert(!selfptr->m_congested_signals_mask.isclear());
+
+  /**
+   * Two steps:
+   * 1. Collect amount of congestion (in job_buffer pages) in the JBBs.
+   * 2. Allocate extra_signals proportional to congestion level
+   */
+  for (unsigned jbb_instance = selfptr->m_jbb_read_mask.find_first();
+       jbb_instance != BitmaskImpl::NotFound;
+       jbb_instance = selfptr->m_jbb_read_mask.find_next(jbb_instance+1))
+  {
+    selfptr->m_extra_signals[jbb_instance] = 0;
+
+    thr_job_queue *queue = &selfptr->m_jbb[jbb_instance];
+    const unsigned free = get_free_in_queue(queue);
+    if (free <= thr_job_queue::CONGESTED) {
+      // In queue is congested as well. Calculate the total number of
+      // job_buffers to consume from in-queue(s) to get out of overload.
+      congestion[jbb_instance] = (thr_job_queue::CONGESTED - free) + 1;
+      total_congestion += congestion[jbb_instance];
+    } else {
+      congestion[jbb_instance] = 0;
+    }
+  }
+
+  if (unlikely(total_congestion > 0) && selfptr->m_total_extra_signals > 0)
+  {
+    // Found congestion, allocate 'extra_signals' proportional to congestion
+    const unsigned extra_per_jb =
+        std::max(1u, selfptr->m_total_extra_signals / total_congestion);
+
+    for (unsigned jbb_instance = selfptr->m_jbb_read_mask.find_first();
+         jbb_instance != BitmaskImpl::NotFound;
+         jbb_instance = selfptr->m_jbb_read_mask.find_next(jbb_instance+1))
+    {
+      if (congestion[jbb_instance] > 0) {
+        selfptr->m_extra_signals[jbb_instance] =
+            congestion[jbb_instance] * extra_per_jb;
+      } else if (selfptr->m_max_signals_per_jb == 0)  {
+        // Need to run a bit in order to avoid starvation of the JBB's
+        selfptr->m_extra_signals[jbb_instance] = 1;
+      }
+    }
+  }
+}
+
 static void recheck_congested_job_buffers(thr_data *selfptr);
 
 /*
@@ -7150,6 +7228,12 @@ run_job_buffers(thr_data *selfptr,
    */
   rmb();
 
+  if (unlikely(!selfptr->m_congested_signals_mask.isclear()))
+  {
+    // Will assign 'extra' signal execution to be used by congested JBB's
+    prepare_congested_execution(selfptr);
+  }
+
   /**
    * We might have a JBB resume point:
    *  - For the main thread we can stop at any job buffer.
@@ -7203,7 +7287,7 @@ run_job_buffers(thr_data *selfptr,
      * The entire scheduler will then be stuck.
      *
      * We try to avoid this situation by reserving some
-     * 'm_max_extra_signals' which are only used to consume
+     * 'm_extra_signals[]' which are only used to consume
      * from 'almost full' in-buffers. We will then reduce the
      * risk of ending up in the above wait-lock.
      *
@@ -7213,25 +7297,12 @@ run_job_buffers(thr_data *selfptr,
     Uint32 perjb = selfptr->m_max_signals_per_jb;
     Uint32 extra = 0;
 
-    if (perjb < MAX_SIGNALS_PER_JB)  //Job buffer contention
+    if (perjb < MAX_SIGNALS_PER_JB)  // Has a job buffer contention
     {
       // Prefer a tighter JB-quota control when executing in congested state:
       recheck_congested_job_buffers(selfptr);
       perjb = selfptr->m_max_signals_per_jb;
-
-      const Uint32 free = compute_free_buffers_in_queue(queue);
-      if (free <= thr_job_queue::ALMOST_FULL)
-      {
-        if (selfptr->m_max_extra_signals > MAX_SIGNALS_PER_JB - perjb)
-	{
-          extra = MAX_SIGNALS_PER_JB - perjb;
-        }
-        else
-	{
-          extra = selfptr->m_max_extra_signals;
-        }
-        selfptr->m_max_extra_signals -= extra;
-      }
+      extra = selfptr->m_extra_signals[jbb_instance];
     }
 
 #ifdef ERROR_INSERT
@@ -7251,8 +7322,9 @@ run_job_buffers(thr_data *selfptr,
 #endif
 
     /* Now execute prio B signals from one thread. */
-    Uint32 num_signals = execute_signals(selfptr, queue, read_state,
-                                         sig, perjb+extra);
+    const Uint32 max_signals = std::min(perjb+extra,MAX_SIGNALS_PER_JB);
+    const Uint32 num_signals = execute_signals(selfptr, queue, read_state,
+                                               sig, max_signals);
 
     if (likely(num_signals > 0))
     {
@@ -8100,16 +8172,21 @@ mt_receiver_thread_main(void *thr_arg)
  * has_full_in_queues()
  *
  * Avoid circular waits between block-threads:
- * A thread is not allowed to sleep due to full
- * 'out' job-buffers if there are other threads
- * already having full 'in' job buffers sent to
- * this thread.
+ * A thread is not allowed to sleep due to full 'out' job-buffers if there
+ * are other threads already having full in-queues, blocked on this thread.
  *
- * run_job_buffers() has reserved a 'm_max_extra_signals'
- * quota which will be used to drain these 'full_in_queues'.
- * So we should allow it to be.
+ * prepare_congested_execute() will set up the m_extra_signals[] prior to
+ * executing from its JBB instances. As the queues are lock-free, more signals
+ * could have been added to the in-queues since m_extra_signals[] was set up.
+ * Some of the available m_total_extra_signals could have been consumed by
+ * other writers as well.
  *
- * Returns 'true' if any in-queues to this thread are full
+ * Thus, the algorithm provide no guarantee for the correct drain/yield
+ * decission to be taken. However, a possibly incorrect sleep will be short,
+ * and there is a SAFETY limit to take care of over provisioning of 'extra'.
+ *
+ * Returns 'true' if we need to continue execute_signals() from (only!)
+ * the full in-queues, else we may yield() the thread.
  */
 static
 bool
@@ -8124,12 +8201,8 @@ has_full_in_queues(struct thr_data* selfptr)
        jbb_instance != BitmaskImpl::NotFound;
        jbb_instance = selfptr->m_jbb_read_mask.find_next(jbb_instance+1))
   {
-    thr_job_queue *queue = &selfptr->m_jbb[jbb_instance];
-    const unsigned free = get_free_in_queue(queue);
-    if (free <= thr_job_queue::CONGESTED) {
-      // In-queue is congested as well.
+    if (selfptr->m_extra_signals[jbb_instance] > 0)
       return true;
-    }
   }
   return false;
 }
@@ -8175,7 +8248,6 @@ handle_full_job_buffers(struct thr_data* selfptr,
       /**
        * we've slept for 1ms...run a bit anyway
        */
-      selfptr->m_max_signals_per_jb = 1;
       g_eventLogger->info(
           "thr_no:%u - sleeploop 10!! "
           "(Worker thread blocked (>= 1ms) by slow consumer threads)",
@@ -8192,8 +8264,7 @@ handle_full_job_buffers(struct thr_data* selfptr,
     /**
      * Avoid 'self-wait', where 'self' participate in a cyclic wait graph.
      */
-    if (has_full_in_queues(selfptr) &&
-        selfptr->m_max_extra_signals > 0)
+    if (has_full_in_queues(selfptr))
     {
       /**
        * 'extra_signals' need to be used to drain 'full_in_queues'.
@@ -9098,7 +9169,7 @@ flush_local_signals(struct thr_data *selfptr,
     {
       // Last congestion cleared, assume full JB quotas
       selfptr->m_max_signals_per_jb = MAX_SIGNALS_PER_JB;
-      selfptr->m_max_extra_signals =
+      selfptr->m_total_extra_signals =
           compute_max_signals_to_execute(thr_job_queue::RESERVED);
     }
   }
@@ -9241,7 +9312,7 @@ recheck_congested_job_buffers(struct thr_data *selfptr)
 
   // Assume full JB quotas, reduce below if congested
   selfptr->m_max_signals_per_jb = MAX_SIGNALS_PER_JB;
-  selfptr->m_max_extra_signals =
+  selfptr->m_total_extra_signals =
       compute_max_signals_to_execute(thr_job_queue::RESERVED);
 
   for (Uint32 congested = selfptr->m_congested_signals_mask.find_first();
@@ -9742,7 +9813,7 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
   selfptr->m_thr_no = thr_no;
   selfptr->m_next_jbb_no = 0;
   selfptr->m_max_signals_per_jb = MAX_SIGNALS_PER_JB;
-  selfptr->m_max_extra_signals =
+  selfptr->m_total_extra_signals =
       compute_max_signals_to_execute(thr_job_queue::RESERVED);
   selfptr->m_first_free = 0;
   selfptr->m_first_unused = 0;
