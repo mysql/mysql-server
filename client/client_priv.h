@@ -228,8 +228,8 @@ enum options_client {
       "Use " new_opt " instead.\n"
 
 #define CLIENT_WARN_DEPRECATED_NO_REPLACEMENT(opt) \
-  printf("WARNING: " CLIENT_WARN_DEPRECATED_NO_REPLACEMENT_MSG(opt))
+  fprintf(stderr, "WARNING: " CLIENT_WARN_DEPRECATED_NO_REPLACEMENT_MSG(opt))
 
 #define CLIENT_WARN_DEPRECATED(opt, new_opt) \
-  printf("WARNING: " CLIENT_WARN_DEPRECATED_MSG(opt, new_opt))
+  fprintf(stderr, "WARNING: " CLIENT_WARN_DEPRECATED_MSG(opt, new_opt))
 #endif
