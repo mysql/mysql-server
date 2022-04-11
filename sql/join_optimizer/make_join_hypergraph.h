@@ -74,7 +74,8 @@ struct SargablePredicate {
  */
 struct JoinHypergraph {
   JoinHypergraph(MEM_ROOT *mem_root, const Query_block *query_block)
-      : nodes(mem_root),
+      : graph(mem_root),
+        nodes(mem_root),
         edges(mem_root),
         predicates(mem_root),
         sargable_join_predicates(mem_root),

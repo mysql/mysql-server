@@ -2844,8 +2844,8 @@ bool LateralDependenciesAreSatisfied(int node_idx, NodeMap tables,
   AccessPathSet, or even try to build it incrementally.
  */
 NodeMap FindReachableTablesFrom(NodeMap tables, const JoinHypergraph &graph) {
-  const vector<Node> &nodes = graph.graph.nodes;
-  const vector<Hyperedge> &edges = graph.graph.edges;
+  const Mem_root_array<Node> &nodes = graph.graph.nodes;
+  const Mem_root_array<Hyperedge> &edges = graph.graph.edges;
 
   NodeMap reachable = 0;
   for (int node_idx : BitsSetIn(tables)) {

@@ -23,7 +23,6 @@
 #include "sql/join_optimizer/hypergraph.h"
 
 #include <assert.h>
-#include <memory>
 
 #include "sql/join_optimizer/bit_utils.h"
 

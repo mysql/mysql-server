@@ -3289,6 +3289,12 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
     *trace += "\n";
   }
 
+  const size_t num_tables = query_block->leaf_table_count;
+  if (graph->nodes.reserve(num_tables) ||
+      graph->graph.nodes.reserve(num_tables)) {
+    return true;
+  }
+
   RelationalExpression *root =
       MakeRelationalExpressionFromJoinList(thd, query_block->top_join_list);
   int num_companion_sets = 0;
@@ -3451,7 +3457,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
 #ifndef NDEBUG
   {
     // Verify we have no duplicate edges.
-    const vector<Hyperedge> &edges = graph->graph.edges;
+    const Mem_root_array<Hyperedge> &edges = graph->graph.edges;
     for (size_t edge1_idx = 0; edge1_idx < edges.size(); ++edge1_idx) {
       for (size_t edge2_idx = edge1_idx + 1; edge2_idx < edges.size();
            ++edge2_idx) {

@@ -41,6 +41,9 @@
 #include <vector>
 
 #include "sql/join_optimizer/node_map.h"
+#include "sql/mem_root_array.h"
+
+struct MEM_ROOT;
 
 namespace hypergraph {
 
@@ -84,8 +87,9 @@ struct Hyperedge {
 
 struct Hypergraph {
  public:
-  std::vector<Node> nodes;  // Maximum 8*sizeof(NodeMap) elements.
-  std::vector<Hyperedge> edges;
+  explicit Hypergraph(MEM_ROOT *mem_root) : nodes(mem_root), edges(mem_root) {}
+  Mem_root_array<Node> nodes;  // Maximum 8*sizeof(NodeMap) elements.
+  Mem_root_array<Hyperedge> edges;
 
   void AddNode();
   void AddEdge(NodeMap left, NodeMap right);
