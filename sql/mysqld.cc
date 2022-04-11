@@ -2617,6 +2617,8 @@ static void clean_up(bool print_message) {
            server_version, MYSQL_COMPILATION_COMMENT_SERVER);
   cleanup_errmsgs();
 
+  sysd::notify("STATUS=Server shutdown complete");
+
   free_connection_acceptors();
   Connection_handler_manager::destroy_instance();
 
@@ -5616,8 +5618,6 @@ static void setup_error_log() {
       !is_help_or_validate_option() && (log_error_dest != disabled_my_option);
 #endif
 
-  enum log_error_stage les = LOG_ERROR_STAGE_BUFFERING_UNIPLEX;
-
   if (log_errors_to_file) {
     // Construct filename if no filename was given by the user.
     if (!log_error_dest[0] || log_error_dest == disabled_my_option) {
@@ -5661,40 +5661,49 @@ static void setup_error_log() {
   } else {
     // We are logging to stderr and SHOW VARIABLES should reflect that.
     log_error_dest = "stderr";
-
-    /*
-      We have no known file-name, and a non-standard logging pipeline,
-      so output of multiple log-writers may be multi-plexed to stderr.
-      This can result in false positives, but since we're only using
-      this to turn off some optimizations, this seems acceptable for now.
-      With regard to the pipeline, what matters is that a non-standard
-      set-up was requested, not that it is actually active at this point
-      (which it wouldn't be, we do not try to apply a user-supplied
-      configuration until external components are available).
-    */
-    if ((opt_log_error_services == nullptr) ||
-        (0 != strcmp(LOG_ERROR_SERVICES_DEFAULT, opt_log_error_services)))
-      les = LOG_ERROR_STAGE_BUFFERING_MULTIPLEX;
   }
-
-  log_error_stage_set(les);
 }
 
 /**
+  Try to set the error logging pipeline from @@global.log_error_services.
   Try to read the previous run's error log and make it available in
-  performance_schema.error_log. Activate all error logging services
-  requested by the user in @@global.log_error_services, flush the
-  buffered error messages to performance schema and to configured
+  performance_schema.error_log.
+  Flush the buffered error messages to performance schema and to configured
   services, and end error log buffering.
+  On success, log_error_stage_current becomes
+  LOG_ERROR_STAGE_COMPONENTS_AND_PFS.
 
   @retval  0  Success
   @retval  1  Log pipeline not set up as requested. Caller should abort.
 */
 static int setup_error_log_components() {
+  int ret = 1;  // failure unless otherwise specified
+
   /*
-    Activate loadable error logging components, if any.
-    First, check configuration value -- is it well-formed, and do
+    LOCK_plugin needs to be valid in case we implicitly load
+    components below that install component-variables.
+    (Otherwise, an assert will fire as the variable-install
+    code examines the locks, but plugins have not yet been
+    initialized.)
+  */
+  mysql_mutex_init(0, &LOCK_plugin, MY_MUTEX_INIT_FAST);
+
+  /*
+    Now that we have the component infrastructure, check
+    --log-error-services=... -- is it well-formed, and do
     the requested services exist?
+    As a side-effect, this will load any external logging
+    components listed.
+    This way when we run get_options(), any system variables
+    provided by those logging components will already be
+    available.
+
+    This function loads its components directly without
+    going through the layer that persists component set-up
+    in mysql.component. This way, our logging components can
+    be activated before rather than after InnoDB becomes
+    available, and InnoDB start-up messages can be logged
+    using components as a result.
   */
   if (log_builtins_error_stack(opt_log_error_services, true, nullptr) == 0) {
     // Syntax is OK and services exist; let's try to initialize them:
@@ -5715,8 +5724,6 @@ static int setup_error_log_components() {
       if (pos < strlen(opt_log_error_services))
         problem = &((char *)opt_log_error_services)[pos];
 
-      flush_error_log_messages();
-
       /*
         We could not set the requested pipeline.
         Try to fall back to default error logging stack
@@ -5735,9 +5742,10 @@ static int setup_error_log_components() {
             We managed to set the default pipeline. Now log what was wrong
             about the user-supplied value, then shut down.
           */
+          flush_error_log_messages();
           LogErr(ERROR_LEVEL, ER_CANT_START_ERROR_LOG_SERVICE, var_name.c_str(),
                  problem);
-          return 1;
+          goto failure;
         }
         /*
           If we arrive here, the user-supplied value was valid, but could
@@ -5765,7 +5773,7 @@ static int setup_error_log_components() {
         // Trust nothing. Write directly. Quit.
         log_write_errstream(buff, len);
 
-        return 1;
+        goto failure;
       } /* purecov: end */
     }   // value was OK, but could not be set
         // If we arrive here, the value was OK, and was set successfully.
@@ -5792,6 +5800,17 @@ static int setup_error_log_components() {
   }
 
   /*
+    We'll want to flush whatever log-events we buffered during start-up
+    to the now available components in a moment. To that end, we now
+    switch from saving log-events in a buffer to processing them via
+    the logging-pipeline.
+    Not switching processors here would result in flushing the buffer
+    into the buffer.
+  */
+  log_line_process_hook_set(log_line_error_stack_run);
+  log_error_stage_set(LOG_ERROR_STAGE_COMPONENTS);
+
+  /*
     Set-up the error-log table, performance_schema.error_log.
     Try to populate it with previous runs' error-log and events
     buffered up to this point.
@@ -5801,7 +5820,7 @@ static int setup_error_log_components() {
 
     log_error_read_log() reads an existing error-log (of whatever formatting).
 
-    LOG_ERROR_STAGE_EXTERNAL_SERVICES_AVAILABLE flags the error logging
+    LOG_ERROR_STAGE_COMPONENTS_AND_PFS flags the error logging
     stack as fully operational, loadable components and all.
     In this mode, all submitted error-log events are also automatically
     added to performance_schema.error_log.
@@ -5809,7 +5828,7 @@ static int setup_error_log_components() {
     flush_error_log_messages() is called once any configured loadable
     error log-services are available. It flushes all buffered log-events
     to the log-services the user actually wants.
-    If LOG_ERROR_STAGE_EXTERNAL_SERVICES_AVAILABLE is set, also add the
+    If LOG_ERROR_STAGE_COMPONENTS_AND_PFS is set, also add the
     flushed events to performance_schema.error_log.
   */
   assert((log_error_dest != nullptr) && (log_error_dest[0] != '\0'));
@@ -5823,7 +5842,7 @@ static int setup_error_log_components() {
     // init logging to pfs
     log_error_read_log_init();
     // flag log-stack as ready and enable logging to pfs
-    log_error_stage_set(LOG_ERROR_STAGE_EXTERNAL_SERVICES_AVAILABLE);
+    log_error_stage_set(LOG_ERROR_STAGE_COMPONENTS_AND_PFS);
     // flush messages, sending a copy to pfs
     flush_error_log_messages();
   } else {
@@ -5841,10 +5860,20 @@ static int setup_error_log_components() {
     */
     if (!log_error_read_log_init()) log_error_read_log(log_error_dest);
     // flag log-stack as ready and enable logging to pfs
-    log_error_stage_set(LOG_ERROR_STAGE_EXTERNAL_SERVICES_AVAILABLE);
+    log_error_stage_set(LOG_ERROR_STAGE_COMPONENTS_AND_PFS);
   }
 
-  return 0;
+  ret = 0;  // Success!
+
+failure:
+
+  /*
+    Destroy lock so plugin_register_early_plugins() > plugin_init_internals()
+    can properly set up all plugin-related things together below.
+  */
+  mysql_mutex_destroy(&LOCK_plugin);
+
+  return ret;
 }
 
 #if defined(MYSQL_ICU_DATADIR)
@@ -5993,6 +6022,27 @@ static int init_server_components() {
   is_killed_hook = thd_killed;
 
   xa::Transaction_cache::initialize();
+
+  /*
+    Try to read the previous run's error log and make it available in
+    performance_schema.error_log. Activate all error logging services
+    requested by the user in @@global.log_error_services (now that the
+    component infrastructure is available), flush the buffered error
+    messages to performance schema and to configured services, and end
+    error log buffering.
+
+    Pre-requisites:
+    We depend on component_infrastructure_init() and setup_error_log()
+    above. init_common_variables() additionally gives us a correctly
+    set up umask etc., and keyring-migration may modify the log-target,
+    so we wait that out as well. It should be safe to go before the
+    component-autoload above ("component_urns") for the time being,
+    but that may not be the case in the future, so we're playing it
+    safe. Altogether by the time we get here, we're usually within
+    a second of start-up, with a half-dozen or less messages buffered
+    if no issues were encountered.
+  */
+  if (setup_error_log_components()) unireg_abort(MYSQLD_ABORT_EXIT);
 
   if (MDL_context_backup_manager::init()) {
     LogErr(ERROR_LEVEL, ER_OOM);
@@ -7971,16 +8021,6 @@ int mysqld_main(int argc, char **argv)
   }
 
   /*
-    Try to read the previous run's error log and make it available in
-    performance_schema.error_log. Activate all error logging services
-    requested by the user in @@global.log_error_services (now that both
-    the component infrastructure and InnoDB are available), flush the
-    buffered error messages to performance schema and to configured services,
-    and end error log buffering.
-  */
-  if (setup_error_log_components()) unireg_abort(MYSQLD_ABORT_EXIT);
-
-  /*
     Invoke the bootstrap thread, if required.
   */
   process_bootstrap();
@@ -8128,7 +8168,6 @@ int mysqld_main(int argc, char **argv)
 #endif  // _WIN32
 
   clean_up(true);
-  sysd::notify("STATUS=Server shutdown complete");
   mysqld_exit(signal_hand_thr_exit_code);
 }
 

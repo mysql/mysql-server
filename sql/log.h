@@ -1581,8 +1581,7 @@ int log_builtins_error_stack_flush();
   @retval -2  couldn't initialize built-in default filter
   @retval -3  couldn't set up service hash
   @retval -4  couldn't initialize syseventlog lock
-  @retval -5  couldn't set service pipeline
-  @retval -6  couldn't initialize buffered logging lock
+  @retval -5  couldn't initialize buffered logging lock
 */
 int log_builtins_init();
 

@@ -34,16 +34,77 @@ log_filter_internal; log_sink_internal
 SET GLOBAL LOG_ERROR_SERVICES=@@GLOBAL.LOG_ERROR_SERVICES;
 Pattern "\[Warning\].*Cannot set services "abcd" requested in --log-error-services, using defaults" found
 # restart: --log-error=LOG_FILE10 --log-error-verbosity=3 --log-error-services=log_sink_json 
-Pattern "\[Warning\].*Cannot set services "log_sink_json" requested in --log-error-services, using defaults" found
+# Empty result expected:
+SELECT component_urn from mysql.component WHERE component_urn LIKE "log_%";
+component_urn
+# Component was loaded implicitly and made active.
+# Trying to UNINSTALL it while it is active will throw an error here.
+UNINSTALL COMPONENT "file://component_log_sink_json";
+ERROR HY000: Unregistration of service implementation 'log_service.log_sink_json' provided by component 'mysql:log_sink_json' failed during unloading of the component.
 INSTALL COMPONENT "file://component_log_sink_json";
+ERROR HY000: Cannot load component from specified URN: 'file://component_log_sink_json'.
+# restart: --no-console --log-error=LOG_FILE10
+# Previously component is not yet in the system table (empty result):
+SELECT component_urn FROM mysql.component;
+component_urn
+# Component is not active in log_error_services:
+SELECT @@global.log_error_services;
+@@global.log_error_services
+log_filter_internal; log_sink_internal
+# INSTALL the component.
+INSTALL COMPONENT "file://component_log_sink_json";
+# No issues expected:
+SHOW WARNINGS;
+Level	Code	Message
+# Component should now be in the system table:
+SELECT component_urn FROM mysql.component;
+component_urn
+file://component_log_sink_json
 # restart: --no-console --log-error=LOG_FILE11 --log-error-services=log_filter_internal;log_sink_internal;log_sink_json --log-error-verbosity=3
 connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
-SET GLOBAL log_error_services= default;
+# Component should still be in the system table:
+SELECT component_urn FROM mysql.component;
+component_urn
+file://component_log_sink_json
+# Component was loaded implicitly and made active.
+# Trying to UNINSTALL it while it is active will throw an error here.
 UNINSTALL COMPONENT "file://component_log_sink_json";
+ERROR HY000: Unregistration of service implementation 'log_service.log_sink_json' provided by component 'mysql:log_sink_json' failed during unloading of the component.
+# log_sink_json is not in DEFAULT -- the component will be implicitly unloaded.
+SET GLOBAL log_error_services= DEFAULT;
+# Show the component is still in the system table however:
+SELECT component_urn FROM mysql.component;
+component_urn
+file://component_log_sink_json
+# The component is neither implicitly not explicitly loaded now:
+# Attempt to UNINSTALL the component:
+# The component framework refuses to UNINSTALL what is not in memory.
+UNINSTALL COMPONENT "file://component_log_sink_json";
+ERROR HY000: Component specified by URN 'file://component_log_sink_json' to unload has not been loaded before.
+# Its entry however is still in the system table.
+# The correct way to handle this in production is to restart the server
+# while *not* implicitly loading the component by setting
+# --log-error-services=... from the command-line or a .cnf file,
+# and by RESETting log_error_services if it was SET PERSISTed before.
+# Show that we threw ER_COMPONENTS_CANT_LOAD during start-up
+# when we tried to INSTALL COMPONENT a component that had already
+# been loaded implicitly using --log-error-services=...
+# This would be reported as MY-003529 if we had a client session
+# attached, but since none is, we'll bounce the message to the
+# error log with a ER_SERVER_NO_SESSION_TO_SEND_TO wrapper.
+SELECT error_code, data
+FROM performance_schema.error_log
+WHERE data LIKE "%'file://component_log_sink_json'%"
+   AND error_code="MY-013129" AND data LIKE "%MY-003529%";
+error_code	data
+MY-013129	A message intended for a client cannot be sent there as no client-session is attached. Therefore, we're sending the information to the error-log instead: MY-003529 - Cannot load component from specified URN: 'file://component_log_sink_json'.
 Pattern "\[ERROR\].*unknown variable 'dragnet.log_error_filter_rules=a'" found
-INSTALL COMPONENT "file://component_log_filter_dragnet";
 # restart: --no-console --log-error=LOG_FILE13 --log-error-services=log_filter_internal;log_filter_dragnet;log_sink_internal --dragnet.log-error-filter-rules=
+# Clean up: The test case for 4.3 left the JSON component installed, which
+# therefore got re-added to this instance on start-up. Let's remove it.
+UNINSTALL COMPONENT "file://component_log_sink_json";
+# Validate parameters passed through command line
 SELECT @@log_error_services;
 @@log_error_services
 log_filter_internal;log_filter_dragnet;log_sink_internal
@@ -66,12 +127,16 @@ ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: 
 SET GLOBAL log_error_verbosity= @saved_log_error_verbosity;
 SET PERSIST dragnet.log_error_filter_rules= "IF prio>INFORMATION THEN drop.";
 # restart: --no-console --log-error=LOG_FILE14 --log-error-services=log_filter_internal;log_filter_dragnet;log_sink_internal 
+# Verify value of the persisted variable
 SELECT @@global.dragnet.log_error_filter_rules;
 @@global.dragnet.log_error_filter_rules
 IF prio>INFORMATION THEN drop.
 RESET PERSIST `dragnet.log_error_filter_rules`;
+# Remove the dragnet component from the active configuration:
 SET GLOBAL log_error_services= default;
-UNINSTALL COMPONENT "file://component_log_filter_dragnet";
+# Show that component was implictly unloaded and variable has gone.
+SELECT @@global.dragnet.log_error_filter_rules;
+ERROR HY000: Unknown system variable 'dragnet.log_error_filter_rules'
 INSTALL COMPONENT "file://component_log_filter_dragnet";
 # restart: --no-console --log-error=LOG_FILE15 --dragnet.log_error_filter_rules=invalid
 SELECT @@global.dragnet.log_error_filter_rules;
@@ -110,13 +175,38 @@ Pattern "log_error_suppression_list: Could not add suppression rule for code .in
 INSTALL COMPONENT "file://component_log_sink_json";
 INSTALL COMPONENT "file://component_log_filter_dragnet";
 SET PERSIST dragnet.log_error_filter_rules="IF EXISTS msg THEN drop.";
-# restart: --log-error-services=log_filter_dragnet;log_sink_json --log-error=LOG_FILE19
-# JSON error log content - begin
-# JSON error log content - end
-RESET PERSIST `dragnet.log_error_filter_rules`;
-SET GLOBAL log_error_services= DEFAULT;
 UNINSTALL COMPONENT "file://component_log_sink_json";
 UNINSTALL COMPONENT "file://component_log_filter_dragnet";
+# restart: --log-error-services=log_filter_dragnet;log_sink_json --log-error=LOG_FILE19
+# JSON-19 error log content - begin
+# JSON-19 error log content - end
+RESET PERSIST `dragnet.log_error_filter_rules`;
+SET GLOBAL log_error_services= DEFAULT;
+SET GLOBAL log_error_services="log_filter_dragnet;log_sink_json";
+SET PERSIST dragnet.log_error_filter_rules="IF err_code==ER_BASEDIR_SET_TO THEN SET cat:='meow-wl14793'.";
+SELECT @@global.dragnet.log_error_filter_rules;
+@@global.dragnet.log_error_filter_rules
+IF err_code==ER_BASEDIR_SET_TO THEN SET cat:='meow-wl14793'.
+SET PERSIST log_error_services="log_filter_dragnet;log_sink_json";
+# restart: --no-console --log-error=LOG_FILE20
+SELECT @@global.log_error_services;
+@@global.log_error_services
+log_filter_dragnet;log_sink_json
+SELECT @@global.dragnet.log_error_filter_rules;
+@@global.dragnet.log_error_filter_rules
+IF err_code==ER_BASEDIR_SET_TO THEN SET cat:='meow-wl14793'.
+SET @@global.dragnet.log_error_filter_rules= DEFAULT;
+SELECT JSON_EXTRACT(data,'$.err_symbol'),JSON_EXTRACT(data,'$.cat')
+FROM performance_schema.error_log
+WHERE LEFT(data,1)='{'
+   AND JSON_EXTRACT(data,'$.err_symbol')="ER_BASEDIR_SET_TO"
+ ORDER BY logged DESC LIMIT 1;
+JSON_EXTRACT(data,'$.err_symbol')	JSON_EXTRACT(data,'$.cat')
+"ER_BASEDIR_SET_TO"	"meow-wl14793"
+RESET PERSIST `log_error_services`;
+RESET PERSIST `dragnet.log_error_filter_rules`;
+SET GLOBAL dragnet.log_error_filter_rules=DEFAULT;
+SET GLOBAL log_error_services= DEFAULT;
 
 Reading error logs for validation
 ---------------------------------

@@ -1125,7 +1125,6 @@ bool upgrade_tables(THD *thd) {
   LogErr(SYSTEM_LEVEL, ER_DD_UPGRADE_COMPLETED,
          bootstrap::DD_bootstrap_ctx::instance().get_actual_dd_version(),
          dd::DD_VERSION);
-  log_sink_buffer_check_timeout();
   sysd::notify("STATUS=Data Dictionary upgrade complete\n");
 
   /*

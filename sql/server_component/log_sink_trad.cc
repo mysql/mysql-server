@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -36,18 +36,6 @@ extern int log_item_inconsistent(log_item *li);
   a) writing of an error log event to the traditional error log file
   b) parsing of a line from the traditional error log file
 */
-
-/**
-  Timestamp of when we last flushed to traditional error-log
-  (built-in sink). Log lines with timestamps older than this
-  have already been flushed to the default log-sink, so we
-  won't do so again to prevent duplicates. (The buffered events
-  are still kept around until buffered logging ends however in
-  case we need to flush them to other log-writers then.
-  This timestamp is updated to the present and then drifts into
-  the past, in contrast to the time-out value (see there).
-*/
-static ulonglong log_sink_trad_last = 0;
 
 /**
   Find the end of the current field (' ')
@@ -212,7 +200,6 @@ int log_sink_trad(void *instance [[maybe_unused]], log_line *ll) {
   log_item_type_mask out_types = 0;
   const char *iso_timestamp = "", *subsys = "";
   my_thread_id thread_id = 0;
-  ulonglong microtime = 0;
   char *line_buffer = nullptr;
 
   if (ll->count > 0) {
@@ -224,9 +211,6 @@ int log_sink_trad(void *instance [[maybe_unused]], log_line *ll) {
       out_fields++;
 
       switch (item_type) {
-        case LOG_ITEM_LOG_BUFFERED:
-          microtime = (ulonglong)ll->item[c].data.data_integer;
-          break;
         case LOG_ITEM_SQL_ERRCODE:
           errcode = (unsigned int)ll->item[c].data.data_integer;
           break;
@@ -359,40 +343,11 @@ int log_sink_trad(void *instance [[maybe_unused]], log_line *ll) {
         output_buffer->type = LOG_ITEM_RET_BUFFER;
       }
 
-      /*
-        Prevent duplicates in incremental flush of buffered log events.
-        If start-up is very slow, we'll let error-log event buffering
-        "time out": we'll print the events so far to the traditional
-        error log (and only to that log, as external log-writers cannot
-        be loaded until later, when InnoDB, upon which the component
-        framework depends, has been initialized). Then, we'll go back
-        to buffering. Eventually, we'll either time-out and flush again,
-        or start-up completes, and we can do a proper flush of the
-        buffered error-events.
-        At that point, any loaded log-writers will be called for the
-        first time, whereas this here traditional writer may have been
-        called upon multiple times to give incremental updates.
-        Therefore, we must prevent duplicates in this, and only in this
-        writer. Ready? (Who lives in a time-out under the C? Buffered
-        events, in trad sink!)
-      */
-      if (out_types & LOG_ITEM_LOG_BUFFERED) {
-        // abort if we've already printed this (to trad log only!)
-        if (microtime <= log_sink_trad_last) {
-          out_fields = LOG_SERVICE_NOTHING_DONE;
-          goto done;
-        }
-
-        // otherwise remember micro-time of last buffered event we've printed
-        log_sink_trad_last = microtime;
-      }
-
       // write log-event to log-file
       log_write_errstream(buff_line, len);
     }
   }
 
-done:
   if (line_buffer != nullptr) my_free(line_buffer);
 
   return out_fields;  // returning number of processed items

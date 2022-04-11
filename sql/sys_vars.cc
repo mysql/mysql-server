@@ -2605,37 +2605,56 @@ static bool fix_log_error_services(sys_var *self [[maybe_unused]], THD *thd,
   // syntax is OK and services exist; try to initialize them!
   size_t pos;
 
+  char *pipeline_config =
+      my_strdup(PSI_NOT_INSTRUMENTED, opt_log_error_services, MYF(0));
+
+  if (pipeline_config == nullptr) return true;
+
   /*
-    There is a theoretical race/deadlock here:
+    Temporarily release mutex.
+    This solves two issues:
 
-    SET GLOBAL log_error_services=... first acquires
-    LOCK_global_system_variables (on account of being a system variable),
-    and then will try to obtain THR_LOCK_log_stack (to update the
-    error logging stack).
+    a) Setting up the error-logger may implicitly load external
+       logging components. The init-function of such a component
+       may try to install a system-variable and then ask the system
+       for a (persisted / passed on the command-line / ...) initial
+       value for said variable. The function in the component framework
+       that tries to obtain this value tries to obtain the mutex
+       LOCK_global_system_variables.
 
-    If FLUSH ERROR LOGS is also executed, it will first obtain
-    THR_LOCK_log_stack (as it will call the flush functions in all
-    configured sinks, and cannot allow people to change the config
-    or UNINSTALL COMPONENTs while that happens), and then one of
-    those log-components may try to re-install its pluggable
-    system variables on flush.
+       Note that implicit loading is attempted during the pre-check
+       phase and thus should already have happened at this stage
+       and no longer be a concern.
 
-    Due to the reverse locking order, this may deadlock here.
-    We could temporarily release LOCK_global_system_variables
-    while updating the error-logging stack (after first making
-    a copy of opt_log_error_services), but the better option
-    is to not have log-services' pluggable system variables
-    appear/disappear during FLUSH.
+    b) This function is called with the mutex held.
+       log_builtins_error_stack() will obtain an exclusive lock on
+       THR_LOCK_log_stack while it re-configures the error-logger.
+       A different session might run FLUSH ERROR LOGS at the same time.
+       This obtains THR_LOCK_log_stack first; an individual component's
+       flush function might then try to re-install its system-variables
+       on flush, which would try to obtain LOCK_global_system_variables
+       as per above. I.e. both functions would try to obtain the two
+       locks in a different order.
+
+       Note that components should not behave that way; they should
+       install/uninstall their variables on init/exit, not on open/close.
+
+     Both issues are admittedly unlikely, but guarding against them is cheap.
   */
+  mysql_mutex_unlock(&LOCK_global_system_variables);
 
-  if (log_builtins_error_stack(opt_log_error_services, false, &pos) < 0) {
-    if (pos < strlen(opt_log_error_services)) /* purecov: begin inspected */
-      push_warning_printf(
-          thd, Sql_condition::SL_WARNING, ER_CANT_START_ERROR_LOG_SERVICE,
-          ER_THD(thd, ER_CANT_START_ERROR_LOG_SERVICE), self->name.str,
-          &((char *)opt_log_error_services)[pos]);
+  if (log_builtins_error_stack(pipeline_config, false, &pos) < 0) {
+    if (pos < strlen(pipeline_config)) /* purecov: begin inspected */
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_CANT_START_ERROR_LOG_SERVICE,
+                          ER_THD(thd, ER_CANT_START_ERROR_LOG_SERVICE),
+                          self->name.str, &((char *)pipeline_config)[pos]);
     ret = true; /* purecov: end */
   }
+
+  my_free(pipeline_config);
+
+  mysql_mutex_lock(&LOCK_global_system_variables);
 
   return ret;
 }
@@ -2646,7 +2665,16 @@ static Sys_var_charptr Sys_log_error_services(
     PERSIST_AS_READONLY GLOBAL_VAR(opt_log_error_services),
     CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
     DEFAULT(LOG_ERROR_SERVICES_DEFAULT), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(check_log_error_services), ON_UPDATE(fix_log_error_services));
+    ON_CHECK(check_log_error_services), ON_UPDATE(fix_log_error_services),
+    /*
+      We parse it early so it goes into one logical chunk with log_error
+      and log_timestamps, but we don't activate it immediately. We need
+      to wait until component_infrastructure_init() has run, but want to
+      set up logging services before get_options() is run. That way, any
+      loadable components are ready in case component system variables
+      are set from get_options().
+    */
+    nullptr, sys_var::PARSE_EARLY);
 
 static bool check_log_error_suppression_list(sys_var *self, THD *thd,
                                              set_var *var) {

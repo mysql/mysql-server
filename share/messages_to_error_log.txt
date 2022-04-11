@@ -11865,6 +11865,9 @@ ER_COMPONENT_EE_OPENSSL_ERROR
 ER_COMPONENT_EE_INSUFFICIENT_LENGTH
   eng "In function '%s' with algorithm '%s': insufficient output buffer length '%zu'. Required length '%zu'."
 
+ER_SYSTEMD_NOTIFY_DEBUG
+  eng "%s%s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
