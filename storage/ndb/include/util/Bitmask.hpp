@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -429,7 +429,7 @@ BitmaskImpl::clz(Uint32 x)
   return 31 - x;
 #elif defined HAVE__BITSCANREVERSE
   unsigned long r;
-  unsigned char res = _BitScanReverse(&r, (unsigned long)x);
+  unsigned char res [[maybe_unused]] = _BitScanReverse(&r, (unsigned long)x);
   assert(res > 0);
   return 31 - (Uint32)r;
 #else
@@ -485,7 +485,7 @@ BitmaskImpl::ffs(Uint32 x)
   return __builtin_ffs(x) - 1;
 #elif defined HAVE__BITSCANFORWARD
   unsigned long r;
-  unsigned char res = _BitScanForward(&r, (unsigned long)x);
+  unsigned char res [[maybe_unused]] = _BitScanForward(&r, (unsigned long)x);
   assert(res > 0);
   return (Uint32)r;
 #elif defined HAVE_FFS
@@ -538,7 +538,7 @@ BitmaskImpl::fls(Uint32 x)
   return 31 - __builtin_clz(x);
 #elif defined HAVE__BITSCANREVERSE
   unsigned long r;
-  unsigned char res = _BitScanReverse(&r, (unsigned long)x);
+  unsigned char res [[maybe_unused]] = _BitScanReverse(&r, (unsigned long)x);
   assert(res > 0);
   return (Uint32)r;
 #else

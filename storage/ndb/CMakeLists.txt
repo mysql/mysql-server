@@ -102,7 +102,6 @@ SET(NDBCLUSTER_SOURCES
   plugin/ndb_dd_sync.cc
   plugin/ndb_upgrade_util.cc
   plugin/ndb_mysql_services.cc
-  plugin/ndb_blobs_buffer.cc
   plugin/ndb_table_stats.cc
   plugin/ndb_index_stat_head_table.cc
   plugin/ndb_index_stat_sample_table.cc

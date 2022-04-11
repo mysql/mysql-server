@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -510,7 +510,7 @@ static const char* const jamFileNames[] =
    "DbtuxTree.cpp",                      // 375
    "DbtuxProxy.hpp",                     // 376
    "DbtuxMeta.cpp",                      // 377
-   "DbtuxCmp.cpp",                       // 378
+   "DbtuxCmp.cpp",                       // 378 DELETED FILE
    "Cmvmi.hpp",                          // 379
    "Cmvmi.cpp",                          // 380
    "AsyncIoThread.hpp",                  // 381
@@ -522,7 +522,7 @@ static const char* const jamFileNames[] =
    "AsyncFile.cpp",                      // 387
    "AsyncIoThread.cpp",                  // 388
    "AsyncFileTest.cpp",                  // 389 DELETED FILE
-   "MemoryChannel.cpp",                  // 390
+   "MemoryChannel.cpp",                  // 390 DELETED FILE
    "AsyncFile.hpp",                      // 391
    "Filename.hpp",                       // 392
    "Ndbfs.cpp",                          // 393

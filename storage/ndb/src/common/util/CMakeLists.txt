@@ -39,9 +39,7 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
   Checksum.cpp
   ConfigValues.cpp
   File.cpp
-  HashMap2.cpp
   InputStream.cpp
-  LinkedStack.cpp
   LogBuffer.cpp
   NdbOut.cpp
   NdbPack.cpp
@@ -60,7 +58,6 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
   SocketAuthenticator.cpp
   SocketClient.cpp
   SocketServer.cpp
-  SparseBitmask.cpp
   Vector.cpp
   basename.cpp
   decimal_utils.cpp
