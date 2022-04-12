@@ -202,6 +202,12 @@ void Mysql_crawler::enumerate_tables(const Database &db) {
   Mysql::Tools::Base::Mysql_query_runner *runner = this->get_runner();
 
   if (!runner) return;
+
+  if (m_mysqldump_tool_cmaker_options->m_object_reader_options->m_skip_gipk)
+    runner->run_query(
+        "/*!80030 SET SESSION "
+        "show_gipk_in_create_table_and_information_schema = OFF */");
+
   /*
     Get statistics from SE by setting information_schema_stats_expiry=0.
     This makes the queries IS queries retrieve latest
@@ -306,6 +312,11 @@ void Mysql_crawler::enumerate_tables(const Database &db) {
   Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&tables);
   runner->run_query_store(
       "/*!80000 SET SESSION information_schema_stats_expiry=default */", &t);
+
+  if (m_mysqldump_tool_cmaker_options->m_object_reader_options->m_skip_gipk)
+    runner->run_query(
+        "/*!80030 SET SESSION "
+        "show_gipk_in_create_table_and_information_schema = default */");
   delete runner;
 }
 

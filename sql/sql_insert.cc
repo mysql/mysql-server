@@ -89,6 +89,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
+#include "sql/sql_gipk.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_resolver.h"  // validate_gc_assignment
@@ -2746,6 +2747,17 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
           thd, create_table->db, create_table->table_name, alter_info))
     return nullptr;
 
+  /*
+    If mode to generate invisible primary key is active then, generate primary
+    key for the table.
+  */
+  if (is_generate_invisible_primary_key_mode_active(thd) &&
+      is_candidate_table_for_invisible_primary_key_generation(create_info,
+                                                              alter_info)) {
+    if (validate_and_generate_invisible_primary_key(thd, alter_info))
+      return nullptr;
+  }
+
   DEBUG_SYNC(thd, "create_table_select_before_create");
 
   /*
@@ -3018,7 +3030,8 @@ int Query_result_create::binlog_show_create_table(THD *thd) {
   query.length(0);  // Have to zero it since constructor doesn't
 
   result = store_create_info(thd, &tmp_table_list, &query, create_info,
-                             /* show_database */ true);
+                             /* show_database */ true,
+                             /* SHOW CREATE TABLE */ false);
   assert(result == 0); /* store_create_info() always return 0 */
 
   if (mysql_bin_log.is_open()) {

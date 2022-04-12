@@ -375,6 +375,16 @@ struct System_variables {
   bool sql_require_primary_key;
 
   /**
+    @sa Sys_sql_generate_invisible_primary_key
+  */
+  bool sql_generate_invisible_primary_key;
+
+  /**
+    @sa Sys_show_gipk_in_create_table_and_information_schema
+  */
+  bool show_gipk_in_create_table_and_information_schema;
+
+  /**
     Used in replication to determine the server version of the original server
     where the transaction was executed.
   */
@@ -423,10 +433,12 @@ struct System_variables {
     @sa Sys_select_disk_sync_delay
   */
   uint select_into_disk_sync_delay;
+
   /**
     @sa Sys_terminology_use_previous
   */
   ulong terminology_use_previous;
+
   /**
     @sa Sys_connection_memory_limit
   */

@@ -1,0 +1,795 @@
+################################################################################
+#                                                                              #
+# WL13784 - Create auto_increment PK on table creation when no PK is specified #
+#                                                                              #
+################################################################################
+
+# CREATE TABLE SELECT statements creating GIPKs are disallowed in SBR mode
+--source include/have_binlog_format_row.inc
+
+SET @saved_session_sql_generate_invisible_primary_key = @@session.sql_generate_invisible_primary_key;
+
+--echo ##################################################################################
+--echo # Test cases to verify CREATE TABLE with sql_generate_invisible_primary_key = OFF.
+--echo ##################################################################################
+SET SESSION sql_generate_invisible_primary_key=OFF;
+--echo # Test case to check if table is created without PK in this case.
+CREATE TABLE t1(f1 INT, f2 INT);
+SHOW CREATE TABLE t1;
+SHOW KEYS FROM t1;
+DROP TABLE t1;
+
+
+--echo ##################################################################################
+--echo # Test cases to verify PK generation with sql_generate_invisible_primary_key = ON.
+--echo ##################################################################################
+SET SESSION sql_generate_invisible_primary_key=ON;
+--echo # Test case to check table creation with an explicit primary key.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT);
+SHOW CREATE TABLE t1;
+SHOW KEYS FROM t1;
+DROP TABLE t1;
+
+--echo # Test case to check temporary table creation with an explicit primary key.
+CREATE TEMPORARY TABLE t1 (f1 INT PRIMARY KEY, f2 INT);
+SHOW CREATE TABLE t1;
+SHOW KEYS FROM t1;
+DROP TABLE t1;
+
+--echo # Test case to verify partition table creation with a primary key.
+CREATE TABLE t1 (f1 INT, f2 INT PRIMARY KEY) PARTITION BY RANGE (f2)
+                   (PARTITION p0 VALUES LESS THAN (2011),
+                    PARTITION p1 VALUES LESS THAN (2022));
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo # Test case to verify primary key generation on non-InnoDB engine table.
+--echo # Primary key generation is supported for only InnoDB engine tables.
+CREATE TABLE t1 (f1 INT, f2 INT) ENGINE = MyISAM;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo # Test case to verify primary key generation on table with column name "my_row_id".
+--error ER_GIPK_COLUMN_EXISTS
+CREATE TABLE t1 (my_row_id INT, f2 INT);
+
+--echo # Test case to verify primary key generation on table with auto_increment
+--echo # column.
+--error ER_GIPK_FAILED_AUTOINC_COLUMN_EXISTS
+CREATE TABLE t1(f1 INT NOT NULL AUTO_INCREMENT, f2 INT, key(f1));
+
+--echo # Test case to verify primary key generation on PK-less partitioned table.
+--error ER_NOT_SUPPORTED_YET
+CREATE TABLE t1 (f1 INT, f2 DATE) PARTITION BY KEY(f2) PARTITIONS 2;
+
+--echo # Test case to verify partition table creation with user defined unique
+--echo # key based implicit primary key.
+--error ER_NOT_SUPPORTED_YET
+CREATE TABLE t1 (f1 INT, f2 INT NOT NULL UNIQUE) PARTITION BY RANGE (f2)
+                   (PARTITION p0 VALUES LESS THAN (2011),
+                    PARTITION p1 VALUES LESS THAN (2022));
+
+--echo # Test case to verify PK generation on InnoDB PK-less user table.
+--echo # PK should be generated in this case.
+CREATE TABLE t1(f1 INT);
+SHOW CREATE TABLE t1;
+SHOW KEYS FROM t1;
+DROP TABLE t1;
+
+--echo # Test case to verify PK generation on InnoDB PK-less temporary table.
+--echo # PK should be generated in this case.
+CREATE TEMPORARY TABLE t1(f1 INT);
+SHOW CREATE TABLE t1;
+SHOW KEYS FROM t1;
+DROP TABLE t1;
+
+--echo # Test case to verify PK generation on InnoDB table with unique key
+--echo # based implicit primary key. PK should be generated in this case.
+CREATE TABLE t1(f1 INT NOT NULL UNIQUE);
+SHOW CREATE TABLE t1;
+SHOW KEYS FROM t1;
+DROP TABLE t1;
+
+--echo # Test case to verify PK generation on InnoDB temporary table with unique key
+--echo # based implicit primary key. PK should be generated in this case.
+CREATE TEMPORARY TABLE t1 (f1 INT NOT NULL UNIQUE);
+SHOW CREATE TABLE t1;
+SHOW KEYS FROM t1;
+DROP TABLE t1;
+
+--echo # Test case to verify PK generation on InnoDB table with if not exists
+--echo # clause.
+CREATE TABLE t1(f1 INT);
+CREATE TABLE IF NOT EXISTS t1 (f1 INT, f2 INT);
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+CREATE TEMPORARY TABLE t2 (f1 INT);
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (f1 INT, f2 INT);
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE VIEW t1 AS SELECT 1;
+CREATE TABLE IF NOT EXISTS t1 (f1 INT);
+SHOW CREATE VIEW t1;
+DROP VIEW t1;
+
+--echo # Test case to verify behavior with CREATE TABLE LIKE.
+--echo # If source table doesn't have primary key then primary key is *not* generated
+--echo # for a target table.
+SET SESSION sql_generate_invisible_primary_key=OFF;
+CREATE TABLE t1(f1 INT);
+SHOW CREATE TABLE t1;
+SET SESSION sql_generate_invisible_primary_key=ON;
+CREATE TABLE t2 LIKE t1;
+SHOW CREATE TABLE t2;
+
+--echo # With sql_require_primary_key=ON, table creation fails as primary key
+--echo # is not generated for CREATE TABLE LIKE.
+SET SESSION sql_require_primary_key=ON;
+--error ER_TABLE_WITHOUT_PK
+CREATE TABLE t3 LIKE t1;
+SET SESSION sql_require_primary_key=OFF;
+DROP TABLE t1, t2;
+
+--echo # Test case to check primary key generation with CREATE TABLE ... SELECT
+CREATE TABLE t1 (f1 INT);
+SHOW CREATE TABLE t1;
+--echo # Primary key is generated in this case.
+CREATE TABLE t2 AS SELECT * FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+--echo # Primary key is generated in this case.
+CREATE TABLE t2 (f1 INT NOT NULL UNIQUE) AS SELECT * FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+--echo # Primary key is *not* generated in this case.
+CREATE TABLE t2 (f1 INT, PRIMARY KEY(f1)) AS SELECT * FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+--echo # Test case to verify CREATE TABLE ... SELECT with my_row_id in SELECT
+--echo # column list.
+--error ER_GIPK_COLUMN_EXISTS
+CREATE TABLE t2 AS SELECT f1, my_row_id FROM t1;
+
+--echo # Test case to verify CREATE TABLE ... SELECT with my_row_id in
+--echo # SELECT column list and primary key on my_row_id.
+CREATE TABLE t2(my_row_id INT PRIMARY KEY) AS SELECT f1, my_row_id FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t1, t2;
+
+
+--echo ##################################################################################
+--echo # Test case to verify DROP COLUMN / DROP PRIMARY KEY with
+--echo # sql_generate_invisible_primary_key = OFF.
+--echo ##################################################################################
+CREATE TABLE t1 (f1 INT);
+CREATE TABLE t2 (f1 INT, f2 INT);
+SET SESSION sql_generate_invisible_primary_key = OFF;
+--echo # Test case to verify DROP COLUMN operation on generated primary key column.
+ALTER TABLE t1 DROP COLUMN my_row_id;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo # Test case to verify DROP PRIMARY KEY operation on generated primary key. Dropping
+--echo # key is allowed only if generated primary key column is dropped in the same ALTER
+--echo # statement.
+--error ER_DROP_PK_COLUMN_TO_DROP_GIPK
+ALTER TABLE t2 DROP PRIMARY KEY, ADD PRIMARY KEY(f2);
+ALTER TABLE t2 DROP PRIMARY KEY, DROP COLUMN my_row_id, ADD PRIMARY KEY (f2);
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+
+--echo ##################################################################################
+--echo # Test case to verify DROP COLUMN / DROP PRIMARY KEY with
+--echo # sql_generate_invisible_primary_key = ON.
+--echo ##################################################################################
+SET SESSION sql_generate_invisible_primary_key = ON;
+CREATE TABLE t1 (f1 INT);
+CREATE TABLE t2 (f1 INT);
+CREATE TABLE t3 (f1 INT);
+CREATE TEMPORARY TABLE t4 (f1 INT);
+
+--echo # Test case to verify DROP COLUMN operation on generated primary key column. Dropping
+--echo # generated primary key without adding a new primary key is not supported.
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t1 DROP COLUMN my_row_id;
+ALTER TABLE t1 DROP COLUMN my_row_id, ADD PRIMARY KEY(f1);
+DROP TABLE t1;
+
+--echo # Test case to verify DROP PRIMARY KEY operation on generated primary key. Dropping
+--echo # generated primary key without adding a new primary key is not supported.
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t2 DROP PRIMARY KEY;
+--echo # Test case to verify DROP PRIMARY KEY operation on generated primary key. Dropping
+--echo # key is allowed only if generated primary key column is dropped in the same ALTER
+--error ER_DROP_PK_COLUMN_TO_DROP_GIPK
+ALTER TABLE t2 DROP PRIMARY KEY, ADD PRIMARY KEY(f1);
+ALTER TABLE t2 DROP PRIMARY KEY, DROP COLUMN my_row_id, ADD PRIMARY KEY(f1);
+SHOW CREATE TABLE t2;
+--echo # Dropping primary key without adding a new primary key is not supported.
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t2 DROP PRIMARY KEY;
+DROP TABLE t2;
+
+--echo # Dropping generated primary key without adding a new primary key is not supported.
+--error ER_NOT_SUPPORTED_YET
+DROP INDEX `PRIMARY` ON t3;
+DROP TABLE t3;
+
+--echo # Test case to verify DROP PRIMARY KEY operation on generated primary key. Dropping
+--echo # generated primary key without adding a new primary key is not supported even for
+--echo # temporary table..
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t4 DROP PRIMARY KEY;
+--echo # Test case to verify DROP PRIMARY KEY operation on generated primary key. Dropping
+--echo # key is allowed only if generated primary key column is dropped in the same ALTER
+--echo # for temporary table.
+--error ER_DROP_PK_COLUMN_TO_DROP_GIPK
+ALTER TABLE t4 DROP PRIMARY KEY, ADD PRIMARY KEY(f1);
+ALTER TABLE t4 DROP PRIMARY KEY, DROP COLUMN my_row_id, ADD PRIMARY KEY(f1);
+SHOW CREATE TABLE t4;
+--echo # Dropping primary key without adding a new primary key is not supported.
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t4 DROP PRIMARY KEY;
+DROP TABLE t4;
+
+--echo # Test case to verify DROP generated primary key with unique key based implicit
+--echo # primary key addition.
+CREATE TABLE t1 (f1 INT);
+CREATE TEMPORARY TABLE t2 (f1 INT);
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t1 DROP PRIMARY KEY, DROP COLUMN my_row_id, ADD UNIQUE KEY(f1);
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t2 DROP PRIMARY KEY, DROP COLUMN my_row_id, ADD UNIQUE KEY(f1);
+
+--echo # Test case to verify ADD primary key *without* dropping generated primary key.
+--error ER_MULTIPLE_PRI_KEY
+ALTER TABLE t1 ADD PRIMARY KEY(f1);
+--error ER_MULTIPLE_PRI_KEY
+ALTER TABLE t2 ADD PRIMARY KEY(f1);
+
+--echo # Test case to verify ADD implicit primary key *without* dropping generated primary key.
+ALTER TABLE t1 ADD UNIQUE KEY(f1);
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+ALTER TABLE t2 ADD UNIQUE KEY(f1);
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+
+--echo ##################################################################################
+--echo # Test case to verify CHANGE/MODIFY/ALTER generated primary key column with
+--echo # sql_generate_invisible_primary_key = OFF / ON.
+--echo ##################################################################################
+
+--let $json_label = values
+--let $json_keys = value
+--source include/create_json_unpacking_iterator.inc
+let $json_array = [ { "value": "OFF"}, { "value": "ON"} ];
+
+--source $json_values_start
+while (!$json_values_done) {
+  SET SESSION sql_generate_invisible_primary_key = ON;
+  CREATE TABLE t1 (f1 INT, f2 INT);
+  SHOW CREATE TABLE t1;
+
+  CREATE TEMPORARY TABLE t2 (f1 INT, f2 INT);
+  SHOW CREATE TABLE t2;
+
+  --eval SET SESSION sql_generate_invisible_primary_key = $value
+
+  --echo # Test case to verify CHANGE COLUMN operation on generated primary key column.
+  --error ER_GIPK_COLUMN_ALTER_NOT_ALLOWED
+  ALTER TABLE t1 CHANGE my_row_id id INT NOT NULL AUTO_INCREMENT;
+  --error ER_GIPK_COLUMN_ALTER_NOT_ALLOWED
+  ALTER TABLE t2 CHANGE my_row_id id INT NOT NULL AUTO_INCREMENT;
+
+  --echo # Test case to verify MODIFY COLUMN operation on generated primary key column.
+  --error ER_GIPK_COLUMN_ALTER_NOT_ALLOWED
+  ALTER TABLE t1 MODIFY my_row_id INT NOT NULL;
+  --error ER_GIPK_COLUMN_ALTER_NOT_ALLOWED
+  ALTER TABLE t2 MODIFY my_row_id INT NOT NULL;
+
+  --echo # Test case to verify ALTER COLUMN operation on generated primary key column.
+  --error ER_GIPK_COLUMN_ALTER_NOT_ALLOWED
+  ALTER TABLE t1 ALTER my_row_id SET DEFAULT 10;
+  --error ER_GIPK_COLUMN_ALTER_NOT_ALLOWED
+  ALTER TABLE t2 ALTER my_row_id SET DEFAULT 10;
+
+  --echo # Test case to verify generated primary key column rename operation.
+  --error ER_GIPK_COLUMN_ALTER_NOT_ALLOWED
+  ALTER TABLE t1 RENAME COLUMN my_row_id TO id;
+  --error ER_GIPK_COLUMN_ALTER_NOT_ALLOWED
+  ALTER TABLE t2 RENAME COLUMN my_row_id TO id;
+
+  --echo # Test case to verify generated primary key column position change.
+  --error ER_GIPK_COLUMN_ALTER_NOT_ALLOWED
+  ALTER TABLE t1 MODIFY my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE AFTER f2;
+  --error ER_GIPK_COLUMN_ALTER_NOT_ALLOWED
+  ALTER TABLE t2 MODIFY my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE AFTER f2;
+
+  --echo # Altering visibility attribute of my_row_id to VISIBLE is supported.
+  ALTER TABLE t1 ALTER my_row_id SET VISIBLE;
+  SHOW CREATE TABLE t1;
+  # Once my_row_id column become visible, it is permitted to change its other
+  # properties.
+  ALTER TABLE t1 CHANGE my_row_id my_row_id INT NOT NULL AUTO_INCREMENT;
+  ALTER TABLE t1 MODIFY my_row_id INT NOT NULL;
+  ALTER TABLE t1 RENAME COLUMN my_row_id TO id;
+
+  ALTER TABLE t2 ALTER my_row_id SET VISIBLE;
+  SHOW CREATE TABLE t2;
+  # Once my_row_id column become visible, it is permitted to change its other
+  # properties.
+  ALTER TABLE t2 CHANGE my_row_id my_row_id INT NOT NULL AUTO_INCREMENT;
+  ALTER TABLE t2 MODIFY my_row_id INT NOT NULL;
+  ALTER TABLE t2 RENAME COLUMN my_row_id TO id;
+  DROP TABLE t1, t2;
+
+  --source $json_values_next
+}
+--source include/destroy_json_functions.inc
+
+
+--echo ##################################################################################
+--echo # Test case to verify altering table storage engine.
+--echo ##################################################################################
+CREATE TABLE t1 (f1 INT);
+SHOW CREATE TABLE t1;
+--echo # Altering table engine to engine for which primary key generations is not
+--echo # supported works. But column and key are not considered as a generated primary
+--echo # key.
+ALTER TABLE t1 ENGINE='MyISAM';
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 DROP COLUMN my_row_id;
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 ENGINE='InnoDB';
+ALTER TABLE t1 ENGINE='MYISAM',
+               ADD COLUMN my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE FIRST,
+               ADD PRIMARY KEY(my_row_id);
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 DROP COLUMN my_row_id;
+DROP TABLE t1;
+
+CREATE TEMPORARY TABLE t1 (f1 INT);
+ALTER TABLE t1 ENGINE='MyISAM';
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 DROP COLUMN my_row_id;
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 ENGINE='InnoDB';
+ALTER TABLE t1 ENGINE='MYISAM',
+               ADD COLUMN my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE FIRST,
+               ADD PRIMARY KEY(my_row_id);
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 DROP COLUMN my_row_id;
+DROP TABLE t1;
+
+
+--echo ##################################################################################
+--echo # Test case to verify altering table's storage engine to the engine for which
+--echo # generated invisible primary key is supported.
+--echo ##################################################################################
+CREATE TABLE t1(my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE,
+                f1 INT, primary key(my_row_id)) ENGINE = 'MyISAM';
+ALTER TABLE t1 ENGINE='InnoDB';
+# In this case primary key is treated as generated primary key.
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t1 DROP COLUMN my_row_id;
+
+ALTER TABLE t1 ENGINE='MYISAM', ALTER my_row_id SET VISIBLE;
+ALTER TABLE t1 ENGINE='InnoDB', ALTER my_row_id SET INVISIBLE;
+# In this case primary key is treated as generated primary key.
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t1 DROP COLUMN my_row_id;
+DROP TABLE t1;
+
+CREATE TEMPORARY TABLE t1(my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE,
+                f1 INT, primary key(my_row_id)) ENGINE = 'MyISAM';
+ALTER TABLE t1 ENGINE='InnoDB';
+# In this case primary key is treated as generated primary key.
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t1 DROP COLUMN my_row_id;
+
+ALTER TABLE t1 ENGINE='MYISAM', ALTER my_row_id SET VISIBLE;
+ALTER TABLE t1 ENGINE='InnoDB', ALTER my_row_id SET INVISIBLE;
+# In this case primary key is treated as generated primary key.
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t1 DROP COLUMN my_row_id;
+DROP TABLE t1;
+
+
+--echo ##################################################################################
+--echo # Test case to verify ADD NEW column at first position of a table with
+--echo # generated primary key column.
+--echo ##################################################################################
+CREATE TABLE t1 (f2 INT, f3 INT);
+CREATE TEMPORARY TABLE t2 (f2 INT, f3 INT);
+--echo # Column should be added after generated primary key column.
+ALTER TABLE t1 ADD COLUMN f1 INT FIRST;
+SHOW CREATE TABLE t1;
+ALTER TABLE t2 ADD COLUMN f1 INT FIRST;
+SHOW CREATE TABLE t2;
+
+--echo # Test case to verify ADD NEW column at first position after setting
+--echo # generated primary column as VISIBLE.
+ALTER TABLE t1 ALTER my_row_id SET VISIBLE;
+--echo # Column should be added at the first position.
+ALTER TABLE t1 ADD COLUMN f0 INT FIRST;
+SHOW CREATE TABLE t1;
+--echo # my_row_id column is *not* treated as generated primary key column as it is not
+--echo # a first column.
+ALTER TABLE t1 ALTER my_row_id SET INVISIBLE;
+ALTER TABLE t1 MODIFY my_row_id INT NOT NULL AUTO_INCREMENT;
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 DROP COLUMN f0, MODIFY my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE;
+--echo # my_row_id column is treated as a generated primary key column.
+--echo # Column should be added after primary key column.
+ALTER TABLE t1 ADD COLUMN f0 INT FIRST;
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 ALTER my_row_id SET VISIBLE;
+ALTER TABLE t1 ALTER my_row_id SET INVISIBLE;
+--echo # my_row_id column is treated as a generated primary key column.
+--echo # Column should be added after primary key column.
+ALTER TABLE t1 ADD COLUMN f INT FIRST;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+ALTER TABLE t2 ALTER my_row_id SET VISIBLE;
+--echo # Column should be added at first position.
+ALTER TABLE t2 ADD COLUMN f0 INT FIRST;
+SHOW CREATE TABLE t2;
+--echo # my_row_id column is *not* treated as generated primary key column as it is not
+--echo # a first column.
+ALTER TABLE t2 ALTER my_row_id SET INVISIBLE;
+ALTER TABLE t2 MODIFY my_row_id INT NOT NULL AUTO_INCREMENT;
+SHOW CREATE TABLE t2;
+ALTER TABLE t2 DROP COLUMN f0, MODIFY my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE;
+--echo # my_row_id column is treated as a generated primary key column.  Column should
+--echo # be added after primary key column.
+ALTER TABLE t2 ADD COLUMN f0 INT FIRST;
+SHOW CREATE TABLE t2;
+
+ALTER TABLE t2 ALTER my_row_id SET VISIBLE;
+ALTER TABLE t2 ALTER my_row_id SET INVISIBLE;
+--echo # my_row_id column is treated as a generated primary key column.  Column should
+--echo # be added after primary key column.
+ALTER TABLE t2 ADD COLUMN f INT FIRST;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+--echo # Test case to verify ADD NEW column at first position with generated primary
+--echo # key DROP operation in the same ALTER.
+CREATE TABLE t1(f2 INT);
+ALTER TABLE t1 ADD COLUMN f1 INT PRIMARY KEY FIRST, DROP PRIMARY KEY,
+               DROP COLUMN my_row_id;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+CREATE TEMPORARY TABLE t1(f2 INT);
+ALTER TABLE t1 ADD COLUMN f1 INT PRIMARY KEY FIRST, DROP PRIMARY KEY,
+               DROP COLUMN my_row_id;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo ##################################################################################
+--echo # Test case to verify creation of primary key and column with same properties as
+--echo # generated invisible primary key.
+--echo ##################################################################################
+SET SESSION sql_generate_invisible_primary_key = OFF;
+CREATE TABLE t1(f2 INT);
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD COLUMN my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE FIRST,
+               ADD PRIMARY KEY(my_row_id);
+SHOW CREATE TABLE t1;
+
+--echo # user added column my_row_id is treated as generated invisible primary key column
+--echo # with sql_generate_invisible_primary_key = OFF / ON.
+--echo # Column f1 is added after my_row_id.
+ALTER TABLE t1 ADD COLUMN f1 INT FIRST;
+SHOW CREATE TABLE t1;
+--echo # my_row_id column alter is not permitted.
+--error ER_GIPK_COLUMN_ALTER_NOT_ALLOWED
+ALTER TABLE t1 MODIFY my_row_id INT;
+
+SET SESSION sql_generate_invisible_primary_key = ON;
+--echo # Column f0 is added after my_row_id.
+ALTER TABLE t1 ADD COLUMN f0 INT FIRST;
+SHOW CREATE TABLE t1;
+--echo # my_row_id column alter is not permitted.
+--error ER_GIPK_COLUMN_ALTER_NOT_ALLOWED
+ALTER TABLE t1 MODIFY my_row_id INT;
+DROP TABLE t1;
+
+
+--echo ##################################################################################
+--echo # Test case to verify partitioning table with generated invisible primary key.
+--echo ##################################################################################
+CREATE TABLE t1 (f1 INT);
+SHOW CREATE TABLE t1;
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t1 PARTITION BY KEY(my_row_id) PARTITIONS 10;
+SET SESSION sql_generate_invisible_primary_key = OFF;
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t1 PARTITION BY KEY(my_row_id) PARTITIONS 10;
+SET SESSION sql_generate_invisible_primary_key = ON;
+DROP TABLE t1;
+
+
+--echo ##################################################################################
+--echo # Test case to verify creation of primary key and column with same properties as
+--echo # generated invisible primary key after removing partitioning for the table.
+--echo ##################################################################################
+SET SESSION sql_generate_invisible_primary_key = OFF;
+CREATE TABLE t1 (f1 INT) PARTITION BY RANGE(f1) (PARTITION p1 VALUES LESS THAN (1991));
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 REMOVE PARTITIONING;
+ALTER TABLE t1 ADD COLUMN my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE FIRST,
+               ADD PRIMARY KEY(my_row_id);
+
+# my_row_id column alter is not permitted.
+--error ER_GIPK_COLUMN_ALTER_NOT_ALLOWED
+ALTER TABLE t1 MODIFY my_row_id INT;
+# table has generated primary key now, table partitioning is not supported.
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t1 PARTITION BY KEY(my_row_id) PARTITIONS 10;
+
+DROP TABLE t1;
+SET SESSION sql_generate_invisible_primary_key = ON;
+
+
+--echo ##################################################################################
+--echo # Test case to verify primary key generation in stored procedures.
+--echo ##################################################################################
+DELIMITER $;
+CREATE PROCEDURE p1() BEGIN
+  CREATE TABLE t1(f1 INT PRIMARY KEY, f2 INT);
+  SHOW CREATE TABLE t1;
+
+  CREATE TABLE t2 (f1 INT);
+  SHOW CREATE TABLE t2;
+
+  CREATE TABLE t3 AS SELECT * FROM t2;
+  SHOW CREATE TABLE t3;
+
+  DROP TABLE t1, t2, t3;
+end
+$
+DELIMITER ;$
+
+CALL p1();
+CALL p1();
+
+SET SESSION sql_generate_invisible_primary_key = OFF;
+call p1();
+call p1();
+
+SET SESSION sql_generate_invisible_primary_key = ON;
+call p1();
+call p1();
+
+DROP PROCEDURE p1;
+
+
+--echo ##################################################################################
+--echo # Test case to verify primary key generation with prepared statements
+--echo ##################################################################################
+CREATE TABLE t(f1 INT);
+PREPARE stmt1 FROM 'CREATE TABLE t1(f1 INT, f2 INT)';
+PREPARE stmt2 FROM 'CREATE TABLE t2 AS SELECT * FROM t';
+
+EXECUTE stmt1;
+EXECUTE stmt2;
+
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+
+DROP TABLE t1, t2;
+
+EXECUTE stmt1;
+EXECUTE stmt2;
+
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t1, t2;
+
+SET SESSION sql_generate_invisible_primary_key = OFF;
+EXECUTE stmt1;
+EXECUTE stmt2;
+
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t1, t2;
+
+SET SESSION sql_generate_invisible_primary_key = ON;
+EXECUTE stmt1;
+EXECUTE stmt2;
+
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+
+DROP TABLE t, t1, t2;
+DROP PREPARE stmt1;
+DROP PREPARE stmt2;
+
+
+--echo ##################################################################################
+--echo # Test case to verify INFORMATION_SCHEMA table and SHOW resultset with system
+--echo # variable show_gipk_in_create_table_and_information_schema = OFF/ON.
+--echo ##################################################################################
+DELIMITER $;
+CREATE PROCEDURE run_show_and_i_s_stmts() BEGIN
+  SHOW CREATE TABLE t1;
+  SHOW COLUMNS FROM t1;
+  SHOW EXTENDED COLUMNS FROM t1;
+  SHOW KEYS FROM t1;
+
+  -- I_S.TABLES
+  SELECT TABLE_NAME, AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES
+         WHERE TABLE_NAME='t1';
+  -- I_S.COLUMNS
+  SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, EXTRA
+         FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_NAME='t1' ORDER BY ORDINAL_POSITION;
+  -- I_S.COLUMN_EXTENSIONS
+  SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS_EXTENSIONS
+         WHERE TABLE_NAME='t1' ORDER BY COLUMN_NAME;
+  -- I_S.STATISTICS
+  SELECT INDEX_NAME, COLUMN_NAME FROM INFORMATION_SCHEMA.STATISTICS
+                                 WHERE TABLE_NAME='t1';
+  -- I_S.KEY_COLUMN_USAGE
+  SELECT CONSTRAINT_NAME, COLUMN_NAME
+         FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_NAME='t1';
+  -- I_S.TABLE_CONSTRAINTS
+  SELECT CONSTRAINT_NAME, CONSTRAINT_TYPE, ENFORCED
+         FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t1';
+  -- I_S.TABLE_CONSTRAINTS_EXTENSIONS
+  SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS_EXTENSIONS
+         WHERE TABLE_NAME='t1';
+END;
+$
+DELIMITER ;$
+
+--let $json_label = hide_gipk_tests
+--let $json_keys = LABEL, INIT_STMTS, CHECK_STMTS
+--source include/create_json_unpacking_iterator.inc
+let $json_array = [ { "LABEL"      : "empty Base Table",
+                      "INIT_STMTS" : "CREATE TABLE t1(f1 INT, f2 INT UNIQUE)",
+                      "CHECK_STMTS": "CALL run_show_and_i_s_stmts()"},
+                    { "LABEL"      : "Base Table",
+                      "INIT_STMTS" : "CREATE TABLE t1(f1 INT, f2 INT UNIQUE); INSERT INTO t1 VALUES(1, 3)",
+                      "CHECK_STMTS": "SHOW CREATE TABLE t1; SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1'"},
+                    { "LABEL"      : "empty Temporary Table",
+                      "INIT_STMTS" : "CREATE TEMPORARY TABLE t1(f1 INT, f2 INT UNIQUE)",
+                      "CHECK_STMTS": "SHOW CREATE TABLE t1; SHOW COLUMNS FROM t1; SHOW EXTENDED COLUMNS FROM t1; SHOW KEYS FROM t1"},
+                    { "LABEL"      : "Temporary Table",
+                      "INIT_STMTS" : "CREATE TEMPORARY TABLE t1(f1 INT, f2 INT UNIQUE); INSERT INTO t1 VALUES(1,3)",
+                      "CHECK_STMTS": "SHOW CREATE TABLE t1"}
+                  ];
+
+--source $json_hide_gipk_tests_start
+while (!$json_hide_gipk_tests_done) {
+  --echo # INFORMATION_SCHEMA and SHOW resultset for a $LABEL with
+  --echo # show_gipk_in_create_table_and_information_schema = ON/OFF
+  --eval $INIT_STMTS
+
+  --echo # With show_gipk_in_create_table_and_information_schema = ON generated invisible
+  --echo # primary key definitions should be listed.
+  SET SESSION show_gipk_in_create_table_and_information_schema = ON;
+  --eval $CHECK_STMTS
+
+  --echo # With show_gipk_in_create_table_and_information_schema = OFF generated invisible
+  --echo # primary key definitions *not* should be listed.
+  SET SESSION show_gipk_in_create_table_and_information_schema = OFF;
+  --eval $CHECK_STMTS
+
+  --echo # With show_gipk_in_create_table_and_information_schema = OFF, after moving table
+  --echo # to engine for which feature is not supported. Primary key definitions should be listed.
+  ALTER TABLE t1 ENGINE='MyISAM';
+  --eval $CHECK_STMTS
+
+  --echo # With show_gipk_in_create_table_and_information_schema = OFF, after moving table
+  --echo # to engine for which feature is supported. Generated invisible primary key definition
+  --echo # should *not* be listed.
+  ALTER TABLE t1 ENGINE='InnoDB';
+  --eval $CHECK_STMTS
+
+  DROP TABLE t1;
+  --source $json_hide_gipk_tests_next
+}
+--source include/destroy_json_functions.inc
+
+DROP PROCEDURE run_show_and_i_s_stmts;
+
+
+--echo ##################################################################################
+--echo # Test case to verify altering table my_row_id column visibility with all
+--echo # alter algorithms.
+--echo ##################################################################################
+SET @saved_session_show_gipk_in_create_table_and_information_schema =
+       @@session.show_gipk_in_create_table_and_information_schema;
+
+SET SESSION show_gipk_in_create_table_and_information_schema = OFF;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (1), (3), (7), (4), (8);
+
+--echo # Change my_row_id column visibility to VISIBLE with INSTANT algorithm.
+ALTER TABLE t1 ALTER my_row_id SET VISIBLE, ALGORITHM=INSTANT;
+--echo # Primary key should be listed.
+SHOW CREATE TABLE t1;
+SHOW COLUMNS FROM t1;
+--echo # Change my_row_id column visibility to INVISIBLE with INSTANT algorithm.
+ALTER TABLE t1 ALTER my_row_id SET INVISIBLE, ALGORITHM=INSTANT;
+--echo # Primary key should be *not* listed.
+SHOW CREATE TABLE t1;
+SHOW COLUMNS FROM t1;
+
+--echo # Change my_row_id column visibility to VISIBLE with allowed instant alter 
+--echo # operation column rename using INSTANT algorithm.
+ALTER TABLE t1 ALTER my_row_id SET VISIBLE, RENAME COLUMN f1 to f2,
+               ALGORITHM=INSTANT;
+--echo # Primary key should be listed.
+SHOW CREATE TABLE t1;
+SHOW COLUMNS FROM t1;
+--echo # Change my_row_id column visibility to INVISIBLE with allowed instant alter 
+--echo # operation column rename using INSTANT algorithm.
+ALTER TABLE t1 ALTER my_row_id SET INVISIBLE, RENAME COLUMN f2 to f1,
+               ALGORITHM=INSTANT;
+--echo # Primary key should be *not* listed.
+SHOW CREATE TABLE t1;
+SHOW COLUMNS FROM t1;
+
+--echo # Change my_row_id column visibility to VISIBLE with INPLACE algorithm.
+ALTER TABLE t1 ALTER my_row_id SET VISIBLE, ALGORITHM=INPLACE;
+--echo # Primary key should be listed.
+SHOW CREATE TABLE t1;
+SHOW COLUMNS FROM t1;
+--echo # Change my_row_id column visibility to INVISIBLE with INPLACE algorithm.
+ALTER TABLE t1 ALTER my_row_id SET INVISIBLE, ALGORITHM=INPLACE;
+--echo # Primary key should be *not* listed.
+SHOW CREATE TABLE t1;
+SHOW COLUMNS FROM t1;
+
+--echo # Change my_row_id column visibility to VISIBLE with allowed inplace alter
+--echo # operation using INPLACE algorithm.
+ALTER TABLE t1 ALTER my_row_id SET VISIBLE, ADD INDEX (f1), ALGORITHM=INPLACE;
+--echo # Primary key should be listed.
+SHOW CREATE TABLE t1;
+SHOW COLUMNS FROM t1;
+--echo # Change my_row_id column visibility to INVISIBLE with allowed inplace alter
+--echo # operation using INPLACE algorithm.
+ALTER TABLE t1 DROP INDEX f1;
+ALTER TABLE t1 ALTER my_row_id SET INVISIBLE, ADD INDEX(f1),
+             ALGORITHM=INPLACE;
+ALTER TABLE t1 DROP INDEX f1;
+--echo # Primary key should be *not* listed.
+SHOW CREATE TABLE t1;
+SHOW COLUMNS FROM t1;
+
+--echo # Change my_row_id column visibility to VISIBLE with COPY algorithm.
+ALTER TABLE t1 ALTER my_row_id SET VISIBLE, ALGORITHM=COPY;
+--echo # Primary key should be listed.
+SHOW CREATE TABLE t1;
+SHOW COLUMNS FROM t1;
+--echo # Change my_row_id column visibility to INVISIBLE with COPY algorithm.
+ALTER TABLE t1 ALTER my_row_id SET INVISIBLE, ALGORITHM=COPY;
+--echo # Primary key should be *not* listed.
+SHOW CREATE TABLE t1;
+SHOW COLUMNS FROM t1;
+
+DROP TABLE t1;
+SET SESSION show_gipk_in_create_table_and_information_schema =
+              @saved_session_show_gipk_in_create_table_and_information_schema;
+
+SET SESSION sql_generate_invisible_primary_key =
+              @saved_session_sql_generate_invisible_primary_key;

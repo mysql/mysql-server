@@ -96,8 +96,8 @@ class Create_field {
     NULL for columns added.
   */
   const char *change;
-  const char *after;    // Put column after this one
-  LEX_CSTRING comment;  // Comment for field
+  const char *after{nullptr};  // Put column after this one
+  LEX_CSTRING comment;         // Comment for field
 
   /**
      The declared default value, if any, otherwise NULL. Note that this member

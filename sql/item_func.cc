@@ -9257,11 +9257,17 @@ longlong Item_func_can_access_view::val_int() {
 }
 
 /**
-  Skip hidden tables, columns, indexes and index elements.
-  Do not skip them, when SHOW EXTENDED command are run.
+  Skip hidden tables, columns, indexes and index elements. Additionally,
+  skip generated invisible primary key(GIPK) and key column when system
+  variable show_gipk_in_create_table_and_information_schema is set to
+  OFF.
+  Do *not* skip hidden tables, columns, indexes and index elements,
+  when SHOW EXTENDED command are run. GIPK and key column are skipped
+  even for SHOW EXTENED command.
 
   Syntax:
-    longlong  IS_VISIBLE_DD_OBJECT(table_type, is_object_hidden);
+    longlong IS_VISIBLE_DD_OBJECT(type_of_hidden_table [, is_object_hidden
+                                  [, object_options]])
 
   @returns,
     1 - If dd object is visible
@@ -9270,10 +9276,10 @@ longlong Item_func_can_access_view::val_int() {
 longlong Item_func_is_visible_dd_object::val_int() {
   DBUG_TRACE;
 
-  assert(arg_count == 1 || arg_count == 2);
+  assert(arg_count > 0 && arg_count <= 3);
   assert(args[0]->null_value == false);
 
-  if (args[0]->null_value || (arg_count == 2 && args[1]->null_value)) {
+  if (args[0]->null_value || (arg_count >= 2 && args[1]->null_value)) {
     null_value = true;
     return false;
   }
@@ -9295,6 +9301,36 @@ longlong Item_func_is_visible_dd_object::val_int() {
         show_table || (table_type == dd::Abstract_table::HT_HIDDEN_DDL);
 
   if (arg_count == 1 || show_table == false) return (show_table ? 1 : 0);
+
+  // Skip generated invisible primary key and key columns.
+  if (arg_count == 3 && !args[2]->is_null() &&
+      !thd->variables.show_gipk_in_create_table_and_information_schema) {
+    String options;
+    String *options_ptr = args[2]->val_str(&options);
+
+    if (options_ptr != nullptr) {
+      // Read options from properties
+      std::unique_ptr<dd::Properties> p(
+          dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
+
+      if (p.get()) {
+        if (p->exists("gipk")) {
+          bool gipk_value = false;
+          p->get("gipk", &gipk_value);
+          if (gipk_value) return 0;
+        }
+      } else {
+        // Warn if the property string is corrupt.
+        LogErr(WARNING_LEVEL, ER_WARN_PROPERTY_STRING_PARSE_FAILED,
+               options_ptr->c_ptr_safe());
+        assert(false);
+      }
+    }
+    /*
+      Even if object is not a GIPK column/key we still need to check if it is
+      marked as hidden.
+    */
+  }
 
   bool show_non_table_objects;
   if (thd->lex->m_extended_show)

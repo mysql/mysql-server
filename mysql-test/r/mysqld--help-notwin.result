@@ -1373,6 +1373,11 @@ The following options may be given as the first argument:
  --show-create-table-verbosity 
  When this option is enabled, it increases the verbosity
  of 'SHOW CREATE TABLE'.
+ --show-gipk-in-create-table-and-information-schema 
+ When set, if a primary key is generated for a table then
+ SHOW commands and INFORMATION_SCHEMA tables shows
+ generated invisible primary key definition.
+ (Defaults to on; use --skip-show-gipk-in-create-table-and-information-schema to disable.)
  --show-old-temporals 
  When this option is enabled, the pre-5.6.4 temporal types
  will be marked in the 'SHOW CREATE TABLE' and
@@ -1479,6 +1484,10 @@ The following options may be given as the first argument:
  --sporadic-binlog-dump-fail 
  Option used by mysql-test for debugging and testing of
  replication.
+ --sql-generate-invisible-primary-key 
+ When set, if a table is created without a primary key
+ then server generates invisible auto-increment column as
+ a primary key for the table.
  --sql-mode=name     Syntax: sql-mode=mode[,mode[,mode...]]. See the manual
  for the complete list of valid sql modes
  --sql-require-primary-key 
@@ -1980,6 +1989,7 @@ session-track-system-variables time_zone,autocommit,character_set_client,charact
 session-track-transaction-info OFF
 sha256-password-proxy-users FALSE
 show-create-table-verbosity FALSE
+show-gipk-in-create-table-and-information-schema TRUE
 show-old-temporals FALSE
 show-replica-auth-info FALSE
 show-slave-auth-info FALSE
@@ -2010,6 +2020,7 @@ slow-query-log FALSE
 sort-buffer-size 262144
 source-verify-checksum FALSE
 sporadic-binlog-dump-fail FALSE
+sql-generate-invisible-primary-key FALSE
 sql-mode ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 sql-require-primary-key FALSE
 stored-program-cache 256

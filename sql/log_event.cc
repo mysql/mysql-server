@@ -142,6 +142,7 @@
 #include "sql/sql_digest_stream.h"
 #include "sql/sql_error.h"
 #include "sql/sql_exchange.h"  // sql_exchange
+#include "sql/sql_gipk.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"        // I_List
 #include "sql/sql_load.h"        // Sql_cmd_load_table
@@ -10605,6 +10606,9 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
     char *db_name = thd_arg->get_binlog_accessed_db_names()->head();
     if (!strcmp(db_name, "")) m_flags |= TM_REFERRED_FK_DB_F;
   }
+
+  if (table_has_generated_invisible_primary_key(m_table))
+    m_flags |= TM_GENERATED_INVISIBLE_PK_F;
 
   init_metadata_fields();
   m_data_size += m_metadata_buf.length();

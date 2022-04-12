@@ -123,7 +123,8 @@ const int
         ER_BINLOG_UNSAFE_NOWAIT,
         ER_BINLOG_UNSAFE_XA,
         ER_BINLOG_UNSAFE_DEFAULT_EXPRESSION_IN_SUBSTATEMENT,
-        ER_BINLOG_UNSAFE_ACL_TABLE_READ_IN_DML_DDL};
+        ER_BINLOG_UNSAFE_ACL_TABLE_READ_IN_DML_DDL,
+        ER_CREATE_SELECT_WITH_GIPK_DISALLOWED_IN_SBR};
 
 /*
   Names of the index hints (for error messages). Keep in sync with

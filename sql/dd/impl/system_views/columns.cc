@@ -140,7 +140,7 @@ Columns::Columns() {
       "col.name)");
   m_target_def.add_where(
       "AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden NOT IN ('Visible', "
-      "'User'))");
+      "'User'), col.options)");
 }
 
 }  // namespace system_views

@@ -1,0 +1,109 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format');
+SET @saved_session_sql_generate_invisible_primary_key = @@session.sql_generate_invisible_primary_key;
+SET SESSION sql_generate_invisible_primary_key = ON;
+# Case 1: Test case to verify replication of a table with generated
+#         invisible primary key.
+CREATE TABLE t1(f1 INT, f2 INT);
+INSERT INTO t1 VALUES (1, 10), (2, 20);
+# Check that t1 exists and has generated invisible primary key definition in
+# source and replica.
+include/rpl_diff.inc
+# Check that t1 has same column values in source and replica.
+include/rpl_diff.inc
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+# Case 2: Test case to verify replication of a table with generated
+#         invisible primary key when susyem variable 
+#         show_gipk_in_create_table_and_information_schema = OFF.
+[connection master]
+SET @saved_session_show_gipk_in_create_table_and_information_schema =
+@@session.show_gipk_in_create_table_and_information_schema;
+SET SESSION show_gipk_in_create_table_and_information_schema = OFF;
+CREATE TABLE t1(f1 INT, f2 INT);
+INSERT INTO t1 VALUES (1, 10), (2, 20);
+# Check that t1 exists and has generated invisible primary key definition in
+# source and replica.
+include/rpl_diff.inc
+# Check that t1 has same column values in source and replica.
+include/rpl_diff.inc
+[connection master]
+DROP TABLE t1;
+SET SESSION show_gipk_in_create_table_and_information_schema =
+@saved_session_show_gipk_in_create_table_and_information_schema;
+include/sync_slave_sql_with_master.inc
+# Case 3: Test case to verify replication of a table created with
+#         generated invisible primary key using stored procedure and
+#         prepared statement.
+[connection master]
+CREATE PROCEDURE p1() BEGIN
+CREATE TABLE t1(f1 INT, f2 INT);
+INSERT INTO t1 VALUES(1, 3);
+end
+$
+PREPARE stmt1 FROM 'CREATE TABLE t2(f1 INT, f2 INT)';
+CALL p1();
+EXECUTE stmt1;
+INSERT INTO t2 VALUES(8, 4);
+# Check that t1 exists and has generated invisible primary key definition
+# in source and replica.
+include/rpl_diff.inc
+# Check that t1 hase same column values in source and replica.
+include/rpl_diff.inc
+# Check that t2 exists and has generated invisible primary key definition
+# in source and replica.
+include/rpl_diff.inc
+# Check that t2 hase same column values in source and replica.
+include/rpl_diff.inc
+[connection master]
+DROP TABLE t1, t2;
+include/sync_slave_sql_with_master.inc
+[connection master]
+CALL p1();
+EXECUTE stmt1;
+INSERT INTO t2 VALUES(8, 4);
+# Check that t1 exists and has generated invisible primary key definition
+# in source and replica.
+include/rpl_diff.inc
+# Check that t1 hase same column values in source and replica.
+include/rpl_diff.inc
+# Check that t2 exists and has generated invisible primary key definition
+# in source and replica.
+include/rpl_diff.inc
+# Check that t2 hase same column values in source and replica.
+include/rpl_diff.inc
+[connection master]
+DROP TABLE t1, t2;
+DROP PROCEDURE p1;
+DROP PREPARE stmt1;
+include/sync_slave_sql_with_master.inc
+# Case 4: Verify replication of CREATE TABLE ... SELECT with explicitly
+# specified primary key similar to generated invisible primary key.
+# Table t2 is created as primary key is explicitly specified.
+[connection master]
+CREATE TABLE t1(f1 INT, f2 INT);
+INSERT INTO t1 VALUES (1, 10), (2, 20);
+CREATE TABLE t2 (my_row_id BIGINT UNSIGNED INVISIBLE AUTO_INCREMENT PRIMARY KEY)
+AS SELECT t1.my_row_id, t1.* FROM t1;
+# check that t2 exists in source and replica.
+include/rpl_diff.inc
+# Case 5: Verify replication of CREATE TABLE ... SELECT using temporary source
+# table with GIPK.
+CREATE TEMPORARY TABLE t3 (f1 INT);
+INSERT INTO t3 VALUES (1),(3),(7),(8),(4);
+CREATE TABLE t4(my_row_id BIGINT UNSIGNED INVISIBLE AUTO_INCREMENT PRIMARY KEY)
+AS SELECT my_row_id, f1 FROM t3;
+# check that t4 exists in source and replica.
+include/sync_slave_sql_with_master.inc
+include/rpl_diff.inc
+include/rpl_diff.inc
+[connection master]
+DROP TABLE t1, t2, t3, t4;
+SET SESSION sql_generate_invisible_primary_key =
+@saved_session_sql_generate_invisible_primary_key;
+include/rpl_end.inc

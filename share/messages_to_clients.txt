@@ -9776,6 +9776,21 @@ ER_SRS_INVALID_LONGITUDE_OF_ORIGIN SR002
 ER_SRS_UNUSED_PROJ_PARAMETER_PRESENT SR002
   eng "The spatial reference system definition for SRID %u contains unused projection parameter \"%s\"."
 
+ER_GIPK_COLUMN_EXISTS
+  eng "Failed to generate invisible primary key. Column 'my_row_id' already exists."
+
+ER_GIPK_FAILED_AUTOINC_COLUMN_EXISTS
+  eng "Failed to generate invisible primary key. Auto-increment column already exists."
+
+ER_GIPK_COLUMN_ALTER_NOT_ALLOWED
+  eng "Altering generated invisible primary key column 'my_row_id' is not allowed."
+
+ER_DROP_PK_COLUMN_TO_DROP_GIPK
+  eng "Please drop primary key column to be able to drop generated invisible primary key."
+
+ER_CREATE_SELECT_WITH_GIPK_DISALLOWED_IN_SBR
+  eng "Generating an invisible primary key for a table created using CREATE TABLE ... SELECT ... is disallowed when binlog_format=STATEMENT. It cannot be guaranteed that the SELECT retrieves rows in the same order on source and replica. Therefore, it cannot be guaranteed that the value generated for the generated implicit primary key column will be the same on source and replica for all rows. Use binlog_format=ROW or MIXED to execute this statement."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
