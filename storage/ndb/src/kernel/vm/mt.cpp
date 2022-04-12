@@ -957,15 +957,6 @@ struct thr_job_buffer // 32k
 static thr_job_buffer empty_job_buffer;
 
 
-static
-inline
-Uint32
-// calc_fifo_used() to be deprecated in later patches
-calc_fifo_used(Uint32 ri, Uint32 wi, Uint32 sz)
-{
-  return (wi >= ri) ? wi - ri : (sz - ri) + wi;
-}
-
 /**
  * thr_job_queue is shared between a single consumer / multiple producers.
  *
@@ -1087,14 +1078,6 @@ struct alignas(NDB_CL) thr_job_queue
    * Ensure that the busy cache line isn't shared with job buffers.
    */
   alignas(NDB_CL) struct thr_job_buffer* m_buffers[SIZE];
-
-  /* Note that m_write_lock is needed to get a correct free() / used() */
-  Uint32 used() const {
-    return calc_fifo_used(m_read_index, m_write_index, m_size);
-  }
-  Uint32 free() const {
-    return (m_size - used());
-  }
 };
 
 
@@ -4664,35 +4647,6 @@ senddelay(Uint32 thr_no, const SignalHeader* s, Uint32 delay)
 }
 
 /**
- * Compute free buffers in specified queue.
- * The SAFETY margin is subtracted from the available
- * 'free'. which is returned.
- *
- * FIXME: need concurrency control for m_write_index
- */
-static
-Uint32
-compute_free_buffers_in_queue(const thr_job_queue *q)
-{
-  /**
-   * NOTE: m_read_index is read wo/ lock (and updated by different thread)
-   *       but since the different thread can only consume
-   *       signals this means that the value returned from this
-   *       function is always conservative (i.e it can be better than
-   *       returned value, if read-index has moved but we didnt see it)
-   *
-   * FIXME: Calling q->free() (m_write_index) need locking!
-   */
-  const unsigned free = q->free();
-  assert(free <= q->m_size);
-
-  if (free <= (1 + thr_job_queue::SAFETY))
-    return 0;
-  else
-    return free - (1 + thr_job_queue::SAFETY);
-}
-
-/**
  *  Compute *total* max signals that this thread can execute wo/ risking
  *  job-buffer-full.
  *
@@ -4786,41 +4740,6 @@ set_congested_jb_quotas(thr_data *selfptr, Uint32 congested, Uint32 free)
       selfptr->m_congested_signals_mask.set(congested);
       selfptr->m_max_signals_per_jb = MIN(perjb, selfptr->m_max_signals_per_jb);
     }
-  }
-}
-
-static
-void
-dumpJobQueues(void)
-{
-  BaseString tmp;
-  const struct thr_repository* rep = g_thr_repository;
-  for (unsigned to = 0; to < glob_num_threads; to++)
-  {
-    for (unsigned from = 0; from < glob_num_job_buffers_per_thread; from++)
-    {
-      const thr_data *thrptr = rep->m_thread + to;
-      const thr_job_queue *q = thrptr->m_jbb + from;
-      const unsigned used = q->used();
-      if (used > 0)
-      {
-        tmp.appfmt("\n job buffer %d --> %d, used %d",
-                   from, to, used);
-        unsigned free = compute_free_buffers_in_queue(q);
-        if (free <= 0)
-        {
-          tmp.appfmt(" FULL!");
-        }
-        else if (free <= thr_job_queue::RESERVED)
-        {
-          tmp.appfmt(" HIGH LOAD (free:%d)", free);
-        }
-      }
-    }
-  }
-  if (!tmp.empty())
-  {
-    g_eventLogger->info("Dumping non-empty job queues: %s", tmp.c_str());
   }
 }
 
@@ -5083,6 +5002,40 @@ get_congested_job_queue(thr_data *selfptr)
    * (One of the congested queues *were* full quite recently.)
    */
   return waitfor;
+}
+
+static
+void
+dumpJobQueues(void)
+{
+  BaseString tmp;
+  const struct thr_repository* rep = g_thr_repository;
+  for (unsigned to = 0; to < glob_num_threads; to++)
+  {
+    for (unsigned from = 0; from < glob_num_job_buffers_per_thread; from++)
+    {
+      const thr_data *thrptr = rep->m_thread + to;
+      const thr_job_queue *q = thrptr->m_jbb + from;
+      const unsigned free = get_free_in_queue(q);
+      if (free <= thr_job_queue::CONGESTED)
+      {
+        tmp.appfmt(" job buffer %d --> %d, used %d",
+                   from, to, q->m_size - free);
+        if (free <= 0)
+        {
+          tmp.appfmt(" FULL!");
+        }
+        else if (free <= thr_job_queue::RESERVED)
+        {
+          tmp.appfmt(" HIGH LOAD (free:%d)", free);
+        }
+      }
+    }
+  }
+  if (!tmp.empty())
+  {
+    g_eventLogger->info("Dumping non-empty job queues: %s", tmp.c_str());
+  }
 }
 
 int
