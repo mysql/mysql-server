@@ -340,6 +340,12 @@ SET(SQL_GIS_SOURCES
   options_parser.cc
 )
 
+# implicit copy constructor for Unary_functor<std::unique_ptr<gis::Geometry>>
+MY_CHECK_CXX_COMPILER_WARNING("-Werror=deprecated-copy-with-dtor" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  ADD_COMPILE_FLAGS(gis/transform.cc COMPILE_FLAGS ${HAS_WARN_FLAG})
+ENDIF()
+
 SET(SQL_SHARED_SOURCES
   auth/auth_acls.cc
   auth/auth_common.cc
