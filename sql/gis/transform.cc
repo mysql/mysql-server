@@ -83,7 +83,7 @@ auto transform_helper(
 template <typename InputGeometryCollection>
 auto transform_gc_helper(const InputGeometryCollection &g,
                          const Coordinate_system &m_output_cs,
-                         Transform transform) {
+                         const Transform &transform) {
   switch (m_output_cs) {
     case Coordinate_system::kCartesian: {
       // Workaround for limitation in Developer Studio 12.5 on Solaris that
