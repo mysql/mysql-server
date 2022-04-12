@@ -987,7 +987,7 @@ void Binlog_sender::init_checksum_alg() {
   const auto &uv = get_user_var_from_alternatives(
       m_thd, "source_binlog_checksum", "master_binlog_checksum");
   // Get value of user_var.
-  if (uv) {
+  if (uv && uv->ptr()) {
     m_slave_checksum_alg = static_cast<enum_binlog_checksum_alg>(
         find_type(uv->ptr(), &binlog_checksum_typelib, 1) - 1);
     assert(m_slave_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END);
