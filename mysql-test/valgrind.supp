@@ -2602,3 +2602,15 @@
    fun:dlerror
    fun:_ZN36mysql_dynamic_loader_scheme_file_imp4loadEPKcPP17mysql_component_t
 }
+
+# AWS SDK 1.9 s2n leaks
+{
+   aws_sdk_1_9_186_aws_tls_init_static_state
+   Memcheck:Leak
+   ...
+   fun:s2n_init
+   fun:aws_tls_init_static_state
+   fun:aws_mqtt_library_init
+   ...
+   fun:_ZN3Aws7InitAPIERKNS_10SDKOptionsE
+}
