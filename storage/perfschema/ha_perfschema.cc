@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -443,6 +443,53 @@ THR_LOCK_DATA **ha_perfschema::store_lock(THD *thd,
 int ha_perfschema::delete_table(const char *name)
 {
   DBUG_ENTER("ha_perfschema::delete_table");
+
+  /*
+    The name string looks like:
+    "./performance_schema/processlist"
+
+    Make a copy of it, parse the '/' to
+    isolate the schema and table name.
+  */
+
+  char table_path[FN_REFLEN+1];
+  strncpy(table_path, name, sizeof(table_path));
+  table_path[FN_REFLEN]='\0';
+
+  char *ptr;
+  char *table_name;
+  char *db_name;
+  const PFS_engine_table_share *share;
+
+  /* Start scan from the end. */
+  ptr = strend(table_path) - 1;
+
+  /* Find path separator */
+  while ((ptr >= table_path) && (*ptr != '\\') && (*ptr != '/')) {
+    ptr--;
+  }
+
+  table_name = ptr + 1;
+  *ptr = '\0';
+
+  /* Find path separator */
+  while ((ptr >= table_path) && (*ptr != '\\') && (*ptr != '/')) {
+    ptr--;
+  }
+
+  db_name = ptr + 1;
+
+  share = find_table_share(db_name, table_name);
+  if (share != NULL) {
+    if (share->m_optional) {
+      /*
+        An optional table is deleted,
+        disarm the checked flag so we don't trust it any more.
+      */
+      share->m_state->m_checked = false;
+    }
+  }
+
   DBUG_RETURN(0);
 }
 

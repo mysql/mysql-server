@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,6 +76,8 @@
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
+#include "sql_show_processlist.h" // pfs_processlist_enabled
 
 TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
 
@@ -179,6 +181,14 @@ static Sys_var_charptr Sys_pfs_instrument(
        IN_FS_CHARSET,
        DEFAULT(""),
        PFS_TRAILING_PROPERTIES);
+
+static Sys_var_mybool Sys_pfs_processlist(
+       "performance_schema_show_processlist",
+       "Default startup value to enable SHOW PROCESSLIST "
+       "in the performance schema.",
+       GLOBAL_VAR(pfs_processlist_enabled), CMD_LINE(OPT_ARG), DEFAULT(false),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL),
+       NULL, sys_var::PARSE_NORMAL);
 
 static Sys_var_mybool Sys_pfs_consumer_events_stages_current(
        "performance_schema_consumer_events_stages_current",

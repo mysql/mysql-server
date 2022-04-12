@@ -5,6 +5,7 @@ Warning	1287	Using GRANT statement to modify existing user's properties other th
 Variable_name	Value
 have_openssl	YES
 have_ssl	YES
+performance_schema_show_processlist	OFF
 ssl_ca	MYSQL_TEST_DIR/std_data/ca-sha512.pem
 ssl_capath	
 ssl_cert	MYSQL_TEST_DIR/std_data/server-cert-sha512.pem

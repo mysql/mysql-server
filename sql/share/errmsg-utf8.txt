@@ -7796,6 +7796,9 @@ ER_DEPRECATED_TLS_VERSION_SESSION
 ER_WARN_DEPRECATED_TLS_VERSION
   eng "A deprecated TLS version %s is enabled. Please use TLSv1.2 or higher."
 
+ER_WARN_WRONG_NATIVE_TABLE_STRUCTURE
+  eng "Optional native table '%-.64s'.'%-.64s' has the wrong structure or is missing."
+
 #
 #  End of 5.7 error messages.
 #

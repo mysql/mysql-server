@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@
 # or
 #     https://brew.sh
 #     https://formulae.brew.sh/formula/openssl@1.1
-#     We look for "/usr/local/opt/openssl@1.1"
+#     We look for "${HOMEBREW_HOME}/openssl@1.1"
 #     We look for the static libraries, rather than the .dylib ones.
 # When the package has been located, we treat it as if cmake had been
 # invoked with  -DWITH_SSL=</path/to/custom/openssl>
@@ -118,7 +118,7 @@ MACRO (MYSQL_CHECK_SSL)
     # have buggy implementations.
     IF((APPLE OR WIN32) AND NOT WITH_SSL_PATH AND WITH_SSL STREQUAL "system")
       IF(APPLE)
-        SET(WITH_SSL_PATH "/usr/local/opt/openssl@1.1")
+        SET(WITH_SSL_PATH "${HOMEBREW_HOME}/openssl@1.1")
       ELSE()
         SET(WITH_SSL_PATH "C:/Program Files/OpenSSL-Win64/")
       ENDIF()

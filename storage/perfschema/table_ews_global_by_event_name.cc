@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -77,6 +77,11 @@ TABLE_FIELD_DEF
 table_ews_global_by_event_name::m_field_def=
 { 6, field_types };
 
+PFS_engine_table_share_state
+table_ews_global_by_event_name::m_share_state = {
+  false /* m_checked */
+};
+
 PFS_engine_table_share
 table_ews_global_by_event_name::m_share=
 {
@@ -89,8 +94,9 @@ table_ews_global_by_event_name::m_share=
   sizeof(pos_ews_global_by_event_name),
   &m_table_lock,
   &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
 };
 
 PFS_engine_table*

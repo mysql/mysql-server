@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -378,9 +378,9 @@ static PSI_thread_key key_thread_slave_io, key_thread_slave_sql, key_thread_slav
 
 static PSI_thread_info all_slave_threads[]=
 {
-  { &key_thread_slave_io, "slave_io", PSI_FLAG_GLOBAL},
-  { &key_thread_slave_sql, "slave_sql", PSI_FLAG_GLOBAL},
-  { &key_thread_slave_worker, "slave_worker", PSI_FLAG_GLOBAL}
+  { &key_thread_slave_io, "slave_io", PSI_FLAG_THREAD_SYSTEM | PSI_FLAG_GLOBAL},
+  { &key_thread_slave_sql, "slave_sql", PSI_FLAG_THREAD_SYSTEM | PSI_FLAG_GLOBAL},
+  { &key_thread_slave_worker, "slave_worker", PSI_FLAG_THREAD_SYSTEM | PSI_FLAG_GLOBAL}
 };
 
 static PSI_memory_info all_slave_memory[]=
