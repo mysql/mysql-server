@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,10 @@ SET(TESTS
   group_replication_member_version
   group_replication_mysql_version_gcs_protocol_map
   group_replication_gcs_mysql_network_provider
+  )
+
+DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING(
+  group_replication_gcs_mysql_network_provider-t.cc
   )
 
 FOREACH(test ${TESTS})

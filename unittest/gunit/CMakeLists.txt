@@ -305,6 +305,17 @@ SET(SERVER_TESTS
   xid_extract
 )
 
+DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING(
+  copy_info-t.cc
+  dd_schema-t.cc
+  opt_range-t.cc
+  regexp_engine-t.cc
+  )
+
+IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12)
+  ADD_COMPILE_FLAGS(regexp_engine-t.cc COMPILE_FLAGS "-Wno-restrict")
+ENDIF()
+
 IF(WIN32)
   LIST(APPEND SERVER_TESTS win_tests)
 ENDIF()
