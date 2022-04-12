@@ -883,8 +883,7 @@ Uint32 NdbReceiver::unpackRecAttr(NdbRecAttr** recAttr,
   const Uint8* read_src = pad(src, 0, bitPos);
   if (unlikely(end < read_src)) return ERROR;
   const std::ptrdiff_t read_words = (const Uint32*)read_src - aDataPtr;
-  if (unlikely(read_words < 0) ||
-      unlikely(read_words >= std::int64_t{UINT32_MAX}))
+  if (unlikely(read_words < 0) || unlikely(read_words > INT32_MAX))
     return ERROR;
   return (Uint32)read_words;
 }
