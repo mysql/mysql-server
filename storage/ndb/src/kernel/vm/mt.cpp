@@ -8190,20 +8190,19 @@ handle_full_job_buffers(struct thr_data* selfptr,
                         Uint32 & flush_sum)
 {
   Uint32 sleeploop = 0;
-  Uint32 loops = 0;
   const Uint32 self_jbb = selfptr->m_thr_no % NUM_JOB_BUFFERS_PER_THREAD;
   selfptr->m_watchdog_counter = 16;
 
   while (selfptr->m_max_signals_per_jb == 0)  // or return
   {
-    if (sleeploop != 0)
+    if (sleeploop >= 10)
     {
       /**
-       * we've slept for 1ms...run a bit anyway
+       * we've slept for 10ms...run a bit anyway
        */
       g_eventLogger->info(
           "thr_no:%u - sleeploop 10!! "
-          "(Worker thread blocked (>= 1ms) by slow consumer threads)",
+          "(Worker thread blocked (>= 10ms) by slow consumer threads)",
           selfptr->m_thr_no);
       return true;
     }
@@ -8254,11 +8253,6 @@ handle_full_job_buffers(struct thr_data* selfptr,
       selfptr->m_buffer_full_micros_sleep +=
         NdbTick_Elapsed(before, after).microSec();
       sleeploop++;
-    }
-    else if (++loops > 1000) {
-      printf("BUSY WAIT: thr:%u, sleeploop:%u\n", selfptr->m_thr_no, sleeploop);
-      dumpJobQueues();
-      require(false);
     }
     /**
      * We waited due to congestion, or didn't find the expected congestion.
