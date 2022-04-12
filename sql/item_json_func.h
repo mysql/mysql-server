@@ -894,6 +894,7 @@ class Item_func_json_quote : public Item_str_func {
 */
 class Item_func_json_unquote : public Item_str_func {
   String m_value;
+  String m_conversion_buffer;
 
  public:
   Item_func_json_unquote(const POS &pos, PT_item_list *a)

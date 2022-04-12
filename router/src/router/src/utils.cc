@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -345,13 +345,13 @@ static RET strtoX_checked_common(const char *value,
                                  RET default_value) noexcept {
   static_assert(std::is_integral<RET>::value,
                 "This template function is meant for integers.");
-  static_assert(sizeof(RET) <= sizeof(decltype(std::strtol(
-                                   (char *)nullptr, (char **)nullptr, (int)0))),
+  static_assert(sizeof(RET) <=
+                    sizeof(decltype(std::strtol("", (char **)nullptr, (int)0))),
                 "This function uses strtol() to convert signed integers, "
                 "therefore the integer bit width cannot be larger than what it "
                 "supports.");
-  static_assert(sizeof(RET) <= sizeof(decltype(std::strtoul(
-                                   (char *)nullptr, (char **)nullptr, (int)0))),
+  static_assert(sizeof(RET) <= sizeof(decltype(
+                                   std::strtoul("", (char **)nullptr, (int)0))),
                 "This function uses strtoul() to convert unsigned integers, "
                 "therefore the integer bit width cannot be larger than what it "
                 "supports.");

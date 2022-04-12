@@ -1,4 +1,4 @@
-# Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -50,6 +50,24 @@ IF(MY_COMPILER_IS_CLANG)
     COMPILE_FLAGS "-Wno-deprecated"
     )
 ENDIF()
+
+DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING(
+  account_verification_handler_t.cc
+  admin_cmd_index_t.cc
+  admin_create_collection_t.cc
+  admin_get_collection_options_t.cc
+  admin_modify_collection_options_t.cc
+  broker_input_queue_task_t.cc
+  capabilities_configurator_t.cc
+  capabilities_handlers_t.cc
+  cursor_t.cc
+  insert_statement_builder_t.cc
+  listener_tcp_t.cc
+  listener_unix_socket_t.cc
+  protocol_decoder_t.cc
+  sql_data_context_t.cc
+  timeouts_t.cc
+  )
 
 IF(MYSQLX_ADDITIONAL_TESTS_ENABLE)
   INCLUDE(mysql_function_names.cmake)
