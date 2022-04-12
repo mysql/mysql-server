@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -609,6 +609,9 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   PFS_host *m_host;
   PFS_user *m_user;
   PFS_account *m_account;
+
+  /** Remote (peer) port */
+  uint m_peer_port;
 
   /** Reset session connect attributes */
   void reset_session_connect_attrs();

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -167,6 +167,11 @@ TABLE_FIELD_DEF
 table_events_transactions_current::m_field_def=
 {24 , field_types };
 
+PFS_engine_table_share_state
+table_events_transactions_current::m_share_state = {
+  false /* m_checked */
+};
+
 PFS_engine_table_share
 table_events_transactions_current::m_share=
 {
@@ -179,11 +184,17 @@ table_events_transactions_current::m_share=
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
 };
 
 THR_LOCK table_events_transactions_history::m_table_lock;
+
+PFS_engine_table_share_state
+table_events_transactions_history::m_share_state = {
+  false /* m_checked */
+};
 
 PFS_engine_table_share
 table_events_transactions_history::m_share=
@@ -197,11 +208,17 @@ table_events_transactions_history::m_share=
   sizeof(pos_events_transactions_history), /* ref length */
   &m_table_lock,
   &table_events_transactions_current::m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
 };
 
 THR_LOCK table_events_transactions_history_long::m_table_lock;
+
+PFS_engine_table_share_state
+table_events_transactions_history_long::m_share_state = {
+  false /* m_checked */
+};
 
 PFS_engine_table_share
 table_events_transactions_history_long::m_share=
@@ -215,8 +232,9 @@ table_events_transactions_history_long::m_share=
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &table_events_transactions_current::m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
 };
 
 table_events_transactions_common::table_events_transactions_common

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,6 +84,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "item_json_func.h"
 #include "sql_plugin.h"                      // plugin_is_ready
 #include "parse_tree_hints.h"
+#include "sql_show_processlist.h"
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -12073,7 +12074,12 @@ show_param:
             }
           }
         | opt_full PROCESSLIST_SYM
-          { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
+          {
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            PT_statement *stmt = NEW_PTN PT_show_processlist(@$, lex->verbose /* $1 */);
+            MAKE_CMD(stmt);
+          }
         | opt_var_type VARIABLES opt_wild_or_where_for_show
           {
             THD *thd= YYTHD;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -414,6 +414,12 @@ bool Migrate_keyring::disable_keyring_operations()
 {
   DBUG_ENTER("Migrate_keyring::disable_keyring_operations");
   const char query[]= "SET GLOBAL KEYRING_OPERATIONS=0";
+
+#ifdef HAVE_OPENSSL
+  /* clear the SSL error stack first as the connection could be encrypted */
+  ERR_clear_error();
+#endif
+
   if (mysql && mysql_real_query(mysql, query, strlen(query)))
   {
     my_error(ER_KEYRING_MIGRATION_FAILURE, MYF(0),

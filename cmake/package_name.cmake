@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -88,7 +88,11 @@ IF(NOT VERSION)
         ENDIF()
       ELSE()
         IF(64BIT)
-          SET(DEFAULT_MACHINE "x86_64")
+          IF(APPLE_ARM)
+            SET(DEFAULT_MACHINE "arm64")
+          ELSE()
+            SET(DEFAULT_MACHINE "x86_64")
+          ENDIF()
         ENDIF()
       ENDIF()
 

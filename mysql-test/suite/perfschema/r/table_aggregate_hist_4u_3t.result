@@ -94,6 +94,7 @@ performance_schema_max_thread_instances	-1
 performance_schema_session_connect_attrs_size	2048
 performance_schema_setup_actors_size	100
 performance_schema_setup_objects_size	100
+performance_schema_show_processlist	OFF
 performance_schema_users_size	100
 show global status like "performance_schema%";
 Variable_name	Value

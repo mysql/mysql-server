@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -247,6 +247,9 @@ struct PFS_ALIGNED PFS_thread_class
   char m_name[PFS_MAX_INFO_NAME_LENGTH];
   /** Length in bytes of @c m_name. */
   uint m_name_length;
+  /** Instrument flags. */
+  int m_flags;
+  bool is_system_thread() const { return m_flags & PSI_FLAG_THREAD_SYSTEM; }
 };
 
 /** Key identifying a table share. */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 #include "sql_parse.h"               // add_join_natural
 #include "sql_update.h"              // Sql_cmd_update
 #include "sql_admin.h"               // Sql_cmd_shutdown etc.
+#include "sql_cmd_show.h"            // Sql_cmd_show_processlist
 
 
 template<enum_parsing_context Context> class PTI_context;
@@ -2680,6 +2681,32 @@ public:
 
   virtual Sql_cmd *make_cmd(THD *thd);
   virtual bool contextualize(Parse_context *pc);
+};
+
+/// Base class for Parse tree nodes of SHOW statements
+
+class PT_show_base : public PT_statement {
+ protected:
+  PT_show_base(const POS &pos, enum_sql_command sql_command)
+      : m_pos(pos), m_sql_command(sql_command) {}
+
+  /// Textual location of a token just parsed.
+  POS m_pos;
+  /// SQL command
+  enum_sql_command m_sql_command;
+};
+
+/// Parse tree node for SHOW PROCESSLIST statement
+
+class PT_show_processlist : public PT_show_base {
+ public:
+  PT_show_processlist(const POS &pos, bool verbose)
+      : PT_show_base(pos, SQLCOM_SHOW_PROCESSLIST), m_sql_cmd(verbose) {}
+
+  virtual Sql_cmd *make_cmd(THD *thd);
+
+ private:
+  Sql_cmd_show_processlist m_sql_cmd;
 };
 
 #endif /* PARSE_TREE_NODES_INCLUDED */

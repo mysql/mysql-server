@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -242,9 +242,6 @@ static struct my_option my_long_options[] =
   {"recover", 'r',
    "Can fix almost anything except unique keys that aren't unique.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"parallel-recover", 'p',
-   "Same as '-r' but creates all the keys in parallel.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"safe-recover", 'o',
    "Uses old recovery method; Slower than '-r' but can handle a couple of cases where '-r' reports that it can't fix the data file.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -432,9 +429,6 @@ static void usage(void)
                       unique.\n\
   -n, --sort-recover  Forces recovering with sorting even if the temporary\n\
 		      file would be very big.\n\
-  -p, --parallel-recover\n\
-                      Uses the same technique as '-r' and '-n', but creates\n\
-                      all the keys in parallel, in different threads.\n\
   -o, --safe-recover  Uses old recovery method; Slower than '-r' but can\n\
 		      handle a couple of cases where '-r' reports that it\n\
 		      can't fix the data file.\n\
@@ -594,11 +588,6 @@ get_one_option(int optid,
     check_param.testflag&= ~T_REP_ANY;
     if (argument != disabled_my_option)
       check_param.testflag|= T_REP_BY_SORT;
-    break;
-  case 'p':
-    check_param.testflag&= ~T_REP_ANY;
-    if (argument != disabled_my_option)
-      check_param.testflag|= T_REP_PARALLEL;
     break;
   case 'o':
     check_param.testflag&= ~T_REP_ANY;
@@ -1007,7 +996,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
       }
       if (!error)
       {
-	if ((param->testflag & (T_REP_BY_SORT | T_REP_PARALLEL)) &&
+	if ((param->testflag & T_REP_BY_SORT) &&
 	    (mi_is_any_key_active(share->state.key_map) ||
 	     (rep_quick && !param->keys_in_use && !recreate)) &&
 	    mi_test_if_sort_rep(info, info->state->records,
@@ -1018,10 +1007,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
             The new file might not be created with the right stats depending
             on how myisamchk is run, so we must copy file stats from old to new.
           */
-          if (param->testflag & T_REP_BY_SORT)
-            error= mi_repair_by_sort(param, info, filename, rep_quick, FALSE);
-          else
-            error= mi_repair_parallel(param, info, filename, rep_quick, FALSE);
+          error= mi_repair_by_sort(param, info, filename, rep_quick, FALSE);
 	  state_updated=1;
 	}
 	else if (param->testflag & T_REP_ANY)

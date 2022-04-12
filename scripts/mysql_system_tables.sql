@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+-- Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -1106,6 +1106,26 @@ SET @cmd="CREATE TABLE performance_schema.threads("
   "HISTORY ENUM ('YES', 'NO') not null,"
   "CONNECTION_TYPE VARCHAR(16),"
   "THREAD_OS_ID BIGINT unsigned"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE PROCESSLIST
+--
+
+SET @cmd="CREATE TABLE performance_schema.processlist("
+  "ID BIGINT unsigned not null,"
+  "USER VARCHAR(32),"
+  "HOST VARCHAR(66),"
+  "DB VARCHAR(64),"
+  "COMMAND VARCHAR(16),"
+  "TIME BIGINT,"
+  "STATE VARCHAR(64),"
+  "INFO LONGTEXT"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');

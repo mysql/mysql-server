@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,7 @@
 #include "table_file_summary_by_instance.h"
 #include "table_file_summary_by_event_name.h"
 #include "table_threads.h"
+#include "table_processlist.h"
 
 #include "table_ews_by_host_by_event_name.h"
 #include "table_ews_by_user_by_event_name.h"
@@ -333,6 +334,8 @@ static PFS_engine_table_share *all_shares[]=
   &table_global_variables::m_share,
   &table_session_variables::m_share,
 
+  &table_processlist::m_share,
+
   NULL
 };
 
@@ -385,6 +388,21 @@ void PFS_check_intact::report_error(uint code, const char *fmt, ...)
   sql_print_error("%s", buff);
 }
 
+/** Error reporting for schema integrity checks. */
+class PFS_silent_check_intact : public Table_check_intact
+{
+protected:
+  virtual void report_error(uint code, const char *fmt, ...) {}
+
+public:
+  PFS_silent_check_intact()
+  {}
+
+  ~PFS_silent_check_intact()
+  {}
+};
+
+
 /**
   Check integrity of the actual table schema.
   The actual table schema (.frm) is compared to the expected schema.
@@ -398,6 +416,8 @@ void PFS_engine_table_share::check_one_table(THD *thd)
                         PERFORMANCE_SCHEMA_str.length,
                         m_name.str, m_name.length,
                         m_name.str, TL_READ);
+  TABLE_LIST *tl = &tables;
+  uint count = 1;
 
   /* Work around until Bug#32115 is backported. */
   LEX dummy_lex;
@@ -405,20 +425,58 @@ void PFS_engine_table_share::check_one_table(THD *thd)
   thd->lex= &dummy_lex;
   lex_start(thd);
 
-  if (! open_and_lock_tables(thd, &tables, MYSQL_LOCK_IGNORE_TIMEOUT))
+  if (! open_tables(thd, &tl, &count, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     PFS_check_intact checker;
 
-    if (!checker.check(tables.table, m_field_def))
-      m_checked= true;
+    if (!checker.check(tables.table, m_field_def)) {
+      m_state->m_checked= true;
+    }
     close_thread_tables(thd);
   }
   else
-    sql_print_error(ER(ER_WRONG_NATIVE_TABLE_STRUCTURE),
-                    PERFORMANCE_SCHEMA_str.str, m_name.str);
+  {
+    if (m_optional) {
+      /*
+        TABLE performance_schema.PROCESSLIST is:
+        - a backport from 8.0
+        - a native table
+        - an optional table, not created by upgrade scripts
+      */
+      sql_print_warning(ER(ER_WARN_WRONG_NATIVE_TABLE_STRUCTURE),
+                        PERFORMANCE_SCHEMA_str.str, m_name.str);
+    } else {
+      sql_print_error(ER(ER_WRONG_NATIVE_TABLE_STRUCTURE),
+                      PERFORMANCE_SCHEMA_str.str, m_name.str);
+    }
+  }
 
   lex_end(&dummy_lex);
   thd->lex= old_lex;
+}
+
+bool PFS_engine_table_share::is_table_checked(TABLE *table) const {
+  if (! m_state->m_checked) {
+    if (m_optional) {
+      /*
+        For optional tables (i.e., processlist),
+        the DBA can add the table with CREATE TABLE
+        at any time.
+        The m_checked flag can be still false if the
+        table was missing during server bootstrap.
+        We do not want to force a server shutdown + restart
+        to re-evaluate this flag for an upgraded instance,
+        so perform a last chance check dynamically here.
+      */
+      PFS_silent_check_intact checker;
+
+      if (! checker.check(table, m_field_def)) {
+        m_state->m_checked= true;
+      }
+    }
+  }
+
+  return m_state->m_checked;
 }
 
 /** Initialize all the table share locks. */
@@ -453,7 +511,7 @@ int PFS_engine_table_share::write_row(TABLE *table, unsigned char *buf,
     Make sure the table structure is as expected before mapping
     hard wired columns in m_write_row.
   */
-  if (! m_checked)
+  if (! is_table_checked(table))
   {
     return HA_ERR_TABLE_NEEDS_UPGRADE;
   }
@@ -532,7 +590,7 @@ int PFS_engine_table::read_row(TABLE *table,
     Make sure the table structure is as expected before mapping
     hard wired columns in read_row_values.
   */
-  if (! m_share_ptr->m_checked)
+  if (! m_share_ptr->is_table_checked(table))
   {
     return HA_ERR_TABLE_NEEDS_UPGRADE;
   }
@@ -577,7 +635,7 @@ int PFS_engine_table::update_row(TABLE *table,
     Make sure the table structure is as expected before mapping
     hard wired columns in update_row_values.
   */
-  if (! m_share_ptr->m_checked)
+  if (! m_share_ptr->is_table_checked(table))
   {
     return HA_ERR_TABLE_NEEDS_UPGRADE;
   }
@@ -600,7 +658,7 @@ int PFS_engine_table::delete_row(TABLE *table,
     Make sure the table structure is as expected before mapping
     hard wired columns in delete_row_values.
   */
-  if (! m_share_ptr->m_checked)
+  if (! m_share_ptr->is_table_checked(table))
   {
     return HA_ERR_TABLE_NEEDS_UPGRADE;
   }
@@ -898,6 +956,33 @@ PFS_readonly_world_acl::check(ulong want_access, ulong *save_priv) const
     if (want_access == SELECT_ACL)
       res= ACL_INTERNAL_ACCESS_GRANTED;
   }
+  return res;
+}
+
+PFS_readonly_processlist_acl pfs_readonly_processlist_acl;
+
+ACL_internal_access_result PFS_readonly_processlist_acl::check(
+    ulong want_access, ulong *save_priv) const {
+  ACL_internal_access_result res =
+      PFS_readonly_acl::check(want_access, save_priv);
+
+  if ((res == ACL_INTERNAL_ACCESS_CHECK_GRANT) && (want_access == SELECT_ACL)) {
+    THD *thd = current_thd;
+    if (thd != NULL) {
+      if (thd->lex->sql_command == SQLCOM_SHOW_PROCESSLIST ||
+          thd->lex->sql_command == SQLCOM_SELECT) {
+        /*
+          For compatibility with the historical
+          SHOW PROCESSLIST command,
+          SHOW PROCESSLIST does not require a
+          SELECT privilege on table performance_schema.processlist,
+          when rewriting the query using table processlist.
+        */
+        return ACL_INTERNAL_ACCESS_GRANTED;
+      }
+    }
+  }
+
   return res;
 }
 

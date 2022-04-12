@@ -459,13 +459,9 @@ COUNT(*)
 DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(30), FULLTEXT(a));
 INSERT INTO t1 VALUES('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
-SET myisam_repair_threads=2;
-Warnings:
-Warning	1681	'@@myisam_repair_threads' is deprecated and will be removed in a future release.
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
-SET myisam_repair_threads=@@global.myisam_repair_threads;
 INSERT INTO t1 VALUES('testword\'\'');
 SELECT a FROM t1 WHERE MATCH a AGAINST('testword' IN BOOLEAN MODE);
 a

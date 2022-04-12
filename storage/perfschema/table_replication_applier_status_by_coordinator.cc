@@ -1,5 +1,5 @@
 /*
-      Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+      Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License, version 2.0,
@@ -83,6 +83,11 @@ TABLE_FIELD_DEF
 table_replication_applier_status_by_coordinator::m_field_def=
 { 6, field_types };
 
+PFS_engine_table_share_state
+table_replication_applier_status_by_coordinator::m_share_state = {
+  false /* m_checked */
+};
+
 PFS_engine_table_share
 table_replication_applier_status_by_coordinator::m_share=
 {
@@ -95,8 +100,9 @@ table_replication_applier_status_by_coordinator::m_share=
   sizeof(pos_t), /* ref length */
   &m_table_lock,
   &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
 };
 
 PFS_engine_table* table_replication_applier_status_by_coordinator::create(void)

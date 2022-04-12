@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -165,6 +165,8 @@ void pfs_end_cond_wait_v1(PSI_cond_locker* locker, int rc);
 
 int pfs_set_thread_connect_attrs_v1(const char *buffer, uint length,
                                       const void *from_cs);
+
+void pfs_set_thread_peer_port_v1(PSI_thread *thread, uint port);
 
 C_MODE_END
 
