@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@
 #include <NdbEnv.h>
 #include <signaldata/DumpStateOrd.hpp>
 #include <string>
-#include <NdbInfo.hpp>
+#include "../../src/ndbapi/NdbInfo.hpp"
 
 static Vector<BaseString> table_list;
 
