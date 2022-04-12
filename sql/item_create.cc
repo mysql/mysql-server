@@ -1667,7 +1667,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
      SQL_FN_INTERNAL(Item_func_can_access_resource_group, 1)},
     {"CONVERT_CPU_ID_MASK", SQL_FN_INTERNAL(Item_func_convert_cpu_id_mask, 1)},
     {"IS_VISIBLE_DD_OBJECT",
-     SQL_FN_INTERNAL_V(Item_func_is_visible_dd_object, 1, 2)},
+     SQL_FN_INTERNAL_V(Item_func_is_visible_dd_object, 1, 3)},
     {"INTERNAL_TABLE_ROWS",
      SQL_FN_LIST_INTERNAL_V(Item_func_internal_table_rows, 8, 9)},
     {"INTERNAL_AVG_ROW_LENGTH",

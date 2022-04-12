@@ -83,7 +83,7 @@ Columns_extensions::Columns_extensions(const dd::String_type &n) {
       "col.name)");
   m_target_def.add_where(
       "AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden NOT IN ('Visible', "
-      "'User'))");
+      "'User'), col.options)");
 }
 
 const dd::String_type &Columns_extensions::view_name() { return s_view_name; }

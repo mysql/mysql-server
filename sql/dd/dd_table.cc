@@ -92,6 +92,7 @@
 #include "sql/sql_check_constraint.h"  // Sql_check_constraint_spec_list
 #include "sql/sql_class.h"             // THD
 #include "sql/sql_const.h"
+#include "sql/sql_gipk.h"  // table_def_has_generated_invisible_primary_key
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"
@@ -2189,6 +2190,36 @@ static bool fill_dd_table_from_create_info(
 
   if (invalid_tablespace_usage(thd, schema_name, table_name, create_info))
     return true;
+
+  /*
+    If table definition has a generated invisible primary key then set "gipk"
+    option for the table, primary key and key column.
+
+    At this point we use these "gipk" flags only in INFORMATION_SCHEMA
+    implementation to filter out information about the GIPK in
+    show_gipk_in_create_table_and_information_schema=OFF mode.
+  */
+  if (table_def_has_generated_invisible_primary_key(
+          thd, create_info->db_type, create_fields, keys, keyinfo)) {
+    // Set "gipk" option for the table.
+    table_options->set("gipk", true);
+
+    // Set "gipk" option for the primary key.
+    for (dd::Index *idx : *tab_obj->indexes()) {
+      if (idx->type() == dd::Index::IT_PRIMARY) {
+        idx->options().set("gipk", true);
+        break;
+      }
+    }
+
+    // Set "gipk" option for the column added for GIPK.
+    for (dd::Column *col : *tab_obj->columns()) {
+      if (is_generated_invisible_primary_key_column_name(col->name().c_str())) {
+        col->options().set("gipk", true);
+        break;
+      }
+    }
+  }
 
   /*
     Add hidden columns and indexes which are implicitly created by storage

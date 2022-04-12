@@ -7218,6 +7218,23 @@ static Sys_var_bool Sys_sql_require_primary_key{
     IN_BINLOG,
     ON_CHECK(check_session_admin)};
 
+static Sys_var_bool Sys_sql_generate_invisible_primary_key(
+    "sql_generate_invisible_primary_key",
+    "When set, if a table is created without a primary key then server "
+    "generates invisible auto-increment column as a primary key for the table.",
+    SESSION_VAR(sql_generate_invisible_primary_key), CMD_LINE(OPT_ARG),
+    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_session_admin), ON_UPDATE(nullptr));
+
+static Sys_var_bool Sys_show_gipk_in_create_table_and_information_schema(
+    "show_gipk_in_create_table_and_information_schema",
+    "When set, if a primary key is generated for a table then SHOW commands "
+    "and INFORMATION_SCHEMA tables shows generated invisible primary key "
+    "definition.",
+    SESSION_VAR(show_gipk_in_create_table_and_information_schema),
+    CMD_LINE(OPT_ARG), DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
 static Sys_var_charptr Sys_sys_variables_admin_subject(
     PERSIST_ONLY_ADMIN_X509_SUBJECT,
     "The client peer certificate name required to enable setting all "

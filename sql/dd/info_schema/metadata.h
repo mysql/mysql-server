@@ -211,18 +211,31 @@ namespace info_schema {
   There are no changes from version 80023. Hence server versions 80024..80028
   uses I_S version 80023.
 
-  80029: Current.
+  80029: Published in 8.0.29
   ------------------------------------
   Changes from version 80023:
 
   - Bug#33781534: INFORMATION_SCHEMA.KEY_COLUMN_USAGE table is modified to
                   list invisible columns with key constraints.
 
-  80030: Next IS version number after the previous is public.
+  80030: Current.
   ------------------------------------
   Changes from version 80029:
   - Bug #33787300 Rename utf8_xxx collations to utf8mb3_xxx
 
+  - WL#13784: Following INFORMATION_SCHEMA tables are modified to skip listing
+              generated invisible primary key and key column when system
+              variable show_gipk_in_create_table_and_information_schema = OFF,
+                INFORMATION_SCHEMA.COLUMNS
+                INFORMATION_SCHEMA.COLUMNS_EXTENSIONS
+                INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+                INFORMATION_SCHEMA.STATISTICS
+                INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+                INFORMATION_SCHEMA.TABLE_CONSTRAINTS_EXTENSIONS
+
+  80031: Next IS version number after the previous is public.
+  ------------------------------------
+  Changes from version 80030:
 */
 
 static const uint IS_DD_VERSION = 80030;

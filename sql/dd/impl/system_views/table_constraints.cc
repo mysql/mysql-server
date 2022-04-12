@@ -61,7 +61,7 @@ Table_constraints::Table_constraints() {
       "    'YES' as ENFORCED"
       "  FROM mysql.indexes idx"
       "    WHERE idx.table_id=tbl.id AND idx.type IN ('PRIMARY', 'UNIQUE')"
-      "          AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden)"
+      "          AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden, idx.options)"
       " UNION ALL"
       "  SELECT"
       "    fk.name COLLATE utf8mb3_tolower_ci AS CONSTRAINT_NAME,"

@@ -101,7 +101,8 @@ Key_column_usage::Key_column_usage() {
   m_target_def.add_where("CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)");
   m_target_def.add_where(
       "AND IS_VISIBLE_DD_OBJECT(tbl.hidden, "
-      "col.hidden NOT IN ('Visible', 'User') OR constraints.HIDDEN)");
+      "col.hidden NOT IN ('Visible', 'User') OR constraints.HIDDEN, "
+      "col.options)");
 }
 
 }  // namespace system_views

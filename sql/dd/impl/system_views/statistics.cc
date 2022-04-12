@@ -98,7 +98,7 @@ Statistics_base::Statistics_base() {
   m_target_def.add_where("CAN_ACCESS_TABLE(sch.name, tbl.name)");
   m_target_def.add_where(
       "AND IS_VISIBLE_DD_OBJECT(tbl.hidden, "
-      "idx.hidden OR icu.hidden)");
+      "idx.hidden OR icu.hidden, idx.options)");
 }
 
 Statistics::Statistics() {

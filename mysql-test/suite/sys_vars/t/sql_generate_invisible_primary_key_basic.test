@@ -1,0 +1,110 @@
+# Variable Name: sql_generate_invisible_primary_key
+# Scope: Global & Session
+# Data type: Boolean
+# Default Value: OFF
+
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+SET @saved_global_sql_generate_invisible_primary_key =  @@global.sql_generate_invisible_primary_key;
+SET @saved_session_sql_generate_invisible_primary_key = @@session.sql_generate_invisible_primary_key;
+
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+
+--let $assert_text= Default GLOBAL value is OFF
+--let $assert_cond = [SELECT @@global.sql_generate_invisible_primary_key = 0]
+--source include/assert.inc
+
+--let $assert_text= Default SESSION value is OFF
+--let $assert_cond = [SELECT @@session.sql_generate_invisible_primary_key = 0]
+--source include/assert.inc
+
+####################################################################
+#   Check if Value can set and that P_S reports the correct value  #
+####################################################################
+
+--let $json_label = varscope
+--let $json_keys = scope, ps_table
+--source include/create_json_unpacking_iterator.inc
+
+let $json_array = [
+  { "scope": "SESSION", "ps_table": "session_variables" },
+  { "scope": "GLOBAL", "ps_table": "global_variables" },
+  { "scope": "PERSIST", "ps_table": "persisted_variables" },
+  { "scope": "PERSIST_ONLY", "ps_table": "persisted_variables" }
+];
+
+--source $json_varscope_start
+while (!$json_varscope_done) {
+  --let $json_label = values
+  --let $json_keys = value_to_set, expected_result
+  --source include/create_json_unpacking_iterator.inc
+  let $json_array = [
+    { "value_to_set": "0", "expected_result": "OFF" },
+    { "value_to_set": "DEFAULT", "expected_result": "OFF" },
+    { "value_to_set": "OFF", "expected_result": "OFF" },
+    { "value_to_set": "FALSE", "expected_result": "OFF" },
+    { "value_to_set": "ON", "expected_result": "ON" },
+    { "value_to_set": "TRUE", "expected_result": "ON" },
+    { "value_to_set": "1", "expected_result": "ON" }
+  ];
+
+  --source $json_values_start
+  while (!$json_values_done) {
+    --eval SET @@$scope.sql_generate_invisible_primary_key = $value_to_set
+    --let $reported=`SELECT variable_value FROM performance_schema.$ps_table WHERE variable_name = 'sql_generate_invisible_primary_key'`
+
+    --let $assert_text= Reported value matches the one set (set $value_to_set in $scope scope)
+    --let $assert_cond = "$reported" = "$expected_result"
+    --source include/assert.inc
+
+    --source $json_values_next
+  }
+
+  --source $json_varscope_next
+}
+--source include/destroy_json_functions.inc
+
+####################################################################
+# Privileges                                                       #
+####################################################################
+
+CREATE USER user1;
+--connect(conn_user1,localhost,user1,,)
+
+# assert that one cannot change the value without privileges
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL sql_generate_invisible_primary_key = ON;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION sql_generate_invisible_primary_key = ON;
+
+# assert that one can change the value if SYSTEM_VARIABLES_ADMIN is given
+--connection default
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO user1@'%';
+--connection conn_user1
+SET GLOBAL sql_generate_invisible_primary_key=ON;
+SET SESSION sql_generate_invisible_primary_key=ON;
+
+# assert that one can change the session value if SESSION_VARIABLES_ADMIN is given
+--connection default
+REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM user1@'%';
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO user1@'%';
+--connection conn_user1
+SET SESSION sql_generate_invisible_primary_key = ON;
+
+--connection default
+DROP USER user1;
+--disconnect conn_user1
+
+####################################################################
+# End of tests                                                     #
+####################################################################
+RESET PERSIST;
+
+SET SESSION sql_generate_invisible_primary_key = @saved_session_sql_generate_invisible_primary_key;
+SET GLOBAL sql_generate_invisible_primary_key = @saved_global_sql_generate_invisible_primary_key;
+# Check that all connections opened by test cases in this file are really gone
+# so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc

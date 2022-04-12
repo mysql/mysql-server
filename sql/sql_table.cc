@@ -159,6 +159,7 @@
 #include "sql/sql_db.h"          // get_default_db_collation
 #include "sql/sql_error.h"
 #include "sql/sql_executor.h"  // unique_ptr_destroy_only<RowIterator>
+#include "sql/sql_gipk.h"
 #include "sql/sql_handler.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
@@ -9971,6 +9972,7 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   bool is_trans = false;
   uint not_used;
   handlerton *post_ddl_ht = nullptr;
+  bool is_pk_generated = false;
   Foreign_key_parents_invalidator fk_invalidator;
   DBUG_TRACE;
 
@@ -10074,6 +10076,20 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   if (!thd->variables.explicit_defaults_for_timestamp)
     promote_first_timestamp_column(&alter_info->create_list);
 
+  /*
+    If mode to generate invisible primary key is active then, generate primary
+    key for the table.
+  */
+  if (is_generate_invisible_primary_key_mode_active(thd) &&
+      is_candidate_table_for_invisible_primary_key_generation(create_info,
+                                                              alter_info)) {
+    if (validate_and_generate_invisible_primary_key(thd, alter_info)) {
+      result = true;
+      goto end;
+    }
+    is_pk_generated = true;
+  }
+
   result = mysql_create_table_no_lock(
       thd, create_table->db, create_table->table_name, create_info, alter_info,
       0,
@@ -10103,8 +10119,68 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
         (thd->is_current_stmt_binlog_format_row() &&
          !(create_info->options & HA_LEX_CREATE_TMP_TABLE))) {
       thd->add_to_binlog_accessed_dbs(create_table->db);
-      result = write_bin_log(thd, true, thd->query().str, thd->query().length,
-                             is_trans);
+
+      /*
+        If primary key is generated for a table then we create version of CREATE
+        TABLE statement which includes generated key and invisible column
+        definitions in explicit form by calling store_create_info(). This is
+        necessary to correctly binlog/replicate such statements, as we don't
+        write to binary log value of @@sql_generate_invisible_primary_key
+        variable, but rely on logging what really has been done instead.
+      */
+      if ((create_table->table == nullptr && !create_table->is_view()) &&
+          is_pk_generated) {
+        /*
+          Open table to generate CREATE TABLE statement. For non-temporary
+          table we already have exclusive lock here.
+        */
+        if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+          result = open_temporary_table(thd, create_table);
+        } else {
+          Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
+          result = open_table(thd, create_table, &ot_ctx);
+
+          // Play safe, remove uncommitted table share from the cache.
+          tdc_remove_table(thd, TDC_RT_REMOVE_NOT_OWN, create_table->db,
+                           create_table->table_name, false);
+        }
+
+        if (!result) {
+          char buf[2048];
+          String query(buf, sizeof(buf), system_charset_info);
+          query.length(0);
+          result = store_create_info(thd, create_table, &query, create_info,
+                                     true /* show_database */,
+                                     false /* SHOW CREATE TABLE */);
+          assert(result == 0);  // store_create_info() always return 0
+
+          // Write generated CREATE TABLE statement to binlog.
+          result =
+              write_bin_log(thd, true, query.ptr(), query.length(), is_trans);
+
+          /*
+            Handle TABLE instance created for the non-temporary table here to
+            avoid problems on transaction rollback. close_thread_table() at the
+            end of statement will take care about the TABLE instance created
+            for the temporary table.
+          */
+          if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+            /*
+              close_thread_table() will take care about the TABLE instance we
+              might have created for the non-temporary table, unless we are
+              under LOCK TABLES. However, creation of non-temporary table is
+              not allowed under LOCK TABLES. So we can't get here under LOCK
+              TABLES.
+            */
+            assert(!thd->locked_tables_mode);
+            close_thread_table(thd, &thd->open_tables);
+            create_table->table = nullptr;
+          }
+        }
+      } else {
+        result = write_bin_log(thd, true, thd->query().str, thd->query().length,
+                               is_trans);
+      }
     }
   }
 
@@ -10364,8 +10440,8 @@ static bool alter_table_drop_histograms(THD *thd, TABLE_LIST *table,
 
   /*
     If we are changing the character set, find all character columns. TEXT and
-    similar types will be converted similarly as a BLOB/LONG_BLOB etc. but with a
-    non-binary character set.
+    similar types will be converted similarly as a BLOB/LONG_BLOB etc. but with
+    a non-binary character set.
   */
   if (convert_character_set) {
     for (const auto column : altered_table_def->columns()) {
@@ -10970,7 +11046,8 @@ bool mysql_create_like_table(THD *thd, TABLE_LIST *table, TABLE_LIST *src_table,
           create_info->used_fields |= HA_CREATE_USED_ENGINE;
 
           bool result [[maybe_unused]] = store_create_info(
-              thd, table, &query, create_info, true /* show_database */);
+              thd, table, &query, create_info, true /* show_database */,
+              false /* SHOW CREATE TABLE */);
 
           assert(result == 0);  // store_create_info() always return 0
 
@@ -14722,6 +14799,11 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
     return true;
   }
 
+  // Make sure generated invisible primary key column is at the first position.
+  if (adjust_generated_invisible_primary_key_column_position(
+          thd, create_info->db_type, table, &new_create_list))
+    return true;
+
   /*
     Collect all keys which isn't in drop list. Add only those
     for which some fields exists.
@@ -15517,7 +15599,6 @@ bool adjust_fks_for_rename_table(THD *thd, const char *db,
 
   @param alter_info   Alter_info describing ALTER.
 */
-
 static bool is_simple_rename_or_index_change(const Alter_info *alter_info) {
   return (!(alter_info->flags &
             ~(Alter_info::ALTER_RENAME | Alter_info::ALTER_KEYS_ONOFF)) &&
@@ -15538,7 +15619,6 @@ static bool is_simple_rename_or_index_change(const Alter_info *alter_info) {
     @retval false           Success
     @retval true            Failure
 */
-
 static bool simple_rename_or_index_change(
     THD *thd, const dd::Schema &new_schema, TABLE_LIST *table_list,
     Alter_info::enum_enable_or_disable keys_onoff, Alter_table_ctx *alter_ctx) {
@@ -16743,6 +16823,11 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                 alter_info, &alter_ctx)) {
     return true;
   }
+
+  // Check restrictions on ALTER TABLE operations that affects GIPK and PK.
+  if (check_primary_key_alter_restrictions(thd, create_info->db_type,
+                                           alter_info, table))
+    return true;
 
   /*
     Check if we are changing the SRID specification on a geometry column that

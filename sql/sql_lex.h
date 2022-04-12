@@ -2737,6 +2737,15 @@ class Query_tables_list {
     */
     BINLOG_STMT_UNSAFE_ACL_TABLE_READ_IN_DML_DDL,
 
+    /**
+      Generating invisible primary key for a table created using CREATE TABLE...
+      SELECT... is unsafe because order in which rows are retrieved by the
+      SELECT determines which (if any) rows are inserted. This order cannot be
+      predicted and values for generated invisible primary key column may
+      differ on source and replica when @@session.binlog_format=STATEMENT.
+    */
+    BINLOG_STMT_UNSAFE_CREATE_SELECT_WITH_GIPK,
+
     /* the last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT
   };

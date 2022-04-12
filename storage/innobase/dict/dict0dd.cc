@@ -1572,6 +1572,46 @@ void dd_copy_instant_n_cols(dd::Table &new_table, const dd::Table &old_table) {
 #endif /* UNIV_DEBUG */
 }
 
+/** Helper method for dd_copy_private() to copy options from dd::Table,
+dd::Index, dd::Partition or dd::Partition_index instances.
+@tparam         T               dd::Table, dd::Index, dd::Partition or
+                                dd::Partition_index
+@param[in,out]  new_dd_obj      New dd::Table, dd::Index, dd::Partition or
+                                dd::Partition_index instance.
+@param[in]      old_dd_obj      Old dd::Table, dd::Index, dd::Partition or
+                                dd::Partition_index instance. */
+template <typename T>
+static void dd_copy_options(T *new_dd_obj, const T *old_dd_obj) {
+  bool new_options_has_gipk = false;
+  bool new_gipk_value = false;
+  if (new_dd_obj->options().exists("gipk")) {
+    new_options_has_gipk = true;
+    new_dd_obj->options().get("gipk", &new_gipk_value);
+  }
+
+  /* Copy options. */
+  new_dd_obj->options().clear();
+  new_dd_obj->set_options(old_dd_obj->options());
+
+  /* "gipk" option in dd::Index is used to indicate Generated Invisible Primary
+  Key(GIPK) and in dd::Table to indicate table has a GIPK. This option can be
+  altered using instant ALTER TABLE. Simply copying options from the
+  old_options to the new_options will revert changes related to "gipk" option.
+  So explicitly set or remove "gipk" option after copying. */
+  if (new_options_has_gipk) {
+    new_dd_obj->options().set("gipk", new_gipk_value);
+  } else if (old_dd_obj->options().exists("gipk")) {
+    new_dd_obj->options().remove("gipk");
+  }
+}
+
+template void dd_copy_options<dd::Table>(dd::Table *, const dd::Table *);
+template void dd_copy_options<dd::Index>(dd::Index *, const dd::Index *);
+template void dd_copy_options<dd::Partition>(dd::Partition *,
+                                             const dd::Partition *);
+template void dd_copy_options<dd::Partition_index>(dd::Partition_index *,
+                                                   const dd::Partition_index *);
+
 template <typename Table>
 void dd_copy_private(Table &new_table, const Table &old_table) {
   uint64_t autoinc = 0;
@@ -1622,13 +1662,11 @@ void dd_copy_private(Table &new_table, const Table &old_table) {
 
     new_index->set_se_private_data(old_index->se_private_data());
     new_index->set_tablespace_id(old_index->tablespace_id());
-    new_index->options().clear();
-    new_index->set_options(old_index->options());
+    dd_copy_options(new_index, old_index);
   }
 
   new_table.table().set_row_format(old_table.table().row_format());
-  new_table.options().clear();
-  new_table.set_options(old_table.options());
+  dd_copy_options(&new_table, &old_table);
 }
 
 template void dd_copy_private<dd::Table>(dd::Table &, const dd::Table &);

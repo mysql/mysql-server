@@ -186,6 +186,7 @@ static char *shared_memory_base_name = 0;
 #endif
 static uint opt_protocol = 0;
 static char *opt_plugin_dir = nullptr, *opt_default_auth = nullptr;
+static bool opt_skip_gipk = false;
 
 Prealloced_array<uint, 12> ignore_error(PSI_NOT_INSTRUMENTED);
 static int parse_ignore_error();
@@ -653,6 +654,11 @@ static struct my_option my_long_options[] = {
      "inclusive. Default is 3.",
      &opt_zstd_compress_level, &opt_zstd_compress_level, nullptr, GET_UINT,
      REQUIRED_ARG, 3, 1, 22, nullptr, 0, nullptr},
+    {"skip-generated-invisible-primary-key", 0,
+     "Controls whether generated invisible primary key and key column should "
+     "be dumped or not.",
+     &opt_skip_gipk, &opt_skip_gipk, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
 
@@ -1700,6 +1706,13 @@ static int connect_to_db(char *host, char *user) {
       mysql_query_with_error_report(
           mysql, nullptr,
           "/*!80018 SET SESSION show_create_table_skip_secondary_engine=1 */"))
+    return 1;
+
+  if (opt_skip_gipk &&
+      mysql_query_with_error_report(
+          mysql, nullptr,
+          "/*!80030 SET SESSION "
+          "show_gipk_in_create_table_and_information_schema = OFF */"))
     return 1;
 
   return 0;

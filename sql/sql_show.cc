@@ -116,6 +116,7 @@
 #include "sql/sql_db.h"  // get_default_db_collation
 #include "sql/sql_error.h"
 #include "sql/sql_executor.h"  // QEP_TAB
+#include "sql/sql_gipk.h"      // table_has_generated_invisible_primary_key
 #include "sql/sql_lex.h"       // LEX
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // JOIN
@@ -1183,7 +1184,8 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
   if (table_list->is_view())
     view_store_create_info(thd, table_list, &buffer);
   else if (store_create_info(thd, table_list, &buffer, nullptr,
-                             false /* show_database */))
+                             false /* show_database */,
+                             true /* SHOW CREATE TABLE */))
     goto exit;
 
   if (table_list->is_view()) {
@@ -1854,12 +1856,18 @@ static void print_foreign_key_info(THD *thd, const LEX_CSTRING *db,
                           that it is different from the current database.
                           If false, then do not print the database before
                           the table name.
+  @param for_show_create_stmt  If true, then build CREATE TABLE statement for
+                               SHOW CREATE TABLE statement. If false, then
+                               store_create_info() is invoked to build CREATE
+                               TABLE statement while logging event to binlog.
+
 
   @returns true if error, false otherwise.
 */
 
 bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
-                       HA_CREATE_INFO *create_info_arg, bool show_database) {
+                       HA_CREATE_INFO *create_info_arg, bool show_database,
+                       bool for_show_create_stmt) {
   char tmp[MAX_FIELD_WIDTH], buff[128], def_value_buf[MAX_FIELD_WIDTH];
   const char *alias;
   String type(tmp, sizeof(tmp), system_charset_info);
@@ -1938,13 +1946,34 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     });
   }
 
-  for (ptr = table->field; (field = *ptr); ptr++) {
+  /*
+    When building CREATE TABLE statement for the SHOW CREATE TABLE (i.e.
+    for_show_create_stmt = true), skip generated invisible primary key
+    if system variable 'show_gipk_in_create_table_and_information_schema' is set
+    to OFF.
+  */
+  bool skip_gipk =
+      (for_show_create_stmt &&
+       table_has_generated_invisible_primary_key(table) &&
+       !thd->variables.show_gipk_in_create_table_and_information_schema);
+
+  Field **first_field = table->field;
+  /*
+    Generated invisible primary key column is placed at the first position.
+    So skip first column when skip_gipk is set.
+  */
+  assert(!table_has_generated_invisible_primary_key(table) ||
+         is_generated_invisible_primary_key_column_name(
+             (*first_field)->field_name));
+  if (skip_gipk) first_field++;
+
+  for (ptr = first_field; (field = *ptr); ptr++) {
     // Skip hidden system fields.
     if (field->is_hidden_by_system()) continue;
 
     enum_field_types field_type = field->real_type();
 
-    if (ptr != table->field) packet->append(STRING_WITH_LEN(",\n"));
+    if (ptr != first_field) packet->append(STRING_WITH_LEN(",\n"));
 
     packet->append(STRING_WITH_LEN("  "));
     append_identifier(thd, packet, field->field_name,
@@ -2096,12 +2125,22 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   }
 
   key_info = table->key_info;
+  /*
+    Primary key is always at the first position in the keys list. Skip printing
+    primary key definition when skip_gipk is set.
+  */
+  assert(!table_has_generated_invisible_primary_key(table) ||
+         ((key_info->user_defined_key_parts == 1) &&
+          is_generated_invisible_primary_key_column_name(
+              key_info->key_part->field->field_name)));
+  if (skip_gipk) key_info++;
+
   /* Allow update_create_info to update row type */
   create_info.row_type = share->row_type;
   file->update_create_info(&create_info);
   primary_key = share->primary_key;
 
-  for (uint i = 0; i < share->keys; i++, key_info++) {
+  for (uint i = skip_gipk ? 1 : 0; i < share->keys; i++, key_info++) {
     KEY_PART_INFO *key_part = key_info->key_part;
     bool found_primary = false;
     packet->append(STRING_WITH_LEN(",\n  "));
@@ -2289,9 +2328,13 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       is supported is identical, !(file->table_flags() & HA_NO_AUTO_INCREMENT))
       Because of that, we do not explicitly test for the feature,
       but may extrapolate its existence from that of an AUTO_INCREMENT column.
+
+      If table has a generated invisible primary key and skip_gipk is set,
+      then we should not print the AUTO_INCREMENT as AUTO_INCREMENT column
+      (generated invisible primary key column) is skipped with this setting.
     */
 
-    if (create_info.auto_increment_value > 1) {
+    if (create_info.auto_increment_value > 1 && !skip_gipk) {
       char *end;
       packet->append(STRING_WITH_LEN(" AUTO_INCREMENT="));
       end = longlong10_to_str(create_info.auto_increment_value, buff, 10);
@@ -3812,6 +3855,21 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
   show_table->use_all_columns();  // Required for default
   restore_record(show_table, s->default_values);
 
+  /*
+    If a primary key is generated for the table then hide definition of a
+    generated invisible primary key when system variable
+    show_gipk_in_create_table_and_information_schema is set to OFF.
+  */
+  if (table_has_generated_invisible_primary_key(show_table) &&
+      !thd->variables.show_gipk_in_create_table_and_information_schema) {
+    /*
+      Generated invisible primary key column is placed at the first position.
+      So skip first column.
+    */
+    assert(is_generated_invisible_primary_key_column_name((*ptr)->field_name));
+    ptr++;
+  }
+
   for (; (field = *ptr); ptr++) {
     const uchar *pos;
     char tmp[MAX_FIELD_WIDTH];
@@ -4027,7 +4085,26 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
     show_table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK |
                            HA_STATUS_TIME);
 
-  for (uint i = 0; i < show_table->s->keys; i++, key_info++) {
+  uint i = 0;
+  /*
+    If a primary key is generated for the table then hide definition of a
+    generated invisible primary key when system variable
+    show_gipk_in_create_table_and_information_schema is set to OFF.
+  */
+  if (table_has_generated_invisible_primary_key(show_table) &&
+      !thd->variables.show_gipk_in_create_table_and_information_schema) {
+    /*
+      Primary key is always at the first position in the keys list. Skip
+      printing primary key definition.
+    */
+    assert((key_info->user_defined_key_parts == 1) &&
+           (is_generated_invisible_primary_key_column_name(
+               key_info->key_part->field->field_name)));
+    i++;
+    key_info++;
+  }
+
+  for (; i < show_table->s->keys; i++, key_info++) {
     KEY_PART_INFO *key_part = key_info->key_part;
     const char *str;
     for (uint j = 0; j < key_info->user_defined_key_parts; j++, key_part++) {

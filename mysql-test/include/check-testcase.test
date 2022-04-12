@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 #
 
 # ==== Purpose ====
@@ -154,6 +154,7 @@ if ($proceed_with_check_of_files) {
   SET SESSION sql_log_bin = 0;
   # Checking needs to create temporary tables without primary key
   SET SESSION sql_require_primary_key = 0;
+  SET SESSION sql_generate_invisible_primary_key = 0;
 
   USE test;
 

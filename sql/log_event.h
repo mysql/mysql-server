@@ -2418,7 +2418,13 @@ class Table_map_log_event : public binary_log::Table_map_event,
   enum {
     TM_NO_FLAGS = 0U,
     TM_BIT_LEN_EXACT_F = (1U << 0),
-    TM_REFERRED_FK_DB_F = (1U << 1)
+    TM_REFERRED_FK_DB_F = (1U << 1),
+    /**
+      Table has generated invisible primary key. MySQL generates primary key
+      while creating a table if sql_generate_invisible_primary_key is "ON" and
+      table is PK-less.
+    */
+    TM_GENERATED_INVISIBLE_PK_F = (1U << 2)
   };
 
   flag_set get_flags(flag_set flag) const { return m_flags & flag; }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,10 @@ void Mysql_object_reader_options::create_options() {
       ->set_minimum_value(1)
       ->set_maximum_value(MAX_EXTENDED_INSERT)
       ->set_value(250);
+  this->create_new_option(&m_skip_gipk, "skip-generated-invisible-primary-key",
+                          "Controls whether generated primary key and key "
+                          "column should be dumped or not.")
+      ->set_value(false);
 }
 
 Mysql_object_reader_options::Mysql_object_reader_options(
