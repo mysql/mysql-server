@@ -1,0 +1,125 @@
+# Tests for PERFORMANCE_SCHEMA
+
+CREATE USER user1@localhost;
+CREATE USER user2@localhost;
+CREATE USER user3@localhost;
+
+grant ALL on *.* to user1@localhost;
+grant ALL on *.* to user2@localhost;
+grant ALL on *.* to user3@localhost;
+
+TRUNCATE TABLE performance_schema.accounts;
+
+FLUSH PRIVILEGES;
+
+CREATE TABLE test.t_range(a int, b int, PRIMARY KEY(a));
+
+INSERT INTO test.t_range values (1, 1), (2,2), (3, 3), (4, 4), (5, 5);
+INSERT INTO test.t_range values (6, 6), (7,7), (8, 8), (9, 9), (10, 10);
+
+FLUSH STATUS;
+
+let $initial= `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Select_range'`;
+
+# Causes Select_range to increment (+1)
+SELECT * from test.t_range where (a >= 3) AND (a <= 5);
+
+SELECT * from performance_schema.session_status
+  WHERE VARIABLE_NAME = 'Select_range';
+
+--disable_query_log
+eval SELECT VARIABLE_NAME, (VARIABLE_VALUE - $initial) AS DELTA from performance_schema.global_status WHERE VARIABLE_NAME = 'Select_range';
+--enable_query_log
+
+connect(con1, localhost, user1,,);
+# Causes Select_range to increment (+1)
+SELECT * from test.t_range where (a >= 3) AND (a <= 5);
+
+SELECT * from performance_schema.session_status
+  WHERE VARIABLE_NAME = 'Select_range';
+
+--disable_query_log
+eval SELECT VARIABLE_NAME, (VARIABLE_VALUE - $initial) AS DELTA from performance_schema.global_status WHERE VARIABLE_NAME = 'Select_range';
+--enable_query_log
+
+connect(con2, localhost, user2,,);
+# Causes Select_range to increment (+2)
+SELECT * from test.t_range where (a >= 3) AND (a <= 5);
+SELECT * from test.t_range where (a >= 4) AND (a <= 6);
+
+SELECT * from performance_schema.session_status
+  WHERE VARIABLE_NAME = 'Select_range';
+
+--disable_query_log
+eval SELECT VARIABLE_NAME, (VARIABLE_VALUE - $initial) AS DELTA from performance_schema.global_status WHERE VARIABLE_NAME = 'Select_range';
+--enable_query_log
+
+connect(con3, localhost, user3,,);
+# Causes Select_range to increment (+3)
+SELECT * from test.t_range where (a >= 3) AND (a <= 5);
+SELECT * from test.t_range where (a >= 4) AND (a <= 6);
+SELECT * from test.t_range where (a >= 5) AND (a <= 7);
+
+SELECT * from performance_schema.session_status
+  WHERE VARIABLE_NAME = 'Select_range';
+
+--disable_query_log
+eval SELECT VARIABLE_NAME, (VARIABLE_VALUE - $initial) AS DELTA from performance_schema.global_status WHERE VARIABLE_NAME = 'Select_range';
+--enable_query_log
+
+--connection default
+
+--disable_query_log
+eval SELECT VARIABLE_NAME, (VARIABLE_VALUE - $initial) AS DELTA from performance_schema.global_status WHERE VARIABLE_NAME = 'Select_range';
+--enable_query_log
+
+SELECT `USER`, `HOST`, VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.status_by_account WHERE VARIABLE_NAME = 'Select_range'
+  AND `USER` LIKE 'user%'
+  ORDER BY `USER`;
+
+--disconnect con1
+--disconnect con2
+
+# Wait till all disconnects are completed
+let $count_sessions= 2;
+--source include/wait_until_count_sessions.inc
+
+--disable_query_log
+eval SELECT VARIABLE_NAME, (VARIABLE_VALUE - $initial) AS DELTA from performance_schema.global_status WHERE VARIABLE_NAME = 'Select_range';
+--enable_query_log
+
+TRUNCATE TABLE performance_schema.accounts;
+
+--disable_query_log
+eval SELECT VARIABLE_NAME, (VARIABLE_VALUE - $initial) AS DELTA from performance_schema.global_status WHERE VARIABLE_NAME = 'Select_range';
+--enable_query_log
+
+--disconnect con3
+
+# Wait till all disconnects are completed
+let $count_sessions= 1;
+--source include/wait_until_count_sessions.inc
+
+--disable_query_log
+eval SELECT VARIABLE_NAME, (VARIABLE_VALUE - $initial) AS DELTA from performance_schema.global_status WHERE VARIABLE_NAME = 'Select_range';
+--enable_query_log
+
+# Make sure TRUNCATE on accounts does not add to global_status
+TRUNCATE TABLE performance_schema.accounts;
+
+--disable_query_log
+eval SELECT VARIABLE_NAME, (VARIABLE_VALUE - $initial) AS DELTA from performance_schema.global_status WHERE VARIABLE_NAME = 'Select_range';
+--enable_query_log
+
+DROP TABLE test.t_range;
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user2@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user3@localhost;
+DROP USER user1@localhost;
+DROP USER user2@localhost;
+DROP USER user3@localhost;
+
+FLUSH PRIVILEGES;
+
