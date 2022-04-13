@@ -554,28 +554,17 @@ void PFS_account::aggregate_memory(bool alive, PFS_user *safe_user,
 }
 
 void PFS_account::aggregate_status(PFS_user *safe_user, PFS_host *safe_host) {
-  if (likely(safe_user != nullptr && safe_host != nullptr)) {
-    /*
-      Aggregate STATUS_BY_ACCOUNT to:
-      - STATUS_BY_USER
-      - STATUS_BY_HOST
-    */
-    safe_user->m_status_stats.aggregate(&m_status_stats);
-    safe_host->m_status_stats.aggregate(&m_status_stats);
-    m_status_stats.reset();
-    return;
-  }
+  /*
+    Never aggregate to global_status_var,
+    because of the parallel THD -> global_status_var flow.
+  */
 
   if (safe_user != nullptr) {
     /*
       Aggregate STATUS_BY_ACCOUNT to:
       - STATUS_BY_USER
-      - GLOBAL_STATUS
     */
     safe_user->m_status_stats.aggregate(&m_status_stats);
-    m_status_stats.aggregate_to(&global_status_var);
-    m_status_stats.reset();
-    return;
   }
 
   if (safe_host != nullptr) {
@@ -584,15 +573,8 @@ void PFS_account::aggregate_status(PFS_user *safe_user, PFS_host *safe_host) {
       - STATUS_BY_HOST
     */
     safe_host->m_status_stats.aggregate(&m_status_stats);
-    m_status_stats.reset();
-    return;
   }
 
-  /*
-    Aggregate STATUS_BY_ACCOUNT to:
-    - GLOBAL_STATUS
-  */
-  m_status_stats.aggregate_to(&global_status_var);
   m_status_stats.reset();
   return;
 }
