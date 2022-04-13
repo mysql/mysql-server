@@ -6648,8 +6648,15 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
       immediate_update_delete_candidates, need_rowid, EngineFlags(thd),
       thd->variables.optimizer_max_subgraph_pairs, secondary_engine_cost_hook,
       trace);
-  if (EnumerateAllConnectedPartitions(graph.graph, &receiver) &&
-      !thd->is_error() && join->zero_result_cause == nullptr) {
+  if (graph.edges.empty()) {
+    // Fast path for single-table queries. No need to run the join enumeration
+    // when there is no join. Just visit the only node directly.
+    assert(graph.nodes.size() == 1);
+    if (receiver.FoundSingleNode(0) && thd->is_error()) {
+      return nullptr;
+    }
+  } else if (EnumerateAllConnectedPartitions(graph.graph, &receiver) &&
+             !thd->is_error() && join->zero_result_cause == nullptr) {
     SimplifyQueryGraph(thd, thd->variables.optimizer_max_subgraph_pairs, &graph,
                        trace);
 
