@@ -8605,7 +8605,7 @@ ER_GEOMETRY_PARAM_LATITUDE_OUT_OF_RANGE 22S03
   eng "A parameter of function %.192s contains a geometry with latitude %f, which is out of range. It must be within [%f, %f]."
 
 ER_GEOMETRY_REDEFINED
-  eng "A parameter of function %.192s contains different geometries to define same node [id: %d]"
+  eng "Parameters of function %.192s contains different geometries to define same node [node/point id = %d]"
 
 ER_FK_CANNOT_USE_VIRTUAL_COLUMN
   eng "Foreign key '%s' uses virtual column '%s' which is not supported."
@@ -9707,16 +9707,25 @@ ER_NO_PATH_FOUND
   eng "No path found on %s"
 
 ER_START_AND_END_NODE_CONFLICT
-  eng "End node can't be equals to start node on %s"
+  eng "End node can't be equal to start node on %s"
 
 ER_START_AND_END_NODE_CONSTANT
   eng "Start node and end node must be constant on %s"
 
 ER_ALL_OR_NONE_NULL
-  eng "All points or none must be null on %s"
+  eng "All point geometries or none of the point geometries must be null on %s"
 
 ER_GIS_WRONG_GEOM_TYPE
   eng "Wrong geometry type on %s"
+
+ER_DUPLICATE_EDGE_ID
+  eng "Error on %s, edge id %d used more than once. Ids must be unique"
+
+ER_NEGATIVE_OR_ZERO_EDGE_COST
+  eng "Error on %s, edge cost must be greater than or equal to 0, found %lf on edge %d"
+
+ER_EDGE_LOOP
+  eng "Error on %s, from_node can't equal to_node (loop found in edge %d)"
 
 #
 #  End of 8.0 error messages (server-to-client).

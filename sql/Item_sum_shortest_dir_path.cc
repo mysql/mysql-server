@@ -5,13 +5,15 @@
 Item_sum_shortest_dir_path::Item_sum_shortest_dir_path(
     THD *thd, Item_sum *item, unique_ptr_destroy_only<Json_wrapper> wrapper)
     : Item_sum_json(std::move(wrapper), thd, item),
-      m_edge_map(key_memory_Dijkstra), m_point_map(key_memory_Dijkstra) {}
+      m_edge_map(key_memory_Dijkstra), m_point_map(key_memory_Dijkstra),
+      m_edge_ids(key_memory_Dijkstra) {}
 
 Item_sum_shortest_dir_path::Item_sum_shortest_dir_path(
     const POS &pos, PT_item_list *args,
     unique_ptr_destroy_only<Json_wrapper> wrapper)
     : Item_sum_json(std::move(wrapper), pos, args, nullptr),
-      m_edge_map(key_memory_Dijkstra), m_point_map(key_memory_Dijkstra) {}
+      m_edge_map(key_memory_Dijkstra), m_point_map(key_memory_Dijkstra),
+      m_edge_ids(key_memory_Dijkstra) {}
 
 bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
   assert(!m_is_window_function);
@@ -29,7 +31,12 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
   std::function<double(const int&)>& heuristic = null_heuristic;
 
   if (!m_point_map.empty()){
-    // m_point_map.at(Edge.to_id) should always find something (enforced in ::add_geom())
+    // no path can exist if end_point geom doesn't exist in non empty node set
+    // begin_node geom is not needed
+    if (m_point_map.find(m_end_node) == m_point_map.end()) {
+      my_error(ER_NO_PATH_FOUND, MYF(0), func_name());
+      return true;
+    }
     end_geom = &*m_point_map.at(m_end_node);
     std::function spatial_heuristic = [this, &end_geom](const int& node) -> double {
       static gis::Distance dst(NAN, NAN);
@@ -105,6 +112,7 @@ void Item_sum_shortest_dir_path::clear() {
 
   m_edge_map.clear();
   m_point_map.clear();
+  m_edge_ids.clear();
 }
 
 bool Item_sum_shortest_dir_path::fix_fields(THD *thd, Item **pItem) {
@@ -146,6 +154,23 @@ bool Item_sum_shortest_dir_path::add() {
   to_id = args[2]->val_int();
   cost = args[3]->val_real();
   add_geom(args[4], to_id, thd);
+  // id error
+  if (m_edge_ids.find(id) != m_edge_ids.end()){
+    my_error(ER_DUPLICATE_EDGE_ID, MYF(0), func_name(), id);
+    return true;
+  }
+  // cost error
+  if (cost <= 0){
+    my_error(ER_NEGATIVE_OR_ZERO_EDGE_COST, MYF(0), func_name(), cost, id);
+    return true;
+  }
+  // from/to error
+  if (from_id == to_id){
+    my_error(ER_EDGE_LOOP, MYF(0), func_name(), id);
+    return true;
+  }
+  m_edge_ids[id] = true;
+  // geom error
   if (m_edge_map.empty()){
     m_begin_node = args[5]->val_int();
     m_end_node = args[6]->val_int();

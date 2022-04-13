@@ -114,9 +114,109 @@ FROM edges
 JOIN points ON points.id = edges.to_id
 ;
 
+--echo # -----------------------------
+--echo # |[3] testing error detection|
+--echo # -----------------------------
+
+DELETE FROM edges;
+ALTER TABLE edges DROP FOREIGN KEY point_ref;
+DROP TABLE points;
+
+ALTER TABLE edges ADD COLUMN to_point POINT SRID 0;
+
+INSERT INTO edges VALUES
+(  0,  0,  1,  1.1 , "spatial", POINT( 2, 1 ) ),
+(  1,  0,  2,  2.1 , "spatial", POINT( 3, 2 ) ),
+(  2,  1,  2,  1.8 , "spatial", POINT( 0, 4 ) )
+;
+
+--error ER_GEOMETRY_REDEFINED
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, 0, 1) FROM edges;
+DELETE FROM edges WHERE id = 2;
+
+# no path
+--error ER_NO_PATH_FOUND
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, 1, 0) FROM edges;
+
+# start = end
+--error ER_START_AND_END_NODE_CONFLICT
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, 0, 0) FROM edges;
+
+## inconsistent use of geometry
+DELETE FROM edges WHERE id = 2;
+INSERT INTO edges VALUES
+(  2,  0,  2,  2.1 , "spatial", NULL )
+;
+# geom to null
+--error ER_ALL_OR_NONE_NULL
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, 0, 1) FROM edges;
+# null to geom
+DELETE FROM edges;
+INSERT INTO edges VALUES
+(  0,  0,  1,  1.1 , "spatial", NULL ),
+(  1,  0,  2,  2.1 , "spatial", POINT( 3, 2 ) )
+;
+--error ER_ALL_OR_NONE_NULL
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, 0, 1) FROM edges;
+
+DELETE FROM edges;
+INSERT INTO edges VALUES
+(  0,  0,  1,  1.1 , "spatial", POINT( 2, 1 ) ),
+(  1,  0,  2,  2.1 , "spatial", POINT( 3, 2 ) ),
+(  2,  1,  0,  1.8 , "spatial", POINT( 0, 4 ) )
+;
+
+## bad input
+# same id
+--error ER_DUPLICATE_EDGE_ID
+SELECT ST_SHORTEST_DIR_PATH(0 , from_id, to_id, cost, to_point, 0, 1) FROM edges;
+
+# edge loop
+INSERT INTO edges VALUES
+( 9, 9, 9, 9.0, "spatial", POINT(9,9) );
+--error ER_EDGE_LOOP
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, 0, 1) FROM edges;
+DELETE FROM edges WHERE id = 9;
+
+# cost <= 0
+INSERT INTO edges VALUES
+( 9, 8, 9, 0.0, "spatial", POINT(9, 9));
+--error ER_NEGATIVE_OR_ZERO_EDGE_COST
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, 0, 1) FROM edges;
+UPDATE edges SET cost = -1.0 WHERE id = 9;
+--error ER_NEGATIVE_OR_ZERO_EDGE_COST
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, 0, 1) FROM edges;
+DELETE FROM edges WHERE id = 9;
+
+# bad geom
+--error ER_GIS_INVALID_DATA
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, 0       , 0, 1) FROM edges;
+# wrong geom
+--error ER_GIS_WRONG_GEOM_TYPE
+# SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, ???, 0, 1) FROM edges;
+
+# in_sum_expr instead of const expr
+--error ER_WRONG_ARGUMENTS
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, id, 1) FROM edges;
+--error ER_WRONG_ARGUMENTS
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, 0, id) FROM edges;
+
+# NULL when not allowed
+--error ER_WRONG_ARGUMENTS
+SELECT ST_SHORTEST_DIR_PATH(NULL, from_id, to_id, cost, to_point, 0, id) FROM edges;
+--error ER_WRONG_ARGUMENTS
+SELECT ST_SHORTEST_DIR_PATH(id, NULL    , to_id, cost, to_point, 0, id) FROM edges;
+--error ER_WRONG_ARGUMENTS
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, NULL  , cost, to_point, 0, id) FROM edges;
+--error ER_WRONG_ARGUMENTS
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, NULL , to_point, 0, id) FROM edges;
+--error ER_WRONG_ARGUMENTS
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, NULL, id) FROM edges;
+--error ER_WRONG_ARGUMENTS
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, 0, NULL) FROM edges;
+
 --echo # -------------
---echo # |[3] cleanup|
+--echo # |[4] cleanup|
 --echo # -------------
 
 DROP TABLE edges;
-DROP TABLE points;

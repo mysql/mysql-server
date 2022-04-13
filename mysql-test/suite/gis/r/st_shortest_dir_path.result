@@ -104,8 +104,78 @@ JOIN points ON points.id = edges.to_id
 ;
 ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 6)
 {"cost": 7.9, "path": [{"id": 1, "cost": 2.9}, {"id": 3, "cost": 3.0}, {"id": 14, "cost": 2.0}]}
+# -----------------------------
+# |[3] testing error detection|
+# -----------------------------
+DELETE FROM edges;
+ALTER TABLE edges DROP FOREIGN KEY point_ref;
+DROP TABLE points;
+ALTER TABLE edges ADD COLUMN to_point POINT SRID 0;
+INSERT INTO edges VALUES
+(  0,  0,  1,  1.1 , "spatial", POINT( 2, 1 ) ),
+(  1,  0,  2,  2.1 , "spatial", POINT( 3, 2 ) ),
+(  2,  1,  2,  1.8 , "spatial", POINT( 0, 4 ) )
+;
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, 0, 1) FROM edges;
+ERROR HY000: Parameters of function st_shortest_dir_path contains different geometries to define same node [node/point id = 2]
+DELETE FROM edges WHERE id = 2;
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, 1, 0) FROM edges;
+ERROR HY000: No path found on st_shortest_dir_path
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, 0, 0) FROM edges;
+ERROR HY000: End node can't be equal to start node on st_shortest_dir_path
+DELETE FROM edges WHERE id = 2;
+INSERT INTO edges VALUES
+(  2,  0,  2,  2.1 , "spatial", NULL )
+;
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, 0, 1) FROM edges;
+ERROR HY000: All point geometries or none of the point geometries must be null on st_shortest_dir_path
+DELETE FROM edges;
+INSERT INTO edges VALUES
+(  0,  0,  1,  1.1 , "spatial", NULL ),
+(  1,  0,  2,  2.1 , "spatial", POINT( 3, 2 ) )
+;
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, 0, 1) FROM edges;
+ERROR HY000: All point geometries or none of the point geometries must be null on st_shortest_dir_path
+DELETE FROM edges;
+INSERT INTO edges VALUES
+(  0,  0,  1,  1.1 , "spatial", POINT( 2, 1 ) ),
+(  1,  0,  2,  2.1 , "spatial", POINT( 3, 2 ) ),
+(  2,  1,  0,  1.8 , "spatial", POINT( 0, 4 ) )
+;
+SELECT ST_SHORTEST_DIR_PATH(0 , from_id, to_id, cost, to_point, 0, 1) FROM edges;
+ERROR HY000: Error on st_shortest_dir_path, edge id 0 used more than once. Ids must be unique
+INSERT INTO edges VALUES
+( 9, 9, 9, 9.0, "spatial", POINT(9,9) );
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, 0, 1) FROM edges;
+ERROR HY000: Error on st_shortest_dir_path, from_node can't equal to_node (loop found in edge 9)
+DELETE FROM edges WHERE id = 9;
+INSERT INTO edges VALUES
+( 9, 8, 9, 0.0, "spatial", POINT(9, 9));
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, 0, 1) FROM edges;
+ERROR HY000: Error on st_shortest_dir_path, edge cost must be greater than or equal to 0, found 0.000000 on edge 9
+UPDATE edges SET cost = -1.0 WHERE id = 9;
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, 0, 1) FROM edges;
+ERROR HY000: Error on st_shortest_dir_path, edge cost must be greater than or equal to 0, found -1.000000 on edge 9
+DELETE FROM edges WHERE id = 9;
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, 0       , 0, 1) FROM edges;
+ERROR 22023: Invalid GIS data provided to function st_shortest_dir_path.
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, id, 1) FROM edges;
+ERROR HY000: Incorrect arguments to st_shortest_dir_path
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, 0, id) FROM edges;
+ERROR HY000: Incorrect arguments to st_shortest_dir_path
+SELECT ST_SHORTEST_DIR_PATH(NULL, from_id, to_id, cost, to_point, 0, id) FROM edges;
+ERROR HY000: Incorrect arguments to st_shortest_dir_path
+SELECT ST_SHORTEST_DIR_PATH(id, NULL    , to_id, cost, to_point, 0, id) FROM edges;
+ERROR HY000: Incorrect arguments to st_shortest_dir_path
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, NULL  , cost, to_point, 0, id) FROM edges;
+ERROR HY000: Incorrect arguments to st_shortest_dir_path
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, NULL , to_point, 0, id) FROM edges;
+ERROR HY000: Incorrect arguments to st_shortest_dir_path
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, NULL, id) FROM edges;
+ERROR HY000: Incorrect arguments to st_shortest_dir_path
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, 0, NULL) FROM edges;
+ERROR HY000: Incorrect arguments to st_shortest_dir_path
 # -------------
-# |[3] cleanup|
+# |[4] cleanup|
 # -------------
 DROP TABLE edges;
-DROP TABLE points;
