@@ -1760,7 +1760,7 @@ THRConfig::do_validate_thread_counts()
     if (m_entries[i].m_mandatory &&
         !m_setInThreadConfig.get(i))
     {
-      m_err_msg.assfmt("Missing mandatory thread %s in ThreadCondig.",
+      m_err_msg.assfmt("Missing mandatory thread %s in ThreadConfig.",
                        getEntryName(i));
       return -1;
     }
