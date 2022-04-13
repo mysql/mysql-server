@@ -7382,6 +7382,22 @@ int ha_ndbcluster::index_init(uint index, bool sorted)
 {
   DBUG_ENTER("ha_ndbcluster::index_init");
   DBUG_PRINT("enter", ("index: %u  sorted: %d", index, sorted));
+
+  if (m_thd_ndb->is_slave_thread()) {
+    if (table_share->primary_key == MAX_KEY &&  // hidden pk
+        m_thd_ndb->m_unsent_bytes) {
+      // Applier starting read from table with hidden pk when there are already
+      // defined operations that need to be prepared in order to "read your own
+      // writes" as well as handle errors uniformly.
+      DBUG_PRINT("info", ("Prepare already defined operations before read"));
+      const bool IGNORE_NO_KEY = true;
+      if (execute_no_commit(m_thd_ndb, m_thd_ndb->trans, IGNORE_NO_KEY) != 0) {
+        no_uncommitted_rows_execute_failure();
+        DBUG_RETURN(ndb_err(m_thd_ndb->trans));
+      }
+    }
+  }
+
   active_index= index;
   m_sorted= sorted;
   /*
@@ -7642,7 +7658,23 @@ int ha_ndbcluster::rnd_init(bool scan)
 
   if ((error= close_scan()))
     DBUG_RETURN(error);
-  index_init(table_share->primary_key, 0);
+
+  if (m_thd_ndb->is_slave_thread()) {
+    if (table_share->primary_key == MAX_KEY && m_thd_ndb->m_unsent_bytes) {
+      // Applier starting scan on keyless table and there are unsent bytes,
+      // flush the "batch" since most likely m_ignore_no_key was ON when these
+      // operations were defined
+      const bool FORCE_IGNORE_NO_KEY = true;
+      if (execute_no_commit(m_thd_ndb, m_thd_ndb->trans,
+                            FORCE_IGNORE_NO_KEY) != 0) {
+        no_uncommitted_rows_execute_failure();
+        DBUG_RETURN(ndb_err(m_thd_ndb->trans));
+      }
+    }
+  }
+
+  if ((error = index_init(table_share->primary_key, 0)))
+    DBUG_RETURN(error);
   DBUG_RETURN(0);
 }
 
@@ -16320,6 +16352,7 @@ int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
 {
   int error;
   DBUG_ENTER("ha_ndbcluster::multi_range_read_init");
+  assert(!m_thd_ndb->is_slave_thread()); // mrr not used by applier
 
   /*
     If supplied buffer is smaller than needed for just one range, we cannot do
