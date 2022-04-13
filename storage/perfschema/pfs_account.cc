@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -527,30 +527,18 @@ void PFS_account::aggregate_memory(bool alive, PFS_user *safe_user, PFS_host *sa
 
 void PFS_account::aggregate_status(PFS_user *safe_user, PFS_host *safe_host)
 {
-  if (likely(safe_user != NULL && safe_host != NULL))
-  {
-    /*
-      Aggregate STATUS_BY_ACCOUNT to:
-      - STATUS_BY_USER
-      - STATUS_BY_HOST
-    */
-    safe_user->m_status_stats.aggregate(& m_status_stats);
-    safe_host->m_status_stats.aggregate(& m_status_stats);
-    m_status_stats.reset();
-    return;
-  }
+  /*
+    Never aggregate to global_status_var,
+    because of the parallel THD -> global_status_var flow.
+  */
 
   if (safe_user != NULL)
   {
     /*
       Aggregate STATUS_BY_ACCOUNT to:
       - STATUS_BY_USER
-      - GLOBAL_STATUS
     */
     safe_user->m_status_stats.aggregate(& m_status_stats);
-    m_status_stats.aggregate_to(& global_status_var);
-    m_status_stats.reset();
-    return;
   }
 
   if (safe_host != NULL)
@@ -560,15 +548,8 @@ void PFS_account::aggregate_status(PFS_user *safe_user, PFS_host *safe_host)
       - STATUS_BY_HOST
     */
     safe_host->m_status_stats.aggregate(& m_status_stats);
-    m_status_stats.reset();
-    return;
   }
 
-  /*
-    Aggregate STATUS_BY_ACCOUNT to:
-    - GLOBAL_STATUS
-  */
-  m_status_stats.aggregate_to(& global_status_var);
   m_status_stats.reset();
   return;
 }
