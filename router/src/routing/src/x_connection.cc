@@ -3081,17 +3081,22 @@ void MysqlRoutingXConnection::finish() {
   auto &client_socket = this->socket_splicer()->client_conn();
   auto &server_socket = this->socket_splicer()->server_conn();
 
+  if (server_socket.is_open() && !client_socket.is_open()) {
 #if 0
-  if (server_socket.is_open() && !client_socket.is_open() &&
-      !client_greeting_sent_) {
-    // client hasn't sent a greeting to the server. The server would track
-    // this as "connection error" and block the router. Better send our own
-    // client-greeting.
-    client_greeting_sent_ = true;
-    return server_side_client_greeting();
-  }
+    if (!client_greeting_sent_) {
+      // client hasn't sent a greeting to the server. The server would track
+      // this as "connection error" and block the router. Better send our own
+      // client-greeting.
+      client_greeting_sent_ = true;
+      return server_side_client_greeting();
+    } else {
 #endif
-
+    // if the server is waiting on something, as client is already gone.
+    (void)server_socket.cancel();
+  } else if (!server_socket.is_open() && client_socket.is_open()) {
+    // if the client is waiting on something, as server is already gone.
+    (void)client_socket.cancel();
+  }
   if (active_work_ == 0) {
     if (server_socket.is_open()) {
       (void)server_socket.shutdown(net::socket_base::shutdown_send);
