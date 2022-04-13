@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3023,7 +3023,7 @@ MgmtSrvr::createNodegroup(int *nodes, int count, int *ng)
 }
 
 int
-MgmtSrvr::dropNodegroup(int ng)
+MgmtSrvr::dropNodegroup(unsigned ng)
 {
   int res;
   SignalSender ss(theFacade);
@@ -3097,7 +3097,32 @@ MgmtSrvr::dropNodegroup(int ng)
     }
   }
 
-  return endSchemaTrans(ss, nodeId, transId, transKey, 0);
+  int ret = endSchemaTrans(ss, nodeId, transId, transKey, 0);
+  if (ret == 0)
+  {
+    // Check whether nodegroup is dropped using the current cached node states
+    bool ng_is_empty = true;
+    NodeId node_id = 0;
+    while (getNextNodeId(&node_id, NDB_MGM_NODE_TYPE_NDB))
+    {
+      const trp_node& node = getNodeInfo(node_id);
+      if (node.is_connected() && node.m_state.nodeGroup == ng)
+      {
+        ng_is_empty = false;
+        break;
+      }
+    }
+    if (!ng_is_empty)
+    {
+      /*
+       * Some node is still reported to belong to dropped nodegroup.
+       * Wait for 4 heartbeats, when either the heartbeat with new nodegroup
+       * information should have arrived, or node should been declared failed.
+       */
+      NdbSleep_MilliSleep(4 * 100);
+    }
+  }
+  return ret;
 }
 
 

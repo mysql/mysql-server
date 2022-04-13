@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -7987,12 +7987,11 @@ Qmgr::execNODE_STATE_REP(Signal* signal)
   jam();
   const NodeState prevState = getNodeState();
   SimulatedBlock::execNODE_STATE_REP(signal);
+  const NodeState newState = getNodeState();
 
   /* Check whether we are changing state */
-  const Uint32 prevStartLevel = prevState.startLevel;
-  const Uint32 newStartLevel = getNodeState().startLevel;
-
-  if (newStartLevel != prevStartLevel)
+  if (prevState.startLevel != newState.startLevel ||
+      prevState.nodeGroup != newState.nodeGroup)
   {
     jam();
     /* Inform APIs */
