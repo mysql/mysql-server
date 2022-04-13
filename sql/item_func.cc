@@ -2056,7 +2056,8 @@ longlong Item_func_plus::int_op() {
   if (current_thd->is_error()) return error_int();
   longlong val1 = args[1]->val_int();
   if (current_thd->is_error()) return error_int();
-  longlong res = val0 + val1;
+  longlong res = static_cast<unsigned long long>(val0) +
+                 static_cast<unsigned long long>(val1);
   bool res_unsigned = false;
 
   if ((null_value = args[0]->null_value || args[1]->null_value)) return 0;
@@ -2167,7 +2168,8 @@ longlong Item_func_minus::int_op() {
   if (current_thd->is_error()) return error_int();
   longlong val1 = args[1]->val_int();
   if (current_thd->is_error()) return error_int();
-  longlong res = val0 - val1;
+  longlong res = static_cast<unsigned long long>(val0) -
+                 static_cast<unsigned long long>(val1);
   bool res_unsigned = false;
 
   if ((null_value = args[0]->null_value || args[1]->null_value)) return 0;
