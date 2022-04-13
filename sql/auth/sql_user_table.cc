@@ -816,7 +816,7 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
                      const LEX_USER &combo, ulong rights, bool revoke_grant) {
   uint i;
   ulong priv, store_rights;
-  bool old_row_exists = false;
+  ulong old_rights, nonexisting_rights;
   int error;
   char what = (revoke_grant) ? 'N' : 'Y';
   uchar user_key[MAX_KEY_LENGTH];
@@ -850,31 +850,45 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       goto table_error;
 
-    if (what == 'N') {  // no row, no revoke
-      /*
-        Return 1 as an indication that expected error occurred during
-        handling of REVOKE statement for an unknown user.
-      */
-      if (report_missing_user_grant_message(thd, true, combo.user.str,
-                                            combo.host.str, nullptr,
-                                            ER_NONEXISTING_GRANT))
-        return 1;
-      else
-        return 0;
+    old_rights = 0;
+    if (!revoke_grant) {
+      restore_record(table, s->default_values);
+      table->field[0]->store(combo.host.str, combo.host.length,
+                             system_charset_info);
+      table->field[1]->store(db, strlen(db), system_charset_info);
+      table->field[2]->store(combo.user.str, combo.user.length,
+                             system_charset_info);
     }
-    old_row_exists = false;
-    restore_record(table, s->default_values);
-    table->field[0]->store(combo.host.str, combo.host.length,
-                           system_charset_info);
-    table->field[1]->store(db, strlen(db), system_charset_info);
-    table->field[2]->store(combo.user.str, combo.user.length,
-                           system_charset_info);
   } else {
-    old_row_exists = true;
     store_record(table, record[1]);
+    old_rights = get_access(table, 3, nullptr);
+    old_rights = fix_rights_for_db(old_rights);
   }
 
   store_rights = get_rights_for_db(rights);
+  nonexisting_rights = store_rights - (store_rights & old_rights);
+
+  if (revoke_grant) {
+    if (nonexisting_rights != 0) {
+      /* trying to revoke nonexisting privilege */
+      if (report_missing_user_grant_message(thd, true, combo.user.str,
+                                            combo.host.str, nullptr,
+                                            ER_NONEXISTING_GRANT))
+        /* error reported - return error */
+        return 1;
+      else {
+        /* warning reported -ignore nonexisting_rights */
+        store_rights -= nonexisting_rights;
+        if (store_rights == 0) return 0;
+      }
+    }
+
+  } else {
+    if (nonexisting_rights == 0)
+      /* trying to grant already existing privileges */
+      return 0;
+  }
+
   for (i = 3, priv = 1; i < table->s->fields; i++, priv <<= 1) {
     if (priv & store_rights)  // do it if priv is chosen
       table->field[i]->store(&what, 1,
@@ -883,7 +897,7 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
   rights = get_access(table, 3, nullptr);
   rights = fix_rights_for_db(rights);
 
-  if (old_row_exists) {
+  if (old_rights != 0) {
     /* update old existing row */
     if (rights) {
       error = table->file->ha_update_row(table->record[1], table->record[0]);
@@ -907,6 +921,7 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
       if (error) goto table_error; /* purecov: deadcode */
     }
   } else if (rights) {
+    /* add a row */
     error = table->file->ha_write_row(table->record[0]);
     assert(error != HA_ERR_FOUND_DUPP_KEY);
     assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
@@ -921,7 +936,7 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
   }
 
   clear_and_init_db_cache();  // Clear privilege cache
-  if (old_row_exists)
+  if (old_rights != 0)
     acl_update_db(combo.user.str, combo.host.str, db, rights);
   else if (rights)
     acl_insert_db(combo.user.str, combo.host.str, db, rights);
@@ -1092,8 +1107,8 @@ table_error:
   @param g_t          Pointer to a cached table grant object
   @param table        Pointer to a TABLE object for open mysql.columns_priv
                       table
-  @param combo        Pointer to a LEX_USER object containing info about a user
-                      being processed
+  @param combo        Pointer to a LEX_USER object containing info about a
+                      user being processed
   @param columns      List of columns to give/revoke grant
   @param db           Database name of table for which column privileges are
                       modified
@@ -1549,8 +1564,9 @@ table_error:
   @return  Operation result
     @retval  0    OK.
     @retval  < 0  System error or storage engine error happen
-    @retval  > 0  Error in handling current routine entry but still can continue
-                  processing subsequent user specified in the ACL statement.
+    @retval  > 0  Error in handling current routine entry but still can
+                  continue processing subsequent user specified in the ACL
+                  statement.
 */
 
 int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
@@ -2141,8 +2157,8 @@ int handle_grant_table(THD *, TABLE_LIST *tables, ACL_TABLES table_no,
     }
   } else {
     /*
-      Iterate over range of records returned as part of index search done based
-      on user and host values.
+      Iterate over range of records returned as part of index search done
+      based on user and host values.
     */
     while (!error) {
       /* If requested, delete or update the record. */
