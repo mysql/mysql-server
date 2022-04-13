@@ -1149,6 +1149,9 @@ void MysqlRoutingClassicConnection::finish() {
       // if the server is waiting on something, as client is already gone.
       (void)server_socket.cancel();
     }
+  } else if (!server_socket.is_open() && client_socket.is_open()) {
+    // if the client is waiting on something, as server is already gone.
+    (void)client_socket.cancel();
   }
 
   if (active_work_ == 0) {
