@@ -1,0 +1,45 @@
+CREATE ROLE rngp_role;
+CREATE DATABASE rngp_db;
+REVOKE DELETE ON rngp_db.* FROM rngp_role;
+ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%'
+GRANT SELECT, CREATE ON rngp_db.* TO rngp_role;
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+GRANT SELECT, CREATE ON `rngp_db`.* TO `rngp_role`@`%`
+GRANT SELECT ON rngp_db.* TO rngp_role;
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+GRANT SELECT, CREATE ON `rngp_db`.* TO `rngp_role`@`%`
+GRANT SELECT, UPDATE ON rngp_db.* TO rngp_role;
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+GRANT SELECT, UPDATE, CREATE ON `rngp_db`.* TO `rngp_role`@`%`
+REVOKE UPDATE ON rngp_db.* FROM rngp_role;
+REVOKE SELECT, INSERT ON rngp_db.* FROM rngp_role;
+ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%'
+REVOKE DELETE ON rngp_db.* FROM rngp_role;
+ERROR 42000: There is no such grant defined for user 'rngp_role' on host '%'
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+GRANT SELECT, CREATE ON `rngp_db`.* TO `rngp_role`@`%`
+REVOKE CREATE ON rngp_db.* FROM rngp_role;
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+GRANT SELECT ON `rngp_db`.* TO `rngp_role`@`%`
+REVOKE IF EXISTS SELECT ON rngp_db.* FROM rngp_role;
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+REVOKE IF EXISTS CREATE, SELECT ON rngp_db.* FROM rngp_role;
+Warnings:
+Warning	1141	There is no such grant defined for user 'rngp_role' on host '%'
+SHOW GRANTS FOR rngp_role;
+Grants for rngp_role@%
+GRANT USAGE ON *.* TO `rngp_role`@`%`
+DROP ROLE rngp_role;
+DROP DATABASE rngp_db;
