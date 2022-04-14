@@ -25,8 +25,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
   )
 
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_mgmapiclient.cmake)
-
 ADD_CONVENIENCE_LIBRARY(ndbmgmcommon
   Config.cpp
   ConfigInfo.cpp

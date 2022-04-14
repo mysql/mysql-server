@@ -50,9 +50,9 @@ ADD_SUBDIRECTORY(error)
 ADD_SUBDIRECTORY(blocks)
 ADD_SUBDIRECTORY(vm)
 
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
-
 INCLUDE_DIRECTORIES(
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/blocks
   ${CMAKE_CURRENT_SOURCE_DIR}/blocks/cmvmi
   ${CMAKE_CURRENT_SOURCE_DIR}/blocks/dbacc
   ${CMAKE_CURRENT_SOURCE_DIR}/blocks/dbdict
@@ -70,6 +70,8 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}/blocks/dbtux
   ${CMAKE_CURRENT_SOURCE_DIR}/blocks/dbinfo
   ${CMAKE_CURRENT_SOURCE_DIR}/blocks/dbspj
+  ${CMAKE_CURRENT_SOURCE_DIR}/error
+  ${CMAKE_CURRENT_SOURCE_DIR}/vm
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmsrv
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
   )

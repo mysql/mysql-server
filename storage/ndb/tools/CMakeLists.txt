@@ -38,14 +38,15 @@ FOREACH(warning
   ENDIF()
 ENDFOREACH()
 
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitools.cmake)
 # Check BISON_VERSION and set BISON_FLAGS_WARNINGS
 FIND_PACKAGE(BISON REQUIRED)
 
 INCLUDE_DIRECTORIES(
+  ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel/signaldata
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/util
+  ${CMAKE_SOURCE_DIR}/storage/ndb/test/include
   ${CMAKE_BINARY_DIR}/storage/ndb/tools)
 
 ADD_LIBRARY(ndbtools STATIC

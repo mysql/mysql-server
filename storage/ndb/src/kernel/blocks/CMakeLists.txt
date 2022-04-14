@@ -26,7 +26,12 @@ ADD_SUBDIRECTORY(dbdih)
 ADD_SUBDIRECTORY(dblqh)
 ADD_SUBDIRECTORY(dbtup)
 
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
+INCLUDE_DIRECTORIES(
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/error
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/vm)
+
 
 IF(WIN32)
   SET(EXTRA_SRC ndbfs/Win32AsyncFile.cpp)
