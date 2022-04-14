@@ -50,7 +50,9 @@ TEST(SrsTest, GeogcsProj4Parameters) {
       "84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0."
       "017453292519943278],AXIS[\"Lat\",NORTH],AXIS[\"Lon\",EAST]]");
   srs->parse_definition();
-  EXPECT_STREQ(srs->proj4_parameters().c_str(), "");
+  EXPECT_STREQ(srs->proj4_parameters().c_str(),
+               "+proj=lonlat +a=6378137 +rf=298.257223563 "
+               "+towgs84=0,0,0,0,0,0,0 +no_defs");
 
   // Ellipsoid recognized as WGS 84 (authority clause on GEOGCS).
   srs->set_definition(
@@ -80,7 +82,9 @@ TEST(SrsTest, GeogcsProj4Parameters) {
       "PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.017453292519943278],AXIS["
       "\"Lat\",NORTH],AXIS[\"Lon\",EAST]]");
   srs->parse_definition();
-  EXPECT_STREQ(srs->proj4_parameters().c_str(), "");
+  EXPECT_STREQ(
+      srs->proj4_parameters().c_str(),
+      "+proj=lonlat +a=6378137 +b=6378137 +towgs84=0,0,0,0,0,0,0 +no_defs");
 
   // Sphere with TOWGS84.
   srs->set_definition(
@@ -118,7 +122,10 @@ TEST(SrsTest, ProjcsProj4Parameters) {
       "northing\",0,AUTHORITY[\"EPSG\",\"8807\"]],UNIT[\"metre\",1],AXIS[\"X\","
       "EAST],AXIS[\"Y\",NORTH]]");
   srs->parse_definition();
-  EXPECT_STREQ(srs->proj4_parameters().c_str(), "");
+  EXPECT_STREQ(
+      srs->proj4_parameters().c_str(),
+      "+proj=webmerc +a=6378137 +rf=298.257223563 +towgs84=0,0,0,0,0,0,0 "
+      "+no_defs +to_meter=1.000000 +lon_0=0 +x_0=0 +y_0=0");
 
   delete srs;
 }

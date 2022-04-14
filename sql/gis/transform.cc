@@ -217,9 +217,6 @@ bool transform(const dd::Spatial_reference_system *source_srs,
                const dd::Spatial_reference_system *target_srs,
                const char *func_name, std::unique_ptr<Geometry> *out) noexcept {
   try {
-    dd::String_type source_proj = source_srs->proj4_parameters();
-    dd::String_type target_proj = target_srs->proj4_parameters();
-
     if (source_srs->missing_towgs84()) {
       my_error(ER_TRANSFORM_SOURCE_SRS_MISSING_TOWGS84, MYF(0),
                source_srs->id());
@@ -230,6 +227,9 @@ bool transform(const dd::Spatial_reference_system *source_srs,
                target_srs->id());
       return true;
     }
+
+    dd::String_type source_proj = source_srs->proj4_parameters();
+    dd::String_type target_proj = target_srs->proj4_parameters();
 
     if (source_proj.size() == 0) {
       assert(source_srs->is_projected());

@@ -1,6 +1,7 @@
 // Boost.Geometry
 
-// Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+// Copyright (c) 2017-2022, Oracle and/or its affiliates.
+// Contributed and/or modified by Vissarion Fysikopoulos, on behalf of Oracle
 // Contributed and/or modified by Adam Wulkiewicz, on behalf of Oracle
 
 // Use, modification and distribution is subject to the Boost Software License,
@@ -208,6 +209,7 @@ enum value_proj
     proj_cc,
     proj_cea,
     proj_chamb,
+    proj_col_urban,
     proj_collg,
     proj_crast,
     proj_denoy,
@@ -335,7 +337,7 @@ enum name_f
     es,
     f,
     h,
-    //h_0, // currently not used
+    h_0,
     k = 7,
     k_0,
     m, // also used for M
@@ -412,7 +414,10 @@ enum name_be
     r_h, // originally R_h
     r_v, // originally R_V
     rescale, // 70
-    south
+    south,
+    variant_c, // BG specific
+    no_off,
+    hyperbolic
 };
 
 /*enum name_catalog
@@ -480,6 +485,11 @@ enum name_units
 {
     units = 85,
     vunits
+};
+
+enum name_axis
+{
+    axis = 86 // 3 element list of numbers
 };
 
 template <typename T>
@@ -655,6 +665,17 @@ struct parameter
     }
 #endif
 
+    parameter(name_axis id, std::initializer_list<int> v)
+        : m_id(id)
+        , m_value(srs::detail::axis(v))
+    {
+        std::size_t n = v.size();
+        if (n != 3)
+        {
+            BOOST_THROW_EXCEPTION( projection_exception("Invalid number of axis elements. Should be 3.") );
+        }
+    }
+
     parameter(name_units id, value_units v)
         : m_id(id), m_value(int(v))
     {}
@@ -689,6 +710,7 @@ public:
     bool is_id_equal(name_sweep const& id) const { return m_id == int(id); }
     bool is_id_equal(name_towgs84 const& id) const { return m_id == int(id); }
     bool is_id_equal(name_units const& id) const { return m_id == int(id); }
+    bool is_id_equal(name_axis const& id) const { return m_id == int(id); }
 
     template <typename V>
     V const& get_value() const

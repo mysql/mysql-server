@@ -123,45 +123,45 @@ static bool set_parameters(gis::srid_t srid,
                            gis::srs::wkt_parser::Projected_cs *proj,
                            std::vector<std::pair<int, double *>> *params) {
   std::map<int, std::string> param_names;
-  param_names[1026] = "c1";
-  param_names[1027] = "c2";
-  param_names[1028] = "c3";
-  param_names[1029] = "c4";
-  param_names[1030] = "c5";
-  param_names[1031] = "c6";
-  param_names[1032] = "c7";
-  param_names[1033] = "c8";
-  param_names[1034] = "c9";
-  param_names[1035] = "c10";
-  param_names[1036] = "azimuth";
-  param_names[1038] = "ellipsoid_scale_factor";
-  param_names[1039] = "projection_plane_height_at_origin";
-  param_names[8617] = "evaluation_point_ordinate_1";
-  param_names[8618] = "evaluation_point_ordinate_2";
-  param_names[8801] = "latitude_of_origin";
-  param_names[8802] = "central_meridian";
-  param_names[8805] = "scale_factor";
-  param_names[8806] = "false_easting";
-  param_names[8807] = "false_northing";
-  param_names[8811] = "latitude_of_center";
-  param_names[8812] = "longitude_of_center";
-  param_names[8813] = "azimuth";
-  param_names[8814] = "rectified_grid_angle";
-  param_names[8815] = "scale_factor";
-  param_names[8816] = "false_easting";
-  param_names[8817] = "false_northing";
+  param_names[1026] = "c1";                                 // no limit
+  param_names[1027] = "c2";                                 // no limit
+  param_names[1028] = "c3";                                 // no limit
+  param_names[1029] = "c4";                                 // no limit
+  param_names[1030] = "c5";                                 // no limit
+  param_names[1031] = "c6";                                 // no limit
+  param_names[1032] = "c7";                                 // no limit
+  param_names[1033] = "c8";                                 // no limit
+  param_names[1034] = "c9";                                 // no limit
+  param_names[1035] = "c10";                                // no limit
+  param_names[1036] = "azimuth";                            // no limit
+  param_names[1038] = "ellipsoid_scale_factor";             // check
+  param_names[1039] = "projection_plane_height_at_origin";  // check
+  param_names[8617] = "evaluation_point_ordinate_1";        // no limit
+  param_names[8618] = "evaluation_point_ordinate_2";        // no limit
+  param_names[8801] = "latitude_of_origin";                 // check
+  param_names[8802] = "central_meridian";                   // check
+  param_names[8805] = "scale_factor";                       // check
+  param_names[8806] = "false_easting";                      // no limit
+  param_names[8807] = "false_northing";                     // no limit
+  param_names[8811] = "latitude_of_center";                 // check
+  param_names[8812] = "longitude_of_center";                // check
+  param_names[8813] = "azimuth";                            // no limit
+  param_names[8814] = "rectified_grid_angle";               // no limit
+  param_names[8815] = "scale_factor";                       // check
+  param_names[8816] = "false_easting";                      // no limit
+  param_names[8817] = "false_northing";                     // no limit
   param_names[8818] = "pseudo_standard_parallel_1";
-  param_names[8819] = "scale_factor";
-  param_names[8821] = "latitude_of_origin";
-  param_names[8822] = "central_meridian";
-  param_names[8823] = "standard_parallel_1";
-  param_names[8824] = "standard_parallel_2";
-  param_names[8826] = "false_easting";
-  param_names[8827] = "false_northing";
-  param_names[8830] = "initial_longitude";
-  param_names[8831] = "zone_width";
-  param_names[8832] = "standard_parallel";
-  param_names[8833] = "longitude_of_center";
+  param_names[8819] = "scale_factor";         // check
+  param_names[8821] = "latitude_of_origin";   // check
+  param_names[8822] = "central_meridian";     // check
+  param_names[8823] = "standard_parallel_1";  // check
+  param_names[8824] = "standard_parallel_2";  // check
+  param_names[8826] = "false_easting";        // no limit
+  param_names[8827] = "false_northing";       // no limit
+  param_names[8830] = "initial_longitude";    // check
+  param_names[8831] = "zone_width";           // check
+  param_names[8832] = "standard_parallel";    // check
+  param_names[8833] = "longitude_of_center";  // check
 
   std::map<int, std::string> param_aliases;
   param_aliases[8823] = "standard_parallel1";
@@ -226,20 +226,72 @@ static bool set_parameters(gis::srid_t srid,
                param_names[epsg_code].c_str(), epsg_code);
       return true;
     }
+    // Scaling factor must be non negative
+    if (epsg_code == 1038 || epsg_code == 8805 || epsg_code == 8815 ||
+        epsg_code == 8819) {
+      if (param_value < 0) {
+        my_error(ER_SRS_INVALID_SCALING, MYF(0), srid);
+        return true;
+      }
+    }
+    // Height must be non negative
+    if (epsg_code == 1039) {
+      if (param_value < 0) {
+        my_error(ER_SRS_INVALID_HEIGHT, MYF(0), srid);
+        return true;
+      }
+    }
     // Latitude of origin must be in [-90, 90] degrees
-    if (epsg_code == 8801 || epsg_code == 8811 || epsg_code == 8821) {
-      param_value *= proj->geographic_cs.angular_unit.conversion_factor;
-      if (param_value < -M_PI_2 || param_value > M_PI_2) {
+    if (epsg_code == 8801 || epsg_code == 8811 || epsg_code == 8821 ||
+        epsg_code == 8823 || epsg_code == 8824 || epsg_code == 8832) {
+      auto param_value_rad =
+          param_value * proj->geographic_cs.angular_unit.conversion_factor;
+      if (param_value_rad < -M_PI_2 || param_value_rad > M_PI_2) {
         my_error(ER_SRS_INVALID_LATITUDE_OF_ORIGIN, MYF(0), srid);
         return true;
       }
     }
     // Longitude of origin must be within (-180, 180] degrees
-    if (epsg_code == 8802 || epsg_code == 8812 || epsg_code == 8830 ||
-        epsg_code == 8833) {
+    if (epsg_code == 8802 || epsg_code == 8812 || epsg_code == 8822 ||
+        epsg_code == 8830 || epsg_code == 8833) {
       param_value *= proj->geographic_cs.angular_unit.conversion_factor;
       if (param_value < -M_PI || param_value > M_PI) {
         my_error(ER_SRS_INVALID_LONGITUDE_OF_ORIGIN, MYF(0), srid);
+        return true;
+      }
+    }
+    // Zone width must be an integer in [1,60]
+    if (epsg_code == 8831) {
+      double intpart;
+      if (param_value < 1 || param_value > 60 ||
+          std::modf(param_value, &intpart) != 0.0) {
+        my_error(ER_SRS_INVALID_ZONE_WIDTH, MYF(0), srid);
+        return true;
+      }
+    }
+    // Latitude of origin must be +-90 degrees, specified in the
+    // SRS angular unit, in Polar Stereographic (variant A) projection
+    // method (EPSG:9810).
+    // Since we are dealing with floating points we check for approximate
+    // equality according to some epsilon value
+    int projection_epsg = 0;
+    if (!my_strcasecmp(&my_charset_latin1, "EPSG",
+                       proj->projection.authority.name.c_str())) {
+      try {
+        projection_epsg = std::stoi(proj->projection.authority.code);
+      } catch (...)  // Invalid or out of range.
+      {
+        projection_epsg = 0;
+      }
+    }
+    if (projection_epsg == 9810 && epsg_code == 8801) {
+      const double param_value_rad =
+          param_value * proj->geographic_cs.angular_unit.conversion_factor;
+      const double diff1 = std::fabs(param_value_rad - M_PI_2);
+      const double diff2 = std::fabs(param_value_rad + M_PI_2);
+      const double epsilon = 1e-10;
+      if (diff1 > epsilon && diff2 > epsilon) {
+        my_error(ER_SRS_INVALID_LATITUDE_POLAR_STERE_VAR_A, MYF(0));
         return true;
       }
     }
@@ -271,6 +323,16 @@ static const char *axis_direction_to_name(gis::srs::Axis_direction direction) {
       return "UNKNOWN";
       /* purecov: end */
   }
+}
+
+void push_fp_to_string(std::stringstream &proj4,
+                       const std::string &proj4_parameter,
+                       const double &parameter) {
+  char double_str[FLOATING_POINT_BUFFER];
+  bool error;
+  my_fcvt_compact(parameter, double_str, &error);
+  assert(!error);
+  proj4 << proj4_parameter << double_str;
 }
 
 namespace gis {
@@ -476,7 +538,6 @@ std::string Geographic_srs::partial_proj4_parameters() const {
       proj4 << double_str;
     }
   } else {
-    assert(is_wgs84_based());
     proj4 << "0,0,0,0,0,0,0";
   }
 
@@ -487,9 +548,6 @@ std::string Geographic_srs::partial_proj4_parameters() const {
 
 std::string Geographic_srs::proj4_parameters() const {
   std::stringstream proj4;
-
-  if (!is_wgs84_based() && !has_towgs84())
-    return proj4.str();  // Can't convert if there's no path to WGS 84.
 
   proj4 << "+proj=lonlat";
 
@@ -530,6 +588,9 @@ bool Popular_visualisation_pseudo_mercator_srs::init(
     gis::srid_t srid, gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
 
+  // Note: the parameter latitude of natural origin is not used.
+  // However for completeness in CRS labelling the EPSG Dataset
+  // includes this parameter
   params.push_back(std::make_pair(8801, &m_latitude_of_origin));
   params.push_back(std::make_pair(8802, &m_longitude_of_origin));
   params.push_back(std::make_pair(8806, &m_false_easting));
@@ -560,16 +621,15 @@ std::string Popular_visualisation_pseudo_mercator_srs::proj4_parameters()
     const {
   std::stringstream proj4;
 
-  if (!is_wgs84_based() && !has_towgs84())
-    return proj4.str();  // Can't convert if there's no path to WGS 84.
-
   proj4 << "+proj=webmerc";
 
   proj4 << partial_proj4_parameters();
 
-  proj4 << " +lon_0=" << m_longitude_of_origin;
-  proj4 << " +x_0=" << m_false_easting;
-  proj4 << " +y_0=" << m_false_northing;
+  // NOTE: latitude_of_origin is not used in the computation that is why
+  // we do not pass it
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
 
   return proj4.str();
 }
@@ -604,6 +664,22 @@ bool Lambert_azimuthal_equal_area_spherical_srs::can_be_modified_to(
   return false;
 }
 
+std::string Lambert_azimuthal_equal_area_spherical_srs::proj4_parameters()
+    const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=laea";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_origin);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+
+  return proj4.str();
+}
+
 bool Equidistant_cylindrical_srs::init(gis::srid_t srid,
                                        gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -634,6 +710,21 @@ bool Equidistant_cylindrical_srs::can_be_modified_to(
   return false;
 }
 
+std::string Equidistant_cylindrical_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=eqc";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_standard_parallel_1);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+
+  return proj4.str();
+}
+
 bool Equidistant_cylindrical_spherical_srs::init(
     gis::srid_t srid, gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -662,6 +753,21 @@ bool Equidistant_cylindrical_spherical_srs::can_be_modified_to(
            m_false_northing == that.m_false_northing;
   }
   return false;
+}
+
+std::string Equidistant_cylindrical_spherical_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=eqc";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_standard_parallel_1);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+
+  return proj4.str();
 }
 
 bool Krovak_north_orientated_srs::init(gis::srid_t srid,
@@ -700,6 +806,24 @@ bool Krovak_north_orientated_srs::can_be_modified_to(
   return false;
 }
 
+std::string Krovak_north_orientated_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=krovak";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_center);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_center);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+  push_fp_to_string(proj4, " +k_0=", m_scale_factor);
+  push_fp_to_string(proj4, " +alpha=", m_pseudo_standard_parallel_1);
+
+  return proj4.str();
+}
+
+// TODO: this method is not implemented in proj4 nor BG
 bool Krovak_modified_srs::init(gis::srid_t srid,
                                gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -756,6 +880,7 @@ bool Krovak_modified_srs::can_be_modified_to(
   return false;
 }
 
+// TODO: this method is not implemented in proj4 nor BG
 bool Krovak_modified_north_orientated_srs::init(
     gis::srid_t srid, gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -848,6 +973,24 @@ bool Lambert_conic_conformal_2sp_michigan_srs::can_be_modified_to(
   return false;
 }
 
+std::string Lambert_conic_conformal_2sp_michigan_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=lcc";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_origin);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+  push_fp_to_string(proj4, " +k_0=", m_ellipsoid_scale_factor);
+  push_fp_to_string(proj4, " +lat_1=", m_standard_parallel_1);
+  push_fp_to_string(proj4, " +lat_2=", m_standard_parallel_2);
+
+  return proj4.str();
+}
+
 bool Colombia_urban_srs::init(gis::srid_t srid,
                               gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -881,6 +1024,22 @@ bool Colombia_urban_srs::can_be_modified_to(
   return false;
 }
 
+std::string Colombia_urban_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=col_urban";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_origin);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+  push_fp_to_string(proj4, " +h_0=", m_projection_plane_height_at_origin);
+
+  return proj4.str();
+}
+
 bool Lambert_conic_conformal_1sp_srs::init(
     gis::srid_t srid, gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -911,6 +1070,23 @@ bool Lambert_conic_conformal_1sp_srs::can_be_modified_to(
            m_false_northing == that.m_false_northing;
   }
   return false;
+}
+
+std::string Lambert_conic_conformal_1sp_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=lcc";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_origin);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+  push_fp_to_string(proj4, " +lat_1=", m_latitude_of_origin);
+  push_fp_to_string(proj4, " +k_0=", m_scale_factor);
+
+  return proj4.str();
 }
 
 bool Lambert_conic_conformal_2sp_srs::init(
@@ -947,6 +1123,23 @@ bool Lambert_conic_conformal_2sp_srs::can_be_modified_to(
   return false;
 }
 
+std::string Lambert_conic_conformal_2sp_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=lcc";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_origin);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+  push_fp_to_string(proj4, " +lat_1=", m_standard_parallel_1);
+  push_fp_to_string(proj4, " +lat_2=", m_standard_parallel_2);
+
+  return proj4.str();
+}
+
 bool Lambert_conic_conformal_2sp_belgium_srs::init(
     gis::srid_t srid, gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -981,6 +1174,23 @@ bool Lambert_conic_conformal_2sp_belgium_srs::can_be_modified_to(
   return false;
 }
 
+std::string Lambert_conic_conformal_2sp_belgium_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=lcc";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_origin);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+  push_fp_to_string(proj4, " +lat_1=", m_standard_parallel_1);
+  push_fp_to_string(proj4, " +lat_2=", m_standard_parallel_2);
+
+  return proj4.str();
+}
+
 bool Mercator_variant_a_srs::init(gis::srid_t srid,
                                   gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -1013,6 +1223,22 @@ bool Mercator_variant_a_srs::can_be_modified_to(
   return false;
 }
 
+std::string Mercator_variant_a_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=merc";
+
+  proj4 << partial_proj4_parameters();
+
+  // NOTE: latitude of origin is not used
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+  push_fp_to_string(proj4, " +k=", m_scale_factor);
+
+  return proj4.str();
+}
+
 bool Mercator_variant_b_srs::init(gis::srid_t srid,
                                   gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -1043,6 +1269,21 @@ bool Mercator_variant_b_srs::can_be_modified_to(
   return false;
 }
 
+std::string Mercator_variant_b_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=merc";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+  push_fp_to_string(proj4, " +lat_ts=", m_standard_parallel_1);
+
+  return proj4.str();
+}
+
 bool Cassini_soldner_srs::init(gis::srid_t srid,
                                gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -1071,6 +1312,21 @@ bool Cassini_soldner_srs::can_be_modified_to(
            m_false_northing == that.m_false_northing;
   }
   return false;
+}
+
+std::string Cassini_soldner_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=cass";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_origin);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+
+  return proj4.str();
 }
 
 bool Transverse_mercator_srs::init(gis::srid_t srid,
@@ -1105,6 +1361,22 @@ bool Transverse_mercator_srs::can_be_modified_to(
   return false;
 }
 
+std::string Transverse_mercator_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=tmerc";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_origin);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+  push_fp_to_string(proj4, " +k_0=", m_scale_factor);
+
+  return proj4.str();
+}
+
 bool Transverse_mercator_south_orientated_srs::init(
     gis::srid_t srid, gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -1135,6 +1407,22 @@ bool Transverse_mercator_south_orientated_srs::can_be_modified_to(
            m_false_northing == that.m_false_northing;
   }
   return false;
+}
+
+std::string Transverse_mercator_south_orientated_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=tmerc +axis=wsu";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_origin);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+  push_fp_to_string(proj4, " +k_0=", m_scale_factor);
+
+  return proj4.str();
 }
 
 bool Oblique_stereographic_srs::init(gis::srid_t srid,
@@ -1169,6 +1457,22 @@ bool Oblique_stereographic_srs::can_be_modified_to(
   return false;
 }
 
+std::string Oblique_stereographic_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=sterea";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_origin);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+  push_fp_to_string(proj4, " +k=", m_scale_factor);
+
+  return proj4.str();
+}
+
 bool Polar_stereographic_variant_a_srs::init(
     gis::srid_t srid, gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -1201,6 +1505,22 @@ bool Polar_stereographic_variant_a_srs::can_be_modified_to(
   return false;
 }
 
+std::string Polar_stereographic_variant_a_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=stere";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_origin);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+  push_fp_to_string(proj4, " +k_0=", m_scale_factor);
+
+  return proj4.str();
+}
+
 bool New_zealand_map_grid_srs::init(gis::srid_t srid,
                                     gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -1229,6 +1549,16 @@ bool New_zealand_map_grid_srs::can_be_modified_to(
            m_false_northing == that.m_false_northing;
   }
   return false;
+}
+
+std::string New_zealand_map_grid_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=nzmg";
+
+  proj4 << partial_proj4_parameters();
+
+  return proj4.str();
 }
 
 bool Hotine_oblique_mercator_variant_a_srs::init(
@@ -1267,6 +1597,24 @@ bool Hotine_oblique_mercator_variant_a_srs::can_be_modified_to(
   return false;
 }
 
+std::string Hotine_oblique_mercator_variant_a_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=omerc +no_off";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_center);
+  push_fp_to_string(proj4, " +lonc=", m_longitude_of_center);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+  push_fp_to_string(proj4, " +k_0=", m_scale_factor);
+  push_fp_to_string(proj4, " +alpha=", m_azimuth);
+  push_fp_to_string(proj4, " +gamma=", m_rectified_grid_angle);
+
+  return proj4.str();
+}
+
 bool Laborde_oblique_mercator_srs::init(gis::srid_t srid,
                                         gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -1299,6 +1647,23 @@ bool Laborde_oblique_mercator_srs::can_be_modified_to(
            m_false_northing == that.m_false_northing;
   }
   return false;
+}
+
+std::string Laborde_oblique_mercator_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=labrd";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_center);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_center);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+  push_fp_to_string(proj4, " +k_0=", m_scale_factor);
+  push_fp_to_string(proj4, " +azi=", m_azimuth);
+
+  return proj4.str();
 }
 
 bool Hotine_oblique_mercator_variant_b_srs::init(
@@ -1337,6 +1702,25 @@ bool Hotine_oblique_mercator_variant_b_srs::can_be_modified_to(
   return false;
 }
 
+std::string Hotine_oblique_mercator_variant_b_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=omerc";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_center);
+  push_fp_to_string(proj4, " +lonc=", m_longitude_of_center);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+  push_fp_to_string(proj4, " +k_0=", m_scale_factor);
+  push_fp_to_string(proj4, " +alpha=", m_azimuth);
+  push_fp_to_string(proj4, " +gamma=", m_rectified_grid_angle);
+
+  return proj4.str();
+}
+
+// TODO: this method is not implemented in proj4 nor BG
 bool Tunisia_mining_grid_srs::init(gis::srid_t srid,
                                    gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -1399,6 +1783,23 @@ bool Lambert_conic_near_conformal_srs::can_be_modified_to(
   return false;
 }
 
+std::string Lambert_conic_near_conformal_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=lcc";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_origin);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+  push_fp_to_string(proj4, " +lat_1=", m_latitude_of_origin);
+  push_fp_to_string(proj4, " +k_0=", m_scale_factor);
+
+  return proj4.str();
+}
+
 bool American_polyconic_srs::init(gis::srid_t srid,
                                   gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -1427,6 +1828,21 @@ bool American_polyconic_srs::can_be_modified_to(
            m_false_northing == that.m_false_northing;
   }
   return false;
+}
+
+std::string American_polyconic_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=poly";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_origin);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+
+  return proj4.str();
 }
 
 bool Krovak_srs::init(gis::srid_t srid, gis::srs::wkt_parser::Projected_cs *p) {
@@ -1462,6 +1878,25 @@ bool Krovak_srs::can_be_modified_to(const Spatial_reference_system &srs) const {
   return false;
 }
 
+std::string Krovak_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  // NOTE: m_pseudo_standard_parallel_1 and azimuth are not used in proj4 and BG
+  // implementation; the latitude of pseudo standard parallel is hardcoded
+  // to 78.5
+  proj4 << "+proj=krovak +czech";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_center);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_center);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+  push_fp_to_string(proj4, " +k_0=", m_scale_factor);
+
+  return proj4.str();
+}
+
 bool Lambert_azimuthal_equal_area_srs::init(
     gis::srid_t srid, gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -1490,6 +1925,21 @@ bool Lambert_azimuthal_equal_area_srs::can_be_modified_to(
            m_false_northing == that.m_false_northing;
   }
   return false;
+}
+
+std::string Lambert_azimuthal_equal_area_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=laea";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_origin);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+
+  return proj4.str();
 }
 
 bool Albers_equal_area_srs::init(gis::srid_t srid,
@@ -1526,6 +1976,23 @@ bool Albers_equal_area_srs::can_be_modified_to(
   return false;
 }
 
+std::string Albers_equal_area_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=aea";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_origin);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+  push_fp_to_string(proj4, " +lat_1=", m_standard_parallel_1);
+  push_fp_to_string(proj4, " +lat_2=", m_standard_parallel_2);
+
+  return proj4.str();
+}
+
 bool Transverse_mercator_zoned_grid_system_srs::init(
     gis::srid_t srid, gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -1560,6 +2027,27 @@ bool Transverse_mercator_zoned_grid_system_srs::can_be_modified_to(
   return false;
 }
 
+std::string Transverse_mercator_zoned_grid_system_srs::proj4_parameters()
+    const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=utm";
+
+  proj4 << partial_proj4_parameters();
+
+  // NOTE: all parameters but zone are defined but not used in proj4/BG
+  // implementation
+
+  push_fp_to_string(proj4, " +zone=", m_zone_width);
+
+  if (m_false_northing == 10000000.0) {
+    proj4 << " +south";
+  }
+
+  return proj4.str();
+}
+
+// TODO: this method is not implemented in proj4 nor BG
 bool Lambert_conic_conformal_west_orientated_srs::init(
     gis::srid_t srid, gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -1622,6 +2110,21 @@ bool Bonne_south_orientated_srs::can_be_modified_to(
   return false;
 }
 
+std::string Bonne_south_orientated_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=bonne +lat_1=10 +axis=wsu";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_origin);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+
+  return proj4.str();
+}
+
 bool Polar_stereographic_variant_b_srs::init(
     gis::srid_t srid, gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -1650,6 +2153,21 @@ bool Polar_stereographic_variant_b_srs::can_be_modified_to(
            m_false_northing == that.m_false_northing;
   }
   return false;
+}
+
+std::string Polar_stereographic_variant_b_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=stere +lat_0=-90";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+  push_fp_to_string(proj4, " +lat_ts=", m_standard_parallel);
+
+  return proj4.str();
 }
 
 bool Polar_stereographic_variant_c_srs::init(
@@ -1682,6 +2200,21 @@ bool Polar_stereographic_variant_c_srs::can_be_modified_to(
   return false;
 }
 
+std::string Polar_stereographic_variant_c_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=stere +lat_0=-90 +variant_c";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+  push_fp_to_string(proj4, " +lat_ts=", m_standard_parallel);
+
+  return proj4.str();
+}
+
 bool Guam_projection_srs::init(gis::srid_t srid,
                                gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -1710,6 +2243,21 @@ bool Guam_projection_srs::can_be_modified_to(
            m_false_northing == that.m_false_northing;
   }
   return false;
+}
+
+std::string Guam_projection_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=aeqd +guam";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_origin);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+
+  return proj4.str();
 }
 
 bool Modified_azimuthal_equidistant_srs::init(
@@ -1742,6 +2290,21 @@ bool Modified_azimuthal_equidistant_srs::can_be_modified_to(
   return false;
 }
 
+std::string Modified_azimuthal_equidistant_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=aeqd";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_origin);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+
+  return proj4.str();
+}
+
 bool Hyperbolic_cassini_soldner_srs::init(
     gis::srid_t srid, gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -1770,6 +2333,21 @@ bool Hyperbolic_cassini_soldner_srs::can_be_modified_to(
            m_false_northing == that.m_false_northing;
   }
   return false;
+}
+
+std::string Hyperbolic_cassini_soldner_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=cass +hyperbolic";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lat_0=", m_latitude_of_origin);
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+
+  return proj4.str();
 }
 
 bool Lambert_cylindrical_equal_area_spherical_srs::init(
@@ -1802,6 +2380,22 @@ bool Lambert_cylindrical_equal_area_spherical_srs::can_be_modified_to(
   return false;
 }
 
+std::string Lambert_cylindrical_equal_area_spherical_srs::proj4_parameters()
+    const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=cea";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+  push_fp_to_string(proj4, " +lat_ts=", m_standard_parallel_1);
+
+  return proj4.str();
+}
+
 bool Lambert_cylindrical_equal_area_srs::init(
     gis::srid_t srid, gis::srs::wkt_parser::Projected_cs *p) {
   std::vector<std::pair<int, double *>> params;
@@ -1830,6 +2424,21 @@ bool Lambert_cylindrical_equal_area_srs::can_be_modified_to(
            m_false_northing == that.m_false_northing;
   }
   return false;
+}
+
+std::string Lambert_cylindrical_equal_area_srs::proj4_parameters() const {
+  std::stringstream proj4;
+
+  proj4 << "+proj=cea";
+
+  proj4 << partial_proj4_parameters();
+
+  push_fp_to_string(proj4, " +lon_0=", m_longitude_of_origin);
+  push_fp_to_string(proj4, " +x_0=", m_false_easting * linear_unit());
+  push_fp_to_string(proj4, " +y_0=", m_false_northing * linear_unit());
+  push_fp_to_string(proj4, " +lat_ts=", m_standard_parallel_1);
+
+  return proj4.str();
 }
 
 }  // namespace srs
