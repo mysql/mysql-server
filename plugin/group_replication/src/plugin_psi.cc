@@ -468,6 +468,11 @@ static PSI_cond_info all_group_replication_psi_condition_keys[] = {
      0, PSI_DOCUMENT_ME},
     {&key_GR_COND_mysql_thread_dispatcher_run,
      "COND_mysql_thread_dispatcher_run", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&key_GR_COND_mysql_thread_handler_run, "COND_mysql_thread_handler_run",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&key_GR_COND_mysql_thread_handler_dispatcher_run,
+     "COND_mysql_thread_handler_dispatcher_run", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME}};
 
 static PSI_thread_info all_group_replication_psi_thread_keys[] = {

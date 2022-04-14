@@ -117,6 +117,8 @@ wait/synch/cond/group_rpl/COND_primary_promotion_policy	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_autorejoin_module	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_mysql_thread_run	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_mysql_thread_dispatcher_run	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_mysql_thread_handler_run	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_mysql_thread_handler_dispatcher_run	YES	YES	singleton	0	NULL
 stage/group_rpl/Undergoing auto-rejoin procedure	YES	YES	progress	0	NULL
 stage/group_rpl/Multi-primary Switch: waiting for pending transactions to finish	YES	YES	progress	0	NULL
 stage/group_rpl/Multi-primary Switch: waiting on another member step completion	YES	YES	progress	0	NULL
