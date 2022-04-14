@@ -53,8 +53,15 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
   double cost;
   std::vector<const Edge*> path;
   try {
-    Dijkstra dijkstra(&m_edge_map, heuristic, key_memory_Dijkstra);
+    std::deque<void*> allocated_memory;
+    Dijkstra dijkstra(&m_edge_map, heuristic, [&allocated_memory](const size_t n) -> void* {
+      void* p = my_malloc(key_memory_Dijkstra, n, MYF(MY_WME | ME_FATALERROR));
+      allocated_memory.push_front(p);
+      return p;
+    });
     path = dijkstra(m_begin_node, m_end_node, cost, stop_dijkstra);
+    for (void* p : allocated_memory)
+      my_free(p);
   } catch(...) { // handles std::bad_alloc and gis_exceptions from gis::Distance
     handle_std_exception(func_name());
     handle_gis_exception(func_name());
