@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -154,7 +154,7 @@ class ProcessManager {
 
     bool with_sudo_{false};
     bool catch_stderr_{true};
-    std::chrono::milliseconds sync_point_timeout_{5000};
+    std::chrono::milliseconds sync_point_timeout_{30000};
     SyncPoint sync_point_{SyncPoint::READY};
     OutputResponder output_responder_{kEmptyResponder};
 
@@ -245,7 +245,8 @@ class ProcessManager {
   ProcessWrapper &launch_router(
       const std::vector<std::string> &params, int expected_exit_code = 0,
       bool catch_stderr = true, bool with_sudo = false,
-      std::chrono::milliseconds wait_for_notify_ready = std::chrono::seconds(5),
+      std::chrono::milliseconds wait_for_notify_ready =
+          std::chrono::seconds(30),
       OutputResponder output_responder = kEmptyResponder);
 
   /** @brief Launches the MySQLServerMock process.
@@ -275,7 +276,7 @@ class ProcessManager {
       const std::string &module_prefix = "",
       const std::string &bind_address = "0.0.0.0",
       std::chrono::milliseconds wait_for_notify_ready =
-          std::chrono::seconds(5));
+          std::chrono::seconds(30));
 
   /**
    * launch mysql_server_mock from cmdline args.
@@ -284,7 +285,7 @@ class ProcessManager {
       const std::vector<std::string> &server_params, unsigned port,
       int expected_exit_code = 0,
       std::chrono::milliseconds wait_for_notify_ready =
-          std::chrono::seconds(5));
+          std::chrono::seconds(30));
 
   /**
    * build cmdline args for mysql_server_mock.

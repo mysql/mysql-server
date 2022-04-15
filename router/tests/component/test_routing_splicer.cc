@@ -772,7 +772,7 @@ TEST_P(SplicerConnectParamTest, check) {
 
   launch_router({"-c", conf_file}, EXIT_SUCCESS,
                 /* catch_stderr */ true, /* with_sudo */ false,
-                /* wait_for_notify_ready */ 20s);
+                /* wait_for_notify_ready */ 30s);
   EXPECT_TRUE(wait_for_port_ready(router_port));
 
   EXPECT_NO_FATAL_FAILURE(GetParam().checker(router_host_, router_port));
