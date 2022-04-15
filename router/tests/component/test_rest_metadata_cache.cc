@@ -111,8 +111,9 @@ TEST_P(RestMetadataCacheApiWithoutClusterTest, DISABLED_ensure_openapi) {
   config_sections.push_back(mysql_harness::ConfigBuilder::build_section(
       "metadata_cache:" + metadata_cache_section_name,
       {
+          {"router_id", "1"},
           {"user", keyring_username},
-          {"ttl", "0.2"},
+          {"ttl", "0.1"},
       }));
 
   std::string conf_file{create_config_file(
@@ -272,7 +273,7 @@ static const RestApiTestParams rest_api_params_without_cluster[]{
           [](const JsonValue *value) -> void {
             ASSERT_NE(value, nullptr);
             ASSERT_TRUE(value->IsInt());
-            ASSERT_EQ(value->GetInt(), 200);
+            ASSERT_EQ(value->GetInt(), 100);
           }},
      },
      kMetadataSwaggerPaths},
@@ -377,10 +378,11 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
   config_sections.push_back(mysql_harness::ConfigBuilder::build_section(
       "metadata_cache:" + metadata_cache_section_name,
       {
+          {"router_id", "1"},
           {"user", keyring_username},
           // name of the cluster in the mock's metadata
           {"metadata_cluster", "test"},
-          {"ttl", "0.2"},
+          {"ttl", "0.1"},
           {"bootstrap_server_addresses",
            "mysql://127.0.0.1:" + std::to_string(metadata_server_port_)},
       }));
@@ -573,7 +575,7 @@ static const RestApiTestParams rest_api_valid_methods[]{
           [](const JsonValue *value) -> void {
             ASSERT_NE(value, nullptr);
             ASSERT_TRUE(value->IsUint64());
-            ASSERT_EQ(value->GetUint64(), 200);
+            ASSERT_EQ(value->GetUint64(), 100);
           }},
          {"/nodes",
           [](const JsonValue *value) -> void {
