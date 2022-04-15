@@ -3,7 +3,12 @@
 #include "sql/malloc_allocator.h"
 #endif
 
-// TODO move constructor from .h
+template<class EdgeAllocator>
+Dijkstra<EdgeAllocator>::Dijkstra(const EdgeMapType* edges,
+           const std::function<double(const int& point_id)>& heu_func,
+           const std::function<void*(const size_t n)>& allocate)
+    : m_edges(edges), m_heu(heu_func),
+      m_point_map(CallbackAllocator<std::pair<const int, Point>>(allocate)), point_heap(CallbackAllocator<int>(allocate)) {}
 
 template<class EdgeAllocator>
 std::vector<const Edge*> Dijkstra<EdgeAllocator>::operator()(const int& start_point_id, const int& end_point_id, double& total_cost,

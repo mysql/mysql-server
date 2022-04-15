@@ -101,9 +101,7 @@ class Dijkstra {
    */
   Dijkstra(const EdgeMapType* edges,
            const std::function<double(const int& point_id)>& heu_func = [](const int&) -> double { return 0.0; },
-           const std::function<void*(const size_t n)>& allocate = {})
-    : m_edges(edges), m_heu(heu_func),
-      m_point_map(CallbackAllocator<std::pair<const int, Point>>(allocate)), point_heap(CallbackAllocator<int>(allocate)) {}
+           const std::function<void*(const size_t n)>& allocate = {});
   /**
    * @brief runs A* to find shortest path through m_edges
    * 
