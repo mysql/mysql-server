@@ -197,7 +197,7 @@ class SocketCloseTest : public RouterComponentTest {
     router =
         &launch_router(metadata_cache_section,
                        routing_rw_section + routing_ro_section, EXIT_SUCCESS,
-                       /*wait_for_notify_ready=*/5s);
+                       /*wait_for_notify_ready=*/30s);
 
     EXPECT_TRUE(
         wait_for_port_ready(read_only ? router_ro_port : router_rw_port));
@@ -764,7 +764,7 @@ TEST_P(FailToOpenSocketStaticRoundRobin, StaticRoundRobin) {
 
   SCOPED_TRACE("// launch the router with static routing configuration");
   launch_router("", routing_section, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/5s);
+                /*wait_for_notify_ready=*/30s);
 
   SCOPED_TRACE("// tcp-port:" + router_rw_port_str + " is used by the router");
   // check with netstat that the port is used by router.
@@ -1110,7 +1110,7 @@ TEST_P(RoundRobinFallback, RoundRobinFallbackTest) {
       router_ro_port, "SECONDARY", "round-robin-with-fallback", "", "ro");
 
   launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/5s);
+                /*wait_for_notify_ready=*/30s);
 
   EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
   EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
@@ -1175,7 +1175,7 @@ TEST_P(FirstAvailableDestMetadataCache, FirstAvailableDestMetadataCacheTest) {
       router_ro_port, "SECONDARY", "first-available", "", "ro");
 
   launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/5s);
+                /*wait_for_notify_ready=*/30s);
 
   EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
   EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
@@ -1279,7 +1279,7 @@ TEST_P(StaticRoutingToNonExistentNodes, StaticRoutingToNonExistentNodesTest) {
 
   SCOPED_TRACE("// launch the router with static routing configuration");
   launch_router("", routing_section, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/5s);
+                /*wait_for_notify_ready=*/30s);
 
   EXPECT_THROW(try_connection("127.0.0.1", port1, custom_user, custom_password),
                std::runtime_error);
@@ -1333,7 +1333,7 @@ TEST_P(SharedQuarantineSocketClose, cross_plugin_socket_shutdown) {
 
   SCOPED_TRACE("// launch the router with static routing configuration");
   launch_router("", routing_section, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/5s);
+                /*wait_for_notify_ready=*/30s);
 
   SCOPED_TRACE("// both routing plugins are working fine");
   ASSERT_NO_THROW(

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -144,7 +144,7 @@ class MetadataHttpAuthTest : public RouterComponentTest {
   auto &launch_router(
       const std::string &metadata_cache_section,
       const int expected_errorcode = EXIT_SUCCESS,
-      const std::chrono::milliseconds wait_for_notify_ready = 5s) {
+      const std::chrono::milliseconds wait_for_notify_ready = 30s) {
     const std::string &temp_test_dir_str = temp_test_dir.name();
 
     const auto &routing_section =

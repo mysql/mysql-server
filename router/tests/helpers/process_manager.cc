@@ -400,7 +400,7 @@ ProcessWrapper &ProcessManager::launch_command(
 ProcessWrapper &ProcessManager::launch_router(
     const std::vector<std::string> &params, int expected_exit_code /*= 0*/,
     bool catch_stderr /*= true*/, bool with_sudo /*= false*/,
-    std::chrono::milliseconds wait_for_notify_ready /*= 5s*/,
+    std::chrono::milliseconds wait_for_notify_ready /*= 30s*/,
     OutputResponder output_resp) {
   return router_spawner()
       .with_sudo(with_sudo)
@@ -463,7 +463,7 @@ ProcessWrapper &ProcessManager::launch_mysql_server_mock(
     bool debug_mode, uint16_t http_port, uint16_t x_port,
     const std::string &module_prefix /* = "" */,
     const std::string &bind_address /*= "127.0.0.1"*/,
-    std::chrono::milliseconds wait_for_notify_ready /*= 5s*/) {
+    std::chrono::milliseconds wait_for_notify_ready /*= 30s*/) {
   if (mysqlserver_mock_exec_.str().empty())
     throw std::logic_error("path to mysql-server-mock must not be empty");
 

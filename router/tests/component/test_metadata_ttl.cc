@@ -143,7 +143,7 @@ class MetadataChacheTTLTest : public RouterComponentTest {
   auto &launch_router(const std::string &metadata_cache_section,
                       const std::string &routing_section,
                       const int expected_exitcode,
-                      std::chrono::milliseconds wait_for_notify_ready = 5s) {
+                      std::chrono::milliseconds wait_for_notify_ready = 30s) {
     auto default_section = get_DEFAULT_defaults();
     init_keyring(default_section, get_test_temp_dir_name());
 
@@ -243,7 +243,7 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
       router_port, "PRIMARY", "first-available");
   auto &router =
       launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                    /*wait_for_notify_ready=*/5s);
+                    /*wait_for_notify_ready=*/30s);
 
   // the remaining is too time-dependent to hope it will pass with VALGRIND
   if (getenv("WITH_VALGRIND")) {
@@ -511,7 +511,7 @@ TEST_F(MetadataChacheTTLTest, CheckMetadataUpgradeBetweenTTLs) {
       router_port, "PRIMARY", "first-available");
   auto &router =
       launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                    /*wait_for_notify_ready=*/5s);
+                    /*wait_for_notify_ready=*/30s);
 
   // keep the router running for a while and change the metadata version
   EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 2));
@@ -580,7 +580,7 @@ TEST_P(CheckRouterVersionUpdateOnceTest, CheckRouterVersionUpdateOnce) {
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
   launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/5s);
+                /*wait_for_notify_ready=*/30s);
 
   SCOPED_TRACE("// let the router run for 3 ttl periods");
   EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 3));
@@ -678,7 +678,7 @@ TEST_P(PermissionErrorOnVersionUpdateTest, PermissionErrorOnAttributesUpdate) {
       router_port, "PRIMARY", "first-available");
   auto &router =
       launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                    /*wait_for_notify_ready=*/5s);
+                    /*wait_for_notify_ready=*/30s);
 
   SCOPED_TRACE(
       "// wait for several Router transactions on the metadata server");
@@ -750,7 +750,7 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
       router_port, "PRIMARY", "first-available");
   auto &router =
       launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                    /*wait_for_notify_ready=*/5s);
+                    /*wait_for_notify_ready=*/30s);
   EXPECT_TRUE(wait_for_port_not_available(router_port));
 
   SCOPED_TRACE("// let us make some user connection via the router port");
@@ -852,7 +852,7 @@ TEST_P(NodeRemovedTest, NodeRemoved) {
       router_port, "PRIMARY", "first-available");
 
   launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/5s);
+                /*wait_for_notify_ready=*/30s);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   SCOPED_TRACE(
@@ -952,7 +952,7 @@ class NodeHiddenTest : public MetadataChacheTTLTest {
     router =
         &launch_router(metadata_cache_section,
                        routing_rw_section + routing_ro_section, EXIT_SUCCESS,
-                       /*wait_for_notify_ready=*/5s);
+                       /*wait_for_notify_ready=*/30s);
 
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*router, read_only ? router_ro_port : router_rw_port));
@@ -1510,7 +1510,7 @@ TEST_P(NodesHiddenWithFallbackTest, PrimaryHidden) {
       router_ro_port, "SECONDARY", "round-robin-with-fallback", "", "ro");
 
   launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/5s);
+                /*wait_for_notify_ready=*/30s);
 
   EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
   EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
@@ -1556,7 +1556,7 @@ TEST_P(NodesHiddenWithFallbackTest, SecondaryHidden) {
       router_ro_port, "SECONDARY", "round-robin-with-fallback", "", "ro");
 
   launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/5s);
+                /*wait_for_notify_ready=*/30s);
 
   EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
   EXPECT_TRUE(wait_for_port_not_available(router_ro_port));

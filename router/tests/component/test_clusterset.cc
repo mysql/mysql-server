@@ -99,7 +99,7 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
   }
 
   auto &launch_router(int expected_errorcode = EXIT_SUCCESS,
-                      std::chrono::milliseconds wait_for_notify_ready = 10s) {
+                      std::chrono::milliseconds wait_for_notify_ready = 30s) {
     SCOPED_TRACE("// Prepare the dynamic state file for the Router");
     const auto clusterset_all_nodes_ports =
         clusterset_data_.get_all_nodes_classic_ports();
@@ -144,7 +144,7 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
 
   auto &relaunch_router(const std::string &conf_file,
                         int expected_errorcode = EXIT_SUCCESS,
-                        std::chrono::milliseconds wait_for_notify_ready = 10s) {
+                        std::chrono::milliseconds wait_for_notify_ready = 30s) {
     auto &router = ProcessManager::launch_router(
         {"-c", conf_file}, expected_errorcode, /*catch_stderr=*/true,
         /*with_sudo=*/false, wait_for_notify_ready);
