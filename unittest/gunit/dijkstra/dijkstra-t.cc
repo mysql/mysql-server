@@ -68,7 +68,7 @@ TEST_F(DijkstraTest, NullHeuristic) {
   };
   size_t n_edges = sizeof(edges) / sizeof(Edge);
   
-  std::unordered_multimap<int, const Edge*> edge_map(PSI_NOT_INSTRUMENTED);
+  std::unordered_multimap<int, const Edge*> edge_map;
   for (size_t i = 0; i < n_edges; i++) {
       Edge& e = edges[i];
       edge_map.insert(std::pair(e.from, &e));
@@ -135,7 +135,7 @@ TEST_F(DijkstraTest, EuclideanHeuristic) {
   // A 0 -> D 3 -> B 1 -> G 6 : 7.9m (test 3)
   size_t n_edges = sizeof(edges) / sizeof(Edge);
   
-  std::unordered_multimap<int, const Edge*> edge_map(PSI_NOT_INSTRUMENTED);
+  std::unordered_multimap<int, const Edge*> edge_map;
   for (size_t i = 0; i < n_edges; i++) {
       Edge& e = edges[i];
       edge_map.insert(std::pair(e.from, &e));

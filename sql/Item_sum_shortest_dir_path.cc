@@ -26,8 +26,6 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
   static std::function null_heuristic = [](const int&) -> double {
     return 0.0;
   };
-  
-  gis::Geometry* end_geom = nullptr;
   std::function<double(const int&)>& heuristic = null_heuristic;
 
   if (!m_point_map.empty()){
@@ -37,11 +35,10 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
       my_error(ER_NO_PATH_FOUND, MYF(0), func_name());
       return true;
     }
-    end_geom = &*m_point_map.at(m_end_node);
-    std::function spatial_heuristic = [this, &end_geom](const int& node) -> double {
+    const gis::Geometry *end_geom = m_point_map.at(m_end_node).get();
+    std::function spatial_heuristic = [this, end_geom](const int& node) -> double {
       static gis::Distance dst(NAN, NAN);
-      std::unique_ptr<gis::Geometry>& geom = this->m_point_map.at(node);
-      return dst(end_geom, &*geom);
+      return dst(end_geom, this->m_point_map.at(node).get());
     };
     heuristic = spatial_heuristic;
   }
@@ -177,7 +174,7 @@ bool Item_sum_shortest_dir_path::add() {
     return true;
   }
   m_edge_ids[id] = true;
-  // geom error
+  // begin/end error
   if (m_edge_map.empty()){
     m_begin_node = args[5]->val_int();
     m_end_node = args[6]->val_int();
@@ -211,11 +208,9 @@ bool Item_sum_shortest_dir_path::add() {
   return false;
 }
 
-Item *Item_sum_shortest_dir_path::copy_or_same(THD *thd) {
+Item *Item_sum_shortest_dir_path::copy_or_same(THD *) {
   assert(!m_is_window_function);
-  auto wrapper = make_unique_destroy_only<Json_wrapper>(thd->mem_root);
-  if (wrapper == nullptr) return nullptr;
-  return new (thd->mem_root) Item_sum_shortest_dir_path(thd, this, std::move(wrapper));
+  return this;
 }
 
 bool Item_sum_shortest_dir_path::check_wf_semantics1(THD *thd, Query_block *select,
@@ -258,15 +253,15 @@ inline bool Item_sum_shortest_dir_path::add_geom(Item *arg, const int& node_id, 
 
   std::unique_ptr<gis::Geometry> geom = geomRes.GetValue();
 
-  if (geom.get()->type() != gis::Geometry_type::kPoint){
+  if (geom->type() != gis::Geometry_type::kPoint){
     my_error(ER_GIS_WRONG_GEOM_TYPE, MYF(0), func_name());
     return true;
   }
 
   // redefinition of already defined geom
   if (m_point_map.find(node_id) != m_point_map.end()){
-    gis::Point* _p = down_cast<gis::Point*>(&*m_point_map.at(node_id));
-    gis::Point* p  = down_cast<gis::Point*>(&*geom);
+    const gis::Point* _p = down_cast<const gis::Point*>(m_point_map.at(node_id).get());
+    const gis::Point* p  = down_cast<const gis::Point*>(geom.get());
     static constexpr double tol = 0.001;
     if (std::abs(_p->x() - p->x()) > tol || std::abs(_p->y() - p->y()) > tol) {
       my_error(ER_GEOMETRY_REDEFINED, MYF(0), func_name(), node_id);
@@ -284,27 +279,27 @@ inline bool Item_sum_shortest_dir_path::add_geom(Item *arg, const int& node_id, 
 }
 
 inline bool Item_sum_shortest_dir_path::verify_const_id_argument(Item *item) {
-    if (!item->const_item() || item->is_null() || item->result_type() != INT_RESULT) {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-      return true;
-    }
-    return false;
+  if (!item->const_item() || item->is_null() || item->result_type() != INT_RESULT) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return true;
+  }
+  return false;
 }
 
 inline bool Item_sum_shortest_dir_path::verify_id_argument(Item *item) {
-    if (item->is_null() || item->result_type() != INT_RESULT) {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-      return true;
-    }
-    return false;
+  if (item->is_null() || item->result_type() != INT_RESULT) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return true;
+  }
+  return false;
 }
 
 inline bool Item_sum_shortest_dir_path::verify_cost_argument(Item *item) {
   if (item->is_null() || item->result_type() != REAL_RESULT) {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-      return true;
-    }
-    return false;
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return true;
+  }
+  return false;
 }
 
 inline Json_dom_ptr Item_sum_shortest_dir_path::jsonify_to_heap(const int& i) {
