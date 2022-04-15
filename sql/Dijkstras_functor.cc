@@ -8,13 +8,13 @@ Dijkstra<EdgeAllocator>::Dijkstra(const EdgeMapType* edges,
            const std::function<double(const int& point_id)>& heu_func,
            const std::function<void*(const size_t n)>& allocate)
     : m_edges(edges), m_heu(heu_func),
-      m_point_map(CallbackAllocator<std::pair<const int, Point>>(allocate)), point_heap(CallbackAllocator<int>(allocate)) {}
+      m_point_map(CallbackAllocator<std::pair<const int, Point>>(allocate)), m_point_heap(CallbackAllocator<int>(allocate)) {}
 
 template<class EdgeAllocator>
 std::vector<const Edge*> Dijkstra<EdgeAllocator>::operator()(const int& start_point_id, const int& end_point_id, double& total_cost,
                                                              const std::function<bool()>& stop){
   m_point_map.clear();
-  point_heap.clear();
+  m_point_heap.clear();
   int point = start_point_id; // node id
   Point& node = m_point_map[point] = Point{ 0, /*m_heu(point)*/ 0, nullptr };
   // A*
@@ -35,13 +35,13 @@ std::vector<const Edge*> Dijkstra<EdgeAllocator>::operator()(const int& start_po
       node_to.cost_heu = new_cost + m_heu(edge->to);
       node_to.path = edge;
 
-      point_heap.push_back(edge->to);
-      std::push_heap(point_heap.begin(), point_heap.end(), heap_cmp);
+      m_point_heap.push_back(edge->to);
+      std::push_heap(m_point_heap.begin(), m_point_heap.end(), heap_cmp);
     }
-    if (point_heap.empty() || stop())
+    if (m_point_heap.empty() || stop())
       return {};
-    point = point_heap.front();
-    point_heap.pop_front();
+    point = m_point_heap.front();
+    m_point_heap.pop_front();
     node = m_point_map[point];
   }
   total_cost = node.cost;

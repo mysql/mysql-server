@@ -82,7 +82,7 @@ class Dijkstra {
       const Edge* path = nullptr;
   };
   std::unordered_map<int, Point, std::hash<int>, std::equal_to<int>, CallbackAllocator<std::pair<const int, Point>>> m_point_map;
-  std::deque<int, CallbackAllocator<int>> point_heap;
+  std::deque<int, CallbackAllocator<int>> m_point_heap;
 
   // comparator used for point_heap sorting to make min heap based on m_point_map.cost_heu
   struct greater_point_heuristic_comparator {
