@@ -50,6 +50,7 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
   double cost;
   std::vector<const Edge*> path;
   try {
+    // Dijkstra's externally allocated memory (my_malloc)
     std::deque<void*> allocated_memory;
     Dijkstra dijkstra(&m_edge_map, heuristic, [&allocated_memory](const size_t n) -> void* {
       void* p = my_malloc(key_memory_Dijkstra, n, MYF(MY_WME | ME_FATALERROR));
@@ -57,6 +58,7 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
       return p;
     });
     path = dijkstra(m_begin_node, m_end_node, cost, stop_dijkstra);
+    // deallocating Dijkstra's borrowed memory
     for (void* p : allocated_memory)
       my_free(p);
   } catch(...) { // handles std::bad_alloc and gis_exceptions from gis::Distance
