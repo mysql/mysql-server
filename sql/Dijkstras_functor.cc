@@ -12,7 +12,7 @@ Dijkstra<EdgeAllocator>::Dijkstra(const EdgeMapType* edges,
 
 template<class EdgeAllocator>
 std::vector<const Edge*> Dijkstra<EdgeAllocator>::operator()(const int& start_point_id, const int& end_point_id, double& total_cost,
-                                                             const std::function<bool()>& stop, int *popped_points){
+                                                             int *popped_points, const std::function<bool()>& stop){
   m_point_map.clear();
   m_point_heap.clear();
   int popped_points_ = 0;

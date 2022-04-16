@@ -142,31 +142,48 @@ TEST_F(DijkstraTest, EuclideanHeuristic) {
   }
   double cost;
   int target_point = 6; // G
-  Dijkstra dijkstra(&edge_map, [&points, &target_point](const int& point) -> double {
+  int popped_points_null, popped_points_euclid;
+  Dijkstra null_dijkstra(&edge_map);
+  Dijkstra euclidean_dijkstra(&edge_map, [&points, &target_point](const int& point) -> double {
     return std::sqrt(
       std::pow(points[point].first - points[target_point].first, 2) +
       std::pow(points[point].second - points[target_point].second, 2)
     );
   });
-  // test 1
-  std::vector<const Edge*> path = dijkstra(0, target_point, cost);
+  // test 1 (euclid)
+  std::vector<const Edge*> path = euclidean_dijkstra(0, target_point, cost, &popped_points_euclid);
   std::vector<const Edge*> expected_path = { &edges[11], &edges[12] };
   EXPECT_EQ(path, expected_path);
   EXPECT_EQ(cost, 5.5);
+  // test 1 (null)
+  path = null_dijkstra(0, target_point, cost, &popped_points_null);
+  EXPECT_EQ(path, expected_path);
+  EXPECT_EQ(cost, 5.5);
+  EXPECT_TRUE(popped_points_euclid < popped_points_null);
 
-  // test 2
+  // test 2 (euclid)
   edges[12].cost = INFINITY; // disables prev best path (fine since heu <= cost)
-  path = dijkstra(0, target_point, cost);
+  path = euclidean_dijkstra(0, target_point, cost);
   expected_path = { &edges[2], &edges[10] };
   EXPECT_EQ(path, expected_path);
   EXPECT_EQ(cost, 7.0);
+  // test 2 (null)
+  path = null_dijkstra(0, target_point, cost, &popped_points_null);
+  EXPECT_EQ(path, expected_path);
+  EXPECT_EQ(cost, 7.0);
+  EXPECT_TRUE(popped_points_euclid < popped_points_null);
 
-  // test 3
+  // test 3 (euclid)
   edges[10].cost = INFINITY; // disables prev best path
-  path = dijkstra(0, target_point, cost);
+  path = euclidean_dijkstra(0, target_point, cost);
   expected_path = { &edges[1], &edges[3], &edges[14] };
   EXPECT_EQ(path, expected_path);
   EXPECT_EQ(cost, 7.9);
+  // test 2 (null)
+  path = null_dijkstra(0, target_point, cost, &popped_points_null);
+  EXPECT_EQ(path, expected_path);
+  EXPECT_EQ(cost, 7.9);
+  EXPECT_TRUE(popped_points_euclid < popped_points_null);
 }
 
 }  // namespace dijkstra_unittest

@@ -57,7 +57,7 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
       allocated_memory.push_front(p);
       return p;
     });
-    path = dijkstra(m_begin_node, m_end_node, cost, stop_dijkstra, &popped_points);
+    path = dijkstra(m_begin_node, m_end_node, cost, &popped_points, stop_dijkstra);
     // deallocating Dijkstra's borrowed memory
     for (void* p : allocated_memory)
       my_free(p);

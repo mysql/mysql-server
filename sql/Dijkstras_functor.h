@@ -114,8 +114,8 @@ class Dijkstra {
    *  m_edges, representing found path, or empty vector if stoped by param stop or no path exists
    */
   std::vector<const Edge*> operator()(const int& start_point_id, const int& end_point_id, double& total_cost,
-                                      const std::function<bool()>& stop = []() -> bool { return false; },
-                                      int *popped_points = nullptr);
+                                      int *popped_points = nullptr,
+                                      const std::function<bool()>& stop = []() -> bool { return false; });
  private:
   /**
    * @brief finds path by accumulating Point.path from m_point_map and reverting their order
