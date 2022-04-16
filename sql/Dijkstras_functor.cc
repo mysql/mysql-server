@@ -12,9 +12,10 @@ Dijkstra<EdgeAllocator>::Dijkstra(const EdgeMapType* edges,
 
 template<class EdgeAllocator>
 std::vector<const Edge*> Dijkstra<EdgeAllocator>::operator()(const int& start_point_id, const int& end_point_id, double& total_cost,
-                                                             const std::function<bool()>& stop){
+                                                             const std::function<bool()>& stop, int *popped_points){
   m_point_map.clear();
   m_point_heap.clear();
+  int popped_points_ = 0;
   int point = start_point_id; // node id
   Point& node = m_point_map[point] = Point{ 0, /*m_heu(point)*/ 0, nullptr };
   // A*
@@ -43,7 +44,10 @@ std::vector<const Edge*> Dijkstra<EdgeAllocator>::operator()(const int& start_po
     point = m_point_heap.front();
     m_point_heap.pop_front();
     node = m_point_map[point];
+    popped_points_++;
   }
+  if (popped_points)
+    *popped_points = popped_points_;
   total_cost = node.cost;
   return retrace(point, start_point_id);
 }

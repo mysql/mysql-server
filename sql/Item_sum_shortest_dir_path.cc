@@ -23,11 +23,11 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
   static std::function stop_dijkstra = [&thd]() -> bool {
     return thd->is_error() || thd->is_fatal_error() || thd->is_killed();
   };
-  static std::function null_heuristic = [](const int&) -> double {
+
+  std::function heuristic = [](const int&) -> double {
     return 0.0;
   };
-  std::function<double(const int&)>& heuristic = null_heuristic;
-
+  
   if (!m_point_map.empty()){
     // no path can exist if end_point geom doesn't exist in non empty node set
     // begin_node geom is not needed
@@ -36,11 +36,10 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
       return true;
     }
     const gis::Geometry *end_geom = m_point_map.at(m_end_node).get();
-    std::function spatial_heuristic = [this, end_geom](const int& node) -> double {
+    heuristic = [this, end_geom](const int& node) -> double {
       static gis::Distance dst(NAN, NAN);
       return dst(end_geom, this->m_point_map.at(node).get());
     };
-    heuristic = spatial_heuristic;
   }
 
   Json_array_ptr arr(new (std::nothrow) Json_array());
@@ -48,6 +47,7 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
     return error_json();
   
   double cost;
+  int popped_points;
   std::vector<const Edge*> path;
   try {
     // Dijkstra's externally allocated memory (my_malloc)
@@ -57,7 +57,7 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
       allocated_memory.push_front(p);
       return p;
     });
-    path = dijkstra(m_begin_node, m_end_node, cost, stop_dijkstra);
+    path = dijkstra(m_begin_node, m_end_node, cost, stop_dijkstra, &popped_points);
     // deallocating Dijkstra's borrowed memory
     for (void* p : allocated_memory)
       my_free(p);
@@ -91,7 +91,8 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
   if (
     obj == nullptr ||
     obj->add_alias("path", std::move(arr)) ||
-    obj->add_alias("cost", jsonify_to_heap(cost)))
+    obj->add_alias("cost", jsonify_to_heap(cost)) ||
+    obj->add_alias("visited_nodes", jsonify_to_heap(popped_points)))
       return error_json();
   
   *wr = Json_wrapper(std::move(obj));
@@ -198,10 +199,8 @@ bool Item_sum_shortest_dir_path::add() {
       return true;
 
   // store edge
-  Edge *edge = new (thd->mem_root, std::nothrow) Edge{ id, from_id, to_id, cost };
-  if (edge == nullptr)
-    return true;
   try {
+    Edge *edge = new (thd->mem_root) Edge{ id, from_id, to_id, cost };
     m_edge_map.insert(std::pair(from_id, edge));
   } catch (...) { // handles std::bad_alloc
     handle_std_exception(func_name());
@@ -215,8 +214,7 @@ Item *Item_sum_shortest_dir_path::copy_or_same(THD *) {
   return this;
 }
 
-bool Item_sum_shortest_dir_path::check_wf_semantics1(THD *thd, Query_block *select,
-                                        Window_evaluation_requirements *reqs) {
+bool Item_sum_shortest_dir_path::check_wf_semantics1(THD *thd, Query_block *select, Window_evaluation_requirements *reqs) {
   return Item_sum::check_wf_semantics1(thd, select, reqs);
 }
 

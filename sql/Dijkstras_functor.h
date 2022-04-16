@@ -109,11 +109,13 @@ class Dijkstra {
    * @param end_point_id node if of path end
    * @param total_cost l-val-ref returns total cost of found path (if path exists)
    * @param stop callback for exiting function. called every ...
+   * @param popped_points ptr to return #popped/visited points/nodes (can be nullptr)
    * @return std::vector<const Edge*> vector of pointers, pointing to edges in
    *  m_edges, representing found path, or empty vector if stoped by param stop or no path exists
    */
   std::vector<const Edge*> operator()(const int& start_point_id, const int& end_point_id, double& total_cost,
-                                      const std::function<bool()>& stop = []() -> bool { return false; });
+                                      const std::function<bool()>& stop = []() -> bool { return false; },
+                                      int *popped_points = nullptr);
  private:
   /**
    * @brief finds path by accumulating Point.path from m_point_map and reverting their order

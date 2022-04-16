@@ -23,7 +23,7 @@ INSERT INTO edges VALUES
 ;
 SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 5) FROM edges;
 ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 5)
-{"cost": 12.0, "path": [{"id": 50, "cost": 3.0}, {"id": 53, "cost": 1.0}, {"id": 54, "cost": 2.0}, {"id": 55, "cost": 6.0}]}
+{"cost": 12.0, "path": [{"id": 50, "cost": 3.0}, {"id": 53, "cost": 1.0}, {"id": 54, "cost": 2.0}, {"id": 55, "cost": 6.0}], "visited_nodes": 5}
 INSERT INTO edges VALUES
 (10, 0, 1, 2.0, "car"),
 (11, 1, 2, 3.0, "car"),
@@ -39,10 +39,10 @@ INSERT INTO edges VALUES
 ;
 SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 2) FROM edges GROUP BY type;
 ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 2)
-{"cost": 5.0, "path": [{"id": 51, "cost": 5.0}]}
-{"cost": 5.0, "path": [{"id": 10, "cost": 2.0}, {"id": 11, "cost": 3.0}]}
-{"cost": 40.0, "path": [{"id": 22, "cost": 40.0}]}
-{"cost": 140.0, "path": [{"id": 30, "cost": 80.0}, {"id": 33, "cost": 40.0}, {"id": 34, "cost": 20.0}]}
+{"cost": 5.0, "path": [{"id": 51, "cost": 5.0}], "visited_nodes": 4}
+{"cost": 5.0, "path": [{"id": 10, "cost": 2.0}, {"id": 11, "cost": 3.0}], "visited_nodes": 2}
+{"cost": 40.0, "path": [{"id": 22, "cost": 40.0}], "visited_nodes": 2}
+{"cost": 140.0, "path": [{"id": 30, "cost": 80.0}, {"id": 33, "cost": 40.0}, {"id": 34, "cost": 20.0}], "visited_nodes": 3}
 # -----------------------------------
 # |[2] testing A* i.e. with geometry|
 # -----------------------------------
@@ -89,21 +89,21 @@ FROM edges
 JOIN points ON points.id = edges.to_id
 ;
 ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 6)
-{"cost": 5.5, "path": [{"id": 11, "cost": 3.2}, {"id": 12, "cost": 2.3}]}
+{"cost": 5.5, "path": [{"id": 11, "cost": 3.2}, {"id": 12, "cost": 2.3}], "visited_nodes": 2}
 UPDATE edges SET cost = 1000.0 where id = 12;
 SELECT ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 6)
 FROM edges
 JOIN points ON points.id = edges.to_id
 ;
 ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 6)
-{"cost": 7.0, "path": [{"id": 2, "cost": 5.0}, {"id": 10, "cost": 2.0}]}
+{"cost": 7.0, "path": [{"id": 2, "cost": 5.0}, {"id": 10, "cost": 2.0}], "visited_nodes": 5}
 UPDATE edges SET cost = 1000.0 where id = 10;
 SELECT ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 6)
 FROM edges
 JOIN points ON points.id = edges.to_id
 ;
 ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 6)
-{"cost": 7.9, "path": [{"id": 1, "cost": 2.9}, {"id": 3, "cost": 3.0}, {"id": 14, "cost": 2.0}]}
+{"cost": 7.9, "path": [{"id": 1, "cost": 2.9}, {"id": 3, "cost": 3.0}, {"id": 14, "cost": 2.0}], "visited_nodes": 7}
 # -----------------------------
 # |[3] testing error detection|
 # -----------------------------
