@@ -70,8 +70,8 @@ TEST_F(DijkstraTest, NullHeuristic) {
   
   std::unordered_multimap<int, const Edge*> edge_map;
   for (size_t i = 0; i < n_edges; i++) {
-      Edge& e = edges[i];
-      edge_map.insert(std::pair(e.from, &e));
+    Edge& e = edges[i];
+    edge_map.insert(std::pair(e.from, &e));
   }
   double cost;
   Dijkstra dijkstra(&edge_map);
@@ -137,8 +137,8 @@ TEST_F(DijkstraTest, EuclideanHeuristic) {
   
   std::unordered_multimap<int, const Edge*> edge_map;
   for (size_t i = 0; i < n_edges; i++) {
-      Edge& e = edges[i];
-      edge_map.insert(std::pair(e.from, &e));
+    Edge& e = edges[i];
+    edge_map.insert(std::pair(e.from, &e));
   }
   double cost;
   int target_point = 6; // G
