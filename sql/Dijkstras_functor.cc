@@ -30,7 +30,7 @@ std::vector<const Edge*> Dijkstra<EdgeAllocator>::operator()(const int& start_po
       // ignore longer paths
       double new_cost = node.cost + edge->cost;
       if (new_cost >= node_to.cost)
-          continue;
+        continue;
       
       node_to.cost = new_cost;
       node_to.cost_heu = new_cost + m_heu(edge->to);
