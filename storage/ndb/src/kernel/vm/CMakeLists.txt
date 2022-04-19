@@ -21,8 +21,12 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi)
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
+INCLUDE_DIRECTORIES(
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/blocks
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/error
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi)
 
 ADD_LIBRARY(ndbkernel STATIC
   ArenaPool.cpp

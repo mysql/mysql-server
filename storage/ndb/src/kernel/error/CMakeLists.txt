@@ -21,7 +21,10 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
+INCLUDE_DIRECTORIES(
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/vm)
 
 ADD_LIBRARY(ndberror STATIC
   TimeModule.cpp
