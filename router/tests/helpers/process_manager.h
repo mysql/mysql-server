@@ -171,6 +171,10 @@ class ProcessManager {
     return spawner(mysqlrouter_exec_.str(), "mysqlrouter.log");
   }
 
+  /** @brief Gets path to the directory used as log output directory
+   */
+  Path get_logging_dir() const { return logging_dir_.name(); }
+
  protected:
   virtual ~ProcessManager() = default;
 
@@ -343,10 +347,6 @@ class ProcessManager {
    *         (conf files, json files).
    */
   const Path &get_data_dir() const { return data_dir_; }
-
-  /** @brief Gets path to the directory used as log output directory
-   */
-  Path get_logging_dir() const { return Path(logging_dir_.name()); }
 
   /** @brief returns a map with default [DEFAULT] section parameters
    *

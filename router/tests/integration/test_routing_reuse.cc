@@ -142,10 +142,15 @@ class Procs : public ProcessManager {
     shutdown_all();
     ensure_clean_exit();
 
-    if (::testing::Test::HasFatalFailure()) {
+    if (::testing::Test::HasFatalFailure() || dump_logs_) {
       dump_all();
     }
   }
+
+  void dump_logs() { dump_logs_ = true; }
+
+ private:
+  bool dump_logs_{false};
 };
 
 struct ReuseConnectionParam {
@@ -249,10 +254,12 @@ class SharedServer {
             .spawner(process_manager().get_origin().join("mysqld").str())
             .wait_for_sync_point(ProcessManager::Spawner::SyncPoint::NONE)
             .spawn({
-                "--initialize-insecure",         //
-                "--datadir", mysqld_dir_name(),  //
+                "--initialize-insecure",
+                "--datadir=" + mysqld_dir_name(),
+                "--log-error=" + mysqld_dir_name() +
+                    mysql_harness::Path::directory_separator + "mysqld.err",
             });
-
+    proc.set_logging_path(mysqld_dir_name(), "mysqld.err");
     ASSERT_NO_THROW(proc.wait_for_exit(60s));
     if (proc.exit_code() != 0) mysqld_failed_to_start_ = true;
   }
@@ -284,6 +291,8 @@ class SharedServer {
                 "--no-defaults-file",
                 "--lc-messages-dir=" + lc_messages_dir.str(),
                 "--datadir=" + mysqld_dir_name(),
+                "--log-error=" + mysqld_dir_name() +
+                    mysql_harness::Path::directory_separator + "mysqld.err",
                 "--port=" + std::to_string(server_port_),
                 // defaults to {datadir}/mysql.socket
                 "--socket=" + Path(mysqld_dir_name()).join("mysql.sock").str(),
@@ -294,7 +303,7 @@ class SharedServer {
                 // disable LOAD DATA/SELECT INTO on the server
                 "--secure-file-priv=NULL",
             });
-
+    proc.set_logging_path(mysqld_dir_name(), "mysqld.err");
     if (!proc.wait_for_sync_point_result()) mysqld_failed_to_start_ = true;
 
 #ifdef _WIN32
@@ -583,6 +592,9 @@ class SharedRouter {
             .wait_for_sync_point(ProcessManager::Spawner::SyncPoint::READY)
             .spawn({"-c", writer.write()});
 
+    proc.set_logging_path(process_manager().get_logging_dir().str(),
+                          "mysqlrouter.log");
+
     if (!proc.wait_for_sync_point_result()) {
       GTEST_SKIP() << "router failed to start";
     }
@@ -671,6 +683,12 @@ class ReuseConnectionTest
       GTEST_SKIP() << "failed to start mysqld";
     } else {
       shared_server_->flush_prileges();
+    }
+  }
+
+  virtual ~ReuseConnectionTest() override {
+    if (::testing::Test::HasFailure()) {
+      shared_router_->process_manager().dump_logs();
     }
   }
 
