@@ -46,7 +46,6 @@
 #define NDB_HAVE_MB
 #define NDB_HAVE_RMB
 #define NDB_HAVE_WMB
-#define NDB_HAVE_READ_BARRIER_DEPENDS
 #define NDB_HAVE_XCNG
 #define NDB_HAVE_CPU_PAUSE
 
@@ -56,7 +55,6 @@
 /* #define rmb() asm volatile("lfence":::"memory") */
 #define rmb()   asm volatile("" ::: "memory")
 #define wmb()   asm volatile("" ::: "memory")
-#define read_barrier_depends()  do {} while(0)
 
 static
 inline
@@ -90,12 +88,10 @@ cpu_pause()
 #define NDB_HAVE_MB
 #define NDB_HAVE_RMB
 #define NDB_HAVE_WMB
-#define NDB_HAVE_READ_BARRIER_DEPENDS
 
 #define mb()    asm volatile("membar #LoadLoad | #LoadStore | #StoreLoad | #StoreStore":::"memory")
 #define rmb()   asm volatile("membar #LoadLoad" ::: "memory")
 #define wmb()   asm volatile("membar #StoreStore" ::: "memory")
-#define read_barrier_depends()  do {} while(0)
 
 #ifdef HAVE_ATOMIC_H
 #include <atomic.h>
@@ -123,13 +119,11 @@ extern  int xcng(volatile unsigned * addr, int val);
 #define NDB_HAVE_MB
 #define NDB_HAVE_RMB
 #define NDB_HAVE_WMB
-#define NDB_HAVE_READ_BARRIER_DEPENDS
 #define NDB_HAVE_XCNG
 
 #define mb() asm volatile("lwsync;" ::: "memory")
 #define rmb() asm volatile("lwsync;" ::: "memory")
 #define wmb() asm volatile("lwsync;" ::: "memory")
-#define read_barrier_depends() do {} while(0)
 
 static
 inline
@@ -155,13 +149,11 @@ xcng(volatile unsigned * addr, int val)
 #define NDB_HAVE_MB
 #define NDB_HAVE_RMB
 #define NDB_HAVE_WMB
-#define NDB_HAVE_READ_BARRIER_DEPENDS
 //#define NDB_HAVE_XCNG
 
 #define mb() std::atomic_thread_fence(std::memory_order_seq_cst)
 #define rmb() std::atomic_thread_fence(std::memory_order_seq_cst)
 #define wmb() std::atomic_thread_fence(std::memory_order_seq_cst)
-#define read_barrier_depends() do {} while(0)
 
 #define cpu_pause()  __asm__ __volatile__ ("yield")
 
@@ -182,25 +174,21 @@ xcng(volatile unsigned * addr, int val)
 #define NDB_HAVE_MB
 #define NDB_HAVE_RMB
 #define NDB_HAVE_WMB
-#define NDB_HAVE_READ_BARRIER_DEPENDS
 
 #define mb()    asm ("mfence")
 /* According to Intel docs, it does not reorder loads. */
 /* #define rmb() asm ("lfence") */
 #define rmb()   asm ("")
 #define wmb()   asm ("")
-#define read_barrier_depends()  do {} while(0)
 
 #elif defined(__sparc)
 #define NDB_HAVE_MB
 #define NDB_HAVE_RMB
 #define NDB_HAVE_WMB
-#define NDB_HAVE_READ_BARRIER_DEPENDS
 
 #define mb() asm ("membar #LoadLoad | #LoadStore | #StoreLoad | #StoreStore")
 #define rmb() asm ("membar #LoadLoad")
 #define wmb() asm ("membar #StoreStore")
-#define read_barrier_depends()  do {} while(0)
 #else
 #define NDB_NO_ASM "Unsupported architecture (sun studio)"
 #error "Unsupported architecture (sun studio)"
@@ -260,11 +248,9 @@ extern  int xcng(volatile unsigned * addr, int val);
 #define NDB_HAVE_MB
 #define NDB_HAVE_RMB
 #define NDB_HAVE_WMB
-#define NDB_HAVE_READ_BARRIER_DEPENDS
 
 #include <windows.h>
 #define mb()    MemoryBarrier()
-#define read_barrier_depends()  do {} while(0)
 #ifdef _DEBUG
 #define rmb()   do {} while(0)
 #define wmb()   do {} while(0)

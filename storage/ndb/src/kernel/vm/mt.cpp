@@ -6345,6 +6345,14 @@ read_all_jbb_state(thr_data *selfptr, bool check_before_sleep)
     }
     else
     {
+      if (write_index != r->m_write_index)
+      {
+        /**
+         * Found new JBB pages. Need to make sure that we do not read-reorder
+         * 'm_write_index' vs 'read_buffer->m_len'.
+         */
+        rmb();
+      }
       if (write_index > read_index)
       {
         num_words = write_index - read_index;
@@ -6359,7 +6367,6 @@ read_all_jbb_state(thr_data *selfptr, bool check_before_sleep)
     }
     tot_num_words += num_words;
     r->m_write_index = write_index;
-    read_barrier_depends(); // Disallow compiler to reorder these reads
     r->m_read_end = r->m_read_buffer->m_len;
     /**
      * Note ^^ that we will need a later rmb() before we can safely read the
@@ -6460,8 +6467,17 @@ bool
 read_jba_state(thr_data *selfptr)
 {
   thr_jb_read_state *r = &(selfptr->m_jba_read_state);
-  r->m_write_index = selfptr->m_jba.m_write_index;
-  read_barrier_depends(); // Disallow compiler to reorder these reads.
+  const Uint32 new_write_index = selfptr->m_jba.m_write_index;
+  if (r->m_write_index != new_write_index) {
+    /**
+     * There are new JBA pages, we need to make sure that any updates to
+     * 'read_buffer->m_len' are not read-reordered relative to 'write_index'
+     * (Missing the signals appended to m_len before prev block became 'full')
+     */
+    r->m_write_index = new_write_index;
+    rmb();
+  }
+
   /**
    * Will need a later rmb()-synch before we can execute_signals() upto
    * '...buffer->m_len', see comment in read_all_jbb_state().
