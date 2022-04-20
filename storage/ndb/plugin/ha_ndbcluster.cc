@@ -7756,6 +7756,18 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
     */
     thd_ndb->save_point_count++;
     DBUG_PRINT("info", ("Commit before start or end-of-statement only"));
+
+    // To achieve parallelism when using more than one worker, any defined
+    // operations should be prepared in NDB before entering the serial commit
+    // phase. The last part of parallel phase is normally when the worker thread
+    // has completed the current binlog group and commits the statement.
+    if (applier && applier->get_num_workers() > 1) {
+      if (thd_ndb->m_unsent_bytes) {
+        DBUG_PRINT("info", ("Applier preparing defined operations"));
+        return execute_no_commit(thd_ndb, trans, true);
+      }
+    }
+
     return 0;
   }
   thd_ndb->save_point_count = 0;
