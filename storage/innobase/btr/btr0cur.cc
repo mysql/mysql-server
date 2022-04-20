@@ -3484,6 +3484,9 @@ dberr_t btr_cur_optimistic_update(ulint flags, btr_cur_t *cursor,
   ut_ad(fil_page_index_page_check(page));
   ut_ad(btr_page_get_index_id(page) == index->id);
 
+  DBUG_EXECUTE_IF("DB_ZIP_OVERFLOW_on_btr_cur_optimistic_update",
+                  return (DB_ZIP_OVERFLOW););
+
   *offsets = rec_get_offsets(rec, index, *offsets, ULINT_UNDEFINED,
                              UT_LOCATION_HERE, heap);
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
