@@ -11,7 +11,9 @@
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || \
     defined(WIN64) || defined(_WIN64) || defined(__WIN64__)
 /* Suppress warnings about plain fopen() etc. */
+#ifndef _CRT_SECURE_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
+#endif
 #if defined(_MSC_VER) && (_MSC_VER < 1900)
 /* Workaround for snprintf() missing in older MSVC versions.
  * Note that _snprintf() may not NUL terminate the string, but
