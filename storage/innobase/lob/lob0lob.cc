@@ -1318,11 +1318,11 @@ dberr_t mark_not_partially_updatable(trx_t *trx, dict_index_t *index,
   for (ulint i = 0; i < n_fields; i++) {
     const upd_field_t *ufield = upd_get_nth_field(update, i);
 
-    if (update->is_partially_updated(ufield->field_no)) {
+    if (ufield->is_virtual()) {
       continue;
     }
 
-    if (ufield->is_virtual()) {
+    if (update->is_partially_updated(ufield->field_no)) {
       continue;
     }
 

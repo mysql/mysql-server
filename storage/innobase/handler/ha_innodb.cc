@@ -9536,6 +9536,7 @@ static dberr_t calc_row_difference(
       if (is_virtual) {
         dfield_t *vfield = dtuple_get_nth_v_field(uvect->old_vrow, num_v);
         upd_fld_set_virtual_col(ufield);
+        /* Set ufield->field_no to store the position of virtual column. */
         ufield->field_no = num_v;
 
         ut_ad(col->ord_part || online_ord_part);
@@ -9571,6 +9572,8 @@ static dberr_t calc_row_difference(
         }
         num_v++;
       } else {
+        /* Set ufield->field_no to store the position of column in
+        clustered index. */
         ufield->field_no = dict_col_get_clust_pos(
             &prebuilt->table->cols[i - num_v], clust_index);
 #ifdef UNIV_DEBUG
