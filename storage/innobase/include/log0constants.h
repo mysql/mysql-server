@@ -240,12 +240,13 @@ constexpr os_offset_t LOG_CHECKPOINT_LSN = 8;
 /* Offsets used in a log block header. */
 
 /** Offset to hdr_no, which is a log block number and must be > 0.
-It is allowed to wrap around at LOG_BLOCK_MAX_NO. The highest bit
-of hdr_no is set to 1, if this is the first block in a call to
-fil_io (for possibly many consecutive blocks). */
+It is allowed to wrap around at LOG_BLOCK_MAX_NO.
+In older versions of MySQL the highest bit (LOG_BLOCK_FLUSH_BIT_MASK) of hdr_no
+is set to 1, if this is the first block in a call to write. */
 constexpr uint32_t LOG_BLOCK_HDR_NO = 0;
 
-/** Mask used to get the highest bit in the hdr_no field. */
+/** Mask used to get the highest bit in the hdr_no field.
+In the older MySQL versions this bit was used to mark first block in a write.*/
 constexpr uint32_t LOG_BLOCK_FLUSH_BIT_MASK = 0x80000000UL;
 
 /** Maximum allowed block's number (stored in hdr_no) increased by 1. */

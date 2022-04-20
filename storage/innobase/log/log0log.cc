@@ -724,7 +724,6 @@ dberr_t log_start(log_t &log, lsn_t checkpoint_lsn, lsn_t start_lsn,
   block_header.m_epoch_no = log_block_convert_lsn_to_epoch_no(block_lsn);
   block_header.m_hdr_no = log_block_convert_lsn_to_epoch_no(block_lsn);
   block_header.m_data_len = start_lsn - block_lsn;
-  block_header.m_flush_bit = true;
 
   if (first_block != nullptr) {
     std::memcpy(block, first_block, OS_FILE_LOG_BLOCK_SIZE);

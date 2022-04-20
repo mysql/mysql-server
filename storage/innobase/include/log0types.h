@@ -255,10 +255,6 @@ struct Log_data_block_header {
   /** Offset to the first mtr starting in this block, or 0 if there is no
   mtr starting in this block. */
   uint16_t m_first_rec_group;
-
-  /** True iff this block is the first block in a write operation,
-  @see log_block_get_flush_bit */
-  bool m_flush_bit;
 };
 
 /** Pair of: log file id and log file size (expressed in bytes). */
