@@ -5615,11 +5615,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
   if (remove_condition) {
     new_item->fix_fields(thd, ref);
     used_tables_cache = 0;
-    if (func_type == COND_AND_FUNC && ignore_unknown())
-      not_null_tables_cache = 0;
-    else
-      not_null_tables_cache = ~(table_map)0;
-
+    not_null_tables_cache = 0;
     li.rewind();
     while ((item = li++)) {
       Cleanup_after_removal_context ctx(select);
