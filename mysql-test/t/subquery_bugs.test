@@ -1788,3 +1788,50 @@ execute ps using @v;
 deallocate prepare ps;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#34060289 optimizer rewrites view and turns left joins into inner joins
+--echo #
+
+CREATE TABLE vt1 (c1 INT);
+CREATE TABLE vt2 (c1 INT);
+
+CREATE TABLE vt3 (c1 INT NOT NULL AUTO_INCREMENT, c2 INT,
+                  c3 INT, c4 INT, c5 INT, PRIMARY KEY (c1));
+INSERT INTO vt3 (c2,c3) VALUES (1,1);
+
+CREATE TABLE vt4 (c1 INT);
+INSERT INTO vt4 (c1) VALUES (1);
+
+CREATE VIEW v1 AS
+SELECT vt3.c2 AS vc1, vt3.c3 AS vc2, vt4.c1 AS vc3
+ FROM (((vt3 LEFT JOIN vt1 ON vt1.c1 = vt3.c5)
+         LEFT JOIN vt2 ON vt3.c4= vt2.c1) JOIN vt4);
+
+CREATE TABLE t1 (c1 INT, c2 CHAR(2));
+INSERT INTO t1 VALUES (1, '01');
+
+CREATE TABLE t2 (c2 INT, c3 INT);
+INSERT INTO t2 VALUES (1, null);
+
+let $query =
+SELECT *
+FROM v1
+WHERE (v1.vc3 IN (SELECT c1 FROM t1 WHERE c2='01'))
+       AND (null IS null OR v1.vc1 IN (SELECT c2 FROM t2 WHERE c3=null))
+       AND (null IS null OR v1.vc2 IN (null));
+
+# expecting the same result in all the cases
+SET optimizer_switch="derived_merge=off";
+eval $query;
+
+SET optimizer_switch="derived_merge=on";
+eval $query;
+
+SELECT *
+FROM v1
+WHERE (vc3 IN (SELECT c1 FROM t1 WHERE c2='01'))
+       AND (null IS null OR v1.vc1 IN (SELECT c2 FROM t2 WHERE c3=null));
+
+DROP VIEW v1;
+DROP TABLE vt1, vt2, vt3, vt4, t1, t2;
