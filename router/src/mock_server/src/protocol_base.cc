@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -138,7 +138,11 @@ stdx::expected<void, std::error_code> ProtocolBase::tls_accept() {
   auto ssl = ssl_.get();
   auto rbio = SSL_get_rbio(ssl);
 
+  stdx::expected<void, std::error_code> result{};
   const auto accept_res = SSL_accept(ssl);
+  if (accept_res != 1) {
+    result = stdx::make_unexpected(make_tls_ssl_error(ssl, accept_res));
+  }
 
   // if the initial memory bio is processed, switch to the fd for more data.
   if (BIO_method_type(rbio) == BIO_TYPE_MEM && BIO_ctrl_pending(rbio) == 0) {
@@ -148,10 +152,6 @@ stdx::expected<void, std::error_code> ProtocolBase::tls_accept() {
     SSL_set_fd(ssl, client_socket_.native_handle());
   }
 
-  if (accept_res != 1) {
-    return stdx::make_unexpected(make_tls_ssl_error(ssl, accept_res));
-  }
-
-  return {};
+  return result;
 }
 }  // namespace server_mock
