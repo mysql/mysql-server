@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -109,9 +109,7 @@ void destroy_internal_thd(THD *thd) {
   delete thd;
 }
 
-void thd_init(THD *thd, char *stack_start, bool bound [[maybe_unused]],
-              PSI_thread_key psi_key [[maybe_unused]],
-              unsigned int psi_seqnum [[maybe_unused]]) {
+void thd_init(THD *thd, char *stack_start) {
   DBUG_TRACE;
   // TODO: Purge threads currently terminate too late for them to be added.
   // Note that P_S interprets all threads with thread_id != 0 as
@@ -122,15 +120,6 @@ void thd_init(THD *thd, char *stack_start, bool bound [[maybe_unused]],
     Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
     thd_manager->add_thd(thd);
   }
-#ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_thread *psi;
-  psi = PSI_THREAD_CALL(new_thread)(psi_key, psi_seqnum, thd, thd->thread_id());
-  if (bound) {
-    PSI_THREAD_CALL(set_thread_os_id)(psi);
-  }
-  PSI_THREAD_CALL(set_thread_THD)(psi, thd);
-  thd->set_psi(psi);
-#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   if (!thd->system_thread) {
     DBUG_PRINT("info",
@@ -141,6 +130,24 @@ void thd_init(THD *thd, char *stack_start, bool bound [[maybe_unused]],
   thd_set_thread_stack(thd, stack_start);
 
   thd->store_globals();
+}
+
+void thd_init(THD *thd, char *stack_start, bool bound [[maybe_unused]],
+              PSI_thread_key psi_key [[maybe_unused]],
+              unsigned int psi_seqnum [[maybe_unused]]) {
+  DBUG_TRACE;
+
+  thd_init(thd, stack_start);
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_thread *psi;
+  psi = PSI_THREAD_CALL(new_thread)(psi_key, psi_seqnum, thd, thd->thread_id());
+  if (bound) {
+    PSI_THREAD_CALL(set_thread_os_id)(psi);
+  }
+  PSI_THREAD_CALL(set_thread_THD)(psi, thd);
+  thd->set_psi(psi);
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 }
 
 THD *create_thd(bool enable_plugins, bool background_thread, bool bound,
@@ -156,10 +163,10 @@ THD *create_thd(bool enable_plugins, bool background_thread, bool bound,
   return thd;
 }
 
-void destroy_thd(THD *thd) {
+void destroy_thd(THD *thd, bool clear_pfs_events [[maybe_unused]]) {
   thd->release_resources();
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_THREAD_CALL(delete_thread)(thd->get_psi());
+  if (clear_pfs_events) PSI_THREAD_CALL(delete_thread)(thd->get_psi());
   thd->set_psi(nullptr);
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
@@ -170,6 +177,8 @@ void destroy_thd(THD *thd) {
   }
   delete thd;
 }
+
+void destroy_thd(THD *thd) { return destroy_thd(thd, true); }
 
 void thd_set_thread_stack(THD *thd, const char *stack_start) {
   thd->thread_stack = stack_start;
