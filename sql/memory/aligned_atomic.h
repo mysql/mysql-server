@@ -35,6 +35,7 @@
 #include <windows.h>
 #elif defined(__linux__)
 #include <unistd.h>
+#include <cstdio>
 #endif
 
 namespace memory {
@@ -79,6 +80,13 @@ static inline size_t _cache_line_size() {
 static inline size_t _cache_line_size() {
   long size = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
   if (size == -1) return 64;
+  if (!size) {
+    FILE* p = fopen("/sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size", "r");
+    if (p) {
+      fscanf(p, "%ld", &size);
+      fclose(p);
+    }
+  }
   return static_cast<size_t>(size);
 }
 
