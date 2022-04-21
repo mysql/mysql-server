@@ -1200,17 +1200,6 @@ IF(USE_LD_LLD)
   CMAKE_POP_CHECK_STATE()
 ENDIF()
 
-# Use gold on x86 if available and not explicitly disabled.
-# LTO build fails with gold, so turn it off by default.
-IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64"
-    AND NOT WIN32
-    AND NOT WITH_LTO
-    AND NOT CMAKE_COMPILER_FLAG_WITH_LTO)
-  OPTION(USE_LD_GOLD "Use GNU gold linker" ON)
-ELSE()
-  OPTION(USE_LD_GOLD "Use GNU gold linker" OFF)
-ENDIF()
-
 IF(LINUX_STANDALONE)
   # ON by default in pushbuild, but only for standalone builds.
   # The comression does not play well with some RPM/DEB packaging.
@@ -1330,31 +1319,23 @@ ELSE()
   SET(LINK_RANDOMIZE OFF)
 ENDIF()
 
-IF (USE_LD_GOLD AND NOT (C_LD_LLD_RESULT AND CXX_LD_LLD_RESULT))
-  CMAKE_PUSH_CHECK_STATE(RESET)
-  SET(CMAKE_REQUIRED_LIBRARIES "-fuse-ld=gold")
-  CHECK_C_SOURCE_COMPILES("int main() {}" C_LD_GOLD_RESULT)
-  CHECK_CXX_SOURCE_COMPILES("int main() {}" CXX_LD_GOLD_RESULT)
-  IF (C_LD_GOLD_RESULT AND CXX_LD_GOLD_RESULT AND NOT SOLARIS)
-    STRING_APPEND(CMAKE_C_LINK_FLAGS " -fuse-ld=gold")
-    STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -fuse-ld=gold")
-
-    # Seemingly --gc-sections causes problems with randomization, so only
-    # turn it on if we are not making a randomized build.
-    IF (NOT LINK_RANDOMIZE)
-      STRING_APPEND(CMAKE_C_LINK_FLAGS " -Wl,--gc-sections")
-      STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--gc-sections")
-    ENDIF()
-  ENDIF()
-  CMAKE_POP_CHECK_STATE()
+IF(CMAKE_C_LINK_FLAGS MATCHES "-fuse-ld=gold" OR
+    CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=gold" OR
+    CMAKE_EXE_LINKER_FLAGS MATCHES "-fuse-ld=gold")
+  MESSAGE(WARNING "-fuse-ld=gold is not supported")
+  STRING(REPLACE
+    "-fuse-ld=gold" "" CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS}")
+  STRING(REPLACE
+    "-fuse-ld=gold" "" CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS}")
+  STRING(REPLACE
+    "-fuse-ld=gold" "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
 ENDIF()
 
 # Linker/binutils bug in Fedora 28, undefined reference to symbol '__bss_start'
 # Similar bug on 32bit Ubuntu.
 # Fedora 34: undefined reference to symbol 'crc32_z@@ZLIB_1.2.9'
 IF(LINUX_FEDORA_28 OR LINUX_FEDORA_34 OR LINUX_UBUNTU_16_04)
-  IF(NOT CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld" AND
-      NOT CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=gold")
+  IF(NOT CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld")
     STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--copy-dt-needed-entries")
   ENDIF()
 ENDIF()
@@ -1377,17 +1358,11 @@ ENDIF()
 # faster. The overhead of generating the index is small in LLD.
 OPTION(ADD_GDB_INDEX "Generate a .gdb_index section in the binaries." OFF)
 
-IF(ADD_GDB_INDEX AND
-    (CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld" OR
-      CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=gold"))
+IF(ADD_GDB_INDEX AND CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld")
   # -fuse-ld=lld is not enough to ensure that ld.lld will actually be used.
   # On some platforms we need an extra check for -Wl,--gdb-index
   CMAKE_PUSH_CHECK_STATE()
-  IF(CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld")
-    SET(CMAKE_REQUIRED_LIBRARIES "-fuse-ld=lld -Wl,--gdb-index")
-  ELSE()
-    SET(CMAKE_REQUIRED_LIBRARIES "-fuse-ld=gold -Wl,--gdb-index")
-  ENDIF()
+  SET(CMAKE_REQUIRED_LIBRARIES "-fuse-ld=lld -Wl,--gdb-index")
   CHECK_CXX_SOURCE_COMPILES("int main() {}" CXX_LD_GDB_INDEX_RESULT)
   CMAKE_POP_CHECK_STATE()
 
