@@ -241,6 +241,14 @@ class CostingReceiver {
     return access_paths;
   }
 
+  /// True if the result of the join is found to be always empty, typically
+  /// because of an impossible WHERE clause.
+  bool always_empty() const {
+    const auto it =
+        m_access_paths.find(TablesBetween(0, m_graph->nodes.size()));
+    return it != m_access_paths.end() && it->second.always_empty;
+  }
+
   AccessPath *ProposeAccessPath(
       AccessPath *path, Prealloced_array<AccessPath *, 4> *existing_paths,
       OrderingSet obsolete_orderings, const char *description_for_trace) const;
@@ -281,6 +289,10 @@ class CostingReceiver {
     // and never merged with the relevant-at-end orderings), this
     // should not happen.
     OrderingSet obsolete_orderings{0};
+
+    // True if the join of the tables in this set has been found to be always
+    // empty (typically because of an impossible WHERE clause).
+    bool always_empty{false};
   };
 
   /**
@@ -2885,15 +2897,13 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
       AccessPath *zero_path = NewZeroRowsAccessPath(
           m_thd, right_path, "Join condition rejects all rows");
       MutableOverflowBitset applied_sargable_join_predicates =
-          right_path->applied_sargable_join_predicates().Clone(
-              &m_overflow_bitset_mem_root);
+          right_path->applied_sargable_join_predicates().Clone(m_thd->mem_root);
       applied_sargable_join_predicates.ClearBits(0,
                                                  m_graph->num_where_predicates);
       zero_path->filter_predicates =
           std::move(applied_sargable_join_predicates);
       zero_path->delayed_predicates = right_path->delayed_predicates;
       right_path = zero_path;
-      CommitBitsetsToHeap(right_path);
     }
     for (AccessPath *left_path : left_it->second.paths) {
       if (DisallowParameterizedJoinPath(left_path, right_path, left, right,
@@ -2947,6 +2957,53 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
             new_obsolete_orderings, &wrote_trace);
       }
       m_overflow_bitset_mem_root.ClearForReuse();
+    }
+  }
+
+  // If any side of an inner join or semijoin is always empty, or the outer
+  // side(s) of an outer join or antijoin, the result of the join is also always
+  // empty. In these cases, propose a ZERO_ROWS path.
+  bool always_empty = false;
+  switch (edge->expr->type) {
+    case RelationalExpression::INNER_JOIN:
+    case RelationalExpression::STRAIGHT_INNER_JOIN:
+    case RelationalExpression::SEMIJOIN:
+      always_empty =
+          left_it->second.always_empty || right_it->second.always_empty;
+      break;
+    case RelationalExpression::LEFT_JOIN:
+    case RelationalExpression::ANTIJOIN:
+      always_empty = left_it->second.always_empty;
+      break;
+    case RelationalExpression::FULL_OUTER_JOIN:
+      always_empty =
+          left_it->second.always_empty && right_it->second.always_empty;
+      break;
+    case RelationalExpression::TABLE:
+    case RelationalExpression::MULTI_INNER_JOIN:
+      assert(false);
+      break;
+  }
+
+  if (always_empty) {
+    const auto it = m_access_paths.find(left | right);
+    if (it != m_access_paths.end() && !it->second.paths.empty() &&
+        !it->second.always_empty) {
+      AccessPath *first_candidate = it->second.paths.front();
+      AccessPath *zero_path =
+          NewZeroRowsAccessPath(m_thd, first_candidate, "impossible WHERE");
+      MutableOverflowBitset applied_sargable_join_predicates =
+          first_candidate->applied_sargable_join_predicates().Clone(
+              m_thd->mem_root);
+      applied_sargable_join_predicates.ClearBits(0,
+                                                 m_graph->num_where_predicates);
+      zero_path->filter_predicates =
+          std::move(applied_sargable_join_predicates);
+      zero_path->delayed_predicates = first_candidate->delayed_predicates;
+      zero_path->ordering_state = first_candidate->ordering_state;
+      ProposeAccessPathWithOrderings(
+          left | right, it->second.active_functional_dependencies,
+          it->second.obsolete_orderings, zero_path, "empty join");
     }
   }
 
@@ -4267,20 +4324,37 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
     NodeMap nodes, FunctionalDependencySet fd_set,
     OrderingSet obsolete_orderings, AccessPath *path,
     const char *description_for_trace) {
+  AccessPathSet *path_set;
   // Insert an empty array if none exists.
-  auto it_and_inserted = m_access_paths.emplace(
-      nodes,
-      AccessPathSet{Prealloced_array<AccessPath *, 4>{PSI_NOT_INSTRUMENTED},
-                    fd_set, obsolete_orderings});
-  if (!it_and_inserted.second) {
-    assert(fd_set ==
-           it_and_inserted.first->second.active_functional_dependencies);
-    assert(obsolete_orderings ==
-           it_and_inserted.first->second.obsolete_orderings);
+  {
+    const auto [it, inserted] = m_access_paths.emplace(
+        nodes,
+        AccessPathSet{Prealloced_array<AccessPath *, 4>{PSI_NOT_INSTRUMENTED},
+                      fd_set, obsolete_orderings});
+    path_set = &it->second;
+    if (!inserted) {
+      assert(fd_set == path_set->active_functional_dependencies);
+      assert(obsolete_orderings == path_set->obsolete_orderings);
+    }
   }
 
-  ProposeAccessPath(path, &it_and_inserted.first->second.paths,
-                    obsolete_orderings, description_for_trace);
+  if (path_set->always_empty) {
+    // This subtree is already optimized away. Don't propose any alternative
+    // plans, since we've already found the optimal one.
+    return;
+  }
+
+  if (path->type == AccessPath::ZERO_ROWS) {
+    // Clear the other candidates seen for this set of nodes, so that we prefer
+    // a simple ZERO_ROWS path, even in the case where we have for example a
+    // candidate NESTED_LOOP_JOIN path with zero cost.
+    path_set->paths.clear();
+    // Mark the subtree as optimized away.
+    path_set->always_empty = true;
+  }
+
+  ProposeAccessPath(path, &path_set->paths, obsolete_orderings,
+                    description_for_trace);
 
   // Don't bother trying sort-ahead if we are done joining;
   // there's no longer anything to be ahead of, so the regular
@@ -4344,9 +4418,8 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
                  sort_ahead_ordering.ordering_idx);
       }
     }
-    AccessPath *insert_position =
-        ProposeAccessPath(&sort_path, &it_and_inserted.first->second.paths,
-                          obsolete_orderings, buf);
+    AccessPath *insert_position = ProposeAccessPath(
+        &sort_path, &path_set->paths, obsolete_orderings, buf);
     if (insert_position != nullptr && !path_is_on_heap) {
       path = new (m_thd->mem_root) AccessPath(*path);
       CommitBitsetsToHeap(path);
@@ -6140,6 +6213,22 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         "got %zu candidate(s) to finalize:\n",
         receiver.num_subplans(), receiver.num_access_paths(),
         root_candidates.size());
+  }
+
+  // If we know the result will be empty, there is no point in adding paths for
+  // filters, aggregation, windowing and sorting on top of it further down. Just
+  // remove the empty result directly.
+  if (receiver.always_empty() && !join->send_row_on_empty_set() &&
+      update_delete_target_tables == 0) {
+    for (AccessPath *root_path : root_candidates) {
+      if (root_path->type == AccessPath::ZERO_ROWS) {
+        if (trace != nullptr) {
+          *trace += "The query returns zero rows. Final cost is 0.0.\n";
+        }
+        join->needs_finalize = true;
+        return root_path;
+      }
+    }
   }
 
   // Now we have one or more access paths representing joining all the tables

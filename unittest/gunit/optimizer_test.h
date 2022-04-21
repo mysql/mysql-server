@@ -255,6 +255,11 @@ static void ResolveQueryBlock(
         query_block->select_limit->val_int();
   }
 
+  if (query_block->offset_limit != nullptr) {
+    query_block->master_query_expression()->offset_limit_cnt =
+        query_block->offset_limit->val_int();
+  }
+
   thd->lex->set_current_query_block(saved_current_query_block);
 }
 

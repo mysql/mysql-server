@@ -3874,6 +3874,35 @@ TEST_F(HypergraphOptimizerTest, ImpossibleJoinConditionGivesZeroRows) {
   query_block->cleanup(/*full=*/true);
 }
 
+TEST_F(HypergraphOptimizerTest, ImpossibleWhereInJoinGivesZeroRows) {
+  // Test a query with an impossible WHERE clause. Add aggregation and ordering
+  // and various extra filters to see that the entire query is optimized away.
+  // It used to optimize away only the access to the t2 table, and keep the
+  // paths for joining, aggregation, sorting, etc on top of the ZERO_ROWS path.
+  Query_block *query_block = ParseAndResolve(
+      "SELECT MAX(t1.y) FROM t1 LEFT JOIN t2 ON t1.x = t2.x "
+      "WHERE t2.y IS NULL AND t2.y IN (1, 2) AND RAND(0) < 0.5 "
+      "GROUP BY t1.x HAVING MAX(t1.y) > 0 "
+      "ORDER BY MAX(t1.y) LIMIT 20 OFFSET 10",
+      /*nullable=*/false);
+
+  // Create an index on t2.y so that the range optimizer analyzes the WHERE
+  // clause and detects that it always evaluates to FALSE.
+  Fake_TABLE *t2 = m_fake_tables["t2"];
+  t2->create_index(t2->field[1],
+                   /*column2=*/nullptr,
+                   /*unique=*/false);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  EXPECT_EQ(AccessPath::ZERO_ROWS, root->type);
+}
+
 TEST_F(HypergraphOptimizerTest, SimpleRangeScan) {
   Query_block *query_block = ParseAndResolve("SELECT 1 FROM t1 WHERE t1.x < 3",
                                              /*nullable=*/false);
