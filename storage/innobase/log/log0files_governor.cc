@@ -539,23 +539,13 @@ Requirement: log.m_files_mutex acquired before calling this function
 @return true  iff consumption of the oldest redo log files should be rushed */
 static bool log_files_should_rush_oldest_file_consumption(const log_t &log);
 
-/** Tries to resize unused redo log files to log.m_capacity.next_file_size().
-
-Requirement: log.m_files_mutex acquired before calling this function
-(unless srv_is_being_started).
-
-@param[in,out]  log   redo log
-@return DB_SUCCESS or error */
-static dberr_t log_files_resize_unused_files(log_t &log);
-
-/** Resizes unused redo log files to log.m_capacity.next_file_size().
-If resize fails, then unused redo log files are removed.
+/** Ensures that unused redo log files have log.m_capacity.next_file_size().
 
 Requirement: log.m_files_mutex acquired before calling this function
 (unless srv_is_being_started).
 
 @param[in,out]  log   redo log */
-static void log_files_resize_unused_files_if_needed(log_t &log);
+static void log_files_adjust_unused_files_sizes(log_t &log);
 
 /** Result of execution of log_files_governor_iteration_low(). */
 enum class Log_files_governor_iteration_result {
@@ -1216,17 +1206,14 @@ void Log_files_stats::update(const log_t &log) {
   m_newest_lsn_on_update = newest_lsn;
 }
 
-static void log_files_resize_unused_files_if_needed(log_t &log) {
+static void log_files_adjust_unused_files_sizes(log_t &log) {
   log_files_access_allowed_validate(log);
   const os_offset_t next_file_size = log.m_capacity.next_file_size();
   if (log.m_unused_file_size != next_file_size) {
-    const dberr_t err = log_files_resize_unused_files(log);
-    if (err != DB_SUCCESS) {
-      const auto ret = log_remove_unused_files(log.m_files_ctx);
-      ut_a(ret.first == DB_SUCCESS);
+    const auto ret = log_remove_unused_files(log.m_files_ctx);
+    ut_a(ret.first == DB_SUCCESS);
 
-      log.m_unused_files_count = 0;
-    }
+    log.m_unused_files_count = 0;
     log.m_unused_file_size = next_file_size;
   }
 }
@@ -1242,6 +1229,7 @@ static Log_files_governor_iteration_result log_files_governor_iteration_low(
 
   IB_mutex_guard files_latch{&(log.m_files_mutex), UT_LOCATION_HERE};
   log_files_update_capacity_limits(log);
+  log_files_adjust_unused_files_sizes(log);
 
   if (log_files::is_consumption_needed(log)) {
     log_files_mark_consumed_files(log);
@@ -1253,8 +1241,6 @@ static Log_files_governor_iteration_result log_files_governor_iteration_low(
       return Iteration_result::RETRY_WITH_WRITER_MUTEX;
     }
   }
-
-  log_files_resize_unused_files_if_needed(log);
 
   if (log.m_requested_files_consumption && log_files_next_file_size(log) != 0) {
     /* The log_writer thread called log_files_wait_for_next_file_available(),
@@ -1661,24 +1647,6 @@ void log_files_remove(log_t &log) {
   ut_a(ret.first == DB_SUCCESS);
 
   log.m_unused_files_count = 0;
-}
-
-static dberr_t log_files_resize_unused_files(log_t &log) {
-  log_files_access_allowed_validate(log);
-
-  const os_offset_t file_size = log.m_capacity.next_file_size();
-  ut_a(file_size != 0);
-
-  Log_file_id file_id = log.m_current_file.next_id();
-  for (size_t i = 0; i < log.m_unused_files_count; ++i) {
-    const dberr_t err =
-        log_resize_unused_file(log.m_files_ctx, file_id, file_size);
-    if (err != DB_SUCCESS) {
-      return err;
-    }
-    file_id = Log_file::next_id(file_id);
-  }
-  return DB_SUCCESS;
 }
 
 dberr_t log_files_start(log_t &log) {
