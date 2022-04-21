@@ -1,0 +1,127 @@
+################################################################################
+# This test proves that post recovery value is 0 for
+# COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Create table t1 and LOCK it on server2.
+# 2. Create some transactions on server1.
+# 3. Wait for transactions to appear on applier queue on server2.
+# 4. UNLOCK tables on server2.
+# 5. Wait for applier queue on both servers to be 0.
+# 6. Stop GR on server1 and server2.
+# 7. Start GR on server1 and server2.
+# 8. Confirm COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE is 0
+#    when all servers are online.
+# 9. Cleanup.
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Create table t1 and LOCK it on server2.
+
+CREATE TABLE test.t1 (c1 int primary key);
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+LOCK TABLE test.t1 READ;
+
+--echo
+--echo # 2. Create some transactions on server1.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+INSERT INTO test.t1 VALUES (1);
+INSERT INTO test.t1 VALUES (2);
+
+--echo
+--echo # 3. Wait for transactions to appear on applier queue on server2.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE = 0 FROM performance_schema.replication_group_member_stats WHERE member_id in (SELECT @@server_uuid)
+--source include/wait_condition_or_abort.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE > 0 FROM performance_schema.replication_group_member_stats WHERE member_id in (SELECT @@server_uuid)
+--source include/wait_condition_or_abort.inc
+
+--echo
+--echo # 4. UNLOCK tables on server2.
+
+UNLOCK TABLES;
+
+--echo
+--echo # 5. Wait for applier queue on both servers to be 0.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE = 0 FROM performance_schema.replication_group_member_stats WHERE member_id in (SELECT @@server_uuid)
+--source include/wait_condition_or_abort.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE = 0 FROM performance_schema.replication_group_member_stats WHERE member_id in (SELECT @@server_uuid)
+--source include/wait_condition_or_abort.inc
+
+--echo
+--echo # 6. Stop GR on server1 and server2.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+
+--echo
+--echo # 7. Start GR on server1 and server2.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 8. Confirm COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE is 0
+--echo #    when all servers are online.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE = 0 FROM performance_schema.replication_group_member_stats WHERE member_id in (SELECT @@server_uuid)
+--source include/wait_condition_or_abort.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE = 0 FROM performance_schema.replication_group_member_stats WHERE member_id in (SELECT @@server_uuid)
+--source include/wait_condition_or_abort.inc
+
+--echo
+--echo # 9. Cleanup.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+DROP TABLE test.t1;
+
+--source include/group_replication_end.inc

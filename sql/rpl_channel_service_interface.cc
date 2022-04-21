@@ -730,17 +730,18 @@ bool channel_is_active(const char *channel,
 
 int channel_get_thread_id(const char *channel,
                           enum_channel_thread_types thd_type,
-                          unsigned long **thread_id) {
+                          unsigned long **thread_id, bool need_lock) {
   DBUG_TRACE;
 
   int number_threads = -1;
 
-  channel_map.rdlock();
+  if (need_lock) channel_map.rdlock();
+  channel_map.assert_some_lock();
 
   Master_info *mi = channel_map.get_mi(channel);
 
   if (mi == nullptr) {
-    channel_map.unlock();
+    if (need_lock) channel_map.unlock();
     return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
 
@@ -815,7 +816,7 @@ int channel_get_thread_id(const char *channel,
       break;
   }
 
-  channel_map.unlock();
+  if (need_lock) channel_map.unlock();
 
   return number_threads;
 }
@@ -978,8 +979,8 @@ int channel_is_applier_waiting(const char *channel) {
   }
 
   unsigned long *thread_ids = nullptr;
-  int number_appliers =
-      channel_get_thread_id(channel, CHANNEL_APPLIER_THREAD, &thread_ids);
+  int number_appliers = channel_get_thread_id(channel, CHANNEL_APPLIER_THREAD,
+                                              &thread_ids, false);
 
   if (number_appliers <= 0) {
     goto end;

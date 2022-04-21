@@ -288,6 +288,11 @@ class Pipeline_stats_member_collector {
   void decrement_transactions_waiting_apply();
 
   /**
+    Set transactions waiting apply counter to 0.
+  */
+  void clear_transactions_waiting_apply();
+
+  /**
     Increment transactions certified counter value.
   */
   void increment_transactions_certified();

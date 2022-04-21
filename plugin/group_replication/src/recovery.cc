@@ -555,13 +555,6 @@ int Recovery_module::wait_for_applier_module_recovery() {
       !recovery_aborted)
     return 1; /* purecov: inspected */
 
-  /*
-    Take View_change_log_event transaction into account, that
-    despite being queued on applier channel was applied through
-    recovery channel.
-  */
-  pipeline_stats->decrement_transactions_waiting_apply();
-
   return 0;
 }
 
