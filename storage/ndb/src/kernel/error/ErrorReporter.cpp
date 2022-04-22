@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -153,12 +153,15 @@ ErrorReporter::formatMessage(int thr_no,
 
   /* Extract the name of the trace file to log explicitly as it is
    * often truncated due to long path names */
-  BaseString traceFileFullPath(theNameOfTheTraceFile);
-  Vector<BaseString> traceFileComponents;
-  int noOfComponents = traceFileFullPath.split(traceFileComponents,
-                                               DIR_SEPARATOR);
-  assert(noOfComponents >= 1);
-  BaseString failingThdTraceFileName = traceFileComponents[noOfComponents-1];
+  BaseString failingThdTraceFileName("");
+  if (theNameOfTheTraceFile) {
+    BaseString traceFileFullPath(theNameOfTheTraceFile);
+    Vector<BaseString> traceFileComponents;
+    int noOfComponents = traceFileFullPath.split(traceFileComponents,
+                                                 DIR_SEPARATOR);
+    assert(noOfComponents >= 1);
+    failingThdTraceFileName = traceFileComponents[noOfComponents-1];
+  }
 
   processId = NdbHost_GetProcessId();
   char thrbuf[100] = "";
