@@ -7440,7 +7440,7 @@ ER_IB_MSG_635
   eng "%s"
 
 ER_IB_MSG_636
-  eng "%s"
+  eng "Blocked High Priority Transaction (ID %llu, Thread ID %s) forces rollback of the blocking transaction (ID %llu - %s)."
 
 ER_IB_MSG_637
   eng "%s"
@@ -7449,7 +7449,7 @@ ER_IB_MSG_638
   eng "%s"
 
 ER_IB_MSG_639
-  eng "%s"
+  eng "Blocked High Priority Transaction (Thread ID %s) waking up the blocking transaction (ID %llu) by pretending it's a deadlock victim."
 
 OBSOLETE_ER_IB_MSG_640
   eng "%s"
@@ -9165,7 +9165,7 @@ ER_IB_MSG_1210
   eng "%s"
 
 ER_IB_MSG_1211
-  eng "%s"
+  eng "Blocked High Priority Transaction (ID %llu, Thread ID %s) killed the blocking transaction (ID %llu - %s) by rolling it back."
 
 ER_IB_MSG_1212
   eng "%s"

@@ -2706,8 +2706,11 @@ Assumption 1.
   If a thread attempts to acquire more then one trx->mutex, then it either has
   exclusive global latch, or it attempts to acquire exactly two of them, and at
   just before calling mutex_enter for the second time it saw
-  trx1->lock.wait_lock==nullptr, trx2->lock.wait_lock!=nullptr, and it held the
-  latch for the shard containing trx2->lock.wait_lock.
+  1.1 trx1->lock.wait_lock==nullptr or it held the latch for the shard
+      containing the trx1->lock.wait_lock
+  AND
+  1.2. trx2->lock.wait_lock!=nullptr, and it held the latch for the shard
+       containing trx2->lock.wait_lock.
 
 @see asserts in trx_before_mutex_enter
 
@@ -2743,9 +2746,14 @@ By proving the theorem, and observing that the assertions hold for multiple runs
 of test suite on debug build, we gain more and more confidence that
 trx_mutex_enter() calls can not deadlock.
 
-The intuitive, albeit imprecise, version of the proof is that by Assumption 1
-each edge of the deadlock cycle leads from a trx with NULL trx->lock.wait_lock
-to one with non-NULL wait_lock, which means it has only one edge.
+The intuitive, albeit imprecise, version of the proof is that by Assumption 1,
+for each i, the edge of the deadlock cycle caused by thread[i] - which has
+already latched transaction start[i] and waits to latch transaction end[i] -
+must have non-NULL end[i]->lock.wait_lock in a shard latched by thread[i], and
+either start[i]->lock.wait_lock == NULL, or the shard containing this lock is
+latched by thread[i], in either case no other j!=i can have end[j]=start[i], as
+that would mean start[i]->lock.wait_lock is non-NULL and in shard latched by
+thread[j] instead.
 
 The difficulty lays in that wait_lock is a field which can be modified over time
 from several threads, so care must be taken to clarify at which moment in time
@@ -2767,9 +2775,22 @@ Fact 4. Another thread has latched trx_a->mutex as the first of its two latches
 Consider the situation from the point of view of this other thread, which is now
 in the deadlock waiting for mutex_enter(trx_b->mutex) for some trx_b!=trx_a.
 By Fact 2 and assumption 1, it had to take the "else" branch on the way there,
-and thus it has saw: trx_a->lock.wait_lock == nullptr at some moment in time.
+and thus at some moment in time it has saw either
+a) trx_a->lock.wait_lock == nullptr or
+b) it held the latch of the shard containing trx_a->lock.wait_lock.
 This observation was either before or after our observation that
-trx_a->lock.wait_lock != nullptr (again Fact 2 and Assumption 1).
+trx_a->lock.wait_lock != nullptr and that we hold the latch on this shard
+(again Fact 2 and Assumption 1).
+
+Let us first rule out case b). As both threads are presumably in a deadlock,
+they are still holding the latches on the lock-sys shards that they had latched,
+so in case b) both threads hold a latch on a shard which contained the current
+trx_a->lock.wait_lock value, which implies they must have latched two different
+shards, which implies they saw two different values of wait_lock field, which in
+turn means that it has changed, but by Assumption 4 it can not change while
+somebody holds a latch on its current value's shard. Thus b) is impossible!
+
+This leaves us with case a).
 
 If our thread observed non-NULL value first, then it means a change from
 non-NULL to NULL has happened, which by Assumption 4 requires a shard latch,
@@ -2802,7 +2823,11 @@ void trx_before_mutex_enter(const trx_t *trx, bool first_of_two) {
     if (!locksys::owns_exclusive_global_latch()) {
       ut_a(trx_allowed_two_latches);
       ut_a(trx_latched_count == 2);
-      ut_a(trx_first_latched_trx->lock.wait_lock == nullptr);
+      /* In theory wait_lock can change from non-null to null at any moment
+      unless we indeed hold the wait_lock's shard. Thankfully, this is exactly
+      what we assert. */
+      ut_a(trx_first_latched_trx->lock.wait_lock == nullptr ||
+           locksys::owns_lock_shard(trx_first_latched_trx->lock.wait_lock));
       ut_a(trx_first_latched_trx != trx);
       /* This is not very safe, because to read trx->lock.wait_lock we
       should already either latch trx->mutex (which we don't) or shard with
@@ -3433,11 +3458,15 @@ void trx_kill_blocking(trx_t *trx) {
 
   for (hit_list_t::reverse_iterator it = hit_list.rbegin(); it != end; ++it) {
     trx_t *victim_trx = it->m_trx;
-    ulint version = it->m_version;
+    auto version = it->m_version;
 
     /* Shouldn't commit suicide. */
     ut_ad(victim_trx != trx);
     ut_ad(victim_trx->mysql_thd != trx->mysql_thd);
+
+    if (lock_cancel_if_waiting_and_release(*it)) {
+      continue;
+    }
 
     /* Check that the transaction isn't active inside
     InnoDB code. We have to wait while it is executing
@@ -3524,10 +3553,9 @@ void trx_kill_blocking(trx_t *trx) {
     trx_rollback_for_mysql(victim_trx);
 
 #ifdef UNIV_DEBUG
-    ib::info(ER_IB_MSG_1211)
-        << "High Priority Transaction (ID): " << trx->id
-        << " killed transaction (ID): " << id << " in hit list"
-        << " - " << thr_text;
+    ib::info(ER_IB_MSG_1211, ulonglong{trx->id},
+             to_string(std::this_thread::get_id()).c_str(), ulonglong{id},
+             thr_text);
 #endif /* UNIV_DEBUG */
     trx_mutex_enter(victim_trx);
 

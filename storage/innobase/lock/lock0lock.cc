@@ -49,6 +49,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include "lock0lock.h"
 #include "lock0priv.h"
+#include "os0thread.h"
 #include "pars0pars.h"
 #include "row0mysql.h"
 #include "row0sel.h"
@@ -1407,10 +1408,9 @@ static void lock_mark_trx_for_rollback(hit_list_t &hit_list, trx_id_t hp_trx_id,
 
   if (thd != nullptr) {
     char buffer[1024];
-    ib::info(ER_IB_MSG_636)
-        << "Blocking transaction: ID: " << trx->id << " - "
-        << " Blocked transaction ID: " << hp_trx_id << " - "
-        << thd_security_context(thd, buffer, sizeof(buffer), 512);
+    ib::info(ER_IB_MSG_636, ulonglong{hp_trx_id}, to_string(thread_id).c_str(),
+             ulonglong{trx->id},
+             thd_security_context(thd, buffer, sizeof(buffer), 512));
   }
 #endif /* UNIV_DEBUG */
 }
@@ -2045,94 +2045,59 @@ void lock_make_trx_hit_list(trx_t *hp_trx, hit_list_t &hit_list) {
   const trx_id_t hp_trx_id = hp_trx->id;
   ut_ad(trx_can_be_handled_by_current_thread(hp_trx));
   ut_ad(trx_is_high_priority(hp_trx));
-  /* To avoid slow procedure involving global exclusive latch below, we first
+  /* To avoid slow procedure below, we first
   check if this transaction is waiting for a lock at all. It's unsafe to read
   hp->lock.wait_lock without latching whole lock_sys as it might temporarily
   change to NULL during a concurrent B-tree reorganization, even though the
-  trx actually is still waiting.
-  TBD: Is it safe to use hp_trx->lock.que_state == TRX_QUE_LOCK_WAIT given that
-  que_state is not atomic, and writes to it happen without trx->mutex ? */
+  trx actually is still waiting. Thus we use hp_trx->lock.blocking_trx instead.
+  */
   const bool is_waiting = (hp_trx->lock.blocking_trx.load() != nullptr);
   trx_mutex_exit(hp_trx);
   if (!is_waiting) {
     return;
   }
+  /* We don't expect hp_trx to commit (change version) as we are the thread
+  running the hp_trx */
+  locksys::run_if_waiting({hp_trx}, [&]() {
+    const lock_t *lock = hp_trx->lock.wait_lock;
+    // TBD: could this technique be used for table locks as well?
+    if (!lock->is_record_lock()) {
+      return;
+    }
+    trx_mutex_exit(hp_trx);
+    Lock_iter::for_each(
+        {lock, lock_rec_find_set_bit(lock)},
+        [&](lock_t *next) {
+          trx_t *trx = next->trx;
+          /* Check only for conflicting, granted locks on the current
+          row. Currently, we don't rollback read only transactions,
+          transactions owned by background threads. */
+          if (trx == hp_trx || next->is_waiting() || trx->read_only ||
+              trx->mysql_thd == nullptr || !lock_has_to_wait(lock, next)) {
+            return true;
+          }
 
-  /* Current implementation of lock_make_trx_hit_list requires latching whole
-  lock_sys for following reasons:
-  1. it may call lock_cancel_waiting_and_release on a lock from completely
-  different shard of lock_sys than hp_trx->lock.wait_lock. Trying to latch
-  this other shard might create a deadlock cycle if it violates ordering of
-  shard latches (and there is 50% chance it will violate it). Moreover the
-  lock_cancel_waiting_and_release() requires an exclusive latch to avoid
-  deadlocks among trx->mutex-es, and trx->lock.wait_lock might be a table lock,
-  in which case exclusive latch is also needed to traverse table locks.
-  2. it may call trx_mutex_enter on a transaction which is waiting for a
-  lock, which violates one of assumptions used in the proof that a deadlock due
-  to acquiring trx->mutex-es is impossible
-  3. it attempts to read hp_trx->lock.wait_lock which might be modified by a
-  thread during B-tree reorganization when moving locks between queues
-  4. it attempts to operate on trx->lock.wait_lock of other transactions */
-  locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
+          trx_mutex_enter(trx);
 
-  /* Check again */
-  const lock_t *lock = hp_trx->lock.wait_lock;
-  if (lock == nullptr || !lock->is_record_lock()) {
-    return;
-  }
-  RecID rec_id{lock, lock_rec_find_set_bit(lock)};
-  Lock_iter::for_each(
-      rec_id,
-      [&](lock_t *next) {
-        trx_t *trx = next->trx;
-        /* Check only for conflicting, granted locks on the current
-        row. Currently, we don't rollback read only transactions,
-        transactions owned by background threads. */
-        if (trx == hp_trx || next->is_waiting() || trx->read_only ||
-            trx->mysql_thd == nullptr || !lock_has_to_wait(lock, next)) {
-          return true;
-        }
-
-        trx_mutex_enter(trx);
-
-        /* Skip high priority transactions, if already marked for
-        abort by some other transaction or if ASYNC rollback is
-        disabled. A transaction must complete kill/abort of a
-        victim transaction once marked and added to hit list. */
-        if (trx_is_high_priority(trx) ||
-            (trx->in_innodb & TRX_FORCE_ROLLBACK) != 0 ||
-            (trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE) != 0 || trx->abort) {
-          trx_mutex_exit(trx);
-
-          return true;
-        }
-
-        /* If the transaction is waiting on some other resource then
-        wake it up with DEAD_LOCK error so that it can rollback. */
-        if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
-          /* Assert that it is not waiting for current record. */
-          ut_ad(trx->lock.wait_lock != next);
-#ifdef UNIV_DEBUG
-          ib::info(ER_IB_MSG_639)
-              << "High Priority Transaction (ID): " << lock->trx->id
-              << " waking up blocking"
-              << " transaction (ID): " << trx->id;
-#endif /* UNIV_DEBUG */
-          trx->lock.was_chosen_as_deadlock_victim = true;
-
-          lock_cancel_waiting_and_release(trx->lock.wait_lock);
+          /* Skip high priority transactions, if already marked for
+          abort by some other transaction or if ASYNC rollback is
+          disabled. A transaction must complete kill/abort of a
+          victim transaction once marked and added to hit list. */
+          if (!trx_is_high_priority(trx) &&
+              (trx->in_innodb & TRX_FORCE_ROLLBACK) == 0 &&
+              (trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE) == 0 &&
+              !trx->abort) {
+            /* Mark for ASYNC Rollback and add to hit list. */
+            lock_mark_trx_for_rollback(hit_list, hp_trx_id, trx);
+          }
 
           trx_mutex_exit(trx);
           return true;
-        }
-
-        /* Mark for ASYNC Rollback and add to hit list. */
-        lock_mark_trx_for_rollback(hit_list, hp_trx_id, trx);
-
-        trx_mutex_exit(trx);
-        return true;
-      },
-      lock->hash_table());
+        },
+        lock->hash_table());
+    // the run_if_waiting expects the hp_trx to be held after callback
+    trx_mutex_enter(hp_trx);
+  });
 }
 
 /** Cancels a waiting record lock request and releases the waiting transaction
@@ -4153,54 +4118,6 @@ operating on a lock requires lock_sys latches, yet the latching order requires
 lock_sys latches to be taken before trx->mutex.
 One way around it is to use exclusive global lock_sys latch, which heavily
 deteriorates concurrency. Another is to try to reacquire the latches in needed
-order, verifying that the list wasn't modified meanwhile.
-This function performs following steps:
-1. releases trx->mutex,
-2. acquires proper lock_sys shard latch,
-3. reacquires trx->mutex
-4. executes f unless trx's locks list has changed
-Before and after this function following should hold:
-- the shared global lock_sys latch is held
-- the trx->mutex is held
-@param[in]    trx     the trx, locks of which we are interested in
-@param[in]    shard   description of the shard we want to latch
-@param[in]    f       the function to execute when the shard is latched
-@return true if f was called, false if it couldn't be called because trx locks
-        have changed while relatching trx->mutex
-*/
-template <typename S, typename F>
-static bool try_relatch_trx_and_shard_and_do(const trx_t *const trx,
-                                             const S &shard, F &&f) {
-  ut_ad(locksys::owns_shared_global_latch());
-  ut_ad(trx_mutex_own(trx));
-
-  const auto expected_version = trx->lock.trx_locks_version;
-  trx_mutex_exit(trx);
-  DEBUG_SYNC_C("try_relatch_trx_and_shard_and_do_noted_expected_version");
-  locksys::Shard_naked_latch_guard guard{UT_LOCATION_HERE, shard};
-  trx_mutex_enter_first_of_two(trx);
-
-  /* Check that list was not modified while we were reacquiring latches */
-  if (expected_version != trx->lock.trx_locks_version) {
-    /* Someone has modified the list while we were re-acquiring the latches so,
-    it is unsafe to operate on the lock. It might have been released, or maybe
-    even assigned to another transaction (in case of AUTOINC lock). More
-    importantly, we need to let know the caller that the list it is iterating
-    over has been modified, which affects next/prev pointers. */
-    return false;
-  }
-
-  std::forward<F>(f)();
-  return true;
-}
-
-/** A helper function which solves a chicken-and-egg problem occurring when one
-needs to iterate over trx's locks and perform some actions on them. Iterating
-over this list requires trx->mutex (or exclusive global lock_sys latch), and
-operating on a lock requires lock_sys latches, yet the latching order requires
-lock_sys latches to be taken before trx->mutex.
-One way around it is to use exclusive global lock_sys latch, which heavily
-deteriorates concurrency. Another is to try to reacquire the latches in needed
 order, veryfing that the list wasn't modified meanwhile.
 This function performs following steps:
 1. releases trx->mutex,
@@ -4217,14 +4134,26 @@ Before and after this function following should hold:
 */
 template <typename F>
 static bool try_relatch_trx_and_shard_and_do(const lock_t *lock, F &&f) {
-  if (lock_get_type_low(lock) == LOCK_REC) {
-    return try_relatch_trx_and_shard_and_do(lock->trx, lock->rec_lock.page_id,
-                                            std::forward<F>(f));
-  }
+  ut_ad(locksys::owns_shared_global_latch());
+  const trx_t *trx = lock->trx;
+  ut_ad(trx_mutex_own(trx));
 
-  ut_ad(lock_get_type_low(lock) == LOCK_TABLE);
-  return try_relatch_trx_and_shard_and_do(lock->trx, *lock->tab_lock.table,
-                                          std::forward<F>(f));
+  const auto expected_version = trx->lock.trx_locks_version;
+  return latch_peeked_shard_and_do(lock, [&]() {
+    ut_ad(trx_mutex_own(trx));
+    /* Check that list was not modified while we were reacquiring latches */
+    if (expected_version != trx->lock.trx_locks_version) {
+      /* Someone has modified the list while we were re-acquiring the latches
+      so, it is unsafe to operate on the lock. It might have been released, or
+      maybe even assigned to another transaction (in case of AUTOINC lock). More
+      importantly, we need to let know the caller that the list it is iterating
+      over has been modified, which affects next/prev pointers. */
+      return false;
+    }
+    std::forward<F>(f)();
+    ut_ad(trx_mutex_own(trx));
+    return true;
+  });
 }
 
 /** We don't want to hold the Global latch for too long, even in S mode, not to
@@ -6139,39 +6068,15 @@ page_id_t lock_rec_get_page_id(const lock_t *lock) {
   return lock->rec_lock.page_id;
 }
 
-/** Cancels a waiting lock request and releases possible other transactions
-waiting behind it.
-@param[in,out]  lock            Waiting lock request */
-void lock_cancel_waiting_and_release(lock_t *lock) {
-  /* Requiring exclusive global latch serves several purposes here.
-
-  1. In case of table LOCK_TABLE we will call lock_release_autoinc_locks(),
-  which iterates over locks held by this transaction and it is not clear if
-  these locks are from the same table. Frankly it is not clear why we even
-  release all of them here (note that none of them is our `lock` because we
-  don't store waiting locks in the trx->autoinc_locks vector, only granted).
-  Perhaps this is because this trx is going to be rolled back anyway, and this
-  seemed to be a good moment to release them?
-
-  2. During lock_rec_dequeue_from_page() and lock_table_dequeue() we might latch
-  trx mutex of another transaction to grant it a lock. The rules meant to avoid
-  deadlocks between trx mutex require us to either use an exclusive global
-  latch, or to first latch trx which is has trx->lock.wait_lock == nullptr.
-  As `lock == lock->trx->lock.wait_lock` and thus is not nullptr, we have to use
-  the first approach, or complicate the proof of deadlock avoidance enormously.
-  */
-  ut_ad(locksys::owns_exclusive_global_latch());
-  /* We will access lock->trx->lock.autoinc_locks which requires trx->mutex */
-  ut_ad(trx_mutex_own(lock->trx));
+void lock_cancel_waiting_and_release(trx_t *trx) {
+  ut_ad(trx_mutex_own(trx));
+  const auto lock = trx->lock.wait_lock.load();
+  ut_ad(locksys::owns_lock_shard(lock));
 
   if (lock_get_type_low(lock) == LOCK_REC) {
     lock_rec_dequeue_from_page(lock);
   } else {
     ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
-
-    if (lock->trx->lock.autoinc_locks != nullptr) {
-      lock_release_autoinc_locks(lock->trx);
-    }
 
     lock_table_dequeue(lock);
   }
@@ -6289,34 +6194,31 @@ void lock_trx_release_locks(trx_t *trx) /*!< in/out: transaction */
   trx_mutex_exit(trx);
 }
 
-/** Check whether the transaction has already been rolled back because it
- was selected as a deadlock victim, or if it has to wait then cancel
- the wait lock.
- @return DB_DEADLOCK, DB_LOCK_WAIT or DB_SUCCESS */
-dberr_t lock_trx_handle_wait(trx_t *trx) /*!< in/out: trx lock state */
-{
-  dberr_t err;
-
-  /* lock_cancel_waiting_and_release() requires exclusive global latch, and so
-  does reading the trx->lock.wait_lock to prevent races with B-tree page
-  reorganization */
-  locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
-
-  trx_mutex_enter(trx);
-
-  if (trx->lock.was_chosen_as_deadlock_victim) {
-    err = DB_DEADLOCK;
-  } else if (trx->lock.wait_lock != nullptr) {
-    lock_cancel_waiting_and_release(trx->lock.wait_lock);
-    err = DB_LOCK_WAIT;
-  } else {
-    /* The lock was probably granted before we got here. */
-    err = DB_SUCCESS;
-  }
-
-  trx_mutex_exit(trx);
-
-  return (err);
+bool lock_cancel_if_waiting_and_release(const TrxVersion trx_version) {
+  trx_t &trx{*trx_version.m_trx};
+  bool realeased = false;
+  locksys::run_if_waiting(trx_version, [&]() {
+    ut_ad(trx_mutex_own(&trx));
+    ut_a(trx_version.m_version == trx.version.load());
+    if ((trx.in_innodb & TRX_FORCE_ROLLBACK) != 0) {
+      /* A HP transaction wants to wake up and rollback trx by pretending it
+      has been chosen a deadlock victim while waiting for a lock. */
+#ifdef UNIV_DEBUG
+      ib::info(ER_IB_MSG_639, to_string(trx.killed_by).c_str(),
+               ulonglong{trx.id});
+#endif /* UNIV_DEBUG */
+      trx.lock.was_chosen_as_deadlock_victim = true;
+    } else {
+      /* This case is currently used by kill_connection. Canceling the
+      wait and waking up the transaction will have the effect that its
+      thread will continue without the lock acquired, which is unsafe,
+      unless it will notice that it has been interrupted and give up. */
+      ut_ad(trx_is_interrupted(&trx));
+    }
+    lock_cancel_waiting_and_release(&trx);
+    realeased = true;
+  });
+  return realeased;
 }
 
 #ifdef UNIV_DEBUG

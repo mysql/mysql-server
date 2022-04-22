@@ -45,6 +45,7 @@ those functions in lock/ */
 #include "trx0types.h"
 #include "univ.i"
 
+#include <scope_guard.h>
 #include <utility>
 
 /** A table lock */
@@ -889,8 +890,8 @@ const lock_t *lock_rec_get_prev(
 
 /** Cancels a waiting lock request and releases possible other transactions
 waiting behind it.
-@param[in,out]  lock            Waiting lock request */
-void lock_cancel_waiting_and_release(lock_t *lock);
+@param[in,out]  trx    The transaction waiting for a lock */
+void lock_cancel_waiting_and_release(trx_t *trx);
 
 /** This function is a wrapper around several functions which need to be called
 in particular order to wake up a transaction waiting for a lock.
@@ -1100,6 +1101,112 @@ class Unsafe_global_latch_manipulator {
     lock_sys->latches.global_latch.x_lock(location);
   }
 };
+
+/** Temporarily releases trx->mutex, latches the lock-sys shard containing
+peeked_lock and latches trx->mutex again and calls f under protection of both
+latches. The latch on lock-sys shard will be released immediately after f
+returns. It is a responsibility of the caller to handle shared lock-sys latch,
+trx->mutex and verify inside f that the trx has not been finished, and the lock
+was not released meanwhile.
+@param[in]  peeked_lock   A lock of the trx. (While trx->mutex is held it can't
+                          be freed, but can be released). It is used to
+                          determine the lock-sys shard to latch.
+@param[in]  f             The callback to call once the lock-sys shard is
+                          latched and trx->mutex is relatched.
+@return The value returned by f.
+*/
+template <typename F>
+auto latch_peeked_shard_and_do(const lock_t *peeked_lock, F &&f) {
+  ut_ad(locksys::owns_shared_global_latch());
+  const trx_t *trx = peeked_lock->trx;
+  ut_ad(trx_mutex_own(trx));
+  ut_ad(peeked_lock->trx == trx);
+  /* peeked_wait_lock points to a lock struct which will not be freed while we
+  hold trx->mutex. Thus it is safe to inspect the peeked_wait_lock's
+  rec_lock.page_id and tab_lock.table. We have to make a copy of them, though,
+  before releasing trx->mutex. */
+  if (peeked_lock->is_record_lock()) {
+    const auto sharded_by = peeked_lock->rec_lock.page_id;
+    trx_mutex_exit(trx);
+    DEBUG_SYNC_C("try_relatch_trx_and_shard_and_do_noted_expected_version");
+    locksys::Shard_naked_latch_guard guard{UT_LOCATION_HERE, sharded_by};
+    trx_mutex_enter_first_of_two(trx);
+    return std::forward<F>(f)();
+  } else {
+    /*Once we release the trx->mutex, the trx may release locks on table and
+    commit, which in extreme case could lead to freeing the dict_table_t
+    object, so we have to copy its id first. */
+    const auto sharded_by = peeked_lock->tab_lock.table->id;
+    trx_mutex_exit(trx);
+    locksys::Shard_naked_latch_guard guard{UT_LOCATION_HERE, sharded_by};
+    trx_mutex_enter_first_of_two(trx);
+    return std::forward<F>(f)();
+  }
+}
+
+/** Given a pointer to trx (which the caller guarantees will not be freed) and
+the expected value of trx->version, will call the provided function f, only if
+the trx is still in expected version and waiting for a lock, within a critical
+section which holds latches on the trx, and the shard containing the waiting
+lock. If the transaction has meanwhile finished waiting for a lock, or committed
+or rolled back etc. the f will not be called.
+It may happen that the lock for which the trx is waiting during exectuion of f
+is not the same as the lock it was waiting at the moment of invocation.
+@param[in]  trx_version   The version of the trx that we intend to wake up
+@param[in]  f             The callback to call if trx is still waiting for a
+                          lock and is still in version trx_version
+*/
+template <typename F>
+void run_if_waiting(const TrxVersion trx_version, F &&f) {
+  const trx_t *trx = trx_version.m_trx;
+  /* This code would be much simpler with Global_exclusive_latch_guard.
+  Unfortunately, this lead to long semaphore waits when thousands of
+  transactions were taking thousands of locks and timing out. Therefore we use
+  the following tricky code to instead only latch the single shard which
+  contains the trx->lock.wait_lock. This is a bit difficult, because during
+  B-tree reorganization a record lock might be removed from one page and moved
+  to another, temporarily setting wait_lock to nullptr. This should be very
+  rare and short. In most cases this while loop should do just one iteration
+  and proceed along a happy path through all ifs. Another reason wait_lock
+  might become nullptr is because we were granted the lock meanwhile, in which
+  case the trx->lock.blocking_trx is first set to nullptr */
+  do {
+    if (!trx->lock.wait_lock.load()) {
+      continue;
+    }
+    locksys::Global_shared_latch_guard shared_latch_guard{UT_LOCATION_HERE};
+    /* We can't use IB_mutex_guard with trx->mutex, as trx_mutex_enter has
+    custom logic. We want to release trx->mutex before ut_delay or return. */
+    trx_mutex_enter(trx);
+    auto guard = create_scope_guard([trx]() { trx_mutex_exit(trx); });
+    if (trx->version != trx_version.m_version) {
+      return;
+    }
+    if (const lock_t *peeked_wait_lock = trx->lock.wait_lock.load()) {
+      const bool retry = latch_peeked_shard_and_do(peeked_wait_lock, [&]() {
+        ut_ad(trx_mutex_own(trx));
+        if (trx->version != trx_version.m_version) {
+          return false;
+        }
+        if (peeked_wait_lock != trx->lock.wait_lock.load()) {
+          /* If wait_lock has changed, then in case of record lock it might have
+          been moved during B-tree reorganization, so we retry. In case of a
+          table lock the wait_lock can not be "moved" so it had to be released
+          permanently and there's no point in retrying.*/
+          return peeked_wait_lock->is_record_lock();
+        }
+        std::forward<F>(f)();
+        ut_ad(trx_mutex_own(trx));
+        return false;
+      });
+      if (!retry) {
+        return;
+      }
+    }
+    /* wait_lock appears to be null. If blocking_trx isn't nullptr, then
+    probably the wait_lock will soon be restored, otherwise we can give up */
+  } while (trx->lock.blocking_trx.load() && ut_delay(10));
+}
 }  // namespace locksys
 
 #endif /* lock0priv_h */

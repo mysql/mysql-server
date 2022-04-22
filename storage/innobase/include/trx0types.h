@@ -598,7 +598,7 @@ struct TrxVersion {
   TrxVersion(trx_t *trx);
 
   trx_t *m_trx;
-  ulint m_version;
+  uint64_t m_version;
 };
 
 typedef std::vector<TrxVersion, ut::allocator<TrxVersion>> hit_list_t;

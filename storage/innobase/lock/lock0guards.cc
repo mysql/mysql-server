@@ -67,9 +67,9 @@ Shard_naked_latch_guard::Shard_naked_latch_guard(ut::Location location,
 }
 
 Shard_naked_latch_guard::Shard_naked_latch_guard(ut::Location location,
-                                                 const dict_table_t &table)
+                                                 const table_id_t &table_id)
     : Shard_naked_latch_guard{
-          location, lock_sys->latches.table_shards.get_mutex(table)} {}
+          location, lock_sys->latches.table_shards.get_mutex(table_id)} {}
 
 Shard_naked_latch_guard::Shard_naked_latch_guard(ut::Location location,
                                                  const page_id_t &page_id)

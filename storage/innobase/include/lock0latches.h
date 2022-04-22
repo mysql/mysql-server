@@ -26,6 +26,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef lock0latches_h
 #define lock0latches_h
 
+#include "dict0types.h"
 #include "sync0sharded_rw.h"
 #include "ut0cpu_cache.h"
 #include "ut0mutex.h"
@@ -214,10 +215,10 @@ class Latches {
     Padded_mutex mutexes[SHARDS_COUNT];
     /**
     Identifies the table shard which contains locks for the given table.
-    @param[in]    table     The table
+    @param[in]    table_id    The id of the table
     @return Integer in the range [0..lock_sys_t::SHARDS_COUNT)
     */
-    static size_t get_shard(const dict_table_t &table);
+    static size_t get_shard(const table_id_t table_id);
 
    public:
     Table_shards();
@@ -225,14 +226,21 @@ class Latches {
 
     /** Returns the mutex which (together with the global latch) protects the
     table shard which contains table locks for the given table.
-    @param[in]    table     The table
+    @param[in]    table_id    The id of the table
     @return The mutex responsible for the shard containing the table
     */
-    Lock_mutex &get_mutex(const dict_table_t &table);
+    Lock_mutex &get_mutex(const table_id_t table_id);
 
     /** Returns the mutex which (together with the global latch) protects the
     table shard which contains table locks for the given table.
-    @param[in]    table     The table
+    @param[in]    table_id    The id of the table
+    @return The mutex responsible for the shard containing the table
+    */
+    const Lock_mutex &get_mutex(const table_id_t table_id) const;
+
+    /** Returns the mutex which (together with the global latch) protects the
+    table shard which contains table locks for the given table.
+    @param[in]    table    The table
     @return The mutex responsible for the shard containing the table
     */
     const Lock_mutex &get_mutex(const dict_table_t &table) const;
