@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -193,7 +193,8 @@ static void CollectFunctionalDependenciesFromJoins(
  */
 static void CollectFunctionalDependenciesFromPredicates(
     THD *thd, JoinHypergraph *graph, LogicalOrderings *orderings) {
-  for (Predicate &pred : graph->predicates) {
+  for (size_t i = 0; i < graph->num_where_predicates; ++i) {
+    Predicate &pred = graph->predicates[i];
     bool always_active =
         !Overlaps(pred.total_eligibility_set, PSEUDO_TABLE_BITS) &&
         IsSingleBitSet(pred.total_eligibility_set);

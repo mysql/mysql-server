@@ -4395,3 +4395,22 @@ ORDER BY RANK() OVER(), CAST(t1.f1 AS UNSIGNED);
 SUM(t1.f1)
 NULL
 DROP TABLE t1;
+#
+# Bug#34051026: mysqld uint Filesort::make_sortorder(ORDER*, bool):
+#               Assertion `count > 0' failed
+#
+CREATE TABLE t1(x INT PRIMARY KEY);
+CREATE TABLE t2(x INT PRIMARY KEY);
+CREATE TABLE t3(x INT);
+INSERT INTO t1 VALUES (1);
+SELECT t2.x
+FROM
+t1
+LEFT JOIN t2
+LEFT JOIN t3 ON t3.x = t2.x ON t1.x = t3.x
+WHERE t3.x IS NULL
+GROUP BY t2.x
+ORDER BY t2.x;
+x
+NULL
+DROP TABLE t1, t2, t3;

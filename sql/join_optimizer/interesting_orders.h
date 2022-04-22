@@ -260,7 +260,8 @@ class LogicalOrderings {
   }
 
   bool ordering_is_relevant_for_sortahead(int ordering_idx) const {
-    return m_orderings[ordering_idx].type != OrderingWithInfo::UNINTERESTING;
+    return !m_orderings[ordering_idx].ordering.empty() &&
+           m_orderings[ordering_idx].type != OrderingWithInfo::UNINTERESTING;
   }
 
   // Add a functional dependency that may be applied at some point

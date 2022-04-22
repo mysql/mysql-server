@@ -4238,6 +4238,7 @@ AccessPath *CostingReceiver::ProposeAccessPath(
 AccessPath MakeSortPathWithoutFilesort(THD *thd, AccessPath *child,
                                        ORDER *order, int ordering_state,
                                        int num_where_predicates) {
+  assert(order != nullptr);
   AccessPath sort_path;
   sort_path.type = AccessPath::SORT;
   sort_path.ordering_state = ordering_state;
@@ -5175,7 +5176,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
       // We need to sort. Try all sort-ahead, not just the one directly
       // derived from DISTINCT clause, because the DISTINCT clause might
       // help us elide the sort for ORDER BY later, if the DISTINCT clause
-      // is broader than the ORDER BY clause"
+      // is broader than the ORDER BY clause.
       for (const SortAheadOrdering &sort_ahead_ordering :
            sort_ahead_orderings) {
         // A broader DISTINCT could help elide ORDER BY. Not vice versa. Note

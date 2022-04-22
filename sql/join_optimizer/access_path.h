@@ -423,7 +423,7 @@ struct AccessPath {
   /// never overlap with filter_predicates, and so we can reuse the same
   /// memory using an alias (a union would not be allowed, since OverflowBitset
   /// is a class with non-trivial default constructor), even though the meaning
-  /// is entirely separate. If N = num_where_predictes in the hypergraph, then
+  /// is entirely separate. If N = num_where_predicates in the hypergraph, then
   /// bits 0..(N-1) belong to filter_predicates, and the rest to
   /// applied_sargable_join_predicates.
   OverflowBitset &applied_sargable_join_predicates() {
