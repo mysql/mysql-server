@@ -590,10 +590,13 @@ const SplicerFailParam splicer_fail_params[] = {
          {"client_ssl_dh_params", SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
      },
      [](const std::vector<std::string> &output_lines) {
-       ASSERT_THAT(output_lines,
-                   ::testing::Contains(::testing::AllOf(
-                       ::testing::HasSubstr("setting client_ssl_dh_param"),
-                       ::testing::EndsWith("no start line"))));
+       ASSERT_THAT(
+           output_lines,
+           ::testing::Contains(::testing::AllOf(
+               ::testing::HasSubstr("setting client_ssl_dh_param"),
+               ::testing::AnyOf(
+                   ::testing::EndsWith("no start line"),
+                   ::testing::EndsWith("DECODER routines::unsupported")))));
      }},
     {"server_ssl_curves_unknown",  // RT2_CIPHERS_UNKNOWN_04
      {

@@ -256,10 +256,6 @@ ADD_LIBRARY(harness_tls SHARED
   tls_server_context.cc
   )
 
-DOWNGRADE_OPENSSL3_DEPRECATION_WARNINGS(
-  tls_server_context.cc
-  )
-
 IF(TARGET copy_openssl_dlls)
   ADD_DEPENDENCIES(harness_tls copy_openssl_dlls)
 ENDIF()

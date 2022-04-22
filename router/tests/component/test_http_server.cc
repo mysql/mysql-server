@@ -1465,7 +1465,7 @@ const HttpServerSecureParams http_server_secure_params[]{
      },
      false,
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
-     "check of DH params failed"
+     "modulus too small"
 #else
      "key size of DH param"
 #endif

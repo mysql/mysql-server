@@ -54,12 +54,6 @@ IF(WIN32)
     )
 ENDIF()
 
-DOWNGRADE_OPENSSL3_DEPRECATION_WARNINGS(
-  certificate_generator.cc
-  certificate_handler.cc
-  config_generator.cc
-  )
-
 SET(source_files main.cc)
 
 IF(WIN32)

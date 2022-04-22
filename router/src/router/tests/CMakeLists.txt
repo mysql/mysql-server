@@ -296,14 +296,6 @@ IF(MY_COMPILER_IS_CLANG)
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated")
 ENDIF()
 
-DOWNGRADE_OPENSSL3_DEPRECATION_WARNINGS(
-  ../src/certificate_generator.cc
-  ../src/certificate_handler.cc
-  ../src/config_generator.cc
-  test_certificate_generator.cc
-  test_certificate_handler.cc
-  )
-
 # TODO(sgunders): Remove when all GMock tests use MOCK_METHOD().
 STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 

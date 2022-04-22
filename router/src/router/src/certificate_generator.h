@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -98,27 +98,22 @@ inline const std::error_category &cert_err_category() noexcept {
 }
 
 inline std::error_code make_error_code(cert_errc e) noexcept {
-  return std::error_code(static_cast<int>(e), cert_err_category());
+  return {static_cast<int>(e), cert_err_category()};
 }
 
 class CertificateGenerator {
  private:
-  struct Deleter {
-    void operator()(RSA *rsa) { RSA_free(rsa); }
-    void operator()(BIGNUM *bignum) { BN_free(bignum); }
+  struct EvpPkeyDeleter {
     void operator()(EVP_PKEY *pkey) { EVP_PKEY_free(pkey); }
-    void operator()(BIO *bio) { BIO_free(bio); }
+  };
+
+  struct X509Deleter {
     void operator()(X509 *x509) { X509_free(x509); }
-    void operator()(X509_EXTENSION *x509_ext) { X509_EXTENSION_free(x509_ext); }
   };
 
  public:
-  using rsa_unique_ptr_t = std::unique_ptr<RSA, Deleter>;
-  using bignum_unique_ptr_t = std::unique_ptr<BIGNUM, Deleter>;
-  using evp_key_unique_ptr_t = std::unique_ptr<EVP_PKEY, Deleter>;
-  using bio_unique_ptr_t = std::unique_ptr<BIO, Deleter>;
-  using x509_unique_ptr_t = std::unique_ptr<X509, Deleter>;
-  using x509_extension_unique_ptr_t = std::unique_ptr<X509_EXTENSION, Deleter>;
+  using EvpPkey = std::unique_ptr<EVP_PKEY, EvpPkeyDeleter>;
+  using X509Cert = std::unique_ptr<X509, X509Deleter>;
 
   /**
    * Generate EVP_PKEY containing public and private keys.
@@ -126,8 +121,7 @@ class CertificateGenerator {
    * @returns Unique pointer to EVP_PKEY object on success or std::error_code if
    * key generation failed.
    */
-  stdx::expected<evp_key_unique_ptr_t, std::error_code> generate_evp_pkey()
-      const;
+  static stdx::expected<EvpPkey, std::error_code> generate_evp_pkey();
 
   /**
    * Get string representation of a private key.
@@ -136,7 +130,7 @@ class CertificateGenerator {
    *
    * @returns Private key string representation.
    */
-  std::string pkey_to_string(const evp_key_unique_ptr_t &pkey) const;
+  static std::string pkey_to_string(EVP_PKEY *pkey);
 
   /**
    * Get string representation of a X.509 certificate.
@@ -145,13 +139,13 @@ class CertificateGenerator {
    *
    * @returns X.509 certificate string representation.
    */
-  std::string cert_to_string(const x509_unique_ptr_t &cert) const;
+  static std::string cert_to_string(X509 *cert);
 
   /**
    * Generate X.509 cerificate.
    *
    * Generate X.509 cerificate that could be either self-signed or signed by
-   * some provided CA certificate. Cerfiticate will be by default valid for
+   * some provided CA certificate. Certificate will be by default valid for
    * 10 years.
    *
    * @param[in] pkey EVP_PKEY object containing public/private key pair.
@@ -166,65 +160,17 @@ class CertificateGenerator {
    * @param[in] notbefore Certificate validity period start.
    * @param[in] notafter Certificate validity period end.
    *
-   * @return Pointer to a X.509 certificate on success or std::error_code if
+   * @return X.509 certificate on success or std::error_code if
    * certificate generation failed.
    */
-  stdx::expected<x509_unique_ptr_t, std::error_code> generate_x509(
-      const evp_key_unique_ptr_t &pkey, const std::string &common_name,
-      const uint32_t serial, const x509_unique_ptr_t &ca_cert,
-      const evp_key_unique_ptr_t &ca_pkey, uint32_t notbefore = 0,
+  stdx::expected<X509Cert, std::error_code> generate_x509(
+      EVP_PKEY *pkey, const std::string &common_name, const uint32_t serial,
+      X509 *ca_cert, EVP_PKEY *ca_pkey, uint32_t notbefore = 0,
       uint32_t notafter = 10 * k_year) const;
 
  private:
-  /**
-   * Generate RSA key pair of a given length.
-   *
-   * @param[in] key_size Bit length of a RSA key to be generated.
-   * @param[in] exponent Public exponent used for modulus operations.
-   *
-   * @return RSA public/private key pair on success or std::error_code on
-   * failure.
-   */
-  stdx::expected<rsa_unique_ptr_t, std::error_code> generate_rsa(
-      const uint32_t key_size = 2048, const uint32_t exponent = RSA_F4) const;
-
-  /**
-   * Get string representation of a PEM (certificate or key) object.
-   *
-   * @param[in] pem_to_bio_func Callback that will be used to convert PEM to
-   * BIO.
-   * @param[in] args Argument pack that will be forwarded to the
-   * pem_to_bio_func.
-   *
-   * @throws std::runtime_error PEM to string conversion failed.
-   *
-   * @returns PEM object string representation.
-   */
-  template <typename F, typename... Args>
-  std::string write_custom_pem_to_string(F &&pem_to_bio_func,
-                                         Args &&... args) const;
-
-  /**
-   * Read BIO as string
-   *
-   * @param[in] bio BIO structure.
-   *
-   * @returns BIO string representation.
-   */
-  std::string read_bio_to_string(const bio_unique_ptr_t &bio) const;
-
   constexpr static uint32_t k_year = 365 * 24 * 60 * 60;
   constexpr static uint32_t k_max_cn_name_length = 64;
 };
-
-template <typename F, typename... Args>
-std::string CertificateGenerator::write_custom_pem_to_string(
-    F &&pem_to_bio_func, Args &&... args) const {
-  bio_unique_ptr_t bio{BIO_new(BIO_s_mem())};
-  if (!pem_to_bio_func(bio.get(), std::forward<Args>(args)...))
-    throw std::runtime_error{"Could not convert PEM to string"};
-
-  return read_bio_to_string(bio);
-}
 
 #endif  // ROUTER_CERTIFICATE_GENERATOR_INCLUDED
