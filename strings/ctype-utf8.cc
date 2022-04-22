@@ -5722,7 +5722,7 @@ static uint my_mbcharlen_utf8mb3(const CHARSET_INFO *cs [[maybe_unused]],
 }
 }  // extern "C"
 
-static MY_COLLATION_HANDLER my_collation_utf8_general_ci_handler = {
+static MY_COLLATION_HANDLER my_collation_utf8mb3_general_ci_handler = {
     nullptr, /* init */
     nullptr,
     my_strnncoll_utf8mb3,
@@ -5736,7 +5736,7 @@ static MY_COLLATION_HANDLER my_collation_utf8_general_ci_handler = {
     my_hash_sort_utf8mb3,
     my_propagate_complex};
 
-static MY_COLLATION_HANDLER my_collation_utf8_bin_handler = {
+static MY_COLLATION_HANDLER my_collation_utf8mb3_bin_handler = {
     nullptr, /* init */
     nullptr,
     my_strnncoll_mb_bin,
@@ -5810,7 +5810,7 @@ CHARSET_INFO my_charset_utf8_general_ci = {
     false,                /* escape_with_backslash_is_dangerous */
     1,                    /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_utf8_general_ci_handler,
+    &my_collation_utf8mb3_general_ci_handler,
     PAD_SPACE};
 
 CHARSET_INFO my_charset_utf8_tolower_ci = {
@@ -5845,7 +5845,7 @@ CHARSET_INFO my_charset_utf8_tolower_ci = {
     false,                /* escape_with_backslash_is_dangerous */
     1,                    /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_utf8_general_ci_handler,
+    &my_collation_utf8mb3_general_ci_handler,
     PAD_SPACE};
 
 CHARSET_INFO my_charset_utf8_general_mysql500_ci = {
@@ -5880,7 +5880,7 @@ CHARSET_INFO my_charset_utf8_general_mysql500_ci = {
     false, /* escape_with_backslash_is_dangerous */
     1,     /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_utf8_general_ci_handler,
+    &my_collation_utf8mb3_general_ci_handler,
     PAD_SPACE};
 
 CHARSET_INFO my_charset_utf8_bin = {
@@ -5915,7 +5915,7 @@ CHARSET_INFO my_charset_utf8_bin = {
     false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_utf8_bin_handler,
+    &my_collation_utf8mb3_bin_handler,
     PAD_SPACE};
 
 /*
