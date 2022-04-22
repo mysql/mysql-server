@@ -2254,3 +2254,33 @@ val	COUNT(*)
 3	1
 DROP TABLE t1, tr;
 DROP FUNCTION seq_1_to_2;
+#
+# Bug #34030363 virtual double Item_sum_std::val_real():
+#               Assertion `nr >= 0.0' failed
+#
+CREATE TABLE t1(value double);
+INSERT INTO t1 VALUES
+(9.33174e+07),
+(4.5e+95),
+(7.31463e+09),
+(1.79769e+308),
+(-2.59078e+12),
+(2.34165e+21),
+(-1.79769e+308),
+(0.0);
+SELECT STDDEV(value) from t1;
+ERROR 22003: DOUBLE value is out of range in 'std(`test`.`t1`.`value`)'
+DROP TABLE t1;
+CREATE TABLE t2(grp int, value double);
+INSERT INTO t2 VALUES
+(0, 9.33174e+07),
+(1, 4.5e+95),
+(0, 7.31463e+09),
+(1, 1.79769e+308),
+(0, -2.59078e+12),
+(1, 2.34165e+21),
+(0, -1.79769e+308),
+(1, 0.0);
+SELECT VARIANCE(value) FROM t2 GROUP BY grp;
+ERROR 22003: DOUBLE value is out of range in 'variance(`test`.`t2`.`value`)'
+DROP TABLE t2;

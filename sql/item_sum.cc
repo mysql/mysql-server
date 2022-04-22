@@ -31,6 +31,7 @@
 
 #include <algorithm>
 #include <bitset>
+#include <cmath>
 #include <cstring>
 #include <functional>
 #include <optional>
@@ -2463,6 +2464,7 @@ static void remove_sample(double *m, double *s, double *s2, ulonglong *count,
 /**
   Calculates the next recurrence value for current sample.
 
+  @param[in]     self  The object on which behalf we are computing
   @param[in,out] m     recurrence value
   @param[in,out] s     recurrence value
   @param[in,out] s2    Square of the recurrence value s
@@ -2475,6 +2477,8 @@ static void remove_sample(double *m, double *s, double *s2, ulonglong *count,
                        to remove value calculated for s,s2 for sample "nr"
                        from the the current value of (s,s2).
 
+  @returns false if success, true if error
+
   Note:
   variance_fp_recurrence_next and variance_fp_recurrence_result are used by
   Item_sum_variance and Item_variance_field classes, which are unrelated,
@@ -2482,12 +2486,25 @@ static void remove_sample(double *m, double *s, double *s2, ulonglong *count,
   classes is that the first is used for a mundane SELECT and when used with
   windowing functions, while the latter is used in a GROUPing SELECT.
 */
-static void variance_fp_recurrence_next(double *m, double *s, double *s2,
-                                        ulonglong *count, double nr,
-                                        bool optimize, bool inverse) {
+static bool variance_fp_recurrence_next(Item_sum_variance *self, double *m,
+                                        double *s, double *s2, ulonglong *count,
+                                        double nr, bool optimize,
+                                        bool inverse) {
+  assert(!std::isnan(*m));
+  assert(!std::isnan(*s));
+  assert(s2 == nullptr || !std::isnan(*s2));
+  assert(!std::isnan(nr));
+
+  assert(!std::isinf(*m));
+  assert(!std::isinf(*s));
+  assert(s2 == nullptr || !std::isinf(*s2));
+  assert(!std::isinf(nr));
+
   if (optimize) {
-    return inverse ? remove_sample(m, s, s2, count, nr)
-                   : add_sample(m, s, s2, count, nr);
+    if (inverse)
+      remove_sample(m, s, s2, count, nr);
+    else
+      add_sample(m, s, s2, count, nr);
   } else {
     *count += 1;
 
@@ -2500,6 +2517,10 @@ static void variance_fp_recurrence_next(double *m, double *s, double *s2,
       *s = *s + (nr - m_kminusone) * (nr - *m);
     }
   }
+  *m = self->check_float_overflow(*m);
+  *s = self->check_float_overflow(*s);
+  if (s2 != nullptr) *s2 = self->check_float_overflow(*s2);
+  return current_thd->is_error();
 }
 
 /**
@@ -2637,10 +2658,13 @@ bool Item_sum_variance::add() {
     return true;
   }
 
-  if (!args[0]->null_value)
-    variance_fp_recurrence_next(
-        &recurrence_m, &recurrence_s, &recurrence_s2, &count, nr, optimize,
-        m_is_window_function ? m_window->do_inverse() : false);
+  if (!args[0]->null_value) {
+    if (variance_fp_recurrence_next(
+            this, &recurrence_m, &recurrence_s, &recurrence_s2, &count, nr,
+            optimize, m_is_window_function ? m_window->do_inverse() : false))
+      return true;
+  }
+
   null_value = (count <= sample);
   return false;
 }
@@ -2713,8 +2737,10 @@ void Item_sum_variance::update_field() {
   double field_recurrence_s = float8get(res + sizeof(double));
   field_count = sint8korr(res + sizeof(double) * 2);
 
-  variance_fp_recurrence_next(&field_recurrence_m, &field_recurrence_s, nullptr,
-                              &field_count, nr, false, false);
+  if (variance_fp_recurrence_next(this, &field_recurrence_m,
+                                  &field_recurrence_s, nullptr, &field_count,
+                                  nr, false, false))
+    return;
 
   float8store(res, field_recurrence_m);
   float8store(res + sizeof(double), field_recurrence_s);
