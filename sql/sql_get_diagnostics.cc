@@ -273,7 +273,7 @@ bool Condition_information::aggregate(THD *thd, const Diagnostics_area *da) {
 Item *Condition_information_item::make_utf8_string_item(THD *thd,
                                                         const String *str) {
   /* Default is utf8mb3 character set and utf8mb3_general_ci collation. */
-  const CHARSET_INFO *to_cs = &my_charset_utf8_general_ci;
+  const CHARSET_INFO *to_cs = &my_charset_utf8mb3_general_ci;
   /* If a charset was not set, assume that no conversion is needed. */
   const CHARSET_INFO *from_cs = str->charset() ? str->charset() : to_cs;
   Item_string *item = new Item_string(str->ptr(), str->length(), from_cs);

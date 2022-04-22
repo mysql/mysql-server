@@ -100,7 +100,7 @@ void plugin_escape_string(std::string &string_to_escape) {
   size_t length = string_to_escape.length();
   char *end_string =
       (char *)my_malloc(PSI_NOT_INSTRUMENTED, 2 * length + 1, MYF(0));
-  escape_string_for_mysql(&my_charset_utf8_general_ci, end_string,
+  escape_string_for_mysql(&my_charset_utf8mb3_general_ci, end_string,
                           2 * length + 1, string_to_escape.c_str(), length);
   string_to_escape.assign(end_string);
   my_free(end_string);

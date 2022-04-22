@@ -738,7 +738,7 @@ again:
   print_cmd(cmd, data);
   ctx->cmd = cmd;
   int fail = command_service_run_command(session, cmd, data,
-                                         &my_charset_utf8_general_ci,
+                                         &my_charset_utf8mb3_general_ci,
                                          &protocol_callbacks, txt_or_bin, ctx);
   if (fail) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "run_statement code: %d\n",

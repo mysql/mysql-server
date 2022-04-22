@@ -73,7 +73,7 @@ extern PSI_memory_key key_memory_Gtid_state_group_commit_sidno;
   character pointer, is a space or not.
 */
 #define SKIP_WHITESPACE() \
-  while (my_isspace(&my_charset_utf8_general_ci, *s)) s++
+  while (my_isspace(&my_charset_utf8mb3_general_ci, *s)) s++
 /*
   This macro must be used to filter out parts of the code that
   is not used now but may be useful in future. In other words,

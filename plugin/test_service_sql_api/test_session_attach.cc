@@ -94,7 +94,7 @@ static void exec_test_cmd(MYSQL_SESSION session, const char *test_cmd) {
 
   const bool failed =
       0 != command_service_run_command(session, COM_QUERY, &cmd,
-                                       &my_charset_utf8_general_ci, &sql_cbs,
+                                       &my_charset_utf8mb3_general_ci, &sql_cbs,
                                        CS_BINARY_REPRESENTATION, nullptr);
 
   if (failed) {

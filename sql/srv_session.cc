@@ -812,7 +812,7 @@ bool Srv_session::open() {
     No store_globals() here as the session is always created in a detached
     state. Attachment with store_globals() will happen on demand.
   */
-  if (thd_init_client_charset(&thd, my_charset_utf8_general_ci.number)) {
+  if (thd_init_client_charset(&thd, my_charset_utf8mb3_general_ci.number)) {
     connection_errors_internal++;
     if (err_protocol_ctx.handler)
       err_protocol_ctx.handler(err_protocol_ctx.handler_context,

@@ -643,8 +643,8 @@ static void exec_test_cmd(MYSQL_SESSION session, const char *test_cmd,
   cmd.com_query.query = test_cmd;
   cmd.com_query.length = strlen(cmd.com_query.query);
   int fail = command_service_run_command(session, COM_QUERY, &cmd,
-                                         &my_charset_utf8_general_ci, &sql_cbs,
-                                         CS_TEXT_REPRESENTATION, ctx);
+                                         &my_charset_utf8mb3_general_ci,
+                                         &sql_cbs, CS_TEXT_REPRESENTATION, ctx);
   if (fail) {
     if (!srv_session_close(session))
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,

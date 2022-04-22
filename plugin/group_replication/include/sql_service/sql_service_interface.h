@@ -101,7 +101,7 @@ class Sql_service_interface {
   */
   Sql_service_interface(
       enum cs_text_or_binary cs_txt_bin = CS_TEXT_REPRESENTATION,
-      const CHARSET_INFO *cs_charset = &my_charset_utf8_general_ci);
+      const CHARSET_INFO *cs_charset = &my_charset_utf8mb3_general_ci);
 
   /**
     Sql_service_interface destructor
@@ -162,7 +162,7 @@ class Sql_service_interface {
   long execute_query(
       std::string sql_string, Sql_resultset *rset,
       enum cs_text_or_binary cs_txt_bin = CS_TEXT_REPRESENTATION,
-      const CHARSET_INFO *cs_charset = &my_charset_utf8_general_ci);
+      const CHARSET_INFO *cs_charset = &my_charset_utf8mb3_general_ci);
 
   /**
     Executes a server command in a session.
@@ -185,7 +185,7 @@ class Sql_service_interface {
   long execute(COM_DATA cmd, enum enum_server_command cmd_type,
                Sql_resultset *rset,
                enum cs_text_or_binary cs_txt_bin = CS_TEXT_REPRESENTATION,
-               const CHARSET_INFO *cs_charset = &my_charset_utf8_general_ci);
+               const CHARSET_INFO *cs_charset = &my_charset_utf8mb3_general_ci);
 
   /**
     Set send result type to CS_TEXT_REPRESENTATION or

@@ -5186,8 +5186,8 @@ int init_common_variables() {
   }
 
   /* Reset table_alias_charset, now that lower_case_table_names is set. */
-  table_alias_charset =
-      (lower_case_table_names ? &my_charset_utf8_tolower_ci : &my_charset_bin);
+  table_alias_charset = (lower_case_table_names ? &my_charset_utf8mb3_tolower_ci
+                                                : &my_charset_bin);
 
   /*
     Build do_table and ignore_table rules to hashes
@@ -6886,12 +6886,12 @@ static void test_lc_time_sz() {
     for (const char **month = (*loc)->month_names->type_names; *month;
          month++) {
       max_month_len = std::max(
-          max_month_len, my_numchars_mb(&my_charset_utf8_general_ci, *month,
+          max_month_len, my_numchars_mb(&my_charset_utf8mb3_general_ci, *month,
                                         *month + strlen(*month)));
     }
     for (const char **day = (*loc)->day_names->type_names; *day; day++) {
       max_day_len =
-          std::max(max_day_len, my_numchars_mb(&my_charset_utf8_general_ci,
+          std::max(max_day_len, my_numchars_mb(&my_charset_utf8mb3_general_ci,
                                                *day, *day + strlen(*day)));
     }
     if ((*loc)->max_month_name_length != max_month_len ||
@@ -7131,7 +7131,7 @@ int mysqld_main(int argc, char **argv)
           sizeof(mysql_real_data_home) - 1);
 
   /* Must be initialized early for comparison of options name */
-  system_charset_info = &my_charset_utf8_general_ci;
+  system_charset_info = &my_charset_utf8mb3_general_ci;
 
   /* Write mysys error messages to the error log. */
   local_message_hook = error_log_print;
@@ -7398,7 +7398,7 @@ int mysqld_main(int argc, char **argv)
 
   {
     /* Must be initialized early because it is required by dynamic loader */
-    files_charset_info = &my_charset_utf8_general_ci;
+    files_charset_info = &my_charset_utf8mb3_general_ci;
     auto keyring_helper = std::make_unique<Plugin_and_data_dir_option_parser>(
         remaining_argc, remaining_argv);
 
@@ -8314,7 +8314,7 @@ int mysqld_main(int argc, char **argv) {
   }
 
   /* Must be initialized early for comparison of service name */
-  system_charset_info = &my_charset_utf8_general_ci;
+  system_charset_info = &my_charset_utf8mb3_general_ci;
 
   if (mysqld_early_option || !mysqld_monitor) {
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -9964,9 +9964,9 @@ static int mysql_init_variables() {
   server_uuid[0] = 0;
 
   /* Character sets */
-  system_charset_info = &my_charset_utf8_general_ci;
-  files_charset_info = &my_charset_utf8_general_ci;
-  national_charset_info = &my_charset_utf8_general_ci;
+  system_charset_info = &my_charset_utf8mb3_general_ci;
+  files_charset_info = &my_charset_utf8mb3_general_ci;
+  national_charset_info = &my_charset_utf8mb3_general_ci;
   table_alias_charset = &my_charset_bin;
   character_set_filesystem = &my_charset_bin;
 

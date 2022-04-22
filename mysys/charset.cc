@@ -256,8 +256,8 @@ static int add_collation(CHARSET_INFO *cs) {
         newcs->state |= MY_CS_AVAILABLE | MY_CS_LOADED | MY_CS_NONASCII;
       } else if (!strcmp(cs->csname, "utf8") ||
                  !strcmp(cs->csname, "utf8mb3")) {
-        copy_uca_collation(newcs, &my_charset_utf8_unicode_ci);
-        newcs->ctype = my_charset_utf8_unicode_ci.ctype;
+        copy_uca_collation(newcs, &my_charset_utf8mb3_unicode_ci);
+        newcs->ctype = my_charset_utf8mb3_unicode_ci.ctype;
         if (init_state_maps(newcs)) return MY_XML_ERROR;
       } else if (!strcmp(cs->csname, "utf8mb4")) {
         copy_uca_collation(newcs, &my_charset_utf8mb4_unicode_ci);

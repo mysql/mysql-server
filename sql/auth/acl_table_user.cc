@@ -797,7 +797,7 @@ bool Acl_table_user_writer::update_authentication_info(
       m_table->field[m_table_schema->plugin_idx()]->set_notnull();
       m_table->field[m_table_schema->authentication_string_idx()]->store(
           m_combo->first_factor_auth_info.auth.str,
-          m_combo->first_factor_auth_info.auth.length, &my_charset_utf8_bin);
+          m_combo->first_factor_auth_info.auth.length, &my_charset_utf8mb3_bin);
       m_table->field[m_table_schema->authentication_string_idx()]
           ->set_notnull();
     } else {

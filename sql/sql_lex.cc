@@ -285,7 +285,7 @@ void Lex_input_stream::body_utf8_start(THD *thd, const char *begin_ptr) {
 
   size_t body_utf8_length =
       (m_buf_length / thd->variables.character_set_client->mbminlen) *
-      my_charset_utf8_bin.mbmaxlen;
+      my_charset_utf8mb3_bin.mbmaxlen;
 
   m_body_utf8 = (char *)thd->alloc(body_utf8_length + 1);
   m_body_utf8_ptr = m_body_utf8;
@@ -363,8 +363,8 @@ void Lex_input_stream::body_utf8_append_literal(THD *thd, const LEX_STRING *txt,
 
   LEX_STRING utf_txt;
 
-  if (!my_charset_same(txt_cs, &my_charset_utf8_general_ci)) {
-    thd->convert_string(&utf_txt, &my_charset_utf8_general_ci, txt->str,
+  if (!my_charset_same(txt_cs, &my_charset_utf8mb3_general_ci)) {
+    thd->convert_string(&utf_txt, &my_charset_utf8mb3_general_ci, txt->str,
                         txt->length, txt_cs);
   } else {
     utf_txt.str = txt->str;

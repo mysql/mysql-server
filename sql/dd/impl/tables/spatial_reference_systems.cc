@@ -44,7 +44,7 @@ const Spatial_reference_systems &Spatial_reference_systems::instance() {
 ///////////////////////////////////////////////////////////////////////////
 
 const CHARSET_INFO *Spatial_reference_systems::name_collation() {
-  return &my_charset_utf8_general_ci;
+  return &my_charset_utf8mb3_general_ci;
 }
 
 ///////////////////////////////////////////////////////////////////////////

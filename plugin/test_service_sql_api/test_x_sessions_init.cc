@@ -197,7 +197,7 @@ static void test_session_only_open(void *p [[maybe_unused]]) {
   cmd.com_query.query = "SELECT * FROM test.t_int";
   cmd.com_query.length = strlen(cmd.com_query.query);
   command_service_run_command(NULL, COM_QUERY, &cmd,
-                              &my_charset_utf8_general_ci, &sql_cbs,
+                              &my_charset_utf8mb3_general_ci, &sql_cbs,
                               CS_TEXT_REPRESENTATION, ctx);
   delete ctx;
 }

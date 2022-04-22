@@ -91,7 +91,7 @@ bool ensure_utf8mb4(const String &val, String *buf, const char **resptr,
   size_t ss = val.length();
 
   if (my_charset_same(cs, &my_charset_utf8mb4_bin) ||
-      my_charset_same(cs, &my_charset_utf8_bin) ||
+      my_charset_same(cs, &my_charset_utf8mb3_bin) ||
       !std::strcmp(cs->csname, "ascii")) {
     /*
       Character data is directly converted to JSON if the character

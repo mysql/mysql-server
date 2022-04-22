@@ -264,7 +264,7 @@ static void read_server_cost_constants(THD *thd, TABLE *table,
       if (!table->field[1]->is_null()) {
         char cost_name_buf[MAX_FIELD_WIDTH];
         String cost_name(cost_name_buf, sizeof(cost_name_buf),
-                         &my_charset_utf8_general_ci);
+                         &my_charset_utf8mb3_general_ci);
 
         // Read the name of the cost constant
         table->field[0]->val_str(&cost_name);
@@ -329,10 +329,10 @@ static void read_engine_cost_constants(THD *thd, TABLE *table,
       if (!table->field[3]->is_null()) {
         char engine_name_buf[MAX_FIELD_WIDTH];
         String engine_name(engine_name_buf, sizeof(engine_name_buf),
-                           &my_charset_utf8_general_ci);
+                           &my_charset_utf8mb3_general_ci);
         char cost_name_buf[MAX_FIELD_WIDTH];
         String cost_name(cost_name_buf, sizeof(cost_name_buf),
-                         &my_charset_utf8_general_ci);
+                         &my_charset_utf8mb3_general_ci);
 
         // Read the name of the storage engine
         table->field[0]->val_str(&engine_name);

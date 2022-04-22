@@ -501,7 +501,7 @@ static void query_execute(MYSQL_SESSION session, st_plugin_ctx *pctx,
   cmd.com_query.query = query.c_str();
   cmd.com_query.length = query.size();
   if (command_service_run_command(session, COM_QUERY, &cmd,
-                                  &my_charset_utf8_general_ci, &sql_cbs,
+                                  &my_charset_utf8mb3_general_ci, &sql_cbs,
                                   CS_TEXT_REPRESENTATION, pctx)) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "fail query execution - %d:%s",
                  pctx->sql_errno, pctx->err_msg);
@@ -565,7 +565,7 @@ static void ensure_api_not_null(const char *function, void *result) {
 static void reset_connection(MYSQL_SESSION st_session, st_plugin_ctx *pctx) {
   COM_DATA cmd;
   ENSURE_API_OK(command_service_run_command(
-      st_session, COM_RESET_CONNECTION, &cmd, &my_charset_utf8_general_ci,
+      st_session, COM_RESET_CONNECTION, &cmd, &my_charset_utf8mb3_general_ci,
       &sql_cbs, CS_TEXT_REPRESENTATION, pctx));
 }
 

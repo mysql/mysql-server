@@ -164,7 +164,7 @@ void Cursor::set(int colno, const char *str, size_t length) {
   TABLE *table = m_table_list->table;
   Field *field = table->field[colno];
 
-  const CHARSET_INFO *charset = &my_charset_utf8_unicode_ci;
+  const CHARSET_INFO *charset = &my_charset_utf8mb3_unicode_ci;
   if (str == nullptr)
     field->set_null(0);
   else {

@@ -370,7 +370,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   const char *lock_db_name = db;
   if (lower_case_table_names == 2) {
     my_stpcpy(name_buf, db);
-    my_casedn_str(&my_charset_utf8_tolower_ci, name_buf);
+    my_casedn_str(&my_charset_utf8mb3_tolower_ci, name_buf);
     lock_db_name = name_buf;
   }
   if (lock_schema_name(thd, lock_db_name)) return true;

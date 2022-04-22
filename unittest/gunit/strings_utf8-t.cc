@@ -40,7 +40,7 @@ class StringsUTF8Test : public ::testing::Test {
     // Save global settings.
     m_charset = system_charset_info;
 
-    system_charset_info = &my_charset_utf8_bin;
+    system_charset_info = &my_charset_utf8mb3_bin;
   }
 
   void TearDown() override {

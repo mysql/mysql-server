@@ -1866,7 +1866,7 @@ struct Get_csname {
 
 }  // namespace
 
-static CHARSET_INFO *charset_system_default = &my_charset_utf8_general_ci;
+static CHARSET_INFO *charset_system_default = &my_charset_utf8mb3_general_ci;
 
 static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_system(
     "character_set_system",

@@ -206,7 +206,7 @@ static bool assign_fixed_string(MEM_ROOT *mem_root, CHARSET_INFO *dst_cs,
 static int assign_condition_item(MEM_ROOT *mem_root, const char *name, THD *thd,
                                  Item *set, String *ci) {
   char str_buff[(64 + 1) * 4]; /* Room for a null terminated UTF8 String 64 */
-  String str_value(str_buff, sizeof(str_buff), &my_charset_utf8_bin);
+  String str_value(str_buff, sizeof(str_buff), &my_charset_utf8mb3_bin);
   String *str;
   bool truncated;
 
@@ -218,7 +218,8 @@ static int assign_condition_item(MEM_ROOT *mem_root, const char *name, THD *thd,
   }
 
   str = set->val_str(&str_value);
-  truncated = assign_fixed_string(mem_root, &my_charset_utf8_bin, 64, ci, str);
+  truncated =
+      assign_fixed_string(mem_root, &my_charset_utf8mb3_bin, 64, ci, str);
   if (truncated) {
     if (thd->is_strict_mode()) {
       thd->raise_error_printf(ER_COND_ITEM_TOO_LONG, name);
@@ -305,7 +306,7 @@ int Sql_cmd_common_signal::eval_signal_informations(THD *thd,
     bool truncated;
     String utf8_text;
     str = set->val_str(&str_value);
-    truncated = assign_fixed_string(thd->mem_root, &my_charset_utf8_bin, 128,
+    truncated = assign_fixed_string(thd->mem_root, &my_charset_utf8mb3_bin, 128,
                                     &utf8_text, str);
     if (truncated) {
       if (thd->is_strict_mode()) {

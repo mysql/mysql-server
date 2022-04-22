@@ -91,7 +91,7 @@ bool mdl_lock_schema(THD *thd, const char *schema_name,
     // Lower case table names == 2 is tested on OSX.
     /* purecov: begin tested */
     my_stpcpy(name_buf, converted_name);
-    my_casedn_str(&my_charset_utf8_tolower_ci, name_buf);
+    my_casedn_str(&my_charset_utf8mb3_tolower_ci, name_buf);
     converted_name = name_buf;
     /* purecov: end */
   }

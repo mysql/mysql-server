@@ -213,16 +213,16 @@ static void copy_string(MEM_ROOT *mem_root, String *dst, const String *src) {
 }
 
 Sql_condition::Sql_condition(MEM_ROOT *mem_root)
-    : m_class_origin((const char *)nullptr, 0, &my_charset_utf8_bin),
-      m_subclass_origin((const char *)nullptr, 0, &my_charset_utf8_bin),
-      m_constraint_catalog((const char *)nullptr, 0, &my_charset_utf8_bin),
-      m_constraint_schema((const char *)nullptr, 0, &my_charset_utf8_bin),
-      m_constraint_name((const char *)nullptr, 0, &my_charset_utf8_bin),
-      m_catalog_name((const char *)nullptr, 0, &my_charset_utf8_bin),
-      m_schema_name((const char *)nullptr, 0, &my_charset_utf8_bin),
-      m_table_name((const char *)nullptr, 0, &my_charset_utf8_bin),
-      m_column_name((const char *)nullptr, 0, &my_charset_utf8_bin),
-      m_cursor_name((const char *)nullptr, 0, &my_charset_utf8_bin),
+    : m_class_origin((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
+      m_subclass_origin((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
+      m_constraint_catalog((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
+      m_constraint_schema((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
+      m_constraint_name((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
+      m_catalog_name((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
+      m_schema_name((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
+      m_table_name((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
+      m_column_name((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
+      m_cursor_name((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
       m_message_text(),
       m_mysql_errno(0),
       m_severity_level(Sql_condition::SL_ERROR),
@@ -235,16 +235,16 @@ Sql_condition::Sql_condition(MEM_ROOT *mem_root, uint mysql_errno,
                              const char *returned_sqlstate,
                              Sql_condition::enum_severity_level severity,
                              const char *message_text)
-    : m_class_origin((const char *)nullptr, 0, &my_charset_utf8_bin),
-      m_subclass_origin((const char *)nullptr, 0, &my_charset_utf8_bin),
-      m_constraint_catalog((const char *)nullptr, 0, &my_charset_utf8_bin),
-      m_constraint_schema((const char *)nullptr, 0, &my_charset_utf8_bin),
-      m_constraint_name((const char *)nullptr, 0, &my_charset_utf8_bin),
-      m_catalog_name((const char *)nullptr, 0, &my_charset_utf8_bin),
-      m_schema_name((const char *)nullptr, 0, &my_charset_utf8_bin),
-      m_table_name((const char *)nullptr, 0, &my_charset_utf8_bin),
-      m_column_name((const char *)nullptr, 0, &my_charset_utf8_bin),
-      m_cursor_name((const char *)nullptr, 0, &my_charset_utf8_bin),
+    : m_class_origin((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
+      m_subclass_origin((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
+      m_constraint_catalog((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
+      m_constraint_schema((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
+      m_constraint_name((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
+      m_catalog_name((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
+      m_schema_name((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
+      m_table_name((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
+      m_column_name((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
+      m_cursor_name((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
       m_message_text(),
       m_mysql_errno(mysql_errno),
       m_severity_level(severity),
@@ -984,7 +984,7 @@ static bool is_deprecated(const char *cs_name) {
 */
 void warn_on_deprecated_charset(THD *thd, const CHARSET_INFO *cs,
                                 const char *alias, const char *option) {
-  if (cs == &my_charset_utf8_general_ci) {
+  if (cs == &my_charset_utf8mb3_general_ci) {
     if (native_strcasecmp(alias, "utf8") == 0) {
       if (option == nullptr)
         push_warning(thd, ER_DEPRECATED_UTF8_ALIAS);
@@ -1015,7 +1015,7 @@ void warn_on_deprecated_charset(THD *thd, const CHARSET_INFO *cs,
 */
 void warn_on_deprecated_collation(THD *thd, const CHARSET_INFO *collation,
                                   const char *option) {
-  if (my_charset_same(collation, &my_charset_utf8_general_ci)) {
+  if (my_charset_same(collation, &my_charset_utf8mb3_general_ci)) {
     if (option == nullptr)
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_DEPRECATED_UTF8MB3_COLLATION,

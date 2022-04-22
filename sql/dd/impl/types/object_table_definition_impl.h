@@ -158,8 +158,8 @@ class Object_table_definition_impl : public Object_table_definition {
    */
 
   static const CHARSET_INFO *fs_name_collation() {
-    if (lower_case_table_names == 0) return &my_charset_utf8_bin;
-    return &my_charset_utf8_tolower_ci;
+    if (lower_case_table_names == 0) return &my_charset_utf8mb3_bin;
+    return &my_charset_utf8mb3_tolower_ci;
   }
 
   /**
@@ -175,7 +175,9 @@ class Object_table_definition_impl : public Object_table_definition {
 
     @return Pointer to CHARSET_INFO.
   */
-  static const CHARSET_INFO *name_collation() { return &my_charset_utf8_bin; }
+  static const CHARSET_INFO *name_collation() {
+    return &my_charset_utf8mb3_bin;
+  }
 
   /**
     Convert to lowercase if lower_case_table_names == 2. This is needed

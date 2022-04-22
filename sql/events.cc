@@ -1168,7 +1168,7 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue) {
     if (lower_case_table_names == 2) {
       // Lower case table names == 2 is tested on OSX.
       my_stpcpy(name_buf, converted_schema_name);
-      my_casedn_str(&my_charset_utf8_tolower_ci, name_buf);
+      my_casedn_str(&my_charset_utf8mb3_tolower_ci, name_buf);
       converted_schema_name = name_buf;
     }
 

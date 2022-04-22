@@ -154,7 +154,7 @@ longlong Item_func_pfs_thread_id::val_int() {
 
 bool Item_func_pfs_format_bytes::resolve_type(THD *) {
   /* Format is 'AAAA.BB UUU' = 11 characters or 'AAAA bytes' = 10 characters. */
-  set_data_type_string(11U, &my_charset_utf8_general_ci);
+  set_data_type_string(11U, &my_charset_utf8mb3_general_ci);
   return false;
 }
 
@@ -216,7 +216,7 @@ String *Item_func_pfs_format_bytes::val_str(String *) {
     }
   }
 
-  m_value.set(m_value_buffer, len, &my_charset_utf8_general_ci);
+  m_value.set(m_value_buffer, len, &my_charset_utf8mb3_general_ci);
   return &m_value;
 }
 
@@ -225,7 +225,7 @@ String *Item_func_pfs_format_bytes::val_str(String *) {
 bool Item_func_pfs_format_pico_time::resolve_type(THD *) {
   set_nullable(true);
   /* Format is 'AAAA.BB UUU' = 11 characters or 'AAA ps' = 6 characters. */
-  set_data_type_string(11U, &my_charset_utf8_general_ci);
+  set_data_type_string(11U, &my_charset_utf8mb3_general_ci);
   return false;
 }
 
@@ -292,6 +292,6 @@ String *Item_func_pfs_format_pico_time::val_str(String *) {
     }
   }
 
-  m_value.set(m_value_buffer, len, &my_charset_utf8_general_ci);
+  m_value.set(m_value_buffer, len, &my_charset_utf8mb3_general_ci);
   return &m_value;
 }

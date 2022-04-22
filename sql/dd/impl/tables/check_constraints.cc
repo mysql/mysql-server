@@ -43,7 +43,7 @@ const Check_constraints &Check_constraints::instance() {
 ///////////////////////////////////////////////////////////////////////////
 
 const CHARSET_INFO *Check_constraints::name_collation() {
-  return &my_charset_utf8_tolower_ci;
+  return &my_charset_utf8mb3_tolower_ci;
 }
 
 ///////////////////////////////////////////////////////////////////////////

@@ -984,7 +984,7 @@ bool Item_func_at_time_zone::resolve_type(THD *thd) {
 
 bool Item_func_at_time_zone::set_time_zone(THD *thd) {
   String s(m_specifier_string, strlen(m_specifier_string),
-           &my_charset_utf8_bin);
+           &my_charset_utf8mb3_bin);
   m_tz = my_tz_find(thd, &s);
   if (m_tz == nullptr) {
     my_error(ER_UNKNOWN_TIME_ZONE, MYF(0), m_specifier_string);
@@ -1283,7 +1283,7 @@ String *Item_func_monthname::val_str(String *str) {
     return (String *)nullptr;
 
   month_name = locale->month_names->type_names[ltime.month - 1];
-  str->copy(month_name, strlen(month_name), &my_charset_utf8_bin,
+  str->copy(month_name, strlen(month_name), &my_charset_utf8mb3_bin,
             collation.collation, &err);
   return str;
 }
@@ -1483,7 +1483,7 @@ String *Item_func_dayname::val_str(String *str) {
   if (null_value) return (String *)nullptr;
 
   day_name = locale->day_names->type_names[weekday];
-  str->copy(day_name, strlen(day_name), &my_charset_utf8_bin,
+  str->copy(day_name, strlen(day_name), &my_charset_utf8mb3_bin,
             collation.collation, &err);
   return str;
 }

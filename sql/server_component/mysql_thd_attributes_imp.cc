@@ -42,7 +42,7 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
         compute_digest_text(&t->m_digest->m_digest_storage, res);
 
         /* compute_digest_text returns string as to utf8. */
-        res->set_charset(&my_charset_utf8_bin);
+        res->set_charset(&my_charset_utf8mb3_bin);
 
         *((my_h_string *)inout_pvalue) = (my_h_string)res;
       } else

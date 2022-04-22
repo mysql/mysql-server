@@ -442,7 +442,7 @@ static void exec_test_cmd(MYSQL_SESSION session, const char *test_cmd,
   cmd.com_query.query = (char *)test_cmd;
   cmd.com_query.length = strlen(cmd.com_query.query);
   fail = command_service_run_command(session, select_prot, COM_QUERY, &cmd,
-                                     &my_charset_utf8_general_ci);
+                                     &my_charset_utf8mb3_general_ci);
   if (fail)
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "test_sql_9_sessions - ret code : %d", fail);

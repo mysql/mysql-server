@@ -414,7 +414,7 @@ Opt_trace_stmt::Opt_trace_stmt(Opt_trace_context *ctx_arg)
       unknown_key_count(0) {
   // Trace is always in UTF8. This is the only charset which JSON accepts.
   trace_buffer.set_charset(system_charset_info);
-  assert(system_charset_info == &my_charset_utf8_general_ci);
+  assert(system_charset_info == &my_charset_utf8mb3_general_ci);
 }
 
 void Opt_trace_stmt::end() {

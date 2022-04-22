@@ -195,7 +195,7 @@ void compute_digest_text(const sql_digest_storage *digest_storage,
   /* Convert text to utf8 */
   const CHARSET_INFO *from_cs =
       get_charset(digest_storage->m_charset_number, MYF(0));
-  const CHARSET_INFO *to_cs = &my_charset_utf8_bin;
+  const CHARSET_INFO *to_cs = &my_charset_utf8mb3_bin;
 
   if (from_cs == nullptr) {
     /*

@@ -686,7 +686,7 @@ again:
   ctx->reset();
   WRITE_STR("[protocol init]\n");
   int fail = command_service_run_command(session, COM_QUERY, &cmd,
-                                         &my_charset_utf8_general_ci,
+                                         &my_charset_utf8mb3_general_ci,
                                          &protocol_callbacks, txt_or_bin, ctx);
   if (fail) {
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "run_statement code: %d\n",
@@ -721,7 +721,7 @@ void static change_current_db(MYSQL_SESSION session, const char *db,
   WRITE_DASHED_LINE();
   WRITE_VAL("EXECUTING:[COM_INIT_DB][%s]\n", db);
   int fail = command_service_run_command(
-      session, COM_INIT_DB, &cmd, &my_charset_utf8_general_ci,
+      session, COM_INIT_DB, &cmd, &my_charset_utf8mb3_general_ci,
       &protocol_callbacks, CS_TEXT_REPRESENTATION, ctx);
   if (fail)
     LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "change db code: %d\n",

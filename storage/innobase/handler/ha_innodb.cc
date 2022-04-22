@@ -10898,7 +10898,7 @@ FT_INFO *ha_innobase::ft_init_ext(uint flags,  /* in: */
   if (strcmp(char_set->csname, "utf32") == 0 ||
       strcmp(char_set->csname, "utf16") == 0) {
     buf_tmp_used = innobase_convert_string(
-        buf_tmp, sizeof(buf_tmp) - 1, &my_charset_utf8_general_ci, query,
+        buf_tmp, sizeof(buf_tmp) - 1, &my_charset_utf8mb3_general_ci, query,
         query_len, (CHARSET_INFO *)char_set, &num_errors);
 
     buf_tmp[buf_tmp_used] = 0;

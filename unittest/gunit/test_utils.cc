@@ -91,7 +91,7 @@ void setup_server_for_unit_tests() {
                   const_cast<char *>("--lc-messages-dir=" ERRMSG_DIR),
                   nullptr};
   set_remaining_args(6, argv);
-  system_charset_info = &my_charset_utf8_general_ci;
+  system_charset_info = &my_charset_utf8mb3_general_ci;
 
   mysql_mutex_init(PSI_NOT_INSTRUMENTED, &LOCK_plugin, MY_MUTEX_INIT_FAST);
   sys_var_init();

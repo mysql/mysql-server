@@ -97,37 +97,37 @@ cost_constant_error Server_cost_constants::set(const LEX_CSTRING &name,
   if (value <= 0.0) return INVALID_COST_VALUE;
 
   // ROW_EVALUATE_COST
-  if (my_strcasecmp(&my_charset_utf8_general_ci, "ROW_EVALUATE_COST",
+  if (my_strcasecmp(&my_charset_utf8mb3_general_ci, "ROW_EVALUATE_COST",
                     name.str) == 0) {
     m_row_evaluate_cost = value;
     return COST_CONSTANT_OK;
   }
   // KEY_COMPARE_COST
-  if (my_strcasecmp(&my_charset_utf8_general_ci, "KEY_COMPARE_COST",
+  if (my_strcasecmp(&my_charset_utf8mb3_general_ci, "KEY_COMPARE_COST",
                     name.str) == 0) {
     m_key_compare_cost = value;
     return COST_CONSTANT_OK;
   }
   // MEMORY_TEMPTABLE_CREATE_COST
-  if (my_strcasecmp(&my_charset_utf8_general_ci, "MEMORY_TEMPTABLE_CREATE_COST",
-                    name.str) == 0) {
+  if (my_strcasecmp(&my_charset_utf8mb3_general_ci,
+                    "MEMORY_TEMPTABLE_CREATE_COST", name.str) == 0) {
     m_memory_temptable_create_cost = value;
     return COST_CONSTANT_OK;
   }
   // MEMORY_TEMPTABLE_ROW_COST
-  if (my_strcasecmp(&my_charset_utf8_general_ci, "MEMORY_TEMPTABLE_ROW_COST",
+  if (my_strcasecmp(&my_charset_utf8mb3_general_ci, "MEMORY_TEMPTABLE_ROW_COST",
                     name.str) == 0) {
     m_memory_temptable_row_cost = value;
     return COST_CONSTANT_OK;
   }
   // DISK_TEMPTABLE_CREATE_COST
-  if (my_strcasecmp(&my_charset_utf8_general_ci, "DISK_TEMPTABLE_CREATE_COST",
-                    name.str) == 0) {
+  if (my_strcasecmp(&my_charset_utf8mb3_general_ci,
+                    "DISK_TEMPTABLE_CREATE_COST", name.str) == 0) {
     m_disk_temptable_create_cost = value;
     return COST_CONSTANT_OK;
   }
   // DISK_TEMPTABLE_ROW_COST
-  if (my_strcasecmp(&my_charset_utf8_general_ci, "DISK_TEMPTABLE_ROW_COST",
+  if (my_strcasecmp(&my_charset_utf8mb3_general_ci, "DISK_TEMPTABLE_ROW_COST",
                     name.str) == 0) {
     m_disk_temptable_row_cost = value;
     return COST_CONSTANT_OK;
@@ -165,14 +165,14 @@ cost_constant_error SE_cost_constants::set(const LEX_CSTRING &name,
   if (value <= 0.0) return INVALID_COST_VALUE;
 
   // MEMORY_BLOCK_READ_COST
-  if (my_strcasecmp(&my_charset_utf8_general_ci, "MEMORY_BLOCK_READ_COST",
+  if (my_strcasecmp(&my_charset_utf8mb3_general_ci, "MEMORY_BLOCK_READ_COST",
                     name.str) == 0) {
     update_cost_value(&m_memory_block_read_cost,
                       &m_memory_block_read_cost_default, value, default_value);
     return COST_CONSTANT_OK;
   }
   // IO_BLOCK_READ_COST
-  if (my_strcasecmp(&my_charset_utf8_general_ci, "IO_BLOCK_READ_COST",
+  if (my_strcasecmp(&my_charset_utf8mb3_general_ci, "IO_BLOCK_READ_COST",
                     name.str) == 0) {
     update_cost_value(&m_io_block_read_cost, &m_io_block_read_cost_default,
                       value, default_value);
@@ -294,7 +294,8 @@ cost_constant_error Cost_model_constants::update_engine_cost_constant(
   if (storage_category >= MAX_STORAGE_CLASSES) return INVALID_DEVICE_TYPE;
 
   // Check if this is a default value
-  if (my_strcasecmp(&my_charset_utf8_general_ci, "default", se_name.str) == 0) {
+  if (my_strcasecmp(&my_charset_utf8mb3_general_ci, "default", se_name.str) ==
+      0) {
     retval = update_engine_default_cost(name, storage_category, value);
   } else {
     // Look up the handler's slot id by using the storage engine name

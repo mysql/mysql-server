@@ -290,7 +290,7 @@ void Routine::create_mdl_key(enum_routine_type type,
                                   tables::Schemata::name_collation()));
   DBUG_EXECUTE_IF("simulate_lctn_two_case_for_schema_case_compare", {
     assert((lower_case_table_names == 2) ||
-           is_string_in_lowercase(schema_name, &my_charset_utf8_tolower_ci));
+           is_string_in_lowercase(schema_name, &my_charset_utf8mb3_tolower_ci));
   });
 #endif
 

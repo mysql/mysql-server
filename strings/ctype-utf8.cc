@@ -5750,35 +5750,35 @@ static MY_COLLATION_HANDLER my_collation_utf8mb3_bin_handler = {
     my_hash_sort_mb_bin,
     my_propagate_simple};
 
-MY_CHARSET_HANDLER my_charset_utf8_handler = {nullptr, /* init */
-                                              my_ismbchar_utf8mb3,
-                                              my_mbcharlen_utf8mb3,
-                                              my_numchars_mb,
-                                              my_charpos_mb3,
-                                              my_well_formed_len_utf8mb3,
-                                              my_lengthsp_8bit,
-                                              my_numcells_mb,
-                                              my_mb_wc_utf8mb3_thunk,
-                                              my_uni_utf8mb3,
-                                              my_mb_ctype_mb,
-                                              my_caseup_str_utf8mb3,
-                                              my_casedn_str_utf8mb3,
-                                              my_caseup_utf8mb3,
-                                              my_casedn_utf8mb3,
-                                              my_snprintf_8bit,
-                                              my_long10_to_str_8bit,
-                                              my_longlong10_to_str_8bit,
-                                              my_fill_8bit,
-                                              my_strntol_8bit,
-                                              my_strntoul_8bit,
-                                              my_strntoll_8bit,
-                                              my_strntoull_8bit,
-                                              my_strntod_8bit,
-                                              my_strtoll10_8bit,
-                                              my_strntoull10rnd_8bit,
-                                              my_scan_8bit};
+MY_CHARSET_HANDLER my_charset_utf8mb3_handler = {nullptr, /* init */
+                                                 my_ismbchar_utf8mb3,
+                                                 my_mbcharlen_utf8mb3,
+                                                 my_numchars_mb,
+                                                 my_charpos_mb3,
+                                                 my_well_formed_len_utf8mb3,
+                                                 my_lengthsp_8bit,
+                                                 my_numcells_mb,
+                                                 my_mb_wc_utf8mb3_thunk,
+                                                 my_uni_utf8mb3,
+                                                 my_mb_ctype_mb,
+                                                 my_caseup_str_utf8mb3,
+                                                 my_casedn_str_utf8mb3,
+                                                 my_caseup_utf8mb3,
+                                                 my_casedn_utf8mb3,
+                                                 my_snprintf_8bit,
+                                                 my_long10_to_str_8bit,
+                                                 my_longlong10_to_str_8bit,
+                                                 my_fill_8bit,
+                                                 my_strntol_8bit,
+                                                 my_strntoul_8bit,
+                                                 my_strntoll_8bit,
+                                                 my_strntoull_8bit,
+                                                 my_strntod_8bit,
+                                                 my_strtoll10_8bit,
+                                                 my_strntoull10rnd_8bit,
+                                                 my_scan_8bit};
 
-CHARSET_INFO my_charset_utf8_general_ci = {
+CHARSET_INFO my_charset_utf8mb3_general_ci = {
     33,
     0,
     0, /* number       */
@@ -5809,11 +5809,11 @@ CHARSET_INFO my_charset_utf8_general_ci = {
     ' ',                  /* pad char      */
     false,                /* escape_with_backslash_is_dangerous */
     1,                    /* levels_for_compare */
-    &my_charset_utf8_handler,
+    &my_charset_utf8mb3_handler,
     &my_collation_utf8mb3_general_ci_handler,
     PAD_SPACE};
 
-CHARSET_INFO my_charset_utf8_tolower_ci = {
+CHARSET_INFO my_charset_utf8mb3_tolower_ci = {
     76,
     0,
     0, /* number       */
@@ -5844,11 +5844,11 @@ CHARSET_INFO my_charset_utf8_tolower_ci = {
     ' ',                  /* pad char      */
     false,                /* escape_with_backslash_is_dangerous */
     1,                    /* levels_for_compare */
-    &my_charset_utf8_handler,
+    &my_charset_utf8mb3_handler,
     &my_collation_utf8mb3_general_ci_handler,
     PAD_SPACE};
 
-CHARSET_INFO my_charset_utf8_general_mysql500_ci = {
+CHARSET_INFO my_charset_utf8mb3_general_mysql500_ci = {
     223,
     0,
     0,                                               /* number           */
@@ -5879,11 +5879,11 @@ CHARSET_INFO my_charset_utf8_general_mysql500_ci = {
     ' ',                                             /* pad char         */
     false, /* escape_with_backslash_is_dangerous */
     1,     /* levels_for_compare */
-    &my_charset_utf8_handler,
+    &my_charset_utf8mb3_handler,
     &my_collation_utf8mb3_general_ci_handler,
     PAD_SPACE};
 
-CHARSET_INFO my_charset_utf8_bin = {
+CHARSET_INFO my_charset_utf8mb3_bin = {
     83,
     0,
     0, /* number       */
@@ -5914,7 +5914,7 @@ CHARSET_INFO my_charset_utf8_bin = {
     ' ',                 /* pad char      */
     false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
-    &my_charset_utf8_handler,
+    &my_charset_utf8mb3_handler,
     &my_collation_utf8mb3_bin_handler,
     PAD_SPACE};
 

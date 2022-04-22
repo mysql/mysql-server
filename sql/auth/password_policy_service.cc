@@ -24,7 +24,7 @@
 #include <stddef.h>
 
 #include "lex_string.h"
-#include "m_ctype.h" /* my_charset_utf8_bin */
+#include "m_ctype.h" /* my_charset_utf8mb3_bin */
 #include "m_string.h"
 /* assert */
 #include "my_inttypes.h"
@@ -78,7 +78,7 @@ int my_validate_password_policy(const char *password,
   int res = 0;
 
   if (password) {
-    String tmp_str(password, password_len, &my_charset_utf8_bin);
+    String tmp_str(password, password_len, &my_charset_utf8mb3_bin);
     password_str = tmp_str;
   }
   if (!srv_registry->acquire("validate_password", &h_pv_svc)) {
@@ -137,7 +137,8 @@ int my_calculate_password_strength(const char *password,
   SERVICE_TYPE(validate_password) * ret;
   String password_str;
 
-  if (password) password_str.set(password, password_len, &my_charset_utf8_bin);
+  if (password)
+    password_str.set(password, password_len, &my_charset_utf8mb3_bin);
   if (!srv_registry->acquire("validate_password", &h_pv_svc)) {
     ret = reinterpret_cast<SERVICE_TYPE(validate_password) *>(h_pv_svc);
     if (!ret->get_strength((void *)current_thd, (my_h_string)&password_str,

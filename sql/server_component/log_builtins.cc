@@ -3474,7 +3474,7 @@ DEFINE_METHOD(log_service_error, log_builtins_syseventlog_imp::write,
   int ret;
 
   mysql_mutex_lock(&THR_LOCK_log_syseventlog);
-  ret = my_syslog(&my_charset_utf8_bin, level, msg);
+  ret = my_syslog(&my_charset_utf8mb3_bin, level, msg);
   mysql_mutex_unlock(&THR_LOCK_log_syseventlog);
 
   return (ret == 0) ? LOG_SERVICE_SUCCESS : LOG_SERVICE_NOT_AVAILABLE;

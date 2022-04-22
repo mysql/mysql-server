@@ -405,7 +405,7 @@
   Number |  Hex  | Character Set Name
   -------|-------|-------------------
        8 |  0x08 | @ref my_charset_latin1 "latin1_swedish_ci"
-      33 |  0x21 | @ref my_charset_utf8_general_ci "utf8mb3_general_ci"
+      33 |  0x21 | @ref my_charset_utf8mb3_general_ci "utf8mb3_general_ci"
       63 |  0x3f | @ref my_charset_bin "binary"
 
 

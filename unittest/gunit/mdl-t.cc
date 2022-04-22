@@ -124,7 +124,7 @@ class MDLTest : public ::testing::Test, public Test_MDL_context_owner {
     m_mdl_context.init(this);
     EXPECT_FALSE(m_mdl_context.has_locks());
     m_charset = system_charset_info;
-    system_charset_info = &my_charset_utf8_bin;
+    system_charset_info = &my_charset_utf8mb3_bin;
     EXPECT_TRUE(system_charset_info != nullptr);
 
     MDL_REQUEST_INIT(&m_global_request, MDL_key::GLOBAL, "", "",
@@ -4693,7 +4693,7 @@ static void lock_bench(MDL_context &ctx, const Name_vec &names) {
 */
 static void BM_FindTicket(size_t num_iterations) {
   StopBenchmarkTiming();
-  system_charset_info = &my_charset_utf8_bin;
+  system_charset_info = &my_charset_utf8mb3_bin;
   mdl_init();
   MDL_context ctx;
   Mock_MDL_context_owner owner;

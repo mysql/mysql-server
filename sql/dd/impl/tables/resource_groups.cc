@@ -60,7 +60,7 @@ const Resource_groups &Resource_groups::instance() {
 }
 
 const CHARSET_INFO *Resource_groups::name_collation() {
-  return &my_charset_utf8_general_ci;
+  return &my_charset_utf8mb3_general_ci;
 }
 
 bool Resource_groups::update_object_key(Global_name_key *key,

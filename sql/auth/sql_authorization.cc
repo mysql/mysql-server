@@ -5316,7 +5316,7 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
       */
       next_it = next(it);
       GRANT_NAME *grant_proc = it->second.get();
-      if (!my_strcasecmp(&my_charset_utf8_bin, grant_proc->db, sp_db) &&
+      if (!my_strcasecmp(&my_charset_utf8mb3_bin, grant_proc->db, sp_db) &&
           !my_strcasecmp(system_charset_info, grant_proc->tname, sp_name)) {
         LEX_USER lex_user;
         lex_user.user.str = grant_proc->user;

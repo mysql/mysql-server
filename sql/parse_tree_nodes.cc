@@ -4049,7 +4049,7 @@ Sql_cmd *PT_create_srs::make_cmd(THD *thd) {
     return nullptr;
   }
   MYSQL_LEX_STRING srs_name_utf8 = {nullptr, 0};
-  if (thd->convert_string(&srs_name_utf8, &my_charset_utf8_bin,
+  if (thd->convert_string(&srs_name_utf8, &my_charset_utf8mb3_bin,
                           m_attributes.srs_name.str,
                           m_attributes.srs_name.length, thd->charset())) {
     /* purecov: begin inspected */
@@ -4067,7 +4067,7 @@ Sql_cmd *PT_create_srs::make_cmd(THD *thd) {
     return nullptr;
   }
   String srs_name_str(srs_name_utf8.str, srs_name_utf8.length,
-                      &my_charset_utf8_bin);
+                      &my_charset_utf8mb3_bin);
   if (srs_name_str.numchars() > 80) {
     my_error(ER_SRS_ATTRIBUTE_STRING_TOO_LONG, MYF(0), "NAME", 80);
     return nullptr;
@@ -4078,7 +4078,7 @@ Sql_cmd *PT_create_srs::make_cmd(THD *thd) {
     return nullptr;
   }
   MYSQL_LEX_STRING definition_utf8 = {nullptr, 0};
-  if (thd->convert_string(&definition_utf8, &my_charset_utf8_bin,
+  if (thd->convert_string(&definition_utf8, &my_charset_utf8mb3_bin,
                           m_attributes.definition.str,
                           m_attributes.definition.length, thd->charset())) {
     /* purecov: begin inspected */
@@ -4087,7 +4087,7 @@ Sql_cmd *PT_create_srs::make_cmd(THD *thd) {
     /* purecov: end */
   }
   String definition_str(definition_utf8.str, definition_utf8.length,
-                        &my_charset_utf8_bin);
+                        &my_charset_utf8mb3_bin);
   if (contains_control_char(definition_utf8.str, definition_utf8.length)) {
     my_error(ER_SRS_INVALID_CHARACTER_IN_ATTRIBUTE, MYF(0), "DEFINITION");
     return nullptr;
@@ -4099,7 +4099,7 @@ Sql_cmd *PT_create_srs::make_cmd(THD *thd) {
 
   MYSQL_LEX_STRING organization_utf8 = {nullptr, 0};
   if (m_attributes.organization.str != nullptr) {
-    if (thd->convert_string(&organization_utf8, &my_charset_utf8_bin,
+    if (thd->convert_string(&organization_utf8, &my_charset_utf8mb3_bin,
                             m_attributes.organization.str,
                             m_attributes.organization.length, thd->charset())) {
       /* purecov: begin inspected */
@@ -4114,7 +4114,7 @@ Sql_cmd *PT_create_srs::make_cmd(THD *thd) {
       return nullptr;
     }
     String organization_str(organization_utf8.str, organization_utf8.length,
-                            &my_charset_utf8_bin);
+                            &my_charset_utf8mb3_bin);
     if (contains_control_char(organization_utf8.str,
                               organization_utf8.length)) {
       my_error(ER_SRS_INVALID_CHARACTER_IN_ATTRIBUTE, MYF(0), "ORGANIZATION");
@@ -4136,7 +4136,7 @@ Sql_cmd *PT_create_srs::make_cmd(THD *thd) {
 
   MYSQL_LEX_STRING description_utf8 = {nullptr, 0};
   if (m_attributes.description.str != nullptr) {
-    if (thd->convert_string(&description_utf8, &my_charset_utf8_bin,
+    if (thd->convert_string(&description_utf8, &my_charset_utf8mb3_bin,
                             m_attributes.description.str,
                             m_attributes.description.length, thd->charset())) {
       /* purecov: begin inspected */
@@ -4145,7 +4145,7 @@ Sql_cmd *PT_create_srs::make_cmd(THD *thd) {
       /* purecov: end */
     }
     String description_str(description_utf8.str, description_utf8.length,
-                           &my_charset_utf8_bin);
+                           &my_charset_utf8mb3_bin);
     if (contains_control_char(description_utf8.str, description_utf8.length)) {
       my_error(ER_SRS_INVALID_CHARACTER_IN_ATTRIBUTE, MYF(0), "DESCRIPTION");
       return nullptr;

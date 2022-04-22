@@ -47,7 +47,7 @@ const Table_partitions &Table_partitions::instance() {
 ///////////////////////////////////////////////////////////////////////////
 
 const CHARSET_INFO *Table_partitions::name_collation() {
-  return &my_charset_utf8_tolower_ci;
+  return &my_charset_utf8mb3_tolower_ci;
 }
 
 ///////////////////////////////////////////////////////////////////////////
