@@ -26,16 +26,16 @@
 #include <system_error>
 #include <thread>
 
-#include <gmock/gmock-more-matchers.h>
-#include <gmock/gmock.h>
-
 #include <event2/event.h>  // EVENT__HAVE_OPENSSL
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "config_builder.h"
 #include "dim.h"
 #include "gtest_testname.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/utility/string.h"
+#include "mysqlrouter/http_request.h"
 #include "mysqlrouter/rest_client.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
@@ -526,21 +526,6 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "^$",
      "",
      HttpMethod::Trace,
-     "/with_index/index.html",
-     "",
-     HttpStatusCode::MethodNotAllowed},
-
-    {"CONNECT, file-exists",
-     "WL11891::TS-21",
-     localhost_ipv4,
-     {
-         {"port", std::string(kPlaceholder)},
-         {"static_folder", kHttpBasedir},
-     },
-     true,
-     "^$",
-     "",
-     HttpMethod::Connect,
      "/with_index/index.html",
      "",
      HttpStatusCode::MethodNotAllowed},

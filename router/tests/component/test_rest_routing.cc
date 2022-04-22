@@ -868,8 +868,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      std::string(rest_api_basepath) + "/routes/ro/status",
      "/routes/{routeName}/status",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Trace | HttpMethod::Options | HttpMethod::Connect |
-         HttpMethod::Head,
+         HttpMethod::Trace | HttpMethod::Options | HttpMethod::Head,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
@@ -878,8 +877,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
     {"routes_invalid_methods", std::string(rest_api_basepath) + "/routes",
      "/routes",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Trace | HttpMethod::Options | HttpMethod::Connect |
-         HttpMethod::Head,
+         HttpMethod::Trace | HttpMethod::Options | HttpMethod::Head,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
@@ -889,8 +887,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      std::string(rest_api_basepath) + "/routes/ro/config",
      "/routes/{routeName}/config",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options |
-         HttpMethod::Connect,
+         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
@@ -900,8 +897,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      std::string(rest_api_basepath) + "/routes/ro/health",
      "/routes/{routeName}/health",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options |
-         HttpMethod::Connect,
+         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
@@ -911,8 +907,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      std::string(rest_api_basepath) + "/routes/ro/destinations",
      "/routes/{routeName}/destinations",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options |
-         HttpMethod::Connect,
+         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
@@ -922,8 +917,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      std::string(rest_api_basepath) + "/routes/ro/blockedHosts",
      "/routes/{routeName}/blockedHosts",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options |
-         HttpMethod::Connect,
+         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
@@ -933,8 +927,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      std::string(rest_api_basepath) + "/routes/ro/connections",
      "/routes/{routeName}/connections",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options |
-         HttpMethod::Connect,
+         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,

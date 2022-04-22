@@ -191,8 +191,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
     {"router_status_invalid_methods",
      std::string(rest_api_basepath) + "/router/status", "/router/status",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options |
-         HttpMethod::Connect,
+         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
