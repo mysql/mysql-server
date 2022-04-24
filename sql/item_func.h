@@ -242,6 +242,7 @@ class Item_func : public Item_result_field {
     SQRT_FUNC,
     ABS_FUNC,
     POW_FUNC,
+    SIGN_FUNC,
     FLOOR_FUNC,
     LOG_FUNC,
     LN_FUNC,
@@ -1454,6 +1455,7 @@ class Item_func_sign final : public Item_int_func {
  public:
   Item_func_sign(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   const char *func_name() const override { return "sign"; }
+  enum Functype functype() const override { return SIGN_FUNC; }
   longlong val_int() override;
   bool resolve_type(THD *thd) override;
 };
