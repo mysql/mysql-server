@@ -23619,6 +23619,8 @@ dfield_t *innobase_get_computed_value(
   /* Specify the column the server should evaluate */
   bitmap_set_bit(&column_map, col->m_col.ind);
 
+  Temp_table_handle tblhdl;
+
   if (mysql_table == nullptr) {
     if (vctempl->type == DATA_BLOB) {
       ulint max_len;
@@ -23637,17 +23639,17 @@ dfield_t *innobase_get_computed_value(
                                vctempl->mysql_col_len, blob_mem, max_len);
     }
 
-    ret = handler::my_eval_gcolumn_expr_with_open(
-        thd, index->table->vc_templ->db_name.c_str(),
-        index->table->vc_templ->tb_name.c_str(), &column_map,
-        (uchar *)mysql_rec,
-        (col->m_col.is_multi_value() ? &mv_data_ptr : nullptr),
-        (col->m_col.is_multi_value() ? &mv_length : nullptr));
-  } else {
+    /* open a temporary table handle */
+    mysql_table = tblhdl.open(thd, index->table->vc_templ->db_name.c_str(),
+                              index->table->vc_templ->tb_name.c_str());
+  }
+  if (mysql_table) {
     ret = handler::my_eval_gcolumn_expr(
         thd, mysql_table, &column_map, (uchar *)mysql_rec,
         (col->m_col.is_multi_value() ? &mv_data_ptr : nullptr),
         (col->m_col.is_multi_value() ? &mv_length : nullptr));
+  } else {
+    return nullptr;
   }
 
   if (ret != 0) {
