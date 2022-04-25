@@ -155,14 +155,15 @@ bool ProcessWrapper::expect_output(const std::string &str, bool regex,
     step *= 10;
   }
 
-  auto now = std::chrono::steady_clock::now();
-  auto until = now + timeout;
+  const auto until = std::chrono::steady_clock::now() + timeout;
   for (;;) {
+    bool has_exited = has_exit_code();
+
     if (output_contains(str, regex)) return true;
 
-    now = std::chrono::steady_clock::now();
-
-    if (now > until) {
+    // no need to wait any longer, as there is no further output
+    // as the process has already exited.
+    if (has_exited || (std::chrono::steady_clock::now() > until)) {
       return false;
     }
 
