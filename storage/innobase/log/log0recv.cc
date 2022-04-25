@@ -3435,8 +3435,6 @@ automatically when the hash table becomes full.
 @param[in]      buf             buffer containing a log segment or garbage
 @param[in]      len             buffer length
 @param[in]      start_lsn       buffer start lsn
-@param[in,out]  contiguous_lsn  it is known that log contain
-                                contiguous log data up to this lsn
 @param[out]  read_upto_lsn  scanning succeeded up to this lsn
 @param[out]  err             DB_SUCCESS when no dblwr corruptions.
 @return true if not able to scan any more in this log */
@@ -3446,8 +3444,8 @@ static bool recv_scan_log_recs(log_t &log,
 bool meb_scan_log_recs(
 #endif /* !UNIV_HOTBACKUP */
                                size_t max_memory, const byte *buf, size_t len,
-                               lsn_t start_lsn, lsn_t *contiguous_lsn,
-                               lsn_t *read_upto_lsn, dberr_t &err) {
+                               lsn_t start_lsn, lsn_t *read_upto_lsn,
+                               dberr_t &err) {
   const byte *log_block = buf;
   lsn_t scanned_lsn = start_lsn;
   bool finished = false;
@@ -3495,18 +3493,6 @@ bool meb_scan_log_recs(
       finished = true;
 
       break;
-    }
-
-    if (block_header.m_flush_bit) {
-      /* This block was a start of a log flush operation:
-      we know that the previous flush operation must have
-      been completed before this block can have been flushed.
-      Therefore, we know that log data is contiguous up to
-      scanned_lsn. */
-
-      if (scanned_lsn > *contiguous_lsn) {
-        *contiguous_lsn = scanned_lsn;
-      }
     }
 
     const auto data_len = block_header.m_data_len;
@@ -3744,10 +3730,13 @@ static lsn_t recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn,
 /** Scans log from a buffer and stores new log data to the parsing buffer.
 Parses and hashes the log records if new data found.
 @param[in,out]  log                     redo log
-@param[in,out]  contiguous_lsn          log sequence number
+@param[in,out]  checkpoint_lsn          log sequence number found in checkpoint
+                                        header. May be inexact (in a middle of
+                                        an mtr which we can ignore, as it is
+                                        already applied to tablespace files)
                                         until which all redo log has been
                                         scanned */
-static dberr_t recv_recovery_begin(log_t &log, lsn_t *contiguous_lsn) {
+static dberr_t recv_recovery_begin(log_t &log, const lsn_t checkpoint_lsn) {
   mutex_enter(&recv_sys->mutex);
 
   recv_sys->len = 0;
@@ -3764,13 +3753,13 @@ static dberr_t recv_recovery_begin(log_t &log, lsn_t *contiguous_lsn) {
   /* This is updated when we find value for parse_start_lsn. */
   recv_sys->bytes_to_ignore_before_checkpoint = 0;
 
-  recv_sys->checkpoint_lsn = *contiguous_lsn;
-  recv_sys->scanned_lsn = *contiguous_lsn;
-  recv_sys->recovered_lsn = *contiguous_lsn;
+  recv_sys->checkpoint_lsn = checkpoint_lsn;
+  recv_sys->scanned_lsn = checkpoint_lsn;
+  recv_sys->recovered_lsn = checkpoint_lsn;
 
   /* We have to trust that the first_rec_group in the first block is
   correct as we can't start parsing earlier to check it ourselves. */
-  recv_sys->previous_recovered_lsn = *contiguous_lsn;
+  recv_sys->previous_recovered_lsn = checkpoint_lsn;
   recv_sys->last_block_first_rec_group = 0;
 
   recv_sys->scanned_epoch_no = 0;
@@ -3785,10 +3774,8 @@ static dberr_t recv_recovery_begin(log_t &log, lsn_t *contiguous_lsn) {
       UNIV_PAGE_SIZE * (buf_pool_get_n_pages() -
                         (recv_n_pool_free_frames * srv_buf_pool_instances));
 
-  *contiguous_lsn =
-      ut_uint64_align_down(*contiguous_lsn, OS_FILE_LOG_BLOCK_SIZE);
-
-  lsn_t start_lsn = *contiguous_lsn;
+  lsn_t start_lsn =
+      ut_uint64_align_down(checkpoint_lsn, OS_FILE_LOG_BLOCK_SIZE);
 
   bool finished = false;
 
@@ -3804,9 +3791,8 @@ static dberr_t recv_recovery_begin(log_t &log, lsn_t *contiguous_lsn) {
 
     dberr_t err;
 
-    finished =
-        recv_scan_log_recs(log, max_mem, log.buf, end_lsn - start_lsn,
-                           start_lsn, contiguous_lsn, &log.m_scanned_lsn, err);
+    finished = recv_scan_log_recs(log, max_mem, log.buf, end_lsn - start_lsn,
+                                  start_lsn, &log.m_scanned_lsn, err);
 
     if (err != DB_SUCCESS) {
       return err;
@@ -3944,17 +3930,11 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
     return DB_ERROR;
   }
 
-  /* Start reading the log from the checkpoint LSN up.
-  The variable contiguous_lsn contains an LSN up to which
-  the log is known to be contiguously written to log. */
+  /* Start reading the log from the checkpoint LSN up. */
 
   ut_ad(RECV_SCAN_SIZE <= log.buf_size);
 
   ut_ad(recv_sys->n_addrs == 0);
-
-  lsn_t contiguous_lsn;
-
-  contiguous_lsn = checkpoint_lsn;
 
   /* NOTE: we always do a 'recovery' at startup, but only if
   there is something wrong we will print a message to the
@@ -3983,9 +3963,7 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
     }
   }
 
-  contiguous_lsn = checkpoint_lsn;
-
-  err = recv_recovery_begin(log, &contiguous_lsn);
+  err = recv_recovery_begin(log, checkpoint_lsn);
   if (err != DB_SUCCESS) {
     return err;
   }

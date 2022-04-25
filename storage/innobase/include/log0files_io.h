@@ -451,38 +451,6 @@ Log_uuid log_generate_uuid();
 
 /* Definition of inline functions. */
 
-/** Gets a log block flush bit. The flush bit is set, if and only if,
-the block was the first block written in a write operation.
-
-During recovery, when encountered the flush bit, recovery code can be
-pretty sure, that all previous blocks belong to a completed write,
-because the block with flush bit belongs to the next call to write,
-which could only be started after the previous one has been finished.
-
-@param[in]	log_block	log block
-@return true if this block was the first to be written in fil_io(). */
-inline bool log_block_get_flush_bit(const byte *log_block) {
-  if (LOG_BLOCK_FLUSH_BIT_MASK &
-      mach_read_from_4(log_block + LOG_BLOCK_HDR_NO)) {
-    return true;
-  }
-  return false;
-}
-
-/** Sets the log block flush bit.
-@param[in,out]	log_block	log block (must have hdr_no != 0)
-@param[in]	value		value to set */
-inline void log_block_set_flush_bit(byte *log_block, bool value) {
-  uint32_t field = mach_read_from_4(log_block + LOG_BLOCK_HDR_NO);
-  ut_a(field != 0);
-  if (value) {
-    field = field | LOG_BLOCK_FLUSH_BIT_MASK;
-  } else {
-    field = field & ~LOG_BLOCK_FLUSH_BIT_MASK;
-  }
-  mach_write_to_4(log_block + LOG_BLOCK_HDR_NO, field);
-}
-
 /** Gets a log block number stored in the header. The number corresponds
 to lsn range for data stored in the block.
 
@@ -661,7 +629,6 @@ inline void log_data_block_header_serialize(const Log_data_block_header &header,
   log_block_set_hdr_no(buf, header.m_hdr_no);
   log_block_set_data_len(buf, header.m_data_len);
   log_block_set_first_rec_group(buf, header.m_first_rec_group);
-  log_block_set_flush_bit(buf, header.m_flush_bit);
   log_block_store_checksum(buf);
 }
 
@@ -675,7 +642,6 @@ inline bool log_data_block_header_deserialize(const byte *buf,
   header.m_hdr_no = log_block_get_hdr_no(buf);
   header.m_data_len = log_block_get_data_len(buf);
   header.m_first_rec_group = log_block_get_first_rec_group(buf);
-  header.m_flush_bit = log_block_get_flush_bit(buf);
   return log_block_calc_checksum(buf) == log_block_get_checksum(buf);
 }
 

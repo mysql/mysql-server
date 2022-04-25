@@ -617,32 +617,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
        It should be possible to wrap it at 2G (only the single flush bit is
        reserved as the highest bit) but for historical reasons it is 1G.
 
-     - @anchor a_redo_log_block_flush_bit flush_bit
-
-       This is a single bit stored as the highest bit of hdr_no. The bit is
-       skipped when calculating block number.
-
-       It is set for the first block of multiple blocks written in a single
-       call to log_data_blocks_write().
-
-       It was supposed to help to filter out writes which were not atomic.
-       When the flush bit is read from disk, it means that up to this lsn,
-       all previous log records have been fully written from the log buffer
-       to OS buffers. That's because previous calls to log_data_blocks_write()
-       had to be finished, before call for current block was started.
-
-       The wrong assumption was that we can trust those log records then.
-       Note, we have no guarantee that order of writes is preserved by disk
-       controller. That's why only after fsync() call is finished, one could
-       be sure, that data is fully written (up to the write_lsn at which
-       fsync() was started).
-
-       During recovery, when the flush bit is encountered, *contiguous_lsn
-       is updated, but then the updated lsn seems unused...
-
-       It seems that there is no real benefit from the flush bit at all,
-       and even in 5.7 it was completely ignored during the recovery.
-
      - @anchor a_redo_log_block_data_len data_len
 
        Number of bytes within the log block. Possible values:
@@ -1581,7 +1555,6 @@ static inline void prepare_full_blocks(const log_t &log, byte *buffer,
     block_header.m_hdr_no = log_block_convert_lsn_to_hdr_no(block_lsn);
     block_header.m_data_len = OS_FILE_LOG_BLOCK_SIZE;
     block_header.m_first_rec_group = log_block_get_first_rec_group(ptr);
-    block_header.m_flush_bit = buffer_offset == 0;
     log_data_block_header_serialize(block_header, ptr);
   }
 }
@@ -1677,7 +1650,6 @@ static inline void copy_to_write_ahead_buffer(log_t &log, const byte *buffer,
     if (block_header.m_first_rec_group > incomplete_size) {
       block_header.m_first_rec_group = 0;
     }
-    block_header.m_flush_bit = completed_blocks_size == 0;
     log_data_block_header_serialize(block_header, incomplete_block);
 
     std::memset(incomplete_block + incomplete_size, 0x00,
