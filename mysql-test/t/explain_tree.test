@@ -662,4 +662,14 @@ EXPLAIN ANALYZE
 WITH x1 AS (SELECT MAX(a) AS m1 FROM t1 GROUP BY b)
 SELECT * FROM x1 y1 WHERE y1.m1 = (SELECT MAX(m1) FROM x1);
 
+--echo #
+--echo #  Bug#34051681 mysqld asan crash at ExplainMaterializeAccessPath
+--echo #
+# CTE in subquery never executed.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE
+WITH x1 AS (SELECT MAX(a) AS m1 FROM t1 GROUP BY b)
+SELECT * FROM t1 y1 LEFT JOIN t1 y2 ON y1.a=-y2.a
+WHERE y1.b+y2.b = (SELECT MAX(m1) FROM x1);
+
 DROP TABLE t1;
