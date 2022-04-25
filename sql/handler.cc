@@ -8254,38 +8254,12 @@ bool handler::my_prepare_gcolumn_template(THD *thd, const char *db_name,
                                           const char *table_name,
                                           my_gcolumn_template_callback_t myc,
                                           void *ib_table) {
-  char path[FN_REFLEN + 1];
-  bool was_truncated;
-  build_table_filename(path, sizeof(path) - 1 - reg_ext_length, db_name,
-                       table_name, "", 0, &was_truncated);
-  assert(!was_truncated);
   bool rc = true;
-
-  MDL_ticket *mdl_ticket = nullptr;
-  if (dd::acquire_shared_table_mdl(thd, db_name, table_name, false,
-                                   &mdl_ticket))
-    return true;
-
-  TABLE *table = nullptr;
-  {
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    const dd::Table *tab_obj = nullptr;
-    if (thd->dd_client()->acquire(db_name, table_name, &tab_obj)) return true;
-    assert(tab_obj);
-
-    // Note! The second-to-last argument to open_table_uncached() must be false,
-    // since the table already exists in the TDC. Allowing the table to
-    // be opened in the SE in this case is dangerous as the two shares
-    // could get conflicting SE private data.
-    table = open_table_uncached(thd, path, db_name, table_name, false, false,
-                                *tab_obj);
-  }
-
-  dd::release_mdl(thd, mdl_ticket);
+  Temp_table_handle tblhdl;
+  TABLE *table = tblhdl.open(thd, db_name, table_name);
 
   if (table) {
     myc(table, ib_table);
-    intern_close_table(table);
     rc = false;
   }
   return rc;
@@ -8321,35 +8295,12 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd, const char *db_name,
                                              const char **mv_data_ptr,
                                              ulong *mv_length) {
   bool retval = true;
-
-  char path[FN_REFLEN + 1];
-  bool was_truncated;
-  build_table_filename(path, sizeof(path) - 1 - reg_ext_length, db_name,
-                       table_name, "", 0, &was_truncated);
-  assert(!was_truncated);
-
-  MDL_ticket *mdl_ticket = nullptr;
-  if (dd::acquire_shared_table_mdl(thd, db_name, table_name, false,
-                                   &mdl_ticket))
-    return true;
-
-  TABLE *table = nullptr;
-  {
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    const dd::Table *tab_obj = nullptr;
-    if (thd->dd_client()->acquire(db_name, table_name, &tab_obj)) return true;
-    assert(tab_obj);
-
-    table = open_table_uncached(thd, path, db_name, table_name, false, false,
-                                *tab_obj);
-  }
-
-  dd::release_mdl(thd, mdl_ticket);
+  Temp_table_handle tblhdl;
+  TABLE *table = tblhdl.open(thd, db_name, table_name);
 
   if (table) {
     retval = my_eval_gcolumn_expr_helper(thd, table, fields, record, true,
                                          mv_data_ptr, mv_length);
-    intern_close_table(table);
   }
 
   return retval;
@@ -8396,6 +8347,41 @@ int handler::ha_extra(enum ha_extra_function operation) {
     }
   }
   return extra(operation);
+}
+
+TABLE *Temp_table_handle::open(THD *thd, const char *db_name,
+                               const char *table_name) {
+  char path[FN_REFLEN + 1];
+  bool was_truncated;
+  build_table_filename(path, sizeof(path) - 1 - reg_ext_length, db_name,
+                       table_name, "", 0, &was_truncated);
+  assert(!was_truncated);
+
+  MDL_request table_request;
+  MDL_REQUEST_INIT(&table_request, MDL_key::TABLE, db_name, table_name,
+                   MDL_SHARED, MDL_TRANSACTION);
+
+  if (thd->mdl_context.acquire_lock(&table_request,
+                                    thd->variables.lock_wait_timeout)) {
+    return nullptr;
+  }
+
+  {
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Table *tab_obj = nullptr;
+    if (thd->dd_client()->acquire(db_name, table_name, &tab_obj))
+      return nullptr;
+    assert(tab_obj);
+    table = open_table_uncached(thd, path, db_name, table_name, false, false,
+                                *tab_obj);
+  }
+  return table;
+}
+
+Temp_table_handle::~Temp_table_handle() {
+  if (table != nullptr) {
+    intern_close_table(table);
+  }
 }
 
 /**

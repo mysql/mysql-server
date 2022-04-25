@@ -6878,6 +6878,24 @@ class handler {
   friend class DsMrr_impl;
 };
 
+/* Temporary Table handle for opening uncached table */
+class Temp_table_handle {
+ public:
+  Temp_table_handle() : table(nullptr) {}
+
+  /** Open the table handler
+  @param[in]	thd		Thread object
+  @param[in]	db_name		Database name
+  @param[in]	table_name	Table name
+  @return table object or nullptr */
+  TABLE *open(THD *thd, const char *db_name, const char *table_name);
+
+  ~Temp_table_handle();
+
+ private:
+  TABLE *table;
+};
+
 /**
   Function identifies any old data type present in table.
 
