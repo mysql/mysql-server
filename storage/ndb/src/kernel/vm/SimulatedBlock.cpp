@@ -5215,9 +5215,11 @@ SimulatedBlock::synchronize_path(Signal * signal,
 void
 SimulatedBlock::execSYNC_PATH_REQ(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   SyncPathReq * req = CAST_PTR(SyncPathReq, signal->getDataPtrSend());
-  ndbrequire(req->pathlen <= SyncPathReq::MaxPathLen);
+  ndbrequire(req->pathlen >= 1 && req->pathlen <= SyncPathReq::MaxPathLen);
+  ndbrequire(signal->getLength() >= SyncPathReq::SignalLength + req->pathlen);
   if (req->pathlen == 1)
   {
     jam();
