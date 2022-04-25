@@ -124,19 +124,35 @@ class ProcessWrapper {
    *
    * @returns exit code of the process
    */
-  int exit_code() {
-    if (!exit_code_set_) {
+  mysql_harness::ProcessLauncher::exit_status_type native_exit_code() {
+    if (!exit_status_) {
       throw std::runtime_error(
           "RouterComponentTest::Command_handle: exit_code() called without "
           "wait_for_exit()!");
     }
-    return exit_code_;
+    return *exit_status_;
   }
 
+  int exit_code() {
+    if (!exit_status_) {
+      throw std::runtime_error(
+          "RouterComponentTest::Command_handle: exit_code() called without "
+          "wait_for_exit()!");
+    }
+
+    if (auto code = exit_status_->exited()) {
+      return *code;
+    } else {
+      throw std::runtime_error("signal or so.");
+    }
+  }
+
+  bool has_exit_code() const { return exit_status_.has_value(); }
+
   /** @brief Waits for the process to exit, while reading its output and
-   * autoresponding to prompts
+   * autoresponding to prompts.
    *
-   *  If the process did not finish yet, it waits the given number of
+   * If the process did not finish yet, it waits the given number of
    * milliseconds. If the timeout expired, it throws runtime_error. In case of
    * failure, it throws system_error.
    *
@@ -148,6 +164,9 @@ class ProcessWrapper {
   int wait_for_exit(
       std::chrono::milliseconds timeout = kDefaultWaitForExitTimeout);
 
+  mysql_harness::ProcessLauncher::exit_status_type native_wait_for_exit(
+      std::chrono::milliseconds timeout = kDefaultWaitForExitTimeout);
+
   /** @brief Returns process PID
    *
    * @returns PID of the process
@@ -157,6 +176,8 @@ class ProcessWrapper {
   std::string get_command_line() { return launcher_.get_cmd_line(); }
 
   int kill();
+
+  mysql_harness::ProcessLauncher::exit_status_type native_kill();
 
   std::error_code send_shutdown_event(
       mysql_harness::ProcessLauncher::ShutdownEvent event =
@@ -232,8 +253,7 @@ class ProcessWrapper {
   std::string execute_output_raw_;
   std::string last_line_read_;
   OutputResponder output_responder_;
-  int exit_code_;
-  bool exit_code_set_{false};
+  std::optional<mysql_harness::ProcessLauncher::exit_status_type> exit_status_;
 
   std::string logging_dir_;
   std::string logging_file_;
