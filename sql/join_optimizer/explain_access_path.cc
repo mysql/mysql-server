@@ -228,7 +228,8 @@ static void ExplainMaterializeAccessPath(const AccessPath *path, JOIN *join,
         Find the temporary table for which the CTE was materialized, if there
         is one.
       */
-      if (path->iterator->GetTimingData().get_num_init_calls() == 0) {
+      if (path->iterator == nullptr ||
+          path->iterator->GetTimingData().get_num_init_calls() == 0) {
         // If the CTE was never materialized, print it at the first reference.
         return param->table == param->cte->tmp_tables[0]->table &&
                std::none_of(param->cte->tmp_tables.cbegin(),
@@ -1134,27 +1135,32 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join,
     }
     description.back() += str;
   }
-  if (include_costs && current_thd->lex->is_explain_analyze &&
-      path->iterator != nullptr) {
-    if (path->num_output_rows < 0.0) {
-      // We always want a double space between the iterator name and the costs.
-      description.back().push_back(' ');
-    }
-    description.back().push_back(' ');
-    const IteratorTimingData timingData = path->iterator->GetTimingData();
-    if (timingData.get_num_init_calls() == 0) {
-      description.back() += "(never executed)";
+  if (include_costs && current_thd->lex->is_explain_analyze) {
+    if (path->iterator == nullptr) {
+      description.back() += " (never executed)";
     } else {
-      char buf[1024];
-      snprintf(buf, sizeof(buf),
-               "(actual time=%.3f..%.3f rows=%lld loops=%" PRIu64 ")",
-               timingData.get_first_row_ms() / timingData.get_num_init_calls(),
-               timingData.get_last_row_ms() / timingData.get_num_init_calls(),
-               llrintf(static_cast<double>(timingData.get_num_rows()) /
-                       timingData.get_num_init_calls()),
-               timingData.get_num_init_calls());
+      if (path->num_output_rows < 0.0) {
+        // We always want a double space between the iterator name and the
+        // costs.
+        description.back().push_back(' ');
+      }
+      description.back().push_back(' ');
+      const IteratorTimingData timingData = path->iterator->GetTimingData();
+      if (timingData.get_num_init_calls() == 0) {
+        description.back() += "(never executed)";
+      } else {
+        char buf[1024];
+        snprintf(
+            buf, sizeof(buf),
+            "(actual time=%.3f..%.3f rows=%lld loops=%" PRIu64 ")",
+            timingData.get_first_row_ms() / timingData.get_num_init_calls(),
+            timingData.get_last_row_ms() / timingData.get_num_init_calls(),
+            llrintf(static_cast<double>(timingData.get_num_rows()) /
+                    timingData.get_num_init_calls()),
+            timingData.get_num_init_calls());
 
-      description.back() += buf;
+        description.back() += buf;
+      }
     }
   }
   return {description, children};
