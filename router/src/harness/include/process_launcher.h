@@ -96,6 +96,14 @@ class HARNESS_EXPORT SpawnedProcess {
 
   virtual ~SpawnedProcess() = default;
 
+#ifdef _WIN32
+  using handle_type = HANDLE;
+  using id_type = DWORD;
+#else
+  using handle_type = pid_t;
+  using id_type = pid_t;
+#endif
+
   std::string get_cmd_line() const;
 
   std::string executable() const { return executable_path; }
@@ -193,11 +201,18 @@ class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
    */
   exit_status_type kill();
 
+  using process_handle_type = SpawnedProcess::handle_type;
+  using process_id_type = SpawnedProcess::id_type;
+
+  /**
+   * Returns the child process id.
+   */
+  process_id_type get_pid() const;
+
   /**
    * Returns the child process handle.
-   * In Linux this needs to be cast to pid_t, in Windows to cast to HANDLE.
    */
-  uint64_t get_pid() const;
+  process_handle_type get_process_handle() const;
 
   /**
    * get exit-code.

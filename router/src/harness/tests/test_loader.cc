@@ -42,7 +42,8 @@
 #include "mysql/harness/loader.h"
 #include "mysql/harness/plugin.h"
 
-#include "exception.h"                   // bad_plugin
+#include "exception.h"  // bad_plugin
+#include "mysql/harness/signal_handler.h"
 #include "mysql/harness/string_utils.h"  // split_string
 
 ////////////////////////////////////////
@@ -82,12 +83,14 @@ class LoaderTest : public ::testing::TestWithParam<const char *> {
             {"prefix", test_data_dir_},
         }},
         std::vector<std::string>(), mysql_harness::Config::allow_keys);
-    loader = std::make_unique<TestLoader>("harness", *config_);
+    loader = std::make_unique<TestLoader>("harness", *config_, signal_handler_);
   }
 
   std::unique_ptr<TestLoader> loader;
   std::unique_ptr<mysql_harness::LoaderConfig> config_;
   std::string test_data_dir_;
+
+  mysql_harness::SignalHandler signal_handler_;
 };
 
 class LoaderReadTest : public LoaderTest {
@@ -186,7 +189,9 @@ TEST(TestStart, StartFailure) {
                                      std::vector<std::string>(),
                                      mysql_harness::Config::allow_keys);
   config.read(Path(test_data_dir).join("tests-start-1.cfg"));
-  mysql_harness::Loader loader("harness", config);
+
+  mysql_harness::SignalHandler signal_handler;
+  mysql_harness::Loader loader("harness", config, signal_handler);
   try {
     loader.start();
     FAIL() << "start() should throw std::runtime_error";

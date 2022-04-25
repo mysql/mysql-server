@@ -27,7 +27,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <stdexcept>
 #include <thread>
 
+#include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "mysql/harness/filesystem.h"
 #include "process_launcher.h"
@@ -45,7 +47,8 @@ TEST_F(StacktraceTest, spawn_missing_args) {
           .expected_exit_code(EXIT_FAILURE)
           .spawn({});
 
-  ensure_clean_exit(proc);
+  SCOPED_TRACE("// wait for the process to exit");
+  EXPECT_NO_THROW(proc.native_wait_for_exit());  // timeout throws
 }
 
 TEST_F(StacktraceTest, spawn_signal_0) {
@@ -55,7 +58,8 @@ TEST_F(StacktraceTest, spawn_signal_0) {
           .expected_exit_code(EXIT_SUCCESS)
           .spawn({"0"});
 
-  ensure_clean_exit(proc);
+  SCOPED_TRACE("// wait for the process to exit");
+  EXPECT_NO_THROW(proc.native_wait_for_exit());  // timeout throws
 }
 
 TEST_F(StacktraceTest, spawn_signal_abrt) {
@@ -73,12 +77,12 @@ TEST_F(StacktraceTest, spawn_signal_abrt) {
 #endif
           .spawn({std::to_string(SIGABRT)});
 
-  ensure_clean_exit(proc);
+  SCOPED_TRACE("// wait for the process to exit");
+  EXPECT_NO_THROW(proc.native_wait_for_exit());  // timeout throws
 }
 
 TEST_F(StacktraceTest, spawn_signal_segv) {
   auto executable = g_origin_path.join("signal_me").str();
-
   auto &proc =
       spawner(executable)
           .wait_for_sync_point(ProcessManager::Spawner::SyncPoint::NONE)
@@ -92,7 +96,8 @@ TEST_F(StacktraceTest, spawn_signal_segv) {
 #endif
           .spawn({std::to_string(SIGSEGV)});
 
-  ensure_clean_exit(proc);
+  SCOPED_TRACE("// wait for the process to exit");
+  EXPECT_NO_THROW(proc.native_wait_for_exit());  // timeout throws
 }
 
 int main(int argc, char *argv[]) {

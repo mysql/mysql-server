@@ -618,7 +618,9 @@ end). Actions taken for each plugin function are as follows:
 #include "filesystem.h"
 #include "mysql/harness/dynamic_loader.h"
 #include "mysql/harness/loader_config.h"
+#include "mysql/harness/log_reopen.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/signal_handler.h"
 
 #include "harness_export.h"
 
@@ -638,8 +640,6 @@ end). Actions taken for each plugin function are as follows:
 #include <string>
 #include <thread>
 #include <tuple>
-
-typedef void (*log_reopen_callback)(const std::string);
 
 #ifdef FRIEND_TEST
 class TestLoader;
@@ -753,9 +753,13 @@ class HARNESS_EXPORT Loader {
    *
    * @param program Name of our program
    * @param config Router configuration
+   * @param signal_handler signal handler
    */
-  Loader(const std::string &program, LoaderConfig &config)
-      : config_(config), program_(program) {}
+  Loader(std::string program, LoaderConfig &config,
+         SignalHandler &signal_handler)
+      : config_(config),
+        program_(std::move(program)),
+        signal_handler_{signal_handler} {}
 
   Loader(const Loader &) = delete;
   Loader &operator=(const Loader &) = delete;
@@ -949,13 +953,6 @@ class HARNESS_EXPORT Loader {
   std::string program_;
   AppInfo appinfo_;
 
-  void spawn_signal_handler_thread();
-
-  std::mutex signal_thread_ready_m_;
-  std::condition_variable signal_thread_ready_cond_;
-  bool signal_thread_ready_{false};
-  std::thread signal_thread_;
-
   /**
    * Checks if all the options in the configuration fed to the Loader are
    * supported.
@@ -974,163 +971,13 @@ class HARNESS_EXPORT Loader {
    */
   void check_default_config_options_supported();
 
+  SignalHandler &signal_handler_;
+
 #ifdef FRIEND_TEST
   friend class ::TestLoader;
 #endif
-
 };  // class Loader
 
-class LogReopenThread {
- public:
-  /**
-   * @throws std::system_error if out of threads
-   */
-  LogReopenThread() : reopen_thr_{}, state_{REOPEN_NONE}, errmsg_{""} {
-    // rely on move semantics
-    reopen_thr_ =
-        std::thread{&LogReopenThread::log_reopen_thread_function, this};
-  }
-
-  /**
-   * stop the log_reopen_thread_function.
-   *
-   * @throws std::system_error from request_application_shutdown()
-   */
-  void stop();
-
-  /**
-   * join the log_reopen thread.
-   *
-   * @throws std::system_error same as std::thread::join
-   */
-  void join();
-
-  /**
-   * destruct the thread.
-   *
-   * Same as std::thread it may call std::terminate in case the thread isn't
-   * joined yet, but joinable.
-   *
-   * In case join() fails as best-effort, a log-message is attempted to be
-   * written.
-   */
-  ~LogReopenThread();
-
-  /**
-   * thread function
-   */
-  static void log_reopen_thread_function(LogReopenThread *t);
-
-  /**
-   * request reopen
-   *
-   * @note Empty dst will cause reopen only, and the old content will not be
-   * moved to dst.
-   * @note This method uses mutex::try_lock() to avoid blocking the interrupt
-   * handler if a signal is received during an already ongoing concurrent
-   * reopen. The consequence is that reopen requests are ignored if rotation is
-   * already in progress.
-   *
-   * @param dst filename to use for old log file during reopen
-   * @throws std::system_error same as std::unique_lock::lock does
-   */
-  void request_reopen(const std::string &dst = "");
-
-  /* Log reopen state triplet */
-  enum LogReopenState { REOPEN_NONE, REOPEN_REQUESTED, REOPEN_ACTIVE };
-
-  /* Check log reopen completed */
-  bool is_completed() const { return (state_ == REOPEN_NONE); }
-
-  /* Check log reopen requested */
-  bool is_requested() const { return (state_ == REOPEN_REQUESTED); }
-
-  /* Check log reopen active */
-  bool is_active() const { return (state_ == REOPEN_ACTIVE); }
-
-  /* Retrieve error from the last reopen */
-  std::string get_last_error() const { return errmsg_; }
-
- private:
-  /* The thread handle */
-  std::thread reopen_thr_;
-
-  /* The log reopen thread state */
-  LogReopenState state_;
-
-  /* The last error message from the log reopen thread */
-  std::string errmsg_;
-
-  /* The destination filename to use for the old logfile during reopen */
-  std::string dst_;
-
-};  // class LogReopenThread
-
 }  // namespace mysql_harness
-
-/**
- * Setter for the log reopen thread completion callback function.
- *
- * @param cb Function to call at completion.
- */
-HARNESS_EXPORT
-void set_log_reopen_complete_callback(log_reopen_callback cb);
-
-/**
- * The default implementation for log reopen thread completion callback
- * function.
- *
- * @param errmsg Error message. Empty string assumes successful completion.
- */
-HARNESS_EXPORT
-void default_log_reopen_complete_cb(const std::string errmsg);
-
-/*
- * Reason for shutdown
- */
-enum ShutdownReason { SHUTDOWN_NONE, SHUTDOWN_REQUESTED, SHUTDOWN_FATAL_ERROR };
-
-/**
- * request application shutdown.
- *
- * @param reason reason for the shutdown
- * @throws std::system_error same as std::unique_lock::lock does
- */
-HARNESS_EXPORT
-void request_application_shutdown(
-    const ShutdownReason reason = SHUTDOWN_REQUESTED);
-
-/**
- * notify a "log_reopen" is requested with optional filename for old logfile.
- *
- * @param dst rename old logfile to filename before reopen
- * @throws std::system_error same as std::unique_lock::lock does
- */
-HARNESS_EXPORT
-void request_log_reopen(const std::string &dst = "");
-
-/**
- * check reopen completed
- */
-HARNESS_EXPORT
-bool log_reopen_completed();
-
-/**
- * get last log reopen error
- */
-HARNESS_EXPORT
-std::string log_reopen_get_error();
-
-#ifdef _WIN32
-HARNESS_EXPORT
-void register_ctrl_c_handler();
-#endif
-
-#ifdef FRIEND_TEST
-namespace unittest_backdoor {
-HARNESS_EXPORT
-void set_shutdown_pending(bool shutdown_pending);
-}  // namespace unittest_backdoor
-#endif
 
 #endif /* MYSQL_HARNESS_LOADER_INCLUDED */

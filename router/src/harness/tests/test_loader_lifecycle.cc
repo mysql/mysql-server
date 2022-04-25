@@ -83,6 +83,7 @@
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/signal_handler.h"
 #include "mysql/harness/utility/string.h"
 #include "test/helpers.h"
 #include "utilities.h"
@@ -158,12 +159,16 @@ auto has_stopping(Arg &&arg) {
 }
 
 Path g_here;
+mysql_harness::SignalHandler signal_handler;
 
 class TestLoader : public Loader {
  public:
   TestLoader(const std::string &program, mysql_harness::LoaderConfig &config)
-      : Loader(program, config) {
-    unittest_backdoor::set_shutdown_pending(false);
+      : Loader(program, config, signal_handler) {
+    // unittest_backdoor::set_shutdown_pending(false);
+    signal_handler.shutdown_pending()([](auto &pending) {
+      pending.reason(mysql_harness::ShutdownPending::Reason::NONE);
+    });
   }
 
   void read(std::istream &stream) {
@@ -340,7 +345,7 @@ class LifecycleTest : public BasicConsoleOutputTest {
 
 void delayed_shutdown() {
   std::this_thread::sleep_for(ch::milliseconds(kSleepShutdown));
-  request_application_shutdown();
+  signal_handler.request_application_shutdown();
 }
 
 int time_diff(const ch::time_point<ch::steady_clock> &t0,
@@ -1870,81 +1875,6 @@ TEST_F(LifecycleTest, set_error_exception) {
   std::tie(std::ignore, eptr) = ctx.pop_error();
   EXPECT_THROW({ std::rethrow_exception(eptr); }, std::runtime_error);
 }
-
-#ifdef USE_POSIX_SIGNALS  // these don't make sense on Windows
-TEST_F(LifecycleTest, send_signals) {
-  // this test verifies that:
-  // - sending SIGINT or SIGTERM will trigger shutdown
-  //   (we only test SIGINT here, and SIGTERM in the next test)
-  // - sending any other signal will do nothing
-
-  config_text_ << "init   = exit           \n"
-               << "start  = exitonstop     \n"
-               << "stop   = exit           \n"
-               << "deinit = exit           \n";
-  using namespace mysql_harness::test::PluginDescriptorFlags;
-  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
-  LifecyclePluginSyncBus &bus = msg_bus("instance1");
-
-  EXPECT_EQ(loader_.init_all(), nullptr);
-  freeze_bus(bus);
-  loader_.start_all();
-  unfreeze_and_wait_for_msg(
-      bus, "lifecycle:instance1 start():EXIT_ON_STOP:sleeping");
-
-  // nothing should happen - all signals but the ones we care
-  // about should be ignored (here we only test a few, the rest
-  // is assumed to behave the same)
-  kill(getpid(), SIGUSR1);
-  kill(getpid(), SIGALRM);
-
-  // signal shutdown after 10ms, main_loop() should block until
-  // then
-  auto call_SIGINT = []() {
-    std::this_thread::sleep_for(ch::milliseconds(kSleepShutdown));
-    kill(getpid(), SIGINT);
-  };
-  std::thread(call_SIGINT).detach();
-  EXPECT_EQ(loader_.main_loop(), nullptr);
-
-  refresh_log();
-
-  EXPECT_THAT(log_lines_,
-              IsSupersetOf({HasSubstr("Shutting down. Signaling stop to:")}));
-}
-
-TEST_F(LifecycleTest, send_signals2) {
-  // continuation of the previous test (test SIGTERM this time)
-
-  config_text_ << "init   = exit           \n"
-               << "start  = exitonstop     \n"
-               << "stop   = exit           \n"
-               << "deinit = exit           \n";
-  using namespace mysql_harness::test::PluginDescriptorFlags;
-  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
-  LifecyclePluginSyncBus &bus = msg_bus("instance1");
-
-  EXPECT_EQ(loader_.init_all(), nullptr);
-  freeze_bus(bus);
-  loader_.start_all();
-  unfreeze_and_wait_for_msg(
-      bus, "lifecycle:instance1 start():EXIT_ON_STOP:sleeping");
-
-  // signal shutdown after 10ms, main_loop() should block until
-  // then
-  auto call_SIGTERM = []() {
-    std::this_thread::sleep_for(ch::milliseconds(kSleepShutdown));
-    kill(getpid(), SIGTERM);
-  };
-  std::thread(call_SIGTERM).detach();
-  EXPECT_EQ(loader_.main_loop(), nullptr);
-
-  refresh_log();
-
-  EXPECT_THAT(log_lines_,
-              IsSupersetOf({HasSubstr("Shutting down. Signaling stop to:")}));
-}
-#endif
 
 /**
  * @test

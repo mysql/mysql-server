@@ -46,7 +46,10 @@ void RouterComponentTest::SetUp() {
 }
 
 void RouterComponentTest::TearDown() {
-  shutdown_all();
+  shutdown_all();  // shutdown all that are still running.
+  wait_for_exit();
+
+  terminate_all_still_alive();  // terminate hanging processes.
   ensure_clean_exit();
 
   if (::testing::Test::HasFailure()) {

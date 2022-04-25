@@ -99,7 +99,7 @@ class NotifyTest : public RestApiComponentTest {
     UNREFERENCED_PARAMETER(router);
     return true;
 #else
-    return wait_log_contains(router, " ready 'signal_handler'", 5s);
+    return wait_log_contains(router, "Starting: ", 5s);
 #endif
   }
 

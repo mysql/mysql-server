@@ -2221,8 +2221,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal) {
   auto log_file_1 = Path(logging_dir).join("mysqlrouter.log.1");
 
   mysqlrouter::rename_file(log_file.str(), log_file_1.str());
-  const auto pid = static_cast<pid_t>(router.get_pid());
-  ::kill(pid, SIGHUP);
+  ::kill(router.get_pid(), SIGHUP);
 
   // let's wait until something new gets logged (metadata cache TTL has
   // expired), to be sure the default file that we moved is back.
@@ -2257,8 +2256,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal_no_file_move) {
   const std::string log_content = router.get_logfile_content();
 
   // send the log-rotate signal
-  const auto pid = static_cast<pid_t>(router.get_pid());
-  ::kill(pid, SIGHUP);
+  ::kill(router.get_pid(), SIGHUP);
 
   // wait until something new gets logged;
   std::string log_content_2;
@@ -2347,7 +2345,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_read_only) {
   EXPECT_TRUE(retry_for([log_file]() { return log_file.exists(); }, 500ms));
   chmod(log_file.c_str(), S_IRUSR);
 
-  const auto pid = static_cast<pid_t>(router.get_pid());
+  const auto pid = router.get_pid();
   SCOPED_TRACE("// send the log-rotate signal to PID " + std::to_string(pid));
   ::kill(pid, SIGHUP);
 
@@ -2373,9 +2371,11 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_stdout) {
   default_section["logging_folder"] = "";
 
   const auto config = mysql_harness::join(
-      std::vector<std::string>{mysql_harness::ConfigBuilder::build_section(
-                                   "logger", {{"level", "DEBUG"}}),
-                               get_static_routing_section()},
+      std::vector<std::string>{
+          mysql_harness::ConfigBuilder::build_section("logger",
+                                                      {{"level", "DEBUG"}}),
+          mysql_harness::ConfigBuilder::build_section("io", {{"threads", "1"}}),
+          get_static_routing_section()},
       "\n");
 
   auto &router = launch_router(

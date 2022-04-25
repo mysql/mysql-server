@@ -52,6 +52,7 @@
 #include <fcntl.h>
 
 #include "config_builder.h"
+#include "core_dumper.h"
 #include "dim.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/net_ts/buffer.h"
@@ -345,6 +346,10 @@ ProcessWrapper &ProcessManager::Spawner::spawn(
   args.erase(args.begin());
   std::copy(params.begin(), params.end(), std::back_inserter(args));
 
+  if (with_core_) {
+    args.emplace_back("--core-file");
+  }
+
   auto &process = launch_command_and_wait(cmd, args, env_vars);
 
   process.logging_dir_ = logging_dir_;
@@ -378,12 +383,12 @@ ProcessManager::wait_for_notified_stopping(wait_socket_t &sock,
 
 ProcessWrapper &ProcessManager::launch_command(
     const std::string &command, const std::vector<std::string> &params,
-    int expected_exit_code, bool catch_stderr,
+    ExitStatus expected_exit_status, bool catch_stderr,
     std::vector<std::pair<std::string, std::string>> env_vars,
     OutputResponder output_resp) {
   return spawner(command)
       .catch_stderr(catch_stderr)
-      .expected_exit_code(expected_exit_code)
+      .expected_exit_code(expected_exit_status)
       .wait_for_notify_ready(-1s)
       .output_responder(std::move(output_resp))
       .spawn(params, env_vars);
@@ -391,12 +396,12 @@ ProcessWrapper &ProcessManager::launch_command(
 
 ProcessWrapper &ProcessManager::launch_command(
     const std::string &command, const std::vector<std::string> &params,
-    int expected_exit_code, bool catch_stderr,
+    ExitStatus expected_exit_status, bool catch_stderr,
     std::chrono::milliseconds wait_for_notify_ready,
     OutputResponder output_resp) {
   return spawner(command)
       .catch_stderr(catch_stderr)
-      .expected_exit_code(expected_exit_code)
+      .expected_exit_code(expected_exit_status)
       .wait_for_notify_ready(wait_for_notify_ready)
       .output_responder(std::move(output_resp))
       .spawn(params);
@@ -455,6 +460,7 @@ ProcessWrapper &ProcessManager::launch_mysql_server_mock(
                      .expected_exit_code(expected_exit_code)
                      .wait_for_notify_ready(wait_for_notify_ready)
                      .catch_stderr(true)
+                     .with_core_dump(true)
                      .spawn(server_params);
 
   result.set_logging_path(get_test_temp_dir_name(),
@@ -601,6 +607,22 @@ void ProcessManager::shutdown_all(
   }
 }
 
+void ProcessManager::terminate_all_still_alive() {
+  // stop all the processes
+  for (const auto &proc_and_exit_code : processes_) {
+    auto &proc = std::get<0>(proc_and_exit_code);
+
+    if (!proc->has_exit_code()) {
+      std::cerr << "Process PID=" << proc->get_pid()
+                << " should have finished by now, but has not. Terminating "
+                   "with ABRT\n";
+
+      proc->send_shutdown_event(
+          mysql_harness::ProcessLauncher::ShutdownEvent::ABRT);
+    }
+  }
+}
+
 void ProcessManager::dump_all() {
   std::stringstream ss;
   for (const auto &proc_and_exit_code : processes_) {
@@ -642,6 +664,23 @@ void ProcessManager::ensure_clean_exit() {
   }
 }
 
+stdx::expected<void, std::error_code> ProcessManager::wait_for_exit(
+    std::chrono::milliseconds timeout) {
+  stdx::expected<void, std::error_code> res;
+
+  for (const auto &proc_and_exit_code : processes_) {
+    const auto &proc = std::get<0>(proc_and_exit_code);
+
+    try {
+      proc->native_wait_for_exit(timeout);
+    } catch (const std::system_error &e) {
+      res = stdx::make_unexpected(e.code());
+    }
+  }
+
+  return res;
+}
+
 void ProcessManager::check_exit_code(ProcessWrapper &process,
                                      exit_status_type expected_exit_status,
                                      std::chrono::milliseconds timeout) {
@@ -661,6 +700,9 @@ void ProcessManager::check_exit_code(ProcessWrapper &process,
     ASSERT_EQ(expected_exit_status, result)
         << "Process " << process.get_pid() << " exited with " << result;
   } else if (auto sig = result.terminated()) {
+    auto dump_res = CoreDumper(process.executable(), process.get_pid()).dump();
+    if (dump_res) std::cerr << *dump_res;
+
     ASSERT_EQ(expected_exit_status, result)
         << "Process " << process.get_pid() << " terminated with " << result;
   } else if (auto sig = result.stopped()) {

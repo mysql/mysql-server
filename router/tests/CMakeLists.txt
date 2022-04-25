@@ -27,6 +27,8 @@ SET(helper_sources
   helpers/gtest_testname.cc
   helpers/mock_server_testutils.cc
   helpers/mysql_session_replayer.cc
+  helpers/core_dumper.cc
+  helpers/core_finder.cc
   helpers/process_manager.cc
   helpers/process_wrapper.cc
   helpers/router_component_clusterset.cc

@@ -169,9 +169,12 @@ class ProcessWrapper {
    *
    * @returns PID of the process
    */
-  uint64_t get_pid() const { return launcher_.get_pid(); }
+  mysql_harness::ProcessLauncher::process_id_type get_pid() const {
+    return launcher_.get_pid();
+  }
 
   std::string get_command_line() { return launcher_.get_cmd_line(); }
+  std::string executable() { return launcher_.executable(); }
 
   int kill();
 

@@ -120,6 +120,11 @@ class ProcessManager {
       return *this;
     }
 
+    Spawner &with_core_dump(bool dump_core) {
+      with_core_ = dump_core;
+      return *this;
+    }
+
     ProcessWrapper &spawn(
         const std::vector<std::string> &params,
         const std::vector<std::pair<std::string, std::string>> &env_vars);
@@ -181,7 +186,8 @@ class ProcessManager {
   Spawner spawner(std::string executable, std::string logging_file = "");
 
   Spawner router_spawner() {
-    return spawner(mysqlrouter_exec_.str(), "mysqlrouter.log");
+    return spawner(mysqlrouter_exec_.str(), "mysqlrouter.log")
+        .with_core_dump(true);
   }
 
   /** @brief Gets path to the directory used as log output directory
@@ -196,6 +202,13 @@ class ProcessManager {
    */
   void shutdown_all(mysql_harness::ProcessLauncher::ShutdownEvent event =
                         mysql_harness::ProcessLauncher::ShutdownEvent::TERM);
+
+  /**
+   * terminate processes with ABRT which are still alive.
+   *
+   * may trigger a core-file if enabled in the process.
+   */
+  void terminate_all_still_alive();
 
   /**
    * ensures all processes exited and checks for crashes.
@@ -321,8 +334,9 @@ class ProcessManager {
   /** @brief Launches a process.
    *
    * @param command       path to executable
-   * @param params        array of commanline parameters to pass to the
+   * @param params        array of commandline parameters to pass to the
    * executable
+   * @param expected_exit_status expected ExitStatus
    * @param catch_stderr  if true stderr will also be captured (combined with
    * stdout)
    * @param env_vars      environment variables that shoould be passed to the
@@ -335,15 +349,16 @@ class ProcessManager {
    */
   ProcessWrapper &launch_command(
       const std::string &command, const std::vector<std::string> &params,
-      int expected_exit_code, bool catch_stderr,
+      ExitStatus expected_exit_status, bool catch_stderr,
       std::vector<std::pair<std::string, std::string>> env_vars,
       OutputResponder output_responder = kEmptyResponder);
 
   /** @brief Launches a process.
    *
    * @param command       path to executable
-   * @param params        array of commanline parameters to pass to the
+   * @param params        array of commandline parameters to pass to the
    * executable
+   * @param expected_exit_status expected ExitStatus
    * @param catch_stderr  if true stderr will also be captured (combined with
    * stdout)
    * @param wait_notify_ready if >=0 time in milliseconds - how long the
@@ -357,7 +372,7 @@ class ProcessManager {
    */
   ProcessWrapper &launch_command(
       const std::string &command, const std::vector<std::string> &params,
-      int expected_exit_code = 0, bool catch_stderr = true,
+      ExitStatus expected_exit_status = 0, bool catch_stderr = true,
       std::chrono::milliseconds wait_notify_ready =
           std::chrono::milliseconds(-1),
       OutputResponder output_responder = kEmptyResponder);

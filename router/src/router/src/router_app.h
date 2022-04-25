@@ -36,6 +36,7 @@
 
 #include "mysql/harness/arg_handler.h"
 #include "mysql/harness/loader.h"
+#include "mysql/harness/signal_handler.h"
 #include "mysqlrouter/keyring_info.h"
 #include "mysqlrouter/sys_user_operations.h"
 
@@ -550,6 +551,8 @@ class ROUTER_LIB_EXPORT MySQLRouter {
   std::ostream &out_stream_;
   std::ostream &err_stream_;
 
+  bool core_file_{false};
+
 #ifndef _WIN32
   /** @brief Value of the --user parameter given on the command line if router
    * is launched in bootstrap mode **/
@@ -566,6 +569,8 @@ class ROUTER_LIB_EXPORT MySQLRouter {
    * user-related operations **/
   mysqlrouter::SysUserOperationsBase *sys_user_operations_;
 #endif
+
+  mysql_harness::SignalHandler signal_handler_;
 
 #ifdef FRIEND_TEST
   FRIEND_TEST(Bug24909259, PasswordPrompt_plain);

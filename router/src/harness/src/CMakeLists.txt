@@ -89,7 +89,9 @@ SET(harness_source
   logging/logger_plugin.cc
 # logging/logging.cc       empty file
   logging/registry.cc
+  log_reopen.cc
   random_generator.cc
+  signal_handler.cc
   sd_notify.cc
   socket_operations.cc
   tcp_address.cc

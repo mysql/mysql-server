@@ -37,6 +37,7 @@
 #include "main-windows.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/eventlog_plugin.h"
+#include "mysql/harness/signal_handler.h"
 #include "mysqlrouter/default_paths.h"
 #include "mysqlrouter/utils.h"  // write_windows_event_log
 #include "mysqlrouter/windows/service_operations.h"
@@ -329,16 +330,6 @@ void allow_windows_service_to_write_logs(const std::string &conf_file) {
   }
 }
 
-/** @brief Wrapper for request_application_shutdown()
- *
- * The service Init() method must call a function without parameters on
- * shutdown, hence the need for a wrapper function for
- * request_application_shutdown().
- */
-static void service_request_shutdown() {
-  request_application_shutdown(SHUTDOWN_REQUESTED);
-}
-
 int proxy_main(int (*real_main)(int, char **, bool), int argc, char **argv) {
   int result = 0;
   std::string service_name;
@@ -353,8 +344,13 @@ int proxy_main(int (*real_main)(int, char **, bool), int argc, char **argv) {
         // - g_service.Stop()        (called by us after main() finishes)
         // - g_service.StopService() (triggered by OS due to outside event, such
         // as termination request)
-        BOOL ok = g_service.Init(service_name.c_str(), (void *)router_service,
-                                 service_request_shutdown);
+        BOOL ok =
+            g_service.Init(service_name.c_str(), (void *)router_service, []() {
+              if (mysql_harness::g_signal_handler != nullptr) {
+                mysql_harness::g_signal_handler->request_application_shutdown(
+                    mysql_harness::ShutdownPending::Reason::REQUESTED);
+              }
+            });
         if (!ok) {
           const std::error_code ec{static_cast<int>(GetLastError()),
                                    std::system_category()};
@@ -379,7 +375,6 @@ int proxy_main(int (*real_main)(int, char **, bool), int argc, char **argv) {
       break;
     case ServiceStatus::StartNormal:  // case when Router runs from "DOS"
                                       // console
-      register_ctrl_c_handler();
       g_service.SetRunning();
       result = real_main(argc, argv, false);  // false = log initially to STDERR
       break;

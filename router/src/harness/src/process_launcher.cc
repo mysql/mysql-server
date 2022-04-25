@@ -105,11 +105,11 @@ std::error_code ProcessLauncher::send_shutdown_event(
     case ShutdownEvent::TERM:
       ok = GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, pi.dwProcessId);
       break;
-    case ShutdownEvent::ABRT:
-      ok = GenerateConsoleCtrlEvent(CTRL_C_EVENT, pi.dwProcessId);
-      break;
     case ShutdownEvent::KILL:
-      ok = TerminateProcess(pi.hProcess, 0);
+      ok = TerminateProcess(pi.hProcess, 0x0);
+      break;
+    case ShutdownEvent::ABRT:
+      ok = TerminateProcess(pi.hProcess, STATUS_TIMEOUT);
       break;
   }
 #else
@@ -311,7 +311,14 @@ void ProcessLauncher::start() {
   // res1 = WaitForSingleObject(pi.hThread, 100);
 }
 
-uint64_t ProcessLauncher::get_pid() const { return (uint64_t)pi.hProcess; }
+ProcessLauncher::process_id_type ProcessLauncher::get_pid() const {
+  return pi.dwProcessId;
+}
+
+ProcessLauncher::process_handle_type ProcessLauncher::get_process_handle()
+    const {
+  return pi.hProcess;
+}
 
 stdx::expected<ProcessLauncher::exit_status_type, std::error_code>
 ProcessLauncher::exit_code() {
@@ -731,10 +738,15 @@ int ProcessLauncher::write(const char *buf, size_t count) {
   throw std::system_error(ec, "write");
 }
 
-uint64_t ProcessLauncher::get_pid() const {
+ProcessLauncher::process_handle_type ProcessLauncher::get_pid() const {
   static_assert(sizeof(pid_t) <= sizeof(uint64_t),
                 "sizeof(pid_t) > sizeof(uint64_t)");
-  return (uint64_t)childpid;
+  return childpid;
+}
+
+ProcessLauncher::process_handle_type ProcessLauncher::get_process_handle()
+    const {
+  return get_pid();
 }
 
 stdx::expected<ProcessLauncher::exit_status_type, std::error_code>

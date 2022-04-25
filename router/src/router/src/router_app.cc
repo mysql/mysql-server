@@ -46,12 +46,14 @@
 #include "harness_assert.h"
 #include "hostname_validator.h"
 #include "keyring/keyring_manager.h"
+#include "mysql/harness/arg_handler.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/dynamic_state.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/logger_plugin.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/signal_handler.h"
 #include "mysql/harness/utility/string.h"  // string_format
 #include "mysql/harness/vt100.h"
 #include "mysqlrouter/config_files.h"
@@ -96,16 +98,6 @@ static const char *kDefaultKeyringFileName = "keyring";
 static const char kProgramName[] = "mysqlrouter";
 
 namespace {
-
-inline void set_signal_handlers() {
-#ifndef _WIN32
-  // until we have proper signal handling we need at least
-  // mask out broken pipe to prevent terminating the router
-  // if the receiving end closes the socket while the router
-  // writes to it
-  signal(SIGPIPE, SIG_IGN);
-#endif
-}
 
 // Check if the value is valid regular filename and if it is add to the vector,
 // if it is not throw an exception
@@ -183,8 +175,7 @@ MySQLRouter::MySQLRouter(const std::string &program_name,
       sys_user_operations_(sys_user_operations)
 #endif
 {
-  set_log_reopen_complete_callback(default_log_reopen_complete_cb);
-  set_signal_handlers();
+  signal_handler_.register_ignored_signals_handler();  // SIGPIPE
 
   init(program_name,
        arguments);  // throws MySQLSession::Error, std::runtime_error,
@@ -232,6 +223,23 @@ void MySQLRouter::init(const std::string &program_name,
   if (showing_info_) {
     return;
   }
+
+  // block non-fatal signal handling for all threads
+  //
+  // - no other thread than the signal-handler thread should receive signals
+  // - syscalls should not get interrupted by signals either
+  //
+  // on windows, this is a no-op
+  signal_handler_.block_all_nonfatal_signals();
+
+  // for the fatal signals we want to have a handler that prints the stack-trace
+  // if possible
+  signal_handler_.register_fatal_signal_handler(core_file_);
+  signal_handler_.spawn_signal_handler_thread();
+
+#ifdef _WIN32
+  signal_handler_.register_ctrl_c_handler();
+#endif
 
   const bool is_bootstrap = !bootstrap_uri_.empty();
   check_config_overwrites(arg_handler_.get_config_overwrites(),
@@ -495,7 +503,8 @@ void MySQLRouter::init_loader(mysql_harness::LoaderConfig &config) {
   std::string err_msg =
       "Configuration error: %s.";  // TODO: is this error message right?
   try {
-    loader_ = std::make_unique<mysql_harness::Loader>(kProgramName, config);
+    loader_ = std::make_unique<mysql_harness::Loader>(kProgramName, config,
+                                                      signal_handler_);
   } catch (const std::runtime_error &err) {
     throw std::runtime_error(string_format(err_msg.c_str(), err.what()));
   }
@@ -1110,6 +1119,20 @@ void MySQLRouter::prepare_command_options() noexcept {
 
                             check_and_add_conf(config_files_, value);
                           });
+
+  arg_handler_.add_option(
+      OptionNames({"--core-file"}), "Write a core file if mysqlrouter dies.",
+      CmdOptionValueReq::optional, "", [this](const std::string &value) {
+        if (value.empty() || value == "1") {
+          this->core_file_ = true;
+        } else if (value == "0") {
+          this->core_file_ = false;
+        } else {
+          throw std::runtime_error(
+              "Value for parameter '--core-file' needs to be "
+              "one of: ['0', '1']");
+        }
+      });
 
   arg_handler_.add_option(
       OptionNames({"--connect-timeout"}),
@@ -1891,6 +1914,7 @@ void MySQLRouter::show_usage(bool include_options) noexcept {
         "--client-ssl-curves",
         "--client-ssl-key",
         "--client-ssl-mode",
+        "--core-file",
         "--directory",
         "--force",
         "--force-password-validation",
@@ -1918,10 +1942,20 @@ void MySQLRouter::show_usage(bool include_options) noexcept {
         "--tls-version",
         "--user"}},
       {"run",
-       {"--user", "--config", "--extra-config", "--clear-all-credentials",
-        "--service", "--remove-service", "--install-service",
-        "--install-service-manual", "--pid-file",
-        "--remove-credentials-section", "--update-credentials-section"}}};
+       {
+           "--user",
+           "--config",
+           "--extra-config",
+           "--clear-all-credentials",
+           "--service",
+           "--remove-service",
+           "--install-service",
+           "--install-service-manual",
+           "--pid-file",
+           "--remove-credentials-section",
+           "--update-credentials-section",
+           "--core-file",
+       }}};
 
   for (const auto &section : usage_sections) {
     for (auto line : arg_handler_.usage_lines_if(
