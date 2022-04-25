@@ -1535,6 +1535,14 @@ INSERT INTO mysql.global_grants
   SELECT user, host, 'FIREWALL_EXEMPT', IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N')
    FROM mysql.global_grants WHERE priv = 'SYSTEM_USER' AND @hadFirewallExempt = 0;
 
+-- Add the privilege SENSITIVE_VARIABLES_OBSERVER for every user who has the SYSTEM_VARIABLES_ADMIN privilege
+-- provided that there isn't a user who already has the privilege SENSITIVE_VARIABLES_OBSERVER.
+SET @hadSensitiveVariablesAdmin = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SENSITIVE_VARIABLES_OBSERVER');
+INSERT INTO mysql.global_grants
+  SELECT user, host, 'SENSITIVE_VARIABLES_OBSERVER', IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N')
+   FROM mysql.global_grants WHERE priv = 'SYSTEM_VARIABLES_ADMIN' AND @hadSensitiveVariablesAdmin = 0 AND user NOT IN ('mysql.infoschema','mysql.session','mysql.sys');
+COMMIT;
+
 -- add the PK for mysql.firewall_membership, if missing and if the table is present
 SET @had_firewall_membership =
   (SELECT COUNT(table_name) FROM information_schema.tables
