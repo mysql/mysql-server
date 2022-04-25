@@ -610,6 +610,7 @@ static void log_sys_create() {
   log.last_printout_time = time(nullptr);
   log.m_requested_files_consumption = false;
   log.m_writer_inside_extra_margin = false;
+  log.m_oldest_need_lsn_lowerbound = 0;
   ut_d(log.first_block_is_correct_for_lsn = 0);
   log.m_unused_files_count = 0;
   log.m_encryption_metadata = {};

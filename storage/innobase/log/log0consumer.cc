@@ -83,27 +83,28 @@ void log_consumer_unregister(log_t &log, Log_consumer *log_consumer) {
   log.m_consumers.erase(log_consumer);
 }
 
-Log_consumer *log_consumer_get_oldest(const log_t &log) {
+Log_consumer *log_consumer_get_oldest(const log_t &log,
+                                      lsn_t &oldest_needed_lsn) {
   ut_ad(log_files_mutex_own(log) || srv_is_being_started ||
         srv_shutdown_state.load() != SRV_SHUTDOWN_NONE);
 
   Log_consumer *oldest_consumer{nullptr};
-  lsn_t min_oldest_lsn{LSN_MAX};
+  oldest_needed_lsn = LSN_MAX;
 
   for (auto consumer : log.m_consumers) {
     const lsn_t oldest_lsn = consumer->get_consumed_lsn();
     ut_a(oldest_lsn == LSN_MAX || log_is_data_lsn(oldest_lsn));
 
-    if (oldest_lsn < min_oldest_lsn) {
+    if (oldest_lsn < oldest_needed_lsn) {
       oldest_consumer = consumer;
-      min_oldest_lsn = oldest_lsn;
+      oldest_needed_lsn = oldest_lsn;
     }
   }
 
-  ut_a(log_is_data_lsn(min_oldest_lsn));
+  ut_a(log_is_data_lsn(oldest_needed_lsn));
 
   const lsn_t current_lsn = log_get_lsn(log);
-  ut_a(min_oldest_lsn <= current_lsn);
+  ut_a(oldest_needed_lsn <= current_lsn);
 
   return oldest_consumer;
 }

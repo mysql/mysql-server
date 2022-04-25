@@ -320,6 +320,14 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
 
   alignas(ut::INNODB_CACHE_LINE_SIZE) os_event_t writer_event;
 
+  /** A recently seen value of log_consumer_get_oldest()->get_consumed_lsn().
+  It serves as a lower bound for future values of this expression, because it is
+  guaranteed to be monotonic in time: each individual consumer can only go
+  forward, and new consumers must start at least from checkpoint lsn, and the
+  checkpointer is always one of the consumers.
+  Protected by: writer_mutex. */
+  lsn_t m_oldest_need_lsn_lowerbound;
+
   /** @} */
 
   /**************************************************/ /**

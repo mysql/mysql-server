@@ -2066,6 +2066,41 @@ static void log_writer_wait_on_archiver(log_t &log, lsn_t next_write_lsn) {
   }
 }
 
+static void log_writer_wait_on_consumers(log_t &log, lsn_t next_write_lsn) {
+  ut_ad(log_writer_mutex_own(log));
+  constexpr auto SLEEP_BETWEEN_RETRIES = std::chrono::milliseconds(10);
+  constexpr auto TIME_BETWEEN_WARNINGS = std::chrono::seconds(1);
+  constexpr size_t ATTEMPTS_BETWEEN_WARNINGS =
+      TIME_BETWEEN_WARNINGS / SLEEP_BETWEEN_RETRIES;
+  size_t attempt = 0;
+  while (log.m_oldest_need_lsn_lowerbound +
+             log.m_capacity.hard_logical_capacity() <
+         next_write_lsn) {
+    log_files_mutex_enter(*log_sys);
+    lsn_t oldest_needed_lsn;
+    const auto consumer = log_consumer_get_oldest(log, oldest_needed_lsn);
+    ut_ad(log.m_oldest_need_lsn_lowerbound <= oldest_needed_lsn);
+    log.m_oldest_need_lsn_lowerbound = oldest_needed_lsn;
+    if (next_write_lsn <=
+        oldest_needed_lsn + log.m_capacity.hard_logical_capacity()) {
+      log_files_mutex_exit(*log_sys);
+      break;
+    }
+    const std::string name = consumer->get_name();
+    log_files_mutex_exit(*log_sys);
+    /* This should not be a checkpointer nor archiver, as we've used dedicated
+    log_writer_wait_on_checkpoint() and log_writer_wait_on_archiver() to wait
+    for them already */
+    ut_ad(name == "MEB");
+    log_writer_mutex_exit(log);
+    if (attempt++ % ATTEMPTS_BETWEEN_WARNINGS == 0) {
+      ib::log_warn(ER_IB_MSG_LOG_WRITER_WAIT_ON_CONSUMER, name.c_str(),
+                   ulonglong{oldest_needed_lsn});
+    }
+    std::this_thread::sleep_for(SLEEP_BETWEEN_RETRIES);
+    log_writer_mutex_enter(log);
+  }
+}
 static void log_writer_write_failed(log_t &log, dberr_t err) {
   ut_ad(log_writer_mutex_own(log));
   ut_ad(!log_files_mutex_own(log));
@@ -2145,6 +2180,9 @@ static void log_writer_write_buffer(log_t &log, lsn_t next_write_lsn) {
     ut_a(log_is_data_lsn(next_write_lsn) ||
          next_write_lsn % OS_FILE_LOG_BLOCK_SIZE == 0);
   }
+
+  log_writer_wait_on_consumers(log, next_write_lsn);
+  ut_ad(log_writer_mutex_own(log));
 
   DBUG_PRINT("ib_log",
              ("write " LSN_PF " to " LSN_PF, last_write_lsn, next_write_lsn));
