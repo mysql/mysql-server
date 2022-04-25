@@ -229,7 +229,7 @@ inline bool Item_sum_shortest_dir_path::add_geom(Item *arg, const int& node_id, 
     case ResultType::NullValue:
       // null geom after non null geom
       if (!m_point_map.empty()){
-        my_error(ER_ALL_OR_NONE_NULL, MYF(0), func_name());
+        my_error(ER_INCONSISTENT_GEOMETRY_NULLNESS, MYF(0), func_name());
         return true;
       }
       return false;
@@ -237,7 +237,7 @@ inline bool Item_sum_shortest_dir_path::add_geom(Item *arg, const int& node_id, 
       // non null geom after null geom
       // * expects add_geom to be called before adding first edge to m_edge_map
       if (m_point_map.empty() && !m_edge_map.empty()) {
-        my_error(ER_ALL_OR_NONE_NULL, MYF(0), func_name());
+        my_error(ER_INCONSISTENT_GEOMETRY_NULLNESS, MYF(0), func_name());
         return true;
       }
   }

@@ -151,7 +151,7 @@ INSERT INTO edges VALUES
 (  2,  0,  2,  2.1 , "spatial", NULL )
 ;
 # geom to null
---error ER_ALL_OR_NONE_NULL
+--error ER_INCONSISTENT_GEOMETRY_NULLNESS
 SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, 0, 1) FROM edges;
 # null to geom
 DELETE FROM edges;
@@ -159,7 +159,7 @@ INSERT INTO edges VALUES
 (  0,  0,  1,  1.1 , "spatial", NULL ),
 (  1,  0,  2,  2.1 , "spatial", POINT( 3, 2 ) )
 ;
---error ER_ALL_OR_NONE_NULL
+--error ER_INCONSISTENT_GEOMETRY_NULLNESS
 SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, to_point, 0, 1) FROM edges;
 
 DELETE FROM edges;

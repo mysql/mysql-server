@@ -9712,7 +9712,7 @@ ER_START_AND_END_NODE_CONFLICT
 ER_START_AND_END_NODE_CONSTANT
   eng "Start node and end node must be constant on %s"
 
-ER_ALL_OR_NONE_NULL
+ER_INCONSISTENT_GEOMETRY_NULLNESS
   eng "All point geometries or none of the point geometries must be null on %s"
 
 ER_GIS_WRONG_GEOM_TYPE
