@@ -900,6 +900,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
             path->materialize().table_path->type == AccessPath::EQ_REF ||
             path->materialize().table_path->type == AccessPath::ALTERNATIVE ||
             path->materialize().table_path->type == AccessPath::CONST_TABLE ||
+            path->materialize().table_path->type == AccessPath::INDEX_SCAN ||
             path->materialize().table_path->type ==
                 AccessPath::INDEX_RANGE_SCAN);
 

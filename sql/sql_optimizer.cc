@@ -2558,9 +2558,12 @@ check_reverse_order:
         and best_key doesn't, then revert the decision.
       */
       if (!table->covering_keys.is_set(best_key)) table->set_keyread(false);
-      if (!tab->range_scan() ||
-          tab->range_scan() == save_range_scan)  // created no QUICK
-      {
+      // Create an index scan if the table is not a temporary table that uses
+      // Temptable engine (Does not support index_first() and index_last()) and
+      // if there was no new range scan created.
+      if (!(is_temporary_table(tab->table_ref) &&
+            tab->table_ref->table->s->db_type() == temptable_hton) &&
+          ((!tab->range_scan() || tab->range_scan() == save_range_scan))) {
         // Avoid memory leak:
         assert(tab->range_scan() == save_range_scan ||
                tab->range_scan() == nullptr);
