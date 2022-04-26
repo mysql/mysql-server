@@ -36,26 +36,20 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-class CertificateGeneratorTest : public ::testing::Test {
- public:
-  const BIGNUM *RSA_get0_n(const RSA *rsa) const {
+namespace {
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-    return rsa->n;
-#else
-    const BIGNUM *result;
-    RSA_get0_key(rsa, &result, nullptr, nullptr);
-    return result;
-#endif
-  }
+const BIGNUM *RSA_get0_n(const RSA *rsa) const { return rsa->n; }
 
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-  RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey) const { return pkey->pkey.rsa; }
+RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey) const { return pkey->pkey.rsa; }
 #endif
 
 #if (OPENSSL_VERSION_NUMBER < 0x10000000L)
-  int EVP_PKEY_id(const EVP_PKEY *pkey) const { return pkey->type; }
+int EVP_PKEY_id(const EVP_PKEY *pkey) const { return pkey->type; }
 #endif
+}  // namespace
 
+class CertificateGeneratorTest : public ::testing::Test {
+ public:
   TlsLibraryContext m_tls_lib_ctx;
   CertificateGenerator m_cert_gen;
 };
@@ -64,11 +58,21 @@ TEST_F(CertificateGeneratorTest, test_EVP_PKEY_generation) {
   const auto evp = m_cert_gen.generate_evp_pkey();
   ASSERT_TRUE(evp);
 
+  SCOPED_TRACE("// get modulus of the generated RSA key");
+#if (OPENSSL_VERSION_NUMBER >= 0x30000000L)
+  BIGNUM *bn_modulus{};
+  ASSERT_TRUE(EVP_PKEY_get_bn_param(evp->get(), "n", &bn_modulus));
+
+  std::unique_ptr<BIGNUM, decltype(&BN_clear_free)> bn_storage{bn_modulus,
+                                                               &BN_clear_free};
+#else
   EXPECT_EQ(EVP_PKEY_id(evp->get()), EVP_PKEY_RSA);
-  const auto rsa = EVP_PKEY_get0_RSA(evp->get());
+  const auto rsa = EVP_PKEY_get0_RSA(evp->get());  // deprecated in 3.0
   ASSERT_TRUE(rsa);
 
-  const auto bn_modulus = RSA_get0_n(rsa);
+  const auto bn_modulus = RSA_get0_n(rsa);  // deprecated in 3.0
+#endif
+
   const auto &openssl_free = [](char *c) { OPENSSL_free(c); };
   const std::unique_ptr<char, decltype(openssl_free)> bn{BN_bn2dec(bn_modulus),
                                                          openssl_free};
