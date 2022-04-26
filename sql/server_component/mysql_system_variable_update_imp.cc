@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/components/minimal_chassis.h>
 #include <mysql/components/service_implementation.h>
+#include <mysql/components/services/log_builtins.h>
 #include <mysql/components/services/mysql_string.h>
 #include <mysql/psi/mysql_rwlock.h>
 #include <sql/auto_thd.h>
@@ -155,7 +156,11 @@ DEFINE_BOOL_METHOD(mysql_system_variable_update_string_imp::set,
     else {
       /* A session variable update for a temporary THD has no effect
          and is not supported. */
-      if (var_type == OPT_SESSION) return true;
+      if (var_type == OPT_SESSION) {
+        String *name = reinterpret_cast<String *>(variable_name);
+        LogErr(ERROR_LEVEL, ER_TMP_SESSION_FOR_VAR, name->c_ptr_safe());
+        return true;
+      }
       athd.reset(new Storing_auto_THD());
       thd = athd->get_THD();
     }

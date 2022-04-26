@@ -1,6 +1,7 @@
 #
 # WL#12002: SET system variable values as a component service
 #
+call mtr.add_suppression("Setting session values for system variables only makes sense in a user session");
 INSTALL COMPONENT "file://component_test_mysql_system_variable_set";
 # Ensure the value of super read only is off
 SELECT @@global.super_read_only;
@@ -70,6 +71,15 @@ SELECT test_set_system_variable_string(0, "super_read_only", "on", NULL);
 test_set_system_variable_string(0, "super_read_only", "on", NULL)
 0
 # Ensure the value of super read only is on
+SELECT @@global.super_read_only;
+@@global.super_read_only
+1
+# Bug#34072155: Improve mysql_system_variable_update_string::set to add error information
+# Try using SESSION type with sub-thread, Should fail with NULL
+SELECT test_set_system_variable_string(1, "super_read_only", "off", "SESSION");
+test_set_system_variable_string(1, "super_read_only", "off", "SESSION")
+NULL
+# Ensure the value of super read only is still on
 SELECT @@global.super_read_only;
 @@global.super_read_only
 1
