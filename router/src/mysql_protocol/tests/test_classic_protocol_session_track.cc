@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -69,15 +69,15 @@ const CodecParam<classic_protocol::session_track::TransactionState>
         {"all_flags_explicit_trx",
          {'T', 'r', 'R', 'w', 'W', 's', 'S', 'L'},
          {},
-         {'T', 'r', 'R', 'w', 'W', 's', 'S', 'L'}},
+         {0x08, 'T', 'r', 'R', 'w', 'W', 's', 'S', 'L'}},
         {"all_flags_implicit_trx",
          {'I', 'r', 'R', 'w', 'W', 's', 'S', 'L'},
          {},
-         {'I', 'r', 'R', 'w', 'W', 's', 'S', 'L'}},
+         {0x08, 'I', 'r', 'R', 'w', 'W', 's', 'S', 'L'}},
         {"no_flags",
          {'_', '_', '_', '_', '_', '_', '_', '_'},
          {},
-         {'_', '_', '_', '_', '_', '_', '_', '_'}},
+         {0x08, '_', '_', '_', '_', '_', '_', '_', '_'}},
 };
 
 INSTANTIATE_TEST_SUITE_P(

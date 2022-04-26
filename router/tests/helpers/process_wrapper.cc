@@ -26,6 +26,7 @@
 
 #include <algorithm>
 #include <array>
+#include <system_error>
 #include <thread>
 #include <vector>
 
@@ -37,7 +38,7 @@ ProcessWrapper::ProcessWrapper(
     const std::string &app_cmd, const std::vector<std::string> &args,
     const std::vector<std::pair<std::string, std::string>> &env_vars,
     bool include_stderr, OutputResponder &output_responder)
-    : launcher_(app_cmd.c_str(), args, env_vars, include_stderr),
+    : launcher_(app_cmd, args, env_vars, include_stderr),
       output_responder_(output_responder) {
   launcher_.start();
   output_reader_ = std::thread([&]() {
@@ -66,65 +67,84 @@ ProcessWrapper::ProcessWrapper(
 
 int ProcessWrapper::kill() {
   try {
-    exit_code_ = launcher_.kill();
+    exit_status_ = launcher_.kill();
     stop_output_reader_thread();
-    exit_code_set_ = true;
-  } catch (std::exception &e) {
+  } catch (const std::exception &e) {
     fprintf(stderr, "failed killing process %s: %s\n",
             launcher_.get_cmd_line().c_str(), e.what());
     return 1;
   }
 
-  return exit_code_;
+  if (auto code = exit_status_->exited()) {
+    return *code;
+  } else {
+    throw std::runtime_error("signalled?");
+  }
+}
+
+mysql_harness::ProcessLauncher::exit_status_type ProcessWrapper::native_kill() {
+  try {
+    exit_status_ = launcher_.kill();
+    stop_output_reader_thread();
+  } catch (const std::exception &e) {
+    fprintf(stderr, "failed killing process %s: %s\n",
+            launcher_.get_cmd_line().c_str(), e.what());
+    return {1};
+  }
+
+  return exit_status_.value();
 }
 
 int ProcessWrapper::wait_for_exit(std::chrono::milliseconds timeout) {
-  if (exit_code_set_) return exit_code();
-  namespace ch = std::chrono;
+  auto exit_code = native_wait_for_exit(timeout);
+
+  if (auto code = exit_code.exited()) {
+    return *code;
+  } else {
+    throw std::runtime_error("signalled?");
+  }
+}
+
+mysql_harness::ProcessLauncher::exit_status_type
+ProcessWrapper::native_wait_for_exit(std::chrono::milliseconds timeout) {
+  if (exit_status_) return native_exit_code();
+
+  using clock_type = std::chrono::steady_clock;
+
   auto step = 1ms;
   if (getenv("WITH_VALGRIND")) {
     timeout *= 10;
     step *= 200;
   }
-  ch::time_point<ch::steady_clock> timeout_timestamp =
-      ch::steady_clock::now() + timeout;
+
+  const auto end_time = clock_type::now() + timeout;
 
   // The child might be blocked on input/output (for example password prompt),
   // so we wait giving a output thread a change to deal with it
-  std::exception_ptr eptr;
-  exit_code_set_ = false;
-  do {
-    try {
-      // throws std::runtime_error or std::system_error
-      exit_code_ = launcher_.wait(0ms);
-      exit_code_set_ = true;
-      break;
-    } catch (const std::system_error &e) {
-      eptr = std::current_exception();
 
-      if (e.code() != std::errc::timed_out) {
-        break;
-      }
-    } catch (const std::runtime_error &) {
-      eptr = std::current_exception();
-      break;
+  do {
+    auto exit_status_res = launcher_.exit_code();
+
+    if (exit_status_res) {
+      exit_status_ = *exit_status_res;
+
+      // the child exited, but there might still be some data left in the pipe
+      // to read, so let's consume it all
+      stop_output_reader_thread();
+      while (read_and_autorespond_to_output(step,
+                                            /*autoresponder_enabled=*/false))
+        ;
+      return exit_status_.value();
     }
 
-    std::this_thread::sleep_for(step);
-  } while (ch::steady_clock::now() < timeout_timestamp);
+    const auto ec = exit_status_res.error();
 
-  if (exit_code_set_) {
-    // the child exited, but there might still be some data left in the pipe to
-    // read, so let's consume it all
-    stop_output_reader_thread();
-    while (read_and_autorespond_to_output(step,
-                                          /*autoresponder_enabled=*/false))
-      ;
-    return exit_code_;
-  } else {
-    // we timed out waiting for child
-    std::rethrow_exception(eptr);
-  }
+    if (ec != std::errc::timed_out) throw std::system_error(ec);
+
+    std::this_thread::sleep_for(step);
+  } while (clock_type::now() < end_time);
+
+  throw std::system_error(make_error_code(std::errc::timed_out));
 }
 
 bool ProcessWrapper::expect_output(const std::string &str, bool regex,
@@ -135,14 +155,15 @@ bool ProcessWrapper::expect_output(const std::string &str, bool regex,
     step *= 10;
   }
 
-  auto now = std::chrono::steady_clock::now();
-  auto until = now + timeout;
+  const auto until = std::chrono::steady_clock::now() + timeout;
   for (;;) {
+    bool has_exited = has_exit_code();
+
     if (output_contains(str, regex)) return true;
 
-    now = std::chrono::steady_clock::now();
-
-    if (now > until) {
+    // no need to wait any longer, as there is no further output
+    // as the process has already exited.
+    if (has_exited || (std::chrono::steady_clock::now() > until)) {
       return false;
     }
 

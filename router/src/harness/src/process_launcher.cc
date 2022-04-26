@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +47,8 @@
 #include <unistd.h>
 #endif
 
+#include "exit_status.h"
+#include "mysql/harness/stdx/expected.h"
 #include "scope_guard.h"
 
 using namespace std::chrono_literals;
@@ -103,6 +105,9 @@ std::error_code ProcessLauncher::send_shutdown_event(
     case ShutdownEvent::TERM:
       ok = GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, pi.dwProcessId);
       break;
+    case ShutdownEvent::ABRT:
+      ok = GenerateConsoleCtrlEvent(CTRL_C_EVENT, pi.dwProcessId);
+      break;
     case ShutdownEvent::KILL:
       ok = TerminateProcess(pi.hProcess, 0);
       break;
@@ -114,6 +119,9 @@ std::error_code ProcessLauncher::send_shutdown_event(
       break;
     case ShutdownEvent::KILL:
       ok = ::kill(childpid, SIGKILL) == 0;
+      break;
+    case ShutdownEvent::ABRT:
+      ok = ::kill(childpid, SIGABRT) == 0;
       break;
   }
 #endif
@@ -305,39 +313,55 @@ void ProcessLauncher::start() {
 
 uint64_t ProcessLauncher::get_pid() const { return (uint64_t)pi.hProcess; }
 
-int ProcessLauncher::wait(std::chrono::milliseconds timeout) {
+stdx::expected<ProcessLauncher::exit_status_type, std::error_code>
+ProcessLauncher::exit_code() {
   DWORD dwExit = 0;
-  BOOL get_ret{FALSE};
-  if ((get_ret = GetExitCodeProcess(pi.hProcess, &dwExit))) {
-    if (dwExit == STILL_ACTIVE) {
-      auto wait_ret = WaitForSingleObject(pi.hProcess, timeout.count());
-      switch (wait_ret) {
-        case WAIT_OBJECT_0:
-          get_ret = GetExitCodeProcess(pi.hProcess, &dwExit);
-          break;
-        case WAIT_TIMEOUT:
-          throw std::system_error(std::make_error_code(std::errc::timed_out));
-        case WAIT_FAILED:
-          throw std::system_error(last_error_code());
-        default:
-          throw std::runtime_error(
-              "Unexpected error while waiting for the process '" +
-              executable_path + "' to finish: " + std::to_string(wait_ret));
-      }
-    }
+
+  const BOOL ret = GetExitCodeProcess(pi.hProcess, &dwExit);
+  if (ret == 0) {
+    return stdx::make_unexpected(last_error_code());
+  } else if (dwExit == STILL_ACTIVE) {
+    return stdx::make_unexpected(std::make_error_code(std::errc::timed_out));
   }
-  if (get_ret == FALSE) {
-    auto ec = last_error_code();
-    if (ec != std::error_code(ERROR_INVALID_HANDLE,
-                              std::system_category()))  // not closed already?
-      throw std::system_error(ec);
-    else
-      dwExit = 128;  // Invalid handle
-  }
-  return dwExit;
+
+  return {std::in_place, exit_status_type::native_t{}, dwExit};
 }
 
-int ProcessLauncher::close() {
+ProcessLauncher::exit_status_type ProcessLauncher::native_wait(
+    std::chrono::milliseconds timeout) {
+  auto exit_res = exit_code();
+  if (exit_res) return *exit_res;
+
+  auto ec = exit_res.error();
+  if (ec != std::errc::timed_out) throw std::system_error(ec);
+
+  auto wait_ret = WaitForSingleObject(pi.hProcess, timeout.count());
+  switch (wait_ret) {
+    case WAIT_OBJECT_0:
+      break;
+    case WAIT_TIMEOUT:
+      throw std::system_error(std::make_error_code(std::errc::timed_out));
+    case WAIT_FAILED:
+      throw std::system_error(last_error_code());
+    default:
+      throw std::runtime_error(
+          "Unexpected error while waiting for the process '" + executable_path +
+          "' to finish: " + std::to_string(wait_ret));
+  }
+
+  // try again.
+  exit_res = exit_code();
+  if (exit_res) return *exit_res;
+
+  ec = exit_res.error();
+  if (ec == std::error_code(ERROR_INVALID_HANDLE, std::system_category())) {
+    return 128;  // Invalid handle
+  }
+
+  throw std::system_error(ec);
+}
+
+ProcessLauncher::exit_status_type ProcessLauncher::close() {
   DWORD dwExit;
   if (GetExitCodeProcess(pi.hProcess, &dwExit)) {
     if (dwExit == STILL_ACTIVE) {
@@ -613,8 +637,8 @@ void ProcessLauncher::start() {
   }
 }
 
-int ProcessLauncher::close() {
-  int result = 0;
+ProcessLauncher::exit_status_type ProcessLauncher::close() {
+  exit_status_type result = 0;
   if (is_alive) {
     // only try to kill the pid, if we started it. Not that we hurt someone
     // else.
@@ -625,15 +649,24 @@ int ProcessLauncher::close() {
     } else {
       try {
         // wait for it shutdown before using the big hammer
-        result = wait(kTerminateWaitInterval);
+        result = native_wait(kTerminateWaitInterval);
       } catch (const std::system_error &e) {
         if (e.code() != std::errc::no_such_process) {
-          std::error_code ec2 = send_shutdown_event(ShutdownEvent::KILL);
+          std::error_code ec2 = send_shutdown_event(ShutdownEvent::ABRT);
           if (ec2 != std::errc::no_such_process) {
             throw std::system_error(ec2);
           }
+          try {
+            // wait for it shutdown before using the big hammer
+            result = native_wait(kTerminateWaitInterval);
+          } catch (const std::system_error &e) {
+            std::error_code ec2 = send_shutdown_event(ShutdownEvent::KILL);
+            if (ec2 != std::errc::no_such_process) {
+              throw std::system_error(ec2);
+            }
+          }
+          result = native_wait();
         }
-        result = wait();
       }
     }
   }
@@ -704,37 +737,48 @@ uint64_t ProcessLauncher::get_pid() const {
   return (uint64_t)childpid;
 }
 
-int ProcessLauncher::wait(const std::chrono::milliseconds timeout) {
+stdx::expected<ProcessLauncher::exit_status_type, std::error_code>
+ProcessLauncher::exit_code() {
+  int status;
+
+  const pid_t ret = ::waitpid(childpid, &status, WNOHANG);
+  if (ret == 0) {
+    return stdx::make_unexpected(std::make_error_code(std::errc::timed_out));
+  } else if (ret == -1) {
+    return stdx::make_unexpected(last_error_code());
+  }
+
+  return {std::in_place, exit_status_type::native_t{}, status};
+}
+
+ProcessLauncher::exit_status_type ProcessLauncher::native_wait(
+    const std::chrono::milliseconds timeout) {
   using namespace std::chrono_literals;
-  auto wait_time = timeout;
+
+  auto end_time = std::chrono::steady_clock::now() + timeout;
+
   do {
-    int status;
+    const auto wait_res = exit_code();
 
-    pid_t ret = ::waitpid(childpid, &status, WNOHANG);
+    if (wait_res) {
+      auto status = wait_res.value();
 
-    if (ret == 0) {
-      auto sleep_for = std::min(wait_time, kWaitPidCheckInterval);
-      if (sleep_for.count() > 0) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(sleep_for));
-        wait_time -= sleep_for;
-      } else {
-        throw std::system_error(std::make_error_code(std::errc::timed_out));
-      }
-    } else if (ret == -1) {
-      throw std::system_error(last_error_code());
-    } else {
-      if (WIFEXITED(status)) {
-        return WEXITSTATUS(status);
-      } else if (WIFSIGNALED(status)) {
+      if (status.exited()) {
+        return status;
+      } else if (auto sig = status.terminated()) {
+        auto signum = *sig;
+
+        // drain the stdout|stderr.
         std::string msg;
         std::array<char, 1024> b;
         int n;
         while ((n = read(b.data(), b.size(), 100ms)) > 0) {
           msg.append(b.data(), n);
         }
+
         throw std::runtime_error(std::string("Process '" + executable_path +
                                              "' got signal " +
-                                             std::to_string(WTERMSIG(status))) +
+                                             std::to_string(signum)) +
                                  ":\n" + msg);
       } else {
         // it neither exited, not received a signal.
@@ -742,11 +786,32 @@ int ProcessLauncher::wait(const std::chrono::milliseconds timeout) {
             std::string("Process '" + executable_path + "' ... no idea"));
       }
     }
-  } while (true);
-}
 
+    const auto ec = wait_res.error();
+
+    if (ec != std::errc::timed_out) throw std::system_error(ec);
+
+    const auto now = std::chrono::steady_clock::now();
+    if (now > end_time) break;
+
+    std::this_thread::sleep_until(
+        std::min(now + kWaitPidCheckInterval, end_time));
+  } while (true);
+
+  throw std::system_error(std::make_error_code(std::errc::timed_out));
+}
 #endif
 
-int ProcessLauncher::kill() { return close(); }
+int ProcessLauncher::wait(const std::chrono::milliseconds timeout) {
+  auto wait_res = native_wait(timeout);
+
+  if (auto code = wait_res.exited()) {
+    return *code;
+  }
+
+  throw std::runtime_error("terminated?");
+}
+
+ProcessLauncher::exit_status_type ProcessLauncher::kill() { return close(); }
 
 }  // end of namespace mysql_harness

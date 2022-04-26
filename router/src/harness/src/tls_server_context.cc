@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include "mysql/harness/tls_server_context.h"
 
 #include <array>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -45,6 +46,11 @@
 #define DH_bits(dh) BN_num_bits(dh->p)
 #endif
 
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(3, 0, 0)
+#include <openssl/core_names.h>  // OSSL_PKEY_...
+#include <openssl/decoder.h>     // OSSL_DECODER...
+#endif
+
 // type == decltype(BN_num_bits())
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 2)
 constexpr int kMinRsaKeySize{2048};
@@ -54,13 +60,251 @@ constexpr int kMinDhKeySize{1024};
 constexpr std::array<const char *, 9>
     TlsServerContext::unacceptable_cipher_spec;
 
-static const SSL_METHOD *server_method =
+namespace {
+const SSL_METHOD *server_method =
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
     TLS_server_method()
 #else
     SSLv23_server_method()
 #endif
     ;
+
+template <class T>
+struct OsslDeleter;
+
+template <class T>
+using OsslUniquePtr = std::unique_ptr<T, OsslDeleter<T>>;
+
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(3, 0, 0)
+template <>
+struct OsslDeleter<OSSL_DECODER_CTX> {
+  void operator()(OSSL_DECODER_CTX *ctx) { OSSL_DECODER_CTX_free(ctx); }
+};
+#endif
+
+template <>
+struct OsslDeleter<EVP_PKEY_CTX> {
+  void operator()(EVP_PKEY_CTX *ctx) { EVP_PKEY_CTX_free(ctx); }
+};
+
+template <>
+struct OsslDeleter<EVP_PKEY> {
+  void operator()(EVP_PKEY *pkey) { EVP_PKEY_free(pkey); }
+};
+
+template <>
+struct OsslDeleter<BIO> {
+  void operator()(BIO *bio) { BIO_free(bio); }
+};
+
+// DH_free is deprecated in 3.0.0 and later.
+#if OPENSSL_VERSION_NUMBER < ROUTER_OPENSSL_VERSION(3, 0, 0)
+template <>
+struct OsslDeleter<EC_KEY> {
+  void operator()(EC_KEY *key) { EC_KEY_free(key); }
+};
+
+template <>
+struct OsslDeleter<DH> {
+  void operator()(DH *dh) { DH_free(dh); }
+};
+
+template <>
+struct OsslDeleter<RSA> {
+  void operator()(RSA *rsa) { RSA_free(rsa); }
+};
+#endif
+
+/**
+ * get the key size of an RSA key.
+ *
+ * @param x509 a non-null pointer to RSA-key wrapped in a X509 struct.
+ *
+ * @returns a key-size of RSA key on success, a std::error_code on failure.
+ */
+[[maybe_unused]]  // unused with openssl == 1.0.1 (RHEL6)
+stdx::expected<int, std::error_code>
+get_rsa_key_size(X509 *x509) {
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
+  EVP_PKEY *public_key = X509_get0_pubkey(x509);
+#else
+  // if X509_get0_pubkey() isn't available, fall back to X509_get_pubkey() which
+  // increments the ref-count.
+  OsslUniquePtr<EVP_PKEY> public_key_storage(X509_get_pubkey(x509));
+
+  EVP_PKEY *public_key = public_key_storage.get();
+#endif
+  if (public_key == nullptr) {
+    return stdx::make_unexpected(
+        make_error_code(TlsCertErrc::kNotACertificate));
+  }
+
+  if (EVP_PKEY_base_id(public_key) != EVP_PKEY_RSA) {
+    return stdx::make_unexpected(make_error_code(TlsCertErrc::kNoRSACert));
+  }
+
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(3, 0, 0)
+  int key_bits;
+  if (!EVP_PKEY_get_int_param(public_key, OSSL_PKEY_PARAM_BITS, &key_bits)) {
+    return stdx::make_unexpected(
+        make_error_code(std::errc::no_such_file_or_directory));
+  }
+
+  return key_bits;
+#else
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
+  RSA *rsa_key = EVP_PKEY_get0_RSA(public_key);
+#else
+  // if EVP_PKEY_get0_RSA() isn't available, fall back to EVP_PKEY_get1_RSA()
+  // which increments the ref-count.
+  OsslUniquePtr<RSA> rsa_key_storage(EVP_PKEY_get1_RSA(public_key));
+
+  RSA *rsa_key = rsa_key_storage.get();
+#endif
+  if (!rsa_key) {
+    return stdx::make_unexpected(
+        make_error_code(std::errc::no_such_file_or_directory));
+  }
+  return RSA_bits(rsa_key);
+#endif
+}
+
+/**
+ * set DH params from filename to a SSL_CTX.
+ *
+ * ensures that the DH param has at least kMinDhKeySize bits.
+ *
+ * @returns nothing on success, std::error_code on error.
+ */
+stdx::expected<void, std::error_code> set_dh_params_from_filename(
+    SSL_CTX *ssl_ctx, const std::string &dh_params) {
+  OsslUniquePtr<BIO> pem_bio_storage(BIO_new_file(dh_params.c_str(), "rb"));
+  if (!pem_bio_storage) return stdx::make_unexpected(make_tls_error());
+
+  auto pem_bio = pem_bio_storage.get();
+
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(3, 0, 0)
+  EVP_PKEY *dhpkey{};  // gets set when OSSL_DECODER_from_bio() succeeds.
+  OsslUniquePtr<OSSL_DECODER_CTX> decoder_ctx_storage(
+      OSSL_DECODER_CTX_new_for_pkey(
+          &dhpkey, "PEM", nullptr, "DH", OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS,
+          nullptr /* libctx */, nullptr /* propquery */));
+  if (!decoder_ctx_storage) return stdx::make_unexpected(make_tls_error());
+
+  auto *decoder_ctx = decoder_ctx_storage.get();
+
+  if (1 != OSSL_DECODER_from_bio(decoder_ctx, pem_bio)) {
+    if (0 == ERR_peek_last_error()) {
+      // make sure there is at least one error on the stack.
+      //
+      // OSSL_DECODER_from_bio() should set ERR after it failed ... but it
+      // doesn't always does that, like when the PEM fail contains only an SSL
+      // cert.
+      //
+      // It should report something like
+      //
+      // DECODER::unsupported: No supported data to decode. Input type: PEM
+      ERR_raise(ERR_LIB_OSSL_DECODER, ERR_R_UNSUPPORTED);
+    }
+    return stdx::make_unexpected(make_tls_error());
+  }
+
+  OsslUniquePtr<EVP_PKEY> dhpkey_storage(
+      dhpkey);  // take ownership for a while.
+
+  OsslUniquePtr<EVP_PKEY_CTX> evp_ctx_storage(
+      EVP_PKEY_CTX_new(dhpkey, nullptr));
+
+  if (1 != EVP_PKEY_param_check(evp_ctx_storage.get())) {
+    return stdx::make_unexpected(make_tls_error());
+  }
+
+  int dh_bits;
+  if (!EVP_PKEY_get_int_param(dhpkey, OSSL_PKEY_PARAM_BITS, &dh_bits)) {
+    // ^^ doesn't set an error in the openssl error-queue.
+    //
+    // on the other side it should never fail as the "bits" should be always
+    // present.
+    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+  }
+#else
+  OsslUniquePtr<DH> dh_storage(
+      PEM_read_bio_DHparams(pem_bio, nullptr, nullptr, nullptr));
+  if (!dh_storage) return stdx::make_unexpected(make_tls_error());
+
+  DH *dh = dh_storage.get();
+
+  int codes = 0;
+  if (1 != DH_check(dh, &codes)) return stdx::make_unexpected(make_tls_error());
+
+  if (codes != 0) {
+    throw std::runtime_error("check of DH params failed: ");
+  }
+
+  auto dh_bits = DH_bits(dh);
+#endif
+
+  if (dh_bits < kMinDhKeySize) {
+    throw std::runtime_error(
+        "key size of DH param " + dh_params + " too small. Expected " +
+        std::to_string(kMinDhKeySize) + ", got " + std::to_string(dh_bits));
+  }
+
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(3, 0, 0)
+  // on success, ownership if pkey is moved to the ssl-ctx
+  if (1 != SSL_CTX_set0_tmp_dh_pkey(ssl_ctx, dhpkey)) {
+    return stdx::make_unexpected(make_tls_error());
+  }
+  (void)dhpkey_storage.release();
+#else
+  if (1 != SSL_CTX_set_tmp_dh(ssl_ctx, dh)) {
+    return stdx::make_unexpected(make_tls_error());
+  }
+#endif
+
+  return {};
+}
+
+/**
+ * set auto DH params at SSL_CTX.
+ */
+stdx::expected<void, std::error_code> set_auto_dh_params(SSL_CTX *ssl_ctx) {
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(3, 0, 0)
+  SSL_CTX_set_dh_auto(ssl_ctx, 1);
+#else
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
+  OsslUniquePtr<DH> dh_storage(DH_get_2048_256());
+#else
+  /*
+     Diffie-Hellman key.
+     Generated using: >openssl dhparam -5 -C 2048
+  */
+  std::string_view dh_2048{
+      "-----BEGIN DH PARAMETERS-----\n"
+      "MIIBCAKCAQEAil36wGZ2TmH6ysA3V1xtP4MKofXx5n88xq/aiybmGnReZMviCPEJ\n"
+      "46+7VCktl/RZ5iaDH1XNG1dVQmznt9pu2G3usU+k1/VB4bQL4ZgW4u0Wzxh9PyXD\n"
+      "glm99I9Xyj4Z5PVE4MyAsxCRGA1kWQpD9/zKAegUBPLNqSo886Uqg9hmn8ksyU9E\n"
+      "BV5eAEciCuawh6V0O+Sj/C3cSfLhgA0GcXp3OqlmcDu6jS5gWjn3LdP1U0duVxMB\n"
+      "h/neTSCSvtce4CAMYMjKNVh9P1nu+2d9ZH2Od2xhRIqMTfAS1KTqF3VmSWzPFCjG\n"
+      "mjxx/bg6bOOjpgZapvB6ABWlWmRmAAWFtwIBBQ==\n"
+      "-----END DH PARAMETERS-----"};
+
+  OsslUniquePtr<BIO> bio_storage{
+      BIO_new_mem_buf(const_cast<char *>(dh_2048.data()), dh_2048.size())};
+  auto *bio = bio_storage.get();
+
+  OsslUniquePtr<DH> dh_storage(PEM_read_bio_DHparams(bio, NULL, NULL, NULL));
+#endif
+  DH *dh = dh_storage.get();
+
+  if (1 != SSL_CTX_set_tmp_dh(ssl_ctx, dh)) {
+    return stdx::make_unexpected(make_tls_error());
+  }
+#endif
+
+  return {};
+}
+}  // namespace
 
 TlsServerContext::TlsServerContext(TlsVersion min_ver, TlsVersion max_ver)
     : TlsContext(server_method) {
@@ -71,8 +315,7 @@ TlsServerContext::TlsServerContext(TlsVersion min_ver, TlsVersion max_ver)
   // openssl 1.0.1 has no ecdh_auto(), and needs an explicit EC curve set
   // to make ECDHE ciphers work out of the box.
   {
-    std::unique_ptr<EC_KEY, decltype(&EC_KEY_free)> curve(
-        EC_KEY_new_by_curve_name(NID_X9_62_prime256v1), &EC_KEY_free);
+    OsslUniquePtr<EC_KEY> curve(EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
     if (curve) SSL_CTX_set_tmp_ecdh(ssl_ctx_.get(), curve.get());
   }
 #endif
@@ -95,29 +338,14 @@ stdx::expected<void, std::error_code> TlsServerContext::load_key_and_cert(
 
   // internal pointer, don't free
   if (X509 *x509 = SSL_CTX_get0_certificate(ssl_ctx_.get())) {
-    std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)> public_key(
-        X509_get_pubkey(x509), &EVP_PKEY_free);
-    if (public_key) {
-      switch (EVP_PKEY_base_id(public_key.get())) {
-        case EVP_PKEY_RSA: {
-          std::unique_ptr<RSA, decltype(&RSA_free)> rsa_key(
-              EVP_PKEY_get1_RSA(public_key.get()), &RSA_free);
-          auto key_size = RSA_bits(rsa_key.get());
+    auto key_size_res = get_rsa_key_size(x509);
+    if (!key_size_res) return stdx::make_unexpected(key_size_res.error());
 
-          if (key_size < kMinRsaKeySize) {
-            return stdx::make_unexpected(
-                make_error_code(TlsCertErrc::kRSAKeySizeToSmall));
-          }
-          break;
-        }
-        default:
-          // "not an RSA certificate?"
-          return stdx::make_unexpected(
-              make_error_code(TlsCertErrc::kNoRSACert));
-      }
-    } else {
+    const auto key_size = *key_size_res;
+
+    if (key_size < kMinRsaKeySize) {
       return stdx::make_unexpected(
-          make_error_code(TlsCertErrc::kNotACertificate));
+          make_error_code(TlsCertErrc::kRSAKeySizeToSmall));
     }
   } else {
     // doesn't exist
@@ -139,64 +367,14 @@ stdx::expected<void, std::error_code> TlsServerContext::load_key_and_cert(
 // load DH params
 stdx::expected<void, std::error_code> TlsServerContext::init_tmp_dh(
     const std::string &dh_params) {
-  std::unique_ptr<DH, decltype(&DH_free)> dh2048(nullptr, &DH_free);
   if (!dh_params.empty()) {
-    std::unique_ptr<BIO, decltype(&BIO_free)> pem_bio(
-        BIO_new_file(dh_params.c_str(), "r"), &BIO_free);
-    if (!pem_bio) {
-      return stdx::make_unexpected(make_tls_error());
-    }
-    dh2048.reset(
-        PEM_read_bio_DHparams(pem_bio.get(), nullptr, nullptr, nullptr));
-    if (!dh2048) {
-      return stdx::make_unexpected(make_tls_error());
-    }
-
-    int codes = 0;
-    if (1 != DH_check(dh2048.get(), &codes)) {
-      return stdx::make_unexpected(make_tls_error());
-    }
-
-    if (codes != 0) {
-      throw std::runtime_error("check of DH params failed: ");
-    }
-
-    if (DH_bits(dh2048.get()) < kMinDhKeySize) {
-      throw std::runtime_error("key size of DH param " + dh_params +
-                               " too small. Expected " +
-                               std::to_string(kMinDhKeySize) + ", got " +
-                               std::to_string(DH_bits(dh2048.get())));
-    }
-
+    auto set_res = set_dh_params_from_filename(ssl_ctx_.get(), dh_params);
+    if (!set_res) return stdx::make_unexpected(set_res.error());
   } else {
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
-    dh2048.reset(DH_get_2048_256());
-#else
-    /*
-       Diffie-Hellman key.
-       Generated using: >openssl dhparam -5 -C 2048
-    */
-    const char dh_2048[]{
-        "-----BEGIN DH PARAMETERS-----\n"
-        "MIIBCAKCAQEAil36wGZ2TmH6ysA3V1xtP4MKofXx5n88xq/aiybmGnReZMviCPEJ\n"
-        "46+7VCktl/RZ5iaDH1XNG1dVQmznt9pu2G3usU+k1/VB4bQL4ZgW4u0Wzxh9PyXD\n"
-        "glm99I9Xyj4Z5PVE4MyAsxCRGA1kWQpD9/zKAegUBPLNqSo886Uqg9hmn8ksyU9E\n"
-        "BV5eAEciCuawh6V0O+Sj/C3cSfLhgA0GcXp3OqlmcDu6jS5gWjn3LdP1U0duVxMB\n"
-        "h/neTSCSvtce4CAMYMjKNVh9P1nu+2d9ZH2Od2xhRIqMTfAS1KTqF3VmSWzPFCjG\n"
-        "mjxx/bg6bOOjpgZapvB6ABWlWmRmAAWFtwIBBQ==\n"
-        "-----END DH PARAMETERS-----"};
-
-    std::unique_ptr<BIO, decltype(&BIO_free)> bio{
-        BIO_new_mem_buf(const_cast<char *>(dh_2048), sizeof(dh_2048) - 1),
-        &BIO_free};
-
-    dh2048.reset(PEM_read_bio_DHparams(bio.get(), NULL, NULL, NULL));
-#endif
+    auto set_res = set_auto_dh_params(ssl_ctx_.get());
+    if (!set_res) return stdx::make_unexpected(set_res.error());
   }
 
-  if (1 != SSL_CTX_set_tmp_dh(ssl_ctx_.get(), dh2048.get())) {
-    return stdx::make_unexpected(make_tls_error());
-  }
   // ensure DH keys are only used once
   SSL_CTX_set_options(ssl_ctx_.get(),
                       SSL_OP_SINGLE_DH_USE | SSL_OP_SINGLE_ECDH_USE);

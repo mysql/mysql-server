@@ -30,6 +30,13 @@ MYSQL_ADD_EXECUTABLE(master_key_test_writer
   SKIP_INSTALL
   )
 
+MYSQL_ADD_EXECUTABLE(signal_me
+  signal_me.cc
+  LINK_LIBRARIES mysys
+  COMPONENT Router
+  SKIP_INSTALL
+  )
+
 ADD_DEFINITIONS(-DSSL_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/mysql-test/std_data/")
 ADD_DEFINITIONS(-DCMAKE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 FOREACH(test_file
@@ -68,6 +75,7 @@ FOREACH(test_file
     test_user_option.cc
     test_metadata_http_auth_backend.cc
     test_socket_close.cc
+    test_stacktrace.cc
     )
 add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   MODULE "component"
@@ -105,6 +113,7 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   router_protobuf
   routing
   routertestplugin_logger
+  signal_me
   )
 ENDFOREACH()
 
