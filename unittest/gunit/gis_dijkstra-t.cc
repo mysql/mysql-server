@@ -1,32 +1,3 @@
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License, version 2.0,
-   as published by the Free Software Foundation.
-
-   This program is also distributed with certain software (including
-   but not limited to OpenSSL) that is licensed under separate terms,
-   as designated in a particular file or component or in included license
-   documentation.  The authors of MySQL hereby grant you an additional
-   permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License, version 2.0, for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-/*
-  This is a simple example of how to use the google unit test framework.
-
-  For an introduction to the constructs used below, see:
-  http://code.google.com/p/googletest/wiki/GoogleTestPrimer
-*/
-
 #include <gtest/gtest.h>
 
 #include "unittest/gunit/gunit_test_main.h"
@@ -48,8 +19,9 @@ class DijkstraTest : public ::testing::Test {
 // ! floating point cmp
 void check_cost(const std::vector<const Edge*>& path , const double& cost){
   double expected_cost = 0;
-  for (const Edge* e : path) expected_cost += e->cost;
-  EXPECT_FLOAT_EQ(cost, expected_cost);
+  for (const Edge* e : path)
+    expected_cost += e->cost;
+  EXPECT_DOUBLE_EQ(cost, expected_cost);
 }
 
 // test dijkstra without heuristic
@@ -144,21 +116,21 @@ TEST_F(DijkstraTest, EuclideanHeuristic) {
   int target_point = 6; // G
   int popped_points_null, popped_points_euclid;
   Dijkstra null_dijkstra(&edge_map);
-  Dijkstra euclidean_dijkstra(&edge_map, [&points, &target_point](const int& point) -> double {
+  Dijkstra euclidean_dijkstra{&edge_map, [&points, &target_point](const int& point) -> double {
     return std::sqrt(
       std::pow(points[point].first - points[target_point].first, 2) +
       std::pow(points[point].second - points[target_point].second, 2)
     );
-  });
+  }};
   // test 1 (euclid)
   std::vector<const Edge*> path = euclidean_dijkstra(0, target_point, cost, &popped_points_euclid);
   std::vector<const Edge*> expected_path = { &edges[11], &edges[12] };
   EXPECT_EQ(path, expected_path);
-  EXPECT_EQ(cost, 5.5);
+  EXPECT_DOUBLE_EQ(cost, 5.5);
   // test 1 (null)
   path = null_dijkstra(0, target_point, cost, &popped_points_null);
   EXPECT_EQ(path, expected_path);
-  EXPECT_EQ(cost, 5.5);
+  EXPECT_DOUBLE_EQ(cost, 5.5);
   EXPECT_TRUE(popped_points_euclid < popped_points_null);
 
   // test 2 (euclid)
@@ -166,11 +138,11 @@ TEST_F(DijkstraTest, EuclideanHeuristic) {
   path = euclidean_dijkstra(0, target_point, cost, &popped_points_euclid);
   expected_path = { &edges[2], &edges[10] };
   EXPECT_EQ(path, expected_path);
-  EXPECT_EQ(cost, 7.0);
+  EXPECT_DOUBLE_EQ(cost, 7.0);
   // test 2 (null)
   path = null_dijkstra(0, target_point, cost, &popped_points_null);
   EXPECT_EQ(path, expected_path);
-  EXPECT_EQ(cost, 7.0);
+  EXPECT_DOUBLE_EQ(cost, 7.0);
   EXPECT_TRUE(popped_points_euclid < popped_points_null);
 
   // test 3 (euclid)
@@ -178,11 +150,11 @@ TEST_F(DijkstraTest, EuclideanHeuristic) {
   path = euclidean_dijkstra(0, target_point, cost, &popped_points_euclid);
   expected_path = { &edges[1], &edges[3], &edges[14] };
   EXPECT_EQ(path, expected_path);
-  EXPECT_EQ(cost, 7.9);
+  EXPECT_DOUBLE_EQ(cost, 7.9);
   // test 2 (null)
   path = null_dijkstra(0, target_point, cost, &popped_points_null);
   EXPECT_EQ(path, expected_path);
-  EXPECT_EQ(cost, 7.9);
+  EXPECT_DOUBLE_EQ(cost, 7.9);
   EXPECT_TRUE(popped_points_euclid < popped_points_null);
 }
 
