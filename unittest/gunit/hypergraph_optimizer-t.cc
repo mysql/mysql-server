@@ -5530,6 +5530,69 @@ TEST_F(CSETest, ShortCircuitWithMultipleElements) {
             "((t1.x = 0) and (t1.y = 1))");
 }
 
+namespace {
+// A fake handler implementation that can be used in microbenchmarks. The
+// Mock_HANDLER object in Fake_TABLE has a lot of instrumentation that disturbs
+// the timing, so we roll our own lightweight handler instead.
+class Fake_handler_for_benchmark final : public handler {
+ public:
+  explicit Fake_handler_for_benchmark(Fake_TABLE *table_arg)
+      : handler(table_arg->file->ht, table_arg->s) {
+    set_ha_table(table_arg);
+  }
+
+  // Report that range scans are supported, so that the range optimizer has
+  // something to work with.
+  ulong index_flags(uint, uint, bool) const override {
+    return HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV;
+  }
+
+  // Report that primary keys are clustered, to match InnoDB's default.
+  bool primary_key_is_clustered() const override { return true; }
+
+  // Just stub out the rest of the functions. Raise assert failures on those
+  // that are only expected to be called during execution.
+
+  void position(const uchar *) override { assert(false); }
+  int info(uint) override { return 0; }
+  const char *table_type() const override { return "fake"; }
+  THR_LOCK_DATA **store_lock(THD *, THR_LOCK_DATA **,
+                             enum thr_lock_type) override {
+    assert(false);
+    return nullptr;
+  }
+  int create(const char *, TABLE *, HA_CREATE_INFO *, dd::Table *) override {
+    assert(false);
+    return HA_ERR_WRONG_COMMAND;
+  }
+
+ protected:
+  int rnd_next(uchar *) override {
+    assert(false);
+    return HA_ERR_WRONG_COMMAND;
+  }
+  int rnd_pos(uchar *, uchar *) override {
+    assert(false);
+    return HA_ERR_WRONG_COMMAND;
+  }
+
+ private:
+  int open(const char *, int, uint, const dd::Table *) override {
+    assert(false);
+    return HA_ERR_WRONG_COMMAND;
+  }
+  int close() override {
+    assert(false);
+    return HA_ERR_WRONG_COMMAND;
+  }
+  int rnd_init(bool) override {
+    assert(false);
+    return HA_ERR_WRONG_COMMAND;
+  }
+  Table_flags table_flags() const override { return 0; }
+};
+}  // namespace
+
 // Measures the time spent in FindBestQueryPlan() and
 // FinalizePlanForQueryBlock() for a point-select query.
 static void BM_FindBestQueryPlanPointSelect(size_t num_iterations) {
@@ -5548,16 +5611,13 @@ static void BM_FindBestQueryPlanPointSelect(size_t num_iterations) {
   // Make t1.x the primary key. Add secondary indexes on t1.y and t1.z, just to
   // give the optimizer some more information to look into.
   Fake_TABLE *t1 = fake_tables["t1"];
+  Fake_handler_for_benchmark fake_handler(t1);
+  t1->set_handler(&fake_handler);
   t1->s->primary_key = t1->create_index(t1->field[0], nullptr, /*unique=*/true);
   t1->create_index(t1->field[1], nullptr, /*unique=*/false);
   t1->create_index(t1->field[2], nullptr, /*unique=*/false);
   t1->file->stats.records = 100000;
   t1->file->stats.data_file_length = 1e8;
-
-  // Mark the indexes as supporting range scans, so that the range optimizer
-  // gets some information to process.
-  ON_CALL(*down_cast<Mock_HANDLER *>(t1->file), index_flags(_, _, _))
-      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
 
   const size_t mem_root_size_after_resolving = thd->mem_root->allocated_size();
 
