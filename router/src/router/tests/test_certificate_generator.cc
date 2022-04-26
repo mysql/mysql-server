@@ -38,13 +38,9 @@
 
 namespace {
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-const BIGNUM *RSA_get0_n(const RSA *rsa) const { return rsa->n; }
+const BIGNUM *RSA_get0_n(const RSA *rsa) { return rsa->n; }
 
-RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey) const { return pkey->pkey.rsa; }
-#endif
-
-#if (OPENSSL_VERSION_NUMBER < 0x10000000L)
-int EVP_PKEY_id(const EVP_PKEY *pkey) const { return pkey->type; }
+RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey) { return pkey->pkey.rsa; }
 #endif
 }  // namespace
 
