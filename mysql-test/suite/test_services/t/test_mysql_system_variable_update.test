@@ -54,6 +54,19 @@ SELECT test_set_system_variable_string(0, "super_read_only", "on", "PERSIST_ONLY
 SELECT VARIABLE_VALUE,@@global.super_read_only
   FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='super_read_only';
 
+--echo # reset persisted value
+RESET PERSIST super_read_only;
+
+--echo # Show initial value of super read only before next test
+SELECT @@global.super_read_only;
+
+--echo # Bug#34072134: mysql_system_variable_update_string::set does not allow NULL for variable_type
+--echo # Try setting super_read_only on using NULL type (defaults to GLOBAL). Should succeed
+SELECT test_set_system_variable_string(0, "super_read_only", "on", NULL);
+
+--echo # Ensure the value of super read only is on
+SELECT @@global.super_read_only;
+
 --echo # Cleanup
 SET GLOBAL read_only = DEFAULT;
 RESET PERSIST;

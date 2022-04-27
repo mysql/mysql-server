@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -147,7 +147,7 @@ DEFINE_BOOL_METHOD(mysql_system_variable_update_string_imp::set,
     THD *thd;
     std::unique_ptr<Storing_auto_THD> athd = nullptr;
     enum_var_type var_type = sysvar_type(variable_type);
-    if (var_type == OPT_DEFAULT) return true;
+    if (var_type == OPT_DEFAULT) var_type = OPT_GLOBAL;
 
     /* Use either the THD provided or create a temporary one */
     if (hthd)
