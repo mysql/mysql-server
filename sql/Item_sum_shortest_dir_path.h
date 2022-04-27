@@ -16,7 +16,7 @@
 class Item_sum_shortest_dir_path final : public Item_sum_json {
   int m_begin_node, m_end_node;
   // * accumulated edges from ::add. map key = node id of edge origin (i.e. Edge.from)
-  malloc_unordered_multimap<int, const Edge*> m_edge_map;
+  malloc_unordered_multimap<int, const Edge> m_edge_map;
   // * accumulated points from ::add. map key = node id
   malloc_unordered_map<int, std::unique_ptr<gis::Geometry>> m_point_map;
   // map of all used edge ids (used to check for id overlap)

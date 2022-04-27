@@ -11,8 +11,9 @@ Dijkstra<EdgeAllocator>::Dijkstra(const EdgeMapType* edges,
       m_point_map(CallbackAllocator<std::pair<const int, Point>>(allocate)), m_point_heap(CallbackAllocator<int>(allocate)) {}
 
 template<class EdgeAllocator>
-std::vector<const Edge*> Dijkstra<EdgeAllocator>::operator()(const int& start_point_id, const int& end_point_id, double& total_cost,
-                                                             int *popped_points, const std::function<bool()>& stop){
+std::vector<Edge> Dijkstra<EdgeAllocator>::operator()(const int& start_point_id, const int& end_point_id,
+                                                      double* total_cost, int *popped_points,
+                                                      const std::function<bool()>& stop) {
   m_point_map.clear();
   m_point_heap.clear();
   int popped_points_ = 0;
@@ -23,20 +24,20 @@ std::vector<const Edge*> Dijkstra<EdgeAllocator>::operator()(const int& start_po
     const std::pair<edge_iterator, edge_iterator> edge_range_it = m_edges->equal_range(point);
     // checks all edges from point (i.e. current point)
     for (edge_iterator edge_it = edge_range_it.first; edge_it != edge_range_it.second; edge_it++) {
-      const Edge *edge = edge_it->second;
+      const Edge& edge = edge_it->second;
       // grabs existing node or creates new with cost of INFINITY inside map
-      Point& node_to = m_point_map[edge->to];
+      Point& node_to = m_point_map[edge.to];
       
       // ignore longer paths
-      double new_cost = node.cost + edge->cost;
+      double new_cost = node.cost + edge.cost;
       if (new_cost >= node_to.cost)
         continue;
       
       node_to.cost = new_cost;
-      node_to.cost_heu = new_cost + m_heu(edge->to);
-      node_to.path = edge;
+      node_to.cost_heu = new_cost + m_heu(edge.to);
+      node_to.path = &edge;
 
-      m_point_heap.push_back(edge->to);
+      m_point_heap.push_back(edge.to);
       std::push_heap(m_point_heap.begin(), m_point_heap.end(), heap_cmp);
     }
     if (m_point_heap.empty() || stop())
@@ -48,16 +49,17 @@ std::vector<const Edge*> Dijkstra<EdgeAllocator>::operator()(const int& start_po
   }
   if (popped_points)
     *popped_points = popped_points_;
-  total_cost = node.cost;
+  if (total_cost)
+    *total_cost = node.cost;
   return retrace(point, start_point_id);
 }
 
 template<class EdgeAllocator>
-std::vector<const Edge*> Dijkstra<EdgeAllocator>::retrace(int from_point, const int& to_point){
-  std::vector<const Edge*> path;
+std::vector<Edge> Dijkstra<EdgeAllocator>::retrace(int from_point, const int& to_point){
+  std::vector<Edge> path;
   while (from_point != to_point) {
     const Edge* path_ = m_point_map[from_point].path;
-    path.push_back(path_);
+    path.push_back(*path_);
     from_point = path_->from;
   }
   std::reverse(path.begin(), path.end());
@@ -65,7 +67,7 @@ std::vector<const Edge*> Dijkstra<EdgeAllocator>::retrace(int from_point, const 
 }
 
 
-template class Dijkstra<std::allocator<std::pair<const int, const Edge*>>>;
+template class Dijkstra<std::allocator<std::pair<const int, const Edge>>>;
 #ifdef MYSQL_SERVER
-template class Dijkstra<Malloc_allocator<std::pair<const int, const Edge*>>>;
+template class Dijkstra<Malloc_allocator<std::pair<const int, const Edge>>>;
 #endif

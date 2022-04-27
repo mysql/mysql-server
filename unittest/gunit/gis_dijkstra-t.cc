@@ -17,11 +17,24 @@ class DijkstraTest : public ::testing::Test {
 
 // check that cost is total path cost
 // ! floating point cmp
-void check_cost(const std::vector<const Edge*>& path , const double& cost){
+void check_cost(const std::vector<Edge>& path , const double& cost){
   double expected_cost = 0;
-  for (const Edge* e : path)
-    expected_cost += e->cost;
+  for (const Edge& e : path)
+    expected_cost += e.cost;
   EXPECT_DOUBLE_EQ(cost, expected_cost);
+}
+
+// disables edge in map by setting cost to INFINITY
+void disable_edge(const std::unordered_multimap<int, const Edge>& map, Edge& edge){
+  auto range = map.equal_range(edge.from);
+  for (auto it = range.first; it != range.second; it++) {
+    if (it->second == edge) {
+      // TODO remove const cast
+      const_cast<Edge*>(&it->second)->cost = INFINITY;
+      edge.cost = INFINITY;
+      return;
+    }
+  }
 }
 
 // test dijkstra without heuristic
@@ -40,29 +53,29 @@ TEST_F(DijkstraTest, NullHeuristic) {
   };
   size_t n_edges = sizeof(edges) / sizeof(Edge);
   
-  std::unordered_multimap<int, const Edge*> edge_map;
+  std::unordered_multimap<int, const Edge> edge_map;
   for (size_t i = 0; i < n_edges; i++) {
     Edge& e = edges[i];
-    edge_map.insert(std::pair(e.from, &e));
+    edge_map.insert(std::pair(e.from, e));
   }
   double cost;
   Dijkstra dijkstra(&edge_map);
 
   // check 0 -> 3
-  std::vector<const Edge*> path = dijkstra(0, 3, cost);
-  std::vector<const Edge*> expected_path = { &edges[0], &edges[2], &edges[4] };
+  std::vector<Edge> path = dijkstra(0, 3, &cost);
+  std::vector<Edge> expected_path = { edges[0], edges[2], edges[4] };
   EXPECT_EQ(path, expected_path);
   check_cost(path, cost);
 
   // check 0 -> 4
-  path = dijkstra(0, 4, cost);
-  expected_path = { &edges[8] };
+  path = dijkstra(0, 4, &cost);
+  expected_path = { edges[8] };
   EXPECT_EQ(path, expected_path);
   check_cost(path, cost);
 
   // check 1 -> 0
-  path = dijkstra(1, 0, cost);
-  expected_path = { &edges[2], &edges[4], &edges[6] };
+  path = dijkstra(1, 0, &cost);
+  expected_path = { edges[2], edges[4], edges[6] };
   EXPECT_EQ(path, expected_path);
   check_cost(path, cost);
 }
@@ -107,10 +120,10 @@ TEST_F(DijkstraTest, EuclideanHeuristic) {
   // A 0 -> D 3 -> B 1 -> G 6 : 7.9m (test 3)
   size_t n_edges = sizeof(edges) / sizeof(Edge);
   
-  std::unordered_multimap<int, const Edge*> edge_map;
+  std::unordered_multimap<int, const Edge> edge_map;
   for (size_t i = 0; i < n_edges; i++) {
     Edge& e = edges[i];
-    edge_map.insert(std::pair(e.from, &e));
+    edge_map.insert(std::pair(e.from, e));
   }
   double cost;
   int target_point = 6; // G
@@ -123,36 +136,36 @@ TEST_F(DijkstraTest, EuclideanHeuristic) {
     );
   }};
   // test 1 (euclid)
-  std::vector<const Edge*> path = euclidean_dijkstra(0, target_point, cost, &popped_points_euclid);
-  std::vector<const Edge*> expected_path = { &edges[11], &edges[12] };
+  std::vector<Edge> path = euclidean_dijkstra(0, target_point, &cost, &popped_points_euclid);
+  std::vector<Edge> expected_path = { edges[11], edges[12] };
   EXPECT_EQ(path, expected_path);
   EXPECT_DOUBLE_EQ(cost, 5.5);
   // test 1 (null)
-  path = null_dijkstra(0, target_point, cost, &popped_points_null);
+  path = null_dijkstra(0, target_point, &cost, &popped_points_null);
   EXPECT_EQ(path, expected_path);
   EXPECT_DOUBLE_EQ(cost, 5.5);
   EXPECT_TRUE(popped_points_euclid < popped_points_null);
 
   // test 2 (euclid)
-  edges[12].cost = INFINITY; // disables prev best path (fine since heu <= cost)
-  path = euclidean_dijkstra(0, target_point, cost, &popped_points_euclid);
-  expected_path = { &edges[2], &edges[10] };
+  disable_edge(edge_map, edges[12]); // disables prev best path (fine since heu <= cost)
+  path = euclidean_dijkstra(0, target_point, &cost, &popped_points_euclid);
+  expected_path = { edges[2], edges[10] };
   EXPECT_EQ(path, expected_path);
   EXPECT_DOUBLE_EQ(cost, 7.0);
   // test 2 (null)
-  path = null_dijkstra(0, target_point, cost, &popped_points_null);
+  path = null_dijkstra(0, target_point, &cost, &popped_points_null);
   EXPECT_EQ(path, expected_path);
   EXPECT_DOUBLE_EQ(cost, 7.0);
   EXPECT_TRUE(popped_points_euclid < popped_points_null);
 
   // test 3 (euclid)
-  edges[10].cost = INFINITY; // disables prev best path
-  path = euclidean_dijkstra(0, target_point, cost, &popped_points_euclid);
-  expected_path = { &edges[1], &edges[3], &edges[14] };
+  disable_edge(edge_map, edges[10]); // disables prev best path
+  path = euclidean_dijkstra(0, target_point, &cost, &popped_points_euclid);
+  expected_path = { edges[1], edges[3], edges[14] };
   EXPECT_EQ(path, expected_path);
   EXPECT_DOUBLE_EQ(cost, 7.9);
   // test 2 (null)
-  path = null_dijkstra(0, target_point, cost, &popped_points_null);
+  path = null_dijkstra(0, target_point, &cost, &popped_points_null);
   EXPECT_EQ(path, expected_path);
   EXPECT_DOUBLE_EQ(cost, 7.9);
   EXPECT_TRUE(popped_points_euclid < popped_points_null);

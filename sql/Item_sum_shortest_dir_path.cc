@@ -48,16 +48,18 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
   
   double cost;
   int popped_points;
-  std::vector<const Edge*> path;
+  std::vector<Edge> path;
   try {
     // Dijkstra's externally allocated memory (my_malloc)
     std::deque<void*> allocated_memory;
-    Dijkstra dijkstra(&m_edge_map, heuristic, [&allocated_memory](const size_t n) -> void* {
-      void* p = my_malloc(key_memory_Dijkstra, n, MYF(MY_WME | ME_FATALERROR));
-      allocated_memory.push_front(p);
-      return p;
-    });
-    path = dijkstra(m_begin_node, m_end_node, cost, &popped_points, stop_dijkstra);
+    {
+      Dijkstra dijkstra(&m_edge_map, heuristic, [&allocated_memory](const size_t n) -> void* {
+        void* p = my_malloc(key_memory_Dijkstra, n, MYF(MY_WME | ME_FATALERROR));
+        allocated_memory.push_front(p);
+        return p;
+      });
+      path = dijkstra(m_begin_node, m_end_node, &cost, &popped_points, stop_dijkstra);
+    }
     // deallocating Dijkstra's borrowed memory
     for (void* p : allocated_memory)
       my_free(p);
@@ -75,12 +77,12 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
   if (stop_dijkstra())
     return error_json();
   // jsonifying path from dijkstra into arr
-  for (const Edge* edge : path) {
+  for (const Edge edge : path) {
     Json_object_ptr json_edge(new (std::nothrow) Json_object());
     if (
       json_edge == nullptr ||
-      json_edge->add_alias("id", jsonify_to_heap(edge->id)) ||
-      json_edge->add_alias("cost", jsonify_to_heap(edge->cost)) ||
+      json_edge->add_alias("id", jsonify_to_heap(edge.id)) ||
+      json_edge->add_alias("cost", jsonify_to_heap(edge.cost)) ||
       //json_edge->add_alias("from", jsonify_to_heap(edge->from)) ||
       //json_edge->add_alias("to", jsonify_to_heap(edge->to)) ||
       arr->append_alias(std::move(json_edge)))
@@ -200,7 +202,7 @@ bool Item_sum_shortest_dir_path::add() {
 
   // store edge
   try {
-    Edge *edge = new (thd->mem_root) Edge{ id, from_id, to_id, cost };
+    Edge edge = Edge{ id, from_id, to_id, cost };
     m_edge_map.insert(std::pair(from_id, edge));
   } catch (...) { // handles std::bad_alloc
     handle_std_exception(func_name());

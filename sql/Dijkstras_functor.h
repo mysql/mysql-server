@@ -6,6 +6,7 @@
 #include <functional>       // std::function
 #include <algorithm>        // std::push_heap & std::reverse
 #include <cmath>            // INFINITY
+#include <cstring>          // memcmp
 
 /**
  * @brief Edge data for Dijkstra functor
@@ -17,6 +18,10 @@ struct Edge {
   int from, to;
   // weight
   double cost;
+  // TODO mv to gis_dijkstra-t.cc
+  bool operator==(const Edge& other) const {
+    return !memcmp(this, &other, sizeof(Edge));
+  }
 };
 
 /**
@@ -61,7 +66,7 @@ class Dijkstra {
     }
   };
 
-  typedef std::unordered_multimap<int, const Edge*, std::hash<int>, std::equal_to<int>, EdgeAllocator> EdgeMapType;
+  typedef std::unordered_multimap<int, const Edge, std::hash<int>, std::equal_to<int>, EdgeAllocator> EdgeMapType;
   typedef typename EdgeMapType::const_iterator edge_iterator;
 
   // key = Edge.from
@@ -107,24 +112,22 @@ class Dijkstra {
    * 
    * @param start_point_id node id of path start
    * @param end_point_id node if of path end
-   * @param total_cost l-val-ref returns total cost of found path (if path exists)
-   * @param stop callback for exiting function. called every ...
+   * @param total_cost ptr to return total cost of found path (if path exists) (can be nulltpr)
    * @param popped_points ptr to return #popped/visited points/nodes (can be nullptr)
-   * @return std::vector<const Edge*> vector of pointers, pointing to edges in
-   *  m_edges, representing found path, or empty vector if stoped by param stop or no path exists
+   * @param stop callback for exiting function. called every ...
+   * @return std::vector<const Edge> vector of edges in representing found path, or empty vector if stoped by param stop or no path exists
    */
-  std::vector<const Edge*> operator()(const int& start_point_id, const int& end_point_id, double& total_cost,
-                                      int *popped_points = nullptr,
-                                      const std::function<bool()>& stop = []() -> bool { return false; });
+  std::vector<Edge> operator()(const int& start_point_id, const int& end_point_id,
+                               double* total_cost = nullptr, int *popped_points = nullptr,
+                               const std::function<bool()>& stop = []() -> bool { return false; });
  private:
   /**
    * @brief finds path by accumulating Point.path from m_point_map and reverting their order
-   * ! NB: will deref invalid ptr if path doesn't exist
    * @param from_point node id of path start
    * @param to_point node id of path end
-   * @return std::vector<const Edge*> path found in m_point_map.path
+   * @return std::vector<const Edge> path found in m_point_map.path
    */
-  std::vector<const Edge*> retrace(int from_point, const int& to_point);
+  std::vector<Edge> retrace(int from_point, const int& to_point);
 
 };
 
