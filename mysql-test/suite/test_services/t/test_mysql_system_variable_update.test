@@ -2,36 +2,60 @@
 --echo # WL#12002: SET system variable values as a component service
 --echo #
 
+--source ../../service_sys_var_registration/include/have_component_test_sys_var_service.inc
+
 call mtr.add_suppression("Setting session values for system variables only makes sense in a user session");
+call mtr.add_suppression("duplicate variable name");
+
+# max unsigned long long depends on environment
+--source include/check_64bit_machine.inc
+if ($have_64bit_machine) {
+  --let $maxint = 18446744073709551615
+}
+if (!$have_64bit_machine) {
+  --let $maxint = 4294967295
+}
+
+--disable_query_log
+eval SET @ui_max = $maxint;
+--enable_query_log
 
 INSTALL COMPONENT "file://component_test_mysql_system_variable_set";
+INSTALL COMPONENT "file://component_test_sys_var_service";
+
+# remember original state
+SET @orig_connection_memory_limit = @@GLOBAL.connection_memory_limit;
+SET @orig_lc_messages = @@GLOBAL.lc_messages;
 
 --echo # Ensure the value of super read only is off
 SELECT @@global.super_read_only;
 
 --echo # Try setting wrong variable name in the same thread. Should fail
 --error ER_UNKNOWN_SYSTEM_VARIABLE
-SELECT test_set_system_variable_string(0, "the_meaning_of_life", "42", "GLOBAL");
+SELECT test_set_system_variable_string(0, NULL, "the_meaning_of_life", "42", "GLOBAL");
 
 --echo # Try setting wrong variable name in a new sub-thread. Should fail
 --error ER_UNKNOWN_SYSTEM_VARIABLE
-SELECT test_set_system_variable_string(1, "the_meaning_of_life", "42", "GLOBAL");
+SELECT test_set_system_variable_string(1, NULL, "the_meaning_of_life", "42", "GLOBAL");
+
+--echo # Try setting wrong (empty) variable name in the same thread. Should fail with NULL
+SELECT test_set_system_variable_string(0, NULL, "", "42", "GLOBAL");
 
 --echo # Try setting wrong value to super_read_only, Should fail
 --error ER_WRONG_VALUE_FOR_VAR
-SELECT test_set_system_variable_string(0, "super_read_only", "gizmo", "GLOBAL");
+SELECT test_set_system_variable_string(0, NULL, "super_read_only", "gizmo", "GLOBAL");
 
 --echo # Ensure the value of super read only is still off
 SELECT @@global.super_read_only;
 
 --echo # Try setting super_read_only on using the same thread. Should succeed
-SELECT test_set_system_variable_string(0, "super_read_only", "on", "GLOBAL");
+SELECT test_set_system_variable_string(0, NULL, "super_read_only", "on", "GLOBAL");
 
 --echo # Ensure the value of super read only is on
 SELECT @@global.super_read_only;
 
 --echo # Try setting super_read_only to off using a new sub-thread. Should succeed
-SELECT test_set_system_variable_string(1, "super_read_only", "off", "GLOBAL");
+SELECT test_set_system_variable_string(1, NULL, "super_read_only", "off", "GLOBAL");
 
 --echo # Ensure the value of super read only is off
 SELECT @@global.super_read_only;
@@ -40,7 +64,7 @@ SELECT @@global.super_read_only;
 SELECT * FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='super_read_only';
 
 --echo # Try setting PERSIST super_read_only. Should succeed
-SELECT test_set_system_variable_string(0, "super_read_only", "off", "PERSIST");
+SELECT test_set_system_variable_string(0, NULL, "super_read_only", "off", "PERSIST");
 
 --echo # Check that the variable is now persisted:
 SELECT VARIABLE_VALUE,@@global.super_read_only
@@ -50,7 +74,7 @@ SELECT VARIABLE_VALUE,@@global.super_read_only
 RESET PERSIST super_read_only;
 
 --echo # Try setting PERSIST_ONLY super_read_only. Should succeed
-SELECT test_set_system_variable_string(0, "super_read_only", "on", "PERSIST_ONLY");
+SELECT test_set_system_variable_string(0, NULL, "super_read_only", "on", "PERSIST_ONLY");
 
 --echo # Check that the variable is now persisted only but not changed:
 SELECT VARIABLE_VALUE,@@global.super_read_only
@@ -59,28 +83,434 @@ SELECT VARIABLE_VALUE,@@global.super_read_only
 --echo # reset persisted value
 RESET PERSIST super_read_only;
 
+--echo # Show initial value of str_sys_var component system variable
+SELECT @@test_component.str_sys_var;
+
+--echo # Try setting str_sys_var from test component to some value. Should succeed
+SELECT test_set_system_variable_string(0, "test_component", "str_sys_var", "Sample text", "GLOBAL");
+
+--echo # Ensure the value of str_sys_var component system variable has changed
+SELECT @@test_component.str_sys_var;
+
 --echo # Show initial value of super read only before next test
 SELECT @@global.super_read_only;
 
 --echo # Bug#34072134: mysql_system_variable_update_string::set does not allow NULL for variable_type
 --echo # Try setting super_read_only on using NULL type (defaults to GLOBAL). Should succeed
-SELECT test_set_system_variable_string(0, "super_read_only", "on", NULL);
+SELECT test_set_system_variable_string(0, NULL, "super_read_only", "on", NULL);
 
 --echo # Ensure the value of super read only is on
 SELECT @@global.super_read_only;
 
 --echo # Bug#34072155: Improve mysql_system_variable_update_string::set to add error information
 --echo # Try using SESSION type with sub-thread, Should fail with NULL
-SELECT test_set_system_variable_string(1, "super_read_only", "off", "SESSION");
+SELECT test_set_system_variable_string(1, NULL, "super_read_only", "off", "SESSION");
 
 --echo # Ensure the value of super read only is still on
 SELECT @@global.super_read_only;
 
+--echo # Bug#34302316: Sig11 when passing THD parameter value greater than 0 via service methods
+--echo # Try setting PERSIST_ONLY super_read_only with sub-thread. Should succeed
+SELECT test_set_system_variable_string(1, NULL, "super_read_only", "off", "PERSIST_ONLY");
+
+--echo # Check that the variable is now persisted only but not changed:
+SELECT VARIABLE_VALUE,@@global.super_read_only
+  FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='super_read_only';
+
+--echo # Try setting PERSIST super_read_only with sub-thread. Should succeed
+SELECT test_set_system_variable_string(1, NULL, "super_read_only", "off", "PERSIST");
+
+--echo # reset persisted value
+RESET PERSIST super_read_only;
+
+--echo #
+--echo # WL#15168: Component service to set integer values to sysvars
+--echo #
+
+--echo
+--echo # 1. Testing mysql_service_mysql_system_variable_update_integer::set_signed method
+--echo
+
+--echo # Try setting wrong variable name in the same thread. Should fail
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT test_set_system_variable_signed_integer(0, NULL, "the_meaning_of_life", 42, "GLOBAL");
+
+--echo # Try setting wrong variable name in a new sub-thread. Should fail
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT test_set_system_variable_signed_integer(1, NULL, "the_meaning_of_life", 42, "GLOBAL");
+
+--echo # Try setting wrong (empty) variable name in the same thread. Should fail with NULL
+SELECT test_set_system_variable_signed_integer(0, NULL, "", 42, "GLOBAL");
+
+--echo # Set initial value of connection_memory_limit before the test
+SET @@global.connection_memory_limit = 16777216;
+
+--echo # Try setting connection_memory_limit to valid value. Should succeed
+SELECT test_set_system_variable_signed_integer(0, NULL, "connection_memory_limit", 33333333, "GLOBAL");
+
+--echo # Ensure the value of connection_memory_limit has changed
+SELECT @@global.connection_memory_limit;
+
+--echo # Try setting connection_memory_limit to max value. Should succeed but value truncated (differs on 32 vs 64-bit)
+--disable_warnings
+SELECT test_set_system_variable_signed_integer(0, NULL, "connection_memory_limit", @ui_max, "GLOBAL");
+--enable_warnings
+
+--echo # Try setting admin_port (read-only variable) to valid value. Should fail
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT test_set_system_variable_signed_integer(0, NULL, "admin_port", 10000, "GLOBAL");
+
+--echo # Show initial value of block_encryption_mode before the test
+SELECT @@global.block_encryption_mode;
+
+--echo # Try setting block_encryption_mode (string with limited set of accepted values) to integer. Should fail
+--error ER_WRONG_VALUE_FOR_VAR
+SELECT test_set_system_variable_signed_integer(0, NULL, "block_encryption_mode", 10000, "GLOBAL");
+
+--echo # Ensure the value of block_encryption_mode has not changed
+SELECT @@global.block_encryption_mode;
+
+--echo # Try setting string variable to an integer. Should fail
+--error ER_WRONG_TYPE_FOR_VAR
+SELECT test_set_system_variable_signed_integer(0, NULL, "init_connect", 42, "GLOBAL");
+
+--echo # Try setting super_read_only (boolean) to integer. Should fail
+--error ER_WRONG_VALUE_FOR_VAR
+SELECT test_set_system_variable_signed_integer(0, NULL, "super_read_only", 10000, "GLOBAL");
+
+--echo # Ensure the value of super_read_only has not changed
+SELECT @@global.super_read_only;
+
+--echo # Try setting super_read_only (boolean) to value that can be converted to boolean. Should suceed
+SELECT test_set_system_variable_signed_integer(0, NULL, "super_read_only", 0, "GLOBAL");
+
+--echo # Ensure the value of super_read_only has changed
+SELECT @@global.super_read_only;
+
+--echo # Check that the variable connection_memory_limit is not yet persisted:
+SELECT * FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='connection_memory_limit';
+
+--echo # Try setting PERSIST connection_memory_limit. Should succeed
+SELECT test_set_system_variable_signed_integer(0, NULL, "connection_memory_limit", 44444444, "PERSIST");
+
+--echo # Check that the variable is now persisted:
+SELECT VARIABLE_VALUE,@@global.connection_memory_limit
+  FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='connection_memory_limit';
+
+--echo # reset persisted value
+RESET PERSIST connection_memory_limit;
+
+--echo # Try setting PERSIST_ONLY connection_memory_limit. Should succeed
+SELECT test_set_system_variable_signed_integer(0, NULL, "connection_memory_limit", 55555555, "PERSIST_ONLY");
+
+--echo # Check that the variable is now persisted only but not changed:
+SELECT VARIABLE_VALUE,@@global.connection_memory_limit
+  FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='connection_memory_limit';
+
+--echo # reset persisted value
+RESET PERSIST connection_memory_limit;
+
+--echo # Try setting connection_memory_limit with NULL type (defaults to GLOBAL). Should succeed
+SELECT test_set_system_variable_signed_integer(0, NULL, "connection_memory_limit", 77777777, NULL);
+
+--echo # Ensure the value has changed
+SELECT @@global.connection_memory_limit;
+
+--echo # Set initial session value before the test
+SET @@session.connection_memory_limit=55555555;
+
+--echo # Try using SESSION type with sub-thread, Should fail with NULL
+SELECT test_set_system_variable_signed_integer(1, NULL, "connection_memory_limit", 88888888, "SESSION");
+
+--echo # Ensure the session value has not changed
+SELECT @@session.connection_memory_limit;
+
+--echo # Try using SESSION type with current thread, Should succeed
+SELECT test_set_system_variable_signed_integer(0, NULL, "connection_memory_limit", 99999999, "SESSION");
+
+--echo # Ensure the session value has changed
+SELECT @@session.connection_memory_limit;
+
+--echo # Show initial value of int_sys_var component system variable
+SELECT @@test_component.int_sys_var;
+
+--echo # Try setting int_sys_var from test component to some value. Should succeed
+SELECT test_set_system_variable_signed_integer(0, "test_component", "int_sys_var", 1024, "GLOBAL");
+
+--echo # Ensure the value of int_sys_var component system variable has changed
+SELECT @@test_component.int_sys_var;
+
+--echo # Bug#34294012: Sig11 when passing THD parameter value greater than 0 via service methods
+--echo # Try setting PERSIST_ONLY connection_memory_limit with sub-thread. Should succeed
+SELECT test_set_system_variable_signed_integer(1, NULL, "connection_memory_limit", 5000000, "PERSIST_ONLY");
+
+--echo # Check that the variable is now persisted only but not changed:
+SELECT VARIABLE_VALUE,@@global.connection_memory_limit
+  FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='connection_memory_limit';
+
+--echo # Try setting PERSIST connection_memory_limit with sub-thread. Should succeed
+SELECT test_set_system_variable_signed_integer(1, NULL, "connection_memory_limit", 5000000, "PERSIST");
+
+--echo # reset persisted value
+RESET PERSIST connection_memory_limit;
+
+--echo
+--echo # 2. Testing mysql_service_mysql_system_variable_update_integer::set_unsigned method
+--echo
+
+--echo # Try setting wrong variable name in the same thread. Should fail
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT test_set_system_variable_unsigned_integer(0, NULL, "the_meaning_of_life", 42, "GLOBAL");
+
+--echo # Try setting wrong variable name in a new sub-thread. Should fail
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT test_set_system_variable_unsigned_integer(1, NULL, "the_meaning_of_life", 42, "GLOBAL");
+
+--echo # Try setting wrong (empty) variable name in the same thread. Should fail with NULL
+SELECT test_set_system_variable_unsigned_integer(0, NULL, "", 42, "GLOBAL");
+
+--echo # Show initial value before the test
+SELECT @@global.connection_memory_limit;
+
+--echo # Try setting connection_memory_limit to max value. Should succeed
+SELECT test_set_system_variable_unsigned_integer(0, NULL, "connection_memory_limit", @ui_max, "GLOBAL");
+
+--echo # Ensure the value of connection_memory_limit has changed
+SELECT @@global.connection_memory_limit = @ui_max;
+
+--echo # Try setting connection_memory_limit to other valid value. Should succeed
+SELECT test_set_system_variable_unsigned_integer(0, NULL, "connection_memory_limit", 33333333, "GLOBAL");
+
+--echo # Ensure the value of connection_memory_limit has changed
+SELECT @@global.connection_memory_limit;
+
+--echo # Try setting connection_memory_limit to negative value. Should succeed (but value truncated)
+--disable_warnings
+SELECT test_set_system_variable_unsigned_integer(0, NULL, "connection_memory_limit", -100000, "GLOBAL");
+--enable_warnings
+
+--echo # Try setting admin_port (read-only variable) to valid value. Should fail
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT test_set_system_variable_unsigned_integer(0, NULL, "admin_port", 10000, "GLOBAL");
+
+--echo # Show initial value of block_encryption_mode before the test
+SELECT @@global.block_encryption_mode;
+
+--echo # Try setting block_encryption_mode (string with limited set of accepted values) to integer. Should fail
+--error ER_WRONG_VALUE_FOR_VAR
+SELECT test_set_system_variable_unsigned_integer(0, NULL, "block_encryption_mode", 10000, "GLOBAL");
+
+--echo # Ensure the value of block_encryption_mode has not changed
+SELECT @@global.block_encryption_mode;
+
+--echo # Try setting string variable to an integer. Should fail
+--error ER_WRONG_TYPE_FOR_VAR
+SELECT test_set_system_variable_unsigned_integer(0, NULL, "init_connect", 42, "GLOBAL");
+
+--echo # Try setting super_read_only (boolean) to integer. Should fail
+--error ER_WRONG_VALUE_FOR_VAR
+SELECT test_set_system_variable_unsigned_integer(0, NULL, "super_read_only", 10000, "GLOBAL");
+
+--echo # Ensure the value of super_read_only has not changed
+SELECT @@global.super_read_only;
+
+--echo # Try setting super_read_only (boolean) to value that can be converted to boolean. Should suceed
+SELECT test_set_system_variable_unsigned_integer(0, NULL, "super_read_only", 1, "GLOBAL");
+
+--echo # Ensure the value of super_read_only has changed
+SELECT @@global.super_read_only;
+
+--echo # Check that the variable connection_memory_limit is not yet persisted:
+SELECT * FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='connection_memory_limit';
+
+--echo # Try setting PERSIST connection_memory_limit. Should succeed
+SELECT test_set_system_variable_unsigned_integer(0, NULL, "connection_memory_limit", 44444444, "PERSIST");
+
+--echo # Check that the variable is now persisted:
+SELECT VARIABLE_VALUE,@@global.connection_memory_limit
+  FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='connection_memory_limit';
+
+--echo # reset persisted value
+RESET PERSIST connection_memory_limit;
+
+--echo # Try setting PERSIST_ONLY connection_memory_limit. Should succeed
+SELECT test_set_system_variable_unsigned_integer(0, NULL, "connection_memory_limit", 55555555, "PERSIST_ONLY");
+
+--echo # Check that the variable is now persisted only but not changed:
+SELECT VARIABLE_VALUE,@@global.connection_memory_limit
+  FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='connection_memory_limit';
+
+--echo # reset persisted value
+RESET PERSIST connection_memory_limit;
+
+--echo # Try setting connection_memory_limit with NULL type (defaults to GLOBAL). Should succeed
+SELECT test_set_system_variable_unsigned_integer(0, NULL, "connection_memory_limit", 77777777, NULL);
+
+--echo # Ensure the value has changed
+SELECT @@global.connection_memory_limit;
+
+--echo # Set initial session value before the test
+SET @@session.connection_memory_limit=55555555;
+
+--echo # Try using SESSION type with sub-thread, Should fail with NULL
+SELECT test_set_system_variable_unsigned_integer(1, NULL, "connection_memory_limit", 88888888, "SESSION");
+
+--echo # Ensure the session value has not changed
+SELECT @@session.connection_memory_limit;
+
+--echo # Try using SESSION type with current thread, Should succeed
+SELECT test_set_system_variable_unsigned_integer(0, NULL, "connection_memory_limit", 99999999, "SESSION");
+
+--echo # Ensure the session value has changed
+SELECT @@session.connection_memory_limit;
+
+--echo # Show initial value of uint_sys_var component system variable
+SELECT @@test_component.uint_sys_var;
+
+--echo # Try setting uint_sys_var from test component to some value. Should succeed
+SELECT test_set_system_variable_unsigned_integer(0, "test_component", "uint_sys_var", 100000, "GLOBAL");
+
+--echo # Ensure the value of uint_sys_var component system variable has changed
+SELECT @@test_component.uint_sys_var;
+
+--echo # Bug#34294012: Sig11 when passing THD parameter value greater than 0 via service methods
+--echo # Try setting PERSIST_ONLY connection_memory_limit with sub-thread. Should succeed
+SELECT test_set_system_variable_unsigned_integer(1, NULL, "connection_memory_limit", 6000000, "PERSIST_ONLY");
+
+--echo # Check that the variable is now persisted only but not changed:
+SELECT VARIABLE_VALUE,@@global.connection_memory_limit
+  FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='connection_memory_limit';
+
+--echo # Try setting PERSIST connection_memory_limit with sub-thread. Should succeed
+SELECT test_set_system_variable_unsigned_integer(1, NULL, "connection_memory_limit", 6000000, "PERSIST");
+
+--echo # reset persisted value
+RESET PERSIST connection_memory_limit;
+
+--echo
+--echo # 3. Testing mysql_service_mysql_system_variable_update_default::set method
+--echo
+
+--echo # Try setting wrong variable name in the same thread. Should fail
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT test_set_system_variable_default(0, NULL, "the_meaning_of_life", "GLOBAL");
+
+--echo # Try setting wrong variable name in a new sub-thread. Should fail
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT test_set_system_variable_default(1, NULL, "the_meaning_of_life", "GLOBAL");
+
+--echo # Try setting wrong (empty) variable name in the same thread. Should fail with NULL
+SELECT test_set_system_variable_default(0, NULL, "", "GLOBAL");
+
+--echo # Try setting admin_port (read-only variable) to default value. Should fail
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT test_set_system_variable_default(0, NULL, "admin_port", "GLOBAL");
+
+--echo # Try setting connection_memory_limit (unsigned) to default value. Should succeed
+SELECT test_set_system_variable_default(0, NULL, "connection_memory_limit", "GLOBAL");
+
+--echo # Ensure the value of connection_memory_limit has changed
+SELECT @@global.connection_memory_limit=@ui_max;
+
+--echo # Change value to non-default
+SET @@global.lc_messages = "en_GB";
+
+--echo # Try setting lc_messages (string) to default value. Should succeed
+SELECT test_set_system_variable_default(0, NULL, "lc_messages", "GLOBAL");
+
+--echo # Ensure the value of lc_messages has changed to default
+SELECT @@global.lc_messages;
+
+--echo # Try setting super_read_only (boolean) to default. Should succeed
+SELECT test_set_system_variable_default(0, NULL, "super_read_only", "GLOBAL");
+
+--echo # Ensure the value of super_read_only has changed to OFF
+SELECT @@global.super_read_only;
+
+--echo # Set the session variable to non-default value
+SET @@session.connection_memory_limit=9999999;
+
+--echo # Try using SESSION type with sub-thread, Should fail with NULL
+SELECT test_set_system_variable_default(1, NULL, "connection_memory_limit", "SESSION");
+
+--echo # Ensure the value has not changed
+SELECT @@session.connection_memory_limit;
+
+--echo # Try using SESSION type with current thread, Should succeed
+SELECT test_set_system_variable_default(0, NULL, "connection_memory_limit", "SESSION");
+
+--echo # Ensure the session value has changed
+SELECT @@session.connection_memory_limit=@ui_max;
+
+--echo # Set the variable to non-default value
+SET @@global.connection_memory_limit=16777216;
+
+--echo # Check that the variable connection_memory_limit is not yet persisted:
+SELECT * FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='connection_memory_limit';
+
+--echo # Try setting PERSIST connection_memory_limit. Should succeed
+SELECT test_set_system_variable_default(0, NULL, "connection_memory_limit", "PERSIST");
+
+--echo # Check that the variable is now persisted:
+SELECT VARIABLE_VALUE=@ui_max,@@global.connection_memory_limit=@ui_max
+  FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='connection_memory_limit';
+
+--echo # reset persisted value
+RESET PERSIST connection_memory_limit;
+
+--echo # Set the variable to non-default value
+SET @@global.connection_memory_limit=16777216;
+
+--echo # Try setting PERSIST_ONLY connection_memory_limit. Should succeed
+SELECT test_set_system_variable_default(0, NULL, "connection_memory_limit", "PERSIST_ONLY");
+
+--echo # Check that the variable is now persisted only but not changed:
+SELECT VARIABLE_VALUE=@ui_max,@@global.connection_memory_limit
+  FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='connection_memory_limit';
+
+--echo # reset persisted value
+RESET PERSIST connection_memory_limit;
+
+--echo # Show initial value of uint_sys_var component system variable
+SELECT @@test_component.uint_sys_var;
+
+--echo # Try setting uint_sys_var from test component to default value. Should succeed
+SELECT test_set_system_variable_default(0, "test_component", "uint_sys_var", "GLOBAL");
+
+--echo # Ensure the value of uint_sys_var component system variable has changed
+SELECT @@test_component.uint_sys_var;
+
+--echo # Bug#34294012: Sig11 when passing THD parameter value greater than 0 via service methods
+--echo # Set the variable to non-default value
+SET @@global.connection_memory_limit=16777216;
+
+--echo # Try setting PERSIST_ONLY connection_memory_limit with sub-thread. Should succeed
+SELECT test_set_system_variable_default(1, NULL, "connection_memory_limit", "PERSIST_ONLY");
+
+--echo # Check that the variable is now persisted only but not changed:
+SELECT VARIABLE_VALUE=@ui_max,@@global.connection_memory_limit
+  FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='connection_memory_limit';
+
+--echo # Try setting PERSIST connection_memory_limit with sub-thread. Should succeed
+SELECT test_set_system_variable_default(1, NULL, "connection_memory_limit", "PERSIST");
+
+--echo # reset persisted value
+RESET PERSIST connection_memory_limit;
+
 --echo # Cleanup
+SET @@GLOBAL.connection_memory_limit = @orig_connection_memory_limit;
+SET @@GLOBAL.lc_messages = @orig_lc_messages;
 SET GLOBAL read_only = DEFAULT;
 RESET PERSIST;
 UNINSTALL COMPONENT "file://component_test_mysql_system_variable_set";
+UNINSTALL COMPONENT "file://component_test_sys_var_service";
 
+# Remove component log file
+let $MYSQLD_DATADIR= `select @@datadir`;
+remove_file $MYSQLD_DATADIR/test_component_sys_var_service.log;
+
+# Remove persist file
+remove_file $MYSQLD_DATADIR/mysqld-auto.cnf;
 
 --echo # End of 8.0 tests
 

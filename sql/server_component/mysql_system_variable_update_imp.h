@@ -27,15 +27,36 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/mysql_system_variable.h>
 
 /**
-  An implementation of mysql system_variable_update_string service for the mysql
-  server component.
+  An implementation of mysql system_variable_update_string,
+  system_variable_update_integer and system_variable_update_default services for
+  the mysql server component.
 */
-class mysql_system_variable_update_string_imp {
+class mysql_system_variable_update_imp {
  public:
-  static DEFINE_BOOL_METHOD(set, (MYSQL_THD hthd, const char *variable_type,
-                                  my_h_string variable_base,
-                                  my_h_string variable_name,
-                                  my_h_string variable_value));
+  // system_variable_update_string service methods
+  static DEFINE_BOOL_METHOD(set_string,
+                            (MYSQL_THD hthd, const char *variable_type,
+                             my_h_string variable_base,
+                             my_h_string variable_name,
+                             my_h_string variable_value));
+
+  // system_variable_update_integer service methods
+  static DEFINE_BOOL_METHOD(set_signed,
+                            (MYSQL_THD hthd, const char *variable_type,
+                             my_h_string variable_base,
+                             my_h_string variable_name,
+                             long long variable_value));
+  static DEFINE_BOOL_METHOD(set_unsigned,
+                            (MYSQL_THD hthd, const char *variable_type,
+                             my_h_string variable_base,
+                             my_h_string variable_name,
+                             unsigned long long variable_value));
+
+  // system_variable_update_default service methods
+  static DEFINE_BOOL_METHOD(set_default,
+                            (MYSQL_THD hthd, const char *variable_type,
+                             my_h_string variable_base,
+                             my_h_string variable_name));
 };
 
 #endif /* MYSQL_SYSTEM_VARIABLE_IMP_H */

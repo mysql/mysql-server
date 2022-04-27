@@ -25,7 +25,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <sql/auto_thd.h>
 #include <sql/current_thd.h>
+#include <sql/sql_lex.h>
 #include <sql/sql_thd_internal_api.h>
+#include "sql/auth/auth_acls.h"
+
+THD *create_internal_thd_ctx(Sctx_ptr<Security_context> &ctx);
+void destroy_internal_thd_ctx(THD *thd, Sctx_ptr<Security_context> &ctx);
 
 /**
   A version of Auto_THD that:
@@ -34,6 +39,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 */
 class Storing_auto_THD {
   THD *m_previous_thd, *thd;
+  Sctx_ptr<Security_context> ctx;
 
  public:
   Storing_auto_THD() {
@@ -42,7 +48,7 @@ class Storing_auto_THD {
     if (!m_previous_thd) {
       my_thread_init();
     }
-    thd = create_internal_thd();
+    thd = create_internal_thd_ctx(ctx);
   }
 
   ~Storing_auto_THD() {
@@ -57,7 +63,7 @@ class Storing_auto_THD {
 
       prev_da->copy_sql_conditions_from_da(m_previous_thd, curr_da);
     }
-    destroy_internal_thd(thd);
+    destroy_internal_thd_ctx(thd, ctx);
     if (!m_previous_thd) {
       my_thread_end();
     }

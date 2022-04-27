@@ -433,7 +433,14 @@ Keyring_writer_service_impl::store,
     Keyring_writer_service_impl::remove END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_system_variable_update_string)
-mysql_system_variable_update_string_imp::set END_SERVICE_IMPLEMENTATION();
+mysql_system_variable_update_imp::set_string END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_system_variable_update_integer)
+mysql_system_variable_update_imp::set_signed,
+    mysql_system_variable_update_imp::set_unsigned END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_system_variable_update_default)
+mysql_system_variable_update_imp::set_default END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_thd_attributes)
 mysql_thd_attributes_imp::get,
@@ -655,6 +662,8 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, keyring_load),
     PROVIDES_SERVICE(mysql_server, keyring_writer),
     PROVIDES_SERVICE(mysql_server, mysql_system_variable_update_string),
+    PROVIDES_SERVICE(mysql_server, mysql_system_variable_update_integer),
+    PROVIDES_SERVICE(mysql_server, mysql_system_variable_update_default),
 
     PROVIDES_SERVICE(mysql_server, table_access_factory_v1),
     PROVIDES_SERVICE(mysql_server, table_access_v1),
