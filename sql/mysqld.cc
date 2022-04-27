@@ -1718,7 +1718,9 @@ static char **remaining_argv;
 int orig_argc;
 char **orig_argv;
 namespace {
+#ifndef _WIN32
 FILE *nstdout = nullptr;
+#endif
 char my_progpath[FN_REFLEN];
 const char *my_orig_progname = nullptr;
 
@@ -2153,12 +2155,14 @@ static void deinitialize_manifest_file_components() {
   Block and wait until server components have been initialized.
 */
 
+#ifndef _WIN32
 static void server_components_init_wait() {
   mysql_mutex_lock(&LOCK_server_started);
   while (!mysqld_server_started)
     mysql_cond_wait(&COND_server_started, &LOCK_server_started);
   mysql_mutex_unlock(&LOCK_server_started);
 }
+#endif
 
 /****************************************************************************
 ** Code to end mysqld
@@ -2758,7 +2762,7 @@ static void set_ports() {
   }
   if (!mysqld_unix_port) {
 #ifdef _WIN32
-    mysqld_unix_port = (char *)MYSQL_NAMEDPIPE;
+    mysqld_unix_port = MYSQL_NAMEDPIPE;
 #else
     mysqld_unix_port = MYSQL_UNIX_ADDR;
 #endif
@@ -6812,7 +6816,7 @@ static int init_server_components() {
 
 #ifdef _WIN32
 
-extern "C" void *handle_shutdown_and_restart(void *arg) {
+extern "C" void *handle_shutdown_and_restart(void *) {
   MSG msg;
   HANDLE event_handles[2];
   event_handles[0] = hEventShutdown;
@@ -8182,7 +8186,7 @@ bool is_windows_service() { return windows_service; }
 
 NTService *get_win_service_ptr() { return &Service; }
 
-int mysql_service(void *p) {
+int mysql_service(void *) {
   int my_argc;
   char **my_argv;
 
@@ -8258,7 +8262,7 @@ static bool default_service_handling(char **argv, const char *servicename,
      the option name) should be quoted if it contains a string.
     */
     *pos++ = ' ';
-    if (opt_delim = strchr(extra_opt, '=')) {
+    if ((opt_delim = strchr(extra_opt, '='))) {
       size_t length = ++opt_delim - extra_opt;
       pos = my_stpnmov(pos, extra_opt, length);
     } else

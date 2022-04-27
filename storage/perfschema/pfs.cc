@@ -7325,7 +7325,8 @@ void pfs_set_socket_info_v1(PSI_socket *socket, const my_socket *fd,
   if (likely(addr != nullptr && addr_len > 0)) {
     pfs->m_addr_len = addr_len;
 
-    if (unlikely(pfs->m_addr_len > sizeof(sockaddr_storage))) {
+    if (unlikely(pfs->m_addr_len >
+                 static_cast<socklen_t>(sizeof(sockaddr_storage)))) {
       pfs->m_addr_len = sizeof(struct sockaddr_storage);
     }
     memcpy(&pfs->m_sock_addr, addr, pfs->m_addr_len);

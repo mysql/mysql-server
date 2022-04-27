@@ -28,7 +28,7 @@ void notify_connect();
 void notify();
 
 template <typename T, typename... Ts>
-inline void notify(T t, Ts... ts);
+inline void notify(T, Ts...);
 
 /**
   Class wrapping the "globals" as static members so that they can only
@@ -54,7 +54,7 @@ class NotifyGlobals {
   @param ts remaining args parameter pack for recursive call
 */
 template <typename T, typename... Ts>
-inline void notify(T t, Ts... ts) {
+inline void notify(T t [[maybe_unused]], Ts... ts [[maybe_unused]]) {
 #ifndef _WIN32
 #ifndef WITH_SYSTEMD_DEBUG
   if (NotifyGlobals::socket == -1) {

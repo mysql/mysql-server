@@ -3128,7 +3128,7 @@ static Sys_var_bool Sys_named_pipe("named_pipe", "Enable the named pipe (NT)",
 
 static PolyLock_rwlock PLock_named_pipe_full_access_group(
     &LOCK_named_pipe_full_access_group);
-static bool check_named_pipe_full_access_group(sys_var *self, THD *thd,
+static bool check_named_pipe_full_access_group(sys_var *self, THD *,
                                                set_var *var) {
   if (!var->value) return false;  // DEFAULT is ok
 

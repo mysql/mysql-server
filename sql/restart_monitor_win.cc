@@ -41,13 +41,6 @@ static DWORD my_monitor_pid;
 // True if the process is mysqld monitor else false.
 static bool mysqld_monitor_process;
 
-/*
-  True if the server option is early option.
-  Under early option the server exits.
-*/
-static bool mysqld_monitor_early_option;
-
-static HANDLE shutdown_event;
 static HANDLE service_status_cmd_event;
 static HANDLE service_status_pipe;
 static HANDLE client_service_status_pipe = nullptr;
@@ -83,12 +76,6 @@ static int monitor_mysqld(LPSTR cmdline);
 */
 
 static bool initialize_events(void);
-
-/**
-  This method closes the event handles.
-*/
-
-static void deinitialize_events(void);
 
 /**
   Initialize the monitor log. In case  mysqld is spawned from
@@ -168,11 +155,11 @@ static WORD get_event_type(Monitor_log_msg_type type) {
   @param msg   Pointer to the message string.
 */
 
-inline static void log_in_eventlog(WORD type, LPSTR msg) {
-  LPSTR strings[2];
+inline static void log_in_eventlog(WORD type, LPCSTR msg) {
+  LPCSTR strings[2];
   strings[0] = msg;
-  ReportEvent(event_log_handle, type, 0, MSG_DEFAULT, nullptr, 1, 0,
-              (LPCSTR *)strings, nullptr);
+  ReportEvent(event_log_handle, type, 0, MSG_DEFAULT, nullptr, 1, 0, strings,
+              nullptr);
 }
 
 /**
@@ -189,7 +176,7 @@ void monitor_log_msg(Monitor_log_msg_type type, LPCTSTR format, ...) {
   char buf[2048];
 
   va_start(args, format);
-  int len = vsnprintf(buf, sizeof(buf), format, args);
+  int len [[maybe_unused]] = vsnprintf(buf, sizeof(buf), format, args);
   va_end(args);
 
   if (is_windows_service())
@@ -417,7 +404,7 @@ static void quote_arg(const std::string &arg, std::string *cmd_line) {
 
 static std::string construct_cmd_line(const std::vector<std::string> &args) {
   std::string cmd_line;
-  for (int i = 0; i < args.size(); ++i) {
+  for (unsigned int i = 0; i < args.size(); ++i) {
     quote_arg(args[i], &cmd_line);
     if (i < args.size() - 1) cmd_line += " ";
   }
@@ -431,10 +418,11 @@ static int monitor_mysqld(LPSTR cmd_line) {
   char service_buf[32];
   BOOL res = FALSE;
   TCHAR path_name[MAX_PATH], cwd[MAX_PATH];
-  DWORD creation_flags = 0, exit_code;
-  PROCESS_INFORMATION pi = {0};
-  STARTUPINFO si = {sizeof(STARTUPINFO), 0};
+  DWORD exit_code;
+  PROCESS_INFORMATION pi{};
+  STARTUPINFO si{};
   si.cb = sizeof(si);
+  si.lpReserved = nullptr;
 
   if (!GetModuleFileName(nullptr, path_name, MAX_PATH)) {
     monitor_log_msg(Monitor_log_msg_type::MONITOR_LOG_ERROR,
@@ -606,15 +594,15 @@ bool is_mysqld_monitor() { return mysqld_monitor_process; }
 
 static void set_event_names() {
   snprintf(shutdown_event_name, sizeof(shutdown_event_name),
-           "mysqld%d_shutdown", my_monitor_pid);
+           "mysqld%lu_shutdown", my_monitor_pid);
   snprintf(service_status_cmd_event_name, sizeof(service_status_cmd_event_name),
-           "mysqld%d_srv", my_monitor_pid);
+           "mysqld%lu_srv", my_monitor_pid);
   snprintf(service_status_cmd_processed_event_name,
-           sizeof(service_status_cmd_processed_event_name), "mysqld%d_srvp",
+           sizeof(service_status_cmd_processed_event_name), "mysqld%lu_srvp",
            my_monitor_pid);
 
   snprintf(service_status_pipe_name, sizeof(service_status_pipe_name),
-           "\\\\.\\pipe\\mysqld%d_pipe", my_monitor_pid);
+           "\\\\.\\pipe\\mysqld%lu_pipe", my_monitor_pid);
 }
 
 /**

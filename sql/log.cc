@@ -426,9 +426,10 @@ bool is_valid_log_name(const char *name, size_t len) {
 
 static File mysql_file_real_name_reopen(File file,
 #ifdef HAVE_PSI_FILE_INTERFACE
-                                        PSI_file_key log_file_key,
+                                        PSI_file_key log_file_key
+                                        [[maybe_unused]],
 #endif
-                                        int open_flags,
+                                        int open_flags [[maybe_unused]],
                                         const char *opened_file_name,
                                         char *real_file_name) {
   assert(file);

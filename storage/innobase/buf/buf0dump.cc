@@ -320,10 +320,10 @@ static void buf_dump(bool obey_shutdown) {
       }
 
       if (j % 128 == 0) {
-        buf_dump_status(STATUS_VERBOSE,
-                        "Dumping buffer pool " ULINTPF "/" ULINTPF
-                        ", page %zu/%zu",
-                        i + 1, srv_buf_pool_instances, j + 1, n_pages);
+        buf_dump_status(
+            STATUS_VERBOSE,
+            "Dumping buffer pool " ULINTPF "/" ULINTPF ", page %zu/%zu", i + 1,
+            static_cast<ulint>(srv_buf_pool_instances), j + 1, n_pages);
       }
     }
 

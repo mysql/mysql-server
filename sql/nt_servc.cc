@@ -80,7 +80,7 @@ long NTService::Init(LPCSTR szInternName, void *ServiceThread) {
   lstrcpy(ServiceName, szInternName);
 
   SERVICE_TABLE_ENTRY stb[] = {
-      {(char *)szInternName, (LPSERVICE_MAIN_FUNCTION)ServiceMain},
+      {const_cast<char *>(szInternName), (LPSERVICE_MAIN_FUNCTION)ServiceMain},
       {NULL, NULL}};
   return StartServiceCtrlDispatcher(stb);  // register with the Service Manager
 }

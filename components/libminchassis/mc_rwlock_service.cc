@@ -60,8 +60,8 @@ int impl_min_chassis_prlock_init(PSI_rwlock_key, mysql_prlock_t *, const char *,
   return 0;
 }
 
-int impl_min_chassis_rwlock_destroy(mysql_rwlock_t *that, const char *,
-                                    unsigned int) {
+int impl_min_chassis_rwlock_destroy(mysql_rwlock_t *that [[maybe_unused]],
+                                    const char *, unsigned int) {
 #ifdef _WIN32
   return 0; /* no destroy function */
 #else

@@ -154,11 +154,10 @@ int my_thread_cancel(my_thread_handle *thread) {
 #endif
 }
 
-void my_thread_exit(void *value_ptr) {
+void my_thread_exit(void *value_ptr [[maybe_unused]]) {
 #ifndef _WIN32
   pthread_exit(value_ptr);
 #else
-  (void)value_ptr;  // maybe_unused
   _endthreadex(0);
 #endif
 }

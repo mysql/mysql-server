@@ -648,8 +648,8 @@ extern uchar *mi_alloc_rec_buff(MI_INFO *, ulong, uchar **);
 #define mi_get_rec_buff_len(info, buf) \
   (*((uint32 *)(mi_get_rec_buff_ptr(info, buf))))
 
-extern ulong _mi_rec_unpack(MI_INFO *info, uchar *to, const uchar *from,
-                            ulong reclength);
+extern size_t _mi_rec_unpack(MI_INFO *info, uchar *to, const uchar *from,
+                             ulong reclength);
 extern bool _mi_rec_check(MI_INFO *info, const uchar *record, uchar *packpos,
                           ulong packed_length, bool with_checkum);
 extern int _mi_write_part_record(MI_INFO *info, my_off_t filepos, ulong length,
@@ -693,7 +693,9 @@ struct MI_BLOCK_INFO { /* Parameter to _mi_get_block_info */
 #define BLOCK_SYNC_ERROR 16  /* Right data at wrong place */
 #define BLOCK_FATAL_ERROR 32 /* hardware-error */
 
-#define NEED_MEM ((uint)10 * 4 * (IO_SIZE + 32) + 32) /* Needed for recursion */
+#define NEED_MEM                                               \
+  ((uint)10 * 4 * (IO_SIZE + 32) + 32) /* Needed for recursion \
+                                        */
 #define MAXERR 20
 #define BUFFERS_WHEN_SORTING 16    /* Alloc for sort-key-tree */
 #define MY_HOW_OFTEN_TO_WRITE 1000 /* How often we want info on screen */

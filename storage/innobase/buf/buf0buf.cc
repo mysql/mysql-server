@@ -1840,9 +1840,9 @@ static bool buf_pool_withdraw_blocks(buf_pool_t *buf_pool) {
 
     mutex_enter(&buf_pool->free_list_mutex);
 
-    buf_resize_status("buffer pool %lu : withdrawing blocks. (%zu/%lu)", i,
-                      UT_LIST_GET_LEN(buf_pool->withdraw),
-                      buf_pool->withdraw_target);
+    buf_resize_status(
+        "buffer pool " ULINTPF " : withdrawing blocks. (%zu/" ULINTPF ")", i,
+        UT_LIST_GET_LEN(buf_pool->withdraw), buf_pool->withdraw_target);
 
     ib::info(ER_IB_MSG_57) << "buffer pool " << i << " : withdrew " << count1
                            << " blocks from free list."
@@ -2255,10 +2255,10 @@ withdraw_retry:
     buf_chunk_t *chunk;
     buf_chunk_t *echunk;
 
-    buf_resize_status(
-        "buffer pool %lu :"
-        " resizing with chunks %lu to %lu.",
-        i, buf_pool->n_chunks, buf_pool->n_chunks_new);
+    buf_resize_status("buffer pool " ULINTPF
+                      " :"
+                      " resizing with chunks " ULINTPF " to " ULINTPF ".",
+                      i, buf_pool->n_chunks, buf_pool->n_chunks_new);
 
     if (buf_pool->n_chunks_new < buf_pool->n_chunks) {
       /* delete chunks */

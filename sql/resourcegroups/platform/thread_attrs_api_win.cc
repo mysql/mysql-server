@@ -121,7 +121,7 @@ bool unbind_thread(my_thread_os_id_t thread_id) {
   return res == 0;
 }
 
-int thread_priority(my_thread_os_id_t thread_id) {
+int thread_priority(my_thread_os_id_t) {
   assert(0);
   return 0;
 }

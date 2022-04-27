@@ -162,7 +162,12 @@ int my_thread_create(my_thread_handle *thread, const my_thread_attr_t *attr,
                      my_start_routine func, void *arg);
 int my_thread_join(my_thread_handle *thread, void **value_ptr);
 int my_thread_cancel(my_thread_handle *thread);
-void my_thread_exit(void *value_ptr) MY_ATTRIBUTE((noreturn));
+
+// _endthreadex(_ReturnCode) is not tagged with noreturn.
+#ifndef _WIN32
+[[noreturn]]
+#endif
+void my_thread_exit(void *value_ptr);
 
 /** Sets the name of the thread for system and debugger, if possible.
 @param name Name to set, must be shorter than SETNAME_MAX_LENGTH, including NULL

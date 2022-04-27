@@ -65,6 +65,10 @@ IF(HAS_WARN_FLAG)
   STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
 ENDIF()
 
+IF(WIN32_CLANG)
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-unused-function")
+ENDIF()
+
 #-----------------------------------------------------------------------------
 # Add extra compilation flags
 #-----------------------------------------------------------------------------

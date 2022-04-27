@@ -1042,8 +1042,8 @@ err:
 /* Returns -1 and my_errno =HA_ERR_RECORD_DELETED if reclength isn't */
 /* right. Returns reclength (>0) if ok */
 
-ulong _mi_rec_unpack(MI_INFO *info, uchar *to, const uchar *from,
-                     ulong found_length) {
+size_t _mi_rec_unpack(MI_INFO *info, uchar *to, const uchar *from,
+                      ulong found_length) {
   uint flag, bit, length, rec_length, min_pack_length;
   enum en_fieldtype type;
   uchar *to_end;

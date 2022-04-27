@@ -1324,13 +1324,13 @@ const Listen_socket *Mysqld_socket_listener::get_listen_socket() const {
   if (!m_admin_bind_address.address.empty() &&
       !m_use_separate_thread_for_admin &&
       FD_ISSET(mysql_socket_getfd(m_admin_interface_listen_socket),
-               &m_select_info.m_read_fds)) {
+               const_cast<fd_set *>(&m_select_info.m_read_fds))) {
     return &m_socket_vector[0];
   }
 
   for (const auto &socket_element : m_socket_vector) {
     if (FD_ISSET(mysql_socket_getfd(socket_element.m_socket),
-                 &m_select_info.m_read_fds)) {
+                 const_cast<fd_set *>(&m_select_info.m_read_fds))) {
       return &socket_element;
     }
   }

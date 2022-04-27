@@ -47,7 +47,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 static const uint64_t MICROSECS_IN_A_SECOND = 1000000;
 
 /** The number of nanoseconds in a second. */
-static const uint64_t NANOSECS_IN_A_SECOND = 1000 * MICROSECS_IN_A_SECOND;
+static const uint64_t NANOSECS_IN_A_SECOND [[maybe_unused]] =
+    1000 * MICROSECS_IN_A_SECOND;
 
 #ifdef _WIN32
 /** Native condition variable. */

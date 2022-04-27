@@ -228,8 +228,10 @@ uint pfs_get_socket_address(char *host, uint host_len, uint *port,
           pointer_cast<const struct sockaddr_in *>(src_addr);
 #ifdef _WIN32
       /* Older versions of Windows do not support inet_ntop() */
-      getnameinfo((struct sockaddr *)sa4, sizeof(struct sockaddr_in), host,
-                  host_len, NULL, 0, NI_NUMERICHOST);
+      getnameinfo(pointer_cast<struct sockaddr *>(
+                      const_cast<struct sockaddr_in *>(sa4)),
+                  sizeof(struct sockaddr_in), host, host_len, NULL, 0,
+                  NI_NUMERICHOST);
 #else
       inet_ntop(AF_INET, &(sa4->sin_addr), host, INET_ADDRSTRLEN);
 #endif
@@ -244,8 +246,10 @@ uint pfs_get_socket_address(char *host, uint host_len, uint *port,
           pointer_cast<const struct sockaddr_in6 *>(src_addr);
 #ifdef _WIN32
       /* Older versions of Windows do not support inet_ntop() */
-      getnameinfo((struct sockaddr *)sa6, sizeof(struct sockaddr_in6), host,
-                  host_len, NULL, 0, NI_NUMERICHOST);
+      getnameinfo(pointer_cast<struct sockaddr *>(
+                      const_cast<struct sockaddr_in6 *>(sa6)),
+                  sizeof(struct sockaddr_in6), host, host_len, NULL, 0,
+                  NI_NUMERICHOST);
 #else
       inet_ntop(AF_INET6, &(sa6->sin6_addr), host, INET6_ADDRSTRLEN);
 #endif

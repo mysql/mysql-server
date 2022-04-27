@@ -51,8 +51,8 @@ class Named_pipe_listener {
   */
   Named_pipe_listener(const std::string *pipe_name)
       : m_pipe_name(*pipe_name),
-        m_pipe_handle(INVALID_HANDLE_VALUE),
-        mp_sa_pipe_security(nullptr) {}
+        mp_sa_pipe_security(nullptr),
+        m_pipe_handle(INVALID_HANDLE_VALUE) {}
 
   /**
     Set up a listener.

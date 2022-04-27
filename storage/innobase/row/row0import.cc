@@ -1374,10 +1374,11 @@ dberr_t row_import::match_table_columns(THD *thd) UNIV_NOTHROW {
     }
   } else {
     if (!(m_table->n_cols == m_n_cols)) {
-      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-              "Found %u columns in destination table whereas cfg file has %lu"
-              " columns.",
-              (m_table->n_cols - n_sys_cols), (m_n_cols - n_sys_cols));
+      ib_errf(
+          thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+          "Found %u columns in destination table whereas cfg file has " ULINTPF
+          " columns.",
+          (m_table->n_cols - n_sys_cols), (m_n_cols - n_sys_cols));
       err = DB_ERROR;
     }
   }
@@ -3240,7 +3241,8 @@ static dberr_t row_import_cfg_read_string(
 
     if (len > OS_FILE_MAX_PATH) {
       ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_INNODB_INDEX_CORRUPT,
-              "Index name length (%lu) is too long,"
+              "Index name length (" ULINTPF
+              ") is too long,"
               " the meta-data is corrupt",
               len);
 

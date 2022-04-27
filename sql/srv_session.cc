@@ -232,8 +232,8 @@ class Thread_to_plugin_map {
       if (!plugin || (it->second == plugin)) {
         to_remove.push_back(it->first);
 
-        my_thread_handle thread;
 #ifndef _WIN32
+        my_thread_handle thread;
         /*
            On Windows we need HANDLE to cancel a thread.
            Win32 API's GetCurrentThread() returns something which seems the

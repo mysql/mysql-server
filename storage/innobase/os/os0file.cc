@@ -337,7 +337,7 @@ struct Slot {
   HANDLE handle{INVALID_HANDLE_VALUE};
 
   /** Windows control block for the aio request */
-  OVERLAPPED control{0, 0};
+  OVERLAPPED control{0, 0, {{0, 0}}, nullptr};
 
   /** bytes written/read */
   DWORD n_bytes{0};
@@ -4091,9 +4091,7 @@ os_file_t os_file_create_simple_func(const char *name, ulint create_mode,
     ib::info(ER_IB_MSG_796) << "Read only mode set. Unable to"
                                " open file '"
                             << name << "' in RW mode, "
-                            << "trying RO mode",
-        name;
-
+                            << "trying RO mode";
     access = GENERIC_READ;
 
   } else if (access_type == OS_FILE_READ_WRITE) {
@@ -4489,7 +4487,7 @@ bool os_file_delete_if_exists_func(const char *name, bool *exist) {
   name. */
   for (DWORD random_id = GetTickCount(); count < 1000; ++count, ++random_id) {
     random_id &= 0xFFFF;
-    sprintf(name_to_delete, "%s.%04X.d", name, random_id);
+    sprintf(name_to_delete, "%s.%04lX.d", name, random_id);
     if (MoveFile(name, name_to_delete)) break;
     auto err = GetLastError();
     /* We have chosen the "random" value that is already being used. Try another
@@ -6976,7 +6974,7 @@ AIO *AIO::select_slot_array(IORequest &type, bool read_only,
 
 static dberr_t os_aio_windows_handler(ulint segment, fil_node_t **m1, void **m2,
                                       IORequest *type) {
-  Slot *slot;
+  Slot *slot = nullptr;
   AIO *array{};
 
   const auto segment_offset = AIO::get_array_and_local_segment(array, segment);

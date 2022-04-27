@@ -2206,7 +2206,8 @@ int convert_error_code_to_mysql(dberr_t error, uint32_t flags, THD *thd) {
       bool prefix = !DICT_TF_HAS_ATOMIC_BLOBS(flags);
       my_printf_error(
           ER_TOO_BIG_ROWSIZE,
-          "Row size too large (> %lu). Changing some columns"
+          "Row size too large (> " ULINTPF
+          "). Changing some columns"
           " to TEXT or BLOB %smay help. In current row"
           " format, BLOB prefix of %d bytes is stored inline.",
           MYF(0),
@@ -12690,10 +12691,11 @@ const char *create_table_info_t::create_options_are_invalid() {
         kbs_max = std::min(1 << (UNIV_PAGE_SSIZE_MAX - 1),
                            1 << (PAGE_ZIP_SSIZE_MAX - 1));
         if (m_create_info->key_block_size > kbs_max) {
-          push_warning_printf(
-              m_thd, Sql_condition::SL_WARNING, ER_ILLEGAL_HA_CREATE_OPTION,
-              "InnoDB: KEY_BLOCK_SIZE=%" PRIu32 " cannot be larger than %ld.",
-              m_create_info->key_block_size, kbs_max);
+          push_warning_printf(m_thd, Sql_condition::SL_WARNING,
+                              ER_ILLEGAL_HA_CREATE_OPTION,
+                              "InnoDB: KEY_BLOCK_SIZE=%" PRIu32
+                              " cannot be larger than " ULINTPF ".",
+                              m_create_info->key_block_size, kbs_max);
           ret = "KEY_BLOCK_SIZE";
         }
 
@@ -15344,7 +15346,7 @@ static int validate_create_tablespace_info(ib_file_suffix type,
       my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
                       "InnoDB: Cannot create a tablespace"
                       " with FILE_BLOCK_SIZE=%llu because"
-                      " INNODB_PAGE_SIZE=%lu.",
+                      " INNODB_PAGE_SIZE=" ULINTPF ".",
                       MYF(0), alter_info->file_block_size, UNIV_PAGE_SIZE);
       error = HA_WRONG_CREATE_OPTION;
 
@@ -21725,7 +21727,7 @@ static void innodb_log_write_ahead_size_update(THD *thd, SYS_VAR *, void *,
   } else if (val != in_val) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
                         "innodb_log_write_ahead_size should be"
-                        " set to power of 2, in range [%lu,%lu]",
+                        " set to power of 2, in range [%lu," ULINTPF "]",
                         INNODB_LOG_WRITE_AHEAD_SIZE_MIN,
                         INNODB_LOG_WRITE_AHEAD_SIZE_MAX);
   }
@@ -24063,7 +24065,8 @@ void ib_warn_row_too_big(const dict_table_t *table) {
 
   push_warning_printf(
       thd, Sql_condition::SL_WARNING, HA_ERR_TOO_BIG_ROW,
-      "Row size too large (> %lu). Changing some columns to TEXT"
+      "Row size too large (> " ULINTPF
+      "). Changing some columns to TEXT"
       " or BLOB %smay help. In current row format, BLOB prefix of"
       " %d bytes is stored inline.",
       free_space,

@@ -62,9 +62,8 @@ static int win_lock(File fd, int locktype, my_off_t start, my_off_t length,
                     int timeout_sec) {
   LARGE_INTEGER liOffset, liLength;
   DWORD dwFlags;
-  OVERLAPPED ov = {0};
+  OVERLAPPED ov{};
   HANDLE hFile = (HANDLE)my_get_osfhandle(fd);
-  DWORD lastError = 0;
   int i;
   int timeout_millis = timeout_sec * 1000;
 
