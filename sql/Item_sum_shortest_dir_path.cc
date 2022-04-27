@@ -9,9 +9,9 @@ Item_sum_shortest_dir_path::Item_sum_shortest_dir_path(
       m_edge_ids(key_memory_Dijkstra) {}
 
 Item_sum_shortest_dir_path::Item_sum_shortest_dir_path(
-    const POS &pos, PT_item_list *args,
+    const POS &pos, PT_item_list *parent_args,
     unique_ptr_destroy_only<Json_wrapper> wrapper)
-    : Item_sum_json(std::move(wrapper), pos, args, nullptr),
+    : Item_sum_json(std::move(wrapper), pos, parent_args, nullptr),
       m_edge_map(key_memory_Dijkstra), m_point_map(key_memory_Dijkstra),
       m_edge_ids(key_memory_Dijkstra) {}
 
