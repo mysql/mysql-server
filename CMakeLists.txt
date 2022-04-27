@@ -2106,6 +2106,9 @@ ADD_CUSTOM_TARGET(component_all)
 # Utility target to generate all sources from .proto files.
 ADD_CUSTOM_TARGET(protobuf_generated_all)
 
+# Utility target to generate everything created by MYSQL_ADD_EXECUTABLE().
+ADD_CUSTOM_TARGET(executable_all)
+
 # Utility target to generate sources needed for clang-tidy.
 # Example usage:
 #
@@ -2302,6 +2305,39 @@ MY_ADD_CUSTOM_TARGET(INFO_BIN ALL
 
 IF(HAVE_BUILD_ID_SUPPORT AND NOT WITHOUT_SERVER)
   ADD_DEPENDENCIES(INFO_BIN mysqld)
+
+  # Show it by default in pushuild, but not for developers.
+  IF(DEFINED ENV{PB2WORKDIR})
+    OPTION(SHOW_BUILD_ID "Show mysqld build id as final target" ON)
+  ELSE()
+    OPTION(SHOW_BUILD_ID "Show mysqld build id as final target" OFF)
+  ENDIF()
+
+  IF(SHOW_BUILD_ID)
+    # Show build id in the build log, after everything else has bee built.
+    ADD_CUSTOM_TARGET(show_build_id ALL
+      COMMAND $<TARGET_FILE:mysqld> --help | grep BuildID
+      COMMENT "Showing mysqld build id"
+      VERBATIM
+      )
+    ADD_DEPENDENCIES(show_build_id mysqld)
+    # Build all kinds of binaries first.
+    ADD_DEPENDENCIES(show_build_id
+      component_all
+      executable_all
+      plugin_all
+      unittest_all
+      )
+    IF(WITH_ROUTER)
+      ADD_DEPENDENCIES(show_build_id mysqlrouter_all)
+    ENDIF()
+    # Other "ALL" targets.
+    ADD_DEPENDENCIES(show_build_id
+      GenSysSchemaC
+      INFO_BIN
+      run_libmysql_api_test
+      )
+  ENDIF()
 ENDIF()
 
 # Packaging

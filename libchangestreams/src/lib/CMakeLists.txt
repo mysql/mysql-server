@@ -20,6 +20,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+# TODO: Bug #34113532 Static library changestreams_static is unused 
+# Just disable building it for now.
+RETURN()
+
 ADD_WSHADOW_WARNING()
 DISABLE_MISSING_PROFILE_WARNING()
 

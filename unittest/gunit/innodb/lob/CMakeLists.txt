@@ -46,14 +46,15 @@ SET(PLOB_SRC_FILES
   ut0dbg.cc
   lob0int.cc)
 
-ADD_EXECUTABLE(lot0lot-t ${PLOB_SRC_FILES})
-ADD_EXECUTABLE(ut0plist-t
+MYSQL_ADD_EXECUTABLE(lot0lot-t ${PLOB_SRC_FILES} SKIP_INSTALL)
+MYSQL_ADD_EXECUTABLE(ut0plist-t
   lot0buf.cc
   mtr0log.cc
   ut0dbg.cc
   ut0plist.cc
+  SKIP_INSTALL
   )
-ADD_EXECUTABLE(ut0frags-t
+MYSQL_ADD_EXECUTABLE(ut0frags-t
   fil0fil.cc
   fut0lst.cc
   lot0buf.cc
@@ -61,8 +62,9 @@ ADD_EXECUTABLE(ut0frags-t
   ut0dbg.cc
   ut0frags.cc
   zlob0int.cc
+  SKIP_INSTALL
   )
-ADD_EXECUTABLE(zlob0int-t ${ZLOB_SRC_FILES})
+MYSQL_ADD_EXECUTABLE(zlob0int-t ${ZLOB_SRC_FILES} SKIP_INSTALL)
 
 TARGET_LINK_LIBRARIES(zlob0int-t ${ZLIB_LIBRARY} ${GTEST_LIBRARIES} gunit_small)
 TARGET_LINK_LIBRARIES(lot0lot-t ${ZLIB_LIBRARY} ${GTEST_LIBRARIES} gunit_small)
