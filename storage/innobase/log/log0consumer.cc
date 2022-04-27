@@ -46,7 +46,6 @@ void Log_user_consumer::set_consumed_lsn(lsn_t consumed_lsn) {
   if (consumed_lsn % OS_FILE_LOG_BLOCK_SIZE == 0) {
     consumed_lsn += LOG_BLOCK_HDR_SIZE;
   }
-  ut_a(log_is_data_lsn(consumed_lsn));
   ut_a(m_consumed_lsn <= consumed_lsn);
   m_consumed_lsn = consumed_lsn;
 }
@@ -93,15 +92,12 @@ Log_consumer *log_consumer_get_oldest(const log_t &log,
 
   for (auto consumer : log.m_consumers) {
     const lsn_t oldest_lsn = consumer->get_consumed_lsn();
-    ut_a(oldest_lsn == LSN_MAX || log_is_data_lsn(oldest_lsn));
 
     if (oldest_lsn < oldest_needed_lsn) {
       oldest_consumer = consumer;
       oldest_needed_lsn = oldest_lsn;
     }
   }
-
-  ut_a(log_is_data_lsn(oldest_needed_lsn));
 
   const lsn_t current_lsn = log_get_lsn(log);
   ut_a(oldest_needed_lsn <= current_lsn);

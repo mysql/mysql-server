@@ -795,7 +795,6 @@ static void log_files_mark_consumed_files(log_t &log) {
   log_files_access_allowed_validate(log);
 
   const lsn_t oldest_lsn = log_files_oldest_needed_lsn(log);
-  ut_a(log_is_data_lsn(oldest_lsn));
 
   log_files_validate_current_file(log);
 

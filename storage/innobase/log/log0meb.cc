@@ -1725,7 +1725,6 @@ static bool redo_log_consumer_advance(innodb_session_t *session, lsn_t lsn) {
   }
 
   log_meb_consumer->set_consumed_lsn(lsn);
-
   return false;
 }
 

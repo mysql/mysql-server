@@ -951,14 +951,6 @@ lsn_t Arch_log_consumer::get_consumed_lsn() const {
   lsn_t archiver_lsn = arch_log_sys->get_archived_lsn();
   ut_a(archiver_lsn % OS_FILE_LOG_BLOCK_SIZE == 0);
 
-  /* If archiver_lsn is on boundary between files, then it has left
-  the previous file and we might consume that file. Hence the lsn is
-  bumped up, to make life simpler and avoid oldest_lsn being on the
-  boundary between log files. */
-  archiver_lsn += LOG_BLOCK_HDR_SIZE;
-
-  ut_a(log_is_data_lsn(archiver_lsn));
-
   return archiver_lsn;
 }
 
