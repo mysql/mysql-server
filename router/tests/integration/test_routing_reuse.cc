@@ -285,7 +285,9 @@ class SharedServer {
             // on windows, mysqld has no notify-socket
             .wait_for_sync_point(ProcessManager::Spawner::SyncPoint::NONE)
             // on windows, ctrl+c leads to return value 0xc000013a
-            .expected_exit_code(0xc000013a)
+            // (STATUS_CONTROL_C_EXIT)
+            .expected_exit_code(ExitStatus{ExitStatus::terminated_t{},
+                                           static_cast<int>(0xc000013a)})
 #endif
             .spawn({
                 "--no-defaults-file",
