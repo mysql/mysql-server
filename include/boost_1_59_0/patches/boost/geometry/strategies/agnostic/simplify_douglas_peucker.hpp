@@ -4,7 +4,7 @@
 // Copyright (c) 1995 Maarten Hilferink, Amsterdam, the Netherlands
 
 // This file was modified by Oracle on 2015.
-// Modifications Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+// Modifications Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
 // Contributed and/or modified by Menelaos Karavelas, on behalf of Oracle
 
