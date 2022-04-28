@@ -3504,7 +3504,12 @@ DROP PROCEDURE p;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT KEY, f1 INT, fj JSON);
 INSERT INTO t1 VALUES(1, NULL, JSON_OBJECT('aaa','bbb'));
 INSERT INTO t1 VALUES(2, NULL, JSON_OBJECT('bbb','aaa'));
+# Disable warnings due to differences between the old optimizer and the
+# hypergraph optimizer. The hypergraph optimizer removes "fj" from the sort key,
+# and does not raise a warning about "sorting of non-scalar JSON values".
+--disable_warnings
 SELECT * FROM t1 ORDER BY f1, pk, fj;
+--enable_warnings
 
 DROP TABLE t1;
 

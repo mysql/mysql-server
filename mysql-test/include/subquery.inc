@@ -2031,6 +2031,7 @@ SELECT a FROM t1 ORDER BY (SELECT c FROM t2 WHERE b > 2 );
 --error ER_SUBQUERY_NO_1_ROW
 SELECT a FROM t1 ORDER BY (SELECT c FROM t2 WHERE b > 1);
 SELECT a FROM t1 ORDER BY (SELECT c FROM t2 WHERE b > 2), a;
+--skip_if_hypergraph   # Optimizes away the subquery, leaving no error.
 --error ER_SUBQUERY_NO_1_ROW
 SELECT a FROM t1 ORDER BY (SELECT c FROM t2 WHERE b > 1), a;
 

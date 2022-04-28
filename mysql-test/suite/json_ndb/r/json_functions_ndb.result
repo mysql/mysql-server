@@ -9446,8 +9446,6 @@ SELECT * FROM t1 ORDER BY f1, pk, fj;
 pk	f1	fj
 1	NULL	{"aaa": "bbb"}
 2	NULL	{"bbb": "aaa"}
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 DROP TABLE t1;
 #
 # Bug#25461627: VALGRIND WARNING WHEN UPDATING A JSON COLUMN

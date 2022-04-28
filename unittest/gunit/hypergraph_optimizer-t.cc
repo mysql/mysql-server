@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <assert.h>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <math.h>
 #include <string.h>
@@ -93,6 +94,7 @@ using std::to_string;
 using std::unordered_map;
 using std::vector;
 using testing::_;
+using testing::ElementsAre;
 using testing::Pair;
 using testing::Return;
 using namespace std::literals;  // For operator""sv.
@@ -3821,6 +3823,35 @@ TEST_F(HypergraphOptimizerTest, ElideConstSort) {
 
   // The sort should be elided entirely.
   ASSERT_EQ(AccessPath::TABLE_SCAN, root->type);
+
+  query_block->cleanup(/*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, ElideRedundantPartsOfSortKey) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2 WHERE t1.x = t2.x "
+      "ORDER BY t1.x, t2.x, 'abc', t1.y, t2.y",
+      /*nullable=*/true);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::SORT, root->type);
+
+  // Expect redundant elements to be removed from the sort key. t2.x is
+  // redundant because of t1.x and the functional dependency t1.x = t2.x. The
+  // constant 'abc' does not contribute to the ordering because it has the same
+  // value in all rows, and is also removed.
+  vector<string> order_items;
+  for (const ORDER *order = root->sort().order; order != nullptr;
+       order = order->next) {
+    order_items.push_back(ItemToString(*order->item));
+  }
+  EXPECT_THAT(order_items, ElementsAre("t1.x", "t1.y", "t2.y"));
 
   query_block->cleanup(/*full=*/true);
 }

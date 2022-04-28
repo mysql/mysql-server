@@ -279,10 +279,6 @@ static Ordering CollectInterestingOrder(THD *thd,
                                  unwrap_rollup, orderings);
 }
 
-// Build an ORDER * that we can give to Filesort. It is only suitable for
-// sort-ahead, since it assumes no temporary tables have been inserted.
-// Call ReplaceOrderItemsWithTempTableFields() on the ordering if you wish
-// to use it after the temporary table.
 ORDER *BuildSortAheadOrdering(THD *thd, const LogicalOrderings *orderings,
                               Ordering ordering) {
   ORDER *order = nullptr;

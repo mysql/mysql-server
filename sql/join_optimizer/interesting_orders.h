@@ -403,6 +403,10 @@ class LogicalOrderings {
     return (a & b) != a || (future_a & future_b) != future_a;
   }
 
+  // See comment in .cc file.
+  Ordering ReduceOrdering(Ordering ordering, bool all_fds,
+                          OrderElement *tmpbuf) const;
+
  private:
   bool m_built = false;
 
@@ -641,9 +645,6 @@ class LogicalOrderings {
   // Populates ItemInfo::can_be_added_by_fd.
   void FindElementsThatCanBeAddedByFDs();
 
-  // See comment in .cc file.
-  Ordering ReduceOrdering(Ordering ordering, bool all_fds,
-                          OrderElement *tmpbuf) const;
   void PreReduceOrderings(THD *thd);
   void CreateOrderingsFromGroupings(THD *thd);
   void CreateHomogenizedOrderings(THD *thd);
