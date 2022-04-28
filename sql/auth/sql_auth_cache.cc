@@ -136,7 +136,7 @@ Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts = nullptr;
 malloc_unordered_map<string, ACL_USER_ABAC*> *acl_user_abac_hash;
 malloc_unordered_map<string, ABAC_OBJECT*> *abac_object_hash;
 malloc_unordered_map<string, ABAC_RULE*> *abac_rule_hash;
-malloc_unordered_map<string, ABAC_TABLE_GRANT*> *abac_table_priv_hash;
+malloc_unordered_map<string, GRANT_TABLE*> *abac_table_priv_hash;
 malloc_unordered_set<std::string> *user_attribute_set = nullptr;
 malloc_unordered_set<std::string> *object_attribute_set = nullptr;
 Db_access_map acl_db_map;
@@ -4010,10 +4010,8 @@ bool abac_load(THD *thd, TABLE_LIST *tables) {
       bool check = true;
       user_attribute_map user_map = rule_hash_it->second->user_attrib_map;
       object_attribute_map object_map = rule_hash_it->second->object_attrib_map;
-      string hash_prefix = string(user_hash_it->second->user);
-      hash_prefix.push_back('\0');
-      hash_prefix.append(string(user_hash_it->second->host.hostname));
-      hash_prefix.push_back('\0');
+      // string hash_prefix = string(user_hash_it->second->user);
+      // hash_prefix.push_back('\0');
 
       for (auto user_map_it = user_map.begin(); user_map_it != user_map.end(); user_map_it++) {
         if (user_hash_it->second->get_attribute_value(user_map_it->first) != user_map_it->second) {
@@ -4031,20 +4029,25 @@ bool abac_load(THD *thd, TABLE_LIST *tables) {
           }
         }
         if (!check) continue;
-        string hash = hash_prefix;
-        hash.append(object_hash_it->second->db_name);
-        hash.push_back('\0');
-        hash.append(object_hash_it->second->table_name);
-        hash.push_back('\0');
+        // string hash = hash_prefix;
+        // hash.append(object_hash_it->second->db_name);
+        // hash.push_back('\0');
+        // hash.append(object_hash_it->second->table_name);
+        // hash.push_back('\0');
 
-        if (!abac_table_priv_hash->count(hash)) {
-          ABAC_TABLE_GRANT *table_grant = new ABAC_TABLE_GRANT(object_hash_it->second->db_name,
-                    string(user_hash_it->second->user), object_hash_it->second->table_name, 
-                        user_hash_it->second->host.hostname);
-          table_grant->privs |= rule_hash_it->second->access;
-          abac_table_priv_hash->emplace(hash, table_grant);
+        GRANT_TABLE *mem_check = new GRANT_TABLE(user_hash_it->second->host.hostname, 
+                  object_hash_it->second->db_name.c_str(), user_hash_it->second->user, 
+                            object_hash_it->second->table_name.c_str(), rule_hash_it->second->access, 0);
+
+        if (!abac_table_priv_hash->count(mem_check->hash_key)) {
+          // ABAC_TABLE_GRANT *table_grant = new ABAC_TABLE_GRANT(object_hash_it->second->db_name,
+          //           string(user_hash_it->second->user), object_hash_it->second->table_name, 
+          //               user_hash_it->second->host.hostname);
+          
+          // table_grant->privs |= rule_hash_it->second->access;
+          abac_table_priv_hash->emplace(mem_check->hash_key, mem_check);
         } else {
-          abac_table_priv_hash->at(hash)->privs |= rule_hash_it->second->access;
+          abac_table_priv_hash->at(mem_check->hash_key)->privs |= rule_hash_it->second->access;
         }
       }
     }
@@ -4111,7 +4114,7 @@ bool abac_reload(THD *thd, bool mdl_locked) {
   malloc_unordered_map<string, ACL_USER_ABAC*> *old_acl_user_abac_hash = nullptr;
   malloc_unordered_map<string, ABAC_OBJECT*> *old_abac_object_hash = nullptr;
   malloc_unordered_map<string, ABAC_RULE*> *old_abac_rule_hash = nullptr;
-  malloc_unordered_map<string, ABAC_TABLE_GRANT*> *old_abac_table_priv_hash = nullptr;
+  malloc_unordered_map<string, GRANT_TABLE*> *old_abac_table_priv_hash = nullptr;
   malloc_unordered_set<string> *old_user_attribute_set = nullptr;
   malloc_unordered_set<string> *old_object_attribute_set = nullptr;
   DBUG_TRACE;
@@ -4174,7 +4177,7 @@ bool abac_reload(THD *thd, bool mdl_locked) {
 
   abac_object_hash = new malloc_unordered_map<string, ABAC_OBJECT*>(key_memory_acl_memex);
   abac_rule_hash = new malloc_unordered_map<string, ABAC_RULE*>(key_memory_acl_memex);
-  abac_table_priv_hash = new malloc_unordered_map<string, ABAC_TABLE_GRANT*>(key_memory_acl_memex);
+  abac_table_priv_hash = new malloc_unordered_map<string, GRANT_TABLE*>(key_memory_acl_memex);
   acl_user_abac_hash = new malloc_unordered_map<string, ACL_USER_ABAC*>(key_memory_acl_memex);
   user_attribute_set = new malloc_unordered_set<string>(key_memory_acl_memex);
   object_attribute_set = new malloc_unordered_set<string>(key_memory_acl_memex);

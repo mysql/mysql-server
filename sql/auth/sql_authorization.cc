@@ -1468,8 +1468,31 @@ void get_table_access_map(ACL_USER *acl_user, Table_access_map *table_map) {
     }
   }  // end for
   // Generate table access maps for abac
+  // for (const auto &key_and_value : *abac_table_priv_hash) {
+  //   ABAC_TABLE_GRANT *abac_grant = key_and_value.second;
+  //   std::string user = std::string(acl_user->user);
+  //   std::string host_name = std::string(acl_user->host.get_host());
+  //   if (user == abac_grant->user && 
+  //       host_name == std::string(abac_grant->host.get_host())) { // Need to implement case insensitive checking
+  //     if (abac_grant->privs != 0) {
+  //       String q_name;
+  //       const THD *thd = table_map->get_thd();
+  //       append_identifier(thd, &q_name, (abac_grant->db_name).c_str(),
+  //                         strlen((abac_grant->db_name).c_str()));
+  //       q_name.append(".");
+  //       append_identifier(thd, &q_name, (abac_grant->table_name).c_str(),
+  //                         strlen((abac_grant->table_name).c_str()));
+  //       Grant_table_aggregate agg = (*table_map)[std::string(q_name.c_ptr())];
+  //       // std::string q_name = abac_grant->db_name + "." + abac_grant->table_name;
+  //       // Grant_table_aggregate agg = (*table_map)[q_name];
+  //       agg.table_access |= abac_grant->privs;
+  //       agg.cols |= abac_grant->privs;
+  //       (*table_map)[std::string(q_name.c_ptr())] = agg;
+  //     }
+  //   }
+  // }
   for (const auto &key_and_value : *abac_table_priv_hash) {
-    ABAC_TABLE_GRANT *abac_grant = key_and_value.second;
+    GRANT_TABLE *abac_grant = key_and_value.second;
     std::string user = std::string(acl_user->user);
     std::string host_name = std::string(acl_user->host.get_host());
     if (user == abac_grant->user && 
@@ -1477,11 +1500,11 @@ void get_table_access_map(ACL_USER *acl_user, Table_access_map *table_map) {
       if (abac_grant->privs != 0) {
         String q_name;
         const THD *thd = table_map->get_thd();
-        append_identifier(thd, &q_name, (abac_grant->db_name).c_str(),
-                          strlen((abac_grant->db_name).c_str()));
+        append_identifier(thd, &q_name, abac_grant->db,
+                          strlen(abac_grant->db));
         q_name.append(".");
-        append_identifier(thd, &q_name, (abac_grant->table_name).c_str(),
-                          strlen((abac_grant->table_name).c_str()));
+        append_identifier(thd, &q_name, abac_grant->tname,
+                          strlen(abac_grant->tname));
         Grant_table_aggregate agg = (*table_map)[std::string(q_name.c_ptr())];
         // std::string q_name = abac_grant->db_name + "." + abac_grant->table_name;
         // Grant_table_aggregate agg = (*table_map)[q_name];
@@ -3696,6 +3719,23 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
   return error;
 }
 
+// Function to search for key in abac_table_priv_hash map
+GRANT_TABLE *abac_table_search(std::string user, 
+    std::string db_name, std::string table_name) {
+  std::string key;
+  key.append(user);
+  key.push_back('\0');
+  key.append(db_name);
+  key.push_back('\0');
+  key.append(table_name);
+  key.push_back('\0');
+  GRANT_TABLE *found = nullptr;
+  if (abac_table_priv_hash->count(key)) {
+    found = (*abac_table_priv_hash)[key];
+  }
+  return found;
+}
+
 /**
   @brief Check table level grants
 
@@ -3855,16 +3895,19 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
           sctx->host().str, sctx->ip().str, db_name, sctx->priv_user().str,
           t_ref->get_table_name(), false);
 
-      // ABAC_TABLE_GRANT *abac_grant = abac_table_search(std::string(sctx->priv_user().str),
-      //     std::string(sctx->host().str), std::string(db_name), std::string(t_ref->get_table_name()));
-      if (!grant_table) {
+      GRANT_TABLE *abac_grant = abac_table_search(std::string(sctx->priv_user().str),
+                 std::string(db_name), std::string(t_ref->get_table_name()));
+      if (!grant_table && !abac_grant) {
         DBUG_PRINT("info",
                    ("Table %s didn't exist in the legacy table acl cache",
                     t_ref->get_table_name()));
         want_access &= ~t_ref->grant.privilege;
         goto err;  // No grants
+      } else if (!grant_table) {
+        grant_table = abac_grant;
+      } else if (grant_table && abac_grant) {
+        grant_table->privs |= abac_grant->privs;
       }
-
       /*
         For SHOW COLUMNS, SHOW INDEX it is enough to have some
         privileges on any column combination on the table.
@@ -4255,7 +4298,17 @@ bool check_grant_db(THD *thd, const char *db) {
       break;
     }
   }
-
+  //Add code here
+  for (auto key_and_value : *abac_table_priv_hash) {
+    GRANT_TABLE *grant_table = key_and_value.second;
+    if (grant_table->hash_key.compare(0, key.size(), key) == 0 &&
+        grant_table->host.compare_hostname(sctx->host().str, sctx->ip().str) &&
+        ((grant_table->privs | grant_table->cols) & TABLE_OP_ACLS)) {
+      error = false; /* Found match. */
+      DBUG_PRINT("info", ("Detected table level acl in abac_table_priv_hash"));
+      break;
+    }
+  }
   if (error) {
     DBUG_PRINT("info", ("No table level acl in column_priv_hash; checking "
                         "for schema level acls"));
@@ -7546,25 +7599,6 @@ bool check_system_user_privilege(THD *thd, List<LEX_USER> list) {
   return (false);
 }
 
-// Function to search for key in abac_table_priv_hash map
-// ABAC_TABLE_GRANT *abac_table_search(std::string user, std::string host_name, 
-//     std::string db_name, std::string table_name) {
-//   std::string key;
-//   key.append(user);
-//   key.push_back('\0');
-//   key.append(host_name);
-//   key.push_back('\0');
-//   key.append(db_name);
-//   key.push_back('\0');
-//   key.append(table_name);
-//   key.push_back('\0');
-//   ABAC_TABLE_GRANT *found = nullptr;
-//   if (abac_table_priv_hash->count(key)) {
-//     found = (*abac_table_priv_hash)[key];
-//   }
-//   return found;
-// }
-
 bool mysql_create_rule(THD *thd, std::string rule_name, int privs, 
       attribute_value_list user_attributes, 
           attribute_value_list object_attributes) {
@@ -8061,6 +8095,12 @@ bool mysql_grant_object_attribute(THD *thd, LEX_STRING attrib_name,
                           it_db != dbs->end(); it_db++, it_table++) {
       LEX_CSTRING db_name = *it_db;
       LEX_CSTRING table_name = *it_table;
+      MDL_request mdl_request;
+      MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, db_name.str,
+                        table_name.str, MDL_SHARED, MDL_TRANSACTION);
+      if (thd->mdl_context.acquire_lock(&mdl_request,
+                                        thd->variables.lock_wait_timeout))
+        return true;
       bool exists;
       if (dd::table_exists(thd->dd_client(), db_name.str, table_name.str, &exists))
         return true;
