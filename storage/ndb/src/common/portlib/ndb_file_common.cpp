@@ -41,13 +41,13 @@ static inline void require(bool cond)
 ndb_file::ndb_file()
 : m_handle(os_invalid_handle),
   m_open_flags(0),
-  m_sync_on_write(false),
-  m_synced_on_write(false),
+  m_write_need_sync(false),
+  m_os_syncs_each_write(false),
   m_block_size(0),
   m_block_alignment(0),
   m_direct_io_block_size(0),
   m_direct_io_block_alignment(0),
-  m_autosync_freq(0)
+  m_autosync_period(0)
 {
   m_write_byte_count.store(0);
 }
@@ -61,13 +61,13 @@ void ndb_file::init()
 {
   m_handle = os_invalid_handle;
   m_open_flags = 0;
-  m_sync_on_write = false;
-  m_synced_on_write = false;
+  m_write_need_sync = false;
+  m_os_syncs_each_write = false;
   m_block_size = 0;
   m_block_alignment = 0;
   m_direct_io_block_size = 0;
   m_direct_io_block_alignment = 0;
-  m_autosync_freq = 0;
+  m_autosync_period = 0;
   m_write_byte_count.store(0);
 }
 
@@ -79,19 +79,21 @@ int ndb_file::append(const void* buf, ndb_file::size_t count)
 
 int ndb_file::set_autosync(size_t size)
 {
-  m_autosync_freq = size;
+  m_autosync_period = size;
   return 0;
 }
 
-int ndb_file::sync_on_write()
+int ndb_file::do_sync_after_write(size_t written_bytes)
 {
-  if (m_synced_on_write)
+  if (m_os_syncs_each_write)
   {
     return 0;
   }
 
-  if (!m_sync_on_write &&
-      (m_autosync_freq == 0 || m_write_byte_count.load() <= m_autosync_freq))
+  m_write_byte_count.fetch_add(written_bytes);
+
+  if (!m_write_need_sync &&
+      (m_autosync_period == 0 || m_write_byte_count.load() <= m_autosync_period))
   {
     return 0;
   }
@@ -107,7 +109,7 @@ int ndb_file::sync_on_write()
 
 int ndb_file::sync()
 {
-  if (m_synced_on_write)
+  if (m_os_syncs_each_write)
   {
     return 0;
   }
