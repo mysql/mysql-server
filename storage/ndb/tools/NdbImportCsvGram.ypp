@@ -111,19 +111,6 @@ line:
     line->m_field_list.push_back_from(field_list);
     $$ = line;
   }
-  |
-  T_LINEEND
-  {
-    NdbImportCsv::Line* line = csvparse.m_input.alloc_line();
-    NdbImportCsv::FieldList& field_list = csvparse.m_field_list;
-    require(field_list.cnt() == 0);
-    NdbImportCsv::Chunk chunk_lineend = $1;
-    line->m_pos = chunk_lineend.m_pos;
-    line->m_end = chunk_lineend.m_end;
-    require(line->m_field_list.cnt() == 0);
-    line->m_field_list.push_back_from(field_list);
-    $$ = line;
-  }
   ;
 
 field_list:
