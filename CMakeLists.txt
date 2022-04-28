@@ -1358,7 +1358,7 @@ ENDIF()
 # faster. The overhead of generating the index is small in LLD.
 OPTION(ADD_GDB_INDEX "Generate a .gdb_index section in the binaries." OFF)
 
-IF(ADD_GDB_INDEX AND CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld")
+IF(ADD_GDB_INDEX AND CMAKE_EXE_LINKER_FLAGS MATCHES "-fuse-ld=lld")
   # -fuse-ld=lld is not enough to ensure that ld.lld will actually be used.
   # On some platforms we need an extra check for -Wl,--gdb-index
   CMAKE_PUSH_CHECK_STATE()
@@ -1367,8 +1367,9 @@ IF(ADD_GDB_INDEX AND CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld")
   CMAKE_POP_CHECK_STATE()
 
   IF(CXX_LD_GDB_INDEX_RESULT)
-    STRING_APPEND(CMAKE_C_LINK_FLAGS " -Wl,--gdb-index")
-    STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--gdb-index")
+    STRING_APPEND(CMAKE_EXE_LINKER_FLAGS " -Wl,--gdb-index")
+    STRING_APPEND(CMAKE_MODULE_LINKER_FLAGS " -Wl,--gdb-index")
+    STRING_APPEND(CMAKE_SHARED_LINKER_FLAGS " -Wl,--gdb-index")
     # gdb sometimes reports "incomplete type" after linking with
     # --gdb-index. This flag makes the index contain enough
     # information to avoid the problem.
