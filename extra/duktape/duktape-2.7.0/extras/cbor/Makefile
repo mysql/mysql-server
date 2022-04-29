@@ -14,7 +14,7 @@ clean:
 	-rm -f jsoncbor
 	-rm -f appendix_a.json
 
-jsoncbor: jsoncbor.c duk_cbor.c duk_cbor.h
+jsoncbor: jsoncbor.c
 	-rm -rf ./prep
 	python2 ../../tools/configure.py --quiet --output-directory ./prep \
 		-DDUK_USE_JSON_DECNUMBER_FASTPATH \
@@ -22,7 +22,7 @@ jsoncbor: jsoncbor.c duk_cbor.c duk_cbor.h
 		-DDUK_USE_JSON_EATWHITE_FASTPATH \
 		-DDUK_USE_JSON_QUOTESTRING_FASTPATH \
 		-DDUK_USE_JSON_STRINGIFY_FASTPATH
-	$(CC) $(CCOPTS) -o $@ -I./prep -I. ./prep/duktape.c duk_cbor.c jsoncbor.c -lm
+	$(CC) $(CCOPTS) -o $@ -I./prep -I. ./prep/duktape.c jsoncbor.c -lm
 
 appendix_a.json:
 	wget -O $@ https://raw.githubusercontent.com/cbor/test-vectors/master/appendix_a.json

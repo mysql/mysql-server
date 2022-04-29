@@ -302,7 +302,7 @@ void duk_alloc_pool_get_pool_stats(duk_pool_state *s, duk_pool_stats *res) {
 		} else {
 			waste_bytes += duk__alloc_pool_get_waste_estimate(curr, s->size);
 		}
-		curr = curr + s->size;
+		curr = (void *) ((duk_uint8_t *) curr + s->size);
 	}
 	used_count = (size_t) (s->count - free_count);
 

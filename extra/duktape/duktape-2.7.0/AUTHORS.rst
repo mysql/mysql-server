@@ -64,6 +64,12 @@ and agreed to irrevocably license their contributions under the Duktape
 * Luis de Bethencourt (https://github.com/luisbg)
 * Ian Whyman (https://github.com/v00d00)
 * Rick Sayre (https://github.com/whorfin)
+* Craig Leres (https://github.com/leres)
+* Maurici Abad (https://github.com/mauriciabad)
+* Nancy Li (https://github.com/NancyLi1013)
+* William Parks (https://github.com/WilliamParks)
+* Sam Hellawell (https://github.com/samhellawell)
+* Vladislavs Sokurenko (https://github.com/sokurenko)
 
 Other contributions
 ===================
