@@ -30,6 +30,7 @@
 
 #include "my_config.h"
 
+#include "config_builder.h"
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
@@ -69,18 +70,21 @@ class MetadataChacheTTLTest : public RouterComponentTest {
     const std::string cluster_type_str =
         (cluster_type == ClusterType::RS_V2) ? "rs" : "gr";
 
-    return "[metadata_cache:test]\n"
-           "cluster_type=" +
-           cluster_type_str +
-           "\n"
-           "router_id=1\n"
-           "bootstrap_server_addresses=" +
-           bootstrap_server_addresses + "\n" +
-           "user=" + router_metadata_username +
-           "\n"
-           "connect_timeout=1\n"
-           "metadata_cluster=test\n" +
-           (ttl.empty() ? "" : std::string("ttl=" + ttl + "\n")) + "\n";
+    std::vector<std::pair<std::string, std::string>> options{
+        {"cluster_type", cluster_type_str},
+        {"router_id", "1"},
+        {"bootstrap_server_addresses", bootstrap_server_addresses},
+        {"user", router_metadata_username},
+        {"connect_timeout", "1"},
+        {"metadata_cluster", "test"},
+    };
+
+    if (!ttl.empty()) {
+      options.push_back({"ttl", ttl});
+    }
+
+    return mysql_harness::ConfigBuilder::build_section(
+        "metadata_cache:bootstrap", options);
   }
 
   std::string get_metadata_cache_routing_section(
@@ -88,19 +92,22 @@ class MetadataChacheTTLTest : public RouterComponentTest {
       const std::string &strategy, const std::string &mode = "",
       const std::string &section_name = "default",
       const std::string &protocol = "classic") {
-    std::string result =
-        "[routing:" + section_name +
-        "]\n"
-        "bind_port=" +
-        std::to_string(router_port) + "\n" +
-        "destinations=metadata-cache://test/default?role=" + role + "\n" +
-        "protocol=" + protocol + "\n";
+    std::vector<std::pair<std::string, std::string>> options{
+        {"bind_port", std::to_string(router_port)},
+        {"destinations", "metadata-cache://test/default?role=" + role},
+        {"protocol", protocol},
+    };
 
-    if (!strategy.empty())
-      result += std::string("routing_strategy=" + strategy + "\n");
-    if (!mode.empty()) result += std::string("mode=" + mode + "\n");
+    if (!strategy.empty()) {
+      options.push_back({"routing_strategy", strategy});
+    }
 
-    return result;
+    if (!mode.empty()) {
+      options.push_back({"mode", mode});
+    }
+
+    return mysql_harness::ConfigBuilder::build_section(
+        "routing:" + section_name, options);
   }
 
   auto get_array_field_value(const std::string &json_string,
@@ -127,10 +134,6 @@ class MetadataChacheTTLTest : public RouterComponentTest {
 
   int get_update_attributes_count(const std::string &json_string) {
     return get_int_field_value(json_string, "update_attributes_count");
-  }
-
-  int get_update_last_check_in_count(const std::string &json_string) {
-    return get_int_field_value(json_string, "update_last_check_in_count");
   }
 
   bool wait_metadata_read(const ProcessWrapper &router,
@@ -341,7 +344,7 @@ TEST_P(MetadataChacheTTLTestParamInvalid, CheckTTLInvalid) {
   EXPECT_THAT(router.exit_code(), testing::Ne(0));
   EXPECT_TRUE(wait_log_contains(router,
                                 "Configuration error: option ttl in "
-                                "\\[metadata_cache:test\\] needs value "
+                                "\\[metadata_cache:bootstrap\\] needs value "
                                 "between 0 and 3600 inclusive",
                                 500ms));
 }
@@ -541,11 +544,12 @@ TEST_F(MetadataChacheTTLTest, CheckMetadataUpgradeBetweenTTLs) {
   ASSERT_THAT(router.kill(), testing::Eq(0));
 }
 
-class CheckRouterVersionUpdateOnceTest
+class CheckRouterVersionNoPeriodicUpdatesTest
     : public MetadataChacheTTLTest,
       public ::testing::WithParamInterface<MetadataTTLTestParams> {};
 
-TEST_P(CheckRouterVersionUpdateOnceTest, CheckRouterVersionUpdateOnce) {
+TEST_P(CheckRouterVersionNoPeriodicUpdatesTest,
+       CheckRouterVersionPeriodicUpdates) {
   const auto router_port = port_pool_.get_next_available();
   SCOPED_TRACE(
       "// launch the server mock (it's our metadata server and single cluster "
@@ -560,8 +564,7 @@ TEST_P(CheckRouterVersionUpdateOnceTest, CheckRouterVersionUpdateOnce) {
 
   SCOPED_TRACE(
       "// let's tell the mock which attributes it should expect so that it "
-      "does "
-      "the strict sql matching for us");
+      "does the strict sql matching for us");
   auto globals = mock_GR_metadata_as_json("", {md_server_port});
   JsonAllocator allocator;
   globals.AddMember("router_version", MYSQL_ROUTER_VERSION, allocator);
@@ -582,10 +585,10 @@ TEST_P(CheckRouterVersionUpdateOnceTest, CheckRouterVersionUpdateOnce) {
   launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
                 /*wait_for_notify_ready=*/30s);
 
-  SCOPED_TRACE("// let the router run for 3 ttl periods");
-  EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 3));
+  SCOPED_TRACE("// let the router run for more than 10 metadata updates");
+  EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 10));
 
-  SCOPED_TRACE("// we still expect the version to be only set once");
+  SCOPED_TRACE("// we still expect the attributes to be only set once");
   std::string server_globals =
       MockServerRestClient(md_server_http_port).get_globals_as_json_string();
   const int attributes_upd_count = get_update_attributes_count(server_globals);
@@ -611,19 +614,11 @@ TEST_P(CheckRouterVersionUpdateOnceTest, CheckRouterVersionUpdateOnce) {
   EXPECT_STREQ("START TRANSACTION", queries.at(2).c_str());
   EXPECT_STREQ("SELECT * FROM mysql_innodb_cluster_metadata.schema_version",
                queries.at(3).c_str());
-
-  if (GetParam().cluster_type != ClusterType::GR_V1) {
-    SCOPED_TRACE("// last_check_in should be attempted at least once");
-    std::string server_globals =
-        MockServerRestClient(md_server_http_port).get_globals_as_json_string();
-    const int last_check_in_upd_count =
-        get_update_last_check_in_count(server_globals);
-    EXPECT_GE(1, last_check_in_upd_count);
-  }
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    CheckRouterVersionUpdateOnce, CheckRouterVersionUpdateOnceTest,
+    CheckRouterVersionNoPeriodicUpdates,
+    CheckRouterVersionNoPeriodicUpdatesTest,
     ::testing::Values(
         MetadataTTLTestParams("metadata_dynamic_nodes_version_update.js",
                               "router_version_update_once_gr_v1",
