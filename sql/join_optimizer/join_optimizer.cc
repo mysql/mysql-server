@@ -1969,7 +1969,6 @@ bool CostingReceiver::ProposeRefAccess(
     path.type = AccessPath::EQ_REF;
     path.eq_ref().table = table;
     path.eq_ref().ref = ref;
-    path.eq_ref().use_order = false;
 
     // We could set really any ordering here if we wanted to.
     // It's very rare that it should matter, though.

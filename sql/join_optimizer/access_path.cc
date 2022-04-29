@@ -415,9 +415,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       }
       case AccessPath::EQ_REF: {
         const auto &param = path->eq_ref();
-        iterator =
-            NewIterator<EQRefIterator>(thd, mem_root, param.table, param.ref,
-                                       param.use_order, examined_rows);
+        iterator = NewIterator<EQRefIterator>(thd, mem_root, param.table,
+                                              param.ref, examined_rows);
         break;
       }
       case AccessPath::PUSHED_JOIN_REF: {

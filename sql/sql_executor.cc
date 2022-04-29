@@ -3599,7 +3599,7 @@ AccessPath *QEP_TAB::access_path() {
 
     case JT_EQ_REF:
       // May later change to a PushedJoinRefAccessPath if 'pushed'
-      path = NewEQRefAccessPath(join()->thd, table(), &ref(), use_order(),
+      path = NewEQRefAccessPath(join()->thd, table(), &ref(),
                                 /*count_examined_rows=*/true);
       used_ref = &ref();
       break;

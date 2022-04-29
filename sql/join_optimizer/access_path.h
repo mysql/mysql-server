@@ -870,7 +870,6 @@ struct AccessPath {
     struct {
       TABLE *table;
       TABLE_REF *ref;
-      bool use_order;
     } eq_ref;
     struct {
       TABLE *table;
@@ -1270,14 +1269,12 @@ inline AccessPath *NewRefOrNullAccessPath(THD *thd, TABLE *table,
 }
 
 inline AccessPath *NewEQRefAccessPath(THD *thd, TABLE *table, TABLE_REF *ref,
-                                      bool use_order,
                                       bool count_examined_rows) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::EQ_REF;
   path->count_examined_rows = count_examined_rows;
   path->eq_ref().table = table;
   path->eq_ref().ref = ref;
-  path->eq_ref().use_order = use_order;
   return path;
 }
 

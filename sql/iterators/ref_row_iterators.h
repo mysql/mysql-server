@@ -100,8 +100,7 @@ class RefOrNullIterator final : public TableRowIterator {
 class EQRefIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
-  EQRefIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
-                ha_rows *examined_rows);
+  EQRefIterator(THD *thd, TABLE *table, TABLE_REF *ref, ha_rows *examined_rows);
 
   bool Init() override;
   int Read() override;
@@ -117,7 +116,6 @@ class EQRefIterator final : public TableRowIterator {
 
  private:
   TABLE_REF *const m_ref;
-  const bool m_use_order;
   bool m_first_record_since_init;
   ha_rows *const m_examined_rows;
 };

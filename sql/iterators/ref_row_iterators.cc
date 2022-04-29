@@ -109,10 +109,9 @@ int ConstIterator::Read() {
 }
 
 EQRefIterator::EQRefIterator(THD *thd, TABLE *table, TABLE_REF *ref,
-                             bool use_order, ha_rows *examined_rows)
+                             ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_ref(ref),
-      m_use_order(use_order),
       m_examined_rows(examined_rows) {}
 
 /**
@@ -134,8 +133,7 @@ EQRefIterator::EQRefIterator(THD *thd, TABLE *table, TABLE_REF *ref,
 
 bool EQRefIterator::Init() {
   if (!table()->file->inited) {
-    assert(!m_use_order);  // Don't expect sort req. for single row.
-    int error = table()->file->ha_index_init(m_ref->key, m_use_order);
+    int error = table()->file->ha_index_init(m_ref->key, /*sorted=*/false);
     if (error) {
       PrintError(error);
       return true;
