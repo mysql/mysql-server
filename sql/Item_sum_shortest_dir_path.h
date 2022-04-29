@@ -56,6 +56,9 @@ class Item_sum_shortest_dir_path final : public Item_sum_json {
 
   void clear() override;
   bool fix_fields(THD *thd, Item **pItem) override;
+  void reset_field() override;
+  void update_field() override;
+
   bool add() override;
   Item *copy_or_same(THD *thd) override;
   bool check_wf_semantics1(THD *thd, Query_block *select,

@@ -147,6 +147,35 @@ bool Item_sum_shortest_dir_path::fix_fields(THD *thd, Item **pItem) {
   return false;
 }
 
+void Item_sum_shortest_dir_path::reset_field() {
+  clear();
+  add();
+  /*
+    field_type is MYSQL_TYPE_JSON so Item::make_string_field will always
+    create a Field_json(in Item_sum::create_tmp_field).
+    The cast is need since Field does not expose store_json function.
+  */
+  Field_json *json_result_field = down_cast<Field_json *>(result_field);
+  // Store the container inside the field.
+  json_result_field->store_json(m_wrapper.get());
+  json_result_field->set_notnull();
+}
+
+void Item_sum_shortest_dir_path::update_field() {
+  /*
+    field_type is MYSQL_TYPE_JSON so Item::make_string_field will always
+    create a Field_json(in Item_sum::create_tmp_field).
+    The cast is need since Field does not expose store_json function.
+  */
+  Field_json *json_result_field = down_cast<Field_json *>(result_field);
+  // Restore the container(m_wrapper) from the field
+  json_result_field->val_json(m_wrapper.get());
+  add();
+  // Store the container inside the field.
+  json_result_field->store_json(m_wrapper.get());
+  json_result_field->set_notnull();
+}
+
 bool Item_sum_shortest_dir_path::add() {
   assert(arg_count == 7);
 
