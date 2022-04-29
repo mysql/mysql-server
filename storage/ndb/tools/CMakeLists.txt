@@ -26,8 +26,6 @@ INCLUDE(ndb_downgrade_warnings)
 # if the compiler supports the flag
 FOREACH(warning
     "cast-qual"
-    # NdbImportCsvGram.cpp
-    "implicit-fallthrough"
     "unused-but-set-variable"
     "unused-parameter"
     )
@@ -58,8 +56,9 @@ ADD_LIBRARY(ndbtools STATIC
 
 IF(MY_COMPILER_IS_GNU_OR_CLANG)
   # Suppress warnings for undefined identifiers in bison output
+  # For implicit-fallthrough - see Bug#34098818
   ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.cpp
-    COMPILE_FLAGS "-Wno-undef")
+    COMPILE_FLAGS "-Wno-undef -Wimplicit-fallthrough=3")
 ENDIF()
 
 IF(MSVC)
