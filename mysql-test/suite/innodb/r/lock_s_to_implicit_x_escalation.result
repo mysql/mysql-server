@@ -1,0 +1,19 @@
+CREATE TABLE t1 (id INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+BEGIN;
+SELECT * FROM t1;
+id
+1
+DELETE FROM t1 WHERE id=1;
+BEGIN;
+SELECT * FROM t1 FOR SHARE;
+id
+BEGIN;
+SET DEBUG_SYNC = "lock_wait_will_wait SIGNAL con2_will_wait";
+SELECT * FROM t1 FOR UPDATE;
+SET DEBUG_SYNC = "now WAIT_FOR con2_will_wait";
+INSERT INTO t1 VALUES (1);
+SET DEBUG_SYNC = "lock_wait_will_wait SIGNAL con3_will_wait";
+INSERT INTO t1 VALUES (0);
+SET DEBUG_SYNC = "now WAIT_FOR con3_will_wait";
+DROP TABLE t1;
