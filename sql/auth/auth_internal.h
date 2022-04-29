@@ -182,7 +182,8 @@ void append_auth_id(const THD *thd, ACL_USER *acl_user, String *str);
 /* sql_user_table */
 ulong get_access(TABLE *form, uint fieldnr, uint *next_field);
 int replace_db_table(THD *thd, TABLE *table, const char *db,
-                     const LEX_USER &combo, ulong rights, bool revoke_grant);
+                     const LEX_USER &combo, ulong rights, bool revoke_grant,
+                     bool all_current_privileges);
 int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
                                const LEX_USER *proxied_user,
                                bool with_grant_arg, bool revoke_grant);

@@ -525,9 +525,12 @@ DROP DATABASE robo;
 --echo #
 --echo # 13.1 Revoking DB level privilege multiple times should not
 --echo #      create/affect the restrictions
+--echo # Corrected due to bug#33897859:
+--echo #      revoking for the second time should raise ERROR 1141
 CREATE USER foo;
 GRANT ALL ON mysql.* TO foo;
 REVOKE SELECT ON mysql.* FROM foo;
+--error 1141
 REVOKE SELECT ON mysql.* FROM foo;
 SHOW GRANTS FOR foo;
 --echo # 13.2 Granting DB level privilege multiple times should not
