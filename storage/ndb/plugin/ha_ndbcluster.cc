@@ -1886,9 +1886,8 @@ int ha_ndbcluster::get_metadata(Ndb *ndb, const char *dbname,
   assert(m_table == nullptr);
   assert(m_trans_table_stats == nullptr);
 
-  int object_id, object_version;
-  if (!ndb_dd_table_get_object_id_and_version(table_def, object_id,
-                                              object_version)) {
+  Ndb_dd_handle dd_handle = ndb_dd_table_get_spi_and_version(table_def);
+  if (!dd_handle.valid()) {
     DBUG_PRINT("error", ("Could not extract object_id and object_version "
                          "from table definition"));
     return 1;
@@ -1900,31 +1899,32 @@ int ha_ndbcluster::get_metadata(Ndb *ndb, const char *dbname,
     ERR_RETURN(ndbtab_g.getNdbError());
   }
 
-  // Check that the id and version from DD
-  // matches the id and version of the NDB table
-  const int ndb_object_id = tab->getObjectId();
-  const int ndb_object_version = tab->getObjectVersion();
-  if (ndb_object_id != object_id || ndb_object_version != object_version) {
-    DBUG_PRINT("error", ("Table id or version mismatch"));
-    DBUG_PRINT("error", ("NDB table id: %u, version: %u", ndb_object_id,
-                         ndb_object_version));
-    DBUG_PRINT("error",
-               ("DD table id: %u, version: %u", object_id, object_version));
+  {
+    // Check that the id and version from DD
+    // matches the id and version of the NDB table
+    Ndb_dd_handle curr_handle{tab->getObjectId(), tab->getObjectVersion()};
+    if (curr_handle != dd_handle) {
+      DBUG_PRINT("error", ("Table id or version mismatch"));
+      DBUG_PRINT("error", ("NDB table id: %llu, version: %d", curr_handle.spi,
+                           curr_handle.version));
+      DBUG_PRINT("error", ("DD table id: %llu, version: %d", dd_handle.spi,
+                           dd_handle.version));
 
-    ndb_log_verbose(10,
-                    "Table id or version mismatch for table '%s.%s', "
-                    "[%d, %d] != [%d, %d]",
-                    dbname, tabname, object_id, object_version, ndb_object_id,
-                    ndb_object_version);
+      ndb_log_verbose(10,
+                      "Table id or version mismatch for table '%s.%s', "
+                      "[%llu, %d] != [%llu, %d]",
+                      dbname, tabname, dd_handle.spi, dd_handle.version,
+                      curr_handle.spi, curr_handle.version);
 
-    ndbtab_g.invalidate();
+      ndbtab_g.invalidate();
 
-    // When returning HA_ERR_TABLE_DEF_CHANGED from handler::open()
-    // the caller is intended to call ha_discover() in order to let
-    // the engine install the correct table definition in the
-    // data dictionary, then the open() will be retried and presumably
-    // the table definition will be correct
-    return HA_ERR_TABLE_DEF_CHANGED;
+      // When returning HA_ERR_TABLE_DEF_CHANGED from handler::open()
+      // the caller is intended to call ha_discover() in order to let
+      // the engine install the correct table definition in the
+      // data dictionary, then the open() will be retried and presumably
+      // the table definition will be correct
+      return HA_ERR_TABLE_DEF_CHANGED;
+    }
   }
 
   if (DBUG_EVALUATE_IF("ndb_get_metadata_fail", true, false)) {
@@ -9561,8 +9561,9 @@ int ha_ndbcluster::create(const char *path [[maybe_unused]],
 
     // Update table definition with the table id and version of the NDB table
     const NdbDictionary::Table *const ndbtab = ndbtab_g.get_table();
-    ndb_dd_table_set_object_id_and_version(table_def, ndbtab->getObjectId(),
-                                           ndbtab->getObjectVersion());
+    const Ndb_dd_handle dd_handle{ndbtab->getObjectId(),
+                                  ndbtab->getObjectVersion()};
+    ndb_dd_table_set_spi_and_version(table_def, dd_handle);
 
     return create.succeeded();
   }
@@ -10140,8 +10141,8 @@ int ha_ndbcluster::create(const char *path [[maybe_unused]],
 
   // Update table definition with the table id and version of the newly
   // created table, the caller will then save this information in the DD
-  ndb_dd_table_set_object_id_and_version(table_def, tab.getObjectId(),
-                                         tab.getObjectVersion());
+  ndb_dd_table_set_spi_and_version(table_def, tab.getObjectId(),
+                                   tab.getObjectVersion());
 
   // Create secondary indexes
   if (create_indexes(thd, table, &tab) != 0) {
@@ -10721,8 +10722,8 @@ int rename_table_impl(THD *thd, Ndb *ndb,
     // The version should have been changed by the rename
     assert(ndbtab->getObjectVersion() != ndb_table_version);
 
-    ndb_dd_table_set_object_id_and_version(to_table_def, ndb_table_id,
-                                           ndbtab->getObjectVersion());
+    ndb_dd_table_set_spi_and_version(to_table_def, ndb_table_id,
+                                     ndbtab->getObjectVersion());
 
     // Log the rename in the Ndb_DDL_transaction_ctx object
     ddl_ctx =
@@ -10889,16 +10890,15 @@ static bool check_table_id_and_version(const dd::Table *table_def,
                                        const NdbDictionary::Table *ndbtab) {
   DBUG_TRACE;
 
-  int object_id, object_version;
-  if (!ndb_dd_table_get_object_id_and_version(table_def, object_id,
-                                              object_version)) {
+  Ndb_dd_handle dd_handle = ndb_dd_table_get_spi_and_version(table_def);
+  if (!dd_handle.valid()) {
     return false;
   }
 
   // Check that the id and version from DD
   // matches the id and version of the NDB table
-  if (ndbtab->getObjectId() != object_id ||
-      ndbtab->getObjectVersion() != object_version) {
+  Ndb_dd_handle curr_handle{ndbtab->getObjectId(), ndbtab->getObjectVersion()};
+  if (curr_handle != dd_handle) {
     return false;
   }
 
@@ -16624,8 +16624,8 @@ bool ha_ndbcluster::commit_inplace_alter_table(
       // The version should have been changed by the alter
       assert((Uint32)ndbtab->getObjectVersion() != table_version);
 
-      ndb_dd_table_set_object_id_and_version(new_table_def, table_id,
-                                             ndbtab->getObjectVersion());
+      ndb_dd_table_set_spi_and_version(new_table_def, ndbtab->getObjectId(),
+                                       ndbtab->getObjectVersion());
 
       // Also check and correct the partition count if required.
       const bool check_partition_count_result =
@@ -17560,8 +17560,8 @@ bool ha_ndbcluster::upgrade_table(THD *thd, const char *db_name,
   }
 
   // Set object id and version
-  ndb_dd_table_set_object_id_and_version(dd_table, ndbtab->getObjectId(),
-                                         ndbtab->getObjectVersion());
+  ndb_dd_table_set_spi_and_version(dd_table, ndbtab->getObjectId(),
+                                   ndbtab->getObjectVersion());
 
   /*
     Detect and set row format for the table. This is done here

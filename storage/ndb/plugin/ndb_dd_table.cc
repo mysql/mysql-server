@@ -39,43 +39,47 @@
 // se_private_data field of DD
 static const char *object_version_key = "object_version";
 
-void ndb_dd_table_set_object_id_and_version(dd::Table *table_def, int object_id,
-                                            int object_version) {
+void ndb_dd_table_set_spi_and_version(dd::Table *table_def, int spi,
+                                      int version) {
   DBUG_TRACE;
-  DBUG_PRINT("enter",
-             ("object_id: %d, object_version: %d", object_id, object_version));
+  DBUG_PRINT("enter", ("object_id: %d, object_version: %d", spi, version));
 
-  table_def->set_se_private_id(object_id);
-  table_def->se_private_data().set(object_version_key, object_version);
+  table_def->set_se_private_id(spi);
+  table_def->se_private_data().set(object_version_key, version);
 }
 
-bool ndb_dd_table_get_object_id_and_version(const dd::Table *table_def,
-                                            int &object_id,
-                                            int &object_version) {
+void ndb_dd_table_set_spi_and_version(dd::Table *table_def,
+                                      Ndb_dd_handle handle) {
+  ndb_dd_table_set_spi_and_version(table_def, handle.spi, handle.version);
+}
+
+Ndb_dd_handle ndb_dd_table_get_spi_and_version(const dd::Table *table_def) {
   DBUG_TRACE;
 
-  if (table_def->se_private_id() == dd::INVALID_OBJECT_ID) {
+  const dd::Object_id spi = table_def->se_private_id();
+  int version;
+
+  if (spi == dd::INVALID_OBJECT_ID) {
     DBUG_PRINT("error", ("Table definition contained an invalid object id"));
-    return false;
+    return Ndb_dd_handle();
   }
-  object_id = table_def->se_private_id();
 
   if (!table_def->se_private_data().exists(object_version_key)) {
     DBUG_PRINT("error", ("Table definition didn't contain property '%s'",
                          object_version_key));
-    return false;
+    return Ndb_dd_handle();
   }
 
-  if (table_def->se_private_data().get(object_version_key, &object_version)) {
+  if (table_def->se_private_data().get(object_version_key, &version)) {
     DBUG_PRINT("error", ("Table definition didn't have a valid number for '%s'",
                          object_version_key));
-    return false;
+    return Ndb_dd_handle();
   }
 
-  DBUG_PRINT("exit",
-             ("object_id: %d, object_version: %d", object_id, object_version));
+  Ndb_dd_handle handle(spi, version);
+  DBUG_PRINT("info", ("%s", handle.c_str()));
 
-  return true;
+  return handle;
 }
 
 void ndb_dd_table_mark_as_hidden(dd::Table *table_def) {

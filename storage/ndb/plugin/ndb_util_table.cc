@@ -562,9 +562,8 @@ bool Util_table_creator::install_in_DD(bool reinstall) {
 
   // Table definition exists
   if (existing) {
-    int table_id, table_version;
-    if (!ndb_dd_table_get_object_id_and_version(existing, table_id,
-                                                table_version)) {
+    Ndb_dd_handle dd_handle = ndb_dd_table_get_spi_and_version(existing);
+    if (!dd_handle.valid()) {
       ndb_log_error("Failed to extract id and version from '%s' table",
                     m_name.c_str());
       assert(false);
@@ -580,8 +579,9 @@ bool Util_table_creator::install_in_DD(bool reinstall) {
 
     // Check if table definition in DD is outdated
     const NdbDictionary::Table *ndbtab = m_util_table.get_table();
-    if (!reinstall && (ndbtab->getObjectId() == table_id &&
-                       ndbtab->getObjectVersion() == table_version)) {
+    Ndb_dd_handle curr_handle{ndbtab->getObjectId(),
+                              ndbtab->getObjectVersion()};
+    if (!reinstall && curr_handle == dd_handle) {
       // Existed, didn't need reinstall and version matched
       return true;
     }
