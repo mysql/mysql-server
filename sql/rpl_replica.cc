@@ -2857,6 +2857,21 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
   } else
     mi->checksum_alg_before_fd = binary_log::BINLOG_CHECKSUM_ALG_OFF;
 
+  if (DBUG_EVALUATE_IF("bug32442749_simulate_null_checksum", 1, 0)) {
+    const char query[] = "SET @source_binlog_checksum= NULL";
+    int rc = mysql_real_query(mysql, query, static_cast<ulong>(strlen(query)));
+    if (rc != 0) {
+      errmsg =
+          "The slave I/O thread stops because a fatal error is encountered "
+          "when it tried to SET @source_binlog_checksum.";
+      err_code = ER_SLAVE_FATAL_ERROR;
+      sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
+      mysql_free_result(mysql_store_result(mysql));
+      goto err;
+    }
+    mysql_free_result(mysql_store_result(mysql));
+  }
+
   if (DBUG_EVALUATE_IF("simulate_replica_unaware_gtid", 0, 1)) {
     auto master_gtid_mode = Gtid_mode::OFF;
     auto slave_gtid_mode = global_gtid_mode.get();
