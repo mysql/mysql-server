@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -411,9 +411,9 @@ struct Fragmentrec {
   Uint32 expSenderPageptr;
 
 //-----------------------------------------------------------------------------
-// List of lock owners currently used only for self-check
+// Number of locks held on fragment, only for self-check
 //-----------------------------------------------------------------------------
-  Uint32 lockOwnersList;
+  Uint32 lockCount;
 
 //-----------------------------------------------------------------------------
 // References to Directory Ranges (which in turn references directories, which
@@ -686,7 +686,6 @@ struct Operationrec {
   Uint32 fid;
   Uint32 fragptr;
   LHBits32 hashValue;
-  Uint32 nextLockOwnerOp;
   Uint32 nextOp;
   Uint32 nextParallelQue;
   union {
@@ -694,7 +693,6 @@ struct Operationrec {
     Uint32 m_lock_owner_ptr_i; // if nextParallelQue = RNIL, else undefined
   };
   Uint32 prevOp;
-  Uint32 prevLockOwnerOp;
   union {
     Uint32 prevParallelQue;
     Uint32 m_lo_last_parallel_op_ptr_i;
@@ -881,7 +879,6 @@ private:
   void initFragAdd(Signal*, FragmentrecPtr) const;
   void initFragPageZero(FragmentrecPtr, Page8Ptr) const;
   void initFragGeneral(FragmentrecPtr) const;
-  void verifyFragCorrect(FragmentrecPtr regFragPtr) const;
   void releaseFragResources(Signal* signal, Uint32 fragIndex);
   void releaseRootFragRecord(Signal* signal, RootfragmentrecPtr rootPtr) const;
   void releaseRootFragResources(Signal* signal, Uint32 tableId);
@@ -1053,8 +1050,6 @@ private:
 			  OperationrecPtr release_op) const;
   Uint32 allocOverflowPage();
   bool getfragmentrec(FragmentrecPtr&, Uint32 fragId);
-  void insertLockOwnersList(const OperationrecPtr&) const;
-  void takeOutLockOwnersList(const OperationrecPtr&) const;
 
   void initFsOpRec(Signal* signal) const;
   void initOverpage(Page8Ptr);
