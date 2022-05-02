@@ -1602,10 +1602,10 @@ struct alignas(NDB_CL) thr_data
   BlockThreadBitmask m_local_signals_mask;
 
   /**
-   * Set of outgoing JB's which are CONGESTED *and* contributed to
-   * a reduction in 'm_max_signals_per_jb' to be executed.
+   * Set of destination threads where the JB's are CONGESTED *and*
+   * contributed to a reduction in 'm_max_signals_per_jb' to be executed.
    */
-  BlockThreadBitmask m_congested_signals_mask;
+  BlockThreadBitmask m_congested_threads_mask;
 
   /* Jam buffers for making trace files at crashes. */
   EmulatedJamBuffer m_jam;
@@ -4707,7 +4707,7 @@ compute_max_signals_per_jb(Uint32 max_signals_to_execute)
  * 'normal' execute paths by setting 'm_max_signals_per_jb = 0'. In this
  * state we can only execute extra signals from the 'm_extra_signals[]'
  * quota. These are assigned to drain from in-queues which at detected
- * to be comgested as well.
+ * to be congested as well.
  *
  * Note that we only handle quota reduction due to the specified 'congested'
  * queue. There may be other congestions as well, thus we take MIN's of
@@ -4724,7 +4724,7 @@ set_congested_jb_quotas(thr_data *selfptr, Uint32 congested, Uint32 free)
     // Can't do 'normal' JB-execute anymore, only 'extra' signals
     const Uint32 reserved = free;
     const Uint32 extra = compute_max_signals_to_execute(reserved);
-    selfptr->m_congested_signals_mask.set(congested);
+    selfptr->m_congested_threads_mask.set(congested);
     selfptr->m_max_signals_per_jb = 0;
     selfptr->m_total_extra_signals  = MIN(extra, selfptr->m_total_extra_signals);
   }
@@ -4737,7 +4737,7 @@ set_congested_jb_quotas(thr_data *selfptr, Uint32 congested, Uint32 free)
     const Uint32 perjb = compute_max_signals_per_jb(avail);
     if (perjb < MAX_SIGNALS_PER_JB)
     {
-      selfptr->m_congested_signals_mask.set(congested);
+      selfptr->m_congested_threads_mask.set(congested);
       selfptr->m_max_signals_per_jb = MIN(perjb, selfptr->m_max_signals_per_jb);
     }
   }
@@ -4933,22 +4933,22 @@ check_full_job_queue(thr_job_queue *waitfor)
 /**
  * Get a FULL JB-queue, preferably not 'self'.
  *
- * Get the thread whose our out-JB-queue is most congested on, preferably
- * a full queue.
- * Exception is our 'self-queue', which we only return as a last resort.
- * (We can not wait on 'self')
+ * Get the thread whose our out-JB-queue is FULL-congested on.
+ * Try to avoid returning the 'self-queue' if there are other
+ * FULL queues we need to wait on. (We can not wait on 'self')
  *
  * Assumption is that function is called only when execution thread has
- * reached m_max_signals_per_jb == 0. Thus, one of the congested thread should
- * have reached the 'RESERVED' limit.
+ * reached m_max_signals_per_jb == 0. Thus, one of the congested threads
+ * should have reached the 'RESERVED' limit.
  *
  * Note that we 'get_free_estimate' without holding the write_lock.
  * Thus, congestion can later get more severe due to other writers, or it
  * could have cleared due to yet undetected read-consumption. Anyhow,
- * we will later set lock and recheck in the yield-callback function
- * before suspending the thread. We might then possibly not yield,
- * which results in a 'recheck_congested_job_buffers', and another
- * call to this function.
+ * we will later set lock and either recheck_congested_job_buffers() or
+ * recheck in the yield-callback function.
+ *
+ * We might then possibly not yield, which results in another call
+ * to this function.
  *
  * If full: Return 'thr_data*' for (one of) the thread(s)
  *          which we have to wait for. (to consume from queue)
@@ -4957,51 +4957,41 @@ static thr_data*
 get_congested_job_queue(thr_data *selfptr)
 {
   thr_repository* rep = g_thr_repository;
-  const Uint32 self = selfptr->m_thr_no;
-  const Uint32 self_jbb = self % NUM_JOB_BUFFERS_PER_THREAD;
-  Uint32 min_free = thr_job_queue::SIZE;
-  thr_data *waitfor = nullptr;
-  bool self_is_full = false;
+  const unsigned self = selfptr->m_thr_no;
+  const unsigned self_jbb = self % NUM_JOB_BUFFERS_PER_THREAD;
+  thr_data *self_is_full = nullptr;
 
   // Precondition: Had full job_queues:
   assert(selfptr->m_max_signals_per_jb == 0);
 
-  for (unsigned congested = selfptr->m_congested_signals_mask.find_first();
-       congested != BitmaskImpl::NotFound;
-       congested = selfptr->m_congested_signals_mask.find_next(congested+1))
+  for (unsigned thr_no = selfptr->m_congested_threads_mask.find_first();
+       thr_no != BitmaskImpl::NotFound;
+       thr_no = selfptr->m_congested_threads_mask.find_next(thr_no+1))
   {
-    thr_data *congested_thr = &rep->m_thread[congested];
+    thr_data *congested_thr = &rep->m_thread[thr_no];
     thr_job_queue *congested_queue = &congested_thr->m_jbb[self_jbb];
     const unsigned free = get_free_estimate_out_queue(congested_queue);
 
     if (free <= thr_job_queue::RESERVED) {  // is 'FULL'
       /**
-       * We try to find another thread then 'self' to wait for:
+       * We try to find another thread than 'self' to wait for:
        * - If self_is_full, we just note it for later.
        * - Any other non-self thread is returned immediately
        */
-      if (congested != self) {
+      if (thr_no != self) {
         return congested_thr;
       } else {
-        self_is_full = true;
+        self_is_full = selfptr;
       }
     }
-    if (free < min_free)
-    {
-      waitfor = congested_thr;
-      min_free = free;
-    }
   }
-  if (self_is_full) {
-    return selfptr;
-  }
-
   /**
-   * We might return a 'non-full' waiter, even if we searched for a 'full'.
-   * However, it is still a good candidate for being full in the yield-callback.
-   * (One of the congested queues *were* full quite recently.)
+   * We possibly didn't find a FULL-congested job_buffer: it could have been
+   * consumed from after we set 'per_jb==0'. We will then need to
+   * recheck_congested_job_buffers() in order to relcalculate 'per_jb'
+   * and 'extra' execution quotas, and recheck the FULL-congestions.
    */
-  return waitfor;
+  return self_is_full;  // selfptr or nullptr
 }
 
 static
@@ -5017,10 +5007,11 @@ dumpJobQueues(void)
       const thr_data *thrptr = rep->m_thread + to;
       const thr_job_queue *q = thrptr->m_jbb + from;
       const unsigned free = get_free_in_queue(q);
-      if (free <= thr_job_queue::CONGESTED)
+      const unsigned used =  q->m_size - thr_job_queue::SAFETY - free;
+      if (used > 1)  // At least 1 jb-page in use, even if 'empty'
       {
-        tmp.appfmt(" job buffer %d --> %d, used %d",
-                   from, to, q->m_size - free);
+        tmp.appfmt("\n job buffer %d --> %d, used %d",
+                   from, to, used);
         if (free <= 0)
         {
           tmp.appfmt(" FULL!");
@@ -5060,7 +5051,7 @@ mt_checkDoJob(Uint32 recv_thread_idx)
    *   handling open/close of connections, and catching
    *   its own shutdown events
    */
-  return !recv_thr->m_congested_signals_mask.isclear();
+  return !recv_thr->m_congested_threads_mask.isclear();
 }
 
 /**
@@ -5721,7 +5712,7 @@ static
 void
 flush_send_buffer(thr_data* selfptr, Uint32 trp_id)
 {
-  Uint32 thr_no = selfptr->m_thr_no;
+  unsigned thr_no = selfptr->m_thr_no;
   thr_send_buffer * src = selfptr->m_send_buffers + trp_id;
   thr_repository* rep = g_thr_repository;
 
@@ -6933,7 +6924,7 @@ prepare_congested_execution(thr_data *selfptr)
   unsigned total_congestion = 0;
 
   // Assumed precondition:
-  assert(!selfptr->m_congested_signals_mask.isclear());
+  assert(!selfptr->m_congested_threads_mask.isclear());
 
   /**
    * Two steps:
@@ -6961,16 +6952,14 @@ prepare_congested_execution(thr_data *selfptr)
   if (unlikely(total_congestion > 0) && selfptr->m_total_extra_signals > 0)
   {
     // Found congestion, allocate 'extra_signals' proportional to congestion
-    const unsigned extra_per_jb =
-        std::max(1u, selfptr->m_total_extra_signals / total_congestion);
-
     for (unsigned jbb_instance = selfptr->m_jbb_read_mask.find_first();
          jbb_instance != BitmaskImpl::NotFound;
          jbb_instance = selfptr->m_jbb_read_mask.find_next(jbb_instance+1))
     {
       if (congestion[jbb_instance] > 0) {
         selfptr->m_extra_signals[jbb_instance] =
-            congestion[jbb_instance] * extra_per_jb;
+            std::max(1u, congestion[jbb_instance] *
+                     selfptr->m_total_extra_signals / total_congestion);
       } else if (selfptr->m_max_signals_per_jb == 0)  {
         // Need to run a bit in order to avoid starvation of the JBB's
         selfptr->m_extra_signals[jbb_instance] = 1;
@@ -7181,7 +7170,7 @@ run_job_buffers(thr_data *selfptr,
    */
   rmb();
 
-  if (unlikely(!selfptr->m_congested_signals_mask.isclear()))
+  if (unlikely(!selfptr->m_congested_threads_mask.isclear()))
   {
     // Will assign 'extra' signal execution to be used by congested JBB's
     prepare_congested_execution(selfptr);
@@ -8089,10 +8078,10 @@ mt_receiver_thread_main(void *thr_arg)
          * in order to get out of 'buffersFull' state. We will be woken up
          * when consumer has freed a JB-page from the 'congested_queue'.
          */
-        assert(!selfptr->m_congested_signals_mask.isclear());
-        const int congested = selfptr->m_congested_signals_mask.find_first();
-        struct thr_data *congested_thr = &rep->m_thread[congested];
-        const Uint32 self_jbb = thr_no % NUM_JOB_BUFFERS_PER_THREAD;
+        assert(!selfptr->m_congested_threads_mask.isclear());
+        const unsigned thr_no = selfptr->m_congested_threads_mask.find_first();
+        struct thr_data *congested_thr = &rep->m_thread[thr_no];
+        const unsigned self_jbb = thr_no % NUM_JOB_BUFFERS_PER_THREAD;
         thr_job_queue *congested_queue = &congested_thr->m_jbb[self_jbb];
 
         const bool waited = yield(&congested_thr->m_congestion_waiter,
@@ -8146,7 +8135,7 @@ bool
 has_full_in_queues(struct thr_data* selfptr)
 {
   // Precondition: About to execute signals while being FULL-congested
-  assert(!selfptr->m_congested_signals_mask.isclear());
+  assert(!selfptr->m_congested_threads_mask.isclear());
   assert(selfptr->m_max_signals_per_jb == 0);
 
   // Check the JBB in-queues known to contain signals to be executed
@@ -8189,13 +8178,13 @@ handle_full_job_buffers(struct thr_data* selfptr,
                         Uint32 & send_sum,
                         Uint32 & flush_sum)
 {
-  Uint32 sleeploop = 0;
-  const Uint32 self_jbb = selfptr->m_thr_no % NUM_JOB_BUFFERS_PER_THREAD;
+  unsigned sleeploop = 0;
+  const unsigned self_jbb = selfptr->m_thr_no % NUM_JOB_BUFFERS_PER_THREAD;
   selfptr->m_watchdog_counter = 16;
 
   while (selfptr->m_max_signals_per_jb == 0)  // or return
   {
-    if (sleeploop >= 10)
+    if (unlikely(sleeploop >= 10))
     {
       /**
        * we've slept for 10ms...run a bit anyway
@@ -8207,7 +8196,13 @@ handle_full_job_buffers(struct thr_data* selfptr,
       return true;
     }
 
-    struct thr_data* congested = get_congested_job_queue(selfptr);
+    struct thr_data *const congested = get_congested_job_queue(selfptr);
+    if (unlikely(congested == nullptr))
+    {
+      // Recalculate congestions w/ locks, recalculate per_jb-quota as well:
+      recheck_congested_job_buffers(selfptr);
+      continue;  // Recheck if FULL-congested 
+    }
     if (congested == selfptr)
     {
       // Found a 'self' congestion - can't wait for FULL blockage on 'self'
@@ -9099,8 +9094,8 @@ flush_local_signals(struct thr_data *selfptr,
                     Uint32 dst)
 {
   struct thr_job_buffer * const local_buffer = selfptr->m_local_buffer;
-  Uint32 self = selfptr->m_thr_no;
-  const Uint32 jbb_instance = self % NUM_JOB_BUFFERS_PER_THREAD;
+  unsigned self = selfptr->m_thr_no;
+  const unsigned jbb_instance = self % NUM_JOB_BUFFERS_PER_THREAD;
   struct thr_repository *rep = g_thr_repository;
   struct thr_data *dstptr = &rep->m_thread[dst];
   thr_job_queue *q = dstptr->m_jbb + jbb_instance;
@@ -9108,11 +9103,11 @@ flush_local_signals(struct thr_data *selfptr,
   Uint32 num_signals = 0;
   Uint32 next_signal = selfptr->m_first_local[dst].m_first_signal;
 
-  if (unlikely(selfptr->m_congested_signals_mask.get(dst)))
+  if (unlikely(selfptr->m_congested_threads_mask.get(dst)))
   {
     // Assume uncongested, set again further below if still congested
-    selfptr->m_congested_signals_mask.clear(dst);
-    if (selfptr->m_congested_signals_mask.isclear())
+    selfptr->m_congested_threads_mask.clear(dst);
+    if (selfptr->m_congested_threads_mask.isclear())
     {
       // Last congestion cleared, assume full JB quotas
       selfptr->m_max_signals_per_jb = MAX_SIGNALS_PER_JB;
@@ -9253,7 +9248,7 @@ static
 void
 recheck_congested_job_buffers(struct thr_data *selfptr)
 {
-  Uint32 self = selfptr->m_thr_no;
+  unsigned self = selfptr->m_thr_no;
   const Uint32 self_jbb = self % NUM_JOB_BUFFERS_PER_THREAD;
   struct thr_repository *rep = g_thr_repository;
 
@@ -9262,15 +9257,15 @@ recheck_congested_job_buffers(struct thr_data *selfptr)
   selfptr->m_total_extra_signals =
       compute_max_signals_to_execute(thr_job_queue::RESERVED);
 
-  for (Uint32 congested = selfptr->m_congested_signals_mask.find_first();
-       congested != BitmaskImpl::NotFound;
-       congested = selfptr->m_congested_signals_mask.find_next(congested+1))
+  for (unsigned thr_no = selfptr->m_congested_threads_mask.find_first();
+       thr_no != BitmaskImpl::NotFound;
+       thr_no = selfptr->m_congested_threads_mask.find_next(thr_no+1))
   {
-    struct thr_data *thrptr = &rep->m_thread[congested];
+    struct thr_data *thrptr = &rep->m_thread[thr_no];
     thr_job_queue *q = &thrptr->m_jbb[self_jbb];
 
     // Assume congestion cleared, set again if needed
-    selfptr->m_congested_signals_mask.clear(congested);
+    selfptr->m_congested_threads_mask.clear(thr_no);
 
     unsigned free;
     if (unlikely(glob_use_write_lock_mutex))
@@ -9285,7 +9280,7 @@ recheck_congested_job_buffers(struct thr_data *selfptr)
     if (unlikely(free <= thr_job_queue::CONGESTED))
     {
       // JB-page usage is congested, reduce execution quota
-      set_congested_jb_quotas(selfptr, congested, free);
+      set_congested_jb_quotas(selfptr, thr_no, free);
     }
   }
 }
@@ -9472,8 +9467,8 @@ insert_local_signal(struct thr_data *selfptr,
   assert(sh->theLength + sh->m_noOfSections <= 25);
   selfptr->m_local_signals_mask.set(dst);
 
-  const Uint32 self = selfptr->m_thr_no;
-  const Uint32 MAX_SIGNALS_BEFORE_FLUSH = (self >= first_receiver_thread_no)
+  const unsigned self = selfptr->m_thr_no;
+  const unsigned MAX_SIGNALS_BEFORE_FLUSH = (self >= first_receiver_thread_no)
     ? MAX_SIGNALS_BEFORE_FLUSH_RECEIVER
     : MAX_SIGNALS_BEFORE_FLUSH_OTHER;
 
@@ -9768,7 +9763,7 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
   selfptr->m_send_instance = NULL;
   selfptr->m_nosend = 1;
   selfptr->m_local_signals_mask.clear();
-  selfptr->m_congested_signals_mask.clear();
+  selfptr->m_congested_threads_mask.clear();
   selfptr->m_wake_threads_mask.clear();
   selfptr->m_jbb_estimated_queue_size_in_words = 0;
   selfptr->m_ldm_multiplier = 1;
@@ -10319,9 +10314,9 @@ mt_epoll_add_trp(Uint32 self, NodeId node_id, TrpId trp_id)
   (void)node_id;
   struct thr_repository* rep = g_thr_repository;
   struct thr_data *selfptr = &rep->m_thread[self];
-  Uint32 thr_no = selfptr->m_thr_no;
+  unsigned thr_no = selfptr->m_thr_no;
   require(thr_no >= first_receiver_thread_no);
-  Uint32 recv_thread_idx = thr_no - first_receiver_thread_no;
+  unsigned recv_thread_idx = thr_no - first_receiver_thread_no;
   TransporterReceiveHandleKernel *recvdata =
     g_trp_receive_handle_ptr[recv_thread_idx];
   if (recv_thread_idx != g_trp_to_recv_thr_map[trp_id])
@@ -10345,7 +10340,7 @@ mt_is_recv_thread_for_new_trp(Uint32 self,
   (void)node_id;
   struct thr_repository* rep = g_thr_repository;
   struct thr_data *selfptr = &rep->m_thread[self];
-  Uint32 thr_no = selfptr->m_thr_no;
+  unsigned thr_no = selfptr->m_thr_no;
   require(thr_no >= first_receiver_thread_no);
   Uint32 recv_thread_idx = thr_no - first_receiver_thread_no;
   if (recv_thread_idx != g_trp_to_recv_thr_map[trp_id])

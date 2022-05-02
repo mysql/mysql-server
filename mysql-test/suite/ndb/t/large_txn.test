@@ -33,23 +33,27 @@ end %
 delimiter ;%
 
 # Generate large transactions, abort or commit them:
-set autocommit=off;
+begin;
 call do_insert(500000);
 rollback;
 
-set autocommit=off;
+begin;
 call do_insert(500000);
 commit;
 
+begin;
 insert into t2 select * from t1;
 rollback;
 
+begin;
 insert into t2 select * from t1;
 commit;
 
+begin;
 delete from t2;
 commit;
 
+begin;
 delete from t1;
 commit;
 
