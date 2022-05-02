@@ -175,6 +175,44 @@ delete from t10;
 # check .rej file matching the table name does not exists
 delete from t10;
 # check order matters when using --csvopt and --fields-terminated-by
+create table t11 (
+a varchar(16) null
+) engine=ndb CHARACTER SET latin1;
+SELECT COUNT(*), SUM(a IS NULL), SUM(a = '') FROM t11 ORDER BY a;
+COUNT(*)	SUM(a IS NULL)	SUM(a = '')
+6	2	4
+delete from t11;
+create table t11ver like t11;
+SELECT COUNT(*), SUM(a IS NULL), SUM(a = '') FROM t11ver ORDER BY a;
+COUNT(*)	SUM(a IS NULL)	SUM(a = '')
+6	2	4
+select count(*) from t11 x, t11ver y
+where ifnull(x.a,'NULL') = ifnull(y.a,'NULL');
+count(*)
+20
+delete from t11;
+create table t12 (
+a int auto_increment primary key,
+b varchar(16) null
+) engine=ndb CHARACTER SET latin1;
+SELECT COUNT(*), SUM(b IS NULL), SUM(b = '') FROM t12 ORDER BY b;
+COUNT(*)	SUM(b IS NULL)	SUM(b = '')
+6	2	4
+delete from t12;
+create table t12ver like t12;
+SELECT COUNT(*), SUM(b IS NULL), SUM(b = '') FROM t12ver ORDER BY b;
+COUNT(*)	SUM(b IS NULL)	SUM(b = '')
+6	2	4
+select count(*) from t12 x, t12ver y
+where ifnull(x.b,'NULL') = ifnull(y.b,'NULL');
+count(*)
+20
+delete from t12;
+select count(*) from t11ver x, t12ver y
+where ifnull(x.a,'NULL') = ifnull(y.b,'NULL');
+count(*)
+20
 drop table tpersons;
 drop table t1, t1ver, t2, t2ver, t4, t5a, t5b, t5c,
-t6, t6ver, t7, t7ver, t8, t8ver, t9, t9ver, t10, t10ver;
+t6, t6ver, t7, t7ver, t8, t8ver, t9, t9ver, t10, t10ver,
+t11, t11ver, t12, t12ver;

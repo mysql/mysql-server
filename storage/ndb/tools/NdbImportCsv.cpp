@@ -1136,10 +1136,16 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line, const uint expect_attrcnt)
   {
     if (fieldcnt < expect_attrcnt)
     {
-      m_util.set_error_data(
-        error, __LINE__, 0,
-        "line %" PRIu64 ": too few fields (%u < %u)",
-        linenr, fieldcnt, attrcnt);
+      if (expect_attrcnt == attrcnt)
+        m_util.set_error_data(
+          error, __LINE__, 0,
+          "line %" PRIu64 ": too few fields (%u < %u)",
+          linenr, fieldcnt, attrcnt);
+      else
+        m_util.set_error_data(
+          error, __LINE__, 0,
+          "line %" PRIu64 ": too few fields (%u < %u of %u)",
+          linenr, fieldcnt, expect_attrcnt, attrcnt);
       break;
     }
     if(fieldcnt == expect_attrcnt + 1 &&
@@ -3093,6 +3099,12 @@ struct MyCsv {
 static MyCsv mycsvlist[] = {
   { 0, 0, 0, "",
     MyRes(0) },
+  { 0, 1, 0, "\n",
+    MyRes(1, "") },
+  { 0, 1, 0, "\\N\n",
+    MyRes(1, nullptr) },
+  { 0, 1, 0, ",\n",
+    MyRes(2, "", "") },
   { 0, 1, 0, "123,abc\n",
     MyRes(2, "123", "abc") },
   { 0, 2, 0, "123,abc\n456,def\n",
