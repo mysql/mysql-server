@@ -58,7 +58,7 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
   # Suppress warnings for undefined identifiers in bison output
   # For implicit-fallthrough - see Bug#34098818
   ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.cpp
-    COMPILE_FLAGS "-Wno-undef -Wimplicit-fallthrough=3")
+    COMPILE_FLAGS "-Wno-undef -Wno-implicit-fallthrough")
 ENDIF()
 
 IF(MSVC)
