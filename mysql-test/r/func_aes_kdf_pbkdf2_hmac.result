@@ -1,0 +1,103 @@
+# Tests of the AES KDF functionality
+#### AES_ENCRYPT return type
+# must work and return a string
+SELECT TO_BASE64(AES_ENCRYPT('my_text', 'my_key_string', '', 'pbkdf2_hmac'));
+TO_BASE64(AES_ENCRYPT('my_text', 'my_key_string', '', 'pbkdf2_hmac'))
+44uRAyA9td7Ih/8XyI4paA==
+# must return 16
+SELECT LENGTH(AES_ENCRYPT('my_text', 'my_key_string', '', 'pbkdf2_hmac'));
+LENGTH(AES_ENCRYPT('my_text', 'my_key_string', '', 'pbkdf2_hmac'))
+16
+# must return binary
+SELECT CHARSET(AES_ENCRYPT('my_text', 'my_key_string', '', 'pbkdf2_hmac'));
+CHARSET(AES_ENCRYPT('my_text', 'my_key_string', '', 'pbkdf2_hmac'))
+binary
+# must be equal
+SELECT AES_ENCRYPT('my_text', 'my_key_string', '', 'pbkdf2_hmac') = AES_ENCRYPT('my_text', 'my_key_string', '', 'pbkdf2_hmac');
+AES_ENCRYPT('my_text', 'my_key_string', '', 'pbkdf2_hmac') = AES_ENCRYPT('my_text', 'my_key_string', '', 'pbkdf2_hmac')
+1
+#### AES_ENCRYPT KDF pbkdf2_hmac parameters
+select TO_BASE64(AES_ENCRYPT('my_text','my_key_string', '', 'pbkdf2_hmac'));
+TO_BASE64(AES_ENCRYPT('my_text','my_key_string', '', 'pbkdf2_hmac'))
+44uRAyA9td7Ih/8XyI4paA==
+select TO_BASE64(AES_ENCRYPT('my_text','my_key_string', '', 'pbkdf2_hmac', 'salt'));
+TO_BASE64(AES_ENCRYPT('my_text','my_key_string', '', 'pbkdf2_hmac', 'salt'))
+gmnbJutgker3Oftr8Bwejg==
+select TO_BASE64(AES_ENCRYPT('my_text','my_key_string', '', 'pbkdf2_hmac', 'salt', '10001'));
+TO_BASE64(AES_ENCRYPT('my_text','my_key_string', '', 'pbkdf2_hmac', 'salt', '10001'))
+XoWbOI01+edhv7XX2+BKew==
+SELECT 'my_text' = AES_DECRYPT(AES_ENCRYPT('my_text', 'my_key_string', '', 'pbkdf2_hmac'), 'my_key_string', '', 'pbkdf2_hmac');
+'my_text' = AES_DECRYPT(AES_ENCRYPT('my_text', 'my_key_string', '', 'pbkdf2_hmac'), 'my_key_string', '', 'pbkdf2_hmac')
+1
+# Tests of AES strong key generation
+# Weak key generation without KDF, should be equal output
+SELECT AES_ENCRYPT('my_text', repeat("x",32), '') = AES_ENCRYPT('my_text', repeat("y",32), '');
+AES_ENCRYPT('my_text', repeat("x",32), '') = AES_ENCRYPT('my_text', repeat("y",32), '')
+1
+Warnings:
+Warning	1618	<IV> option ignored
+Warning	3237	AES key size should be 16 bytes length or secure KDF methods hkdf or pbkdf2_hmac should be used, please provide exact AES key size or use KDF methods for better security.
+Warning	1618	<IV> option ignored
+Warning	3237	AES key size should be 16 bytes length or secure KDF methods hkdf or pbkdf2_hmac should be used, please provide exact AES key size or use KDF methods for better security.
+# Strong key generation with KDF, should not be equal output
+SELECT AES_ENCRYPT('my_text', repeat("x",32), '', 'pbkdf2_hmac') = AES_ENCRYPT('my_text', repeat("y",32), '', 'pbkdf2_hmac');
+AES_ENCRYPT('my_text', repeat("x",32), '', 'pbkdf2_hmac') = AES_ENCRYPT('my_text', repeat("y",32), '', 'pbkdf2_hmac')
+0
+# Strong key generation with KDF, should not be equal output
+SELECT AES_ENCRYPT('my_text', repeat("x",32), '', 'pbkdf2_hmac') = AES_ENCRYPT('my_text', '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0', '', 'pbkdf2_hmac');
+AES_ENCRYPT('my_text', repeat("x",32), '', 'pbkdf2_hmac') = AES_ENCRYPT('my_text', '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0', '', 'pbkdf2_hmac')
+0
+#### AES_ENCRYPT KDF pbkdf2_hmac parameters with incorrect data types
+SELECT 'my_text' = AES_DECRYPT(AES_ENCRYPT('my_text', 'my_key_string', '', 'pbkdf2_hmac', 4000, '10001'), 'my_key_string', '', 'pbkdf2_hmac',4000, '10001');
+'my_text' = AES_DECRYPT(AES_ENCRYPT('my_text', 'my_key_string', '', 'pbkdf2_hmac', 4000, '10001'), 'my_key_string', '', 'pbkdf2_hmac',4000, '10001')
+1
+SELECT 'my_text' = AES_DECRYPT(AES_ENCRYPT('my_text', 'my_key_string', '', 'pbkdf2_hmac', 4000, 10001), 'my_key_string', '', 'pbkdf2_hmac',4000, 10001);
+'my_text' = AES_DECRYPT(AES_ENCRYPT('my_text', 'my_key_string', '', 'pbkdf2_hmac', 4000, 10001), 'my_key_string', '', 'pbkdf2_hmac',4000, 10001)
+1
+#### AES_ENCRYPT KDF error conditions
+# Invalid KDF method
+select AES_ENCRYPT('my_text','my_key_string', '', 'invalid');
+ERROR HY000: KDF method name is not valid. Please use hkdf or pbkdf2_hmac method name
+# Warning for big AES key and empty KDF method
+select AES_ENCRYPT('my_text', repeat("x",32));
+AES_ENCRYPT('my_text', repeat("x",32))
+Ò'éá˜lD5H»´ž€å
+Warnings:
+Warning	3237	AES key size should be 16 bytes length or secure KDF methods hkdf or pbkdf2_hmac should be used, please provide exact AES key size or use KDF methods for better security.
+# No warning for smaller key
+select AES_ENCRYPT('my_text', 'my_key');
+AES_ENCRYPT('my_text', 'my_key')
+~ÁZk,Za„­›=Z†
+# KDF pbkdf2_hmac iterations less then 1000 error.
+select AES_ENCRYPT('my_text','my_key_string', '', 'pbkdf2_hmac', 'salt', '100');
+ERROR HY000: For KDF method pbkdf2_hmac iterations value less than 1000 or more than 65535 is not allowed due to security reasons. Please provide iterations >= 1000 and iterations < 65535
+# KDF pbkdf2_hmac iterations as text
+select AES_ENCRYPT('my_text','my_key_string', '', 'pbkdf2_hmac', 'salt', 'aa');
+ERROR HY000: For KDF method pbkdf2_hmac iterations value less than 1000 or more than 65535 is not allowed due to security reasons. Please provide iterations >= 1000 and iterations < 65535
+# KDF function name very large.
+select aes_encrypt("foo",repeat("x",16),NULL,repeat("1",10000000000));
+ERROR HY000: KDF option size is invalid, please provide valid size < 256 bytes and not NULL
+# KDF function name large
+select aes_encrypt("foo",repeat("x",16),NULL,repeat("1",300));
+ERROR HY000: KDF option size is invalid, please provide valid size < 256 bytes and not NULL
+# KDF function name different case.
+select aes_encrypt("foo",repeat("x",16),NULL,'pbkdf2_HMac');
+ERROR HY000: KDF method name is not valid. Please use hkdf or pbkdf2_hmac method name
+# Extra IV
+select aes_encrypt("foo",repeat("x",16),NULL,'pbkdf2_HMac');
+ERROR HY000: KDF method name is not valid. Please use hkdf or pbkdf2_hmac method name
+#### AES_ENCRYPT KDF pbkdf2_hmac parameters with initialization vector
+SET @IV=REPEAT('a', 16);
+#### aes-128-cbc
+SELECT @@session.block_encryption_mode INTO @save_block_encryption_mode;
+SET SESSION block_encryption_mode="aes-128-cbc";
+SELECT 'my_text' = AES_DECRYPT(AES_ENCRYPT('my_text', 'my_key_string', @IV, 'pbkdf2_hmac'), 'my_key_string', @IV, 'pbkdf2_hmac');
+'my_text' = AES_DECRYPT(AES_ENCRYPT('my_text', 'my_key_string', @IV, 'pbkdf2_hmac'), 'my_key_string', @IV, 'pbkdf2_hmac')
+1
+SELECT 'my_text' = AES_DECRYPT(AES_ENCRYPT('my_text', 'my_key_string', @IV, 'pbkdf2_hmac', 'salt'), 'my_key_string', @IV, 'pbkdf2_hmac', 'salt');
+'my_text' = AES_DECRYPT(AES_ENCRYPT('my_text', 'my_key_string', @IV, 'pbkdf2_hmac', 'salt'), 'my_key_string', @IV, 'pbkdf2_hmac', 'salt')
+1
+SELECT 'my_text' = AES_DECRYPT(AES_ENCRYPT('my_text', 'my_key_string', @IV, 'pbkdf2_hmac', 'salt', '10001'), 'my_key_string', @IV, 'pbkdf2_hmac', 'salt', '10001');
+'my_text' = AES_DECRYPT(AES_ENCRYPT('my_text', 'my_key_string', @IV, 'pbkdf2_hmac', 'salt', '10001'), 'my_key_string', @IV, 'pbkdf2_hmac', 'salt', '10001')
+1
+SET SESSION block_encryption_mode=@save_block_encryption_mode;

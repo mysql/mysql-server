@@ -103,7 +103,9 @@ class Item_str_func : public Item_func {
 
   Item_str_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item *e)
       : Item_func(pos, a, b, c, d, e) {}
-
+  Item_str_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item *e,
+                Item *f)
+      : Item_func(pos, a, b, c, d, e, f) {}
   explicit Item_str_func(mem_root_deque<Item *> *list) : Item_func(list) {}
 
   Item_str_func(const POS &pos, PT_item_list *opt_list)
@@ -279,7 +281,14 @@ class Item_func_aes_encrypt final : public Item_str_func {
       : Item_str_func(pos, a, b) {}
   Item_func_aes_encrypt(const POS &pos, Item *a, Item *b, Item *c)
       : Item_str_func(pos, a, b, c) {}
-
+  Item_func_aes_encrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d)
+      : Item_str_func(pos, a, b, c, d) {}
+  Item_func_aes_encrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d,
+                        Item *e)
+      : Item_str_func(pos, a, b, c, d, e) {}
+  Item_func_aes_encrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d,
+                        Item *e, Item *f)
+      : Item_str_func(pos, a, b, c, d, e, f) {}
   bool itemize(Parse_context *pc, Item **res) override;
   String *val_str(String *) override;
   bool resolve_type(THD *) override;
@@ -294,7 +303,14 @@ class Item_func_aes_decrypt : public Item_str_func {
       : Item_str_func(pos, a, b) {}
   Item_func_aes_decrypt(const POS &pos, Item *a, Item *b, Item *c)
       : Item_str_func(pos, a, b, c) {}
-
+  Item_func_aes_decrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d)
+      : Item_str_func(pos, a, b, c, d) {}
+  Item_func_aes_decrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d,
+                        Item *e)
+      : Item_str_func(pos, a, b, c, d, e) {}
+  Item_func_aes_decrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d,
+                        Item *e, Item *f)
+      : Item_str_func(pos, a, b, c, d, e, f) {}
   bool itemize(Parse_context *pc, Item **res) override;
   String *val_str(String *) override;
   bool resolve_type(THD *thd) override;
