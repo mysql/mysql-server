@@ -31,6 +31,12 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 
+#include <string>
+#include <vector>
+
+using std::string;
+using std::vector;
+
 /** AES IV size is 16 bytes for all supported ciphers except ECB */
 #define MY_AES_IV_SIZE 16
 
@@ -82,13 +88,15 @@ extern const char *my_aes_opmode_names[];
   @param [in] iv               16 bytes initialization vector if needed.
   Otherwise NULL
   @param [in] padding          if padding needed.
+  @param kdf_options           KDF options
   @return              size of encrypted data, or negative in case of error
 */
 
 int my_aes_encrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest, const unsigned char *key,
                    uint32 key_length, enum my_aes_opmode mode,
-                   const unsigned char *iv, bool padding = true);
+                   const unsigned char *iv, bool padding = true,
+                   vector<string> *kdf_options = nullptr);
 
 /**
   Decrypt an AES encrypted buffer
@@ -101,13 +109,15 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
   @param mode           encryption mode
   @param iv             16 bytes initialization vector if needed. Otherwise NULL
   @param padding        if padding needed.
+  @param kdf_options    KDF options
   @return size of original data.
 */
 
 int my_aes_decrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest, const unsigned char *key,
                    uint32 key_length, enum my_aes_opmode mode,
-                   const unsigned char *iv, bool padding = true);
+                   const unsigned char *iv, bool padding = true,
+                   vector<string> *kdf_options = nullptr);
 
 /**
   Calculate the size of a buffer large enough for encrypted data.

@@ -114,6 +114,7 @@ SET(MYSYS_SOURCES
   crypt_genhash_impl.cc
   my_default.cc
   my_getopt.cc
+  my_kdf.cc
   my_aes.cc
   my_sha1.cc
   my_sha2.cc

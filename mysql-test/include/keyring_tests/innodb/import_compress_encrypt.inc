@@ -57,7 +57,7 @@ CREATE TABLE t1(c1 int NOT NULL AUTO_INCREMENT,
 --disable_query_log
 --let $i = 1
 while ($i < 6000) {
-  INSERT INTO t1(c2,b,p_c1) VALUES(AES_ENCRYPT("5dd0786a3c7adf503202b8e234a95cbe643bc752028e1792ca8e6ef86c69582eb1cc478670c8e5d6c0133d1b4e5c98017aeb893f9db5f1bff397bc9e0f5fde48","abc"),10,100);
+  INSERT INTO t1(c2,b,p_c1) VALUES(AES_ENCRYPT("5dd0786a3c7adf503202b8e234a95cbe643bc752028e1792ca8e6ef86c69582eb1cc478670c8e5d6c0133d1b4e5c98017aeb893f9db5f1bff397bc9e0f5fde48","abc", NULL, "pbkdf2_hmac"),10,100);
   --inc $i
 }
 --enable_query_log

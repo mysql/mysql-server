@@ -394,6 +394,33 @@ class Item_func : public Item_result_field {
     args[3] = d;
     args[4] = e;
   }
+  Item_func(Item *a, Item *b, Item *c, Item *d, Item *e, Item *f) {
+    if (alloc_args(*THR_MALLOC, 6)) return;
+    args[0] = a;
+    args[1] = b;
+    args[2] = c;
+    args[3] = d;
+    args[4] = e;
+    args[5] = f;
+    m_accum_properties = 0;
+    add_accum_properties(a);
+    add_accum_properties(b);
+    add_accum_properties(c);
+    add_accum_properties(d);
+    add_accum_properties(e);
+    add_accum_properties(f);
+  }
+  Item_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item *e,
+            Item *f)
+      : Item_result_field(pos) {
+    if (alloc_args(*THR_MALLOC, 6)) return;
+    args[0] = a;
+    args[1] = b;
+    args[2] = c;
+    args[3] = d;
+    args[4] = e;
+    args[5] = f;
+  }
   explicit Item_func(mem_root_deque<Item *> *list) {
     set_arguments(list, false);
   }
