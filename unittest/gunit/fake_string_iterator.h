@@ -23,6 +23,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA  */
 
+#include <optional>
 #include <random>
 #include <string>
 #include <vector>
@@ -42,7 +43,7 @@
 class FakeStringIterator final : public TableRowIterator {
  public:
   FakeStringIterator(THD *thd, TABLE *table, Field_varstring *field,
-                     std::vector<std::string> dataset)
+                     std::vector<std::optional<std::string>> dataset)
       : TableRowIterator(thd, table),
         m_field(field),
         m_dataset(move(dataset)) {}
@@ -57,15 +58,22 @@ class FakeStringIterator final : public TableRowIterator {
       return -1;
     }
 
-    const std::string &value = m_dataset[m_current_index++];
-    m_field->store(value.c_str(), value.size(), &my_charset_utf8mb4_0900_ai_ci);
+    const std::optional<std::string> &value = m_dataset[m_current_index++];
+    if (value.has_value()) {
+      m_field->store(value->c_str(), value->size(),
+                     &my_charset_utf8mb4_0900_ai_ci);
+      m_field->set_notnull();
+    } else {
+      m_field->set_null();
+    }
+
     return 0;
   }
 
  private:
   size_t m_current_index{0};
   Field_varstring *m_field;
-  std::vector<std::string> m_dataset;
+  std::vector<std::optional<std::string>> m_dataset;
 };
 
 #endif  // UNITTEST_GUNIT_FAKE_STRING_ITERATOR_H_

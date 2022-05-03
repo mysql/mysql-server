@@ -109,8 +109,8 @@ class Fake_TABLE : public TABLE {
   // make room for up to 8 keyparts per index
   KEY_PART_INFO m_key_part_infos[max_keys][8];
 
-  static const int max_record_length = MAX_FIELD_WIDTH * MAX_TABLE_COLUMNS;
-  uchar m_record[max_record_length];
+  uchar m_record[MAX_FIELD_WIDTH * MAX_TABLE_COLUMNS];
+  uchar m_null_flags[MAX_TABLE_COLUMNS + 7 / 8];
 
   Fake_TABLE_SHARE table_share;
   // Storage space for the handler's handlerton
@@ -135,7 +135,7 @@ class Fake_TABLE : public TABLE {
     new (as_table) TABLE();
     s = &table_share;
     in_use = current_thd;
-    null_row = '\0';
+    null_row = false;
     read_set = &read_set_struct;
     write_set = &write_set_struct;
     next_number_field = nullptr;  // No autoinc column
@@ -152,7 +152,10 @@ class Fake_TABLE : public TABLE {
     highest_table_id = (highest_table_id + 1) % MAX_TABLES;
     key_info = &m_keys[0];
     record[0] = &m_record[0];
-    memset(record[0], 0, max_record_length);
+    memset(record[0], 0, sizeof(m_record));
+    null_flags = m_null_flags;
+    memset(null_flags, 0, sizeof(m_null_flags));
+    s->null_bytes = sizeof(m_null_flags);
     for (int i = 0; i < max_keys; i++)
       key_info[i].key_part = m_key_part_infos[i];
     highest_index_id = 0;
@@ -302,9 +305,9 @@ class Fake_TABLE : public TABLE {
     new_field->set_field_index(pos);
     bitmap_set_bit(read_set, pos);
     const ptrdiff_t field_offset = pos * MAX_FIELD_WIDTH;
-    new_field->set_field_ptr(record[0] + field_offset + 1);
+    new_field->set_field_ptr(record[0] + field_offset);
     if (new_field->get_null_ptr() != nullptr)
-      new_field->set_null_ptr(record[0] + field_offset, 1);
+      new_field->set_null_ptr(null_flags + pos / 8, 1 << (pos % 8));
   }
 };
 
