@@ -59,7 +59,7 @@ class Ndb_DDL_stmt {
 
 /* DDL Transaction context class to log the DDLs being executed.
 
-   A DDL can be executed by making a single request or mutliple requests to
+   A DDL can be executed by making a single request or multiple requests to
    the Storage Engine depending on the nature of the DDL. For example, a
    CREATE TABLE query can be done in a single request to the SE but a ALTER
    TABLE COPY would require more than a single request. These requests are

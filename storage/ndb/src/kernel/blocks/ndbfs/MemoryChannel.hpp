@@ -30,11 +30,11 @@
 // .DESCRIPTION
 //              Pointer based communication channel for communication between two 
 //              thread. It does not copy any data in or out the channel so the 
-//              item that is put in can not be used untill the other thread has 
+//              item that is put in can not be used until the other thread has 
 //              given it back. There is no support for detecting the return of a 
 //              item. The channel is half-duplex. 
-//              For comminication between 1 writer and 1 reader use the MemoryChannel
-//              class, for comminication between multiple writer and 1 reader use the
+//              For communication between 1 writer and 1 reader use the MemoryChannel
+//              class, for communication between multiple writer and 1 reader use the
 //              MemoryChannelMultipleWriter. There is no support for multiple readers.
 //
 // .TYPICAL USE:
@@ -46,7 +46,7 @@
 //
 //
 // MemoryChannel( int size= 256);
-//   Constuctor
+//   Constructor
 // Parameters:
 //      size : amount of pointer it can hold
 //
@@ -62,13 +62,13 @@
 //                      AFS_ERROR_CHANNALFULL, channel is full
 //
 // T* read();
-//      Reads a itemn from the channel, if channel is empty it blocks untill
+//      Reads an item from the channel, if channel is empty it blocks until
 //              an item can be read.
 // return
 //                      T : item from the channel
 //
 // T* tryRead();
-//      Reads a item from the channel, if channel is empty it returns zero.
+//      Reads an item from the channel, if channel is empty it returns zero.
 // return
 //                      T : item from the channel or zero if channel is empty.
 //

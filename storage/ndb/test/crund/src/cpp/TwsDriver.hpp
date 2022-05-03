@@ -51,7 +51,7 @@ protected:
     bool doIndy;
     bool doVerify;
 
-    // benchmark intializers/finalizers
+    // benchmark initializers/finalizers
     virtual void initProperties();
     virtual void printProperties();
 

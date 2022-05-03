@@ -1301,7 +1301,7 @@ int runTestFragmentTypes(NDBT_Context* ctx, NDBT_Step* step){
   }
 /**
    This test does not work since fragmentation is
-   decided by the kernel, hence the fragementation
+   decided by the kernel, hence the fragmentation
    attribute on the column will differ
 
   if (newTab.equal(*pTab3) == false){
@@ -9106,7 +9106,7 @@ runBug53944(NDBT_Context* ctx, NDBT_Step* step)
 
   /**
    * With Bug53944 - none of the table-id have been reused in this scenario
-   *   check that atleast 15 of the 25 have been to return OK
+   *   check that at least 15 of the 25 have been to return OK
    */
   unsigned reused = 0;
   for (unsigned i = 0; i<ids.size(); i++)
@@ -11838,7 +11838,7 @@ runDictTO_1(NDBT_Context* ctx, NDBT_Step* step)
         }
       }
 
-      // this should give master failuer...but trans should rollforward
+      // this should give master failure...but trans should rollforward
       if (pDic->endSchemaTrans() != 0)
       {
         ndbout << "ERROR: line: " << __LINE__ << endl;
@@ -12097,7 +12097,7 @@ runDropTableSpaceLG(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 /**
- * Create upto the number of data files given in the test case until
+ * Create up to the number of data files given in the test case until
  * DiskPageBufferMemory gets exhausted, indicated by error code 1517.
  *
  * Drop data files.

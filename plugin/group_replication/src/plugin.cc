@@ -57,12 +57,12 @@
 using std::string;
 
 /*
-  Variables that are only acessible inside plugin.cc.
+  Variables that are only accessible inside plugin.cc.
 */
 static struct plugin_local_variables lv;
 
 /*
-  Plugin options variables that are only acessible inside plugin.cc.
+  Plugin options variables that are only accessible inside plugin.cc.
 */
 static struct plugin_options_variables ov;
 
@@ -75,7 +75,7 @@ SERVICE_TYPE(log_builtins_string) * log_bs;
 /*
   Plugin modules.
 
-  plugin.cc class pointers that are acessible on all plugin files,
+  plugin.cc class pointers that are accessible on all plugin files,
   that is, are declared as extern on plugin.h.
   These pointers will be initialized on plugin_group_replication_init()
   or plugin_group_replication_start().
@@ -1485,7 +1485,7 @@ int terminate_plugin_modules(gr_modules::mask modules_to_terminate,
       gcs_module->remove_view_notifer(view_change_notifier);
     }
 
-    // Also, we must terminate the GCS infrastructure completly.
+    // Also, we must terminate the GCS infrastructure completely.
     if (gcs_module->is_initialized()) gcs_module->finalize();
   }
 

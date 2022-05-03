@@ -197,7 +197,7 @@ static inline ib_alloc_t *ib_heap_allocator_create(
 /********************************************************************
 Free a heap allocator. */
 static inline void ib_heap_allocator_free(
-    ib_alloc_t *ib_ut_alloc); /* in: alloc instace to free */
+    ib_alloc_t *ib_ut_alloc); /* in: alloc instance to free */
 
 /* Allocator used by ib_vector_t. */
 struct ib_alloc_t {

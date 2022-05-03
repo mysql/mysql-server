@@ -110,7 +110,7 @@ follows:
 
    SELECT @@session.innodb_interpreter_output;
 
-NOTE: You can make the command either stateful or stateless.  It is upto you.
+NOTE: You can make the command either stateful or stateless.  It is up to you.
 
 */
 

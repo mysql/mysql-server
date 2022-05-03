@@ -266,14 +266,14 @@ struct fts_phrase_t {
   st_mysql_ftparser *parser;
 };
 
-/** Paramter passed to fts phrase match by parser */
+/** Parameter passed to fts phrase match by parser */
 struct fts_phrase_param_t {
   fts_phrase_t *phrase; /*!< Match phrase instance */
   ulint token_index;    /*!< Index of token to match next */
   mem_heap_t *heap;     /*!< Heap for word processing */
 };
 
-/** For storing the frequncy of a word/term in a document */
+/** For storing the frequency of a word/term in a document */
 struct fts_doc_freq_t {
   doc_id_t doc_id; /*!< Document id */
   ulint freq;      /*!< Frequency of a word in a document */
@@ -440,7 +440,7 @@ fts_query_lcs(
 
         /* Traverse the table backwards, from the last row to the first and
         also from the last column to the first. We compute the smaller
-        common subsequeces first, then use the caluclated values to determine
+        common subsequences first, then use the calculated values to determine
         the longest common subsequence. The result will be in TABLE[0][0]. */
         for (i = r; i >= 0; --i) {
                 int     j;
@@ -1033,7 +1033,7 @@ static ulint fts_cache_find_wildcard(
     n_doc_ids = rbt_size(query->doc_ids);
   }
 
-  /* There is nothing we can substract from an empty set. */
+  /* There is nothing we can subtract from an empty set. */
   if (query->doc_ids && !rbt_empty(query->doc_ids)) {
     ulint i;
     fts_fetch_t fetch;
@@ -1327,7 +1327,7 @@ static dberr_t fts_query_cache(
     /* The size can't decrease. */
     ut_a(rbt_size(query->doc_ids) >= n_doc_ids);
 
-    /* Calulate the number of doc ids that were added to
+    /* Calculate the number of doc ids that were added to
     the current doc id set. */
     if (query->doc_ids) {
       n_doc_ids = rbt_size(query->doc_ids) - n_doc_ids;
@@ -1460,7 +1460,7 @@ static inline byte *fts_query_skip_word(
 static bool fts_query_match_phrase_terms(
     fts_phrase_t *phrase, /*!< in: phrase to match */
     byte **start,         /*!< in/out: text to search, we can't
-                          make this const becase we need to
+                          make this const because we need to
                           first convert the string to
                           lowercase */
     const byte *end,      /*!< in: pointer to the end of
@@ -1662,7 +1662,7 @@ static bool fts_query_match_phrase_terms_by_parser(
 
   ut_a(parser);
 
-  /* Set paramters for param */
+  /* Set parameters for param */
   param.mysql_parse = fts_tokenize_document_internal;
   param.mysql_add_word = fts_query_match_phrase_add_word_for_parser;
   param.mysql_ftparam = phrase_param;
@@ -1680,7 +1680,7 @@ static bool fts_query_match_phrase_terms_by_parser(
 
 /** Callback function to fetch and search the document.
 @param[in]      phrase          phrase to match
-@param[in]      start           text to search, we can't make this const becase
+@param[in]      start           text to search, we can't make this const because
                                 we need to first convert the string to
                                 lowercase
 @param[in]      cur_len         length of text
@@ -2472,7 +2472,7 @@ static void fts_query_phrase_split(fts_query_t *query,
                         query->index->is_ngram,
                         query->fts_index_table.charset)) {
       /* Add the word to the RB tree so that we can
-      calculate it's frequencey within a document. */
+      calculate its frequency within a document. */
       fts_query_add_word_freq(query, token);
     } else {
       ib_vector_pop(tokens);
@@ -2837,7 +2837,7 @@ static dberr_t fts_ast_visit_sub_exp(fts_ast_node_t *node,
   /* sub-expression list may contains sub-expressions.
   So we increase sub-expression depth counter.
   If this counter reaches to the threshold then
-  we abort the search opertion and reports an error */
+  we abort the search operation and report an error */
   if (query->nested_exp_count > FTS_MAX_NESTED_EXP) {
     query->error = DB_FTS_TOO_MANY_NESTED_EXP;
     return query->error;
@@ -3429,7 +3429,7 @@ static fts_result_t *fts_query_prepare_result(
     ranking = rbt_value(fts_ranking_t, node);
     fts_query_calculate_ranking(query, ranking);
 
-    // FIXME: I think we may requre this information to improve the
+    // FIXME: I think we may require this information to improve the
     // ranking of doc ids which have more word matches from
     // different FTS indexes.
 
@@ -3953,7 +3953,7 @@ static void fts_print_doc_id(
     ranking = rbt_value(fts_ranking_t, node);
 
     /* Fetch the documents with the doc_id from the
-    result of first seach pass. Since we do not
+    result of first search pass. Since we do not
     store document-to-word mapping, we need to
     fetch the original document and parse them.
     Future optimization could be done here if we

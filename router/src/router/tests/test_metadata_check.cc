@@ -309,7 +309,7 @@ TEST_P(MetadataAccessDeniedTest, missing_permissions_throws) {
         },
         std::runtime_error, kAccessDeniedMsgRegex);
 
-    // we failed early, no futher tests
+    // we failed early, no further tests
     return;
   }
 

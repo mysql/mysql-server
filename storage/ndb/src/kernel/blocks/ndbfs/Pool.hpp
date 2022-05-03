@@ -79,12 +79,12 @@
 //
 // T& get();
 // Description:
-//   get's an element from the Pool.
+//   gets an element from the Pool.
 // Parameters:
 //   _
 // Return value:
 //   T& the element extracted from the Pool. (element must be cleared to
-//   mimick newly created element)
+//   mimic newly created element)
 // Errors:
 //      -
 // Asserts:
@@ -148,7 +148,7 @@
 //
 // Pool<T>& operator=(const Pool<T>& cp);
 // Description:
-//   Prohibit use of assignement operator.
+//   Prohibit use of assignment operator.
 // Parameters:
 //   cp
 // Return value:

@@ -432,12 +432,12 @@ class Rsegs {
   ACTIVE:   The rollback segments in this tablespace can be allocated to new
             transactions.  The undo tablespace is ready for undo logs.
   INACTIVE_IMPLICIT: These rollback segments are no longer being used by new
-            transactions.  They arre 'inactive'. The truncate process
+            transactions.  They are 'inactive'. The truncate process
             is happening. This undo tablespace was selected by the
             purge thread implicitly. When the truncation process
             is complete, the next state is ACTIVE.
   INACTIVE_EXPLICIT:  These rollback segments are no longer being used by new
-            transactions.  They arre 'inactive'. The truncate process
+            transactions.  They are 'inactive'. The truncate process
             is happening. This undo tablespace was selected by the
             an ALTER UNDO TABLESPACE  SET INACTIVE command. When the
             truncation process is complete, the next state is EMPTY.
@@ -456,7 +456,7 @@ class Rsegs {
   SetInactive:  This ALTER UNDO TABLESPACE causes an explicit truncation.
   SetActive:    This ALTER UNDO TABLESPACE changes the target state from
                 EMPTY to ACTIVE.
-  Trucate:      The truncate process is completed by the purge thread.
+  Truncate:     The truncate process is completed by the purge thread.
   Drop:         Delete an EMPTY undo tablespace
   Crash:        A crash occurs
   Fixup:        At startup, if an undo space was being truncated with a crash.
@@ -511,7 +511,7 @@ class Rsegs {
 template <size_t N>
 using Rsegs_array = std::array<trx_rseg_t *, N>;
 
-/** Rollback segements from a given transaction with trx-no
+/** Rollback segments from a given transaction with trx-no
 scheduled for purge. */
 class TrxUndoRsegs {
  public:

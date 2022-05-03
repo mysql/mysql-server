@@ -45,7 +45,7 @@ public:
   enum State {
     GCP_READY            = 0,
     /**
-     * GCP_PREPARE recevied (and replied)
+     * GCP_PREPARE received (and replied)
      */
     GCP_PREPARE_RECEIVED = 1,
 

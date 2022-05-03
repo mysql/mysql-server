@@ -88,7 +88,7 @@ protected:
     struct timeval t0, t1;
     long rta;
 
-    // driver intializers/finalizers
+    // driver initializers/finalizers
     virtual void init();
     virtual void close();
     virtual void loadProperties();

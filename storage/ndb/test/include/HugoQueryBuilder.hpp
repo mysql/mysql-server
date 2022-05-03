@@ -70,7 +70,7 @@ public:
     O_TABLE_SCAN = 0x20,
 
     /**
-     * Column referrences may also include grandparents (Default 'on')
+     * Column references may also include grandparents (Default 'on')
      */
     O_GRANDPARENT = 0x100
   };

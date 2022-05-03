@@ -89,7 +89,7 @@ class NdbRecAttr;
  * - ndb_select_all -d sys 'NDB$EVENTS_0'
  * shows contents in the system table containing created events.
  *
- * @note this is an inteface to viewing events that is subject to change
+ * @note this is an interface to viewing events that is subject to change
  */
 class NdbEventOperation {
 public:
@@ -137,7 +137,7 @@ public:
    *
    * @note There are two versions, getValue() and
    *       getPreValue() for retrieving the current and
-   *       previous value repectively.
+   *       previous value respectively.
    *
    * @note This method does not fetch the attribute value from 
    *       the database!  The NdbRecAttr object returned by this method 
@@ -277,7 +277,7 @@ public:
    * Set allow empty updates
    *
    * To support monitoring of pseudo columns we need to
-   * explicitely allow for receiving events with no updates
+   * explicitly allow for receiving events with no updates
    * to user defined columns.
    * Normally update events with no changes to monitored columns
    * are filtered out by NdbApi. By calling setAllowEmptyUpdate(true),

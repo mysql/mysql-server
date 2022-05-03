@@ -397,7 +397,7 @@ class Recovery_state_transfer {
 
   /* Recovery abort flag */
   bool recovery_aborted;
-  /*  Flag that signals when the donor transfered all it's data */
+  /*  Flag that signals when the donor transferred all its data */
   bool donor_transfer_finished;
   /* Are we successfully connected to a donor*/
   bool connected_to_donor;

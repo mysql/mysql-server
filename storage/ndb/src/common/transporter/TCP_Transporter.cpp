@@ -340,7 +340,7 @@ TCP_Transporter::doSend(bool need_wakeup)
 
   if (cnt == NDB_ARRAY_SIZE(iov))
   {
-    // If pulling all iov's make sure that we never return everyting
+    // If pulling all iov's make sure that we never return everything
     // flushed
     sum++;
   }

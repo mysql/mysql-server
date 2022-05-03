@@ -397,7 +397,7 @@ static struct view {
      "FROM `ndbinfo`.`ndb$membership`"},
     {"ndbinfo", "memory_per_fragment",
      /*
-      * The test for name.type<=6 is there to elimiate matching non-table
+      * The test for name.type<=6 is there to eliminate matching non-table
       * objects (triggers, files etc.), since the 'id' of these may collide
       * with table ids.
       */
@@ -450,7 +450,7 @@ static struct view {
       * dictionary information such as the table name and type, and the name
       * of the parent table, if there is any.
       *
-      * The test for name.type<=6 is there to elimiate matching non-table
+      * The test for name.type<=6 is there to eliminate matching non-table
       * objects (triggers, files etc.), since the 'id' of these may collide
       * with table ids.
       */

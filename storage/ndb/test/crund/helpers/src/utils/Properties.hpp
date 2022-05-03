@@ -82,7 +82,7 @@ using std::streambuf;
  *
  * However, class Properties is lucky, though, in that it does not
  * declare any data members and destructor, for it conceptually
- * posesses no state apart from the inherited std::map for the key,
+ * possesses no state apart from the inherited std::map for the key,
  * value mapping.  It is therefore unproblematic if a Properties
  * instance is deleted through its base pointer.
  *
@@ -389,7 +389,7 @@ Properties::readEsc(wstring& s, streambuf& ib)
         for (int i = 0; i < 4; i++) {
             d <<= 4;
             c = ib.sbumpc();
-            raw += static_cast<wchar_t>(c); // exlicit cast preferred
+            raw += static_cast<wchar_t>(c); // explicit cast preferred
             switch (c) {
             case 0x30: case 0x31: case 0x32: case 0x33: case 0x34:
             case 0x35: case 0x36: case 0x37: case 0x38: case 0x39:
@@ -407,18 +407,18 @@ Properties::readEsc(wstring& s, streambuf& ib)
             case EOF:
             default:
                 // not a unicode escape sequence, write the raw char sequence
-                s += static_cast<wchar_t>(c); // exlicit cast preferred
+                s += static_cast<wchar_t>(c); // explicit cast preferred
                 return;
             }
         }
-        s += static_cast<wchar_t>(d); // exlicit cast preferred
+        s += static_cast<wchar_t>(d); // explicit cast preferred
         return;
     }
     default:
         // unrecognized escape no error, silently drop preceding backslash
         break;
     }
-    s += static_cast<wchar_t>(c); // exlicit cast preferred
+    s += static_cast<wchar_t>(c); // explicit cast preferred
     ib.sbumpc();
 }
 
@@ -445,7 +445,7 @@ Properties::readKey(wstring& s, streambuf& ib)
         if (isEsc(c)) {
             readEsc(s, ib);
         } else {
-            s += static_cast<wchar_t>(c); // exlicit cast preferred
+            s += static_cast<wchar_t>(c); // explicit cast preferred
         }
     }
 }
@@ -463,7 +463,7 @@ Properties::readValue(wstring& s, streambuf& ib)
         if (isEsc(c)) {
             readEsc(s, ib);
         } else {
-            s += static_cast<wchar_t>(c); // exlicit cast preferred
+            s += static_cast<wchar_t>(c); // explicit cast preferred
         }
     }
 }
@@ -506,7 +506,7 @@ Properties::writeAsciiEsc(streambuf& os, wchar_t c)
     case L':':
     case L'=':
     case L'\\':
-        d = static_cast<char>(c); // exlicit cast preferred
+        d = static_cast<char>(c); // explicit cast preferred
         break;
     default:
         // write the raw character

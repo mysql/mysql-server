@@ -243,7 +243,7 @@ static bool intitialize_service_handles() {
   return true;
 }
 
-/** Deinitialize compoent service handles */
+/** Deinitialize component service handles */
 static void deinitialize_service_handles() {
   DBUG_TRACE;
   if (!opt_initialize) {
@@ -937,7 +937,7 @@ static void doublewrite_update(THD *thd [[maybe_unused]],
   }
 
   /* Handle DETECT_AND_RECOVER to DETECT_ONLY
-  1. Check if DETECT_ONLY setup is already initalized. If not, intialize
+  1. Check if DETECT_ONLY setup is already initialized. If not, initialize
      DETECT_ONLY files and structures.
   2. Flush the partially filled dblwr buffers. */
   if (dblwr::Mode::is_reduced_low(new_value)) {
@@ -1103,7 +1103,7 @@ static MYSQL_THDVAR_ULONG(parallel_read_threads, PLUGIN_VAR_RQCMDARG,
                           "Number of threads to do parallel read.", nullptr,
                           nullptr, 4,                   /* Default. */
                           1,                            /* Minimum. */
-                          Parallel_reader::MAX_THREADS, /* Maxumum. */
+                          Parallel_reader::MAX_THREADS, /* Maximum. */
                           0);
 
 static MYSQL_THDVAR_ULONG(ddl_buffer_size, PLUGIN_VAR_RQCMDARG,
@@ -2588,7 +2588,7 @@ bool Compression::is_none(const char *algorithm) {
   return (false);
 }
 
-/** Check wether the compression algorithm is supported.
+/** Check whether the compression algorithm is supported.
 @param[in]  algorithm   Compression algorithm to check
 @param[out] compression The type that algorithm maps to
 @return DB_SUCCESS or error code */
@@ -6241,7 +6241,7 @@ CREATE TABLE options and SE capabilities.
 @note The current code in this method is redundant with/copy of code from
 create_table_info_t::innobase_table_flags(). This is temporary workaround.
 In future this method will always return ROW_TYPE_DYNAMIC
-(which is suitable for intrisinc temporary tables)
+(which is suitable for intrinsic temporary tables)
 and rely on adjusting row format in table definition at ha_innobase::create()
 or ha_innobase::prepare_inplace_alter_table() time.
 */
@@ -6351,7 +6351,7 @@ ulong ha_innobase::index_flags(uint key, uint, bool) const {
   }
 
   /* For dd tables mysql.*, we disable ICP for them,
-  it's for avoiding recusively access same page. */
+  it's for avoiding recursively access same page. */
   /* TODO: Remove these code once the recursiveely access issue which
   caused by ICP fixed. */
   const char *dbname = table_share->db.str;
@@ -7001,7 +7001,7 @@ func_exit:
 
 /** This function uses index translation table to quickly locate the
  requested index structure.
- Note we do not have mutex protection for the index translatoin table
+ Note we do not have mutex protection for the index translation table
  access, it is based on the assumption that there is no concurrent
  translation table rebuild (fter create/drop index) and DMLs that
  require index lookup.
@@ -7505,7 +7505,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
     of the index used on scan, to make it avoid checking if we
     update the column of the index. That is why we assert below
     that key_used_on_scan is the undefined value MAX_KEY.
-    The column is the row id in the automatical generation case,
+    The column is the row id in the automatic generation case,
     and it will never be updated anyway. */
 
     if (key_used_on_scan != MAX_KEY) {
@@ -8577,7 +8577,7 @@ void ha_innobase::build_template(bool whole_row) {
       bool is_virtual = innobase_is_v_fld(table->field[i]);
 
       if (whole_row) {
-        /* Even this is whole_row, if the seach is
+        /* Even this is whole_row, if the search is
         on a virtual column, and read_just_key is
         set, and field is not in this index, we
         will not try to fill the value since they
@@ -9171,7 +9171,7 @@ func_exit:
 }
 
 /** Fill the update vector's "old_vrow" field for those non-updated,
-but indexed columns. Such columns could stil present in the virtual
+but indexed columns. Such columns could still present in the virtual
 index rec fields even if they are not updated (some other fields updated),
 so needs to be logged.
 @param[in]      prebuilt                InnoDB prebuilt struct
@@ -12017,7 +12017,7 @@ inline int create_index(
     prefix, key_part->field is not the table's column (it's a
     "fake" field forged in open_table_from_share() with length
     equal to the length of the prefix); so we have to go to
-    form->fied. */
+    form->field. */
     Field *field = form->field[key_part->field->field_index()];
     if (field == nullptr) ut_error;
 
@@ -12699,7 +12699,7 @@ const char *create_table_info_t::create_options_are_invalid() {
           ret = "KEY_BLOCK_SIZE";
         }
 
-        /* The following checks do not appy to shared tablespaces */
+        /* The following checks do not apply to shared tablespaces */
         if (m_use_shared_space) {
           break;
         }
@@ -13066,7 +13066,7 @@ int create_table_info_t::parse_table_name(const char *name) {
   }
 
   /* The TABLESPACE designation has already been validated by
-  create_option_tablespace_is_valid() irregardless of strict-mode.
+  create_option_tablespace_is_valid() regardless of strict-mode.
   So it only needs to be copied now. */
   if (m_use_shared_space) {
     strncpy(m_tablespace, m_create_info->tablespace, NAME_LEN - 1);
@@ -13097,7 +13097,7 @@ bool create_table_info_t::innobase_table_flags() {
   /* Validate the page compression parameter. */
   if (!create_option_compression_is_valid()) {
     /* No need to do anything. Warnings were issued.
-    The compresion setting will be ignored later.
+    The compression setting will be ignored later.
     If inodb_strict_mode=ON, this is called twice unless
     there was a problem before.
     If inodb_strict_mode=OFF, this is the only call. */
@@ -13320,7 +13320,7 @@ bool create_table_info_t::innobase_table_flags() {
     if (m_create_info->options & HA_LEX_CREATE_INTERNAL_TMP_TABLE) {
       /* Intrinsic tables reside only in the shared temporary
       tablespace and we will always use ROW_FORMAT=DYNAMIC. */
-      /* We do not allow compressed instrinsic temporary tables. */
+      /* We do not allow compressed intrinsic temporary tables. */
       ut_ad(zip_ssize == 0);
       innodb_row_format = REC_FORMAT_DYNAMIC;
       m_flags2 |= DICT_TF2_INTRINSIC;
@@ -20397,7 +20397,7 @@ static bool innodb_buffer_pool_size_validate(THD *thd,
   if (srv_buf_pool_instances > 1 &&
       buffer_pool_size < BUF_POOL_SIZE_THRESHOLD) {
 #ifdef UNIV_DEBUG
-    /* Ignore 1G constraint to enable mulitple instances
+    /* Ignore 1G constraint to enable multiple instances
     for debug and test. */
     if (srv_buf_pool_debug) {
       goto debug_set;
@@ -21040,7 +21040,7 @@ static void innodb_monitor_update(
 
     ut_a(monitor_info);
 
-    /* If monitor is already truned on, someone could already
+    /* If monitor is already turned on, someone could already
     collect monitor data, exit and ask user to turn off the
     monitor before turn it on again. */
     if (set_option == MONITOR_TURN_ON && MONITOR_IS_ON(monitor_id)) {
@@ -22070,7 +22070,7 @@ static MYSQL_SYSVAR_ULONG(
 static MYSQL_SYSVAR_ULONG(max_purge_lag_delay, srv_max_purge_lag_delay,
                           PLUGIN_VAR_RQCMDARG,
                           "Maximum delay of user threads in micro-seconds",
-                          nullptr, nullptr, 0L, /* Default seting */
+                          nullptr, nullptr, 0L, /* Default setting */
                           0L,                   /* Minimum value */
                           10000000UL, 0);       /* Maximum value */
 
@@ -22761,7 +22761,7 @@ static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_NOPERSIST,
                           "Number of undo tablespaces to use. (deprecated)",
                           nullptr, innodb_undo_tablespaces_update,
-                          FSP_IMPLICIT_UNDO_TABLESPACES, /* Default seting */
+                          FSP_IMPLICIT_UNDO_TABLESPACES, /* Default setting */
                           FSP_MIN_UNDO_TABLESPACES,      /* Minimum value */
                           FSP_MAX_UNDO_TABLESPACES, 0);  /* Maximum value */
 

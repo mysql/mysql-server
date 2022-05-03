@@ -100,6 +100,6 @@ bool ndb_all_nodes_support_mysql_dd() {
       (min_db_version < min_api_version) ? min_db_version : min_api_version;
 
   // All nodes support MySQL Data Dictionary if the lowest connected version is
-  // atleast 8.0.19, which has the support for MySQL DD.
+  // at least 8.0.19, which has the support for MySQL DD.
   return min_node_version >= NDB_VERSION_8_0_19;
 }

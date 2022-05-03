@@ -172,14 +172,14 @@ class Pipeline_stats_member_message : public Plugin_gcs_message {
   int64 get_transactions_applied();
 
   /**
-    Get local transactions that member tried to commmit.
+    Get local transactions that member tried to commit.
 
     @return the counter value
   */
   int64 get_transactions_local();
 
   /**
-    Get negatively certfied transaction by member.
+    Get negatively certified transaction by member.
 
     @return the counter value
   */
@@ -534,7 +534,7 @@ class Pipeline_member_stats {
   int64 get_delta_transactions_applied();
 
   /**
-    Get local transactions that member tried to commmit
+    Get local transactions that member tried to commit
     since last stats message.
 
     @return the counter value

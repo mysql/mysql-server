@@ -71,7 +71,7 @@ const char *SYSTEM_TABLE_NAME[] = {
     "SYS_FIELDS",      "SYS_FOREIGN",   "SYS_FOREIGN_COLS",
     "SYS_TABLESPACES", "SYS_DATAFILES", "SYS_VIRTUAL"};
 
-/** This variant is based on name comparision and is used because
+/** This variant is based on name comparison and is used because
 system table id array is not built yet.
 @param[in]      name    InnoDB table name
 @return true if table name is InnoDB SYSTEM table */
@@ -1482,7 +1482,7 @@ static inline space_id_t dict_check_sys_tables(bool validate) {
     const char *tbl_name;
     std::string dict_table_name;
 
-    /* If a table record is not useable, ignore it and continue
+    /* If a table record is not usable, ignore it and continue
     on to the next record. Error messages were logged. */
     if (dict_sys_tables_rec_check(rec) != nullptr) {
       continue;
@@ -1614,7 +1614,7 @@ static inline space_id_t dict_check_sys_tables(bool validate) {
     } else {
       /* This tablespace is not found in
       SYS_TABLESPACES and we are able to
-      successfuly open it. Add it to std::set.
+      successfully open it. Add it to std::set.
       It will be later used for register tablespaces
       to mysql.tablespaces */
       if (space_name_from_dict == nullptr) {
@@ -1723,7 +1723,7 @@ static void dict_load_columns(dict_table_t *table, /*!< in/out: table */
 
       /* We do not add fts tables to optimize thread
       during upgrade because fts tables will be renamed
-      as part of upgrade. These tables wil be added
+      as part of upgrade. These tables will be added
       to fts optimize queue when they are opened. */
       if (table->fts == nullptr && !srv_is_upgrade_mode) {
         table->fts = fts_create(table);
@@ -2588,7 +2588,7 @@ func_exit:
   if (table && table->fts) {
     /* We do not add fts tables to optimize thread
     during upgrade because fts tables will be renamed
-    as part of upgrade. These tables wil be added
+    as part of upgrade. These tables will be added
     to fts optimize queue when they are opened. */
 
     if (!(dict_table_has_fts_index(table) ||

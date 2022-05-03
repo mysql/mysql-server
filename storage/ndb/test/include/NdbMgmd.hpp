@@ -295,7 +295,7 @@ public:
       }
     }
 
-    // Emtpy line terminates argument list
+    // Empty line terminates argument list
     if (out.print("\n")){
       error("call: print('\n') failed at line %d", __LINE__);
       return false;

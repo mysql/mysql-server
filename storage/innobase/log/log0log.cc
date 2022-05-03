@@ -1674,7 +1674,7 @@ dberr_t log_sys_init(bool expect_no_files, lsn_t flushed_lsn,
           that sending SHUTDOWN command does not end when the
           server is no longer running, but earlier (obvious!).
           Starting MySQL without waiting on previous instance
-          stopped, seems a bad idea and it often leaded to
+          stopped, seems a bad idea and it often led to
           quick failures here if we did not retry. */
           for (size_t retries = 0;; ++retries) {
             const auto remove_unused_files_ret =

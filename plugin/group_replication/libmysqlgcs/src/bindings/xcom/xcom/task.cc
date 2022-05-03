@@ -163,7 +163,7 @@ GetSystemTimeAsFileTime to get the real start time.
 struct xcom_clock {
   double real_start;        /* System time at init, in seconds */
   uint64_t monotonic_start; /* Performance counter ticks at init */
-  uint64_t freq; /* Performance counter frecuency, in counts per second */
+  uint64_t freq; /* Performance counter frequency, in counts per second */
   double now;    /* The last computed clock */
   int done;
 };
@@ -1223,7 +1223,7 @@ void task_loop() {
 #if 0
 
 /*
-  This was disabled to prevent unecessary build warnings.
+  This was disabled to prevent unnecessary build warnings.
 
   TODO:
   Needs to be assessed whether it should be removed altogether.

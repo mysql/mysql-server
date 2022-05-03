@@ -290,7 +290,7 @@ static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
 #endif /* HAVE_TLSv13 */
 
   /*
-    Set the ciphers that can be used. Note, howerver, that the
+    Set the ciphers that can be used. Note, however, that the
     SSL_CTX_set_cipher_list will return 0 if none of the provided
     ciphers could be selected
   */

@@ -142,7 +142,7 @@ protected:
     NdbRecAttr** ra;
     NdbRecAttr** ra_pos;
 
-    // NDB API intializers/finalizers
+    // NDB API initializers/finalizers
     virtual void init();
     virtual void close();
     virtual void initProperties();

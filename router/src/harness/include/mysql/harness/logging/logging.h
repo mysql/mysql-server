@@ -112,7 +112,7 @@ enum class LogLevel {
 
   /**
    * Warning message. Indicate a potential problem that could require
-   * actions, but does not cause a problem for the continous operation
+   * actions, but does not cause a problem for the continuous operation
    * of the router.
    */
   kWarning,

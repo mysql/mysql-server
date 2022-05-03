@@ -121,7 +121,7 @@ Compatibility_type Compatibility_module::check_incompatibility(
   return COMPATIBLE;
 }
 
-/* Compatibility_module is independant, we cannot use local_member_info or
+/* Compatibility_module is independent, we cannot use local_member_info or
  * group_mgr. */
 Compatibility_type Compatibility_module::check_version_incompatibility(
     Member_version from, Member_version to) {

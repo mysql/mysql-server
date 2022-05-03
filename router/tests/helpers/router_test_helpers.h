@@ -182,7 +182,7 @@ void init_keyring(std::map<std::string, std::string> &default_section,
 /** @brief returns true if the selected file contains a string
  *          that is true for a given predicate
  *
- * @param file_path path to the file we want to serach
+ * @param file_path path to the file we want to search
  * @param predicate predicate to test the file
  * @param sleep_time max time to wait for the entry in the file
  * @deprecated use wait_log_contains() or get_file_output() with
@@ -235,13 +235,13 @@ bool add_line_to_config_file(const std::string &config_path,
                              const std::string &key, const std::string &value);
 
 /**
- * Wait for the nth occurence of the log_regex in the log_file with timeout
+ * Wait for the nth occurrence of the log_regex in the log_file with timeout
  * If it's found returns the timepoint from the matched line prefix
  * If timed out or failed to convert the timestamp returns unexpected
  *
  * @param log_file path to file containing router log
  * @param log_regex value that is going to be searched for in the log
- * @param occurence number denoting which occurence of a log_regex is expected
+ * @param occurence number denoting which occurrence of a log_regex is expected
  * @param timeout number of milliseconds we are going to wait for the log_regex
  * to occur at expected position
  *

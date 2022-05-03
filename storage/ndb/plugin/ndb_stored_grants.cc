@@ -480,7 +480,7 @@ inline bool blacklisted(std::string user) {
    This query selects only those users that have been directly granted
    NDB_STORED_USER, not those granted it transitively via a role. This
    entails that the direct grant is required -- a limitation which must
-   be documented. If there were a table in information_schema analagous to
+   be documented. If there were a table in information_schema analogous to
    mysql.role_edges, we could solve this problem by issuing a JOIN query
    of user_privileges and role_edges. For now, though, living with the
    documented limitation is preferable to relying on the mysql table.

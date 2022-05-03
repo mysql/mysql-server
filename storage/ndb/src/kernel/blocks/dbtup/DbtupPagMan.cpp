@@ -44,7 +44,7 @@
 //
 // The cfreepageList is 16 free lists. Free list 0 contains chunks of
 // pages with 2^0 (=1) pages in each chunk. Free list 1 chunks of 2^1
-// (=2) pages in each chunk and so forth upto free list 15 which
+// (=2) pages in each chunk and so forth up to free list 15 which
 // contains chunks of 2^15 (=32768) pages in each chunk.
 // The cfreepageList array contains the pointer to the first chunk
 // in each of those lists. The lists are doubly linked where the
@@ -63,7 +63,7 @@
 // performed in chunks of pages and the algorithm tries to make the
 // chunks as large as possible.
 // This manager is invoked when fragments lack internal page space to
-// accomodate all the data they are requested to store. It is also
+// accommodate all the data they are requested to store. It is also
 // invoked when fragments deallocate page space back to the free area.
 //
 // The following routines are part of the external interface:

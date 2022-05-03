@@ -646,7 +646,7 @@ get_one_option(int optid, const struct my_option *opt, char *argument)
     info << "Backup Id = " << ga_backupId << endl;
     break;
   case OPT_NODEGROUP_MAP:
-    // Support for mappping nodegroups during restore has been removed, just
+    // Support for mapping nodegroups during restore has been removed, just
     // print message saying the setting is ignored
     err << "NOTE! Support for --ndb-nodegroup-map=<string> has been removed"
         << endl;
@@ -837,7 +837,7 @@ readArguments(Ndb_opts & opts, char*** pargv)
 
   if (ga_restore)
   {
-    // Exclude privilege tables unless explicitely included
+    // Exclude privilege tables unless explicitly included
     if (!opt_restore_privilege_tables)
       exclude_privilege_tables();
 

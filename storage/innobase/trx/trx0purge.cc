@@ -1123,7 +1123,7 @@ void add_space_to_construction_list(space_id_t space_id) {
 /** Clear the s_under_construction vector. */
 void clear_construction_list() { s_under_construction.clear(); }
 
-/** Is an undo tablespace under constuction at the moment.
+/** Is an undo tablespace under construction at the moment.
 @param[in]      space_id        space id to check
 @return true if marked for truncate, else false. */
 bool is_under_construction(space_id_t space_id) {

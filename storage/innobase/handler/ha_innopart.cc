@@ -1046,7 +1046,7 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
     of the index used on scan, to make it avoid checking if we
     update the column of the index. That is why we assert below
     that key_used_on_scan is the undefined value MAX_KEY.
-    The column is the row id in the automatical generation case,
+    The column is the row id in the automatic generation case,
     and it will never be updated anyway. */
 
     if (key_used_on_scan != MAX_KEY) {

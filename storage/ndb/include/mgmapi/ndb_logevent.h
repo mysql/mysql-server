@@ -234,7 +234,7 @@ extern "C" {
      * NDB_LE_EventBufferStatus with new fields added,
      * as well as the report text is improved.
      * Though it would work to add more fields to NDB_LE_EventBufferStatus
-     * since the Data[] struct can accomodate 29 fields, it is cleaner
+     * since the Data[] struct can accommodate 29 fields, it is cleaner
      * to introduce a new struct.
      * During an upgrade with incorrect order-
      * old mgmd with newer other components :
@@ -262,7 +262,7 @@ extern "C" {
     /*  Must be a nonnegative integer (used for array indexing) */
     /** Cluster log on */
     NDB_MGM_EVENT_SEVERITY_ON    = 0,
-    /** Used in NDB Cluster developement */
+    /** Used in NDB Cluster development */
     NDB_MGM_EVENT_SEVERITY_DEBUG = 1,
     /** Informational messages*/
     NDB_MGM_EVENT_SEVERITY_INFO = 2,
@@ -870,7 +870,7 @@ extern "C" {
     /** Which event */
     enum Ndb_logevent_type type;
 
-    /** Time when log event was registred at the management server */
+    /** Time when log event was registered at the management server */
     unsigned time;
 
     /** Category of log event */

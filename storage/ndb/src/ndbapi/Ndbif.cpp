@@ -351,7 +351,7 @@ NdbImpl::drop_batched_fragments(AssembleBatchedFragments* batched_fragments)
 /** NdbImpl::assemble_data_event_signal() assembles the fragments of a data
  * event sent in GSN_SUB_TABLE_DATA into one signal.
  * returns
- *   -2 some error occured, batched fragments state is cleaned up
+ *   -2 some error occurred, batched fragments state is cleaned up
  *   -1 more fragments is needed
  *    0 signal was not fragmented, use as is, no cleanup needed.
  *   >0 signal complete, call cleanup after use
@@ -1428,7 +1428,7 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
     tFirstDataPtr = NULL;
     goto InvalidSignal;
   }
-  }//swich
+  }//switch
 
   if (tNewState != tWaitState)
   {
@@ -1871,7 +1871,7 @@ Ndb::poll_trans(int aMillisecondNumber, int minNoOfEventsToWakeup,
   } else {
     tNoCompletedTransactions = pollCompleted(tConArray);
   }//if
-  theMinNoOfEventsToWakeUp = 0; // no more wakup
+  theMinNoOfEventsToWakeUp = 0; // no more wakeup
   pg->unlock_and_signal();
   reportCallback(tConArray, tNoCompletedTransactions);
   return tNoCompletedTransactions;

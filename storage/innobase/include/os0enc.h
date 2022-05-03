@@ -306,7 +306,7 @@ class Encryption {
   which are assumed to be related to a given tablespace (unless
   space_id == dict_sys_t::s_invalid_space_id). The given tablespace
   is noted down in s_tablespaces_to_reencrypt if the encryption info
-  became succesfuly decrypted using the master key and the space_id
+  became successfully decrypted using the master key and the space_id
   is not dict_sys_t::s_invalid_space_id. For such tablespaces the
   encryption info is later re-encrypted using the rotated master key
   in innobase_dict_recover().

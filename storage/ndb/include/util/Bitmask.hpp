@@ -1628,7 +1628,7 @@ BitmaskImpl::copyField(Uint32 _dst[], unsigned dstPos,
   /* Algorithm
    * While (len > 0)
    *  - Find the longest bit length we can copy from one 32-bit word
-   *    to another (which is the miniumum of remaining length, 
+   *    to another (which is the minimum of remaining length, 
    *    space in current src word and space in current dest word)
    *  - Extract that many bits from src, and shift them to the correct
    *    position to insert into dest

@@ -217,7 +217,7 @@ AsyncFile::openReq(Request * request)
 #if defined(VM_TRACE) || !defined(NDEBUG)
       /*
        * LCP/0/T13F7.ctl has been seen with zero size, open flags OM_READWRITE |
-       * OM_APPEND Likely a partial read or failed read will be catched by
+       * OM_APPEND Likely a partial read or failed read will be caught by
        * application level, and file ignored. Are there ever files that can be
        * empty in ndb_x_fs? Else we could treat zero file as no file, must then
        * remove I guess to not trick create_if_none?
@@ -1053,7 +1053,7 @@ AsyncFile::writeReq(Request * request)
           /*
            * If encryption produced a full page of zeros crash since reader can
            * not distinguish between sparse page and encrypted page that
-           * happend to result in an all zeros page (should be a quite rare
+           * happened to result in an all zeros page (should be a quite rare
            * event).
            */
           require((q - p) < GLOBAL_PAGE_SIZE);

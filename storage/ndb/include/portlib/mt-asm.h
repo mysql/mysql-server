@@ -196,7 +196,7 @@ xcng(volatile unsigned * addr, int val)
 
 #if defined(__x86_64) || defined (__i386) || defined(__sparc)
 /**
- * we should probably use assembler for x86 aswell...
+ * we should probably use assembler for x86 as well...
  *   but i'm not really sure how you do this in sun-studio :-(
  */
 #ifdef HAVE_ATOMIC_H

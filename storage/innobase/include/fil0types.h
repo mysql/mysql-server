@@ -149,7 +149,7 @@ struct Fil_page_header {
 
   /** Print the page header to the given output stream.
   @param[in]  out  the output stream.
-  @return the ouput stream. */
+  @return the output stream. */
   std::ostream &print(std::ostream &out) const noexcept;
 
  private:

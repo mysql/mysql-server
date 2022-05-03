@@ -43,7 +43,7 @@ using std::ostringstream;
 using std::string;
 
 // ----------------------------------------------------------------------
-// intializers/finalizers
+// initializers/finalizers
 // ----------------------------------------------------------------------
 
 void
@@ -159,7 +159,7 @@ CrundDriver::initProperties() {
     split(toS(props[L"include"]), ',', std::back_inserter(include));
     split(toS(props[L"exclude"]), ',', std::back_inserter(exclude));
 
-    if (!msg.tellp()) { // or msg.str().empty() if ambigous
+    if (!msg.tellp()) { // or msg.str().empty() if ambiguous
         cout << "    [ok: "
              << "nOps=" << nOpsStart << ".." << nOpsEnd << "]" << endl;
     } else {

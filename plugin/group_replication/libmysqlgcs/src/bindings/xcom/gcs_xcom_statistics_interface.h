@@ -56,7 +56,7 @@ class Gcs_xcom_statistics_updater {
     - Total Messages Received;
     - Total Bytes Received;
     - Min Message Length;
-    - Max Message Lenghth;
+    - Max Message Length;
     - Last Message Timestamp.
 
     @param[in] message_length the length of the message received

@@ -1826,7 +1826,7 @@ void Dbdih::execDIH_RESTARTREQ(Signal* signal)
   {
     /**
      * Precondition, (not checked)
-     *   atleast 1 node in each node group
+     *   at least 1 node in each node group
      * Sent as direct signals, so no need to handle bitmasks
      * and arrays of GCIs.
      */
@@ -2461,7 +2461,7 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
     /**
      * Note: In theory it would be ok for just nodes that we plan to copy from
      *   supported this...but in e.g a 3/4-replica scenario,
-     *      if one of the nodes does, and the other doesnt, we don't
+     *      if one of the nodes does, and the other doesn't, we don't
      *      have enough infrastructure to easily check this...
      *      therefore we require all nodes to support it.
      */
@@ -3361,7 +3361,7 @@ void Dbdih::start_copy_meta_data(Signal *signal)
 /**---------------------------------------------------------------
  * MASTER FUNCTIONALITY
  **--------------------------------------------------------------*/
-/* Support function to check if LCP is still runnning */
+/* Support function to check if LCP is still running */
 bool Dbdih::check_if_lcp_idle(void)
 {
   ndbrequire(isMaster());
@@ -4553,8 +4553,8 @@ void Dbdih::execUNBLO_DICTCONF(Signal* signal)
    * REDO log space if we wait for too long time.
    *
    * Given that we don't wait for more than a short time to synchronize
-   * means that the case of heterogenous nodes will also work ok in this
-   * context although we will optimize for the homogenous case.
+   * means that the case of heterogeneous nodes will also work ok in this
+   * context although we will optimize for the homogeneous case.
    *
    * To get even better estimates of where we are and to give users even
    * better understanding of what takes time in node restarts we have also
@@ -5691,7 +5691,7 @@ void Dbdih::setNodeRecoveryStatus(Uint32 nodeId,
     /**
      * We will ignore all state transitions until we are started ourselves
      * before we even attempt to record state transitions. This means we
-     * have no view into system restarts currently and inital starts. We
+     * have no view into system restarts currently and initial starts. We
      * only worry about node restarts for now.
      */
     return;
@@ -11462,7 +11462,7 @@ void
 Dbdih::invalidateNodeLCP(Signal* signal, Uint32 nodeId, TabRecordPtr tabPtr)
 {  
   /**
-   * Check so that no one else is using the tab descriptior
+   * Check so that no one else is using the tab descriptor
    */
   if (tabPtr.p->tabCopyStatus != TabRecord::CS_IDLE) {
     jam();    
@@ -11587,7 +11587,7 @@ void Dbdih::removeNodeFromTable(Signal* signal,
 				Uint32 nodeId, TabRecordPtr tabPtr){ 
   
   /**
-   * Check so that no one else is using the tab descriptior
+   * Check so that no one else is using the tab descriptor
    */
   if (tabPtr.p->tabCopyStatus != TabRecord::CS_IDLE) {
     jam();    
@@ -11775,7 +11775,7 @@ Dbdih::removeNodeFromTablesComplete(Signal* signal, Uint32 nodeId)
   jam();
 
   /**
-   * Check if we "accidently" completed a LCP
+   * Check if we "accidentally" completed a LCP
    */
   checkLcpCompletedLab(signal, __LINE__);
   
@@ -12477,7 +12477,7 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
        * lcpId under the old master before it failed.
 
        * When I, the new master, take over and send MASTER_LCP_REQ and
-       * execute MASTER_LCPCONF from participants, excempt the
+       * execute MASTER_LCPCONF from participants, exempt the
        * already-completed participants from the requirement to be
        * "not in IDLE state". Those who sent MASTER_LCPREF had not
        * completed the current LCP under the old master and thus
@@ -13103,7 +13103,7 @@ Dbdih::find_next_log_part(TabRecord *primTabPtrP, Uint32 & next_log_part)
  *
  * == Get fragmentation (requestInfo RI_GET_FRAGMENTATION) ==
  *
- * primaryTableId - Id of table whic fragmentation to return, must not be RNIL.
+ * primaryTableId - Id of table whose fragmentation to return, must not be RNIL.
  *
  * No other parameters are used from signal (except for the common parameters).
  *
@@ -13295,7 +13295,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       jam();
       switch ((DictTabInfo::FragmentType)fragType){
         /*
-          Backward compatability and for all places in code not changed.
+          Backward compatibility and for all places in code not changed.
         */
       case DictTabInfo::AllNodesSmallTable:
         jam();
@@ -13481,7 +13481,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       /**
        * Fragments are spread out in 3 different dimensions.
        * 1) Node group dimension, each fragment belongs to a node group.
-       * 2) LDM instance dimenstion, each fragment is mapped to one of the
+       * 2) LDM instance dimension, each fragment is mapped to one of the
        *    LDMs.
        * 3) Primary replica dimension, each fragment maps the primary replica
        *    to one of the nodes in the node group.
@@ -13985,7 +13985,7 @@ bool Dbdih::verify_fragmentation(Uint16* fragments,
    *    partition count.
    * 3) The main copy fragment of a partition have the same id as the
    *    partition.
-   * 4) Fragments with consequtive id belonging to partition 0 upto partition
+   * 4) Fragments with consecutive id belonging to partition 0 up to partition
    *    count - 1, are in this function called a partition set and should have
    *    its replicas in one nodegroup.
    * 1) must always be satisfied also in future implementations. 2) and 3) may
@@ -14004,7 +14004,7 @@ bool Dbdih::verify_fragmentation(Uint16* fragments,
   /**
    * partition_set_for_node keep track what partition_set (as in condition 4)
    * above) are located on a node.  Only one partition set per node is allowed.
-   * This toghether with the fact that all nodes in same nodegroup share
+   * This together with the fact that all nodes in same nodegroup share
    * fragments ensures condition 4) above.
    * ~0 are used as a still unset partition set indicator.
    */
@@ -15796,7 +15796,7 @@ Dbdih::execDROP_FRAG_CONF(Signal* signal)
  * If we have passed 4 it is too late to rollback and thus recovery is about
  * ensuring that the schema transaction is completed. Between 3 and 4 we are
  * able to both roll backward and roll forward. So it depends on other
- * parts of the schema transaction which path is choosen. If we fail between
+ * parts of the schema transaction which path is chosen. If we fail between
  * 2 and 3 then we will have to remove the new table as writeable.
  * This is performed by make_new_table_non_writeable.
  * If a failure happens between 1 and 2 then we have to drop the new
@@ -15962,7 +15962,7 @@ Dbdih::execDROP_FRAG_CONF(Signal* signal)
  * overwrite the row or it will insert if it doesn't exist.
  *
  * There is a lot of logic in DBTC, DBLQH and DBTUP which is used to control
- * the upates on various fragments. During Copy phase and Delete phase all
+ * the updates on various fragments. During Copy phase and Delete phase all
  * fragments have a new reorg trigger installed. This trigger is fired for
  * all normal writes on tuples that are currently moving, nothing happens
  * for tuples that aren't moving. The trigger fires for moving tuples in
@@ -16014,13 +16014,13 @@ Dbdih::execDROP_FRAG_CONF(Signal* signal)
  * directly from COPY_DATA_IMPL_REQ in the delete phase to avoid it.
  *
  * The copy phase can be handled by DBTC putting a different meaning to
- * the reorg flag. Normall we would set SOF_REORG_COPY to ensure that
+ * the reorg flag. Normally we would set SOF_REORG_COPY to ensure that
  * we only write the new fragment for those copy rows. Here we want to
  * perform an update that uses the fully replicated triggers to ensure
  * that all copy fragments are updated. One simple manner to do this is
  * to simply perform the update and let the fully replicated trigger
  * update all other copy fragments. However this means that we are
- * performing lots of unncessary writes.
+ * performing lots of unnecessary writes.
  *
  * A very simple optimisation is to instead perform the write on the
  * first new copy fragment. In this case the trigger will fire and
@@ -16120,7 +16120,7 @@ loop:
    * alive nodes, we use an RCU mechanism to protect this call to
    * DIGETNODESREQ, this means that any changes in DBDIH will be reflected
    * in external DBTCs reading this data as well. These are variables
-   * updated very seldomly and we only need to read them, thus a RCU is a
+   * updated very seldom and we only need to read them, thus a RCU is a
    * very powerful mechanism to achieve this.
    */
   Uint32 tab_val = tabPtr.p->m_lock.read_lock();
@@ -21211,7 +21211,7 @@ void Dbdih::execTCGETOPSIZECONF(Signal* signal)
   c_lcpState.immediateLcpStart = false;
   /* ----------------------------------------------------------------------- 
    * Now the initial lcp is started, 
-   * we can reset the delay to its orginal value
+   * we can reset the delay to its original value
    * --------------------------------------------------------------------- */
   CRASH_INSERTION(7010);
   /* ----------------------------------------------------------------------- */
@@ -23465,7 +23465,7 @@ void Dbdih::checkGcpStopLab(Signal* signal)
    *
    * - If we overslept 'GCPCheckPeriodMillis', (CPU starved?) or 
    *   timer leapt forward for other reasons (Adjusted, or OS-bug)
-   *   we never calculate an elapsed periode of more than 
+   *   we never calculate an elapsed period of more than 
    *   the requested sleep 'GCPCheckPeriodMillis'
    * - Else we add the real measured elapsed time to total.
    *   (Timers may fire prior to requested 'GCPCheckPeriodMillis')
@@ -24541,7 +24541,7 @@ bool Dbdih::findStartGci(Ptr<ReplicaRecord> replicaPtr,
     {
       /**
        * In order to use LCP
-       *   we must be able to run REDO atleast up until maxGciStarted
+       *   we must be able to run REDO at least up until maxGciStarted
        *   which is that highest GCI that
        */
       jam();
@@ -24554,7 +24554,7 @@ bool Dbdih::findStartGci(Ptr<ReplicaRecord> replicaPtr,
   {
     jam();
     /**
-     * We found atleast one...get the highest
+     * We found at least one...get the highest
      */
     lcpNo = tmp[0];
     Uint32 lcpId = replicaPtr.p->lcpId[lcpNo];
@@ -25198,7 +25198,7 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
     {
       FileRecordPtr filePtr;
       jam();
-      /******** INTIALIZING FILE RECORDS ********/
+      /******** INITIALIZING FILE RECORDS ********/
       for (filePtr.i = 0; filePtr.i < cfileFileSize; filePtr.i++) {
 	ptrAss(filePtr, fileRecord);
 	filePtr.p->nextFile = filePtr.i + 1;
@@ -25899,7 +25899,7 @@ void Dbdih::newCrashedReplica(ReplicaRecordPtr ncrReplicaPtr)
     jam();
     /**
      * Don't add another redo-interval, that already exist
-     *  instead initalize new
+     *  instead initialize new
      */
     ncrReplicaPtr.p->createGci[ncrReplicaPtr.p->noCrashedReplicas] =
       ZINIT_CREATE_GCI;
@@ -26417,7 +26417,7 @@ void Dbdih::removeOldCrashedReplicas(Uint32 tab, Uint32 frag,
     if (rocReplicaPtr.p->noCrashedReplicas)
     {
       /**
-       * a REDO interval while is from 78 to 14 is not usefull
+       * a REDO interval while is from 78 to 14 is not useful
        *   but rather harmful, remove it...
        */
       if (rocReplicaPtr.p->createGci[0] > rocReplicaPtr.p->replicaLastGci[0])
@@ -29764,7 +29764,7 @@ Dbdih::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
     if (rt == CreateNodegroupImplReq::RT_PARSE || rt == CreateNodegroupImplReq::RT_PREPARE)
     {
       /**
-       * Check that atleast one of the nodes are alive
+       * Check that at least one of the nodes are alive
        */
       bool alive = false;
       for (Uint32 i = 0; i<cnoReplicas; i++)

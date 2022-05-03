@@ -61,7 +61,7 @@ class ConfigFiles;
  *  explicit location was given, the application exits.
  *
  *  The class depends on MySQL Harness to, among other things, load the
- *  configuration and initalize all request plugins.
+ *  configuration and initialize all request plugins.
  *
  *  Example usage:
  *
@@ -161,7 +161,7 @@ class ROUTER_LIB_EXPORT MySQLRouter {
    *
    * Initializes main logger, according to options in the configuration.
    *
-   * @param config Configuaration to be used to initialize logger
+   * @param config Configuration to be used to initialize logger
    * @param raw_mode If true, all messages are logged raw; if false, messages
    *        are subject formatting
    * @param use_os_log If true, Windows EventLog will be used instead of STDERR;

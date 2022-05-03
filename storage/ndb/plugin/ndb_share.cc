@@ -240,7 +240,7 @@ void NDB_SHARE::free_share(NDB_SHARE **share) {
   mysql_mutex_assert_owner(&shares_mutex);
 
   if (!(*share)->decrement_use_count()) {
-    // Noone is using the NDB_SHARE anymore, release it
+    // No one is using the NDB_SHARE anymore, release it
     NDB_SHARE::real_free_share(share);
   }
 }
@@ -731,7 +731,7 @@ void NDB_SHARE::mark_share_dropped_impl(NDB_SHARE **share_ptr) {
   share->refs_erase("ndb_shares");
   share->decrement_use_count();
 
-  // Destroy the NDB_SHARE if noone is using it, this is normally a special
+  // Destroy the NDB_SHARE if no one is using it, this is normally a special
   // case for shutdown code path. In all other cases the caller will hold
   // reference to the share.
   if (share->use_count() == 0) {

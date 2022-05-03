@@ -825,7 +825,7 @@ ib_err_t ib_memc_sdi_create(ib_crsr_t crsr);
 @return DB_SUCCESS if dropping of SDI is successful, else error */
 ib_err_t ib_memc_sdi_drop(ib_crsr_t crsr);
 
-/* Wrapper function to retreive list of SDI keys into the buffer
+/* Wrapper function to retrieve list of SDI keys into the buffer
 The SDI keys are copied in the from x:y and separated by '|'.
 @param[in,out]  crsr            Memcached cursor
 @param[in]      key             Memcached key

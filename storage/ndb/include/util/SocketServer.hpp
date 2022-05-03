@@ -92,9 +92,9 @@ public:
   ~SocketServer();
   
   /**
-   * Setup socket and bind it
+   * Set up socket and bind it
    *  then  close the socket
-   * Returns true if succeding in binding
+   * Returns true if succeeding in binding
    */
   static bool tryBind(unsigned short port, const char* intface = 0,
                       char* error = NULL, size_t error_size = 0);

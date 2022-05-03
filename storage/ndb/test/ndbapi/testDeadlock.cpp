@@ -258,7 +258,7 @@ runstep_starttx(Thr& thr)
  * - tx1 returns X to api
  * - api commits tx1
  * - tx2 gets lock on Z
- * - tx2 returs Z to api
+ * - tx2 returns Z to api
  *
  * The point is deadlock is avoided due to [*].
  * The test is for 1 db node and 1 fragment table.

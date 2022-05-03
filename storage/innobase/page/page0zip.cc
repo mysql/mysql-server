@@ -922,7 +922,7 @@ bool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
                                                   m_nonempty */
                        const page_t *page,       /*!< in: uncompressed page */
                        dict_index_t *index,      /*!< in: index tree */
-                       ulint level,              /*!< in: commpression level */
+                       ulint level,              /*!< in: compression level */
                        mtr_t *mtr)               /*!< in/out: mini-transaction,
                                                  or NULL */
 {

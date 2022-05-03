@@ -525,7 +525,7 @@ int Transaction_consistency_manager::handle_remote_prepare(
     while (it != m_delayed_view_change_events.end()) {
       Transaction_consistency_manager_key view_key = it->second;
       /*
-        Check if there is pending view change procesing post the current
+        Check if there is pending view change processing post the current
         transaction. If so, process all view changes which were queued post the
         current transaction.
       */

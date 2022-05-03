@@ -38,7 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "rem0cmp.h"
 #include "row0sel.h"
 
-/** Dummy adress used when we should allocate a buffer of size 0 in
+/** Dummy address used when we should allocate a buffer of size 0 in
 eval_node_alloc_val_buf */
 
 static byte eval_dummy;

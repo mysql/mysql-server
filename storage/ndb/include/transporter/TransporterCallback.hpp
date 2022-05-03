@@ -158,7 +158,7 @@ public:
    *
    * Note that the entire process of multiple client- / block-threads
    * writing to the send buffers, and the connect/disconnect handling is
-   * higly asynch: We may disconnect at any time, and data successfully
+   * highly asynch: We may disconnect at any time, and data successfully
    * written to the send buffers may thus later be discarded before they
    * are sent.
    *
@@ -302,7 +302,7 @@ public:
    * Calling getWritePtr() for a node with a disabled send buffer
    * is considered a protocol breakage. (could be asserted).
    *
-   * It is upto each implementation whether we allow send buffer
+   * It is up to each implementation whether we allow send buffer
    * allocation to a possibly disconnected node or not. 
    * Default is to always allow buffer allocation and silently
    * discard the prepared send message if it later turns out that

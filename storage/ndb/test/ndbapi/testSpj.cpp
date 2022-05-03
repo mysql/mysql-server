@@ -1167,7 +1167,7 @@ NegativeTest::runSetBoundTest() const
       return NDBT_FAILED;
     }
 
-    // Set correct string lengh.
+    // Set correct string length.
     boundRow.len = nt2StrLen;
     bound.range_no = 1;
     if (query->setBound(ordIdxRecord, &bound) == 0 ||

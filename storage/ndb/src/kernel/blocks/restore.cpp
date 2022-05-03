@@ -611,7 +611,7 @@ Restore::execDUMP_STATE_ORD(Signal* signal){
  * -----------------------------------
  * Open LCP control 0 -> Success
  * Read LCP control 0 -> Success (read important data into File data)
- * Close LCP control 0 -> Sucess
+ * Close LCP control 0 -> Success
  * Open LCP control 1 -> Success
  * Read LCP control 1 -> Success (calculate which LCP control file to use)
  * Close LCP control 1 -> Success
@@ -1580,7 +1580,7 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
      * have sufficient information logged if things turns for the worse. In a
      * normal restart we should at most have a few of those.
      *
-     * The LCP contained records that was commited in GCI = maxGciWritten,
+     * The LCP contained records that were committed in GCI = maxGciWritten,
      * we are restoring a GCI which is smaller, this means that the LCP cannot
      * be used for restore since we have no UNDO log for main memory
      * data.
@@ -2425,7 +2425,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
         jam();
 	/**
 	 * But that's stored on next page...
-	 *   and since we have atleast 8 bytes left in buffer
+	 *   and since we have at least 8 bytes left in buffer
 	 *   we can be sure that that's in buffer
 	 */
 	LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
@@ -2453,7 +2453,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
       jam();
 
       /**
-       * Not enought bytes to read "record"
+       * Not enough bytes to read "record"
        */
       if (unlikely((status & File:: FILE_THREAD_RUNNING) == 0))
       {

@@ -222,13 +222,13 @@ class Ndb_func : public Ndb_item {
   const uint m_arg_count;
 };
 
-// A Ndb_Item refering a Field from 'this' table
+// A Ndb_Item referring a Field from 'this' table
 class Ndb_field : public Ndb_item {
   Ndb_field &operator=(const Ndb_field &) = delete;
   Ndb_field(const Ndb_field &) = delete;
 
  public:
-  // A Ndb_Item refering a Field from 'this' table
+  // A Ndb_Item referring a Field from 'this' table
   Ndb_field(Field *field, int column_no)
       : m_field(field), m_column_no(column_no) {}
 
@@ -617,7 +617,7 @@ static uint operand_count(const Item *item) {
 }
 
 /*
-  Serialize the item tree into a List of Ndb_item objecs
+  Serialize the item tree into a List of Ndb_item objects
   for fast generation of NbdScanFilter. Adds information such as
   position of fields that is not directly available in the Item tree.
   Also checks if condition is supported.
@@ -757,7 +757,7 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
 #endif
           if (item->type() == Item::VARBIN_ITEM) {
             // VARBIN_ITEM is special as no similar VARBIN_RESULT type is
-            // defined, so it need to be explicitely handled here.
+            // defined, so it needs to be explicitly handled here.
             DBUG_PRINT("info", ("VARBIN_ITEM 'VALUE' expression: '%s'",
                                 str.c_ptr_safe()));
             if (context->expecting(Item::VARBIN_ITEM)) {
@@ -1451,7 +1451,7 @@ static int create_and_conditions(Item_cond *cond, List<Item> pushed_list,
   2) If the OR condition is not completely pushed (there is
      a remainder), the entire original condition has to be
      reevaluated on the server side, or in the AND condition
-     containg this OR condition if such exists.
+     containing this OR condition if such exists.
 
   @param cond            Original condition we tried to push
   @param pushed_list     A list of predicate terms to be pushed.

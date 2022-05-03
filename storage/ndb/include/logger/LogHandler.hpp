@@ -100,7 +100,7 @@ public:
 
   /**
    * Returns a default formatted header. It currently has the
-   * follwing default format: '%H:%M:%S %Y-%m-%d [CATEGORY] LOGLEVEL --' 
+   * following default format: '%H:%M:%S %Y-%m-%d [CATEGORY] LOGLEVEL --'
    *
    * @param pStr the header string to format.
    * @param pCategory a category/name to tag the log entry with.
@@ -186,7 +186,7 @@ public:
   static constexpr Uint32 MAX_HEADER_LENGTH = 128;
 
 protected:
-  /** Max lenght of footer in the log. */
+  /** Max length of footer in the log. */
   static constexpr Uint32 MAX_FOOTER_LENGTH = 128;
 
   /**

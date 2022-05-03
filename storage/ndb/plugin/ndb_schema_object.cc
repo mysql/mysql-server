@@ -134,7 +134,7 @@ NDB_SCHEMA_OBJECT::~NDB_SCHEMA_OBJECT() {
   assert(state.m_use_count == 0);
   // Check that all participants have completed
   assert(state.m_participants.size() == count_completed_participants());
-  // Check that the coordinator completed all its operaion, when the schema
+  // Check that the coordinator completed all its operation, when the schema
   // operation is received by the coordinator.
   assert(state.m_coordinator_completed ||
          state.m_schema_obj_state != state.coord_receive_event);
@@ -402,7 +402,7 @@ bool NDB_SCHEMA_OBJECT::check_timeout(int timeout_seconds, uint32 result,
 
   if (m_started + std::chrono::seconds(timeout_seconds) >
       std::chrono::steady_clock::now())
-    return false;  // Timeout has not occured
+    return false;  // Timeout has not occurred
 
   // Mark all participants who hasn't already completed as timedout
   for (auto &it : state.m_participants) {
@@ -443,7 +443,7 @@ void NDB_SCHEMA_OBJECT::fail_schema_op(uint32 result,
   // All participant should now have been marked as completed
   ndbcluster::ndbrequire(state.m_participants.size() ==
                          count_completed_participants());
-  // Mark als coordinator as completed
+  // Mark also coordinator as completed
   state.m_coordinator_completed = true;
 }
 

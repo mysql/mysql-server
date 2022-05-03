@@ -727,7 +727,7 @@ protected:
 
   /**
    * This flag indicates whether a scan operation was 
-   * succesfully finalised
+   * successfully finalised
    */
   bool  m_scanFinalisedOk;
 private:

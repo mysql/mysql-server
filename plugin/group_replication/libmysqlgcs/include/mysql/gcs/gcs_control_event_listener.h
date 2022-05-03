@@ -78,7 +78,7 @@ class Gcs_control_event_listener {
 
   /**
     This member function is called when the set of suspicions
-    has changed in the underlaying communication infrastructure.
+    has changed in the underlying communication infrastructure.
 
     @param[in] members Contains the list of all members that are in the
                        current view.

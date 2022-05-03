@@ -107,7 +107,7 @@ public:
   // name
 
   /*
-   * Construct hierachical names where parts are separated by hyphens.
+   * Construct hierarchical names where parts are separated by hyphens.
    * Used to name teams, workers, stats.
    */
 

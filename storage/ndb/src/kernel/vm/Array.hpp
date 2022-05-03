@@ -35,7 +35,7 @@
 
 /**
  * Template class used for implementing an
- *   array of object retreived from a pool
+ *   array of objects retrieved from a pool
  */
 template <class T>
 class Array {

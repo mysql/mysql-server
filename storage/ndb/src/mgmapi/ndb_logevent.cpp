@@ -555,7 +555,7 @@ int ndb_logevent_get_next2(const NdbLogEventHandle h,
 
   /*
     Read log event header until header received
-    or timeout expired. The MGM server will continusly
+    or timeout expired. The MGM server will continuously
     send <PING>'s that should be ignored.
   */
   char buf[1024];

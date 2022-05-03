@@ -226,7 +226,7 @@ protected:
 
 private:
   /**
-   * This is NOT a public method, since the intension is that the import
+   * This is NOT a public method, since the intention is that the import
    * method using iterators will be more effective in the future
    */
   bool import(Uint32 pos, const Uint32* src, Uint32 len);

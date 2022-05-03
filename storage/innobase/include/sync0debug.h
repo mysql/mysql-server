@@ -114,12 +114,12 @@ class Sync_point {
   ~Sync_point() = default;
 
   /** Add a target to the list of sync points, nop for duplicates.
-  @param[in] thd                Server conenction/session context.
+  @param[in] thd                Server connection/session context.
   @param[in] target             Target to add. */
   static void add(const THD *thd, const std::string &target) noexcept;
 
   /** Check if a target is enabled. Disable it if found.
-  @param[in] thd                Server conenction/session context.
+  @param[in] thd                Server connection/session context.
   @param[in] target             Check if target is enabled.
   @return true if was enabled. */
   static bool enabled(const THD *thd, const std::string &target) noexcept;
@@ -130,7 +130,7 @@ class Sync_point {
   static bool enabled(const std::string &target) noexcept;
 
   /** Clear the named target.
-  @param[in] thd                Server conenction/session context.
+  @param[in] thd                Server connection/session context.
   @param[in] target             Check if target is enabled. */
   static void erase(const THD *thd, const std::string &target) noexcept;
 

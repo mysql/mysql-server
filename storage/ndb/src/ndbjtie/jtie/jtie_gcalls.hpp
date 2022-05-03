@@ -70,7 +70,7 @@
 //     of the C function as template arguments
 //
 // - In addition, by the C++ rules on matching formal and actual template
-//   paramters for function types, *six* separate, "overloaded" definitions
+//   parameters for function types, *six* separate, "overloaded" definitions
 //   are needed for each n-ary wrapper function template:
 //
 //     Category:                        Template Parameter Signature:
@@ -137,7 +137,7 @@
 //
 //   This way, the application can choose between a reference or pointer
 //   type mapping of the result/parameter (reference conversion checking
-//   for NULL and rasing a proper Java exception).
+//   for NULL and raising a proper Java exception).
 
 // ---------------------------------------------------------------------------
 // List Generation Macros

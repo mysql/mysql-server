@@ -164,7 +164,7 @@ Uint32 Dbtup::copyAttrinfo(Uint32 storedProcId,
     // Read sectionPtr's
     reader.getWords(&cinBuffer[0], 5);
 
-    // Read interpreted sections 0..3, upto the parameter section
+    // Read interpreted sections 0..3, up to the parameter section
     const Uint32 readLen = cinBuffer[0] + cinBuffer[1] +
                            cinBuffer[2] + cinBuffer[3];
     Uint32 *pos = &cinBuffer[5];
@@ -187,7 +187,7 @@ Uint32 Dbtup::copyAttrinfo(Uint32 storedProcId,
     }
     else
     {
-      // A set of parameters, skip upto the one specified by 'ParamNo'
+      // A set of parameters, skip up to the one specified by 'ParamNo'
       for (uint i=0; i < storedPtr.p->storedParamNo; i++)
       {
         reader.getWord(pos);
@@ -644,7 +644,7 @@ Dbtup::load_diskpage(Signal* signal,
     if (unlikely((flags & 7) == ZREFRESH))
     {
       jam();
-      /* Refresh of previously nonexistant DD tuple.
+      /* Refresh of previously nonexistent DD tuple.
        * No diskpage to load at commit time
        */
       regOperPtr->op_struct.bit_field.m_wait_log_buffer= 0;
@@ -1535,7 +1535,7 @@ bool Dbtup::execTUPKEYREQ(Signal* signal,
        if (accminupdateptr)
        {
          /**
-          * Update ACC local-key, once *everything* has completed succesfully
+          * Update ACC local-key, once *everything* has completed successfully
           */
          c_lqh->accminupdate(signal,
                              regOperPtr->userpointer,
@@ -3226,7 +3226,7 @@ Dbtup::handleRefreshReq(Signal* signal,
        if (accminupdateptr)
        {
          /**
-          * Update ACC local-key, once *everything* has completed succesfully
+          * Update ACC local-key, once *everything* has completed successfully
           */
          jamDebug();
          c_lqh->accminupdate(signal,
@@ -4741,7 +4741,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
  * dst_off_ptr where to write attribute offsets
  * src         pointer to packed attributes
  * tabDesc     array of attribute descriptors (used for getting max size)
- * no_of_attr  no of atributes to expand
+ * no_of_attr  no of attributes to expand
  */
 static
 Uint32*
@@ -4839,7 +4839,7 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
          * from handle_lcp_keep_commit. In this case we are currently
          * performing a DELETE operation. This operation is the final
          * operation that will be committed. It could very well have
-         * been preceeded by an UPDATE operation that did set the
+         * been preceded by an UPDATE operation that did set the
          * MM_GROWN bit. In this case it is important to get the original
          * length from the end of the varsize part and not the page
          * entry length which is essentially the meaning of the MM_GROWN

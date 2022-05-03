@@ -31,7 +31,7 @@
 
 
 /**
- * Send by API to preform TEST ON / TEST OFF
+ * Send by API to perform TEST ON / TEST OFF
  *
  * SENDER:  API
  * RECIVER: SimBlockCMCtrBlck

@@ -525,7 +525,7 @@ FTS index on the given table. row_mysql_lock_data_dictionary must have
 been called before this.
 
 All FTS AUX Index tables have the following schema.
-CREAT TABLE $FTS_PREFIX_INDEX_[1-6](
+CREATE TABLE $FTS_PREFIX_INDEX_[1-6](
         word            VARCHAR(FTS_MAX_WORD_LEN),
         first_doc_id    INT NOT NULL,
         last_doc_id     UNSIGNED NOT NULL,
@@ -726,11 +726,11 @@ void fts_cache_clear(fts_cache_t *cache);
 /** Initialize things in cache. */
 void fts_cache_init(fts_cache_t *cache); /*!< in: cache */
 
-/** Rollback to and including savepoint indentified by name. */
+/** Rollback to and including savepoint identified by name. */
 void fts_savepoint_rollback(trx_t *trx,        /*!< in: transaction */
                             const char *name); /*!< in: savepoint name */
 
-/** Rollback to and including savepoint indentified by name. */
+/** Rollback to and including savepoint identified by name. */
 void fts_savepoint_rollback_last_stmt(trx_t *trx); /*!< in: transaction */
 
 /* Get parent table name if it's a fts aux table
@@ -802,7 +802,7 @@ ulint fts_get_token_size(const CHARSET_INFO *cs, /*!< in: Character set */
                          ulint len);             /*!< in: token length */
 
 /** FULLTEXT tokenizer internal in MYSQL_FTPARSER_SIMPLE_MODE
- @return 0 if tokenize sucessfully */
+ @return 0 if tokenize successfully */
 int fts_tokenize_document_internal(
     MYSQL_FTPARSER_PARAM *param, /*!< in: parser parameter */
     char *doc,                   /*!< in: document to tokenize */
@@ -945,7 +945,7 @@ dberr_t fts_create_index_dd_tables(dict_table_t *table);
 /** Upgrade FTS AUX Tables. The FTS common and aux tables are
 renamed because they have table_id in their name. We move table_ids
 by DICT_MAX_DD_TABLES offset. Aux tables are registered into DD
-afer rename.
+after rename.
 @param[in]      table           InnoDB table object
 @return DB_SUCCESS or error code */
 dberr_t fts_upgrade_aux_tables(dict_table_t *table);

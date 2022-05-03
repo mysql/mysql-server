@@ -570,7 +570,7 @@ private:
   batches of rows.
 
   Any locks held by the transaction on rows in the previously fetched batches
-  are released (unless explicitly transfered to this or another transaction in
+  are released (unless explicitly transferred to this or another transaction in
   a TCKEYREQ signal with TakeOverScanFlag set).
 
   The fragment scan batches to acknowledge are identified by the tcPtrI words

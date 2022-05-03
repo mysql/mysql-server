@@ -55,7 +55,7 @@ bool contains(char c, const std::initializer_list<char> &l) {
 }
 
 /**
- * matches one charater in a list of possible candidates.
+ * matches one character in a list of possible candidates.
  */
 template <char... Arg>
 class One;

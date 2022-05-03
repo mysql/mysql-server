@@ -84,7 +84,7 @@ public:
    * The callback method returns:
    * - the operation performed
    * - the data set
-   * - if the transaction was commited or aborted
+   * - if the transaction was committed or aborted
    */
   typedef (* NDBT_DataSetAsyncTransactionCallback)(OperationType,
 						   const NDBT_DataSet *,

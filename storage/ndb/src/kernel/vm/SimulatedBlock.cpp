@@ -451,7 +451,7 @@ SimulatedBlock::handle_send_failed(SendStatus ss,
                                "Out of SendBufferMemory in sendSignal", "");
     break;
   case SEND_MESSAGE_TOO_BIG:
-    /* If message is too big when sending CmvmiDummySignal log a convinient
+    /* If message is too big when sending CmvmiDummySignal log a convenient
      * message about it to.
      * Note that CmvmiDummySignal is not intended for production usage but for
      * use by test cases.
@@ -1906,7 +1906,7 @@ SimulatedBlock::sendSignalWithDelay(BlockReference ref,
   globalTimeQueue.insert(signal, delayInMilliSeconds);
 #endif
 
-  // befor 2nd parameter to globalTimeQueue.insert
+  // before 2nd parameter to globalTimeQueue.insert
   // (Priority)theSendSig[sigIndex].jobBuffer
 }
 
@@ -5278,7 +5278,7 @@ SimulatedBlock::checkNodeFailSequence(Signal* signal)
   /**
    * Make sure that a signal being part of node-failure handling
    *   from a remote node, does not get to us before we got the NODE_FAILREP
-   *   (this to avoid tricky state handling to some extent when receving
+   *   (this to avoid tricky state handling to some extent when receiving
    *    signals from old nodes)
    *
    * To ensure this, we send the signal via the transporter for the remote
@@ -5846,7 +5846,7 @@ SimulatedBlock::get_load_indicators(DistributionHandler * const handle,
  * The selection is based on load levels. We use two levels of loads
  * to impact this decision. We use a long-term scheduling based on
  * the CPU load the last 100 milliseconds. Thus we change the
- * scheduling 10 times per second to accomodate the load of the various
+ * scheduling 10 times per second to accommodate the load of the various
  * threads. This means that e.g. if a certain LDM thread is very busy
  * with write actions and other things it will get a lower risk of being
  * selected here in the next scheduling decision.

@@ -222,7 +222,7 @@ struct alignas(NDB_CL) thr_wait
     FS_SLEEPING = 1
   };
   thr_wait() {
-    assert((sizeof(*this) % NDB_CL) == 0); //Maintain any CL-allignment
+    assert((sizeof(*this) % NDB_CL) == 0); //Maintain any CL-alignment
     xcng(&m_futex_state, FS_RUNNING);
   }
   void init () {}
@@ -323,7 +323,7 @@ struct alignas(NDB_CL) thr_wait
   NdbCondition *m_cond;
   bool m_need_wakeup;
   thr_wait() : m_mutex(0), m_cond(0), m_need_wakeup(false) {
-    assert((sizeof(*this) % NDB_CL) == 0); //Maintain any CL-allignment
+    assert((sizeof(*this) % NDB_CL) == 0); //Maintain any CL-alignment
   }
 
   void init() {
@@ -771,7 +771,7 @@ public:
   }
 
   /**
-   * Release to local pool even if it get's "too" full
+   * Release to local pool even if it gets "too" full
    *   (wrt to m_max_free)
    */
   void release_local(T *t)
@@ -1048,7 +1048,7 @@ struct alignas(NDB_CL) thr_job_queue
 
   /**
    * Producer thread-local shortcuts to current write pos:
-   * NOT under memory barrier control - Cant be consistently read by consumer!
+   * NOT under memory barrier control - Can't be consistently read by consumer!
    * (When adding a new write_buffer, the consumer could see either the 'end'
    * of the previous, the new one, or a mix.)
    */
@@ -1085,7 +1085,7 @@ struct alignas(NDB_CL) thr_job_queue
  * Calculate remaining free slots in the job_buffer queue.
  * The SAFETY limit is subtracted from the 'free'.
  *
- * Note that calc free considder a JB-page as non-free as soon as it
+ * Note that calc free consider a JB-page as non-free as soon as it
  * has been allocated to the JB-queue.
  *  -> A partial filled 'write-page', or even empty page, is non-free.
  *  -> A partial consumed 'read-page is non-free, until fully consumed
@@ -1262,7 +1262,7 @@ struct thr_tq
 #define THR_SEND_BUFFER_ALLOC_SIZE 32
 
 /**
- * THR_SEND_BUFFER_PRE_ALLOC is the amout of 32k pages that are
+ * THR_SEND_BUFFER_PRE_ALLOC is the amount of 32k pages that are
  *   allocated before we start to run signals
  */
 #define THR_SEND_BUFFER_PRE_ALLOC 32
@@ -1364,7 +1364,7 @@ struct alignas(NDB_CL) thr_data
 #endif
   {
 
-    // Check cacheline allignment
+    // Check cacheline alignment
     assert((((UintPtr)this) % NDB_CL) == 0);
     assert((((UintPtr)&m_waiter) % NDB_CL) == 0);
     assert((((UintPtr)&m_jba) % NDB_CL) == 0);
@@ -1806,7 +1806,7 @@ struct thr_repository
       m_jb_pool("jobbufferpool"),
       m_sb_pool("sendbufferpool")
   {
-    // Verify assumed cacheline allignment
+    // Verify assumed cacheline alignment
     assert((((UintPtr)this) % NDB_CL) == 0);
     assert((((UintPtr)&m_receive_lock) % NDB_CL) == 0);
     assert((((UintPtr)&m_section_lock) % NDB_CL) == 0);
@@ -1968,7 +1968,7 @@ struct thr_send_thread_instance
   /**
    * This variable is registered in the watchdog, it is set by the
    * send thread and reset every now and then by watchdog thread.
-   * No sepecial protection is required in setting it.
+   * No special protection is required in setting it.
    */
   Uint32 m_watchdog_counter;
 
@@ -2123,7 +2123,7 @@ struct thr_send_trps
    * This will be reset again immediately after sending is completed.
    * It is used to ensure that neighbour trps aren't taken out for
    * sending by more than one thread. The neighbour list is simply
-   * an array of the neighbours and we will send if data is avaiable
+   * an array of the neighbours and we will send if data is available
    * to send AND no one else is sending which is checked by looking at
    * this variable.
    */
@@ -2804,7 +2804,7 @@ static const Uint64 MAX_SEND_BUFFER_SIZE_TO_DELAY = (20 * 1024);
  * Get a trp having data to be sent to a trp (returned).
  *
  * Sending could have been delayed, in such cases the trp
- * to expire its delay first will be returned. It is then upto
+ * to expire its delay first will be returned. It is then up to
  * the callee to either accept this trp, or reinsert it
  * such that it can be returned and retried later.
  *
@@ -4332,14 +4332,14 @@ handle_time_wrap(struct thr_data* selfptr)
  * that delayed signals will arrive in correct relative order,
  * and repeated signals (pace signals) are received with
  * the expected frequence. However, each individual signal may
- * be delayed or arriving to fast. Where excact timing is critical,
+ * be delayed or arriving too fast. Where exact timing is critical,
  * these signals should do their own time calculation by reading
  * the clock, instead of trusting that the signal is delivered as
  * specified by the 'delay' argument
  *
  * If there are leaps larger than 1500ms, we try a hybrid
  * solution by moving the 'm_ticks' forward, close to the
- * actuall current time, then continue as above from that
+ * actual current time, then continue as above from that
  * point in time. A 'time leap Warning' will also be printed
  * in the logs.
  */
@@ -4394,7 +4394,7 @@ scan_time_queues_impl(struct thr_data* selfptr,
       }
       last = NdbTick_AddMilliseconds(last, diff-1000);
     }
-    step = 20;  // Max expire intervall handled is 20ms
+    step = 20;  // Max expire interval handled is 20ms
   }
 
   struct thr_tq * tq = &selfptr->m_tq;
@@ -4661,7 +4661,7 @@ senddelay(Uint32 thr_no, const SignalHeader* s, Uint32 delay)
  *
  *  Note, that min_free_buffers is updated when we last flushed thread-local
  *  signals to the job-buffer queue. It might be outdated if other threads
- *  flushed to the same job-buffer queue inbetween. Thus, there are no
+ *  flushed to the same job-buffer queue in between. Thus, there are no
  *  guarantees that we do not compute a too large max_signals-quota. However,
  *  we have a 'RESERVED' area to provide for this, and we will flush and update
  *  the free_buffers view every MAX_SIGNALS_BEFORE_FLUSH_*.
@@ -4685,7 +4685,7 @@ compute_max_signals_to_execute(Uint32 min_free_buffers)
  *
  * Assumption is that we have a total quota of max_signals_to_execute
  * by this thread (see above) in a round of run_job_buffers. We are limited
- * by the worst case scenarion, where all signals executed from the incomming
+ * by the worst case scenario, where all signals executed from the incoming
  * 'glob_num_job_buffers_per_thread' job-buffers, produce their max quota of
  * 4 outgoing signals to the same job-buffer out-queue.
  */
@@ -4871,7 +4871,7 @@ unsigned get_free_estimate_out_queue(thr_job_queue *q)
    *       but since the different thread can only consume
    *       signals this means that the value returned from this
    *       function is always conservative (i.e it can be better than
-   *       returned value, if read-index has moved but we didnt see it)
+   *       returned value, if read-index has moved but we didn't see it)
    */
   const Uint32 read_index = q->m_read_index;
   q->m_cached_read_index = read_index;
@@ -5314,7 +5314,7 @@ release_list(thread_local_pool<thr_send_page>* pool,
  * this function.
  *
  * Any available 'm_buffer's will be appended to the
- * 'm_sending' buffers with apropriate locks taken.
+ * 'm_sending' buffers with appropriate locks taken.
  *
  * If sending to trp is not enabled, the buffered pages
  * are released instead of being returned from this method.
@@ -5731,7 +5731,7 @@ flush_send_buffer(thr_data* selfptr, Uint32 trp_id)
 
   /**
    * If thread local ring buffer of send-buffers is full:
-   * Empty it by transfering them to the global send_buffer list.
+   * Empty it by transferring them to the global send_buffer list.
    */
   if (unlikely(next == ri))
   {
@@ -6427,7 +6427,7 @@ publish_position(thr_job_buffer *write_buffer, Uint32 write_pos)
  * Check, and if allowed, add the 'new_buffer' to our job_queue of
  * buffer pages containing signals.
  * If the 'job_queue' is full, the new buffer is not inserted,
- * and 'true' is returned. It is upto the caller to handle 'full'.
+ * and 'true' is returned. It is up to the caller to handle 'full'.
  * (In many cases it can be a critical error)
  *
  * Note that the thread always hold a spare 'new_buffer' to be used if we
@@ -6511,7 +6511,7 @@ publish_prioa_signal(thr_job_queue *q,
     new_buffer->m_prioa = true;
     const bool jba_full = check_next_index_position(q, new_buffer);
     if (jba_full) {
-      // Assume rather low trafic on JBA.
+      // Assume rather low traffic on JBA.
       // Contrary to JBB, signals are not first stored in a local_buffer.
       // Thus a full JBA is always immediately critical.
       job_buffer_full(0);
@@ -6578,7 +6578,7 @@ insert_prioa_signal(thr_job_queue *q,
 #endif
 
 /**
- * Check all incomming m_jbb[] instances for available signals.
+ * Check all incoming m_jbb[] instances for available signals.
  * Set up the thread-local m_jbb_read_state[] to reflect JBB state.
  * Also set jbb_read_mask to contain the JBBs containing data.
  *
@@ -6645,7 +6645,7 @@ read_all_jbb_state(thr_data *selfptr, bool check_before_sleep)
       r->m_read_end = read_end = r->m_read_buffer->m_len;
       /**
        * Note ^^ that we will need a later rmb() before we can safely read the
-       * m_buffer[] contents upto 'm_read_end': We need to synch on the wmb()
+       * m_buffer[] contents up to 'm_read_end': We need to synch on the wmb()
        * in publish_position(), such that the m_buffer[] contents itself
        * has been fully written before we can start executing from it.
        *
@@ -6798,7 +6798,7 @@ read_jba_state(thr_data *selfptr)
   }
 
   /**
-   * Will need a later rmb()-synch before we can execute_signals() upto
+   * Will need a later rmb()-synch before we can execute_signals() up to
    * '...buffer->m_len', see comment in read_all_jbb_state().
    */
   r->m_read_end = r->m_read_buffer->m_len;
@@ -7608,7 +7608,7 @@ mt_add_thr_map(Uint32 block, Uint32 instance)
 
 /**
  * create the duplicate entries needed so that
- *   sender doesnt need to know how many instances there
+ *   sender doesn't need to know how many instances there
  *   actually are in this node...
  *
  * if only 1 instance...then duplicate that for all slots
@@ -7837,7 +7837,7 @@ init_thread(thr_data *selfptr)
 
 /**
  * Align signal buffer for better cache performance.
- * Also skew it a litte for each thread to avoid cache pollution.
+ * Also skew it a little for each thread to avoid cache pollution.
  */
 #define SIGBUF_SIZE (sizeof(Signal) + 63 + 256 * MAX_BLOCK_THREADS)
 static Signal *
@@ -8124,7 +8124,7 @@ mt_receiver_thread_main(void *thr_arg)
  * other writers as well.
  *
  * Thus, the algorithm provide no guarantee for the correct drain/yield
- * decission to be taken. However, a possibly incorrect sleep will be short,
+ * decision to be taken. However, a possibly incorrect sleep will be short,
  * and there is a SAFETY limit to take care of over provisioning of 'extra'.
  *
  * Returns 'true' if we need to continue execute_signals() from (only!)
@@ -8390,7 +8390,7 @@ mt_job_thread_main(void *thr_arg)
      * prefill our thread local send buffers
      *   up to THR_SEND_BUFFER_PRE_ALLOC (1Mb)
      *
-     * and if this doesnt work pack buffers before start to execute signals
+     * and if this doesn't work pack buffers before start to execute signals
      */
     watchDogCounter = 11;
     if (!selfptr->m_send_buffer_pool.fill(g_thr_repository->m_mm,
@@ -9287,7 +9287,7 @@ recheck_congested_job_buffers(struct thr_data *selfptr)
 
 /**
  * 'Pack' the signal contents in 'm_local_buffer' in order to make any
- * fragmented free space inbetween the signals available. We use the
+ * fragmented free space in between the signals available. We use the
  * already pre-allocated (and unused) 'm_next_buffer' to copy the signals
  * into, and just swap m_local_buffer with m_next_buffer when completed.
  */
@@ -9398,7 +9398,7 @@ flush_all_local_signals(struct thr_data *selfptr)
  *
  * The same wakeup mechanism is also used for efficiency reason
  * when certain other 'milestones' have been reached - Like
- * completed processing of a larger chunk of incomming signals.
+ * completed processing of a larger chunk of incoming signals.
  *
  * Note that we do not clear the shared m_pending_signals at this point.
  * That would have been preferable in order to avoid later redundant
@@ -10119,11 +10119,11 @@ ThreadConfig::ThreadConfig()
    * We take great care within struct thr_repository to optimize
    * cache line placement of the different members. This all
    * depends on that the base address of thr_repository itself
-   * is cache line alligned.
+   * is cache line aligned.
    *
    * So we allocate a char[] sufficient large to hold the
    * thr_repository object, with added bytes for placing
-   * g_thr_repository on a CL-alligned offset withing it.
+   * g_thr_repository on a CL-alligned offset within it.
    */
   g_thr_repository_mem = new char[sizeof(thr_repository)+NDB_CL];
   const int alligned_offs = NDB_CL_PADSZ((UintPtr)g_thr_repository_mem);
@@ -10711,7 +10711,7 @@ FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE* out)
   /*
    * We want to dump the signal buffers from last executed to first executed.
    * So we first need to find the correct sequence to output signals in, stored
-   * in this arrray.
+   * in this array.
    *
    * We will check any buffers in the cyclic m_free_fifo. In addition,
    * we also need to scan the already executed part of the current
@@ -10805,7 +10805,7 @@ FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE* out)
   /* Use the next signal id as the smallest (oldest).
    *
    * Subtracting two signal ids with the smallest makes
-   * them comparable using standard comparision of Uint32,
+   * them comparable using standard comparison of Uint32,
    * there the biggest value is the newest.
    * For example,
    *   (m_signal_id_counter - smallest_signal_id) == UINT32_MAX

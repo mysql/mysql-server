@@ -28,7 +28,7 @@
 //===========================================================================
 //
 // .DESCRIPTION
-//      This is the main fuction for the AXE VM emulator.
+//      This is the main function for the AXE VM emulator.
 //      It contains some global objects and a run method.
 //
 //===========================================================================
@@ -58,7 +58,7 @@ extern class SignalLoggerManager globalSignalLoggers;
 
 /**
  * JamEvents are used for recording that control passes a given point int the
- * code, reperesented by a JAM_FILE_ID value (which uniquely identifies a 
+ * code, represented by a JAM_FILE_ID value (which uniquely identifies a 
  * source file, and a line number. The reason for using JAM_FILE_ID rather
  * than the predefined __FILE__ is that is faster to store a 16-bit integer
  * than a pointer. For a description of how to maintain and debug JAM_FILE_IDs,
@@ -100,7 +100,7 @@ public:
   }
 
   /*
-    True if the next JamEvent is the first in the execution of an incomming 
+    True if the next JamEvent is the first in the execution of an incoming 
     signal.
   */
   bool isEndOfSig() const
@@ -109,7 +109,7 @@ public:
   }
 
   /*
-    Mark this event as the last one before the execution of the next incomming 
+    Mark this event as the last one before the execution of the next incoming 
     signal. (We mark the last event before a signal instead of the fist event
     in a signal since this makes jam() more efficient, by eliminating the need
     to preserve bit 31 in the event that it accesses.) 
@@ -123,7 +123,7 @@ private:
   /*
     Bit 0-15:  line number.
     Bit 16-30: JAM_FILE_ID.
-    Bit 31:    True if next JamEvent is the beginning of an incomming signal.
+    Bit 31:    True if next JamEvent is the beginning of an incoming signal.
   */
   Uint32 m_jamVal;
 };

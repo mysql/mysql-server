@@ -850,7 +850,7 @@ public:
      *       that are interested in being executed as part of executing the    
      *       fragment loop. 
      *       It is initialised for every phase of executing the 
-     *       fragment log (the fragment log can be executed upto four times).  
+     *       fragment log (the fragment log can be executed up to four times).  
      *                                                                         
      *       Each execution is capable of executing the log records on four    
      *       fragment replicas.                                                
@@ -1097,7 +1097,7 @@ public:
       // Number of keyinfo words in key operations.
       Uint64 m_keyReqKeyWords;
 
-      // Total size of interpeter programs for key operations.
+      // Total size of interpreter programs for key operations.
       Uint64 m_keyProgramWords;
 
       // Number of interpreter instructions executed for key operations.
@@ -1122,7 +1122,7 @@ public:
       // Number of words returned to client due to scans.
       Uint64 m_scanWordsReturned;
 
-      // Total size of interpeter programs for scans.
+      // Total size of interpreter programs for scans.
       Uint64 m_scanProgramWords;
 
       // Total size of scan bounds (for ordered index scans).
@@ -2122,7 +2122,7 @@ public:
     UintR filePosition;
     /**
      *       This contains the file pointer needed by the file system
-     *       when reading/writing/closing and synching.  
+     *       when reading/writing/closing and syncing.  
      */
     UintR fileRef;
     /**

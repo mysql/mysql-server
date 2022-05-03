@@ -641,7 +641,7 @@ byte *btr_rec_copy_externally_stored_field_func(
 
   const dict_index_t *check_instant_index = index;
   if (is_rebuilt) {
-    /* nullptr if it is being called when table is being rebuilt beacuse then
+    /* nullptr if it is being called when table is being rebuilt because then
     offsets will be for new records which won't have instant columns. */
     check_instant_index = nullptr;
   }

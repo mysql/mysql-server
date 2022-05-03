@@ -565,7 +565,7 @@ std::string ProcessManager::create_config_file(
   }
 
   ofs_config << make_DEFAULT_section(default_section);
-  // overwrite the default bahavior (which is a warning) to make the Router
+  // overwrite the default behavior (which is a warning) to make the Router
   // fail if unknown option is used
   ofs_config << "unknown_config_option=error" << std::endl;
   ofs_config << extra_defaults << std::endl;

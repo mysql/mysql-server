@@ -924,7 +924,7 @@ inline mysql_pfs_key_t sync_latch_get_pfs_key(latch_id_t id) {
 /** String representation of the filename and line number where the
 latch was created
 @param[in]      id              Latch ID
-@param[in]      created         Filename and line number where it was crated
+@param[in]      created         Filename and line number where it was created
 @return the string representation */
 std::string sync_mutex_to_string(latch_id_t id, const std::string &created);
 
@@ -1072,7 +1072,7 @@ struct btrsea_sync_check : public sync_check_functor_t {
     Plugin in this case is I_S which is sharing the latch vector
     of InnoDB and so there could be lock conflicts. Ideally
     the Plugin should use a difference namespace latch vector
-    as it doesn't have any depedency with SE latching protocol.
+    as it doesn't have any dependency with SE latching protocol.
 
     Added check that will allow thread to hold I_S latches */
 

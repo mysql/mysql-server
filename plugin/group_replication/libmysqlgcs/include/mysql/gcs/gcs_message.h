@@ -99,7 +99,7 @@ class Gcs_message_data {
   bool append_to_payload(const uchar *to_append, uint64_t to_append_len);
 
   /**
-   Release the buffer's owership which means that this object will not
+   Release the buffer's ownership which means that this object will not
    be responsible for deallocating its internal buffer. The caller should
    do so.
 
@@ -114,7 +114,7 @@ class Gcs_message_data {
    is provided or the data was not already appended to the buffer, an error
    is returned.
 
-   The meta data is formated in little endian format, and is structured
+   The meta data is formatted in little endian format, and is structured
    on the wire as depicted below:
 
    -----------------------------------------------
@@ -244,7 +244,7 @@ class Gcs_message_data {
   uint64_t m_payload_capacity;
 
   /*
-    Pointer to the begining of the buffer that contains both the
+    Pointer to the beginning of the buffer that contains both the
     header and the payload.
   */
   uchar *m_buffer;

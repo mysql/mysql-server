@@ -1619,12 +1619,12 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
        Other parameters should:
        * be calculated from the above two parameters 
        * be divided into different test cases, ex. one testcase runs
-         with FragmentType = Single and another perfoms the same 
+         with FragmentType = Single and another performs the same 
          test with FragmentType = Large
        * let the test case iterate over all/subset of appropriate parameters
          ex. iterate over FragmentType = Single to FragmentType = AllLarge
 
-       Remeber that the intention is that it should be _easy_ to run 
+       Remember that the intention is that it should be _easy_ to run 
        a complete test suite without any greater knowledge of what 
        should be tested ie. keep arguments at a minimum
   */

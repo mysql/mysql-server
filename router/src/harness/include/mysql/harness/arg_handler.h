@@ -188,7 +188,7 @@ class HARNESS_EXPORT CmdArgHandler {
    *
    * The `at_end_action` argument should be a `std::function`. This is optional
    * argument, if not provided then []{} is used as at_end_action. The
-   * `at_end_action` is ment to be used for additional validation, if particular
+   * `at_end_action` is meant to be used for additional validation, if particular
    * set of options has to be used together, or if particular set of options
    * cannot be used together.
    *

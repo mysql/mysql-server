@@ -121,7 +121,7 @@
 #define ZDIR_RANGE_FULL_ERROR 633 // on fragment
 
 #define ZLOCAL_KEY_LENGTH_ERROR 634 // From Dbdict via Dblqh
-#define ZNOWAIT_ERROR 635 // Cant lock immediately, and nowait set
+#define ZNOWAIT_ERROR 635 // Can't lock immediately, and nowait set
 
 #endif
 
@@ -696,7 +696,7 @@ struct Operationrec {
     ,OP_ACC_LOCK_MODE       = 0x00020 // Or:de lock mode of all operation
                                       // before me
     ,OP_LOCK_OWNER          = 0x00040
-    ,OP_RUN_QUEUE           = 0x00080 // In parallell queue of lock owner
+    ,OP_RUN_QUEUE           = 0x00080 // In parallel queue of lock owner
     ,OP_DIRTY_READ          = 0x00100
     ,OP_LOCK_REQ            = 0x00200 // isAccLockReq
     ,OP_COMMIT_DELETE_CHECK = 0x00400

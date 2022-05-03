@@ -24,7 +24,7 @@
 #define PLUGIN_CONSTANTS_INCLUDE
 
 /*
-  Plugin user to acess the server
+  Plugin user to access the server
 */
 #define GROUPREPL_USER "mysql.session"
 #define GROUPREPL_HOST "localhost"

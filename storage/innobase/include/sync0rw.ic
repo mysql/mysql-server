@@ -202,7 +202,7 @@ static inline ulint rw_lock_get_sx_lock_count(
 
 /** Two different implementations for decrementing the lock_word of a rw_lock:
  one for systems supporting atomic operations, one for others. This does
- does not support recusive x-locks: they should be handled by the caller and
+ does not support recursive x-locks: they should be handled by the caller and
  need not be atomic since they are performed by the current lock holder.
  Returns true if the decrement was made, false if not.
  @return true if decr occurs */

@@ -114,7 +114,7 @@ static void innodb_clean_engine(
     void *conn             /*!< in: item to free */
 );
 /*******************************************************************/ /**
- Free value assocaited with key */
+ Free value associated with key */
 static void innodb_free_item(
     /*=====================*/
     void *item); /*!< in: Item to be freed */

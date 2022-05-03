@@ -555,7 +555,7 @@ class Gcs_message_pipeline {
       Gcs_protocol_version pipeline_version) const;
 
   /**
-   This member function SHALL retrive the associated stage if there is any,
+   This member function SHALL retrieve the associated stage if there is any,
    otherwise a null pointer is returned.
 
    @param stage_code unique stage code
@@ -563,7 +563,7 @@ class Gcs_message_pipeline {
   Gcs_message_stage *retrieve_stage(Stage_code stage_code) const;
 
   /**
-   This member function SHALL retrive the current stage type code of a packet.
+   This member function SHALL retrieve the current stage type code of a packet.
 
    @param p the packet to process.
    */

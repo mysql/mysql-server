@@ -1676,7 +1676,7 @@ Pgman::execEND_LCPREQ(Signal *signal)
   EndLcpReq *req = (EndLcpReq*)signal->getDataPtr();
   /**
    * As part of restart we need to synchronize all data pages to
-   * disk. We do this by synching each fragment, one by one and
+   * disk. We do this by syncing each fragment, one by one and
    * for the extra PGMAN worker it means that we synchronize the
    * extent pages.
    */
@@ -4211,7 +4211,7 @@ Pgman::get_page_no_lirs(EmulatedJamBuffer* jamBuf, Signal* signal,
        * clean the page.
        *
        * It is ok to continue if the page is already dirty, this will not
-       * create any additional burden on the disk susbsystem.
+       * create any additional burden on the disk subsystem.
        */
       DEB_GET_PAGE(("(%u)get_page returns error 1518", instance()));
       return -1518;
@@ -5047,11 +5047,11 @@ Page_cache_client::init_page_entry(Request& req)
  * When the get_page is issued and the page is already in the page cache then
  * we can serve it immediately as long it isn't in pageout at the moment. Also
  * if there are queued requests to the page entry then it will be queued up
- * amongst those requests and wil be served one at a time.
+ * amongst those requests and will be served one at a time.
  *
  * When a page is requested with either COMMIT_REQ/DIRTY_REQ/ALLOC_REQ then the
  * page will be put into the dirty state after completing the request. We will
- * put it into the fragement dirty list only when we call the callback from the
+ * put it into the fragment dirty list only when we call the callback from the
  * requester.
  *
  * Extent pages are handled in a special manner. They are locked into the page
@@ -5536,7 +5536,7 @@ Page_cache_client::init_page_entry(Request& req)
  *
  * So how do we ensure that after a restart we have ensured that this
  * information is consistent. If we can prove that it is correct after
- * a restart then we know that it will be kept consistent by continously
+ * a restart then we know that it will be kept consistent by continuously
  * updating this information.
  *
  * OBSERVATION 1:
@@ -5605,7 +5605,7 @@ Page_cache_client::init_page_entry(Request& req)
  *
  * Lemma 2:
  * --------
- * We might optimise things by only synching the page free bits always after
+ * We might optimise things by only syncing the page free bits always after
  * a pagein operation and after applying an UNDO log record. When the
  * page is brought into the page cache as part of UNDO log execution we will
  * synch it, obviously there is no need to do it again and again unless there

@@ -155,7 +155,7 @@ TEST_F(RoutingTests, set_destinations_from_cvs) {
     EXPECT_THROW(routing.set_destinations_from_csv(csv), std::runtime_error);
   }
 
-  // let's check if the correct defualt port gets chosen for
+  // let's check if the correct default port gets chosen for
   // the respective protocol
   // we use the trick here setting the expected address also as
   // the binding address for the routing which should make the method throw

@@ -2289,7 +2289,7 @@ static int ndb_index_stat_wait_query(Ndb_index_stat *st,
       break;
     }
     if (st->error.code != 0) {
-      /* An error has accured now or before */
+      /* An error has occured now or before */
       err = NdbIndexStat::MyHasError;
       glob.query_error++;
       break;
@@ -2489,7 +2489,7 @@ int ha_ndbcluster::ndb_index_stat_get_rir(uint inx, key_range *min_key,
      * being too skeewed such that it does not represent the real data.
      */
     if (stats.records / fragments <= 1) {
-      // Too few rows for a single fragment sample to be usefull at all
+      // Too few rows for a single fragment sample to be useful at all
       DBUG_PRINT("index_stat",
                  ("Too few rows in: %s", m_index[inx].index->getName()));
       return NdbIndexStat::NoIndexStats;
@@ -2546,7 +2546,7 @@ int ha_ndbcluster::ndb_index_stat_set_rpk(uint inx) {
      * being too skeewed such that it does not represent the real data.
      */
     if (stats.records / fragments <= 1) {
-      // Too few rows for a single fragment sample to be usefull at all
+      // Too few rows for a single fragment sample to be useful at all
       DBUG_PRINT("index_stat",
                  ("Too few rows in: %s", m_index[inx].index->getName()));
       return NdbIndexStat::NoIndexStats;
@@ -2587,7 +2587,7 @@ int ha_ndbcluster::ndb_index_stat_set_rpk(uint inx) {
           /**
            * The records per key calculation assumes independence between
            * distribution of data and key columns. This is true as long as
-           * the key parts don't set the entire partion key. In this case
+           * the key parts don't set the entire partition key. In this case
            * the records per key as calculated by one fragment is the
            * records per key also for the entire table since different
            * fragments will have its own set of unique key values in this

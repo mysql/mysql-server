@@ -243,7 +243,7 @@ const LocalConfig::param_prefix LocalConfig::param_prefixes[] =
   // Documented prefix
   {"nodeid=", &LocalConfig::parseNodeId},
   {"bind-address=", &LocalConfig::parseBindAddress},
-  // Prefix generated and occuring in some public examples
+  // Prefix generated and occurring in some public examples
   {"host=", &LocalConfig::parseHostName},
   // Undocumented prefix
   {"OwnProcessId ", &LocalConfig::parseNodeId},

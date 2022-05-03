@@ -442,9 +442,9 @@ NdbReceiver::prepareReceive(NdbReceiverBuffer *buffer)
   - It should stay strictly within the 'batch_size' (#rows) limit.
   - It is allowed to overallocate the 'batch_byte_size' (slightly)
     in order to complete the current row when it hit the limit.
-    (Upto ::packed_rowsize())
+    (Up to ::packed_rowsize())
 
-  The client should be prepared to receive, and buffer, upto 
+  The client should be prepared to receive, and buffer, up to 
   'batch_size' rows from each fragment.
 */
 //static
@@ -578,20 +578,20 @@ Uint32 packed_rowsize(const NdbRecord *result_record,
     sizeInWords += (1+sigBitmaskWords);   //AttrHeader + bitMask
   }
 
-  // The optional RANGE_NO is transfered and stored in buffer
+  // The optional RANGE_NO is transferred and stored in buffer
   // as AttributeHeader::RANGE_NO + an Uint32 'range_no'
   if (read_range_no)
   {
     sizeInWords += 2;
   }
-  // The optional CORR_FACTOR is transfered
+  // The optional CORR_FACTOR is transferred
   // as AttributeHeader::CORR_FACTOR64 + an Uint64
   if (read_correlation)
   {
     sizeInWords += 3;
   }
 
-  // KeyInfo is transfered in a separate signal,
+  // KeyInfo is transferred in a separate signal,
   // and is stored in the packed buffer together with 'info' word
   if (keySizeWords > 0)
   {
@@ -663,11 +663,11 @@ NdbReceiver::result_bufsize(const NdbRecord *result_record,
    *
    * In the later case we can make no assumption about number of rows we
    * actually fetched, except that it will be in the range 1..'batch_rows'.
-   * So we need to take a conservative approach in our calulations here. 
+   * So we need to take a conservative approach in our calculations here. 
    *
    * Furthermore, LQH doesn't terminate the batch until *after*
-   * 'batch_bytes' has been exceed. Thus it could over-deliver
-   * upto 'rowSizeWords-1' more than specified in 'batch_bytes'!
+   * 'batch_bytes' has been exceeded. Thus it could over-deliver
+   * up to 'rowSizeWords-1' more than specified in 'batch_bytes'!
    * When used from SPJ, the available 'batch_bytes' may be divided
    * among a number of 'parallelism' fragment scans being joined.
    * Each of these may over-deliver on the last row as described above.
@@ -1087,7 +1087,7 @@ NdbReceiver::unpackBuffer(const NdbReceiverBuffer *buffer, Uint32 row)
     return m_row_buffer;
   }
 
-  /* ReceiveBuffer may containt only keyinfo */
+  /* ReceiveBuffer may contain only keyinfo */
   const Uint32 *key = buffer->getKey(row, aLength);
   if (key != NULL)
   {

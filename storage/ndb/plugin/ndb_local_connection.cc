@@ -97,7 +97,7 @@ bool Ndb_local_connection::execute_query(const std::string &sql_query,
   const LEX_STRING sql_text{const_cast<char *>(sql_query.c_str()),
                             sql_query.length()};
   if (impl->connection.execute_direct(sql_text)) {
-    /* Error occured while executing the query */
+    /* Error occurred while executing the query */
     const uint last_errno = impl->connection.get_last_errno();
     assert(last_errno);  // last_errno must have been set
     const char *last_errmsg = impl->connection.get_last_error();

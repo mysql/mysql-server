@@ -50,7 +50,7 @@ protected:
     int nRows;
     int nRuns;
 
-    // benchmark intializers/finalizers
+    // benchmark initializers/finalizers
     virtual void init();
     virtual void close();
     virtual void initProperties();

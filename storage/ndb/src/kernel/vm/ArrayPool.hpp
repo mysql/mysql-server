@@ -61,7 +61,7 @@ public:
     A function pointer rather than a virtual function is used here, because 
     a virtual function would require explicit instantiations of ArrayPool for 
     all T types. That would again require all T types to define the nextChunk, 
-    lastChunk and chunkSize fields. This is curently not the case.
+    lastChunk and chunkSize fields. This is currently not the case.
 
     Instead an (abstract) ErrorHandler class is instantiated to store the
     'seizeErrorFunc' pointer. The ErrorHandler class contain the
@@ -222,7 +222,7 @@ protected:
 
 public:
   /**
-   * Release a singel linked list in o(1)
+   * Release a single linked list in o(1)
    * @param first i-value of first element in list
    * @param last  i-value of last element in list
    * @note nextPool must be used as next pointer in list
@@ -262,7 +262,7 @@ protected:
   T * theArray;
   Uint32 size;
   /*
-   * Protect size and theArray which are very seldomly updated from
+   * Protect size and theArray which are very seldom updated from
    * updates of often updated variables such as firstFree, noOfFree.
    * Protect here means to have them on separate CPU cache lines to
    * avoid false CPU cache line sharing.

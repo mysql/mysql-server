@@ -138,7 +138,7 @@ class Directory::DirectoryIterator::State {
   static bool equal(const IteratorType &lhs, const IteratorType &rhs) {
     assert(lhs != nullptr && rhs != nullptr);
 
-    // If either interator is an end iterator, they are equal if both
+    // If either iterator is an end iterator, they are equal if both
     // are end iterators.
     if (!lhs->more_ || !rhs->more_) return lhs->more_ == rhs->more_;
 

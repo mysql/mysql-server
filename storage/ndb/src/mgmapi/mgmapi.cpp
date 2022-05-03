@@ -641,7 +641,7 @@ ndb_mgm_call(NdbMgmHandle handle,
   than what is normal.
 
   Unfortunately the restart or stop may take longer than the
-  defalt min timeout value selected, mgmapi users can workaround
+  default min timeout value selected, mgmapi users can workaround
   this problem by setting an even larger timeout for all commands
   or only around restart and stop.
 

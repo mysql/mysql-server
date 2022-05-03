@@ -2054,7 +2054,7 @@ int runTestSetConfigParallel(NDBT_Context* ctx, NDBT_Step* step)
     mgmd.verbose(false);
     if (mgmd.set_config(conf))
     {
-      /* Config change suceeded */
+      /* Config change succeeded */
       sucessful++;
     }
     else
@@ -2559,7 +2559,7 @@ check_set_ports_mgmapi(NdbMgmd& mgmd)
     no_con.verbose(false);
     if (no_con.connect("no_such_host:12345", 0, 1))
     {
-      // Connect should not suceed!
+      // Connect should not succeed!
       return false;
     }
 

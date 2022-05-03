@@ -270,7 +270,7 @@ void MySQLRouter::init(const std::string &program_name,
     }
 #endif
 
-    // default configuration for boostrap is not supported
+    // default configuration for bootstrap is not supported
     // extra configuration for bootstrap is not supported
     auto config_files_res =
         ConfigFilePathValidator({}, config_files_, {}).validate();
@@ -1755,7 +1755,7 @@ void MySQLRouter::bootstrap(const std::string &program_name,
   config_gen.warn_on_no_ssl(bootstrap_options_);  // throws std::runtime_error
 
 #ifdef _WIN32
-  // Cannot run boostrap mode as windows service since it requires console
+  // Cannot run bootstrap mode as windows service since it requires console
   // interaction.
   if (mysqlrouter::is_running_as_service()) {
     std::string msg = "Cannot run router in boostrap mode as Windows service.";

@@ -699,7 +699,7 @@ std::exception_ptr Loader::run() {
     }
   }
 
-  // not strict requiremnt, just good measure (they're no longer needed at
+  // not strict requirement, just good measure (they're no longer needed at
   // this point)
   assert(plugin_start_env_.empty());
 

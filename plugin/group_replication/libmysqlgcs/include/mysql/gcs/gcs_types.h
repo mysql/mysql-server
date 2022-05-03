@@ -76,7 +76,7 @@ class Gcs_interface_parameters {
   const std::string *get_parameter(const std::string &name) const;
 
   /**
-    Check whether any of the paramters were provided.
+    Check whether any of the parameters were provided.
 
     @param params list of parameters.
     @return True if any of the parameters is stored.

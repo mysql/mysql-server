@@ -46,7 +46,7 @@ class Loader::Task_queue {
  public:
   /** Constructor.
   @param[in] ctx                DDL context.
-  @param[in] sync               True for syncronous execution. */
+  @param[in] sync               True for synchronous execution. */
   explicit Task_queue(const Context &ctx, bool sync) noexcept;
 
   /** Destructor. */
@@ -80,7 +80,7 @@ class Loader::Task_queue {
     }
   }
 
-  /** Note that we failed to create the configued number of threads. */
+  /** Note that we failed to create the configured number of threads. */
   void thread_create_failed() noexcept {
     ut_a(!m_sync);
     mutex_enter(&m_mutex);
@@ -190,7 +190,7 @@ class Loader::Task_queue {
     return err;
   }
 
-  /** Execute function when there is a singe thread. */
+  /** Execute function when there is a single thread. */
   dberr_t st_execute() {
     ut_a(m_sync);
 

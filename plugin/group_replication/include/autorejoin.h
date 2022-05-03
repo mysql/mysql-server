@@ -98,7 +98,7 @@ class Autorejoin_thread {
   /**
     Starts the process of auto-rejoin, launches the thread that will call
     attempt_rejoin() until it succeeds or until it reaches a given
-    ammount of maximum retries, waiting on a conditional variable each
+    amount of maximum retries, waiting on a conditional variable each
     iteration with a given timeout.
 
     An auto-rejoin can only start if it isn't already running or if the

@@ -1242,7 +1242,7 @@ be at least MAX_DB_UTF8_LEN and MAX_TABLE_UTF8_LEN bytes.
 void dict_fs2utf8(const char *db_and_table, char *db_utf8, size_t db_utf8_size,
                   char *table_utf8, size_t table_utf8_size);
 
-/** Resize the hash tables besed on the current buffer pool size. */
+/** Resize the hash tables based on the current buffer pool size. */
 void dict_resize();
 
 /** Wrapper for the mysql.innodb_dynamic_metadata used to buffer the persistent

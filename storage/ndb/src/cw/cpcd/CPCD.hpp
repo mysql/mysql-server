@@ -219,7 +219,7 @@ class CPCD {
 
     /** Session Id to which the Process belongs
      *
-     * @note Used to validate if requests are comming from the same session
+     * @note Used to validate if requests are coming from the same session
      *       that created these processes. Should apply to temporary processes
      *       only.
      */
@@ -347,7 +347,7 @@ class CPCD {
     /** Creates a new CPCD::Monitor object, connected to the specified
      *	CPCD.
      *  A new thread will be created, which will poll the processes of
-     *  the CPCD at the specifed interval.
+     *  the CPCD at the specified interval.
      */
     Monitor(CPCD *cpcd, int poll = CPCD_DEFAULT_POLLING_INTERVAL);
 

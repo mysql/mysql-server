@@ -102,7 +102,7 @@ class Ndb_table_map {
   unsigned char *get_column_mask(const MY_BITMAP *mysql_field_map);
 
   /*
-   Adapter function for checking wheter a TABLE*
+   Adapter function for checking whether a TABLE*
    has virtual generated columns.
    Function existed in 5.7 as table->has_virtual_gcol()
   */

@@ -1544,7 +1544,7 @@ int Certifier::set_certification_info(
     /*
       Extract the donor group_gtid_executed so that it can be used to
       while member is applying transactions that were already applied
-      by distrubuted recovery procedure.
+      by distributed recovery procedure.
     */
     if (it->first.compare(GTID_EXTRACTED_NAME) == 0) {
       if (group_gtid_extracted->add_gtid_encoding(

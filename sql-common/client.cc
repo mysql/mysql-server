@@ -1133,7 +1133,7 @@ net_async_status cli_safe_read_with_ok_nonblocking(MYSQL *mysql, bool parse_ok,
 
   /*
     In case, packet is too large or connection is lost, net_end() is called to
-    free up net->extention. Thus return NET_ASYNC_ERROR.
+    free up net->extension. Thus return NET_ASYNC_ERROR.
   */
   if ((*res == packet_error) && (NET_ASYNC_DATA(net) == nullptr)) {
     return NET_ASYNC_ERROR;

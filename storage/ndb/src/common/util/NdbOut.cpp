@@ -134,7 +134,7 @@ NdbOut::print(const char * fmt, ...)
     /*
      Function was called with fmt being NULL, this is an error
      but handle it gracefully by simpling printing nothing
-     instead of continuing down the line whith the NULL pointer.
+     instead of continuing down the line with the NULL pointer.
 
      Catch problem with an assert in debug compile.
     */
@@ -159,7 +159,7 @@ NdbOut::println(const char * fmt, ...)
     /*
      Function was called with fmt being NULL, this is an error
      but handle it gracefully by simpling printing nothing
-     instead of continuing down the line whith the NULL pointer.
+     instead of continuing down the line with the NULL pointer.
 
      Catch problem with an assert in debug compile.
     */
@@ -193,7 +193,7 @@ vndbout_c(const char * fmt, va_list ap)
     /*
      Function was called with fmt being NULL, this is an error
      but handle it gracefully by simpling printing an empty newline
-     instead of continuing down the line whith the NULL pointer.
+     instead of continuing down the line with the NULL pointer.
 
      Catch problem with an assert in debug compile.
     */

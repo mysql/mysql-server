@@ -1531,7 +1531,7 @@ DblqhProxy::execLQH_TRANSREQ(Signal* signal)
   if (signal->getLength() < LqhTransReq::SignalLength)
   {
     /**
-     * TC that performs take over doesn't suppport taking over one
+     * TC that performs take over doesn't support taking over one
      * TC instance at a time
      */
     jam();

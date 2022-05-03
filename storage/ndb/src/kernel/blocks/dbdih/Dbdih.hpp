@@ -786,7 +786,7 @@ public:
      * per fragment scanned in a scan operation. This means that it can
      * be called many millions of times per second in a data node. Thus
      * a mutex per table is not sufficient. The data read in DIGETNODESREQ
-     * is updated very seldomly. So we use the RCU mechanism, we read
+     * is updated very seldom. So we use the RCU mechanism, we read
      * the value of the NdbSeqLock before reading the variables, we then
      * read the variables protected by this mechanism whereafter we verify
      * that the NdbSeqLock haven't changed it's value.
@@ -1998,7 +1998,7 @@ private:
    * of this list in any order, so we need Double Linked List.
    *
    * c_activeTakeOverList:
-   * While scannning fragments to find a fragment that our thread is
+   * While scanning fragments to find a fragment that our thread is
    * responsible for, we are placed into this list. This list handling
    * is on the starting node.
    * 
@@ -2485,7 +2485,7 @@ private:
   bool c_increase_lcp_speed_after_nf;
   /**
    * Available nodegroups (ids) (length == cnoOfNodeGroups)
-   *   use to support nodegroups 2,4,6 (not just consequtive nodegroup ids)
+   *   use to support nodegroups 2,4,6 (not just consecutive nodegroup ids)
    */
   Uint32 c_node_groups[MAX_NDB_NODE_GROUPS];
   Uint32 cnoOfNodeGroups;
@@ -2642,7 +2642,7 @@ private:
   
 #define DIH_CDATA_SIZE _SYSFILE_FILE_SIZE
   /**
-   * This variable must be atleast the size of Sysfile::SYSFILE_SIZE32_v2
+   * This variable must be at least the size of Sysfile::SYSFILE_SIZE32_v2
    */
   Uint32 cdata[DIH_CDATA_SIZE];       /* TEMPORARY ARRAY VARIABLE */
 

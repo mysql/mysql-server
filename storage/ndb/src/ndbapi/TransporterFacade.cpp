@@ -1107,7 +1107,7 @@ TransporterFacade::do_send_adaptive(const NodeBitmask& nodes)
  *    and the send taken over by the send thread.
  *
  * 2) Handle deferred sends from the adaptive send algorithm,
- *    which were not sent withing the 200us grace period.
+ *    which were not sent within the 200us grace period.
  *
  * 3) In addition, we infrequently send to all connected nodes
  *    just in case...., see further comments below.
@@ -1999,7 +1999,7 @@ TransporterFacade::connected()
  * perform_close_clnt()
  *
  * Invoked from close_clnt via sending a CLOSE_COMREQ signal.
- * Reason is that the poll-right is needed to guard agains
+ * Reason is that the poll-right is needed to guard against
  * that clients are taken out of the m_threads[] array while
  * being looked up by trp_deliver_signal, or iterated by e.g.
  * for_each(), or enable_ / disable_send_buffer().
@@ -2136,7 +2136,7 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
 
     /**
      * Ask ClusterMgr to do m_thread.expand() (Need poll rights)
-     * There is no wakeup() of the client(s) wating for expand,
+     * There is no wakeup() of the client(s) waiting for expand,
      * do_poll waits in short 10ms naps before checking if expand
      * completed. Only the client requesting the expand do_poll,
      * the other simply sleeps.
@@ -2187,12 +2187,12 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
    *
    * As the lock order requires client lock to be taken before
    * open_close_mutex, we have to release it above, before relocking
-   * below in correct order. This create a possible race inbetween
+   * below in correct order. This create a possible race in between
    * here, where a Transporter (dis)connect may enable/disable
    * a send buffer for the client now being in m_client[], without
    * its enabled_nodes_mask yet being set. This should not really
    * matter, as we 'set' the updated enabled mask to the latest
-   * value below anyway, overwritting what any races did inbetween here.
+   * value below anyway, overwriting what any races did in between here.
    * The same race could also result in enable/disable notifications
    * arriving after set_enabled_send(), appearing as duplicates which
    * should be ignored.
@@ -2824,7 +2824,7 @@ TransporterFacade::handle_message_too_big(NodeId aNode,
                                           const SectionPtr ptr[3],
                                           Uint32 /* line */) const
 {
-  /* If message is too big when sending CmvmiDummySignal log a convinient
+  /* If message is too big when sending CmvmiDummySignal log a convenient
    * message about it to.
    * Note that CmvmiDummySignal is not intended for production usage but for
    * use by test cases.
@@ -3073,7 +3073,7 @@ TransporterFacade::ThreadData::expand(Uint32 size){
  * trp_client and threads get'ing the trp_client* for *other clients*,
  * we can't let ::open do an ::expand of the Vectors. (See above.)
  * Concurrent open and get/close of the same clients can't happen as
- * there could be no such operation until after a succesful open.
+ * there could be no such operation until after a successful open.
  * Thus, this needs no concurrency control.
  */
 int
@@ -3476,7 +3476,7 @@ TransporterFacade::finish_poll(trp_client* arr[])
 }
 
 /**
- * Poll the Transporters for incomming messages.
+ * Poll the Transporters for incoming messages.
  * Also 'update_connections' status in regular intervals
  * controlled by the flag 'm_check_connections'.
  * (::threadMainReceive() is responsible for requesting
@@ -3486,7 +3486,7 @@ TransporterFacade::finish_poll(trp_client* arr[])
  * have been acquired. If we are not already 'poll_owner',
  * we will try to set it within the timeout 'wait_time'.
  *
- * If we get the poll rights withing the specified wait_time,
+ * If we get the poll rights within the specified wait_time,
  * we will repeatedly poll the receiver until either
  * 'clnt' is woken up, or the max 'wait_time' expires.
  *

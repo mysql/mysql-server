@@ -630,7 +630,7 @@ FILE *srv_monitor_file;
 This mutex has a very low rank; threads reserving it should not
 acquire any further latches or sleep before releasing this one. */
 ib_mutex_t srv_misc_tmpfile_mutex;
-/** Temporary file for miscellanous diagnostic output */
+/** Temporary file for miscellaneous diagnostic output */
 FILE *srv_misc_tmpfile;
 
 #ifndef UNIV_HOTBACKUP

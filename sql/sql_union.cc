@@ -368,7 +368,7 @@ static bool create_tmp_table_for_set_op(THD *thd, Query_term *qt,
   Prepare the query term nodes and their associated post processing
   query blocks (i.e. not the ones representing the query specifications),
   but rather ORDER BY/LIMIT processing (old "fake" query blocks).
-  Also create temporary tables to consolidate set operations as neeeded,
+  Also create temporary tables to consolidate set operations as needed,
   recursively.
   @param thd    session context
   @param qt     the query term at the current level in the tree

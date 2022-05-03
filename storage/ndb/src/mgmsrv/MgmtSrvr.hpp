@@ -151,7 +151,7 @@ public:
   /**
    * Get status on a node.
    * address may point to a common area (e.g. from inet_addr)
-   * There is no guarentee that it is preserved across calls.
+   * There is no guarantee that it is preserved across calls.
    * Copy the string if you are not going to use it immediately.
    */
   int status(int nodeId,
@@ -217,7 +217,7 @@ public:
                 unsigned int num_secs_to_wait_for_node = 120);
   
   /**
-   * Backup functionallity
+   * Backup functionality
    */
   int startBackup(Uint32& backupId, int waitCompleted= 2,
                   Uint32 input_backupId= 0, Uint32 backuppoint= 0,
@@ -490,7 +490,7 @@ private:
   ndb_mgm_node_type getNodeType(NodeId) const;
 
   /**
-   * Handles the thread wich upon a 'Node is started' event will
+   * Handles the thread which upon a 'Node is started' event will
    * set the node's previous loglevel settings.
    */
   struct NdbThread* _logLevelThread;

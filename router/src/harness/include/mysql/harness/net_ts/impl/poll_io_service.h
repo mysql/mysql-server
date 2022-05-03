@@ -272,7 +272,7 @@ class poll_io_service : public IoServiceBase {
             // linux:   POLLIN|POLLHUP
             //
             // as the uppoer layers expect that the waited-for event appears
-            // in the output, we hve to merge it in.
+            // in the output, we have to merge it in.
             if (ev.events & POLLIN) {
               ev.revents |= POLLIN;
             }
@@ -320,7 +320,7 @@ class poll_io_service : public IoServiceBase {
   }
 
   void notify() override {
-    // don't notify if there is noone listening
+    // don't notify if there is no one listening
     if (!is_open()) return;
 
     stdx::expected<size_t, std::error_code> res;

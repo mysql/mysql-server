@@ -120,7 +120,7 @@ void ROUTER_LIB_EXPORT write_windows_event_log(const std::string &msg);
 
 /** @brief Substitutes placeholders of environment variables in a string
  *
- * Substitutes placeholders of environement variables in a string. A
+ * Substitutes placeholders of environment variables in a string. A
  * placeholder contains the name of the variable and will be fetched
  * from the environment. The substitution is done in-place.
  *

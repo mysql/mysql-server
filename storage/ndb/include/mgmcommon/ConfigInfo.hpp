@@ -46,7 +46,7 @@ public:
                      CI_INT,
                      CI_INT64,
                      CI_STRING,
-                     CI_ENUM, // String externaly, int internally
+                     CI_ENUM, // String externally, int internally
                      CI_BITMASK, // String both externally and internally
                      CI_SECTION
   };
@@ -103,7 +103,7 @@ public:
     /* External name, as given in text in config file. */
     const char*    _fname;   
     /**
-     * Name (as it appears in config file text) of section that this extry
+     * Name (as it appears in config file text) of section that this entry
      * belongs to.
      *
      * Each section alsa has one entry with the section name stored in both

@@ -233,7 +233,7 @@ static int copy_events(Ndb *ndb)
 	  DBUG_RETURN(-1);
 	}
 	trans->close();
-	NdbSleep_MilliSleep(100); // sleep before retying
+	NdbSleep_MilliSleep(100); // sleep before retrying
       } while(1);
     } // for
     if (error)

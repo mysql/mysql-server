@@ -2385,7 +2385,7 @@ BackupRestore::table_compatible_check(TableS & tableS)
   /**
    * Check if target table is restored with --disable-indexes in previous steps.
    * If it already has indexes, it indicates that --disable-indexes isn't used.
-   * In that case, dispaly a warning that it could lead to duplicate key errors
+   * In that case, display a warning that it could lead to duplicate key errors
    * if the indexes already restored are unique indexes.
    */
   {
@@ -3165,7 +3165,7 @@ BackupRestore::table(const TableS & table){
      * Since default from mysqld is to add force of varpart (disable with
      * ROW_FORMAT=FIXED) we force varpart onto tables when they are restored
      * from backups taken with older versions. This will be wrong if
-     * ROW_FORMAT=FIXED was used on original table, however the likelyhood of
+     * ROW_FORMAT=FIXED was used on original table, however the likelihood of
      * this is low, since ROW_FORMAT= was a NOOP in older versions.
      */
 

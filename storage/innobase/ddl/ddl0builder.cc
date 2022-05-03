@@ -992,7 +992,7 @@ dberr_t Builder::copy_columns(Copy_ctx &ctx, size_t &mv_rows_added,
       const auto mbminlen = DATA_MBMINLEN(col->mbminmaxlen);
       const auto mbmaxlen = DATA_MBMAXLEN(col->mbminmaxlen);
 
-      /* len should be between size calcualted base on mbmaxlen and mbminlen
+      /* len should be between size calculated base on mbmaxlen and mbminlen
        */
       ut_a(len <= fixed_len);
       ut_a(!mbmaxlen || len >= mbminlen * (fixed_len / mbmaxlen));

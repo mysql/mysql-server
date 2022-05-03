@@ -118,7 +118,7 @@ external tools. */
 #ifdef CRC32_ARM64_APPLE
 #if __has_include(<asm/hwcap.h>) &&  __has_include(<sys/auxv.h>)
 #error \
-    "Current implementation is based on asumption that APPLE_ARM always " \
+    "Current implementation is based on assumption that APPLE_ARM always " \
     "supports crc32 and pmull and that there is no way to check it, yet it "\
     "seem that this APPLE_ARM has getauxval()."
 #endif /* __has_include(<asm/hwcap.h>) &&  __has_include(<sys/auxv.h>) */
@@ -299,7 +299,7 @@ uint32_t crc32_processing_64bit_chunks(const byte *buf, size_t len) {
 
   return (~crc);
 }
-/** Computes CRC32-C hash not using any hardware accelaration.
+/** Computes CRC32-C hash not using any hardware acceleration.
 It's non-static so it can be unit-tested, but otherwise should not be used
 directly, and thus is not exposed in the header file - use ut_crc32 to benefit
 from hardware acceleration available.
@@ -579,7 +579,7 @@ inline static uint64_t roll(uint32_t crc) {
 }
 
 /** Takes a 64-bit reversed representation of a polynomial, and computes the
-32-bit reveresed representation of it modulo CRC32-C.
+32-bit reversed representation of it modulo CRC32-C.
 @param[in]  big   The 64-bit representation of polynomial w, with the most
                   significant coefficient (the one for x^63) stored at least
                   significant bit (the one at 1<<0).

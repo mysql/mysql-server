@@ -8251,7 +8251,7 @@ typedef enum xcom_send_app_wait_result xcom_send_app_wait_result;
 /**
  * Send a message and wait for response.
  *
- * The caller is reponsible for freeing p after calling this function,
+ * The caller is responsible for freeing p after calling this function,
  * i.e. xdr_free((xdrproc_t)xdr_pax_msg, (char *)p)
  */
 static xcom_send_app_wait_result xcom_send_app_wait_and_get(
@@ -8706,7 +8706,7 @@ static void init_time_queue() {
 
 /* Put pax_machine into the time queue at the correct place */
 static void paxos_twait(pax_machine *p, unsigned int t) {
-  /* Guard aginst 0 delay, which would become max delay */
+  /* Guard against 0 delay, which would become max delay */
   if (0 == t) t = 1;
   unsigned int pos = (current_tick + t) % paxos_timer_range;
   link_into(&p->watchdog, &time_queue[pos]);

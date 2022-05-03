@@ -1243,7 +1243,7 @@ int runInterpretedWriteInsert(NDBT_Context* ctx, NDBT_Step* step) {
                           NULL, &opts, sizeof(opts));
   if (!pOp) {
     if (pTrans->getNdbError().code != acceptError) {
-      // Expect the operation to fail becasue the
+      // Expect the operation to fail because the
       // interpretedWrite program does not run in the INSERT case.
       ndbout_c("Expected error: %d", acceptError);
       return NDBT_FAILED;

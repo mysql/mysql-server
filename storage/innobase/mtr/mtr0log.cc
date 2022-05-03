@@ -505,7 +505,7 @@ constexpr size_t inst_col_info_size = 4;
 @param[in]   n             number of fields in index
 @param[in]   is_comp       true if COMP
 @param[in]   is_versioned  if table has row versions
-@param[in]   is_instant    ture if table has INSTANT cols
+@param[in]   is_instant    true if table has INSTANT cols
 @param[out]  size_needed   total size needed on REDO LOG */
 static void log_index_get_size_needed(const dict_index_t *index, size_t size,
                                       uint16_t n, bool is_comp,
@@ -584,8 +584,8 @@ static void log_index_flag(uint8_t flag, byte *&log_ptr) {
 @param[in]      n             number of fields
 @param[in]      rec           index record
 @param[in]      is_comp       true if COMP
-@param[in]      is_versioned  ture if table has row versions
-@param[in]      is_instant    ture if table has INSTANT cols
+@param[in]      is_versioned  true if table has row versions
+@param[in]      is_instant    true if table has INSTANT cols
 @param[in,out]  log_ptr       REDO LOG buffer pointer */
 static void log_index_column_counts(const dict_index_t *index, uint16_t n,
                                     const byte *rec, bool is_comp,
@@ -624,7 +624,7 @@ static void log_index_column_counts(const dict_index_t *index, uint16_t n,
   log_ptr += 2;
 }
 
-/** Close, alocate and reopen LOG pointer buffer.
+/** Close, allocate and reopen LOG pointer buffer.
 @param[in]      log_ptr   pointer to log buffer
 @param[in,out]  log_start start of currently allocated buffer
 @param[in,out]  log_end   end of currently allocated buffer

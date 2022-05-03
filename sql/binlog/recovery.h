@@ -138,7 +138,7 @@ class Binlog_recovery {
     for the transaction.
 
     After `recover()` returns, `has_failures()` should be invoked to
-    determine if the recover process ended sucessfully. Aditionally,
+    determine if the recover process ended successfully. Additionally,
     `is_binlog_malformed()` and `has_engine_recovery_failed()` can be
     invoked to determine the type of error that occurred.
 
@@ -183,7 +183,7 @@ class Binlog_recovery {
     - XA COMMIT
     - XA ROLLBACK
 
-    Check bellow for the description of the action that is taken for each.
+    Check below for the description of the action that is taken for each.
 
     @param ev The `Query_log_event` to process
    */
@@ -279,8 +279,8 @@ class Binlog_recovery {
     - The `m_in_transaction` flag is set to false, indicating that the
       event ends a transaction.
     - The XID of the transaction is extracted and added to the list of
-      externally coordinated transactions `m_external_xids`, along side the
-      state COMMITED.
+      externally coordinated transactions `m_external_xids`, alongside the
+      state COMMITTED.
     - If the XID already exists in the list associated with a state other
       than `PREPARED`, `m_is_malformed` is set to true, indicating that the
       binary log is malformed.

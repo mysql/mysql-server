@@ -29,7 +29,7 @@
 #include "uv.h"
 
 
-/* Simple LIFO sharable list.
+/* Simple LIFO shareable list.
    Uses uv_mutex_t for synchronization.
    signalinfo can be used for in-band metadata. 
    The note can serve to document a list item, and also as cache-line padding.

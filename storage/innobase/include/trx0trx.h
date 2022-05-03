@@ -1204,7 +1204,7 @@ static inline void assert_trx_is_inactive(const trx_t *t) {
 #ifdef UNIV_DEBUG
 /** Assert that an autocommit non-locking select cannot be in the
  rw_trx_list and that it is a read-only transaction.
- The tranasction must be in the mysql_trx_list. */
+ The transaction must be in the mysql_trx_list. */
 static inline void assert_trx_nonlocking_or_in_list(const trx_t *t) {
   if (trx_is_autocommit_non_locking(t)) {
     trx_state_t t_state = t->state;
@@ -1219,9 +1219,9 @@ static inline void assert_trx_nonlocking_or_in_list(const trx_t *t) {
   }
 }
 #else /* UNIV_DEBUG */
-/** Assert that an autocommit non-locking slect cannot be in the
+/** Assert that an autocommit non-locking select cannot be in the
  rw_trx_list and that it is a read-only transaction.
- The tranasction must be in the mysql_trx_list. */
+ The transaction must be in the mysql_trx_list. */
 #define assert_trx_nonlocking_or_in_list(trx) ((void)0)
 #endif /* UNIV_DEBUG */
 

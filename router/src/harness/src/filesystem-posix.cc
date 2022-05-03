@@ -184,7 +184,7 @@ Directory::DirectoryIterator::State::State(const Path &path,
                       (size_t)pathconf(path.str().c_str(), _PC_NAME_MAX) + 1;
 
   // We need RAII here as we throw an exception in the constructor which means
-  // we can't rely on the desctructor always being called
+  // we can't rely on the destructor always being called
   entry_.reset((struct dirent *)malloc(alloc_size));
   result_ = entry_.get();
 

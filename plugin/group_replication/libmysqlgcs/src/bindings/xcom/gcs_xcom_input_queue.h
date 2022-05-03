@@ -131,7 +131,7 @@ class Gcs_xcom_input_queue_impl {
    * Takes ownership of @c msg.
    *
    * @param msg the app_data_ptr to send to XCom
-   * @retval false if there is no memory avaiable
+   * @retval false if there is no memory available
    * @retval true otherwise (operation was successful)
    */
   bool push(app_data_ptr msg) {
@@ -169,7 +169,7 @@ class Gcs_xcom_input_queue_impl {
    * Transfers ownership of the returned pointer(s).
    * Note that this method is non-blocking.
    *
-   * @retval app_data_ptr linked list of the queued comamnds if the queue is
+   * @retval app_data_ptr linked list of the queued commands if the queue is
    *                      not empty
    * @retval nullptr if the queue is empty
    */

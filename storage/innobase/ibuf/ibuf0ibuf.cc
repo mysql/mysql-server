@@ -86,7 +86,7 @@ In versions < 4.1.x:
 
 In versions >= 4.1.x:
 
-Note that contary to what we planned in the 1990's, there will only be one
+Note that contrary to what we planned in the 1990's, there will only be one
 insert buffer tree, and that is in the system tablespace of InnoDB.
 
 1. The first field is the space id.
@@ -462,7 +462,7 @@ void ibuf_init_at_db_start(void) {
   ibuf = static_cast<ibuf_t *>(
       ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(ibuf_t)));
 
-  /* At startup we intialize ibuf to have a maximum of
+  /* At startup we initialize ibuf to have a maximum of
   CHANGE_BUFFER_DEFAULT_SIZE in terms of percentage of the
   buffer pool size. Once ibuf struct is initialized this
   value is updated with the user supplied size by calling
@@ -2047,7 +2047,7 @@ static ulint ibuf_get_merge_page_nos_func(bool contract, const rec_t *rec,
   prev_space_id = 0;
 
   /* Go backwards from the first rec until we reach the border of the
-  'merge area', or the page start or the limit of storeable pages is
+  'merge area', or the page start or the limit of storable pages is
   reached */
 
   while (!page_rec_is_infimum(rec) && UNIV_LIKELY(n_pages < limit)) {

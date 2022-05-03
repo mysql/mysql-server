@@ -81,7 +81,7 @@ struct Buffer {
     m_ptr = nullptr;
   }
 
-  /** Add the contents of ptr upto n_bytes to the buffer.
+  /** Add the contents of ptr up to n_bytes to the buffer.
   @return false if it won't fit. Nothing is copied if it won't fit. */
   bool append(const void *ptr, size_t n_bytes) noexcept {
     ut_a(m_next >= m_ptr && m_next <= m_ptr + m_n_bytes);

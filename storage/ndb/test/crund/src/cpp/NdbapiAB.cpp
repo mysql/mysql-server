@@ -246,7 +246,7 @@ struct Model {
 };
 
 // ----------------------------------------------------------------------
-// intializers/finalizers
+// initializers/finalizers
 // ----------------------------------------------------------------------
 
 void
@@ -312,7 +312,7 @@ NdbapiAB::initProperties() {
         nConcScans = 255;
     }
 
-    if (!msg.tellp()) { // or msg.str().empty() if ambigous
+    if (!msg.tellp()) { // or msg.str().empty() if ambiguous
         cout << "      [ok]" << endl;
     } else {
         driver.setIgnoredSettings();
@@ -347,7 +347,7 @@ NdbapiAB::initConnection() {
     cout << "connecting to cluster ..." << flush;
     const int retries = 0; // number of retries (< 0 = indefinitely)
     const int delay = 0;   // seconds to wait after retry
-    const int verbose = 1; // print report of progess
+    const int verbose = 1; // print report of progress
     // returns: 0 = success, 1 = recoverable error, -1 = non-recoverable error
     if (mgmd->connect(retries, delay, verbose) != 0)
         ABORT_ERROR("mgmd@" << mgmdConnect << " was not ready within "

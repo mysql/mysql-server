@@ -244,7 +244,7 @@
  * executing REDO log from the GCI_last_completed + 1 until the GCI we want to
  * restore, then we have restored the data consistently.
  *
- * In order to be able to write the UNDO log continously we need to cut the
+ * In order to be able to write the UNDO log continuously we need to cut the
  * log tail every now and then. We enable cutting of the log tail for both
  * REDO and UNDO logs by running checkpoints. We call our checkpoints, LCPs.
  * At start of a new LCP we can cut away the log tail back until we reach the
@@ -263,7 +263,7 @@
  * We need to retain UNDO log entries for the running LCP and for the last
  * completed LCP. We could theoretically move the UNDO log tail forward
  * as soon as a fragment LCP is restorable since we only now need 1 LCP
- * per fragment and we continously move forward. (TODO).
+ * per fragment and we continuously move forward. (TODO).
  *
  * So in short LGMAN receives log entries from DBTUP, before PGMAN can write
  * any page it ensures that all log entries of the page have been flushed to
@@ -3754,7 +3754,7 @@ Lgman::execSUB_GCP_COMPLETE_REP(Signal* signal)
   m_logfile_group_list.first(ptr);
 
   /**
-   * Filter all logfile groups in parallell
+   * Filter all log file groups in parallel
    */
   return; // NOT IMPLEMENTED YET
   
@@ -4148,7 +4148,7 @@ Lgman::find_log_head(Signal* signal, Ptr<Logfile_group> lg_ptr)
     jam();
     /**
      * All files have read first page
-     *   and m_files is sorted acording to lsn
+     *   and m_files is sorted according to lsn
      */
     Local_undofile_list read_files(m_file_pool, lg_ptr.p->m_files);
     read_files.last(file_ptr);

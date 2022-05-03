@@ -164,7 +164,7 @@ bool ndb_table_has_hidden_pk(const NdbDictionary::Table *ndbtab) {
 
 bool ndb_table_has_tablespace(const NdbDictionary::Table *ndbtab) {
   // NOTE! There is a slight ambiguity in the NdbDictionary::Table.
-  // Depending on wheter it has been retrieved from NDB or created
+  // Depending on whether it has been retrieved from NDB or created
   // by user as part of defining a new table in NDB, different methods
   // need to be used for determining if table has tablespace
 
@@ -175,7 +175,7 @@ bool ndb_table_has_tablespace(const NdbDictionary::Table *ndbtab) {
 
   if (ndbtab->getTablespace()) {
     // Retrieved from NDB, the tablespace id and version
-    // are avaliable in the table definition -> has tablespace.
+    // are available in the table definition -> has tablespace.
     // NOTE! Fetching the name would require another roundtrip to NDB
     return true;
   }
@@ -571,7 +571,7 @@ bool ndb_table_scan_and_delete_rows(
 
         case 1:
           DBUG_PRINT("info", ("No more rows"));
-          // No more rows, commit the transation
+          // No more rows, commit the transaction
           if (trans->execute(NdbTransaction::Commit) != 0) {
             // Failed to commit
             return &trans->getNdbError();

@@ -38,7 +38,7 @@ using std::endl;
 using std::string;
 
 // ----------------------------------------------------------------------
-// intializers/finalizers
+// initializers/finalizers
 // ----------------------------------------------------------------------
 
 static void

@@ -247,7 +247,7 @@ class Remote_clone_handler : public Group_event_observer {
     @param[in] use_ssl  make clone use SSL
 
     @return whether or not we managed to clone the server
-      @retval 0    the clone was sucessfull
+      @retval 0    the clone was successful
       @retval != 0 some error occurred
   */
   int run_clone_query(Sql_service_command_interface *sql_command_interface,
@@ -259,7 +259,7 @@ class Remote_clone_handler : public Group_event_observer {
     Kill the current query executing a clone
 
     @return whether or not we managed to kill the clone query
-      @retval 0    the kill query was sucessfull
+      @retval 0    the kill query was successful
       @retval != 0 some error occurred
   */
   int kill_clone_query();

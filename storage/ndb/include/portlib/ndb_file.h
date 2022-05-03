@@ -87,7 +87,7 @@
  * set_direct_io()
  * - if by passing OS caching is considered an optimization.
  *   This will also check that block size and alignment requirements for
- *   direct io is satisifed by the block size and alignment set by
+ *   direct io is satisfied by the block size and alignment set by
  *   application.
  *
  * reopen_with_sync(name)

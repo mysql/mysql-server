@@ -1301,7 +1301,7 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
     {
       DBUG_RETURN(true);
     }
-    // for mysql client compatability remove trailing ';'
+    // for mysql client compatibility remove trailing ';'
     {
       unsigned last= (unsigned)(strlen(line)-1);
       if (line[last] == ';')
@@ -1561,7 +1561,7 @@ CommandInterpreter::executeCommand(Vector<BaseString> &command_list,
  * to 0 (zero) on the first call.
  *
  * @param cl cluster state
- * @param node_id last node_id retreived, 0 at first call
+ * @param node_id last node_id retrieved, 0 at first call
  * @param type type of node to look for
  * @return 1 if a node was found, 0 if no more node exist
  */
@@ -3422,7 +3422,7 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
   }
 
   /**
-   * If interactive, event listner thread is already running
+   * If interactive, event listener thread is already running
    */
   if (log_handle && !interactive)
   {

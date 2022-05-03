@@ -462,7 +462,7 @@ NdbScanFilter::isfalse(){
 typedef int (NdbInterpretedCode:: * Branch1)(Uint32 a1, Uint32 label);
 
 /* Two argument branch definition method signature,
- * Compare the column with eiter a string value,
+ * Compare the column with either a string value,
  * another column or a parameter (in attrInfo).
  */
 typedef int (NdbInterpretedCode:: * StrBranch2)(const void *val, Uint32 len,

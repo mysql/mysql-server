@@ -1117,7 +1117,7 @@ class Arch_Group {
   /** Purge archived files until the specified purge LSN.
   @param[in]    purge_lsn       LSN until which archived files needs to be
   purged
-  @param[out]   purged_lsn      LSN until which purging is successfule;
+  @param[out]   purged_lsn      LSN until which purging is successful;
   LSN_MAX if there was no purging done
   @return error code */
   uint purge(lsn_t purge_lsn, lsn_t &purged_lsn);

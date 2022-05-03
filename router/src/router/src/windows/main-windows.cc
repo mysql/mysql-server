@@ -63,7 +63,7 @@ int (*g_real_main)(int, char **, bool);
  * Rationale: When running as a service, user can't see the console, that's why
  *            we need to log to Eventlog. OTOH when running as a normal
  *            process, user can see console, so logging to Eventlog is not
- *            neccessary, furthermore, probably something user doesn't expect,
+ *            necessary, furthermore, probably something user doesn't expect,
  *            therefore we should not do it. However, there are times when we
  *            don't know if we're running as a service or not, in which case we
  *            must choose the safe approach and log to Eventlog, just in case

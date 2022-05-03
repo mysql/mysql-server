@@ -142,7 +142,7 @@ struct Compression {
   @return true if version is valid */
   static bool is_valid_page_version(uint8_t version);
 
-  /** Check wether the compression algorithm is supported.
+  /** Check whether the compression algorithm is supported.
   @param[in]      algorithm       Compression algorithm to check
   @param[out]     compression            The type that algorithm maps to
   @return DB_SUCCESS or error code */

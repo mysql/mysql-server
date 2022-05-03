@@ -70,7 +70,7 @@ namespace socket_option {
  * can be used to implement type safe socket options.
  *
  * @see socket_option::integer
- * @see socket_option::boolen
+ * @see socket_option::boolean
  */
 template <int Level, int Name, class T, class V = T>
 class option_base {
@@ -250,7 +250,7 @@ class socket_base {
     }
 
     /**
-     * set receipient of the message.
+     * set recipient of the message.
      */
     template <class endpoint_type>
     void set_recipient(const endpoint_type &ep) {

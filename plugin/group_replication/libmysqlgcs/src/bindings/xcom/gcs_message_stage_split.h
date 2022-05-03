@@ -94,7 +94,7 @@ class Gcs_split_header_v2 : public Gcs_stage_metadata {
   Gcs_sender_id m_sender_id;
 
   /**
-   Uniquely identify the message so that we can reassemble splitted messages.
+   Uniquely identify the message so that we can reassemble split messages.
    */
   Gcs_message_id m_message_id{0};
   static_assert(sizeof(decltype(m_message_id)) == WIRE_HD_MESSAGE_ID_SIZE,
@@ -358,7 +358,7 @@ class Gcs_message_stage_split_v2 : public Gcs_message_stage {
    message.
 
    @param packet fragment Fragment that will be collected to reconstruct the
-   orignal
+   original
    @returns true if successful, false otherwise
    */
   bool insert_fragment(Gcs_packet &&packet);
@@ -406,7 +406,7 @@ class Gcs_message_stage_split_v2 : public Gcs_message_stage {
   Gcs_packets_list get_fragments(Gcs_split_header_v2 const &fragment_header);
 
   /**
-   Reassembles the given fragment list into the orginal, whole packet.
+   Reassembles the given fragment list into the original, whole packet.
 
    This method must only be called with a non-empty packet list.
 

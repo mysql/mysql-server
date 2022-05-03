@@ -64,7 +64,7 @@ public:
 class NDBT_Table : public NdbDictionary::Table {
   /**
    * Print meta information about table 
-   * (information on how it is strored, what the attributes look like etc.)
+   * (information on how it is stored, what the attributes look like etc.)
    */
 public: 
   

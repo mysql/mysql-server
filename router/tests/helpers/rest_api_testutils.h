@@ -165,7 +165,7 @@ std::string http_method_to_string(const HttpMethod::type method);
  * @param http_host   host name of the REST endpoint
  * @param max_wait_time how long should the function wait to the endpoint to
  * become ready before returning false
- * @param step_time   what should be the sleep time beetween the consecutive
+ * @param step_time   what should be the sleep time between the consecutive
  * checks for the endpoint availability
  *
  * @returns true once endpoint is ready to handle requests, false

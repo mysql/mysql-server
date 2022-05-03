@@ -341,7 +341,7 @@ class datagram_protocol {
   using endpoint = local::basic_endpoint<datagram_protocol>;
   using socket = net::basic_datagram_socket<datagram_protocol>;
 
-  // no peer_creds on datagram_protocol as it doens't call "connect()" nor
+  // no peer_creds on datagram_protocol as it doesn't call "connect()" nor
   // "listen()". It needs SCM_CREDS instead
 
   constexpr int family() const noexcept { return AF_UNIX; }

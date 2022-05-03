@@ -54,7 +54,7 @@
 // http_common.cc
 
 /**
- * `libevent` global state managment
+ * `libevent` global state management
  */
 class HTTP_COMMON_EXPORT Event {
  public:

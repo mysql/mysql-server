@@ -864,7 +864,7 @@ dberr_t Log_DDL::write_free_tree_log(trx_t *trx, const dict_index_t *index,
 
   if (dict_index_get_online_status(index) != ONLINE_INDEX_COMPLETE) {
     /* To skip any previously aborted index. This is because this kind
-    of index should be already freed in previous post_ddl. It's inproper
+    of index should be already freed in previous post_ddl. It's improper
     to log it and may free it again later, which may trigger some
     double free page problem. */
     return (DB_SUCCESS);
@@ -1784,9 +1784,9 @@ dberr_t Log_DDL::replay_alter_encrypt_space_log(DDL_Record &record) {
   }
   ut_ad(record.get_thread_id() == ULINT_MAX);
 
-  /* We could have resume encrypiton execution one by one for each tablespace
+  /* We could have resume encryption execution one by one for each tablespace
   from here by calling SQL API to run the query. But then it would be blocking
-  server bootstrap. We need to resume ths encryption in BG thread so we need
+  server bootstrap. We need to resume this encryption in BG thread so we need
   to just make a note of this space and operation here and don't do any real
   operation. */
   ts_encrypt_ddl_records.push_back(&record);

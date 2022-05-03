@@ -2010,7 +2010,7 @@ log_error_stack_error log_builtins_error_stack(const char *conf,
       If neither branch was true, we're in set mode, but the set-up
       is invalid (i.e. we're trying to multi-open a singleton). As
       this should have been caught in the check phase, we don't
-      specfically handle it here; the invalid element is skipped and
+      specifically handle it here; the invalid element is skipped and
       not added to the instance list. That way, we'll get as close
       to a working configuration as possible in our attempt to fail
       somewhat gracefully.
@@ -2049,7 +2049,7 @@ done:
     will then attempt to obtain the sys_vars-mutex, so we shouldn't be
     holding it already (as we do in a sys-var's update function).
 
-    Since succesful user-initiated changes come in check/apply pairs,
+    Since successful user-initiated changes come in check/apply pairs,
     this is not an issue. At worst, the check can fail and leave the
     stale entries cached until the next successful apply-phase, when
     they will be discarded as expected. As the server resets the

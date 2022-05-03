@@ -125,7 +125,7 @@ public:
 
   /**
    * Different match criteria may be specified for an operation.
-   * These controls when rows are considdered equal, and a result row
+   * These controls when rows are considered equal, and a result row
    * is produced (or accepted).
    *
    * These are hints only.
@@ -138,7 +138,7 @@ public:
   enum MatchType
   {
     // DEFAULT: Output all matches, including duplicates.
-    // Append a single NULL-extended row for non-matching childs.
+    // Append a single NULL-extended row for non-matching children.
     MatchAll = 0x00,
 
     // Output all matches, including duplicates.
@@ -261,7 +261,7 @@ public:
     PrimaryKeyAccess,     ///< Read using pk
     UniqueIndexAccess,    ///< Read using unique index
     TableScan,            ///< Full table scan
-    OrderedIndexScan      ///< Ordered index scan, optionaly w/ bounds
+    OrderedIndexScan      ///< Ordered index scan, optionally w/ bounds
   };
 
   static const char* getTypeName(Type type);
@@ -367,7 +367,7 @@ public:
    : m_low(low), m_lowInclusive(true), m_high(high), m_highInclusive(true)
   {}
 
-  // Complete C'tor where limits might be exluded:
+  // Complete C'tor where limits might be excluded:
   NdbQueryIndexBound(const NdbQueryOperand* const *low,  bool lowIncl,
                      const NdbQueryOperand* const *high, bool highIncl)
    : m_low(low), m_lowInclusive(lowIncl), m_high(high), m_highInclusive(highIncl)
@@ -392,7 +392,7 @@ private:
  * LIFETIME:
  * - All NdbQueryOperand and NdbQueryOperationDef objects created in the 
  *   context of a NdbQueryBuilder has a lifetime restricted by:
- *    1. The NdbQueryDef created by the ::prepare() methode.
+ *    1. The NdbQueryDef created by the ::prepare() method.
  *    2. The NdbQueryBuilder *if* the builder is destructed before the
  *       query was prepared.
 
@@ -444,11 +444,11 @@ public:
 
   // NdbQueryOperand builders:
   //
-  // ::constValue constructors variants, considder to added/removed variants
+  // ::constValue constructors variants, consider to added/removed variants
   // Typechecking is provided  and will reject constValues/() which is
   // incompatible with the type of the column it is used against.
   // Some very basic typeconversion is available to match destination column
-  // with different numeric presicion and spacepad character strings to defined length.
+  // with different numeric precision and spacepad character strings to defined length.
   NdbConstOperand* constValue(Int32  value); 
   NdbConstOperand* constValue(Uint32 value); 
   NdbConstOperand* constValue(Int64  value); 
@@ -531,15 +531,15 @@ private:
  * NdbQueryDef represents a ::prepare()'d object from NdbQueryBuilder.
  *
  * The NdbQueryDef is reusable in the sense that it may be executed multiple
- * times. It is valid until it is explicitely released().
+ * times. It is valid until it is explicitly released().
  *
- * The NdbQueryDef *must* be keept alive until the last thread
+ * The NdbQueryDef *must* be kept alive until the last thread
  * which executing a query based on this NdbQueryDef has called
  * NdbQuery::close().
  *
  * A NdbQueryDef is scheduled for execution by appending it to an open 
  * transaction - optionally together with a set of parameters specifying 
- * the actuall values required by ::execute() (ie. Lookup an bind keys).
+ * the actual values required by ::execute() (ie. Look up and bind keys).
  *
  */
 class NdbQueryDef
@@ -553,8 +553,8 @@ public:
    */
   enum QueryType {
     LookupQuery,     ///< All operations are PrimaryKey- or UniqueIndexAccess
-    SingleScanQuery, ///< Root is Table- or OrderedIndexScan, childs are 'lookup'
-    MultiScanQuery   ///< Root, and some childs are scans
+    SingleScanQuery, ///< Root is Table- or OrderedIndexScan, children are 'lookup'
+    MultiScanQuery   ///< Root, and some children are scans
   };
 
   Uint32 getNoOfOperations() const;

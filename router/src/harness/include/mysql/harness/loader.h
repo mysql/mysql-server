@@ -102,7 +102,7 @@
  *   1. shutdown signal is received by the harness
  *   2. one of the plugins exits with error
  *
- * When one of these two events occurrs, harness progresses to the
+ * When one of these two events occurs, harness progresses to the
  * next step.
  *
  *
@@ -567,7 +567,7 @@ threads should exit before their parent function finishes running.
 NOTE: WL#9558 HLD version of this section additionally discusses design,
       rationale for the approach chosen, etc; look there if interested.
 
-When plugin functions enounter an error, they are expected to signal it via
+When plugin functions encounter an error, they are expected to signal it via
 set_error(). What happens next, depends on the case, but in all four
 cases the error will be logged automatically by the harness. Also, the first
 error passed from any plugin will be saved until the end of life-cycle

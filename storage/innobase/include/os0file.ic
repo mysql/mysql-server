@@ -65,7 +65,7 @@ static inline pfs_os_file_t pfs_os_file_create_simple_func(
                                            read_only, success);
   file.m_psi = nullptr;
 
-  /* Regsiter psi value for the file */
+  /* Register psi value for the file */
   register_pfs_file_open_end(locker, file,
                              (*success == true ? success : nullptr));
 

@@ -96,7 +96,7 @@ public:
   ~TestThread();
   /** Initiate a new test.*/
   void start(const TestParameters& params);
-  /** Wait fo current test to complete.*/
+  /** Wait for current test to complete.*/
   void wait();
 private:
   struct Row{

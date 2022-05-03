@@ -351,7 +351,7 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
   ndbout << "Found max operations limit " << maxOpsLimit << endl;
 
   /**
-   * After the peak usage of NdbOperations comes a cool down periode
+   * After the peak usage of NdbOperations comes a cool down period
    * with lower usage. Check that the NdbOperations free list manager
    * will gradually reduce number of free NdbOperations kept for 
    * later reuse.
@@ -421,7 +421,7 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
   } //while (coolDownLoops...
 
   /**
-   * It is a pass criteria that cool down periode
+   * It is a pass criteria that cool down period
    * reduced the number of free NdbOperations kept.
    */
   if (freeOperations >= hiFreeOperations)
@@ -1136,7 +1136,7 @@ int runUpdateWithoutValues(NDBT_Context* ctx, NDBT_Step* step){
     }
   }
 
-  // Dont' call any setValues
+  // Don't call any setValues
 
   // Execute should work
   int check = pCon->execute(Commit);
@@ -1191,7 +1191,7 @@ int runUpdateWithoutKeys(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;
   }
 
-  // Dont' call any equal or setValues
+  // Don't call any equal or setValues
 
   // Execute should not work
   int check = pCon->execute(Commit);
@@ -1251,7 +1251,7 @@ int runReadWithoutGetValue(NDBT_Context* ctx, NDBT_Step* step){
 	}
       }
     
-      // Dont' call any getValues
+      // Don't call any getValues
     
       // Execute should work
       int check = pCon->execute(cm == 0 ? NoCommit : Commit);
@@ -1291,7 +1291,7 @@ int runReadWithoutGetValue(NDBT_Context* ctx, NDBT_Step* step){
     }
     
     
-    // Dont' call any getValues
+    // Don't call any getValues
     
     // Execute should work
     int check = pCon->execute(NoCommit);
@@ -1542,7 +1542,7 @@ int runScan_4006(NDBT_Context* ctx, NDBT_Step* step){
     scans.push_back(pOp);
   }
 
-  // Dont' call any equal or setValues
+  // Don't call any equal or setValues
 
   // Execute should not work
   int check = pCon->execute(NoCommit);
@@ -1953,7 +1953,7 @@ int runNdbClusterConnectionDelete_connection_owner(NDBT_Context* ctx,
 
   g_cluster_connection = con;
 
-  // Signal other thread that cluster connection has been creted
+  // Signal other thread that cluster connection has been created
   ctx->setProperty("CREATED", 1);
 
   // Now wait for the other thread to use the connection
@@ -6858,7 +6858,7 @@ static void unusedCallback(int, NdbTransaction*, void*)
 
 /**
  * Test that Ndb::closeTransaction() and/or Ndb-d'tor is
- * able to do propper cleanup of NdbTransactions which
+ * able to do proper cleanup of NdbTransactions which
  * are in some 'incomplete' states:
  *  - Transactions being closed before executed.
  *  - Transactions being closed without, or only partially

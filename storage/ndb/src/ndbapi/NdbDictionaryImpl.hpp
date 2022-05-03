@@ -742,7 +742,7 @@ public:
   bool setTransporter(class Ndb * ndb);
   class TransporterFacade *getTransporter() const;
   
-  // To abstract the stuff thats made in all create/drop/lists below
+  // To abstract the stuff that's made in all create/drop/lists below
   int dictSignal(NdbApiSignal* signal, LinearSectionPtr ptr[3], int secs,
 		 int nodeId, // -1 any, 0 = master, >1 = specified
 		 Uint32 waitsignaltype,
@@ -1492,7 +1492,7 @@ NdbDictionaryImpl::getIndexGlobal(const char * index_name,
 					index_name, ndbtab));
     if (tab)
     {
-      // tab->m_index sould be set. otherwise tab == 0
+      // tab->m_index should be set. otherwise tab == 0
       NdbIndexImpl *idx= tab->m_index;
       if (idx->m_table_id != (unsigned)ndbtab.getObjectId() ||
           idx->m_table_version != (unsigned)ndbtab.getObjectVersion())
@@ -1518,7 +1518,7 @@ NdbDictionaryImpl::getIndexGlobal(const char * index_name,
 					  index_name, ndbtab));
       if (tab)
       {
-	// tab->m_index sould be set. otherwise tab == 0
+	// tab->m_index should be set. otherwise tab == 0
 	NdbIndexImpl *idx= tab->m_index;
 	if (idx->m_table_id != (unsigned)ndbtab.getObjectId() ||
 	    idx->m_table_version != (unsigned)ndbtab.getObjectVersion())

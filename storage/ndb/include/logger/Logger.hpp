@@ -37,7 +37,7 @@ class LogHandler;
 class LogHandlerList;
 
 /**
- * Logger should be used whenver you need to log a message like
+ * Logger should be used whenever you need to log a message like
  * general information or debug messages. By creating/adding different
  * log handlers, a single log message can be sent to 
  * different outputs (stdout, file or syslog).
@@ -120,7 +120,7 @@ public:
 
       @epoch time to convert and print
       @str pointer to buffer where to print the resulting string
-      @len max lenght of result buffer
+      @len max length of result buffer
 
   */
   static void format_timestamp(const time_t epoch,

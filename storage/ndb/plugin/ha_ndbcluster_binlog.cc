@@ -133,7 +133,7 @@ enum Ndb_binlog_index_cols {
   NBICOL_NUM_UPDATES = 4,
   NBICOL_NUM_DELETES = 5,
   NBICOL_NUM_SCHEMAOPS = 6
-  /* Following colums in schema 'v2' */
+  /* Following columns in schema 'v2' */
   ,
   NBICOL_ORIG_SERVERID = 7,
   NBICOL_ORIG_EPOCH = 8,
@@ -794,11 +794,11 @@ class Ndb_binlog_setup {
 
     @note See special error handling required when function fails.
 
-    @return true if setup is succesful
+    @return true if setup is successful
     @return false if setup fails. The creation of ndb_schema table and setup
     of event operation registers this node in schema distribution protocol. Thus
     this node is expected to reply to schema distribution events. Replying is
-    however not possible until setup has succesfully completed and the binlog
+    however not possible until setup has successfully completed and the binlog
     thread has started to handle events. If setup fails the event operation on
     ndb_schema table and all other event operations must be removed in order to
     signal unsubcribe and remove this node from schema distribution.
@@ -1126,7 +1126,7 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
     }
 
     // Client normally relies on the coordinator to time out the schema
-    // operation when it has receieved the schema operation. Until then
+    // operation when it has received the schema operation. Until then
     // the client will check for timeout itself.
     count++;
     if (ndb_schema_object->has_coordinator_received_schema_op() == false &&
@@ -1613,7 +1613,7 @@ class Ndb_schema_event_handler {
           (*THR_MALLOC)->Alloc(field->field_length));
       ndbcluster::ndbrequire(slock_buf);
 
-      // Initialize bitmap(always suceeds when buffer is already allocated)
+      // Initialize bitmap(always succeeds when buffer is already allocated)
       (void)bitmap_init(&slock, slock_buf, field->field_length * 8);
 
       // Copy data into bitmap buffer
@@ -1875,7 +1875,7 @@ class Ndb_schema_event_handler {
         NdbOperation *op = 0;
         int r [[maybe_unused]] = 0;
 
-        /* read row from ndb_schema with exlusive row lock */
+        /* read row from ndb_schema with exclusive row lock */
         r |= (op = trans->getNdbOperation(ndbtab)) == 0;
         assert(r == 0);
         r |= op->readTupleExclusive();
@@ -1980,7 +1980,7 @@ class Ndb_schema_event_handler {
 
   /**
     @brief Inform the other nodes that schema operation has been completed by
-    all nodes, this is done by updating the row in the ndb_schema table whith
+    all nodes, this is done by updating the row in the ndb_schema table with
     all bits of the 'slock' column cleared.
 
     @note this is done to allow the coordinator to control when the schema
@@ -1990,7 +1990,7 @@ class Ndb_schema_event_handler {
     @param db First part of key, normally used for db name
     @param table_name Second part of key, normally used for table name
 
-    @return zero on sucess
+    @return zero on success
 
   */
   int ack_schema_op_final(const char *db, const char *table_name) const {
@@ -2064,7 +2064,7 @@ class Ndb_schema_event_handler {
 
     @param schema The schema operation which has just been completed
 
-    @return true if ack suceeds
+    @return true if ack succeeds
     @return false if ack fails(writing to the table could not be done)
 
   */
@@ -4189,7 +4189,7 @@ class Ndb_schema_event_handler {
           "Participant timeout");
       if (completed) {
         ndb_log_warning("Schema dist coordinator detected timeout");
-        // Timeout occured -> send final ack to complete the schema opration
+        // Timeout occurred -> send final ack to complete the schema operation
         ack_schema_op_final(schema_object->db(), schema_object->name());
       }
     }
@@ -4417,7 +4417,7 @@ class Ndb_binlog_index_table_util {
       ulonglong epoch = 0, orig_epoch = 0;
       uint orig_server_id = 0;
 
-      // Intialize ndb_binlog_index->record[0]
+      // Initialize ndb_binlog_index->record[0]
       empty_record(ndb_binlog_index);
 
       ndb_binlog_index->field[NBICOL_START_POS]->store(
@@ -5202,13 +5202,13 @@ inline int is_ndb_compatible_type(Field *field) {
 /**
    Create event operation in NDB and setup Ndb_event_data for receiving events.
 
-   NOTE! The provided event_data will be consumed by function on sucess,
+   NOTE! The provided event_data will be consumed by function on success,
    otherwise the event_data need to be released by caller.
 
    @param ndb           The Ndb object
    @param ndbtab        The Ndb table to create event operation for
    @param event_name    Name of the event in NDB to create event operation on
-   @param event_data    Pointer to Ndb_event_data toi setup for receiving events
+   @param event_data    Pointer to Ndb_event_data to setup for receiving events
 
    @return Pointer to created NdbEventOperation on success, nullptr on failure
 */
@@ -5485,7 +5485,7 @@ void Ndb_binlog_client::drop_events_for_table(THD *thd, Ndb *ndb,
   Wait for the binlog thread to remove its NdbEventOperation and other resources
   it uses to listen to changes to the table in NDB during a drop table.
 
-  @note Syncronized drop between client and injector thread is
+  @note Synchronized drop between client and injector thread is
   necessary in order to maintain ordering in the binlog,
   such that the drop occurs _after_ any inserts/updates/deletes.
 
@@ -5633,7 +5633,7 @@ unsigned int ndbcluster_binlog_get_sync_pending_objects_count() {
 }
 
 /**
-   @brief Get blob column(s) data for one event recieved from NDB. The blob
+   @brief Get blob column(s) data for one event received from NDB. The blob
    data is already buffered inside the NdbApi so this is basically an unpack.
 
    @note The function will loop over all columns in table twice:
@@ -5750,7 +5750,7 @@ int Ndb_binlog_thread::handle_data_get_blobs(const TABLE *table,
 }
 
 /**
-   @brief Unpack data for one event recieved from NDB.
+   @brief Unpack data for one event received from NDB.
 
    @note The data for each row is read directly into the destination buffer.
    This function is primarily called in order to check if any fields should be
@@ -5872,7 +5872,7 @@ void Ndb_binlog_thread::handle_data_unpack_record(TABLE *table,
           bitmap_clear_bit(defined, field_no);
         } else {
 #ifndef NDEBUG
-          // pointer vas set in handle_data_get_blobs
+          // pointer was set in handle_data_get_blobs
           Field_blob *field_blob = (Field_blob *)field;
           const uchar *ptr = field_blob->get_blob_data(row_offset);
           uint32 len = field_blob->get_length(row_offset);
@@ -5910,7 +5910,7 @@ int Ndb_binlog_thread::handle_error(NdbEventOperation *pOp) const {
 
 /**
    Inject an incident (aka. 'lost events' or 'gap') into the injector,
-   indicating that problem has occured while processing the event stream.
+   indicating that problem has occurred while processing the event stream.
 
    @param thd           The thread handle
    @param inj           Pointer to the injector
@@ -5948,7 +5948,7 @@ void Ndb_binlog_thread::inject_incident(
 }
 
 /**
-   @brief Handle one "non data" event recieved from NDB.
+   @brief Handle one "non data" event received from NDB.
 
    @param thd          The thread handle
    @param pOp          The NdbEventOperation that received data
@@ -6053,14 +6053,14 @@ static inline ndb_binlog_index_row *ndb_find_binlog_index_row(
 class injector_transaction : public injector::transaction {};
 
 /**
-   @brief Handle one data event recieved from NDB
+   @brief Handle one data event received from NDB
 
    @param pOp           The NdbEventOperation that received data
    @param rows          The rows which will be written to ndb_binlog_index
    @param trans         The injector transaction
    @param[out] trans_row_count       Counter for rows in event
    @param[out] replicated_row_count  Counter for replicated rows in event
-   @return 0 for sucess, other values (normally -1) for error
+   @return 0 for success, other values (normally -1) for error
  */
 int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
                                          ndb_binlog_index_row **rows,
@@ -6524,7 +6524,7 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
 
   if (event_type == NdbDictionary::Event::TE_INCONSISTENT ||
       event_type == NdbDictionary::Event::TE_OUT_OF_MEMORY) {
-    // Error has occured in event stream processing, inject incident
+    // Error has occurred in event stream processing, inject incident
     inject_incident(inj, thd, event_type, current_epoch);
 
     i_pOp = i_ndb->nextEvent2();
@@ -6561,7 +6561,7 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
 
     i_pOp = i_ndb->nextEvent2();
 
-    return true;  // OK, empty epoch handled (wheter committed or not)
+    return true;  // OK, empty epoch handled (whether committed or not)
   }
 
   // Handle non-empty epoch, process and inject all events in epoch
@@ -6761,7 +6761,7 @@ bool Ndb_binlog_thread::inject_apply_status_write(injector_transaction &trans,
   }
 
   /*
-    Intialize apply_status_table->record[0]
+    Initialize apply_status_table->record[0]
 
     When iterating past the end of the last epoch, the first event of
     the new epoch may be on ndb_apply_status.  Its event data saved
@@ -6931,7 +6931,7 @@ void Ndb_binlog_thread::commit_trans(injector_transaction &trans, THD *thd,
       THEN
         Don't write the Binlog transaction which just
         contains ndb_apply_status updates.
-        (For cicular rep with log_apply_status, ndb_apply_status
+        (For circular rep with log_apply_status, ndb_apply_status
         updates will propagate while some related, real update
         is propagating)
     */
@@ -7224,7 +7224,7 @@ restart_cluster_failure:
           Since the ndb binlog thread adds itself to the "global thread list"
           it need to look at the "killed" flag and stop the thread to avoid
           that the server hangs during shutdown while waiting for the "global
-          thread list" to be emtpy.
+          thread list" to be empty.
         */
         log_info(
             "Server shutdown detected while "
@@ -7356,7 +7356,7 @@ restart_cluster_failure:
      * The binlog-thread holds the injector_mutex when waiting for
      * pollEvents() - which is >99% of the elapsed time. As the
      * native mutex guarantees no 'fairness', there is no guarantee
-     * that another thread waiting for the mutex will immeditately
+     * that another thread waiting for the mutex will immediately
      * get the lock when unlocked by this thread. Thus this thread
      * may lock it again rather soon and starve the waiting thread.
      * To avoid this, my_thread_yield() is used to give any waiting
@@ -7404,7 +7404,7 @@ restart_cluster_failure:
       if (DBUG_EVALUATE_IF("ndb_binlog_injector_yield_before_schema_pollEvent",
                            true, false)) {
         /**
-         * Simulate that the binlog thread yields the CPU inbetween
+         * Simulate that the binlog thread yields the CPU in between
          * these two pollEvents, which can result in reading a
          * 'schema_gci > gci'. (Likely due to mutex locking)
          */
@@ -7418,7 +7418,7 @@ restart_cluster_failure:
       s_pOp = s_ndb->nextEvent();
 
       /*
-        Make sure we have seen any schema epochs upto the injector epoch,
+        Make sure we have seen any schema epochs up to the injector epoch,
         or we have an earlier schema event to handle.
       */
       while (s_pOp == NULL && i_epoch > schema_epoch && schema_res >= 0) {
@@ -7463,7 +7463,7 @@ restart_cluster_failure:
         Since the ndb binlog thread adds itself to the "global thread list"
         it need to look at the "killed" flag and stop the thread to avoid
         that the server hangs during shutdown while waiting for the "global
-        thread list" to be emtpy.
+        thread list" to be empty.
         In pre 5.6 versions the thread was also added to "global thread
         list" but the "global thread *count*" variable was not incremented
         and thus the same problem didn't exist.

@@ -85,7 +85,7 @@ class Gcs_xcom_node_address {
    A Gcs_xcom_node_address holds the representation IP:PORT of an XCom node.
    It is initialized with default values for IP = null and PORT = 0.
 
-   This method checks if this address contains valid values after a sucessfull
+   This method checks if this address contains valid values after a successful
    initialization or if it still contains the default ones.
 
    @return true if this contains values other than the default values

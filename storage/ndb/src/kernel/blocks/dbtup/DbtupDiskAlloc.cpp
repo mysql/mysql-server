@@ -301,7 +301,7 @@ Dbtup::Disk_alloc_info::calc_extent_pos(const Extent_info* extP) const
   /**
    * Find correct row based on total free space
    *   if zero (or very small free space) put 
-   *     absolutly last
+   *     absolutely last
    */
   {    
     const Uint32 *arr= m_total_extent_free_space_thresholds;
@@ -550,7 +550,7 @@ Dbtup::restart_setup_page(Ptr<Fragrecord> fragPtr,
 /**
  * - Page free bits -
  * 0 = 00 - free - 100% free
- * 1 = 01 - atleast one row free
+ * 1 = 01 - at least one row free
  * 2 = 10 - full
  * 3 = 11 - full
  *
@@ -666,7 +666,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
       jamEntry();
       /**
        * The current extent is not in a free list
-       *   and since it couldn't accomodate the request
+       *   and since it couldn't accommodate the request
        *   we put it on the free list per state (so also
        *   a full page is in one of the m_free_extents
        *   lists).

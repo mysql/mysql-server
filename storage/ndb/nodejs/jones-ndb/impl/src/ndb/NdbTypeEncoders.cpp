@@ -343,7 +343,7 @@ memcpy(buf, &tmp_value, sizeof(tmp_value));
       *****                                         *****
          *****              Utilities            *****/
 
-/* File-scope global return from succesful write encoders: 
+/* File-scope global return from successful write encoders: 
 */
 template <typename INTSZ> Local<Value> checkNumber(double);
 
@@ -421,7 +421,7 @@ inline void writeUnsignedMedium(uint8_t * cbuf, uint32_t mval) {
 }
 
 /* bigendian utilities, used with the wl#946 temporal types.
-   Derived from ndb/src/comon/util/NdbSqlUtil.cpp
+   Derived from ndb/src/common/util/NdbSqlUtil.cpp
 */
 static uint64_t unpack_bigendian(const char * buf, unsigned int len) {
   uint64_t val = 0;

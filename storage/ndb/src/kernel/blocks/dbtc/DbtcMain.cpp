@@ -2741,7 +2741,7 @@ void Dbtc::execATTRINFO(Signal* signal)
                                signal->theData+1) == false))
   {
     jam();
-    DEBUG("Drop ATTRINFO, wrong transid, lenght="<<Tlength
+    DEBUG("Drop ATTRINFO, wrong transid, length="<<Tlength
           << " transid("<<hex<<signal->theData[1]<<", "<<signal->theData[2]);
     return;
   }//if
@@ -3720,7 +3720,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   regCachePtr->m_op_queue = Tqueue;
 
   //-------------------------------------------------------------
-  // The next step is to read the upto three conditional words.
+  // The next step is to read the up to three conditional words.
   //-------------------------------------------------------------
   Uint32 TkeyIndex;
   Uint32* TOptionalDataPtr = (Uint32*)&tcKeyReq->scanInfo;
@@ -4151,7 +4151,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal,
     if (regTcPtr->operation == ZREAD)
     {
       /**
-       * inform DIH if TreadAny is even relevent...so it does not have to loop
+       * inform DIH if TreadAny is even relevant...so it does not have to loop
        *   unless really needing to...
        */
       if (regTcPtr->dirtyOp || regTcPtr->opSimple ||
@@ -4540,10 +4540,10 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal,
         /* Round robin the SPJ requests:
          *
          * Note that our protocol allows non existing block instances
-         * to be adressed, in which case the receiver will modulo fold
+         * to be addressed, in which case the receiver will modulo fold
          * among the existing SPJ instances.
          * Distribute among 120 'virtual' SPJ blocks as this is dividable
-         * by most commom number of SPJ blocks (1,2,3,4,5,6,8,10...)
+         * by most common number of SPJ blocks (1,2,3,4,5,6,8,10...)
          */
         const Uint32 blockInstance = (cspjInstanceRR++ % 120) + 1;
         lqhRef = numberToRef(DBSPJ, blockInstance, Tnode);
@@ -5018,7 +5018,7 @@ void Dbtc::releaseDirtyRead(Signal* signal,
 
   /**
    * No LQHKEYCONF in Simple/Dirty read
-   * Therefore decrese no LQHKEYCONF(REF) we are waiting for
+   * Therefore decrease no LQHKEYCONF(REF) we are waiting for
    */
   c_counters.csimpleReadCount++;
   apiConnectptr.p->lqhkeyreqrec = --Tlqhkeyreqrec;
@@ -5414,7 +5414,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   /*------------------------------------------------------------------------
    * NUMBER OF EXTERNAL TRIGGERS FIRED IN DATA[6] 
    * OPERATION IS NOW COMPLETED. CHECK FOR CORRECT OPERATION POINTER  
-   * TO ENSURE NO CRASHES BECAUSE OF ERRONEUS NODES. CHECK STATE OF   
+   * TO ENSURE NO CRASHES BECAUSE OF ERRONEOUS NODES. CHECK STATE OF   
    * OPERATION. THEN SET OPERATION STATE AND RETRIEVE ALL POINTERS    
    * OF THIS OPERATION. PUT COMPLETED OPERATION IN LIST OF COMPLETED  
    * OPERATIONS ON THE LQH CONNECT RECORD.                          
@@ -5844,7 +5844,7 @@ void Dbtc::setupIndexOpReturn(ApiConnectRecord* regApiPtr,
  *
  * This functions checks state variables, and
  *   decides if it should wait for more LQHKEYCONF signals
- *   or if it should start commiting
+ *   or if it should start committing
  */
 void
 Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
@@ -6837,7 +6837,7 @@ void Dbtc::execCOMMITTED(Signal* signal)
     systemErrorLab(signal, __LINE__);
   }//if
   /*-------------------------------------------------------*/
-  /* THE ENTIRE TRANSACTION IS NOW COMMITED                */
+  /* THE ENTIRE TRANSACTION IS NOW COMMITTED               */
   /* NOW WE NEED TO SEND THE RESPONSE TO THE APPLICATION.  */
   /* THE APPLICATION CAN THEN REUSE THE API CONNECTION AND */
   /* THEREFORE WE NEED TO MOVE THE API CONNECTION TO A     */
@@ -9309,7 +9309,7 @@ void Dbtc::checkStartFragTimeout(Signal* signal)
 The algorithm used here is to check 1024 transactions at a time before
 doing a real-time break.
 To avoid aborting both transactions in a deadlock detected by time-out
-we insert a random extra time-out of upto 630 ms by using the lowest
+we insert a random extra time-out of up to 630 ms by using the lowest
 six bits of the api connect reference.
 We spread it out from 0 to 630 ms if base time-out is larger than 3 sec,
 we spread it out from 0 to 70 ms if base time-out is smaller than 300 msec,
@@ -9961,7 +9961,7 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck, ApiConnectRecordP
       {
 	jam();
 	/**
-	 * We sent atleast one ABORT/ABORTED
+	 * We sent at least one ABORT/ABORTED
 	 *   or ZABORT_TIMEOUT_BREAK is in job buffer
 	 *   wait for reception...
 	 */
@@ -13363,7 +13363,7 @@ bool Dbtc::testFragmentDrop(Signal* signal)
       scan.  Then it starts the scan as soon as the load on that node permits. 
    
   The LQH returns either when it retrieved the maximum number of tuples or 
-  when it has retrived at least one tuple and is hindered by a lock to
+  when it has retrieved at least one tuple and is hindered by a lock to
   retrieve the next tuple.  This is to ensure that a scan process never 
   can be involved in a deadlock situation.   
 
@@ -14167,7 +14167,7 @@ void Dbtc::sendDihGetNodesLab(Signal* signal,
   /**
    * Note that the above checkTable() and scanState checking is
    * sufficient for all sendDihGetNodeReq's below: As EXECUTE_DIRECT
-   * is used, there cant be any other signals processed inbetween
+   * is used, there can't be any other signals processed in between
    * which close the scan, or drop the table.
    */
   bool is_multi_spj_scan =
@@ -14568,7 +14568,7 @@ bool Dbtc::sendDihGetNodeReq(Signal* signal,
     //SPJ instance is set together with qsort'ing of m_fragLocations
     blockInstance = 0;
   }
-  // Prefer own TC/SPJ intance if a single request to ownNodeId
+  // Prefer own TC/SPJ instance if a single request to ownNodeId
   else if (nodeId == ownNodeId &&        //Request to ownNodeId
            scanptr.p->scanNoFrag == 1)   //Pruned to single fragment
   {
@@ -14690,7 +14690,7 @@ void Dbtc::sendFragScansLab(Signal* signal,
   /**
    * Note that the above checkTable() and scanState checking is
    * sufficient for all the sendScanFragReq's below:
-   * Table or scanState can not change while we are in controll.
+   * Table or scanState can not change while we are in control.
    * sendScanFragReq() itself can fail, possibly closing the scan.
    * However, that is caught by checking its return value.
    */
@@ -14731,7 +14731,7 @@ void Dbtc::sendFragScansLab(Signal* signal,
           jamDebug();
           /**
            * A max fanout of 1::4 of consumed::produced signals are allowed.
-           * If we are about to produce more, we have to contine later.
+           * If we are about to produce more, we have to continue later.
            */
 	  if (cntLocSignals > 4)
           {
@@ -19939,7 +19939,7 @@ void Dbtc::execTRANSID_AI(Signal* signal)
   c_apiConnectRecordPool.getPtr(transPtr);
   ApiConnectRecord * const regApiPtr = transPtr.p;
 
-  // Acccumulate attribute data
+  // Accumulate attribute data
   SectionHandle handle(this, signal);
   bool longSignal = (handle.m_cnt == 1);
   Uint32 errorCode = ZOK;
@@ -20199,7 +20199,7 @@ void Dbtc::readIndexTable(Signal* signal,
   {
     jam();
     /**
-     * "Fool" TC not to start commiting transaction since it always will
+     * "Fool" TC not to start committing transaction since it always will
      *   have one outstanding lqhkeyreq
      * This is later decreased when the index read is complete
      */ 
@@ -21018,7 +21018,7 @@ Dbtc::executeFKParentTrigger(Signal* signal,
    * Foreign key parent triggers can only exist with indexes.
    * If no bit is set then the index is a primary key, if
    * no primary index exists for the reference then a unique
-   * index is choosen in which case the bit FK_CHILD_UI is set.
+   * index is chosen in which case the bit FK_CHILD_UI is set.
    * If neither a primary index nor a unique index is present
    * then an ordered index is used in which case the
    * bit FK_CHILD_OI is set. If neither an ordered index is present
@@ -21143,7 +21143,7 @@ Dbtc::fk_readFromChildTable(Signal* signal,
     jam();
     /**
      * Let an update/delete triggers be made with same save point
-     *   as operation it orginated from.
+     *   as operation it originated from.
      */
     regApiPtr->currSavePointId = opRecord->savePointId;
     if (fkData->childTableId != fkData->childIndexId)
@@ -21938,7 +21938,7 @@ Dbtc::fk_scanFromChildTable_abort(Signal* signal,
   ndbrequire(scanApiConnectPtr.p->ndbapiConnect == tcPtr.i);
   /**
    * Check that the scan has not already completed
-   * - so we can abort aggresively
+   * - so we can abort aggressively
    */
   if (scanApiConnectPtr.p->apiConnectstate != CS_START_SCAN)
   {

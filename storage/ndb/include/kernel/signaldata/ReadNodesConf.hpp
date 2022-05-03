@@ -96,7 +96,7 @@ private:
   NdbNodeBitmask definedNodes;
 
   /**
-   * This array describes wheather the nodes are currently active
+   * This array describes whether the nodes are currently active
    *
    * NOTE Not valid when send from Qmgr
    */
@@ -155,7 +155,7 @@ private:
   };
 
   /**
-   * This array describes wheather the nodes are currently active
+   * This array describes whether the nodes are currently active
    *
    * NOTE Not valid when send from Qmgr
    */

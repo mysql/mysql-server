@@ -87,7 +87,7 @@ class Ndb_util_table {
      @brief Define the NdbApi table definition
      @param table NdbApi table to populate
      @param mysql_version Force the table to be defined as it looked in
-     a specifc MySQL version. This is primarily used for testing of upgrade.
+     a specific MySQL version. This is primarily used for testing of upgrade.
      @return true if definition was filled without problem
    */
   virtual bool define_table_ndb(NdbDictionary::Table &table,

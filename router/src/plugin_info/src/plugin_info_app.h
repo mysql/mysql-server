@@ -96,7 +96,7 @@ class PluginInfoFrontend final {
 
   /**
    * Executes the action requested from the application with the
-   * parameters passed to the contructor.
+   * parameters passed to the constructor.
    *
    * Note: Redirects the output to the streams provided to the constructor.
    *

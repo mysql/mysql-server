@@ -366,7 +366,7 @@ NdbLinHash<C>::expandHashTable( void )
   Uint32		newadress = maxp + p;
 
 
-  // Still room in the adress space?
+  // Still room in the address space?
   if( newadress >= DIRECTORYSIZE * SEGMENTSIZE ) {
     return;
   }  

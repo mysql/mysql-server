@@ -28,7 +28,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  This file contains low level functions which deals with physical index of
  fields in a physical record.
 
- After INSTANT ADD/DROP feture, fields index on logical record might not be
+ After INSTANT ADD/DROP feature, fields index on logical record might not be
  same as field index on physical record. So a wrapper (rem0wrec.h) is
  implemented which translates logical index to physical index. And then
  functions of this file are called with physical index of the field.

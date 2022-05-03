@@ -353,7 +353,7 @@ bool check_primary_key_alter_restrictions(THD *thd, handlerton *se_handlerton,
       column is allowed. Other operations are restricted.
 
       For sure table has a generated invisible primary key at this stage, so it
-      is OK to just check first column's defination and only name of the
+      is OK to just check first column's definition and only name of the
       column to identify generated invisible primary key column.
 
       Furthermore, by checking that GIPK column is the first column in table

@@ -43,8 +43,8 @@ class EventlogHandler final : public mysql_harness::logging::Handler {
 
   /** @brief Constructor
    *
-   * It add apropriate entries to the Windows registry and registers the Router
-   * as the eventlog messsages source.
+   * It adds appropriate entries to the Windows registry and registers the Router
+   * as the event log messages source.
    *
    * @param format_messages flag indicating if the logged messages should be
    * formatted

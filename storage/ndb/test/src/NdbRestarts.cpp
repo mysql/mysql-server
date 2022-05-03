@@ -55,7 +55,7 @@ int getRandomNodeId(NdbRestarter& _restarter);
 /**
  * Define list of restarts
  *  - name of restart
- *  - function perfoming the restart
+ *  - function performing the restart
  *  - required number of nodes
  *  - required number of node groups
  *  - ...
@@ -107,7 +107,7 @@ const NdbRestarts::NdbRestart NdbRestarts::m_restarts[] = {
 	     2,
 	     1),
   /**
-   * Restart a randomly selected node without fileystem
+   * Restart a randomly selected node without file system
    *
    */ 
   NdbRestart("RestartRandomNodeInitial",
@@ -289,7 +289,7 @@ int NdbRestarts::executeRestart(NDBT_Context* ctx,
   }
 
   if (restarter.waitClusterStarted(120) != 0){
-    // If cluster is not started when we shall peform restart
+    // If cluster is not started when we shall perform restart
     // the restart can not be executed and the test fails
     g_err << "Wait cluster start 120 secs failed" << endl;
     return NDBT_FAILED;

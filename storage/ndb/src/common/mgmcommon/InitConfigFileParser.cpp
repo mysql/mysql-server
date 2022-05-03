@@ -209,7 +209,7 @@ InitConfigFileParser::run_config_rules(Context& ctx)
       BaseString::snprintf(ctx.fname, sizeof(ctx.fname),
                            "%s", tmp[j].m_sectionType.c_str());
       ctx.type             = InitConfigFileParser::Section;
-      //Memory that belongs to m_sectionData is transfered to
+      //Memory that belongs to m_sectionData is transferred to
       //ctx.m_currentSection and will be released by ctx.
       ctx.m_currentSection = tmp[j].m_sectionData;
       tmp[j].m_sectionData = NULL;

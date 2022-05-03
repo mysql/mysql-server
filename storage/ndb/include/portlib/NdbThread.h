@@ -98,7 +98,7 @@ void NdbThread_Destroy(struct NdbThread** p_thread);
  *
  * * p_wait_thread, pointer to the thread to wait for
  * * status: exit code from thread waited for
- * * returnvalue: true = succeded, false = failed
+ * * returnvalue: true = succeeded, false = failed
  */
 int NdbThread_WaitFor(struct NdbThread* p_wait_thread, void** status);      
 

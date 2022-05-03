@@ -80,7 +80,7 @@ private:
   /**
    * If directory = 1
    *
-   * 0 = remove only files/direcories in directory specified in fileNumber
+   * 0 = remove only files/directories in directory specified in fileNumber
    * 1 = remove directory specified in fileNumber
    */
   UintR ownDirectory;

@@ -295,7 +295,7 @@ namespace ib {
 
 /** For measuring time elapsed. Since std::chrono::high_resolution_clock
 may be influenced by a change in system time, it might not be steady.
-So we use std::chrono::steady_clock for ellapsed time. */
+So we use std::chrono::steady_clock for elapsed time. */
 class Timer {
  public:
   using SC = std::chrono::steady_clock;

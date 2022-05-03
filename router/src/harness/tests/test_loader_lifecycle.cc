@@ -1908,7 +1908,7 @@ TEST_F(LifecycleTest, wait_for_stop) {
   //   will be called. stop() makes a call to wait_for_stop(<big
   //   timeout value>). Since this time around, Router is
   //   already in the "stopping" state, the function SHOULD exit
-  //   immediately, returing control back to stop(), which just
+  //   immediately, returning control back to stop(), which just
   //   exits after.
   config_text_ << "stop  = exitonstop_longtimeout\n";
 
@@ -2003,7 +2003,7 @@ TEST_F(LifecycleTest, wait_for_stop) {
     //
     // We don't bother #ifdef-ing the timeout for OSX, because
     // in principle, many/all non-RT OSes probably have no tight
-    // guarrantees for wait_for() just like OSX, and an
+    // guarantees for wait_for() just like OSX, and an
     // excessive timeout value does not slow down the test run
     // time.
 

@@ -66,12 +66,12 @@ public:
 			  NDB_INDEX_OPERATION = 3,
                           NDB_QUERY_OPERATION = 4
   };
-  
+
   NdbReceiver(Ndb *aNdb);
   int init(ReceiverType type, void* owner);
   void release();
   ~NdbReceiver();
-  
+
   Uint32 getId() const{
     return m_id;
   }
@@ -79,19 +79,19 @@ public:
   ReceiverType getType() const {
     return m_type;
   }
- 
+
   inline NdbTransaction * getTransaction(ReceiverType type) const;
   void* getOwner() const {
     return m_owner;
   }
-  
+
   bool checkMagicNumber() const;
   static Uint32 getMagicNumber() { return (Uint32)0x11223344; }
   Uint32 getMagicNumberFromObject() const;
 
   inline void next(NdbReceiver* next_arg) { m_next = next_arg;}
   inline NdbReceiver* next() { return m_next; }
-  
+
   void setErrorCode(int);
 
   /**
@@ -140,13 +140,13 @@ private:
                             Uint32& batch_byte_size) const;
 
   /**
-   * Calculate size of result buffer which has to be 
-   * allocated for a buffered result set, and later given to 
+   * Calculate size of result buffer which has to be
+   * allocated for a buffered result set, and later given to
    * initReceiveBuffer() as 'buffer' argument.
    *
    * The 'batch_rows' and 'batch_bytes' argument may have been
    * set by 'calculate_batch_size'. On return from this method
-   * the 'batch_bytes' size may be capped to the max possible 
+   * the 'batch_bytes' size may be capped to the max possible
    * batch size if 'batch_rows' are returned.
    */
   static
@@ -158,8 +158,8 @@ private:
                       bool   read_correlation,
                       Uint32 parallelism,
                       Uint32  batch_rows,    //In:     'REQ' argument to TC
-                      Uint32& batch_bytes,   //In/Out: 'REQ' Argument to TC 
-                      Uint32& buffer_bytes); //Out:     ReceiveBuffer size  
+                      Uint32& batch_bytes,   //In/Out: 'REQ' Argument to TC
+                      Uint32& buffer_bytes); //Out:     ReceiveBuffer size
 
   /*
     Set up buffers for receiving TRANSID_AI and KEYINFO20 signals
@@ -180,7 +180,7 @@ private:
                            bool  read_range_no);
 
   int execKEYINFO20(Uint32 info, const Uint32* ptr, Uint32 len);
-  int execTRANSID_AI(const Uint32* ptr, Uint32 len); 
+  int execTRANSID_AI(const Uint32* ptr, Uint32 len);
   int execTCOPCONF(Uint32 len);
   int execSCANOPCONF(Uint32 tcPtrI, Uint32 len, Uint32 rows);
 
@@ -200,7 +200,7 @@ private:
                                            Uint32 * aLength);
 
   /* Convert from packed transporter to NdbRecord / RecAttr format. */
-  int unpackRow(const Uint32* ptr, Uint32 len, char* row); 
+  int unpackRow(const Uint32* ptr, Uint32 len, char* row);
 
   /* NdbRecord describing row layout expected by API */
   const NdbRecord *m_ndb_record;
@@ -212,7 +212,7 @@ private:
   NdbReceiverBuffer *m_recv_buffer;
 
   /**
-   * m_read_range_no & m_read_key_info is true if we are reading 
+   * m_read_range_no & m_read_key_info is true if we are reading
    * range / keyinfo as part of scans.
    */
   bool m_read_range_no;
@@ -230,7 +230,7 @@ private:
   /* Savepoint for unprocessed RecAttr data from current row. */
   const Uint32* m_rec_attr_data;
   Uint32        m_rec_attr_len;
-  
+
   /*
     When an NdbReceiver is sitting in the NdbScanOperation::m_sent_receivers
     array, waiting to receive TRANSID_AI data from the kernel, its index into
@@ -239,7 +239,7 @@ private:
   */
   Uint32 m_list_index;
   /*
-    m_current_row holds the next row / key to be delivered to 
+    m_current_row holds the next row / key to be delivered to
     the application.
   */
   Uint32 m_current_row;
@@ -259,7 +259,7 @@ private:
    * On failure UINT32_MAX is returned.
    */
   static
-  Uint32 unpackRecAttr(NdbRecAttr**, Uint32 bmlen, 
+  Uint32 unpackRecAttr(NdbRecAttr**, Uint32 bmlen,
                        const Uint32* aDataPtr, Uint32 aLength);
 
   /**
@@ -282,17 +282,17 @@ private:
                        const Uint32* aDataPtr,
                        Uint32 aLength);
 
-  
+
   /**
    * Unpack data for the specified 'row' previously stored into
    * the 'buffer'. Handles both the row in NdbRecord format, and
-   * the key recieved as KEYINFO, if present.
+   * the key received as KEYINFO, if present.
    */
   const char *unpackBuffer(const NdbReceiverBuffer *buffer, Uint32 row);
 
   /**
-   * Result set is navigated either sequentialy or randomly to a 
-   * specific row. The NdbRecord contents is then unpacked into 
+   * Result set is navigated either sequentially or randomly to a
+   * specific row. The NdbRecord contents is then unpacked into
    * 'm_row_buffer' and returned. KeyInfo, Range no and RecAttr
    * values may be retrieved by specific calls below.
    */
@@ -318,7 +318,7 @@ private:
 #endif
 
 inline
-bool 
+bool
 NdbReceiver::checkMagicNumber() const {
   bool retVal = (theMagicNumber == getMagicNumber());
 #ifdef NDB_NO_DROPPED_SIGNAL

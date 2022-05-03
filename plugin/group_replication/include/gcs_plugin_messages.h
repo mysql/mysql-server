@@ -152,7 +152,7 @@ class Plugin_gcs_message {
     CT_GROUP_VALIDATION_MESSAGE = 9,
 
     // This cargo type is used for synchronization before executing a
-    // transation.
+    // transaction.
     CT_SYNC_BEFORE_EXECUTION_MESSAGE = 10,
 
     // This cargo type is used for transaction data with guarantee.

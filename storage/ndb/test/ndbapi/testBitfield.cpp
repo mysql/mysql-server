@@ -228,7 +228,7 @@ system_restart(Ndb* pNdb, const NdbDictionary::Table* tab)
   return 0;
 }
 
-/* Note : folowing classes test functionality of storage/ndb/src/common/util/Bitmask.cpp
+/* Note : following classes test functionality of storage/ndb/src/common/util/Bitmask.cpp
  * and were originally defined there.
  * Set BITMASK_DEBUG to 1 to get more test debugging info.
  */
@@ -555,7 +555,7 @@ testRanges(Uint32 bitmask_size)
       tmp.fill(sz32, zero);
 
       // Bit was free
-      // 1) Check how much space is avaiable
+      // 1) Check how much space is available
       // 2) Create new allocation of lrandom size
       // 3) Fill data with lrandom data
       // 4) Update alloc mask

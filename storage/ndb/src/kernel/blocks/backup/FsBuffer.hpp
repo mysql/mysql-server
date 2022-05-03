@@ -116,7 +116,7 @@ public:
   void eof();
 
   /**
-   * Getters for varibles
+   * Getters for variables
    */
   Uint32 getMaxWrite() const { return m_maxWrite;}
   Uint32 getMinRead() const { return m_minRead;}

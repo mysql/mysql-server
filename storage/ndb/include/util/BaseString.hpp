@@ -87,7 +87,7 @@ public:
   BaseString& assign(const BaseString& str, size_t n);
 
   /** 
-   * Assings from a Vector of BaseStrings, each Vector entry
+   * Assigns from a Vector of BaseStrings, each Vector entry
    * separated by separator.
    *
    * @param vector Vector of BaseStrings to append
@@ -161,7 +161,7 @@ public:
         int maxSize = -1) const;
 
   /**
-   * Returns the index of the first occurance of the character c.
+   * Returns the index of the first occurrence of the character c.
    *
    * @params c character to look for
    * @params pos position to start searching from
@@ -170,7 +170,7 @@ public:
   ssize_t indexOf(char c, size_t pos = 0) const;
 
   /**
-   * Returns the index of the first occurance of the string needle
+   * Returns the index of the first occurrence of the string needle
    *
    * @params needle string to search for
    * @params pos position to start searching from
@@ -179,7 +179,7 @@ public:
   ssize_t indexOf(const char * needle, size_t pos = 0) const;
 
   /**
-   * Returns the index of the last occurance of the character c.
+   * Returns the index of the last occurrence of the character c.
    *
    * @params c character to look for
    * @returns index of character, of -1 if no character found

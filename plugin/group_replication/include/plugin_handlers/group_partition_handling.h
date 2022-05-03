@@ -88,7 +88,7 @@ class Group_partition_handling {
 
   /**
     @return the configured timeout
-      @retval 0  The partition thread wont run or timeout.
+      @retval 0  The partition thread won't run or timeout.
       @retval >0 After this seconds the plugin will move to ERROR in a minority
   */
   ulong get_timeout_on_unreachable();

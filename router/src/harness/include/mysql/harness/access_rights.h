@@ -120,7 +120,7 @@ using LocalAllocated = std::unique_ptr<T, LocalDeleter>;
  * - allocate and free
  *
  * Uses LocalFree() to free its owned memory which makes it suitable
- * win32 APIs which explict "must be freed with LocalFree()".
+ * win32 APIs which explicitly "must be freed with LocalFree()".
  */
 template <class T>
 class Allocated {

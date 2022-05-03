@@ -122,7 +122,7 @@
  * Future note: One could compress block and encrypt that and then pad with
  * zeros to block size again.  This would keep block size also after
  * compression, but this would only be useful if underlying storage can avoid
- * storing the zero-padding.  Another aproach could be to compress a block and
+ * storing the zero-padding.  Another approach could be to compress a block and
  * then write a preamble with the compressed size before writing the compressed
  * data.
  *
@@ -406,7 +406,7 @@ inline size_t ndbxfrm_file::get_random_access_block_size() const
 #if !defined(NDEBUG)
     /*
      * If both compression and encryption is activated, and compression allows
-     * random access, then it is assummed that encryption also allows random
+     * random access, then it is assumed that encryption also allows random
      * access for same alignment.
      */
     if (alignment > 0 && m_encrypted)

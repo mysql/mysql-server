@@ -78,9 +78,9 @@ public:
   virtual ~Properties();
 
   /**
-   * Set/Get wheather names in the Properties should be compared 
+   * Set/Get whether names in the Properties should be compared 
    * w/o case.
-   * NOTE: The property is automatically applied to all propoerties put
+   * NOTE: The property is automatically applied to all properties put
    *       into this after a called to setCaseInsensitiveNames has been made
    *       But properties already in when calling setCaseInsensitiveNames will
    *       not be affected
@@ -221,7 +221,7 @@ extern const Uint32 E_PROPERTIES_INVALID_VERSION_WHILE_UNPACKING;
  * When unpacking an buffer
  *  found that buffer is to short
  *
- * Probably an invlaid buffer
+ * Probably an invalid buffer
  */
 extern const Uint32 E_PROPERTIES_INVALID_BUFFER_TO_SHORT;
 

@@ -1713,7 +1713,7 @@ LocalProxy::sendAPI_FAILREQ(Signal* signal, Uint32 nodeId, SectionHandle*)
    *                                     \       /
    *                                       Proxy
    *
-   * Depening on the order the queues are processed, the
+   * Depending on the order the queues are processed, the
    * API_FAILREQ may then be processed by the Block-instance
    * before a API-request from the failed node - Which is
    * not what we want.
@@ -1721,7 +1721,7 @@ LocalProxy::sendAPI_FAILREQ(Signal* signal, Uint32 nodeId, SectionHandle*)
    * Thus we let any proxies receiving a API_FAILREQ, route it
    * back to the recv/TRPMAN. There it will be inserted in
    * the same queue as the API-requests, and thus remove the
-   * posibilities for being overtaken:
+   * possibilities for being overtaken:
    *
    *  Routed-API_FAILREQ: recv/TRPMAN-thread
    *                                     \

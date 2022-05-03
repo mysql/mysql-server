@@ -1181,7 +1181,7 @@ bool Gcs_xcom_control::xcom_receive_local_view(synode_no const config_id,
       Identify which nodes are alive and which are considered faulty.
 
       Note that there may be new nodes that are marked as faulty because the
-      connections among their peers are still beeing established.
+      connections among their peers are still being established.
     */
     build_total_members(xcom_nodes, alive_members, failed_members);
 
@@ -1398,7 +1398,7 @@ bool Gcs_xcom_control::xcom_receive_global_view(synode_no const config_id,
     Identify which nodes are alive and which are considered faulty.
 
     Note that there may be new nodes that are marked as faulty because the
-    connections among their peers are still beeing established.
+    connections among their peers are still being established.
   */
   build_total_members(xcom_nodes, alive_members, failed_members);
 

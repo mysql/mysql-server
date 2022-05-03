@@ -36,7 +36,7 @@
 
   The global structure requires locking to prevent that channels
   are added or removed by concurrent replication setup commands while
-  accesing it.
+  accessing it.
 
   So far the cluster replication only works with the default channel.
 */

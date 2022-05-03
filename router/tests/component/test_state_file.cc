@@ -740,7 +740,7 @@ class StateFileSchemaTest
 /**
  * @test
  *      Verify that the proper error gets logged and the Router shuts down in
- * case of various configuration mimatches.
+ * case of various configuration mismatches.
  */
 TEST_P(StateFileSchemaTest, ParametrizedStateFileSchemaTest) {
   auto test_params = GetParam();
@@ -1125,7 +1125,7 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
 
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS));
 
-  // check the state file that was produced, if it constains
+  // check the state file that was produced, if it contains
   // what the bootstrap server has reported
   const std::string state_file = temp_test_dir.name() + "/data/state.json";
   check_state_file(state_file, ClusterType::GR_V1,
@@ -1185,7 +1185,7 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
 
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS));
 
-  // check the state file that was produced, if it constains
+  // check the state file that was produced, if it contains
   // what the bootstrap server has reported
   const std::string state_file =
       RouterSystemLayout::tmp_dir_ + "/stage/var/lib/mysqlrouter/state.json";

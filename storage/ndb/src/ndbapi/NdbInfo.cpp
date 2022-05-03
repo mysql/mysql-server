@@ -324,7 +324,7 @@ bool NdbInfo::load_tables()
     }
   }
 
-  // After sucessfull load of the tables, set connect count
+  // After successful load of the tables, set connect count
   // and the min db version of cluster
   m_connect_count = m_connection->get_connect_count();
   m_min_db_version = m_connection->get_min_db_version();

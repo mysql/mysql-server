@@ -550,7 +550,7 @@ class Query_term_unary : public Query_term_set_op {
 /**
   Containing class for iterator over the query term tree. The structure is
   in part dictated by C++ conventions for iterators.
-  @tparam visit_order indicates whther pre or post order visiting is requested
+  @tparam visit_order indicates whether pre or post order visiting is requested
   @tparam visit_leaves indicated whether to visit the leaf nodes (query blocks)
 */
 template <Visit_order visit_order, Visit_leaves visit_leaves>

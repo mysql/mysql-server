@@ -897,7 +897,7 @@ static int handle_row_conflict(
     const NdbError &conflict_error, NdbTransaction *conflict_trans,
     const MY_BITMAP *write_set, Uint64 transaction_id);
 
-// Error code returned when "refresh occurrs on a refreshed row"
+// Error code returned when "refresh occurs on a refreshed row"
 static constexpr int ERROR_OP_AFTER_REFRESH_OP = 920;
 
 static inline int check_completed_operations_pre_commit(
@@ -2056,7 +2056,7 @@ NDB_INDEX_DATA::Attrid_map::Attrid_map(const KEY *key_info,
   const KEY_PART_INFO *end = key_part + key_info->user_defined_key_parts;
   for (; key_part != end; key_part++) {
     // As NdbColumnImpl::m_keyInfoPos isn't available through
-    // NDB API it has to be calculated, else it could have been retrived with
+    // NDB API it has to be calculated, else it could have been retrieved with
     //   table->getColumn(key_part->fieldnr-1)->m_impl.m_keyInfoPos;
 
     if (key_part->fieldnr < columnnr) {
@@ -2773,7 +2773,7 @@ bool ha_ndbcluster::primary_key_is_clustered() const {
 
   /*
     NOTE 1: our ordered indexes are not really clustered
-    but since accesing data when scanning index is free
+    but since accessing data when scanning index is free
     it's a good approximation
 
     NOTE 2: We really should consider DD attributes here too
@@ -2856,7 +2856,7 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd, const uchar *old_data,
 
 #ifndef NDEBUG
   /*
-   * 'old_data' contain colums as specified in 'read_set'.
+   * 'old_data' contains columns as specified in 'read_set'.
    * All PK columns must be included for ::ndb_delete_row()
    */
   assert(bitmap_is_subset(m_pk_bitmap_p, table->read_set));
@@ -3206,7 +3206,7 @@ int ha_ndbcluster::scan_handle_lock_tuple(NdbScanOperation *scanOp,
     /*
       Lock level m_lock.type either TL_WRITE_ALLOW_WRITE
       (SELECT FOR UPDATE) or TL_READ_WITH_SHARED_LOCKS (SELECT
-      LOCK WITH SHARE MODE) and row was not explictly unlocked
+      LOCK WITH SHARE MODE) and row was not explicitly unlocked
       with unlock_row() call
     */
     DBUG_PRINT("info", ("Keeping lock on scanned row"));
@@ -4155,7 +4155,7 @@ void ha_ndbcluster::get_read_set(bool use_cursor, uint idx [[maybe_unused]]) {
    * partition spec as they are used by
    * ::get_parts_for_update() / ::get_parts_for_delete()
    * Part. columns are always part of PK, so we only
-   * have to do this if pk_bitmap wasnt added yet,
+   * have to do this if pk_bitmap wasn't added yet,
    */
   else if (m_use_partition_pruning)  // && m_user_defined_partitioning)
   {
@@ -4171,8 +4171,8 @@ void ha_ndbcluster::get_read_set(bool use_cursor, uint idx [[maybe_unused]]) {
    * NOTE: This is NOT required for the correctness
    *       of the update operation itself. Maybe we
    *       should consider other strategies, like
-   *       defering reading of the column values
-   *       until formating the error message.
+   *       deferring reading of the column values
+   *       until formatting the error message.
    */
   if (is_update && m_has_unique_index) {
     for (uint i = 0; i < table_share->keys; i++) {
@@ -5684,7 +5684,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   options.optionsPresent = 0;
 
   /* Need to set the value of any user-defined partitioning function.
-     (excecpt for when using unique index)
+     (except for when using unique index)
   */
   if (m_user_defined_partitioning && !skip_partition_for_unique_index) {
     if (func_value >= INT_MAX32)
@@ -5775,7 +5775,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
         return error;
 
       if (unlikely(conflict_handled)) {
-        /* No need to continue with operation defintion */
+        /* No need to continue with operation definition */
         /* TODO : Ensure batch execution */
         return 0;
       }
@@ -6607,7 +6607,7 @@ int ha_ndbcluster::close_scan() {
   if (m_thd_ndb->m_unsent_bytes) {
     /*
       Take over any pending transactions to the
-      deleteing/updating transaction before closing the scan
+      deleting/updating transaction before closing the scan
     */
     DBUG_PRINT("info", ("thd_ndb->m_unsent_bytes: %ld",
                         (long)m_thd_ndb->m_unsent_bytes));
@@ -6683,14 +6683,14 @@ int ha_ndbcluster::rnd_pos(uchar *buf, uchar *pos) {
     if (res == HA_ERR_KEY_NOT_FOUND) {
       /**
        * When using rnd_pos
-       *   server first retrives a set of records (typically scans them)
+       *   server first retrieves a set of records (typically scans them)
        *   and store a unique identifier (for ndb this is the primary key)
-       *   and later retreives the record again using rnd_pos and the
+       *   and later retrieves the record again using rnd_pos and the
        *   saved primary key. For ndb, since we only support committed read
        *   the record could have been deleted in between the "save" and
        *   the rnd_pos.
-       *   Therefor we return HA_ERR_RECORD_DELETED in this case rather than
-       *   HA_ERR_KEY_NOT_FOUND (which will cause statment to be aborted)
+       *   Therefore we return HA_ERR_RECORD_DELETED in this case rather than
+       *   HA_ERR_KEY_NOT_FOUND (which will cause statement to be aborted)
        *
        */
       res = HA_ERR_RECORD_DELETED;
@@ -7524,7 +7524,7 @@ int ha_ndbcluster::start_statement(THD *thd, Thd_ndb *thd_ndb,
       m_thd_ndb->m_handler = nullptr;
     } else {
       // This is an autocommit, setup reference to this handler for use in
-      // the commit phase, defering execute for optimization reasons
+      // the commit phase, deferring execute for optimization reasons
       m_thd_ndb->m_handler = this;
     }
 
@@ -7552,7 +7552,7 @@ int ha_ndbcluster::start_statement(THD *thd, Thd_ndb *thd_ndb,
     }
 
   } else {
-    // There are more than one handler involved, execute deferal not possible
+    // There are more than one handler involved, execute deferral not possible
     m_thd_ndb->m_handler = nullptr;
   }
 
@@ -7679,7 +7679,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type) {
 /**
   Unlock the last row read in an open scan.
   Rows are unlocked by default in ndb, but
-  for SELECT FOR UPDATE and SELECT LOCK WIT SHARE MODE
+  for SELECT FOR UPDATE and SELECT LOCK WITH SHARE MODE
   locks are kept if unlock_row() is not called.
 */
 
@@ -8144,7 +8144,7 @@ static bool ndb_column_is_dynamic(THD *thd, Field *field,
     Check if COLUMN_FORMAT is declared FIXED or DYNAMIC.
 
     The COLUMN_FORMAT for all non primary key columns defaults to DYNAMIC,
-    unless ROW_FORMAT is explictly defined.
+    unless ROW_FORMAT is explicitly defined.
 
     If an explicit declaration of ROW_FORMAT as FIXED contradicts
     with a dynamic COLUMN_FORMAT a warning will be issued.
@@ -8209,7 +8209,7 @@ static bool ndb_column_is_dynamic(THD *thd, Field *field,
       break;
     default:
       /*
-        Columns will be dynamic unless explictly specified FIXED
+        Columns will be dynamic unless explicitly specified FIXED
       */
       break;
   }
@@ -9422,7 +9422,7 @@ static bool drop_table_and_related(THD *thd, Ndb *ndb,
                                to be created. This object can be
                                updated and will be persisted in the
                                data dictionary when function returns
-  @retval 0 Sucess
+  @retval 0 Success
   @retval != 0 Error
 
   @note Warnings and error should be reported before returning from this
@@ -9448,7 +9448,7 @@ int ha_ndbcluster::create(const char *path [[maybe_unused]],
   Ndb_table_map table_map(table);
 
   /*
-    CREATE TEMPORARY TABLE is not suported in NDB since there is no
+    CREATE TEMPORARY TABLE is not supported in NDB since there is no
     guarantee that the table "is visible only to the current session,
     and is dropped automatically when the session is closed". Support
     for temporary tables is turned off with HTON_TEMPORARY_NOT_SUPPORTED so
@@ -9824,7 +9824,7 @@ int ha_ndbcluster::create(const char *path [[maybe_unused]],
   /*
     ROW_FORMAT=[DEFAULT|FIXED|DYNAMIC|etc.]
 
-    Controls wheter the NDB table will be created with a "varpart reference",
+    Controls whether the NDB table will be created with a "varpart reference",
     thus allowing columns to be added inplace at a later time.
     It's possible to turn off "varpart reference" with ROW_FORMAT=FIXED, this
     will save datamemory in NDB at the cost of not being able to add
@@ -9843,7 +9843,7 @@ int ha_ndbcluster::create(const char *path [[maybe_unused]],
   /*
      TABLESPACE=
 
-     Controls wheter the NDB table have corresponding tablespace. It's
+     Controls whether the NDB table have corresponding tablespace. It's
      possible for a table to have tablespace although no columns are on disk.
   */
   if (create_info->tablespace) {
@@ -10201,7 +10201,7 @@ int ha_ndbcluster::create(const char *path [[maybe_unused]],
   const NdbDictionary::Table *ndbtab = ndbtab_g.get_table();
   if (ndbtab == nullptr) {
     // Failed to open the newly created table from NDB, since the
-    // table is apparently not in NDB it cant be dropped.
+    // table is apparently not in NDB it can't be dropped.
     // However an NDB error must have occurred since the table can't
     // be opened and as such the NDB error can be returned here
     return create.failed_in_NDB(ndbtab_g.getNdbError());
@@ -11091,7 +11091,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
           Detect if this is the special case which occurs when
           the table is both altered and renamed.
 
-          Important here is to remeber to rename the table also
+          Important here is to remember to rename the table also
           on all partiticipants so they will find the table when
           the alter is completed. This is slightly problematic since
           their table is renamed directly from real to real name, while
@@ -11225,7 +11225,7 @@ static bool drop_table_and_related(THD *thd, Ndb *ndb,
   @brief Drop a table in NDB. This includes dropping the table and related
   objects and events, finally distribute the drop to schema dist participants.
 
-  @note Sucess is reported when dropping a table which doesn't exist in NDB.
+  @note Success is reported when dropping a table which doesn't exist in NDB.
 
   @return zero on successful drop and the last NDB error code if an error
   occurs.
@@ -11527,7 +11527,7 @@ ha_ndbcluster::~ha_ndbcluster() {
 
   // Double check that the NDB table's metadata has been released already. It
   // should be loaded in open() and released in close(). NOTE! The m_table
-  // pointer serves as an indicator wheter the table is open or closed.
+  // pointer serves as an indicator whether the table is open or closed.
   assert(m_table == nullptr);
 
   release_blobs_buffer();
@@ -11899,7 +11899,7 @@ void ha_ndbcluster::set_part_info(partition_info *part_info, bool early) {
         m_part_info->list_of_part_fields &&
         m_part_info->num_full_part_fields == 0) {
       /*
-        CREATE TABLE t (....) ENGINE NDB PARTITON BY KEY();
+        CREATE TABLE t (....) ENGINE NDB PARTITION BY KEY();
         where no primary key is defined uses a hidden key as partition field
         and this makes it impossible to use any partition pruning. Partition
         pruning requires partitioning based on real fields, also the lack of
@@ -11952,7 +11952,7 @@ inline void ha_ndbcluster::release_key_fields() {
      this case there isn't even a THD available (this is intentional).
 
   @note Since neither THD or Thd_ndb can't be assumed to be available (see
-  above explanation) an implementation has been choosen that does not rely on
+  above explanation) an implementation has been chosen that does not rely on
   any of them.
 
   @return Function always return 0 and shouldn't really fail. Return code
@@ -12058,7 +12058,7 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
       return 1;
     }
     if (err.code == NDB_ERR_CLUSTER_FAILURE) {
-      // Cluster failure occured and it's not really possible to tell if table
+      // Cluster failure occurred and it's not really possible to tell if table
       // exists or not. Let caller proceed without any warnings as subsequent
       // attempt to create table in NDB should also fail.
       DBUG_PRINT("info", ("Cluster failure detected"));
@@ -12126,7 +12126,7 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
     // this function updates the metadata of table from the storage engine,
     // installs and commits the changes into DD . So, if there is
     // an active transaction, then the changes done till now will also gets
-    // commited. So, Push error when there is an active transction.
+    // committed. So, Push error when there is an active transction.
     if (dd_client.table_exists(db, name, table_exists_in_DD) &&
         table_exists_in_DD && thd->in_active_multi_stmt_transaction()) {
       thd_ndb->push_warning(
@@ -12246,7 +12246,7 @@ static int ndbcluster_table_exists_in_engine(handlerton *, THD *thd,
   if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0) {
     const NdbError &ndb_err = dict->getNdbError();
     if (ndb_err.code == NDB_ERR_CLUSTER_FAILURE) {
-      // Cluster failure occured and it's not really possible to tell if table
+      // Cluster failure occurred and it's not really possible to tell if table
       // exists or not. Let caller proceed without any warnings as subsequent
       // attempt to create table in NDB should also fail.
       DBUG_PRINT("info", ("Cluster failure detected"));
@@ -12321,7 +12321,7 @@ static int drop_database_impl(THD *thd,
     DBUG_PRINT("info", ("Table '%s' must be dropped", el.name));
 
     if (drop_table_impl(thd, ndb, &schema_dist_client, dbname, el.name) != 0) {
-      // Failed to drop table, the NDB error have alread been pushed as warning
+      // Failed to drop table, the NDB error has already been pushed as warning
       thd_ndb->push_warning("Failed to drop table '%s.%s'", dbname, el.name);
     }
   }
@@ -12549,7 +12549,7 @@ static bool ndbcluster_notify_alter_table(THD *thd,
                             lock is to be acquired/was released.
   @param notification       Indicates whether this is pre-acquire or
                             post-release notification.
-  @param victimized        'true' if locking failed as we were choosen
+  @param victimized        'true' if locking failed as we were chosen
                             as a victim in order to avoid possible deadlocks.
 
   @see notify_exclusive_mdl() in handler.h
@@ -12895,7 +12895,7 @@ static int ndbcluster_end(handlerton *, ha_panic_function) {
 }
 
 /*
-  Deintialize the ndbcluster storage engine part of the "ndbcluster plugin"
+  Deinitialize the ndbcluster storage engine part of the "ndbcluster plugin"
 
   NOTE! As this is the deinit() function for a storage engine plugin,
   the function is passed a pointer to the handlerton and not
@@ -13358,7 +13358,7 @@ static bool read_multi_needs_scan(NDB_INDEX_TYPE cur_index_type,
   if (cur_index_type == PRIMARY_KEY_INDEX) return false;
   if (cur_index_type == UNIQUE_INDEX) {  // a 'UNIQUE ... USING HASH' index
     // UNIQUE_INDEX is used iff optimizer set HA_MRR_NO_NULL_ENDPOINTS.
-    // Assert that there are no NULL values in key as promissed.
+    // Assert that there are no NULL values in key as promised.
     assert(!check_null_in_key(key_info, r->start_key.key, r->start_key.length));
     return false;
   }
@@ -13451,7 +13451,7 @@ ha_rows ha_ndbcluster::multi_range_read_info(uint keyno, uint n_ranges,
 
   if ((*flags & HA_MRR_USE_DEFAULT_IMPL) ||
       choose_mrr_impl(keyno, n_ranges, n_rows, bufsz, flags, cost)) {
-    /* Default implementation is choosen */
+    /* Default implementation is chosen */
     DBUG_PRINT("info", ("Default MRR implementation choosen"));
     *flags = def_flags;
     *bufsz = def_bufsz;
@@ -13478,13 +13478,13 @@ ha_rows ha_ndbcluster::multi_range_read_info(uint keyno, uint n_ranges,
   @param n_ranges    Number of ranges/keys (i.e. intervals) in the range
   sequence.
   @param n_rows      E(full rows to be retrieved)
-  @param bufsz  OUT  If DS-MRR is choosen, buffer use of DS-MRR implementation
+  @param bufsz  OUT  If DS-MRR is chosen, buffer use of DS-MRR implementation
                      else the value is not modified
   @param flags  IN   MRR flags provided by the MRR user
-                OUT  If DS-MRR is choosen, flags of DS-MRR implementation
+                OUT  If DS-MRR is chosen, flags of DS-MRR implementation
                      else the value is not modified
   @param cost   IN   Cost of default MRR implementation
-                OUT  If DS-MRR is choosen, cost of DS-MRR scan
+                OUT  If DS-MRR is chosen, cost of DS-MRR scan
                      else the value is not modified
 
   @retval true   Default MRR implementation should be used
@@ -14244,7 +14244,7 @@ void accept_pushed_conditions(const TABLE *table, AccessPath *filter) {
 }
 
 /**
- * 'path' is a basic access path, refering 'table'. If it was pushed
+ * 'path' is a basic access path, referring 'table'. If it was pushed
  * as a child in a pushed join a 'PushedJoinRefAccessPath' has to be
  * constructed, replacing the original 'path' for this table.
  *
@@ -14306,7 +14306,7 @@ static bool has_pushed_members_outside_of_branch(AccessPath *path,
     if (table == nullptr) return false;
     if (table->pos_in_table_list == nullptr) return false;
 
-    // Is refering a TABLE: Collect table_map of tables in path,
+    // Is referring a TABLE: Collect table_map of tables in path,
     // and any pushed joins having table(s) within path.
     const table_map map = table->pos_in_table_list->map();
     branch_map |= map;
@@ -14337,7 +14337,7 @@ static void fixup_pushed_access_paths(THD *thd, AccessPath *path,
      */
     switch (subpath->type) {
       /**
-       * Note that REF / EQ_REF are the only TABLE refering AccessPath types
+       * Note that REF / EQ_REF are the only TABLE referring AccessPath types
        * which may be pushed as a 'child' in a pushed join. Such 'child' needs
        * changes of their AccessPath done by accept_pushed_child_joins()
        */
@@ -14356,12 +14356,12 @@ static void fixup_pushed_access_paths(THD *thd, AccessPath *path,
         return true;
       }
       /**
-       * Other AccessPath types refering a TABLE may have a pushed condition
+       * Other AccessPath types referring a TABLE may have a pushed condition
        * and/or being a root in a set of pushed joins.
        */
       default: {
         const TABLE *table = GetBasicTable(subpath);
-        if (table != nullptr) {  // Is refering a TABLE
+        if (table != nullptr) {  // Is referring a TABLE
           accept_pushed_conditions(table, filter);
           // Can not push as a ChildJoin:
           assert(table->file->member_of_pushed_join() == nullptr ||
@@ -14402,7 +14402,7 @@ static void fixup_pushed_access_paths(THD *thd, AccessPath *path,
        * 1) If pushed, the inner 'HASH-build' branch need to contain all
        *    tables pushed as part of it. Such that the complete pushed join
        *    is evaluated and written to the chunk files. This is handled by the
-       *    AQP creating a seperate HASH-scope for this branch.
+       *    AQP creating a separate HASH-scope for this branch.
        *    (Just assert it below.)
        * 2) If the outer 'probe' branch of the hash join does not contain all
        *    tables pushed as part of it, we disable 'spill_to_disk' as
@@ -14419,7 +14419,7 @@ static void fixup_pushed_access_paths(THD *thd, AccessPath *path,
           // Note that this controls only the spill of the probe input.
 
           // If this table is part of a pushed join query, rows from the
-          // dependant child table(s) has to be read while we are positioned
+          // dependent child table(s) has to be read while we are positioned
           // on the rows from the pushed ancestors which the child depends on.
           // Thus, we can not allow rows from a 'pushed join' to
           // 'spill_to_disk'.
@@ -14614,7 +14614,7 @@ bool ha_ndbcluster::maybe_pushable_join(const char *&reason) const {
 }
 
 /**
- * Check if this table access operation (and a number of succeding operation)
+ * Check if this table access operation (and a number of succeeding operations)
  * can be pushed to the cluster and executed there. This requires that there
  * is an NdbQueryDefiniton and that it still matches the corresponds to the
  * type of operation that we intend to execute. (The MySQL server will
@@ -15428,7 +15428,7 @@ enum_alter_inplace_result ha_ndbcluster::supported_inplace_field_change(
     bool field_fk_reference, bool index_on_column) const {
   DBUG_TRACE;
 
-  // Check for defintion change
+  // Check for definition change
   if (!old_field->eq_def(new_field)) {
     return inplace_unsupported(ha_alter_info,
                                "Altering field definition is "
@@ -16181,7 +16181,7 @@ static uint index_of_key_in_table(const TABLE *table, const KEY *key_info) {
       return i;
     }
   }
-  // Inconcistency in list of keys or invalid key_ptr passed
+  // Inconsistency in list of keys or invalid key_ptr passed
   abort();
   return 0;
 }
@@ -16527,7 +16527,7 @@ bool ha_ndbcluster::inplace_alter_table(TABLE *,
                                             table->s->db.str);
   if (!error) {
     /*
-     * Alter succesful, commit schema transaction
+     * Alter successful, commit schema transaction
      */
     if (dict->endSchemaTrans() == -1) {
       error = ndb_to_mysql_error(&dict->getNdbError());
@@ -17046,7 +17046,7 @@ static int ndbcluster_alter_tablespace(handlerton *, THD *thd,
 
       if (!schema_dist_client.create_tablespace(alter_info->tablespace_name,
                                                 object_id, object_version)) {
-        // Schema distibution failed, just push a warning and continue
+        // Schema distribution failed, just push a warning and continue
         thd_ndb->push_warning("Failed to distribute CREATE TABLESPACE '%s'",
                               alter_info->tablespace_name);
       }
@@ -17127,7 +17127,7 @@ static int ndbcluster_alter_tablespace(handlerton *, THD *thd,
       if (!schema_dist_client.alter_tablespace(alter_info->tablespace_name,
                                                ts.getObjectId(),
                                                ts.getObjectVersion())) {
-        // Schema distibution failed, just push a warning and continue
+        // Schema distribution failed, just push a warning and continue
         thd_ndb->push_warning("Failed to distribute ALTER TABLESPACE '%s'",
                               alter_info->tablespace_name);
       }
@@ -17201,7 +17201,7 @@ static int ndbcluster_alter_tablespace(handlerton *, THD *thd,
 
       if (!schema_dist_client.create_logfile_group(
               alter_info->logfile_group_name, object_id, object_version)) {
-        // Schema distibution failed, just push a warning and continue
+        // Schema distribution failed, just push a warning and continue
         thd_ndb->push_warning("Failed to distribute CREATE LOGFILE GROUP '%s'",
                               alter_info->logfile_group_name);
       }
@@ -17265,7 +17265,7 @@ static int ndbcluster_alter_tablespace(handlerton *, THD *thd,
       if (!schema_dist_client.alter_logfile_group(
               alter_info->logfile_group_name, ndb_lg.getObjectId(),
               ndb_lg.getObjectVersion())) {
-        // Schema distibution failed, just push a warning and continue
+        // Schema distribution failed, just push a warning and continue
         thd_ndb->push_warning("Failed to distribute ALTER LOGFILE GROUP '%s'",
                               alter_info->logfile_group_name);
       }
@@ -17341,7 +17341,7 @@ static int ndbcluster_alter_tablespace(handlerton *, THD *thd,
 
       if (!schema_dist_client.drop_logfile_group(alter_info->logfile_group_name,
                                                  object_id, object_version)) {
-        // Schema distibution failed, just push a warning and continue
+        // Schema distribution failed, just push a warning and continue
         thd_ndb->push_warning("Failed to distribute DROP LOGFILE GROUP '%s'",
                               alter_info->logfile_group_name);
       }

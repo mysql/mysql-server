@@ -517,7 +517,7 @@ void trx_rsegs_init_start(purge_pq_t *purge_queue) {
 
       mtr.start();
 
-      /* Cretae the trx_rseg_t object.
+      /* Create the trx_rseg_t object.
       Note that all tablespaces with rollback segments
       use univ_page_size. */
       rseg = trx_rseg_mem_initialize(slot, undo_space->id(), page_no,

@@ -26,7 +26,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file include/rem0wrec.h
  Record manager wrapper declaration.
 
- After INSTANT ADD/DROP feture, fields index on logical record might not be
+ After INSTANT ADD/DROP feature, fields index on logical record might not be
  same as field index on physical record. So this wrapper is implemented which
  translates logical index to physical index. And then functions of low level
  record manager (rem0lrec.h) are called with physical index of the field.

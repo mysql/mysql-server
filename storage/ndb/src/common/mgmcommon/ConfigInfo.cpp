@@ -4459,7 +4459,7 @@ ConfigInfo::getDefaultString(const Properties * section,
   {
     /*
       Default value for enum are stored as int internally
-      but also stores the orignal string, use different
+      but also stores the original string, use different
       key to get at the default value as string
      */
     return getInfoString(section, fname, "DefaultString");
@@ -5753,7 +5753,7 @@ checkDbConstraints(InitConfigFileParser::Context & ctx, const char *)
    * Uint32 noOfMetaTables = noOfTables + noOfOrderedIndexes + 
    *                         noOfUniqueHashIndexes + 2
    * 2 is the number of the SysTables.
-   * So must check that the sum does't exceed the max value of Uint32.
+   * So must check that the sum doesn't exceed the max value of Uint32.
    */
   Uint32 noOfTables = 0,
          noOfOrderedIndexes = 0,
@@ -5919,7 +5919,7 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
 }
 
 /**
- * Connection rule: Check varius constraints
+ * Connection rule: Check various constraints
  */
 static bool
 checkConnectionConstraints(InitConfigFileParser::Context & ctx, const char *){
@@ -6567,7 +6567,7 @@ static bool check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&,
   }
 
   /**
-   * Auto-assign nodegroups if user didnt
+   * Auto-assign nodegroups if user didn't
    */
   Uint32 next_ng = 0;
   for (;ng_cnt[next_ng] >= replicas; next_ng++);

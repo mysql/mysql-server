@@ -58,7 +58,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /* ut::INNODB_CACHE_LINE_SIZE */
 #include "ut0cpu_cache.h"
 
-/** Type used for all log sequence number storage and arithmetics. */
+/** Type used for all log sequence number storage and arithmetic. */
 typedef uint64_t lsn_t;
 
 /** Log file id (0 for ib_redo0) */

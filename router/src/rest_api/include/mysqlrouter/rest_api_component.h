@@ -101,7 +101,7 @@ class REST_API_EXPORT RestApiComponent {
       rapidjson::GenericPointer<JsonValue, JsonDocument::AllocatorType>;
 
   /**
-   * get singleton instane of the component.
+   * get singleton instance of the component.
    */
   static RestApiComponent &get_instance();
 

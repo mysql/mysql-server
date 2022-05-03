@@ -276,7 +276,7 @@ NdbBlob::getBlobEvent(NdbEventImpl& be, const NdbEventImpl* e, const NdbColumnIm
   bename[sizeof(bename)-1]= 0;
   be.setName(bename);
   be.setTable(bt);
-  // simple assigments
+  // simple assignments
   be.mi_type = e->mi_type;
   be.m_dur = e->m_dur;
   be.m_mergeEvents = e->m_mergeEvents;
@@ -3754,7 +3754,7 @@ NdbBlob::handleBlobTask(NdbTransaction::ExecType anExecType)
  *  - Change Blob handle state to Active
  *  - Execute user's activeHook function if set
  *  - Add an operation to update the Blob's head+inline bytes if
- *    necesary 
+ *    necessary 
  */
 NdbBlob::BlobAction
 NdbBlob::postExecute(NdbTransaction::ExecType anExecType)

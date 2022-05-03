@@ -323,7 +323,7 @@ int get_rand_op_ch(char *ch)
 }
 
 /*
-* get a random order form of "ijklmn" trough exchanging letter
+* get a random order form of "ijklmn" through exchanging letter
 */
 void change_col_order()
 {
@@ -394,7 +394,7 @@ int replace_a_to_str(char *source, int pos, char *newstr)
 }
 
 /*
-* check whether the inputed char is an operation 
+* check whether the inputted char is an operation 
 */
 bool check_op(char ch)
 {
@@ -405,7 +405,7 @@ bool check_op(char ch)
 }
 
 /*
-* check whether the inputed char is end flag 
+* check whether the inputted char is end flag 
 */
 bool check_end(char ch)
 {
@@ -413,7 +413,7 @@ bool check_end(char ch)
 }
 
 /*
-* check whether the inputed char is end flag 
+* check whether the inputted char is end flag 
 */
 bool check_col(char ch)
 {

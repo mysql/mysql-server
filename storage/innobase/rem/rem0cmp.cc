@@ -285,7 +285,7 @@ static int cmp_geometry_field(ulint prtype,          /*!< in: precise type */
 /** Innobase uses this function to compare two gis data fields
  @return        1, 0, -1, if mode == PAGE_CUR_MBR_EQUAL. And return
  1, 0 for rest compare modes, depends on a and b qualifies the
- relationship (CONTAINT, WITHIN etc.) */
+ relationship (CONTAIN, WITHIN etc.) */
 static int cmp_gis_field(
     page_cur_mode_t mode,                    /*!< in: compare mode */
     const byte *a,                           /*!< in: data field */

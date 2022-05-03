@@ -1800,7 +1800,7 @@ Ndbd_mem_manager::release_pages(Uint32 type, Uint32 i, Uint32 cnt, bool locked)
 }
 
 /** Transfer pages between resource groups without risk that some other
- * resource gets them in betweeen.
+ * resource gets them in between.
  *
  * In some cases allocating pages fail.  Preferable the application can handle
  * the allocation failure gracefully.
@@ -1837,7 +1837,7 @@ Ndbd_mem_manager::release_pages(Uint32 type, Uint32 i, Uint32 cnt, bool locked)
  *
  * 5) When later calling alloc_pages(DM) it will first try to reclaim lent out
  *    pages.
- *    If the global counts for untaken and borrowed toghether is less than the
+ *    If the global counts for untaken and borrowed together is less than the
  *    global lent count, that means that some lent pages have been
  *    taken/borrowed and also released and those we may reclaim that many lent
  *    pages.

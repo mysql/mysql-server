@@ -133,7 +133,7 @@ struct fts_zip_t {
   fts_string_t word; /*!< UTF-8 string */
 
   ulint max_words; /*!< maximum number of words to read
-                   in one pase */
+                   in one pass */
 };
 
 /** Prepared statemets used during optimize */
@@ -561,7 +561,7 @@ static byte *fts_zip_read_word(
   while (zip->status == Z_OK && zip->zp->avail_out > 0) {
     /* Finished decompressing block. */
     if (zip->zp->avail_in == 0) {
-      /* Free the block thats been decompressed. */
+      /* Free the block that's been decompressed. */
       if (zip->pos > 0) {
         ulint prev = zip->pos - 1;
 
@@ -1111,7 +1111,7 @@ static dberr_t fts_optimize_encode_node(
 
   node->last_doc_id = doc_id;
 
-  /* Data copied upto here. */
+  /* Data copied up to here. */
   node->ilist_size += enc_len;
   enc->src_ilist_ptr += pos_enc_len;
 
@@ -1221,7 +1221,7 @@ static dberr_t fts_optimize_node(
 
   /* Get the first and last dict ids for the word, we will use
   these values to determine which doc ids need to be removed
-  when we coalesce the nodes. This way we can reduce the numer
+  when we coalesce the nodes. This way we can reduce the number
   of elements that need to be searched in the deleted doc ids
   vector and secondly we can remove the doc ids during the
   coalescing phase. */
@@ -1291,10 +1291,10 @@ static ib_vector_t *fts_optimize_word(
 
     ut_a(enc.src_ilist_ptr != nullptr);
 
-    /* Determine the numer of bytes copied to dst_node. */
+    /* Determine the number of bytes copied to dst_node. */
     copied = enc.src_ilist_ptr - src_node->ilist;
 
-    /* Can't copy more than whats in the vlc array. */
+    /* Can't copy more than what's in the vlc array. */
     ut_a(copied <= src_node->ilist_size);
 
     /* We are done with this node release the resources. */
@@ -2148,7 +2148,7 @@ func_exit:
   return (error);
 }
 
-/** Optimze all the FTS indexes, skipping those that have already been
+/** Optimize all the FTS indexes, skipping those that have already been
  optimized, since the FTS auxiliary indexes are not guaranteed to be
  of the same cardinality.
  @return DB_SUCCESS if all OK */
@@ -2596,7 +2596,7 @@ static bool fts_optimize_new_table(
     slot = static_cast<fts_slot_t *>(ib_vector_push(tables, nullptr));
   }
 
-  // Wee need to initialize a temporary to work around a gcc12 bug.
+  // We need to initialize a temporary to work around a gcc12 bug.
   fts_slot_t tmp{};
   *slot = tmp;
 

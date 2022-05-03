@@ -367,7 +367,7 @@ int runCreateIndexes(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   // NOTE If we need to test creating both logged and non logged indexes
   // this should be divided into two testcases
-  // The paramater logged should then be specified 
+  // The parameter logged should then be specified
   // as a TC_PROPERTY. ex TC_PROPERTY("LoggedIndexes", 1);
   // and read into the test step like
   bool logged = ctx->getProperty("LoggedIndexes", 1);

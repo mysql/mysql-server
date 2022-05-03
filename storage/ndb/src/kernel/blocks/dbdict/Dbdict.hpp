@@ -150,7 +150,7 @@
    ZSIZE_OF_PAGES_IN_WORDS)
 
 /**
- * - one for retreive
+ * - one for retrieve
  * - one for read or write
  */
 #define ZNUMBER_OF_PAGES (2 * ZMAX_PAGES_OF_TABLE_DEFINITION)
@@ -318,7 +318,7 @@ public:
     Uint8 m_extra_row_author_bits;
     Uint16 m_bits;
 
-    /* Number of attibutes in table */
+    /* Number of attributes in table */
     Uint16 noOfAttributes;
 
     /* Number of null attributes in table (should be computed) */
@@ -809,7 +809,7 @@ public:
   {
     DictObject key;
     key.m_id = id;
-    key.m_type = 0; // Not a trigger atleast
+    key.m_type = 0; // Not a trigger at least
     bool ok = c_obj_id_hash.find(object, key);
     return ok;
   }
@@ -2269,7 +2269,7 @@ private:
     static Uint32 weight(Uint32 state) {
     /*
       Return the "weight" of a transaction state, used to determine
-      the absolute order of beleived transaction states at master
+      the absolute order of believed transaction states at master
       takeover.
      */
       switch ((TransState) state) {

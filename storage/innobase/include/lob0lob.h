@@ -1612,7 +1612,7 @@ ulint btr_rec_get_externally_stored_len(const dict_index_t *index,
 @param[in]      ctx             the delete operation context information.
 @param[in]      index           clustered index in which LOB is present
 @param[in]      trxid           the transaction that is being purged.
-@param[in]      undo_no         during rollback to savepoint, purge only upto
+@param[in]      undo_no         during rollback to savepoint, purge only up to
                                 this undo number.
 @param[in]      rec_type        undo record type.
 @param[in]      uf              the update vector for the field.
@@ -1673,7 +1673,7 @@ void import(const dict_index_t *index, byte *field_ref, trx_id_t trx_id);
 valid space_id in it.
 @param[in]    index   the index to which the LOB belongs.
 @param[in]    rec     the clust_rec in which the LOB references are checked.
-@param[in]    offsets the field offets of the given rec.
+@param[in]    offsets the field offsets of the given rec.
 @return true if LOB references have valid space_id, false otherwise. */
 bool rec_check_lobref_space_id(dict_index_t *index, const rec_t *rec,
                                const ulint *offsets);

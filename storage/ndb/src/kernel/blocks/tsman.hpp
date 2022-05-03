@@ -379,7 +379,7 @@ public:
   /**
    * Allocated a page from an extent
    *   performs linear search in extent free bits until it find 
-   *   page that has atleast <em>bits</em> bits free
+   *   page that has at least <em>bits</em> bits free
    * 
    * Start search from key->m_page_no 
    *   and return found page in key->m_page_no
@@ -439,13 +439,13 @@ public:
    *
    * Store result in <em>rep</em>
    *
-   * Return  0 - on sucess
+   * Return  0 - on success
    *        <0 - on error
    */
   int get_tablespace_info(CreateFilegroupImplReq* rep);
 
   /**
-   * Update lsn of page corresponing to key
+   * Update lsn of page corresponding to key
    */
   int update_lsn(Local_key* key, Uint64 lsn);
 

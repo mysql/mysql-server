@@ -478,7 +478,7 @@ class Fk_util {
       fk_index++;
     }
 
-    // Drop the requested table and all foreign keys refering to it
+    // Drop the requested table and all foreign keys referring to it
     // i.e the old fks
     const int drop_flags = NDBDICT::DropTableCascadeConstraints;
     if (dict->dropTableGlobal(*table, drop_flags) != 0) {
@@ -1743,7 +1743,7 @@ int ha_ndbcluster::inplace__drop_fks(THD *thd, Ndb *ndb, const char *dbname,
   - If the table is also the parent, i.e. the foreign key is self referencing,
     additionally re-assign the parent object ids of the foreign key.
   - Recreate the foreign key in the table.
-  If the table is a parent in atleast one foreign key that is not self
+  If the table is a parent in at least one foreign key that is not self
   referencing, resolve all mock tables based on this table to update those
   foreign keys' parent references.
 
@@ -1908,7 +1908,7 @@ int ha_ndbcluster::recreate_fk_for_truncate(THD *thd, Ndb *ndb,
   if (resolve_mock_tables) {
     // Should happen only when the foreign key checks option is disabled
     assert(thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS));
-    // The table was a parent in atleast one foreign key relationship that was
+    // The table was a parent in at least one foreign key relationship that was
     // not self referencing. Update all foreign key definitions referencing the
     // table by resolving all the mock tables based on it.
     ndb_fk_util_resolve_mock_tables(thd, ndb, db_name, tab_name);

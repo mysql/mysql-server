@@ -267,7 +267,7 @@ inline void log_free_check(log_t &log) {
     if we let all threads to go forward after making this check now.
 
     The waiting procedure is rather unlikely to happen for proper my.cnf.
-    Therefore we extracted the code to seperate function, to make the
+    Therefore we extracted the code to separate function, to make the
     inlined log_free_check() small. */
 
     log_free_check_wait(log);

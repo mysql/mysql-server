@@ -54,7 +54,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "sync0sync.h"
 
-/** An interger randomly initialized at startup used to make a temporary
+/** An integer randomly initialized at startup used to make a temporary
 table name as unuique as possible. */
 static std::atomic<uint32_t> dict_temp_file_num;
 

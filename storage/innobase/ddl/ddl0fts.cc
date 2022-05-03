@@ -1086,7 +1086,7 @@ dberr_t FTS::Inserter::write_node(const Insert *ins_ctx,
   }
 
   {
-    /* The third and fourth fileds(TRX_ID, ROLL_PTR) are filled already.*/
+    /* The third and fourth fields(TRX_ID, ROLL_PTR) are filled already.*/
     /* The fifth field is last_doc_id */
     auto field = dtuple_get_nth_field(tuple, 4);
     fts_write_doc_id((byte *)&last_doc_id, node->last_doc_id);
@@ -1145,7 +1145,7 @@ void FTS::Inserter::insert_tuple(Insert *ins_ctx, fts_tokenizer_word_t *word,
                                  const dtuple_t *dtuple) noexcept {
   fts_node_t *fts_node;
 
-  /* Get fts_node for the FTS auxillary INDEX table */
+  /* Get fts_node for the FTS auxiliary INDEX table */
   if (ib_vector_size(word->nodes) > 0) {
     fts_node = static_cast<fts_node_t *>(ib_vector_last(word->nodes));
   } else {
@@ -1187,7 +1187,7 @@ void FTS::Inserter::insert_tuple(Insert *ins_ctx, fts_tokenizer_word_t *word,
   if (innobase_fts_text_cmp(ins_ctx->m_charset, &word->text, &token_word) !=
       0) {
     /* Getting a new word, flush the last position info
-    for the currnt word in fts_node */
+    for the current word in fts_node */
     if (ib_vector_size(positions) > 0) {
       fts_cache_node_add_positions(nullptr, fts_node, *in_doc_id, positions);
     }

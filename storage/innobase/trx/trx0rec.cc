@@ -417,7 +417,7 @@ static bool trx_undo_report_insert_virtual(page_t *undo_page,
     const dict_v_col_t *col = dict_table_get_nth_v_col(table, col_no);
 
     if (col->m_col.ord_part) {
-      /* make sure enought space to write the length */
+      /* make sure enough space to write the length */
       if (trx_undo_left(undo_page, *ptr) < 5) {
         return (false);
       }
@@ -1599,7 +1599,7 @@ static ulint trx_undo_page_report_modify(
         ulint max_v_log_len = dict_max_v_field_len_store_undo(table, pos);
 
         /* Write field number to undo log.
-        Make sure there is enought space in log */
+        Make sure there is enough space in log */
         if (trx_undo_left(undo_page, ptr) < 5) {
           return 0;
         }

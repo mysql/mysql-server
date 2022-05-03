@@ -25,7 +25,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /** @file clone/clone0snapshot.cc
- Innodb physical Snaphot
+ Innodb physical Snapshot
 
  *******************************************************/
 

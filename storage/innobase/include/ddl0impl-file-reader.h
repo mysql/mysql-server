@@ -134,7 +134,7 @@ struct File_reader : private ut::Non_copyable {
   /** File buffer bounds. */
   Bounds m_bounds{};
 
-  /** Auxilliary buffer for records that span across pages. */
+  /** Auxiliary buffer for records that span across pages. */
   byte *m_aux_buf{};
 
   /** IO buffer size in bytes. */

@@ -2316,7 +2316,7 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   /**
    * "Old" cmaxLogFilesInPageZero was 40
    * Each FD need 3 words per mb, require that they can fit into 1 page
-   *   (atleast 1 FD)
+   *   (at least 1 FD)
    * Is also checked in ConfigInfo.cpp (max FragmentLogFileSize = 1Gb)
    *   1Gb = 1024Mb => 3(ZFD_MBYTE_SIZE) * 1024 < 8192 (ZPAGE_SIZE)
    */
@@ -6209,7 +6209,7 @@ void Dblqh::execTUP_ATTRINFO(Signal* signal)
 /*  - A 'tcOpRec' id which uniquely(*below) identify this TcConnectionRec    */
 /*    within this specific transaction.                                      */
 /*  - An optional 'hashHi' id used for SCANREQs in cases where 'tcOpRec'     */
-/*    on its own cant provide uniqueness.                                    */
+/*    on its own can't provide uniqueness.                                    */
 /*    This is required in cases where there are multiple (internal) clients  */
 /*    producing REQs where the uniqueness is only guaranteed within          */
 /*    each client. Currently the only such client is the SPJ block.          */
@@ -7311,7 +7311,7 @@ Dblqh::send_print_mutex_stats(Signal *signal)
  * case. There are cases when we perform OPTIMISE TABLE and there are
  * cases when the variable sized part of the row has to grow where we
  * actually will change the row while running the Prepare operation.
- * To accomodate for this we have the ability to upgrade to exclusive
+ * To accommodate for this we have the ability to upgrade to exclusive
  * locks for a short time. This is not an expected situation normally
  * and thus we perform no special preparation for this event.
  *
@@ -9266,7 +9266,7 @@ void Dblqh::prepareContinueAfterBlockedLab(
      * This is always the code path taken after the first copy row has
      * arrived, both for copy rows and for normal transactions. We are
      * in the starting node and the fragment isn't yet up to date, so we
-     * need to be careful with all variants of how we deal with synching
+     * need to be careful with all variants of how we deal with syncing
      * this starting fragment with the live fragment.
      */
     jam();
@@ -9408,7 +9408,7 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
                          ((regTcPtr.p->attrInfoIVal == RNIL)? 0 : 
                           getSectionSz(regTcPtr.p->attrInfoIVal))) << 2);
 
-  regTcPtr.p->m_nr_delete.m_cnt = 1; // Wait for real op aswell
+  regTcPtr.p->m_nr_delete.m_cnt = 1; // Wait for real op as well
   Uint32* dst = signal->theData+24;
   bool uncommitted;
   const int len = c_tup->nr_read_pk(fragPtr, &regTcPtr.p->m_row_id, dst, 
@@ -14054,7 +14054,7 @@ void Dblqh::continueAbortLab(Signal* signal,
 {
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   /* ------------------------------------------------------------------------
-   *  AN ERROR OCCURED IN THE ACTIVE CREATION AFTER THE ABORT PHASE. 
+   *  AN ERROR OCCURRED IN THE ACTIVE CREATION AFTER THE ABORT PHASE. 
    *  WE NEED TO CONTINUE WITH A NORMAL ABORT.
    * ------------------------------------------------------------------------ 
    *       ALSO USED FOR NORMAL CLEAN UP AFTER A NORMAL ABORT.
@@ -14395,7 +14395,7 @@ void Dblqh::execLQH_TRANSREQ(Signal* signal)
   if (signal->getLength() < LqhTransReq::SignalLength)
   {
     /**
-     * TC that performs take over doesn't suppport taking over one
+     * TC that performs take over doesn't support taking over one
      * TC instance at a time => we read an unitialised variable,
      * set it to RNIL to indicate we try take over all instances.
      * This code is really only needed in ndbd since ndbmtd handles
@@ -15965,7 +15965,7 @@ void Dblqh::closeScanRequestLab(Signal* signal,
       jam();
       /* -------------------------------------------------------------------
        * WE ARE WAITING FOR A SCAN_NEXTREQ FROM SCAN COORDINATOR(TC)
-       * WICH HAVE CRASHED. CLOSE THE SCAN
+       * WHICH HAVE CRASHED. CLOSE THE SCAN
        * ------------------------------------------------------------------- */
       scanPtr->scanCompletedStatus = ZTRUE;
 
@@ -17493,7 +17493,7 @@ Dblqh::next_scanconf_tupkeyreq(Signal* signal,
   {
     /**
      * The row id here depends on if we are scanning in TUX
-     * or in TUP or ACC. TUX returns phyiscal row ids and
+     * or in TUP or ACC. TUX returns physical row ids and
      * TUP and ACC returns logical row ids. This is handled
      * by TUP.
      */
@@ -17721,7 +17721,7 @@ void Dblqh::scanTupkeyConfLab(Signal* signal,
   if (unlikely(scanPtr->scanKeyinfoFlag))
   {
     jam();
-    // Inform API about keyinfo len aswell
+    // Inform API about keyinfo len as well
     read_len += sendKeyinfo20(signal, scanPtr, regTcPtr);
   }//if
   ndbrequire(scanPtr->m_curr_batch_size_rows < MAX_PARALLEL_OP_PER_SCAN);
@@ -17884,8 +17884,8 @@ void Dblqh::scanTupkeyRefLab(Signal* signal,
      *  WE NEED TO ENSURE THAT WE DO NOT SEARCH FOR THE NEXT TUPLE FOR A
      *  LONG TIME WHILE WE KEEP A LOCK ON A FOUND TUPLE. WE RATHER REPORT
      *  THE FOUND TUPLE IF FOUND TUPLES ARE RARE. If more than 10 ms passed we
-     *  send the found tuples to the API. For requests comming from SPJ we allow
-     *  scans to go on for an extended periode of 100ms
+     *  send the found tuples to the API. For requests coming from SPJ we allow
+     *  scans to go on for an extended period of 100ms
      * ----------------------------------------------------------------------- */
     scanPtr->scanReleaseCounter = rows + 1;
     scanReleaseLocksLab(signal, tcConnectptr.p);
@@ -19467,7 +19467,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
       jam();
       /**
        * An node-recovery scan, is shared lock
-       *   and may not perform disk-scan (as it then can miss uncomitted
+       *   and may not perform disk-scan (as it then can miss uncommitted
        *   inserts)
        */
       //AccScanReq::setLockMode(sig_request_info, 0);
@@ -19847,7 +19847,7 @@ void Dblqh::copyTupkeyRefLab(Signal* signal,
   if (scanP->readCommitted == 0)
   {
     jam();
-    ndbabort(); // Should not be possibe...we read with lock
+    ndbabort(); // Should not be possible...we read with lock
   }
   else
   {
@@ -27950,7 +27950,7 @@ Dblqh::execWRITE_LOCAL_SYSFILE_CONF(Signal *signal)
         /**
          * We have reached phase 9 during writing of local sysfile, proceed
          * to write local sysfile with the information that the restart is
-         * completed before synching the GCP.
+         * completed before syncing the GCP.
          */
         write_local_sysfile_restart_complete(signal);
       }
@@ -27973,7 +27973,7 @@ Dblqh::execWRITE_LOCAL_SYSFILE_CONF(Signal *signal)
       /**
        * Restart is complete, we have written this into the local sysfile
        * and we are ready to proceed with the last phases of restart and
-       * synching this GCP as requested.
+       * syncing this GCP as requested.
        */
       ndbrequire(cstartPhase != ZNIL);
       ndbrequire(c_start_phase_9_waiting);
@@ -31370,7 +31370,7 @@ void Dblqh::continue_srFourthComp(Signal *signal)
 
 /*---------------------------------------------------------------------------*/
 /* AN ERROR OCCURRED THAT WE WILL NOT TREAT AS SYSTEM ERROR. MOST OFTEN THIS */
-/* WAS CAUSED BY AN ERRONEUS SIGNAL SENT BY ANOTHER NODE. WE DO NOT WISH TO  */
+/* WAS CAUSED BY AN ERRONEOUS SIGNAL SENT BY ANOTHER NODE. WE DO NOT WISH TO */
 /* CRASH BECAUSE OF FAULTS IN OTHER NODES. THUS WE ONLY REPORT A WARNING.    */
 /* THIS IS CURRENTLY NOT IMPLEMENTED AND FOR THE MOMENT WE GENERATE A SYSTEM */
 /* ERROR SINCE WE WANT TO FIND FAULTS AS QUICKLY AS POSSIBLE IN A TEST PHASE.*/
@@ -36361,7 +36361,7 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
       }
 
       /*
-        If a break is needed, break on a table bondary, as we use the table id
+        If a break is needed, break on a table boundary, as we use the table id
         as a cursor.
       */
       if (rl.need_break(req))
@@ -36819,7 +36819,7 @@ Dblqh::checkLcpFragWatchdog(Signal* signal)
    *
    * - If we overslept 'PollingPeriodMillis', (CPU starved?) or 
    *   timer leapt forward for other reasons (Adjusted, or OS-bug)
-   *   we never calculate an elapsed periode of more than 
+   *   we never calculate an elapsed period of more than 
    *   the requested sleep 'PollingPeriodMillis'
    * - Else we add the real measured elapsed time to total.
    *   (Timers may fire prior to requested 'PollingPeriodMillis')

@@ -281,7 +281,7 @@ void FileHandler::reopen(const std::string dst) {  // namespace logging
   }
 #endif
 
-  // After reopening the logfile, is it safe to throw earlier execptions
+  // After reopening the logfile, is it safe to throw earlier exceptions
   if (eptr) {
     std::rethrow_exception(eptr);
   }

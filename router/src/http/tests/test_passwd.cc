@@ -211,7 +211,7 @@ static std::string version_builder() {
 const std::string kHelpText(help_builder(cmdline_opts));
 const std::string kVersionText(version_builder());
 
-// placehoder in the opts to replace by the temp-filename
+// placeholder in the opts to replace by the temp-filename
 const std::string kPasswdPlaceholder("@passwdfile@");
 
 struct PasswdFrontendTestParam {

@@ -188,7 +188,7 @@ bool ndb_pushed_join::match_definition(int type,  // NdbQueryOperationDef::Type,
   }
 
   /**
-   * There may be referrences to Field values from tables outside the scope of
+   * There may be references to Field values from tables outside the scope of
    * our pushed join which are supplied as paramValues().
    * If any of these are NULL values, join can't be pushed.
    *
@@ -238,7 +238,7 @@ static bool is_endian_sensible_type(const Field *field) {
     case MYSQL_TYPE_TINY:
     // Year is also a 'tiny', single byte
     case MYSQL_TYPE_YEAR:
-    // Odly enough, The int24 is *not* stored in an endian sensible format
+    // Oddly enough, The int24 is *not* stored in an endian sensible format
     case MYSQL_TYPE_INT24:
     // The (deprecated) Time type was handled as an int24.
     case MYSQL_TYPE_TIME:
@@ -265,7 +265,7 @@ NdbQuery *ndb_pushed_join::make_query_instance(
   const NdbQueryParamValue *paramValues = keyFieldParams;
 
   /**
-   * There may be referrences to Field values from tables outside the scope of
+   * There may be references to Field values from tables outside the scope of
    * our pushed join: These are expected to be supplied as paramValues()
    * after the keyFieldParams[].
    */
@@ -279,7 +279,7 @@ NdbQuery *ndb_pushed_join::make_query_instance(
       new (extendedParams + i) NdbQueryParamValue(keyFieldParams[i]);
     }
 
-    // There may be referrences to Field values from tables outside the scope of
+    // There may be references to Field values from tables outside the scope of
     // our pushed join: These are expected to be supplied as paramValues()
     for (uint i = 0; i < outer_fields; i++) {
       Field *field = m_referred_fields[i];
@@ -430,7 +430,7 @@ uint ndb_pushed_builder_ctx::get_table_no(const Item *key_item) const {
 }
 
 /**
- * Get a ndb_table_access_map containg all tables [first..last]
+ * Get a ndb_table_access_map containing all tables [first..last]
  */
 static ndb_table_access_map get_tables_in_range(uint first, uint last) {
   ndb_table_access_map table_map;
@@ -479,7 +479,7 @@ ndb_table_access_map ndb_pushed_builder_ctx::get_table_map(
  *  2) Determine the parent to be used among the set of possible
  *     parents. This is decided based on simple heuristic where
  *     the goal is to employ filters as soon as possible, and utilize
- *     the parallelism of the SPJ block whenever considdered optimal.
+ *     the parallelism of the SPJ block whenever considered optimal.
  *
  *  3) Build the pushed query.
  *
@@ -620,7 +620,7 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
    * join query starting with root.
    * As part of analyzing the outer join and semi join structure,
    * we use the join- and semi-join-nest structures set up by the optimizer,
-   * available trough the Abstract Query Plan (AQP) interface.
+   * available through the Abstract Query Plan (AQP) interface.
    * See further documentation of how the nest structure is
    * represented in m_tables[] in ha_ndbcluster_push.h.
    */
@@ -805,7 +805,7 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
  *     a single parent common to all key fields in the 'REF'
  *
  * In order to increase pushability we use the COND_EQUAL sets
- * to resolve cases (2) above) where multiple parents are refered.
+ * to resolve cases (2) above) where multiple parents are referred.
  * If needed to make a child pushable, we replace parent
  * references with another from the COND_EQUAL sets which make
  * it pushable .
@@ -1253,7 +1253,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
  *      extra NULL extended rows.
  *
  * Note that ::is_pushable_as_child_scan() can only check these conditions for
- * tables preceeding it in the query plan. ::validate_join_nest() will later
+ * tables preceding it in the query plan. ::validate_join_nest() will later
  * do similar checks when we have completed a nest level. The later check
  * would be sufficient, however we prefer to 'fail fast'.
  *
@@ -1279,7 +1279,7 @@ bool ndb_pushed_builder_ctx::is_pushable_within_nest(
   }
 
   if (unlikely(m_has_pending_cond.is_overlapping(nest))) {  // 1b,1c:
-    // Other (lookup tables) withing nest has unpushed condition
+    // Other (lookup tables) within nest has unpushed condition
     ndb_table_access_map pending_conditions(m_has_pending_cond);
     pending_conditions.intersect(nest);
     // Report the closest violating table, may be multiple.
@@ -1393,7 +1393,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
        * Note that the check below is a bit too strict, we check:
        *  'Are there any unpushed tables outside of our embedding nests',
        *  instead of 'Do we refer tables from nests outside embedding nests,
-       *  having unpushed tables'. As we alread know 'all_parents' are not
+       *  having unpushed tables'. As we already know 'all_parents' are not
        *  contained in 'embedding'.
        * The outcome should be the same except if we have parent refs to
        * multiple non-embedded nests. (very unlikely)
@@ -1491,7 +1491,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
  * 2. Check the 'dependencies' set, starting at the last (the
  *    table closest to this table). Check that it either already
  *    exists a dependency between each such table and the remaining
- *    dependant tables, or that we are allowed to add the required
+ *    dependent tables, or that we are allowed to add the required
  *    dependencies.
  ***************************************************************/
 bool ndb_pushed_builder_ctx::is_outer_nests_referable(
@@ -1672,11 +1672,11 @@ void ndb_pushed_builder_ctx::remove_pushable(const AQP::Table_access *table) {
       for (uint i = 0; i < table->get_no_of_key_fields(); i++) {
         if (!key_parents[i].is_clear_all()) {
           // Was referring some parent field(s) (not const, or params)
-          // Remove parent referrences not in join_scope any more
+          // Remove parent references not in join_scope any more
           key_parents[i].intersect(m_join_scope);
 
           if (key_parents[i].is_clear_all()) {
-            // All preceeding parent tables removed from join_scope.
+            // All preceding parent tables removed from join_scope.
             m_join_scope.clear_bit(tab_no);  // Cascade remove of this table
             break;
           }
@@ -1695,7 +1695,7 @@ void ndb_pushed_builder_ctx::remove_pushable(const AQP::Table_access *table) {
  *
  * @param[in] table The table access operation to which the key item belongs.
  * @param[in] key_item The key_item to examine
- * @param[in] key_part Metatdata about the key item.
+ * @param[in] key_part Metadata about the key item.
  * @param[out] field_parents The set of possible parents for 'key_item'
  * ('join_root' if keys are constant).
  * @return True if at least one possible parent was found. (False means that
@@ -1737,7 +1737,7 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
   }
 
   /**
-   * Below this point 'key_item_field' is a candidate for refering a parent
+   * Below this point 'key_item_field' is a candidate for referring a parent
    * table in a pushed join. It should either directly refer a parent common to
    * all FIELD_ITEMs, or refer a grandparent of this common parent. There are
    * different cases which should be handled:
@@ -1811,7 +1811,7 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
     assert(field_parents.is_clear_all());
 
     /**
-     * Field referrence is a 'paramValue' to a column value evaluated
+     * Field reference is a 'paramValue' to a column value evaluated
      * prior to the root of this pushed join candidate. Some restrictions
      * applies to when a field reference is allowed in a pushed join:
      */
@@ -1821,7 +1821,7 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
        * EQRefIterator may optimize away key reads if the key
        * for a requested row is the same as the previous.
        * Thus, iff this is the root of a pushed lookup join
-       * we do not want it to contain childs with references
+       * we do not want it to contain children with references
        * to columns 'outside' the the pushed joins, as these
        * may still change between calls to
        * EQRefIterator::Read() independent of the root key
@@ -1845,7 +1845,7 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
    * 1) The table referred by key_item was not in the query_scope we were
    *    allowed to join with, and no substitutes existed.
    * 2) The referred table was not pushed, (and reported as such).
-   *    Thus, we could not push the tables refering it either.
+   *    Thus, we could not push the tables referring it either.
    */
   const ndb_table_access_map all_query_scopes =
       get_table_map(table->get_tables_in_all_query_scopes());
@@ -1908,14 +1908,14 @@ bool ndb_pushed_builder_ctx::is_const_item_pushable(
  * Decide the final execution order for the pushed joins. That mainly
  * involves deciding which table to be used as the 'm_parent'.
  *
- * The m_parent is choosen based on the available m_key_parents[]
+ * The m_parent is chosen based on the available m_key_parents[]
  * which were set up by ::is_pushable_as_child(), and possibly later
  * modified (reduced) by ::validate_join_nest().
  *
  * When multiple parent candidates are available, we choose the one
  * closest to the root, which will result in the most 'bushy' tree
  * structure and the highest possible parallelism. Note that SPJ block
- * will build its own execution plan (based on whats being set up here)
+ * will build its own execution plan (based on what's being set up here)
  * which possible sequentialize the execution of these parallel branches.
  * (See WL#11164)
  */
@@ -1933,7 +1933,7 @@ int ndb_pushed_builder_ctx::optimize_query_plan() {
      * Calculate the set of possible parents for the table, where:
      *  - 'common' are those we may refer (possibly through the EQ-sets)
      *     such that all FIELD_ITEMs are from the same parent.
-     *  - 'extended' are those parents refered from some of the
+     *  - 'extended' are those parents referred from some of the
      *     FIELD_ITEMs, and having the rest of the referred FIELD_ITEM
      *     tables available as 'grandparent refs'
      *     (The SPJ block can handle field references to any ancestor
@@ -1960,7 +1960,7 @@ int ndb_pushed_builder_ctx::optimize_query_plan() {
         common_parents.intersect(key_parents[i]);
 
         /**
-         * 'Extended' parents are refered from some 'FIELD_ITEM', and contain
+         * 'Extended' parents are referred from some 'FIELD_ITEM', and contain
          * all parents directly referred, or available as 'depend_parents'.
          * The later excludes those before the first (grand-)parent
          * available from all 'field_parents' (first_grandparent).
@@ -1980,7 +1980,7 @@ int ndb_pushed_builder_ctx::optimize_query_plan() {
     const int first_key_parent = depend_parents.first_table(root_no);
 
     /**
-     * Previous childs might already have enforced some ancestors to be
+     * Previous children might already have enforced some ancestors to be
      * available through this table due to some ancestors being referred by
      * them, add these.
      */
@@ -1989,7 +1989,7 @@ int ndb_pushed_builder_ctx::optimize_query_plan() {
     /**
      * Same goes for nest-level dependencies: The 'first' in each nest
      * may enforce ancestor dependencies on the members of the nest.
-     * Add enforcement of these upto the 'first' parent referred by
+     * Add enforcement of these up to the 'first' parent referred by
      * the 'key_parents[]'.
      */
     int first_in_nest = table.m_first_inner;
@@ -2002,7 +2002,7 @@ int ndb_pushed_builder_ctx::optimize_query_plan() {
      * All 'depend_parents' has to be fulfilled, starting from the 'last',
      * closest to this tab_no. The 'depend_parents' not directly referred
      * as a parent from this table, will be fulfilled by adding them as required
-     * ancestors of the choosen parent, see below.
+     * ancestors of the chosen parent, see below.
      * Find the first dependency to fulfill:
      */
     const uint depends_on_parent = depend_parents.last_table(tab_no - 1);
@@ -2082,7 +2082,7 @@ void ndb_pushed_builder_ctx::collect_key_refs(const AQP::Table_access *table,
    * If there are any key_fields with 'current_parents' different from
    * our selected 'parent', we have to find substitutes for
    * those key_fields within the equality set.
-   * When using the Hypergraph optimizer we cant use the Item_equal's.
+   * When using the Hypergraph optimizer we can't use the Item_equal's.
    **/
   const bool use_item_equal =
       !m_thd_ndb->get_thd()->lex->using_hypergraph_optimizer;
@@ -2265,7 +2265,7 @@ int ndb_pushed_builder_ctx::build_key(const AQP::Table_access *table,
           if (unlikely(m_fld_refs >= ndb_pushed_join::MAX_REFERRED_FIELDS)) {
             DBUG_PRINT("info", ("Too many Field refs ( >= MAX_REFERRED_FIELDS) "
                                 "encountered"));
-            return -1;  // TODO, handle gracefull -> continue?
+            return -1;  // TODO, handle gracefully -> continue?
           }
           m_referred_fields[m_fld_refs++] = field_item->field;
           op_key[map[i]] = m_builder->paramValue();
@@ -2424,7 +2424,7 @@ int ndb_pushed_builder_ctx::build_query() {
        * 't1, outer join (t2), outer join (t3)'.
        *
        * Such queries need to set the join nest dependencies, such that
-       * the NdbQuery interface is able to correcly generate NULL extended
+       * the NdbQuery interface is able to correctly generate NULL extended
        * rows.
        *
        * Below we add these nest dependencies even when not strictly required.

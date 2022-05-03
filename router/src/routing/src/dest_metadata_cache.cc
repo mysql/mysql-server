@@ -142,7 +142,7 @@ bool mode_is_valid(const routing::AccessMode mode,
     case DestMetadataCacheGroup::ServerRole::PrimaryAndSecondary:
       return mode == routing::AccessMode::kReadOnly;
     default:;  //
-               /* fall-through, no acces mode is valid for that role */
+               /* fall-through, no access mode is valid for that role */
   }
 
   return false;

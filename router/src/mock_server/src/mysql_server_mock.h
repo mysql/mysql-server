@@ -44,7 +44,7 @@ namespace server_mock {
 
 /** @class MySQLServerMock
  *
- * @brief Main class. Resposible for accepting and handling client's
+ * @brief Main class. Responsible for accepting and handling client's
  *connections.
  *
  **/

@@ -366,7 +366,7 @@ static ib_rbt_node_t *rbt_find_successor(
 }
 
 /** Find the given node's precedecessor.
- @return predecessor node or NULL if no predecesor */
+ @return predecessor node or NULL if no predecessor */
 static ib_rbt_node_t *rbt_find_predecessor(
     const ib_rbt_t *tree,         /*!< in: rb tree */
     const ib_rbt_node_t *current) /*!< in: this is declared const
@@ -793,7 +793,7 @@ static const ib_rbt_node_t *rbt_lookup(
   return (current != tree->nil ? current : nullptr);
 }
 
-/** Delete a node indentified by key.
+/** Delete a node identified by key.
  @return true if success false if not found */
 bool rbt_delete(ib_rbt_t *tree,  /*!< in: rb tree */
                 const void *key) /*!< in: key to delete */

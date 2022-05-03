@@ -5040,7 +5040,7 @@ static int64_t btr_estimate_n_rows_in_range_low(
 
     ut_ad(page_rec_is_infimum(btr_cur_get_rec(&cursor)));
 
-    /* The range specified is wihout a left border, just
+    /* The range specified is without a left border, just
     'x < 123' or 'x <= 123' and btr_cur_open_at_index_side()
     positioned the cursor on the infimum record on the leftmost
     page, which must not be counted. */
@@ -5092,7 +5092,7 @@ static int64_t btr_estimate_n_rows_in_range_low(
 
     ut_ad(page_rec_is_supremum(btr_cur_get_rec(&cursor)));
 
-    /* The range specified is wihout a right border, just
+    /* The range specified is without a right border, just
     'x > 123' or 'x >= 123' and btr_cur_open_at_index_side()
     positioned the cursor on the supremum record on the rightmost
     page, which must not be counted. */

@@ -192,7 +192,7 @@ private:
  * - The API will know when it has received all data from a fragment for a 
  *   given batch and all child operations spawned from it.
  * - When one fragment is complete (for a batch) the API will make these data
- *   avaliable to the application, even if other fragments are not yet complete.
+ *   available to the application, even if other fragments are not yet complete.
  * - The tuple identifiers that are used for matching children with parents are
  *   only guaranteed to be unique within one batch of SPJ-worker results.
  *   Tuples derived from different worker result sets must thus be kept apart.
@@ -517,7 +517,7 @@ public:
   { return m_receiver.get_range_no(); }
 
   /**
-   * Process an incomming tuple for this stream. Extract parent and own tuple 
+   * Process an incoming tuple for this stream. Extract parent and own tuple 
    * ids and pass it on to m_receiver.
    *
    * @param ptr buffer holding tuple.
@@ -608,7 +608,7 @@ public:
    *     - [hash(parentId)].m_hash_head will then index the first
    *       TupleSet entry potential containing the parentId to locate.
    *     - .m_hash_next in the indexed TupleSet may index the next TupleSet 
-   *       to considder.
+   *       to consider.
    *       
    * Both the child/parent correlation set and the parentId HashMap has been
    * folded into the same structure on order to reduce number of objects 
@@ -764,10 +764,10 @@ private:
    */
   Uint16 m_currentRow;
   
-  /** Max #rows which this stream may recieve in its TupleSet structures */
+  /** Max #rows which this stream may receive in its TupleSet structures */
   Uint32 m_maxRows;
 
-  /** TupleSet contains the correlation between parent/childs */
+  /** TupleSet contains the correlation between parent/children */
   TupleSet* m_tupleSet;
 
   void buildResultCorrelations();
@@ -1249,7 +1249,7 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
        * FirstMatch handling: If this tupleNo already found a match from all
        * tables, we skip it from further result processing:
        */
-      if (!m_firstMatchedNodes.isclear() &&    // Some childrens are firstmatch-semi-joins
+      if (!m_firstMatchedNodes.isclear() &&    // Some children are firstmatch-semi-joins
           m_tupleSet[tupleNo].m_matchingChild.contains(m_firstMatchedNodes))
       {
         // We have already found a match for (all of) our firstMatchedNodes.
@@ -1461,7 +1461,7 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
       } //for (childNo..)
 
       /**
-       * If some 'required' descendants of tupleNo didnt 'Match' (possibly with
+       * If some 'required' descendants of tupleNo didn't 'Match' (possibly with
        * a NULL-row), the 'thisOpId' bit would have been cleared when checking
        * the descendant Op's above. This tuple then needs to be skipped for now.
        * May still be included in later result batches though, with a new set
@@ -1469,7 +1469,7 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
        */
       if (!hasMatchingChild.get(thisOpId))
       {
-        // Persist the decission to skip this tupleNo
+        // Persist the decision to skip this tupleNo
         setSkipped(tupleNo);
       }
       else  // tupleNo is part of (intermediate) results
@@ -1579,7 +1579,7 @@ void NdbWorker::buildReceiverIdMap(NdbWorker* workers,
   {
     const Uint32 receiverId = workers[workerNo].getReceiverId();
     /** 
-     * For reasons unknow, NdbObjectIdMap shifts ids two bits to the left,
+     * For reasons unknown, NdbObjectIdMap shifts ids two bits to the left,
      * so we must do the opposite to get a good hash distribution.
      */
     assert((receiverId & 0x3) == 0);
@@ -1597,7 +1597,7 @@ NdbWorker::receiverIdLookup(NdbWorker* workers,
                             Uint32 receiverId)
 {
   /** 
-   * For reasons unknow, NdbObjectIdMap shifts ids two bits to the left,
+   * For reasons unknown, NdbObjectIdMap shifts ids two bits to the left,
    * so we must do the opposite to get a good hash distribution.
    */
   assert((receiverId  & 0x3) == 0);
@@ -1735,7 +1735,7 @@ bool NdbWorker::hasRequestedMore() const
 /**
  * Signal that another complete ResultSet is available from 
  * this worker.
- * Need mutex lock as 'm_availResultSets' is accesed both from
+ * Need mutex lock as 'm_availResultSets' is accessed both from
  * receiver and application thread.
  */
 void NdbWorker::setReceivedMore()        // Need mutex
@@ -1748,7 +1748,7 @@ void NdbWorker::setReceivedMore()        // Need mutex
  * Check if another ResultSets has been received and is available
  * for reading. It will be given to the application thread when it
  * call ::grabNextResultSet().
- * Need mutex lock as 'm_availResultSets' is accesed both from
+ * Need mutex lock as 'm_availResultSets' is accessed both from
  * receiver and application thread.
  */
 bool NdbWorker::hasReceivedMore() const  // Need mutex
@@ -1781,7 +1781,7 @@ void NdbWorker::prepareNextReceiveSet()
 /**
  * Let the application thread take ownership of an available
  * ResultSet, prepare it for reading first row.
- * Need mutex lock as 'm_availResultSets' is accesed both from
+ * Need mutex lock as 'm_availResultSets' is accessed both from
  * receiver and application thread.
  */
 void NdbWorker::grabNextResultSet()  // Need mutex
@@ -2062,8 +2062,8 @@ NdbQueryOperation::isRowNULL() const
 enum Type
 {
   Type_NULL,
-  Type_raw,        // Raw data formated according to bound Column format.
-  Type_raw_shrink, // As Type_raw, except short VarChar has to be shrinked.
+  Type_raw,        // Raw data formatted according to bound Column format.
+  Type_raw_shrink, // As Type_raw, except short VarChar has to be shrunk.
   Type_string,     // '\0' terminated C-type string, char/varchar data only
   Type_Uint16,
   Type_Uint32,
@@ -2111,7 +2111,7 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
   // Fetch parameter value and length.
   // Rudimentary typecheck of paramvalue: At least length should be as expected:
   //  - Extend with more types if required
-  //  - Considder to add simple type conversion, ex: Int64 -> Int32
+  //  - Consider to add simple type conversion, ex: Int64 -> Int32
   //  - Or 
   //     -- Represent all exact numeric as Int64 and convert to 'smaller' int
   //     -- Represent all floats as Double and convert to smaller floats
@@ -2177,7 +2177,7 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
       break;
 
     case Type_raw:
-      // 'Raw' data is readily formated according to the bound column 
+      // 'Raw' data is readily formatted according to the bound column 
       if (likely(column.m_arrayType == NDB_ARRAYTYPE_FIXED))
       {
         len = maxSize;
@@ -2211,7 +2211,7 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
       break;
 
     case Type_raw_shrink:
-      // Only short VarChar can be shrinked
+      // Only short VarChar can be shrunk
       if (unlikely(column.m_arrayType != NDB_ARRAYTYPE_SHORT_VAR))
         return QRY_PARAMETER_HAS_WRONG_TYPE;
 
@@ -2397,7 +2397,7 @@ NdbQueryImpl::assignParameters(const NdbQueryParamValue paramValues[])
    * to avoid storing param values elsewhere until query is executed.
    * Also calculates prunable property, and possibly its hashValue.
    */
-  // Build explicit key/filter/bounds for root operation, possibly refering paramValues
+  // Build explicit key/filter/bounds for root operation, possibly referring paramValues
   const int error = getRoot().prepareKeyInfo(m_keyInfo, paramValues);
   if (unlikely(error != 0))
   {
@@ -2655,7 +2655,7 @@ NdbQueryImpl::getQueryOperation(const char* ident) const
  *
  * Will itterate and fetch results for all combinations of results from the NdbOperations
  * which this query consists of. Except for the root operations which will follow any 
- * optinal ScanOrdering, we have no control of the ordering which the results from the
+ * optional ScanOrdering, we have no control of the ordering which the results from the
  * QueryOperations appear in.
  */
 
@@ -2691,8 +2691,8 @@ NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
 
     else if (res == NdbQuery::NextResult_gotRow)
     {
-      // Position to 'firstResult()' for all childs.
-      // Update m_globalCursor to itterate from last operation with results next time
+      // Position to 'firstResult()' for all children.
+      // Update m_globalCursor to iterate from last operation with results next time
       //
       for (uint child=m_globalCursor+1; child<getNoOfOperations(); child++)
       {
@@ -2839,7 +2839,7 @@ NdbQueryImpl::awaitMoreResults(bool forceSend)
       PollGuard poll_guard(*ndb);
 
       /* There may be pending (asynchronous received, mutex protected) errors
-       * from TC / datanodes. Propogate these into m_error.code in 'API space'.
+       * from TC / datanodes. Propagate these into m_error.code in 'API space'.
        */
       while (likely(!hasReceivedError()))
       {
@@ -3036,7 +3036,7 @@ NdbQueryImpl::setErrorCode(int aErrorCode)
 
   switch(aErrorCode)
   {
-    // Not realy an error. A root lookup found no match.
+    // Not really an error. A root lookup found no match.
   case Err_TupleNotFound:
     // Simple or dirty read failed due to node failure. Transaction will be aborted.
   case Err_SimpleDirtyReadFailed:
@@ -3072,7 +3072,7 @@ NdbQueryImpl::setFetchTerminated(int errorCode, bool needClose)
 
 
 /* There may be pending (asynchronous received, mutex protected) errors
- * from TC / datanodes. Propogate these into 'API space'.
+ * from TC / datanodes. Propagate these into 'API space'.
  * ::hasReceivedError() Should only be called with mutex locked
  */
 bool
@@ -3508,7 +3508,7 @@ int doSend()    Send serialized queryTree and parameters encapsulated in
 
 NOTE:           The TransporterFacade mutex is already set by callee.
 
-Return Value:   Return >0 : send was succesful, returns number of signals sent
+Return Value:   Return >0 : send was successful, returns number of signals sent
                 Return -1: In all other case.   
 Parameters:     nodeId: Receiving processor node
 Remark:         Send a TCKEYREQ or SCAN_TABREQ (long) signal depending of 
@@ -3584,7 +3584,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
 
     scanTabReq->apiConnectPtr = m_scanTransaction->theTCConPtr;
     scanTabReq->buddyConPtr = m_scanTransaction->theBuddyConPtr; // 'buddy' refers 'real-transaction'->theTCConPtr
-    scanTabReq->spare = 0;  // Unused in later protocoll versions
+    scanTabReq->spare = 0;  // Unused in later protocol versions
     scanTabReq->tableId = tTableId;
     scanTabReq->tableSchemaVersion = tSchemaVersion;
     scanTabReq->storedProcId = 0xFFFF;
@@ -3596,7 +3596,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
 
     /**
      * Check if query is a sorted scan-scan.
-     * Ordering can then only be guarented by restricting
+     * Ordering can then only be guaranteed by restricting
      * parent batch to contain single rows.
      * (Child scans will have 'normal' batch size).
      *
@@ -3808,12 +3808,12 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
 
 
 /******************************************************************************
-int sendFetchMore() - Fetch another scan batch, optionaly closing the scan
+int sendFetchMore() - Fetch another scan batch, optionally closing the scan
                 
                 Request another batch of rows to be retrieved from the scan.
 
 Return Value:   0 if send succeeded, -1 otherwise.
-Parameters:     emptyFrag: Root frgament for which to ask for another batch.
+Parameters:     emptyFrag: Root fragment for which to ask for another batch.
 Remark:
 ******************************************************************************/
 int
@@ -3863,7 +3863,7 @@ NdbQueryImpl::sendFetchMore(NdbWorker* workers[],
 
   if (unlikely(hasReceivedError()))
   {
-    // Errors arrived inbetween ::await released mutex, and sendFetchMore grabbed it
+    // Errors arrived in between ::await released mutex, and sendFetchMore grabbed it
     return -1;
   }
   if (impl->getNodeSequence(nodeId) != seq ||
@@ -4288,7 +4288,7 @@ NdbQueryImpl::OrderedFragSet::verifySortOrder() const
 
 /**
  * Compare frags such that f1<f2 if f1 is empty but f2 is not.
- * - Othewise compare record contents.
+ * - Otherwise compare record contents.
  * @return negative if frag1<frag2, 0 if frag1 == frag2, otherwise positive.
 */
 int
@@ -4380,7 +4380,7 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   // Register the extra 'out of branch' (!isChildOf()) dependencies.
   // If we are not an ancestor of the 'first' treeNode of the join-nest
   // we are embedded within, we need to added to 'm_dependants' as
-  // such an 'out of branch' dependant for this 'first_inner'
+  // such an 'out of branch' dependent for this 'first_inner'
   const NdbQueryOperationDefImpl* firstInEmbeddingNestDef =
     def.getFirstInEmbeddingNest();
   if (firstInEmbeddingNestDef != nullptr &&
@@ -4664,7 +4664,7 @@ NdbQueryOperationImpl::firstResult()
 #if 0  // TODO ::firstResult() on root operation is unused, incomplete & untested
   if (unlikely(getParentOperation()==NULL))
   {
-    // Reset *all* ResultStreams, optionaly order them, and find new current among them
+    // Reset *all* ResultStreams, optionally order them, and find new current among them
     for( Uint32 i = 0; i<m_queryImpl.getRootFragCount(); i++)
     {
       m_resultStreams[i]->firstResult();
@@ -4905,7 +4905,7 @@ int NdbQueryOperationImpl::serializeParams(const NdbQueryParamValue* paramValues
     /**
      *  Add parameter value to serialized data.
      *  Each value has a Uint32 length field (in bytes), followed by
-     *  the actuall value. Allocation is in Uint32 units with unused bytes
+     *  the actual value. Allocation is in Uint32 units with unused bytes
      *  zero padded.
      **/
     const Uint32 oldSize = m_params.getSize();
@@ -5052,7 +5052,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo,
   const NdbQueryOperationDefImpl& def = getQueryOperationDef();
 
   /**
-   * Serialize parameters refered by this NdbQueryOperation.
+   * Serialize parameters referred by this NdbQueryOperation.
    * Params for the complete NdbQuery is collected in a single
    * serializedParams chunk. Each operations params are 
    * proceeded by 'length' for this operation.
@@ -5667,8 +5667,8 @@ NdbQueryOperationImpl::execTCKEYREF(const NdbApiSignal* aSignal)
    * Error may be either a 'soft' or a 'hard' error.
    * 'Soft error' are regarded 'informational', and we are
    * allowed to continue execution of the query. A 'hard error'
-   * will terminate query, close comminication, and further
-   * incomming signals to this NdbReceiver will be discarded.
+   * will terminate query, close communication, and further
+   * incoming signals to this NdbReceiver will be discarded.
    */
   switch (ref->errorCode)
   {

@@ -8471,7 +8471,7 @@ NdbDictionaryImpl::createRecordInternal(const NdbTableImpl *table,
       goto err;
 
     /*
-      Distibution key flag for unique index needs to be corrected
+      Distribution key flag for unique index needs to be corrected
       to reflect the keys in the index base table
     */
     if (table->m_indexType == NdbDictionary::Object::UniqueHashIndex)

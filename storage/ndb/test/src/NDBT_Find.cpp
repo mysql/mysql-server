@@ -59,7 +59,7 @@ NDBT_find_binary_from_path(BaseString& name,
 #endif
     if (access(path.c_str(), F_OK) == 0)
     {
-      // Sucess, found the binary. Convert path to absolute and return it
+      // Success, found the binary. Convert path to absolute and return it
       char realpath_buf[PATH_MAX];
 #ifndef _WIN32
       if (realpath(path.c_str(), realpath_buf) == NULL)

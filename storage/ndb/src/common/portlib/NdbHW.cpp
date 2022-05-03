@@ -684,7 +684,7 @@ split_group(struct ndb_hwinfo *hwinfo,
             Uint32 check_group_size)
 {
   /**
-   * Removed group_size CPUs from the choosen group (which is the largest
+   * Removed group_size CPUs from the chosen group (which is the largest
    * group still existing). Place the removed group at the last position
    * in the array of L3 cache groups. The original is kept in its original
    * position with the first group_size CPUs removed to the new list.

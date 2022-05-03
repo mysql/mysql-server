@@ -121,7 +121,7 @@ SysLogHandler::writeMessage(const char* pMsg)
 void 
 SysLogHandler::writeFooter()
 {
-  // Need to close it everytime? Do we run out of file descriptors?
+  // Need to close it every time? Do we run out of file descriptors?
   //::closelog();
 }
 

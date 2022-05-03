@@ -61,7 +61,7 @@ public:
   /**
    * Allocate memory for a number of objects from the heap.
    * @param[in] maxObjs The maximal number of objects this instance should
-   * accomodate.
+   * accommodate.
    * @return 0 or possible error code.
    */
   int init(Uint32 maxObjs);
@@ -81,7 +81,7 @@ private:
   /** Size of each object (in bytes).*/
   const size_t m_objSize;
 
-  /** The number of objects this instance can accomodate.*/
+  /** The number of objects this instance can accommodate.*/
   Uint32 m_maxObjs;
 
   /** The allocated memory area.*/
@@ -218,7 +218,7 @@ public:
   void execCLOSE_SCAN_REP(int errorCode, bool needClose);
 
   /** Determines if query has completed and may be garbage collected
-   *  A query is not considder complete until the client has 
+   *  A query is not considered complete until the client has 
    *  called the ::close() or ::release() method on it.
    */
   bool hasCompleted() const
@@ -291,7 +291,7 @@ private:
 
   /**
    * Container of SPJ worker results that the application is currently
-   * iterating over. 'Owned' by application thread and can be accesed
+   * iterating over. 'Owned' by application thread and can be accessed
    * without requiring a mutex lock.
    * Worker results are appended to a OrderedFragSet by ::prepareMoreResults()
    *
@@ -697,7 +697,7 @@ public:
 
   /** Define result ordering for ordered index scan. It is an error to call
    * this method on an operation that is not a scan, or to call it if an
-   * ordering was already set on the operation defintion by calling 
+   * ordering was already set on the operation definition by calling 
    * NdbQueryOperationDef::setOrdering().
    * @param ordering The desired ordering of results.
    * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
@@ -831,7 +831,7 @@ private:
   /** Ordering of scan results (only applies to ordered index scans.)*/
   NdbQueryOptions::ScanOrdering m_ordering;
 
-  /** A scan filter is mapped to an interpeter code program, which is stored
+  /** A scan filter is mapped to an interpreter code program, which is stored
    * here. (This field is NULL if no scan filter has been defined.)*/
   NdbInterpretedCode* m_interpretedCode;
 
@@ -845,7 +845,7 @@ private:
   mutable Uint32 m_rowSize;
 
   /** Max rows (per resultStream) in a fragment scan batch.
-   *   >0: User specified prefered value,
+   *   >0: User specified preferred value,
    *  ==0: Use default CFG values
    *
    *  Used as 'batch_rows' argument in 'SCANREQ'
@@ -900,7 +900,7 @@ private:
 
   /**
    * Expand keys and bounds for the root operation into the KEYINFO section.
-   * @param keyInfo Actuall KEYINFO section the key / bounds are 
+   * @param keyInfo Actual KEYINFO section the key / bounds are 
    *                put into
    * @param actualParam Instance values for NdbParamOperands.
    * Returns: 0 if OK, or possible an errorcode.

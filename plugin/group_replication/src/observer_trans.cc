@@ -235,7 +235,7 @@ int group_replication_trans_before_commit(Trans_param *param) {
   }
 
   if (shared_plugin_stop_lock->try_grab_read_lock()) {
-    /* If plugin is stopping, rollback the transaction immediatly. */
+    /* If plugin is stopping, rollback the transaction immediately. */
     return 1;
   }
 
@@ -305,7 +305,7 @@ int group_replication_trans_before_commit(Trans_param *param) {
   /*
     Atomic DDL:s are logged through the transactional cache so they should
     be exempted from considering as DML by the plugin: not
-    everthing that is in the trans cache is actually DML.
+    everything that is in the trans cache is actually DML.
   */
   bool is_dml = !param->is_atomic_ddl;
   bool may_have_sbr_stmts = !is_dml;

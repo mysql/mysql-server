@@ -54,7 +54,7 @@ using JsonValue = rapidjson::GenericValue<rapidjson::UTF8<>, JsonAllocator>;
 /**
  * @brief DynamicState represents a MySQLRouter dynamic state object.
  *
- * It's ment to be used as a singleton that provides methods to read/update
+ * It's meant to be used as a singleton that provides methods to read/update
  * sections from the specific modules requiring saving their runtime state.
  *
  * It handles the file handling synchronization, versioning and validation.

@@ -555,7 +555,7 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSecondaries) {
       {"uuid4", metadata_cache::ServerMode::ReadOnly, "3309", 3309, 33063},
   });
 
-  // all SECONDAY nodes
+  // all SECONDARY nodes
   {
     auto actual = dest.destinations();
     EXPECT_THAT(actual,

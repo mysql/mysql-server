@@ -2101,7 +2101,7 @@ runGCPStallDuringBackup(NDBT_Context* ctx, NDBT_Step* step)
    * avoid Backup weirdness around 3 GCIs
    * We then cause GCP itself to stall
    * We then wait a little longer
-   * We then unstall the backup scan and GCP stall
+   * We then uninstall the backup scan and GCP stall
    */
 
   g_err << stepNo << " : stalling backup scan" << endl;

@@ -54,7 +54,7 @@ using mysql_harness::Path;
 
 /** @class ProcessManager
  *
- * Manages collecion of the processes
+ * Manages collection of the processes
  * Enables creating, shutting down etc.
  *
  **/
@@ -266,7 +266,7 @@ class ProcessManager {
    * @param   catch_stderr bool flag indicating if the process' error output
    * stream should be included in the output caught from the process
    * @param   with_sudo    bool flag indicating if the process' should be
-   * execute with sudo priviledges
+   * execute with sudo privileges
    * @param wait_for_notify_ready
    *        if >=0 the method should use the notification socket and the value
    * is the time in milliseconds - how long the it should wait for the process
@@ -276,7 +276,7 @@ class ProcessManager {
    * returning string that should be send back to the process input (if not
    * empty)
    *
-   * @returns handle to the launched proccess
+   * @returns handle to the launched process
    */
   ProcessWrapper &launch_router(
       const std::vector<std::string> &params, int expected_exit_code = 0,
@@ -304,7 +304,7 @@ class ProcessManager {
    * launching command should wait for the process to notify it is ready.
    * Otherwise the caller does not want to wait for the notification.
    *
-   * @returns handle to the launched proccess
+   * @returns handle to the launched process
    */
   ProcessWrapper &launch_mysql_server_mock(
       const std::string &json_file, unsigned port, int expected_exit_code = 0,
@@ -345,7 +345,7 @@ class ProcessManager {
    * returning string that should be send back to the process input (if not
    * empty)
    *
-   * @returns handle to the launched proccess
+   * @returns handle to the launched process
    */
   ProcessWrapper &launch_command(
       const std::string &command, const std::vector<std::string> &params,
@@ -368,7 +368,7 @@ class ProcessManager {
    * returning string that should be send back to the process input (if not
    * empty)
    *
-   * @returns handle to the launched proccess
+   * @returns handle to the launched process
    */
   ProcessWrapper &launch_command(
       const std::string &command, const std::vector<std::string> &params,
@@ -458,7 +458,7 @@ class ProcessManager {
    * sections)
    * @param default_section [DEFAULT] section parameters
    * @param name config file name
-   * @param extra_defaults addional parameters to add to [DEFAULT]
+   * @param extra_defaults additional parameters to add to [DEFAULT]
    * @param enable_debug_logging add a logger section with debug level
    *
    * @return path to the created file

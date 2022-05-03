@@ -123,7 +123,7 @@ struct Network_security_credentials {
   Note that only the server_key_file/server_cert_file and the client_key_file/
   client_cert_file are required and the rest of the pointers can be NULL.
   If the key is provided along with the certificate, either the key file or
-  the other can be ommited.
+  the other can be omitted.
 
   The caller can free the parameters after the SSL is started
   if this is necessary.
@@ -307,7 +307,7 @@ class Network_provider {
   virtual std::pair<bool, int> stop() = 0;
 
   /**
-   * @brief Get the communcation stack implmeneted by this provider
+   * @brief Get the communication stack implemented by this provider
    *
    * Return a valid value withint the range of RunningProtocol enum.
    *

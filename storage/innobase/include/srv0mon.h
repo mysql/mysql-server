@@ -85,7 +85,7 @@ struct monitor_value_t {
   monitor_running_t mon_status;      /* whether monitor still running */
 };
 
-/** Follwoing defines are possible values for "monitor_type" field in
+/** Following defines are possible values for "monitor_type" field in
 "struct monitor_info" */
 enum monitor_type_t {
   MONITOR_NONE = 0,            /*!< No monitoring */
@@ -164,7 +164,7 @@ enum monitor_id_t {
   MONITOR_OVLD_LOCK_AVG_WAIT_TIME,
   MONITOR_SCHEDULE_REFRESHES,
 
-  /* Buffer and I/O realted counters. */
+  /* Buffer and I/O related counters. */
   MONITOR_MODULE_BUFFER,
   MONITOR_OVLD_BUFFER_POOL_SIZE,
   MONITOR_OVLD_BUF_POOL_READS,

@@ -55,7 +55,7 @@ struct mysql_pfs_key_t {
   /** Constructor */
   mysql_pfs_key_t(unsigned int val) : m_value(val) {}
 
-  /** Retreive the count.
+  /** Retrieve the count.
   @return number of keys defined */
   static int get_count() { return s_count; }
 

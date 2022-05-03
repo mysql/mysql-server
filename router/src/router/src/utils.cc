@@ -363,7 +363,7 @@ static RET strtoX_checked_common(const char *value,
   // particularly to disallow:
   // - whitespace characters
   // - decimal numbers
-  // Futher validation is responsibility of conv_func.
+  // Further validation is responsibility of conv_func.
   {
     // Compute (roughly) the max number of base10 digits RET can have.
     //   max(1 byte)  = 255 -> 3 digits,

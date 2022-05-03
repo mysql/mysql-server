@@ -99,7 +99,7 @@ int runSQLQueries(NDBT_Context* ctx, NDBT_Step* step,
 
         if (extra_loops < 10)
         {
-          // Check that last query suceeded
+          // Check that last query succeeded
           if (sql.last_errno() != 0)
           {
             g_err << "Fatal error during shutdown queries: "
@@ -110,7 +110,7 @@ int runSQLQueries(NDBT_Context* ctx, NDBT_Step* step,
         }
         else
         {
-          // We are done, signal sucess
+          // We are done, signal success
           result= NDBT_OK;
         }
       }

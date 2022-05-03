@@ -190,7 +190,7 @@ struct plugin_options_variables {
   bool allow_local_lower_version_join_var;
 
   /*
-    The default value for auto_increment_increment is choosen taking into
+    The default value for auto_increment_increment is chosen taking into
     account the maximum usable values for each possible auto_increment_increment
     and what is a normal group expected size.
   */

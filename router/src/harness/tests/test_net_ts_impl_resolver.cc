@@ -232,7 +232,7 @@ TEST(NetTS_impl_resolver, getaddrinfo_numerichost_ipv4_mapped_ipv6) {
   ASSERT_NE(ainfo, nullptr);
 
   // solaris: AF_INET
-  // ohters: AF_INET6
+  // others: AF_INET6
   EXPECT_THAT(ainfo->ai_family, ::testing::AnyOf(AF_INET6, AF_INET));
   ASSERT_EQ(ainfo->ai_addr->sa_family, ainfo->ai_family);
 }

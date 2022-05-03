@@ -301,7 +301,7 @@ int main(int argc, char** argv)
    ************************************/
    
   std::cout << "Ready to insert rows.  You will see notices for temporary "
-    "errors, permenant errors, and retries. \n";
+    "errors, permanent errors, and retries. \n";
   for (int i = 10000; i < 20000; i++) {
     executeInsertTransaction(i, myNdb, myTable);
   }

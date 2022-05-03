@@ -959,7 +959,7 @@ class Group_member_info_manager_interface {
     Check if an unreachable member exists
 
     This approach is optimistic, right after return a member can be marked as
-    rechable/unreachable
+    reachable/unreachable
 
     @return true if an unreachable member exists
   */

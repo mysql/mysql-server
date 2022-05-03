@@ -90,7 +90,7 @@ const std::string execute_start_trasaction = "START TRANSACTION";
 const std::string query_schema_version =
     "SELECT * FROM mysql_innodb_cluster_metadata.schema_version";
 
-// query #1 (occurrs first) - fetches expected (configured) topology from
+// query #1 (occurs first) - fetches expected (configured) topology from
 // metadata server
 std::string query_metadata =
     "SELECT "
@@ -428,7 +428,7 @@ TEST_F(MetadataTest, ConnectToMetadataServer_Failed) {
   ManagedInstance metadata_server{"instance-1", ServerMode::ReadWrite,
                                   "localhost", 3310, 33100};
 
-  // connetion attempt should fail
+  // connection attempt should fail
   EXPECT_CALL(session_factory.get(0), flag_fail(_, 3310)).Times(1);
   EXPECT_FALSE(metadata.connect_and_setup_session(metadata_server));
 }
@@ -896,7 +896,7 @@ TEST_F(MetadataTest, CheckClusterStatus_VariableNodeSetup) {
     EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(2).mode);
     // should log warning "Member <host>:<port> (instance-*) defined in metadata
-    // not found in actual Group Replication" for instanes 4-7
+    // not found in actual Group Replication" for instances 4-7
     EXPECT_TRUE(metadata_gr_discrepancy);
   }
 
@@ -1859,7 +1859,7 @@ TEST_F(MetadataTest, UpdateClusterStatus_Status_FailQueryOnAllNodes) {
       .Times(1)
       .WillOnce(Invoke(query_status_fail(session)));
 
-  // since 2st query_status failed, update_cluster_status() should start
+  // since 2nd query_status failed, update_cluster_status() should start
   // another iteration, but on instance-3 this time. Note that the connection to
   // instance-3 has to be created first
   enable_connection(++session, 3330);
@@ -1939,7 +1939,7 @@ TEST_F(MetadataTest, UpdateClusterStatus_SimpleSunnyDayScenario) {
 
   EXPECT_EQ(1,
             session_factory
-                .create_cnt());  // should resuse localhost:3310 connection,
+                .create_cnt());  // should reuse localhost:3310 connection,
 
   // query_status reported back from instance-1
   EXPECT_EQ(3u, cluster.members.size());
@@ -2044,7 +2044,7 @@ TEST_F(MetadataTest, FetchInstances_ok) {
 /**
  * @test
  * Verify `ClusterMetadata::fetch_cluster_topology()` will handle correctly when
- * retreiving information from all servers fail. It should return an empty
+ * retrieving information from all servers fail. It should return an empty
  * routing table since it's unable to complete its operation successfully.
  */
 TEST_F(MetadataTest, FetchInstances_fail) {

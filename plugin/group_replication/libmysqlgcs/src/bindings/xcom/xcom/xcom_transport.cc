@@ -79,7 +79,7 @@
 xcom_proto const my_min_xcom_version =
     x_1_0; /* The minimum protocol version I am able to understand */
 xcom_proto const my_xcom_version =
-    MY_XCOM_PROTO; /* The maximun protocol version I am able to understand */
+    MY_XCOM_PROTO; /* The maximum protocol version I am able to understand */
 
 /* #define XCOM_ECM */
 
@@ -113,7 +113,7 @@ connection_descriptor *open_new_connection(const char *server, xcom_port port,
 connection_descriptor *open_new_local_connection(const char *server,
                                                  xcom_port port) {
   // Local connection must avoid SSL at all costs.
-  // Neverthless, we will keep the service running with local signalling,
+  // Nevertheless, we will keep the service running with local signalling,
   // trying to make a connection without SSL, and afterwards, with SSL.
   connection_descriptor *retval = nullptr;
   retval = Network_provider_manager::getInstance().open_xcom_connection(

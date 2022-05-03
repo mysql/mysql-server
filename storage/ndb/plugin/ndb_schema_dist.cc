@@ -328,7 +328,7 @@ void Ndb_schema_dist_client::push_and_clear_schema_op_results() {
 
   // Push results received from participant(s) as warnings. These are meant to
   // indicate that schema distribution has failed on one of the nodes. For more
-  // information on how and why the failure occured, the relevant error log
+  // information on how and why the failure occurred, the relevant error log
   // remains the place to look
   for (const Schema_op_result &op_result : m_schema_op_results) {
     // Warning consists of the node id and message but not result code since

@@ -308,7 +308,7 @@ class SslModeOption {
       : allowed_ssl_modes_{allowed_ssl_modes} {}
 
   SslMode operator()(const std::string &value, const std::string &option_desc) {
-    // convert name to upper-case to get case-insenstive comparision.
+    // convert name to upper-case to get case-insensitive comparison.
     auto uc_value = value;
     std::transform(value.begin(), value.end(), uc_value.begin(), ::toupper);
 
@@ -371,7 +371,7 @@ class SslVerifyOption {
 
   SslVerify operator()(const std::string &value,
                        const std::string &option_desc) {
-    // convert name to upper-case to get case-insenstive comparision.
+    // convert name to upper-case to get case-insensitive comparison.
     auto uc_value = value;
     std::transform(value.begin(), value.end(), uc_value.begin(), ::toupper);
 

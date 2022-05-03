@@ -2061,7 +2061,7 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
   then we consider the undo tablespace to be growing aggressively. */
   if (space != nullptr && space->m_undo_extend > UNDO_INITIAL_SIZE_IN_PAGES &&
       space->m_last_extended.elapsed() < 1000) {
-    /* UNDO is beeing extended aggressively, dont' reduce size to default. */
+    /* UNDO is being extended aggressively, don't reduce size to default. */
     n_pages = fil_space_get_size(old_space_id) / 4;
   }
 

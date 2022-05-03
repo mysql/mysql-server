@@ -184,7 +184,7 @@ class page_id_t {
   given that page_id_t is TriviallyCopyable, and that the field is not
   used until it is assigned some real value. Such constructor would be
   misleading to people reading the code, as they might expect UINT32_UNDEFINED
-  value, if they didn't notice the memset code burried somewhere in parent's
+  value, if they didn't notice the memset code buried somewhere in parent's
   initialization routine.
 
   Therefore, please either be explicit by using (space,page_no) overload,

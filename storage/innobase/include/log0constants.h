@@ -75,12 +75,12 @@ constexpr const char *const LOG_FILE_BASE_NAME = "#ib_redo";
 + length for decimal digits(22). */
 constexpr uint32_t LOG_FILE_NAME_MAX_LENGTH = 8 + 22;
 
-/** Targetted number of log files. */
+/** Targeted number of log files. */
 constexpr size_t LOG_N_FILES = 32;
 
 /** Determines maximum downsize for maximum redo file size during resize.
 If maximum file size is 8G, then 1.0/8 means, that InnoDB needs to first
-achieve maximum file size equal to 1G before targetting even lower values. */
+achieve maximum file size equal to 1G before targeting even lower values. */
 constexpr double LOG_N_FILES_MAX_DOWNSIZE_RATIO = 1.0 / 8;
 
 /** Minimum size of single log file, expressed in bytes. */

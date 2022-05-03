@@ -1259,7 +1259,7 @@ NdbSqlUtil::strnxfrm_hash(const CHARSET_INFO* cs,
  * as produced by strnxfrm_hash().
  *
  *  cs:     The Character set definition
- *  maxLen: The maximim (padded) length of the string
+ *  maxLen: The maximum (padded) length of the string
  */
 Uint32
 NdbSqlUtil::strnxfrm_hash_len(const CHARSET_INFO* cs,

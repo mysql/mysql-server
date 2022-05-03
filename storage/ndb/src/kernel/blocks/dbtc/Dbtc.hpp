@@ -180,7 +180,7 @@ class Dbtc
 public:
 
   /**
-   * Incase of mt-TC...only one instance will perform actual take-over
+   * In case of mt-TC...only one instance will perform actual take-over
    *   let this be TAKE_OVER_INSTANCE
    */
   static constexpr Uint32 TAKE_OVER_INSTANCE = 1;
@@ -1690,7 +1690,7 @@ public:
     BlockReference lqhBlockref;
 
     // getNodeInfo.m_connectCount, set at seize used so that
-    // I don't accidently kill a starting node
+    // I don't accidentally kill a starting node
     Uint32 m_connectCount;
 
     // State of this fragment scan
@@ -2892,7 +2892,7 @@ private:
     CAN CONTAIN ONE (1) ATTRINFO SIGNAL. ONE SIGNAL CONTAINS 24 ATTR.          
     INFO WORDS. BUT 32 ELEMENTS ARE USED TO MAKE PLEX HAPPY.                   
     SOME OF THE ELEMENTS ARE USED TO THE FOLLOWING THINGS:                     
-    DATA LENGHT IN THIS RECORD IS STORED IN THE ELEMENT INDEXED BY             
+    DATA LENGTH IN THIS RECORD IS STORED IN THE ELEMENT INDEXED BY             
     ZINBUF_DATA_LEN.                                                           
     NEXT FREE ATTRBUF IS POINTED OUT BY THE ELEMENT INDEXED BY                 
     PREVIOUS ATTRBUF IS POINTED OUT BY THE ELEMENT INDEXED BY ZINBUF_PREV      

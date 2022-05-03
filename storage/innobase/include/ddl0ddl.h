@@ -530,7 +530,7 @@ struct Context {
 
   /** Setup the primary key sort.
   @param[in,out] cursor         Setup the primary key data structures.
-  @return DB_SUCCESS or erro code. */
+  @return DB_SUCCESS or error code. */
   [[nodiscard]] dberr_t setup_pk_sort(Cursor *cursor) noexcept;
 
   /** Init the non-null column constraints checks (if required). */

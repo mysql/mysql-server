@@ -89,7 +89,7 @@ rec_t *rtr_page_split_and_insert(
 
 /** Sets the child node mbr in a node pointer.
 @param[in]      index   index
-@param[in]      block   bufer block
+@param[in]      block   buffer block
 @param[out]     mbr     MBR encapsulates the page
 @param[in]      heap    heap for the memory allocation */
 static inline void rtr_page_cal_mbr(const dict_index_t *index,

@@ -164,7 +164,7 @@ class HTTP_AUTH_BACKEND_LIB_EXPORT Pbkdf2McfAdaptor {
   }
 
   /**
-   * checkum.
+   * checksum.
    *
    * RFC4648 base64 encoded
    */

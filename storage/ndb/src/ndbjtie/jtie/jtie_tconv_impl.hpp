@@ -240,7 +240,7 @@ struct Result
 //
 // Examples: 'int const', 'A * const' (does not apply to 'const A *')
 
-// XXX ambigous with enums
+// XXX ambiguous with enums
 //template< typename J, typename C >
 //struct Param< J, C const > : Param< J, C > {};
 //

@@ -108,7 +108,7 @@ class Transaction_cache {
     Searches the cache for the transaction context identified by the given
     XID.
 
-    An aditional filtering predicate can be provided, to allow for futher
+    An additional filtering predicate can be provided, to allow for further
     validations on values for mathching XID. The predicate is evaluated
     while holding the necessary locks to ensure the validaty of the
     `Transaction_ctx` shared pointer.

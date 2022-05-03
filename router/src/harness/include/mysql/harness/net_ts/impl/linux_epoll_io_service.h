@@ -345,10 +345,10 @@ class linux_epoll_io_service : public IoServiceBase {
         //
         // waiting for:      IN|OUT
         // fires:            IN
-        // epoll.intersting: 0
+        // epoll.interesting:0
         // not fired:        OUT
         //
-        // add back the events that havn't fired yet.
+        // add back the events that haven't fired yet.
         epoll_event ev{};
         ev.data.fd = fd;
         ev.events = it->second;

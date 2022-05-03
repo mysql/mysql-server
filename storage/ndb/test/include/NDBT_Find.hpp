@@ -32,7 +32,7 @@
   given paths. Adds platform specific searc locations when
   necessary.
   Returns the full absolute path to the binary in 'name' if
-  found, otherwise porint error mesage and 'abort' 
+  found, otherwise print error message and 'abort' 
 */
 void NDBT_find_binary(BaseString& name,
                      const char* binary_name,

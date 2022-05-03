@@ -788,7 +788,7 @@ class Gcs_xcom_control : public Gcs_control_interface {
  protected:
   /*
     Whether the XCOM was left running or not meaning that the join
-    operation was successfuly executed. Note, however, that this
+    operation was successfully executed. Note, however, that this
     does not mean that any view was delivered yet.
 
     This flag is only updated by the MySQL GCS engine when the join

@@ -215,7 +215,7 @@ void getTextSTTORRYRecieved(char *m_text,
                             Uint32 /*len*/)
 {
   //-----------------------------------------------------------------------
-  // STTORRY recevied after restart finished.
+  // STTORRY received after restart finished.
   //-----------------------------------------------------------------------
   BaseString::snprintf(m_text, m_text_len, 
 		       "STTORRY received after restart finished");
@@ -1493,7 +1493,7 @@ void getTextStartReport(char *m_text,
        "nodes [ all: %s connected: %s no-wait: %s ]",
        time, bstr3.c_str(), bstr0.c_str(), bstr1.c_str(), bstr2.c_str());
     break;
-  case 4: // Wait partioned
+  case 4: // Wait partitioned
     BaseString::snprintf
       (m_text, m_text_len,
        "Waiting for non partitioned start, "
@@ -1543,7 +1543,7 @@ void getTextStartReport(char *m_text,
        "Start with nodes %s [ missing: %s no-wait: %s ]",
        bstr1.c_str(), bstr3.c_str(), bstr2.c_str());
     break;
-  case 0x8003: // Do partioned
+  case 0x8003: // Do partitioned
     BaseString::snprintf
       (m_text, m_text_len,
        "Start potentially partitioned with nodes %s "

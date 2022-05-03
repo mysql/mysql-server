@@ -1440,7 +1440,7 @@ runAbortWithSlowChildScans(NDBT_Context* ctx, NDBT_Step* step)
   restarter.insertErrorInAllNodes(8109);
 
   /* Now perform delete of parent rows in a separate connection
-   * Separate connection used as some validation is perfomed by
+   * Separate connection used as some validation is performed by
    * TC at connection close time (TCRELEASEREQ)
    */
   

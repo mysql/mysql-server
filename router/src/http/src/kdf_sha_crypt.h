@@ -160,7 +160,7 @@ class HTTP_AUTH_BACKEND_LIB_EXPORT ShaCryptMcfAdaptor {
   }
 
   /**
-   * checkum.
+   * checksum.
    *
    * in crypt-specific base64 encoding
    */

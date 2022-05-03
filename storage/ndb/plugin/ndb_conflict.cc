@@ -149,7 +149,7 @@ bool ExceptionsTableWriter::check_pk_columns(
             col->getNullable() == ex_col->getNullable())) {
         /*
            Primary key type of the original table doesn't match
-           the primary key column of the execption table.
+           the primary key column of the exception table.
            Assume that the table format has been extended and
            check more below.
         */
@@ -200,7 +200,7 @@ bool ExceptionsTableWriter::check_optional_columns(
     /*
       We really need the CHARSET_INFO from when the table was
       created but NdbDictionary::Table doesn't save this. This
-      means we cannot handle tables and execption tables defined
+      means we cannot handle tables and exception tables defined
       with a charset different than the system charset.
     */
     CHARSET_INFO *cs = system_charset_info;
@@ -296,7 +296,7 @@ bool ExceptionsTableWriter::check_optional_columns(
       /*
         We really need the CHARSET_INFO from when the table was
         created but NdbDictionary::Table doesn't save this. This
-        means we cannot handle tables end execption tables defined
+        means we cannot handle tables end exception tables defined
         with a charset different than the system charset.
       */
       CHARSET_INFO *mcs = system_charset_info;
@@ -473,7 +473,7 @@ int ExceptionsTableWriter::init(const NdbDictionary::Table *mainTable,
   DBUG_PRINT("info",
              ("Checking definition of exceptions table %s", ex_tab_name));
   /*
-    Check that the table have the corrct number of columns
+    Check that the table have the correct number of columns
     and the mandatory columns.
    */
 
@@ -1863,7 +1863,7 @@ static int row_conflict_fn_max(NDB_CONFLICT_FN_SHARE *cfn_share,
   be checked on return.  For this to work is is vital that the operation
   is run with ignore error option.
 
-  In this variant, replicated DELETEs alway succeed - no filter is added
+  In this variant, replicated DELETEs always succeed - no filter is added
   to them.
 */
 

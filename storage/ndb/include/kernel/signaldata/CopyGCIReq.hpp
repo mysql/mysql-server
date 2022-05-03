@@ -31,14 +31,14 @@
 
 
 /**
- * This signal is used for transfering the sysfile 
+ * This signal is used for transferring the sysfile
  * between Dih on different nodes.
  *
  * The master will distributes the file to the other nodes
  *
  * Since the Sysfile can be larger than on StartMeConf signal,
  *   there might be more than on of these signals sent before
- *   the entire sysfile is transfered
+ *   the entire sysfile is transferred
  */
 class CopyGCIReq {
   /**

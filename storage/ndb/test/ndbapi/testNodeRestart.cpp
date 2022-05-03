@@ -9343,7 +9343,7 @@ int runTestStartNode(NDBT_Context* ctx, NDBT_Step* step){
  * The test loops for more than 2048 times to ensure that we come
  * to a situation with a large number of parts in each LCP and in
  * particular for the last one that we are to restore. The number
- * 2058 is somewhat arbitrarily choosen to ensure this.
+ * 2058 is somewhat arbitrarily chosen to ensure this.
  *
  * The test case is hardcoded to make those special LCPs in node 2.
  *
@@ -10407,7 +10407,7 @@ int runChangePkCharKeyTable(NDBT_Context* ctx, NDBT_Step* step)
         /**
          * For case-sensitive collations, we must use correct case
          * when specifying keys.
-         * For case-insenstive collations, we do not need to, so use
+         * For case-insensitive collations, we do not need to, so use
          * the 'to' case for the key, and the 'to' value.
          */
         const char toCaseKey = ((cycle? 'A' : 'a') + i);

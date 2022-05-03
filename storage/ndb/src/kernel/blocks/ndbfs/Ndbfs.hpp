@@ -88,7 +88,7 @@ private:
   Ndbfs(Ndbfs & );
   void operator = (Ndbfs &);
   
-  // Used for uniqe number generation
+  // Used for unique number generation
   Uint16 theLastId;
 
   // Communication from/to files
@@ -178,7 +178,7 @@ private:
   VoidFs(VoidFs & );
   void operator = (VoidFs &);
   
-  // Used for uniqe number generation
+  // Used for unique number generation
   Uint32 c_maxFileNo;
 };
 

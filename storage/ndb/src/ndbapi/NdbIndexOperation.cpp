@@ -189,7 +189,7 @@ NdbIndexOperation::getIndex() const
 /***************************************************************************
 int receiveTCINDXREF( NdbApiSignal* aSignal)
 
-Return Value:   Return 0 : send was succesful.
+Return Value:   Return 0 : send was successful.
                 Return -1: In all other case.   
 Parameters:     aSignal: the signal object that contains the TCINDXREF signal from TC.
 Remark:         Handles the reception of the TCKEYREF signal.

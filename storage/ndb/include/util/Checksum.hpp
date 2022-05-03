@@ -135,7 +135,7 @@ computeXorChecksum(const Uint32 *const buf, const size_t words,
   Uint32 tmp1 = 0;
   const Uint32 middle = words / 2;
   for (auto ptr{buf}; ptr < (buf + middle); ++ptr) {
-    // Use two seperate 'Xor-streams'
+    // Use two separate 'Xor-streams'
     tmp0 ^= *ptr;
     tmp1 ^= *(ptr+middle);
   }

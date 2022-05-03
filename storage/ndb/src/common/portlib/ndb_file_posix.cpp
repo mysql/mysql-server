@@ -268,7 +268,7 @@ int ndb_file::do_sync() const
  * On Linux open(O_CREAT | O_DIRECT) can create a file and leave it behind even
  * if call fail due to O_DIRECT not supported on file system.
  *
- * It is choosen to separate create() and open() instead, create() fails if
+ * It is chosen to separate create() and open() instead, create() fails if
  * there is already a file.
  */
 int ndb_file::create(const char name[])
@@ -442,7 +442,7 @@ int ndb_file::set_direct_io(bool assume_implicit_datasync)
    * flag in InnoDB (O_DIRECT_NO_FSYNC).
    *
    * We will only ever set this flag if O_DIRECT is
-   * succesfully applied on the file. This flag will not
+   * successfully applied on the file. This flag will not
    * change anything on block code. The blocks are still
    * expected to issue sync flags at the same places as
    * before, but if this flag is supported, the fsync

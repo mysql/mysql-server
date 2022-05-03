@@ -60,7 +60,7 @@ class Sql_cmd_xa_prepare : public Sql_cmd {
     @param thd The `THD` session object within which the command is being
                executed.
 
-    @return false if the execution is successfull, true otherwise.
+    @return false if the execution is successful, true otherwise.
    */
   bool execute(THD *thd) override;
 

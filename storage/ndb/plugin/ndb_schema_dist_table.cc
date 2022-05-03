@@ -68,7 +68,7 @@ bool Ndb_schema_dist_table::check_schema() const {
   // varbinary, at least 63 bytes long
   // NOTE! The 63 bytes length for the db and name column is a legacy bug
   // which doesn't have enough room for MySQL's max identitfier size. For
-  // backwards compatiblity reasons it's allowed to use such a schema
+  // backwards compatibility reasons it's allowed to use such a schema
   // distribution table but not all identifiers will be possible to distribute.
   if (!(check_column_exist(COL_DB) && check_column_varbinary(COL_DB) &&
         check_column_minlength(COL_DB, LEGACY_IDENTIFIER_LENGTH))) {

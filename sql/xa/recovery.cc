@@ -34,7 +34,7 @@ namespace {  // Compilation unit local types and functions
 
    {
      {Failed commits, Failed rollbacks, Failed prepares},
-     {Successfull commits, Successful rallbacks, Successful prepares}
+     {Successful commits, Successful rallbacks, Successful prepares}
    }
  */
 using recovery_statistics = std::pair<std::tuple<size_t, size_t, size_t>,
@@ -166,7 +166,7 @@ void report_trx_recovery_error(int error, ID const &id, handlerton const &ht,
                                bool is_xa = false);
 /**
   Returns an XA status code according to active debug symbols. If none of
-  the targetted debug symbols are active, will return XA_OK.
+  the targeted debug symbols are active, will return XA_OK.
 
   @return one of XAER_ASYNC, XAER_RMERR, XAER_NOTA, XAER_INVAL, XAER_PROTO,
           XAER_RMFAIL, XAER_DUPID, XAER_OUTSIDE if associated debug symbol

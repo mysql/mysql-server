@@ -236,7 +236,7 @@ public:
   const Uint32 *distkey_indexes;
 
   /*
-    m_min_distkey_prefix_length is the minimum lenght of an index prefix
+    m_min_distkey_prefix_length is the minimum length of an index prefix
     needed to include all distribution keys. In other words, it is one more
     that the index of the last distribution key in the index order.
 

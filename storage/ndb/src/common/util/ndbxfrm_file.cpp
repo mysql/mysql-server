@@ -68,7 +68,7 @@ bool ndbxfrm_file::print_file_header_and_trailer = false;
  * Since class has no buffering, all i/o is transformed, and transformation
  * must be explicit not transparent as for ndbxfrm_{write, read}file.
  *
- * Also to allow writing multiple consequtive pages, buffer is outside class
+ * Also to allow writing multiple consecutive pages, buffer is outside class
  * and transformation must be done buffer to buffer rather when transparent
  * doing i/o.
  */

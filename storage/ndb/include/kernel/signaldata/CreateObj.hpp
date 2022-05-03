@@ -34,11 +34,11 @@
 /**
  * CreateObj
  *
- * Implemenatation of CreateObj
+ * Implementation of CreateObj
  */
 struct CreateObjReq {
   /**
-   * Sender(s) / Reciver(s)
+   * Sender(s) / Receiver(s)
    */
   friend class Dbdict;
 

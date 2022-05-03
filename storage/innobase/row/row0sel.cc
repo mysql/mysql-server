@@ -1046,7 +1046,7 @@ retry:
           pcur->m_btr_cur.rtr_info);
 
       if (!page_is_leaf(buf_block_get_frame(cur_block))) {
-        /* Page got splitted and promoted (only for
+        /* Page got split and promoted (only for
         root page it is possible).  Release the
         page and ask for a re-search */
         mtr_commit(mtr);
@@ -2938,7 +2938,7 @@ bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
       const auto dfield = dtuple_get_nth_v_field(vrow, col->v_pos);
 
       /* If this is a partitioned table, it might request
-      InnoDB to fill out virtual column data for serach
+      InnoDB to fill out virtual column data for search
       index key values while other non key columns are also
       getting selected. The non-key virtual columns may
       not be materialized and we should skip them. */
@@ -3892,7 +3892,7 @@ static dberr_t row_search_traverse(bool moves_up, ulint match_mode,
 }
 
 /** Searches for rows in the database using cursor.
-Function is for temporary tables that are not shared accross connections
+Function is for temporary tables that are not shared across connections
 and so lot of complexity is reduced especially locking and transaction related.
 The cursor is an iterator over the table/index.
 

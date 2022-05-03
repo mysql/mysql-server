@@ -32,7 +32,7 @@
 class Ndb_schema_trans_guard {
   const Thd_ndb *const m_thd_ndb;
   NdbDictionary::Dictionary *const m_dict;
-  // Remember if transaction has been successfully comitted, otherwise
+  // Remember if transaction has been successfully committed, otherwise
   // it will be aborted when class goes out of scope.
   // NOTE! It's not an error to end a schema trans more than once
   // so there is not much point in keeping more state than this.

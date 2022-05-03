@@ -195,7 +195,7 @@ TEST_F(SplicerTest, invalid_metadata) {
     // ... then try until the starts to fail.
     try {
       for (size_t rounds{};; ++rounds) {
-        // guard against inifinite loop
+        // guard against infinite loop
         if (rounds == 100) FAIL() << "connect() should have failed by now.";
 
         sess.connect("127.0.0.1", router_port,

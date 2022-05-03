@@ -109,7 +109,7 @@ public:
     TableLoggedFlag    = 4,  //Default Logged
     NoOfKeyAttr        = 5,  //Default 1
     NoOfAttributes     = 6,  //Mandatory
-    NoOfNullable       = 7,  //Deafult 0
+    NoOfNullable       = 7,  //Default 0
     NoOfVariable       = 8,  //Default 0
     TableKValue        = 9,  //Default 6
     MinLoadFactor      = 10, //Default 70

@@ -95,7 +95,7 @@ class Ndb_event_data {
   const bool have_blobs;
 
   // Bitmap with all stored columns, used as the initial value when determining
-  // which attributes are receieved in an event
+  // which attributes are received in an event
   MY_BITMAP stored_columns;
 
  private:

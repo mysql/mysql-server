@@ -215,7 +215,7 @@ TEST_F(AsyncReplicasetTest, NoChange) {
         "// Make our metadata server to return all 3 nodes as a cluster "
         "members");
 
-    // each memeber should report the same view_id (=1)
+    // each member should report the same view_id (=1)
     set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports, 0,
                       view_id);
   }

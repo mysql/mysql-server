@@ -110,7 +110,7 @@ TEST_P(LoaderReadTest, Available) {
 }
 
 TEST_P(LoaderReadTest, load_non_existant_fails) {
-  // Test that loading something non-existant works
+  // Test that loading something non-existent works
   EXPECT_THROW(loader->load("nonexistant-plugin"), bad_section);
 }
 

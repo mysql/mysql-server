@@ -404,7 +404,7 @@ void recv_sys_create() {
   recv_sys->spaces = nullptr;
 }
 
-/** Resize the recovery parsing buffer upto log_buffer_size */
+/** Resize the recovery parsing buffer up to log_buffer_size */
 static bool recv_sys_resize_buf() {
   ut_ad(recv_sys->buf_len <= srv_log_buffer_size);
 
@@ -1717,7 +1717,7 @@ static byte *recv_parse_or_apply_log_rec_body(
 
     case MLOG_INDEX_LOAD:
 #ifdef UNIV_HOTBACKUP
-      // While scaning redo logs during a backup operation a
+      // While scanning redo logs during a backup operation a
       // MLOG_INDEX_LOAD type redo log record indicates, that a DDL
       // (create index, alter table...) is performed with
       // 'algorithm=inplace'. The affected tablespace must be re-copied

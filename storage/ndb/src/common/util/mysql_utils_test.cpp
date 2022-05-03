@@ -209,7 +209,7 @@ int test_charset_map()
 
     /* Now we're going to recode.
        We test with the string "ülker", which begins with the character
-       LATIN SMALL LETTER U WITH DIARESIS - unicode code point U+00FC.
+       LATIN SMALL LETTER U WITH DIAERESIS - unicode code point U+00FC.
        In the latin1 encoding this is a literal 0xFC,
        but in the UTF-8 representation it is 0xC3 0xBC.
     */

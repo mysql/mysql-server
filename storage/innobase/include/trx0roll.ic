@@ -44,7 +44,7 @@ static inline bool trx_roll_check_undo_rec_ordering(
 {
   /* Each transaction now can have multiple rollback segments.
   If a transaction involves temp and non-temp tables, both the rollback
-  segments will be active. In this case undo records will be distrubuted
+  segments will be active. In this case undo records will be distributed
   across the two rollback segments.
   CASE-1: UNDO action will apply all undo records from one rollback
   segment before moving to next. This means undo record numbers can't be

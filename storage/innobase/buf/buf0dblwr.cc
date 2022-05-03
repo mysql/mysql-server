@@ -1140,7 +1140,7 @@ class Batch_segment : public Segment {
 
 /** Reduced doublewrite implementation. Uses separate
 .bdblwr files and can coexist with regular doublewrite buffer
-implemenation */
+implementation */
 class Reduced_double_write : public Double_write {
  public:
   /** Constructor
@@ -2018,7 +2018,7 @@ class Reduced_batch_deserializer {
   /** Deserialize page and call Functor f for each page_entry found
   from reduced dblwr page
   @param[in]   f       Functor to process page entry from dblwr page
-  @return DB_SUCCESS on sucess, others of checksum or parsing failures */
+  @return DB_SUCCESS on success, others of checksum or parsing failures */
   template <typename F>
   dberr_t deserialize(F &f) {
     auto page = m_buf->begin();

@@ -3184,7 +3184,7 @@ int Log_event::apply_event(Relay_log_info *rli) {
                    rli->get_event_relay_log_name(), llbuff,
                    "possible malformed group of events from an old master");
 
-          /* Coordinator cant continue, it marks MTS group status accordingly
+          /* Coordinator can't continue, it marks MTS group status accordingly
            */
           rli->mts_group_status = Relay_log_info::MTS_KILLED_GROUP;
 

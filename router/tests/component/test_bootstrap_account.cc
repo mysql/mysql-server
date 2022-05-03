@@ -527,7 +527,7 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
       std::memcpy(ep.data(), ai->ai_addr, ai->ai_addrlen);
       ep.resize(ai->ai_addrlen);
 
-      // get an IPv4 address that is not refering to 127.0.0.1.
+      // get an IPv4 address that is not referring to 127.0.0.1.
       //
       // it may refer to another address on the loopback interface though like
       // 127.0.1.1
@@ -698,7 +698,7 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
     auto expect_stmt = [&](const std::string &query, bool expected) {
       // we search for substring matches - this is more useful than searching
       // for an exact string when trying to prove a particular (class of)
-      // statments did or did not execute.  You can always make the substring
+      // statements did or did not execute.  You can always make the substring
       // as specific as you'd like (the whole query string) to get the exact
       // match behaviour.
       ASSERT_TRUE(sql_log.IsObject());
@@ -1897,7 +1897,7 @@ class AccountReuseReconfigurationTest : public AccountReuseTestBase {};
  * cmdline
  * - verify expected password prompts are presented
  *
- * WL13177:TS_FR01_01 (root passowrd given on commandline)
+ * WL13177:TS_FR01_01 (root password given on commandline)
  * WL13177:TS_FR01_03 (root password should be asked via prompt)
  */
 TEST_F(AccountReuseReconfigurationTest, user_exists_then_account) {
@@ -2151,7 +2151,7 @@ TEST_F(AccountReuseReconfigurationTest,
  * @test
  * bootstrap --account against existing config
  * verify that:
- * - bootstap will use --account username (and ignore username from config)
+ * - bootstrap will use --account username (and ignore username from config)
  *   in CREATE USER and GRANT statements
  * - append new password to keyfile
  * ...
@@ -2215,8 +2215,8 @@ TEST_F(AccountReuseReconfigurationTest, noaccount_then_account) {
  * @test
  * bootstrap against existing config previously bootstrapped with --account
  * verify that:
- * - bootstap will re-use the account in the config
- * - password in the keyring will be perserved
+ * - bootstrap will re-use the account in the config
+ * - password in the keyring will be preserved
  * ...
  */
 TEST_F(AccountReuseReconfigurationTest, account_then_noaccount) {
@@ -2273,9 +2273,9 @@ TEST_F(AccountReuseReconfigurationTest, account_then_noaccount) {
  * @test
  * bootstrap against existing config previously bootstrapped without --account
  * (user exists, Router is registered) verify that:
- * - bootstap will re-use the account in the config (will NOT DROP and re-CREATE
+ * - bootstrap will re-use the account in the config (will NOT DROP and re-CREATE
  * it)
- * - password in the keyring will be perserved
+ * - password in the keyring will be preserved
  * - verify config is written again and contains the same username as before
  * - verify expected password prompts are presented
  *
@@ -2339,7 +2339,7 @@ TEST_F(AccountReuseReconfigurationTest, noaccount_then_noaccount) {
  * bootstrap against existing config previously bootstrapped with --account,
  * keyring is missing
  * verify that:
- * - bootstap will re-use the account in the config
+ * - bootstrap will re-use the account in the config
  * - try to read password from keyring and fail with appropriate message
  */
 TEST_F(AccountReuseReconfigurationTest, account_then_noaccount___no_keyring) {
@@ -2401,7 +2401,7 @@ TEST_F(AccountReuseReconfigurationTest, account_then_noaccount___no_keyring) {
  * bootstrap against existing config previously bootstrapped with --account,
  * keyring exists but doesn't contain the password for the user of interest
  * verify that:
- * - bootstap will re-use the account in the config
+ * - bootstrap will re-use the account in the config
  * - try to read password from keyring and fail with appropriate message
  */
 TEST_F(AccountReuseReconfigurationTest,
@@ -2463,7 +2463,7 @@ TEST_F(AccountReuseReconfigurationTest,
  * bootstrap against existing config bootstrapped previously with --account
  * (user exists, Router is registered), but keyring contains INCORRECT password
  * verify that:
- * - bootstap will re-use the account in the config
+ * - bootstrap will re-use the account in the config
  * - it will proceed with account setup
  * - will fail account validation (due to auth failure) when trying to log in
  *   using bad password
@@ -3479,7 +3479,7 @@ INSTANTIATE_TEST_SUITE_P(
 
         // In bootstrap code, GRANT #1, #2 and #3 are just iterations of the
         // same loop, therefore testing all above combinations for GRANTs #2 and
-        // #3 shouldn't be neccessary as the code path is the same.  Therefore
+        // #3 shouldn't be necessary as the code path is the same.  Therefore
         // to save on test time, we only test a subset of combinations:
         UndoCreateUserTestParams{2, {"h1", "h2", "h3"}, {"h1", "h3"}},
         UndoCreateUserTestParams{3, {"h1", "h2", "h3"}, {"h2"}},
@@ -3802,7 +3802,7 @@ class UndoCreateUserTest : public AccountReuseTestBase {};
  * bootstrap with 3 --account-host, 2 already exist, then trigger failure after
  * account creation stage (in this case, that's the config-writing stage).
  * purpose: verify that "undo CREATE USER" logic will also get triggered by
- * failures that occurr after account creation stage verify that:
+ * failures that occur after account creation stage verify that:
  * - the failure we're trying to induce really happens
  * - the "undo CREATE USER" logic will kick in and remove the newly-created
  * account
@@ -3904,7 +3904,7 @@ TEST_F(UndoCreateUserTest, failure_after_account_creation) {
  * bootstrap with 3 --account-host, 2 already exist, then trigger failure after
  * account creation stage (in this case, that's the config-writing stage). when
  * the "undo CREATE USER" logic kicks in, DROP USER also fails purpose: verify
- * that "undo CREATE USER" logic will also get triggered by failures that occurr
+ * that "undo CREATE USER" logic will also get triggered by failures that occur
  * after account creation stage verify that:
  * - the failure we're trying to induce really happens
  * - the "undo CREATE USER" logic will kick in and report the accounts to erase
@@ -4075,7 +4075,7 @@ TEST_F(AccountValidationTest, sunny_day_scenario) {
  * @test
  * Bootstrap: no --strict, bootstrap against existing account but enter wrong
  * password.  Verify that:
- * - account validation fails (appopriate failure message is printed)
+ * - account validation fails (appropriate failure message is printed)
  * - failed validation does not cause a fatal error
  * - bootstrap succeeds
  * - CREATE USER is NOT reverted (account existed before bootstrapping)
@@ -4141,7 +4141,7 @@ TEST_F(AccountValidationTest, account_exists_wrong_password) {
  * @test
  * Bootstrap: with --strict, bootstrap against existing account but enter wrong
  * password.  Verify that:
- * - account validation fails (appopriate failure message is printed)
+ * - account validation fails (appropriate failure message is printed)
  * - failed validation is a fatal error
  * - bootstrap fails
  * - CREATE USER is NOT reverted (account existed before bootstrapping)
@@ -4206,7 +4206,7 @@ TEST_F(AccountValidationTest, account_exists_wrong_password_strict) {
  * @test
  * Bootstrap: no --strict, account validation fails on connection attempt.
  * Verify that:
- * - account validation fails (appopriate failure message is printed)
+ * - account validation fails (appropriate failure message is printed)
  * - failed validation does not cause a fatal error
  * - bootstrap succeeds
  * - CREATE USER is NOT reverted
@@ -4269,7 +4269,7 @@ TEST_F(AccountValidationTest, warn_on_conn_failure) {
  * @test
  * Bootstrap: with --strict, account validation fails on connection attempt.
  * Verify that:
- * - account validation fails (appopriate failure message is printed)
+ * - account validation fails (appropriate failure message is printed)
  * - failed validation is a fatal error
  * - bootstrap fails
  * - CREATE USER is reverted via DROP USER
@@ -4330,7 +4330,7 @@ TEST_F(AccountValidationTest, error_on_conn_failure) {
 /**
  * @test
  * Bootstrap: no --strict, account validation fails on SQL query.  Verify that:
- * - account validation fails (appopriate failure message is printed)
+ * - account validation fails (appropriate failure message is printed)
  * - failed validation does not cause a fatal error
  * - bootstrap succeeds
  * - CREATE USER is NOT reverted
@@ -4397,7 +4397,7 @@ TEST_F(AccountValidationTest, warn_on_query_failure) {
  * @test
  * Bootstrap: with --strict, account validation fails on SQL query.  Verify
  * that:
- * - account validation fails (appopriate failure message is printed)
+ * - account validation fails (appropriate failure message is printed)
  * - failed validation is a fatal error
  * - bootstrap fails
  * - CREATE USER is reverted via DROP USER
@@ -4465,7 +4465,7 @@ TEST_F(AccountValidationTest, error_on_query_failure) {
  * @test
  * Bootstrap: no --strict, user exists without proper GRANTs (account validation
  * fails on SQL query).  Verify that:
- * - account validation fails (appopriate failure message is printed)
+ * - account validation fails (appropriate failure message is printed)
  * - failed validation does not cause a fatal error
  * - bootstrap succeeds
  * - CREATE USER is NOT reverted
@@ -4535,7 +4535,7 @@ TEST_F(AccountValidationTest, existing_user_missing_grants___no_strict) {
  * @test
  * Bootstrap: with --strict, user exists without proper GRANTs (account
  * validation fails on SQL query).  Verify that:
- * - account validation fails (appopriate failure message is printed)
+ * - account validation fails (appropriate failure message is printed)
  * - failed validation is a fatal error
  * - bootstrap fails
  * - CREATE USER is NOT reverted via DROP USER (it can't be, because it didn't
@@ -4851,7 +4851,7 @@ TEST_F(RouterReportHostTest, without_bootstrap_flag) {
  *        There's a separate suite of unit tests which tests the validating code
  *        which determines if the hostname is valid or not - therefore here we
  *        only focus on how this invalid hostname will be handled - we don't
- *        concern outselves with correctness of hostname validation itself.
+ *        concern ourselves with correctness of hostname validation itself.
  */
 TEST_F(RouterReportHostTest, invalid_hostname) {
   // launch the router in bootstrap mode

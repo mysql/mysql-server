@@ -491,7 +491,7 @@ result Xcom_network_provider_library::checked_create_socket(int domain,
 }
 
 /**
-  @brief Retreives a node IPv4 address, if it exists.
+  @brief Retrieves a node IPv4 address, if it exists.
 
   If a node is v4 reachable, means one of two:
   - The raw address is V4

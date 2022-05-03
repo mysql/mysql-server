@@ -500,7 +500,7 @@ class ROUTER_LIB_EXPORT MySQLSession {
    *
    * @param q stmt to execute
    *
-   * @returns resultset on sucess, MysqlError on error
+   * @returns resultset on success, MysqlError on error
    */
   stdx::expected<mysql_result_type, MysqlError> real_query(
       const std::string &q);

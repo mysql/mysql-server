@@ -2316,7 +2316,7 @@ int prepareSendScan(Uint32 aTC_ConnectPtr,
                     Uint64 aTransactionId,
                     const Uint32 * readMask)
 
-Return Value:   Return 0 : preparation of send was succesful.
+Return Value:   Return 0 : preparation of send was successful.
                 Return -1: In all other case.   
 Parameters:     aTC_ConnectPtr: the Connect pointer to TC.
                 aTransactionId: the Transaction identity of the transaction.
@@ -2403,8 +2403,8 @@ int NdbScanOperation::prepareSendScan(Uint32 /*aTC_ConnectPtr*/,
                                                  m_read_range_no);
 
   /**
-   * Alloc total buffers for all fragments in one big chunk. 
-   * Alloced as Uint32 to fullfil alignment req for NdbReceiveBuffers.
+   * Allocate total buffers for all fragments in one big chunk. 
+   * Allocated as Uint32 to fulfill alignment req for NdbReceiveBuffers.
    */
   assert(theParallelism > 0);
   const Uint32 alloc_size = ((full_rowsize+bufsize)*theParallelism) / sizeof(Uint32);
@@ -2466,7 +2466,7 @@ NdbScanOperation::doSendSetAISectionSizes()
 /*****************************************************************************
 int doSendScan()
 
-Return Value:   Return >0 : send was succesful, returns number of signals sent
+Return Value:   Return >0 : send was successful, returns number of signals sent
                 Return -1: In all other case.   
 Parameters:     aProcessorId: Receiving processor node
 Remark:         Sends the ATTRINFO signal(s)

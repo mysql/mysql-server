@@ -222,7 +222,7 @@ int get_ip_and_port(char const *address, char ip[IP_MAX_SIZE], xcom_port *port);
  * This function checks if a new node entering the group is able to be part of
  * it.
  * This is needed duw to downgrade procedures to server versions that do not
- * speak IPv6. One wil check if:
+ * speak IPv6. One will check if:
  * - Our server is being contacted by a server that has a lower version than the
  * IPv6 baseline
  * - Check if the current configuration is all reachable by an IPv4 node

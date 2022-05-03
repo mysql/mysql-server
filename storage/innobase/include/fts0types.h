@@ -147,7 +147,7 @@ struct fts_cache_t {
                   be our new upgrade-capable rw-lock */
 
   rw_lock_t init_lock; /*!< lock used for the cache
-                       intialization, it has different
+                       initialization, it has different
                        SYNC level as above cache lock */
 #endif                 /* !UNIV_HOTBACKUP */
 

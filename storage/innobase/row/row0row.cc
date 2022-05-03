@@ -254,7 +254,7 @@ dtuple_t *row_build_index_entry_low(const dtuple_t *row, const row_ext_t *ext,
       columns that are stored in-page, or for
       clustered index record columns that are not
       part of a column prefix in the PRIMARY KEY,
-      or for virtaul columns in cluster index record. */
+      or for virtual columns in cluster index record. */
       continue;
     }
 
@@ -1005,7 +1005,7 @@ static ulint row_raw_format_int(const char *data,    /*!< in: raw data */
                                 ulint buf_size,      /*!< in: output buffer size
                                                      in bytes */
                                 bool *format_in_hex) /*!< out: should the data
-                                                      be formated in hex */
+                                                      be formatted in hex */
 {
   ulint ret;
 
@@ -1045,7 +1045,7 @@ static ulint row_raw_format_str(const char *data,    /*!< in: raw data */
                                 ulint buf_size,      /*!< in: output buffer size
                                                      in bytes */
                                 bool *format_in_hex) /*!< out: should the data
-                                                      be formated in hex */
+                                                      be formatted in hex */
 {
   ulint charset_coll;
 

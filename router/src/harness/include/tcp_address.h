@@ -70,7 +70,7 @@ class HARNESS_EXPORT TCPAddress {
   }
 
   /**
-   * @brief Function for performing comparision of TCPAddresses
+   * @brief Function for performing comparison of TCPAddresses
    */
   friend bool operator<(const TCPAddress &left, const TCPAddress &right) {
     if (left.addr_ < right.addr_)

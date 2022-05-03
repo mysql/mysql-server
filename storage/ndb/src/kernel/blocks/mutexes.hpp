@@ -33,7 +33,7 @@
 /**
  * This mutex is used by:
  *  DIH  - before sending START_LCP to all participants
- *  DICT - before commiting a CREATE TABLE
+ *  DICT - before committing a CREATE TABLE
  *  BACKUP - before sending DEFINE_BACKUP
  */
 #define DIH_START_LCP_MUTEX 0

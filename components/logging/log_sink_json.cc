@@ -35,7 +35,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 @@global.log_error_filter_rules= DEFAULT", "err_symbol" : "ER_PARSER_TRACE",
 "label" : "Note" } { "prio" : 2, "err_code" : 3581, "subsystem" : "parser",
 "SQL_state" : "XX999", "source_file" : "sql_parse", "function" :
-"dispatch_command", "msg" : "Parser saw: SELECT \"loging as traditional MySQL
+"dispatch_command", "msg" : "Parser saw: SELECT \"logging as traditional MySQL
 error log and as JSON\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0,
 "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
 */

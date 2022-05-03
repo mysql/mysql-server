@@ -229,7 +229,7 @@ bool CPCD::Process::isRunning() {
 
 #else
   int s = kill((pid_t)-m_pid, 0); /* Sending "signal" 0 to a process only
-                                   * checkes if the process actually exists */
+                                   * checks if the process actually exists */
   if (s != 0) {
     switch (errno) {
       case EPERM:
@@ -639,7 +639,7 @@ int CPCD::Process::start() {
    * This is a bit tricky but has the following advantages:
    *  - the cpcd can die, and "reconnect" to the monitored clients
    *    without restarting them.
-   *  - the cpcd does not have to wait() for the childs. init(1) will
+   *  - the cpcd does not have to wait() for the children. init(1) will
    *    take care of that.
    */
   logger.info("Starting %d: %s", m_id, m_name.c_str());

@@ -29,7 +29,7 @@
 //
 // .DESCRIPTION
 //      Takes a 128 bits value (done as a array of four longs) and 
-//      makes a filename out of it acording the following schema
+//      makes a filename out of it according the following schema
 //      Bits 0-31 T 
 //      Bits 32-63 F
 //      Bits 64-95 S

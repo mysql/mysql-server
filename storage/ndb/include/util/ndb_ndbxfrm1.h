@@ -51,7 +51,7 @@
  *
  * The header and trailers are represented by a C++-struct in memory, and which
  * is written as is to disk.  There should be no hidden padding and all scalar
- * value types should have explicit size and alignment assummed to be same as
+ * value types should have explicit size and alignment assumed to be same as
  * the size.
  *
  * For the case that file is read from a system with reverse byte order, there
@@ -78,9 +78,9 @@
  * And vice versa, if a old reader reads a file written by a new writer using
  * a bigger header than the old reader supports.  The old reader reads and uses
  * the shorter part of the header that it supports, if the rest of written
- * header is all zeros the reader can procede, if not all bits are zero the
+ * header is all zeros the reader can proceed, if not all bits are zero the
  * reader should fail due to unsupported features used in header.  When the old
- * reader procedes the result should be the same as it was a new reader.
+ * reader proceeds the result should be the same as it was a new reader.
  *
  * There is no way to add fields that and old reader can ignore, all new fields
  * will break reader unless the all-zero-bits value is used.

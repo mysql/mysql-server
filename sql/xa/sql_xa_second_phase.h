@@ -87,7 +87,7 @@ class Sql_cmd_xa_second_phase : public Sql_cmd {
   bool m_result{false};
 
   /**
-    Tries to find and initilize the `Transaction_ctx` for the underlying
+    Tries to find and initialize the `Transaction_ctx` for the underlying
     detached XA transaction.
 
     Execution is as follows:
@@ -130,7 +130,7 @@ class Sql_cmd_xa_second_phase : public Sql_cmd {
    */
   void release_locks() const;
   /**
-    Initializes the necessary parts of the `thd` parameter, transfering
+    Initializes the necessary parts of the `thd` parameter, transferring
     some of the detached XA transaction context to the active session. This
     is necessary to use other parts of the infra-structure that rely on
     having the active THD session properly initialized.
@@ -189,7 +189,7 @@ class Sql_cmd_xa_second_phase : public Sql_cmd {
        deleted.
     3. The detached transaction context is deleted from the transaction
        cache.
-    4. GTID state is finalized, either commiting or rolling back the GTID
+    4. GTID state is finalized, either committing or rolling back the GTID
        information.
 
     @param thd The THD session object used to process the detached XA

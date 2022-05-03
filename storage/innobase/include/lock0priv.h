@@ -704,7 +704,7 @@ class RecLock {
   /**
   @param[in] index      Index on which record lock requested
   @param[in] block      Buffer page containing record
-  @param[in] heap_no    Heap number withing block
+  @param[in] heap_no    Heap number within block
   @param[in] mode               The lock mode */
   RecLock(dict_index_t *index, const buf_block_t *block, ulint heap_no,
           ulint mode)

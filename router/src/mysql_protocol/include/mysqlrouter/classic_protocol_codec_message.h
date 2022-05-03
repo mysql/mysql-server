@@ -385,7 +385,7 @@ class Codec<message::server::Ok>
    * @param buffers input buffser sequence
    * @param caps protocol capabilities
    *
-   * @retval std::pair<size_t, message::server::Ok> on sucess, with bytes
+   * @retval std::pair<size_t, message::server::Ok> on success, with bytes
    * processed
    * @retval codec_errc::invalid_input if preconditions aren't met
    * @retval codec_errc::not_enough_input not enough data to parse the whole
@@ -455,7 +455,7 @@ class Codec<message::server::Ok>
  *
  * - 0xef
  *
- * If capabilties has text_result_with_session_tracking, it is followed by
+ * If capabilities has text_result_with_session_tracking, it is followed by
  * - [rest of Ok packet]
  *
  * otherwise, if capabilities has protocol_41
@@ -529,7 +529,7 @@ class Codec<message::server::Eof>
    * @param buffers input buffser sequence
    * @param caps protocol capabilities
    *
-   * @retval std::pair<size_t, message::server::Eof> on sucess, with bytes
+   * @retval std::pair<size_t, message::server::Eof> on success, with bytes
    * processed
    * @retval codec_errc::invalid_input if preconditions aren't met
    * @retval codec_errc::not_enough_input not enough data to parse the whole
@@ -2435,7 +2435,7 @@ class Codec<message::client::Greeting>
 
         if (!shared_caps
                 [classic_protocol::capabilities::pos::connect_attributes]) {
-          // special handling for off-spec client/server implimentations.
+          // special handling for off-spec client/server implementations.
           //
           // 1. older clients may set ::plugin_auth, but
           //    ::connection_attributes which means nothing follows the

@@ -44,7 +44,7 @@
   forget_expels_that_have_taken_effect.
 
   Please note that we keep track of the configuration ID `c` where we expelled
-  `m` to guard against the possibility of removing `m` from this strucutre due
+  `m` to guard against the possibility of removing `m` from this structure due
   to receiving a view "from the past," e.g. receiving a view from
   configuration `b` < `c` where `m` is not a member, after having expelled `m`
   due to views from configuration `c`.

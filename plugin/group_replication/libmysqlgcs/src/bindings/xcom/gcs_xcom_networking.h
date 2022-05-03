@@ -109,7 +109,7 @@ bool get_local_addresses(Gcs_sock_probe_interface &sock_probe,
  @param[out] out maps IP addresses to subnetmasks
  @param filter_out_inactive If set to true, only active interfaces will be added
                             to out
- @return false on sucess, true otherwise.
+ @return false on success, true otherwise.
  */
 bool get_local_private_addresses(std::map<std::string, int> &out,
                                  bool filter_out_inactive = false);

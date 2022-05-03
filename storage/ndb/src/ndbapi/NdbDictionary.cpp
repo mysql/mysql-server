@@ -2288,7 +2288,7 @@ NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
     }
 
     /**
-     * Check if this accidently became a "default" map
+     * Check if this accidentally became a "default" map
      */
     HashMap def;
     if (getDefaultHashMap(def, newmapsize, newcnt) == 0)

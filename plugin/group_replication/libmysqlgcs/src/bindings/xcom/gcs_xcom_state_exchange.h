@@ -384,7 +384,7 @@ class Gcs_xcom_state_exchange_interface {
   virtual void reset() = 0;
 
   /**
-    Has the same behavior as the reset but additionaly flushes buffered
+    Has the same behavior as the reset but additionally flushes buffered
     messages.
   */
 

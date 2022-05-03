@@ -375,7 +375,7 @@ private:
       Found = 3,                // return current as next scan result
       Blocked = 4,              // found and waiting for ACC lock
       Locked = 5,               // found and locked or no lock needed
-      Next = 6,                 // looking for next extry
+      Next = 6,                 // looking for next entry
       Last = 7,                 // after last entry
       Aborting = 8
     };

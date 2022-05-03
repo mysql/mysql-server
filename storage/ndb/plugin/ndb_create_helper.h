@@ -113,7 +113,7 @@ class Ndb_create_helper {
   /**
    * @brief Failed to create the table because some create
    * option is missing. The error code for
-   * missing create option together with descrption will
+   * missing create option together with description will
    * be pushed as warning and the "Can't create table" error set.
    *
    * @description Describes which create option is missing.

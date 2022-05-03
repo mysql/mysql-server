@@ -406,7 +406,7 @@ INSTANTIATE_TEST_SUITE_P(
                                       "dir-with-package.json")));
 
 /**
- * ensure require() only loads and evalutes modules once.
+ * ensure require() only loads and evaluates modules once.
  *
  * js_test_require.js requires the same module twice which exposes
  * a counter function.

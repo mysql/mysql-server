@@ -147,7 +147,7 @@ static bool rtr_pcur_getnext_from_path(
 
   /* Pop each node/page to be searched from "path" structure
   and do a search on it. Please note, any pages that are in
-  the "path" structure are protected by "page" lock, so tey
+  the "path" structure are protected by "page" lock, so they
   cannot be shrunk away */
   do {
     buf_block_t *block;
@@ -270,7 +270,7 @@ static bool rtr_pcur_getnext_from_path(
     page = buf_block_get_frame(block);
     page_ssn = page_get_ssn_id(page);
 
-    /* If there are splits, push the splitted page.
+    /* If there are splits, push the split page.
     Note that we have SX lock on index->lock, there
     should not be any split/shrink happening here */
     if (page_ssn > path_ssn) {
@@ -1258,7 +1258,7 @@ search_again:
     }
   }
 
-  /* Check the page SSN to see if it has been splitted, if so, search
+  /* Check the page SSN to see if it has been split, if so, search
   the right page */
   if (!ret && page_ssn > path_ssn) {
     page_no = btr_page_get_next(page, mtr);
@@ -1683,7 +1683,7 @@ bool rtr_cur_search_with_match(const buf_block_t *block, dict_index_t *index,
         last_match_rec = rec;
       } else {
         /* This is the insertion case, it will break
-        once it finds the first MBR that can accomodate
+        once it finds the first MBR that can accommodate
         the inserting rec */
         break;
       }

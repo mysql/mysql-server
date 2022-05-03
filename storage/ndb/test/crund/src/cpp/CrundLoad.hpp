@@ -48,7 +48,7 @@ public:
     }
     virtual ~CrundLoad() {}
 
-    // intializers/finalizers
+    // initializers/finalizers
     virtual void init();
     virtual void close();
 
@@ -79,7 +79,7 @@ protected:
     typedef vector< Op* > Operations;   // collection of operations
     Operations operations;              // filled by subclasses
 
-    // intializers/finalizers
+    // initializers/finalizers
     virtual void initProperties() {}
     virtual void printProperties() {}
 

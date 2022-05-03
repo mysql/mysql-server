@@ -68,7 +68,7 @@ IMPORTANT NOTE: Any operation that generates redo MUST check that there
 is enough space in the redo log before for that operation. This is
 done by calling log_free_check(). The reason for checking the
 availability of the redo log space before the start of the operation is
-that we MUST not hold any synchonization objects when performing the
+that we MUST not hold any synchronization objects when performing the
 check.
 If you make a change in this module make sure that no codepath is
 introduced where a call to log_free_check() is bypassed. */
@@ -1945,7 +1945,7 @@ static bool row_allow_duplicates(que_thr_t *thr) {
 #if 0  // TODO: Enable this assert after WL#9509. REPLACE will not be allowed on
        // DD tables
                         /* This assert means DD tables should not use REPLACE
-                        or INSERT INTO table.. ON DUPLCIATE KEY */
+                        or INSERT INTO table.. ON DUPLICATE KEY */
                         ut_ad(!index->table->is_dd_table);
 #endif
 
@@ -2148,7 +2148,7 @@ a newer version of entry (the entry should not be inserted)
   /* NOTE: For unique non-clustered indexes there may be any number
   of delete marked records with the same value for the non-clustered
   index key (remember multiversioning), and which differ only in
-  the row refererence part of the index record, containing the
+  the row reference part of the index record, containing the
   clustered index key fields. For such a secondary index record,
   to avoid race condition, we must FIRST do the insertion and after
   that check that the uniqueness condition is not breached! */

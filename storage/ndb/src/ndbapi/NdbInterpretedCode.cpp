@@ -1201,7 +1201,7 @@ NdbInterpretedCode::copy(const NdbInterpretedCode& src)
 
   if (src.m_internal_buffer==NULL)
   {
-    // External buffer with externaly managed life cycle.
+    // External buffer with externally managed life cycle.
     m_buffer = src.m_buffer;
   }
   else
@@ -1209,7 +1209,7 @@ NdbInterpretedCode::copy(const NdbInterpretedCode& src)
     m_buffer = m_internal_buffer = new Uint32[m_buffer_length];
     if (unlikely(m_internal_buffer==NULL))
     {
-      return 4000; // Alllocation failed.
+      return 4000; // Allocation failed.
     }
     memcpy(m_internal_buffer,
            src.m_internal_buffer,

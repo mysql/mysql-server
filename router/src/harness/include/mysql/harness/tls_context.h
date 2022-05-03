@@ -55,7 +55,7 @@ enum class TlsVersion { AUTO, SSL_3, TLS_1_0, TLS_1_1, TLS_1_2, TLS_1_3 };
 /**
  * Verification of Cerifiticates.
  *
- * NONE no certifcate is verified
+ * NONE no certificate is verified
  * PEER verify the cert of the peer
  */
 enum class TlsVerify { NONE, PEER };

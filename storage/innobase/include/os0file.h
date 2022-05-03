@@ -1604,7 +1604,7 @@ bool os_file_status(const char *path, bool *exists, os_file_type_t *type);
 @param[in]  path  path name
 @retval true if the path exists and can be used
 @retval false if the path does not exist or if the path is
-unuseable to get to a possibly existing file or directory. */
+unusable to get to a possibly existing file or directory. */
 bool os_file_exists(const char *path);
 
 /** Create all missing subdirectories along the given path.

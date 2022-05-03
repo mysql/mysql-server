@@ -9265,7 +9265,7 @@ longlong Item_func_can_access_view::val_int() {
   OFF.
   Do *not* skip hidden tables, columns, indexes and index elements,
   when SHOW EXTENDED command are run. GIPK and key column are skipped
-  even for SHOW EXTENED command.
+  even for SHOW EXTENDED command.
 
   Syntax:
     longlong IS_VISIBLE_DD_OBJECT(type_of_hidden_table [, is_object_hidden

@@ -286,7 +286,7 @@ Fil_path MySQL_undo_path;
 /** The undo path is different from any other known directory. */
 bool MySQL_undo_path_is_unique;
 
-/** Common InnoDB file extentions */
+/** Common InnoDB file extensions */
 const char *dot_ext[] = {"",     ".ibd", ".cfg",   ".cfp",
                          ".ibt", ".ibu", ".dblwr", ".bdblwr"};
 
@@ -4894,7 +4894,7 @@ static void fil_op_write_space_extend(space_id_t space_id, os_offset_t offset,
 
 /** Allocate and build a file name from a path, a table or tablespace name
 and a suffix.
-@param[in]      path_in         nullptr or the direcory path or the full path
+@param[in]      path_in         nullptr or the directory path or the full path
                                 and filename
 @param[in]      name_in         nullptr if path is full, or Table/Tablespace
                                 name
@@ -7126,7 +7126,7 @@ and return the absolute file path corresponds to backup dir
 as well as in the form of database/tablespace
 @param[in]      name            path emitted by the redo log
 @param[in]      flags           flags emitted by the redo log
-@param[in]      space_id        space_id emmited by the redo log
+@param[in]      space_id        space_id emitted by the redo log
 @param[out]     absolute_path   absolute path of tablespace
 corresponds to target dir
 @param[out]     tablespace_name name in the form of database/table */
@@ -7981,7 +7981,7 @@ dberr_t fil_io(const IORequest &type, bool sync, const page_id_t &page_id,
   auto const err = shard->do_io(type, sync, page_id, page_size, byte_offset,
                                 len, buf, message);
 #ifdef UNIV_DEBUG
-  /* If the error prevented async io, then we haven't actually transfered the
+  /* If the error prevented async io, then we haven't actually transferred the
   io responsibility at all, so we revert the debug io responsibility info. */
   auto bpage = static_cast<buf_page_t *>(message);
 
@@ -10196,7 +10196,7 @@ byte *fil_tablespace_redo_create(byte *ptr, const byte *end,
 
   if (result.second == nullptr) {
     /* No file maps to this tablespace ID. It's possible that
-    the file was deleted later or is misisng. */
+    the file was deleted later or is missing. */
 
     return ptr;
   }

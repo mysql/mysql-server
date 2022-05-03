@@ -595,7 +595,7 @@ TEST(Expected, T_string_E_std_error_code) {
   // don't inspect 'res' after it has been moved from.
   // EXPECT_EQ(res.value(), "");
 
-  // prepare copy assignement
+  // prepare copy assignment
   res3 = test_func(true);
   ASSERT_TRUE(res3);
   EXPECT_EQ(res3.value(), "from_func");  // fail

@@ -1752,7 +1752,7 @@ static char *os_file_get_parent_dir(const char *path) {
     has_trailing_slash = true;
   }
 
-  /* Reduce repetative slashes. */
+  /* Reduce repetitive slashes. */
   while (last_slash > path && last_slash[-1] == OS_PATH_SEPARATOR) {
     last_slash--;
   }
@@ -1771,7 +1771,7 @@ static char *os_file_get_parent_dir(const char *path) {
       last_slash--;
     }
 
-    /* Reduce repetative slashes. */
+    /* Reduce repetitive slashes. */
     while (last_slash > path && last_slash[-1] == OS_PATH_SEPARATOR) {
       last_slash--;
     }
@@ -2944,7 +2944,7 @@ static bool os_file_status_posix(const char *path, bool *exists,
 @param[in]  path  path name
 @retval true if the path exists and can be used
 @retval false if the path does not exist or if the path is
-unuseable to get to a possibly existing file or directory. */
+unusable to get to a possibly existing file or directory. */
 static bool os_file_exists_posix(const char *path) {
   struct stat statinfo;
 
@@ -3869,7 +3869,7 @@ static bool os_file_status_win32(const char *path, bool *exists,
 @param[in]  path  path name
 @retval true if the path exists and can be used
 @retval false if the path does not exist or if the path is
-unuseable to get to a possibly existing file or directory. */
+unusable to get to a possibly existing file or directory. */
 static bool os_file_exists_win32(const char *path) {
   struct _stat64 statinfo;
 
@@ -6172,7 +6172,7 @@ dberr_t AIO::init_linux_native_aio() {
       we should call it a day and return right away.
       We don't care about any leaks because a failure
       to initialize the io subsystem means that the
-      server (or atleast the innodb storage engine)
+      server (or at least the innodb storage engine)
       is not going to startup. */
       return (DB_IO_ERROR);
     }
@@ -7338,7 +7338,7 @@ class SimulatedAIOHandler {
 
   /** We have to compress the individual pages and punch
   holes in them on a page by page basis when writing to
-  tables that can be compresed at the IO level.
+  tables that can be compressed at the IO level.
   @param[in]    len             Value returned by allocate_buffer */
   void copy_to_buffer(ulint len) {
     Slot *slot = first_slot();

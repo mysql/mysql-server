@@ -59,7 +59,7 @@ int LocalDnsCache::getAddress(in6_addr *result_address, const char *hostname) {
 
   const bool result = getCachedOrResolveAddress(result_address, hostname);
   if (!result) {
-    // Not valid adress, save for later
+    // Not valid address, save for later
     m_failed_lookups.insert(hostname);
   }
   return result ? 0 : -1;

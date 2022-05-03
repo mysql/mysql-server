@@ -3173,7 +3173,7 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
         Uint64 val;
         /**
          * Each and every worker caches opt.m_ai_prefetch_sz auto inc
-         * values by calling getAutoIncrementValue(). If no cahced
+         * values by calling getAutoIncrementValue(). If no cached
          * value available, this call will update the table meta data
          * next-autoincrement value in SYSTAB to cache another
          * opt.m_ai_prefetch_sz range exclusively for this worker.

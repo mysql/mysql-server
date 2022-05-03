@@ -535,7 +535,7 @@ NDBT_Table T14("T14", sizeof(T14Attribs)/sizeof(NDBT_Attribute), T14Attribs);
 /*
   T15 - Dynamic attributes.
   Test many different combinations of attribute types, sizes, and NULLability.
-  Also exersize >32bit dynattr bitmap.
+  Also exercise >32bit dynattr bitmap.
 */
 static
 const

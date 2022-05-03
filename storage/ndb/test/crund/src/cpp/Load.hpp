@@ -44,7 +44,7 @@ public:
     virtual ~Load() {};
     virtual string getName() { return name; }
 
-    // intializers/finalizers
+    // initializers/finalizers
     virtual void init() = 0;
     virtual void close() = 0;
 

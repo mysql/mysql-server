@@ -29,7 +29,7 @@
 // which do nothing except log that they ran. start() persists until stop()
 // makes it exit.
 //
-// The notable feature of this plugin is its (artificial) depenency on another
+// The notable feature of this plugin is its (artificial) dependency on another
 // test plugin, "lifecycle".  This is useful in testing correctness of plugin
 // initialisation and deinitialisation.
 //

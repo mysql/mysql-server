@@ -60,7 +60,7 @@ int main(int argc, const char **argv) {
       if (!(out_file = fopen(out_filename, "w")))
         throw_error("Failed to open output file", out_filename);
 
-      // write commend and 1st part of the array definition
+      // write comment and 1st part of the array definition
       if (!fprintf(
               out_file,
               "// This file was auto-generated during CMake build process, "

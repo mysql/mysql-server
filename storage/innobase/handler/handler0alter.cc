@@ -1081,7 +1081,7 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
   }
 
   /* If a column change from NOT NULL to NULL,
-  and there's a implict pk on this column. the
+  and there's a implicit pk on this column. the
   table should be rebuild. The change should
   only go through the "Copy" method. */
   if ((ha_alter_info->handler_flags &
@@ -1759,7 +1759,7 @@ static bool innobase_init_foreign(
 
 /** Check if a foreign key constraint can make use of an index
  that is being created.
- @return useable index, or NULL if none found */
+ @return usable index, or NULL if none found */
 [[nodiscard]] static const KEY *innobase_find_equiv_index(
     const char *const *col_names,
     /*!< in: column names */
@@ -1875,7 +1875,7 @@ static bool innobase_col_check_fk(const char *col_name,
 }
 
 /** Check whether the foreign key constraint is on base of any stored columns.
-@param[in]      foreign         Foriegn key constraing information
+@param[in]      foreign         Foreign key constraint information
 @param[in]      table           table to which the foreign key objects
 to be added
 @param[in]      s_cols          list of stored column information in the table.
@@ -3605,7 +3605,7 @@ PK columns follows rule(2);
       /* If a column's prefix length is decreased, it should
       be the last old PK column in new PK.
       Note: we set last_field_order to -2, so that if   there
-      are any old PK colmns or existing columns after it in
+      are any old PK columns or existing columns after it in
       new PK, the comparison to new_field_order will fail in
       the next round.*/
       last_field_order = -2;
@@ -4421,7 +4421,7 @@ template <typename Table>
 
   if (new_clustered) {
     /* If max index length is reduced due to row format change
-    make sure the index can all be accomodated in new row format */
+    make sure the index can all be accommodated in new row format */
     ulint max_len = DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags);
 
     if (max_len < DICT_MAX_FIELD_LEN_BY_FORMAT(ctx->old_table)) {
@@ -6022,7 +6022,7 @@ static bool alter_templ_needs_rebuild(TABLE *altered_table,
 }
 
 /** Get the name of an erroneous key.
-@param[in]      error_key_num   InnoDB number of the erroneus key
+@param[in]      error_key_num   InnoDB number of the erroneous key
 @param[in]      ha_alter_info   changes that were being performed
 @param[in]      table           InnoDB table
 @return the name of the erroneous key */
@@ -6304,7 +6304,7 @@ static void innobase_online_rebuild_log_free(dict_table_t *table) {
 }
 
 /** Rollback a secondary index creation, drop the indexes with
-temparary index prefix
+temporary index prefix
 @param user_table InnoDB table
 @param table the TABLE
 @param locked true=table locked, false=may need to do a lazy drop
@@ -6689,7 +6689,7 @@ after the changes to data dictionary tables were committed.
   } else {
     /* Drop the foreign key constraints if the
     table was not rebuilt. If the table is rebuilt,
-    there would not be any foreign key contraints for
+    there would not be any foreign key constraints for
     it yet in the data dictionary cache. */
     for (ulint i = 0; i < ctx->num_to_drop_fk; i++) {
       dict_foreign_t *fk = ctx->drop_fk[i];
@@ -10735,10 +10735,10 @@ static bool dd_part_has_datadir(const dd::Partition *dd_part) {
 
 /** Adjust data directory for exchange partition. Special handling of
 dict_table_t::data_dir_path is necessary if DATA DIRECTORY is specified. For
-exaple if DATA DIRECTORY Is '/tmp', the data directory for nomral table is
+example if DATA DIRECTORY Is '/tmp', the data directory for normal table is
 '/tmp/t1', while for partition is '/tmp'. So rename, the postfix table name 't1'
 should either be truncated or appended.
-@param[in] table_p partiton table
+@param[in] table_p partition table
 @param[in] table_s  swap table*/
 void exchange_partition_adjust_datadir(dict_table_t *table_p,
                                        dict_table_t *table_s) {
@@ -10888,7 +10888,7 @@ int ha_innopart::exchange_partition_low(uint part_id, dd::Table *part_table,
 
   if (dd_part_has_datadir(dd_part) ||
       swap_table->options().exists(data_file_name_key)) {
-    /* after above swaping swap is now partition table and part is now normal
+    /* after above swapping swap is now partition table and part is now normal
     table */
     exchange_partition_adjust_datadir(swap, part);
   }

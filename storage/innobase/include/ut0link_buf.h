@@ -60,7 +60,7 @@ and tracks up to which point in a total order all operations have
 been finished (there are no holes).
 
 It also allows to limit the last period in which there might be holes.
-These holes refer to unfinished concurrent operations, which preceed
+These holes refer to unfinished concurrent operations, which precede
 in the total order some operations that are already finished.
 
 Threads might concurrently report finished operations (lock-free).

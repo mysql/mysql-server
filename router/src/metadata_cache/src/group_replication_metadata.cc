@@ -49,7 +49,7 @@ static std::string find_group_replication_primary_member(
 
   auto result_processor =
       [&primary_member](const MySQLSession::Row &row) -> bool {
-    // Typical reponse is shown below. If this node is part of group replication
+    // Typical response is shown below. If this node is part of group replication
     // AND we're in SM mode, 'Value' will show the primary node, else, it will
     // be empty.
     // clang-format off

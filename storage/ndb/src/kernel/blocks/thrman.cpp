@@ -1283,7 +1283,7 @@ Uint32 Thrman::calc_new_spin(ndb_spin_stat *spin_stat)
         spin_stat->m_spin_interval[i] > m_configured_spintime)
     {
       /**
-       * Ignore empty slots, they will not be choosen for sure.
+       * Ignore empty slots, they will not be chosen for sure.
        * Also ignore slots where we measure 0 spin time.
        * Also ignore slots with higher spintime than what is
        * configured as maximum spintime.
@@ -2504,7 +2504,7 @@ Thrman::send_query_distribution(Uint32 *weights, Signal *signal)
  * fast. One reason for this is that as we increase our level of send
  * assistance we will obviously become more loaded, we want to keep
  * this extra load on a level such that the block thread still can
- * deliver reponses to its main activities within reasonable limits.
+ * deliver responses to its main activities within reasonable limits.
  *
  * So we will have at least 3 different levels of load for a thread.
  * STATE: Overload
@@ -4579,7 +4579,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
       }
       else
       {
-        // Procede to next thread at first undone measurement
+        // Proceed to next thread at first undone measurement
         pos_index = NUM_MEASUREMENTS - 1;
       }
 

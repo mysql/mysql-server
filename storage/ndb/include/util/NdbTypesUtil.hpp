@@ -143,7 +143,7 @@ typedef NumTypeTraits< Uint64 > Tuint64;
  * Common Traits of non-standard NDB numeric types.
  *
  * Unless distinct [U]Int24 value types are defined to represent these
- * proper subsets of [U]Int32 numbers, the correspoding Traits classes
+ * proper subsets of [U]Int32 numbers, the corresponding Traits classes
  * need to be defined as separate types (not just mere specializations).
  * Using a derived class does that and allows to partially override.
  */
@@ -245,7 +245,7 @@ typedef NumTypeHelper< Uint64 > Huint64;
  * Basic Helper functions of non-standard NDB numeric types.
  *
  * Unless distinct [U]Int24 value types are defined to represent these
- * proper subsets of [U]Int32 numbers, the correspoding Helper classes
+ * proper subsets of [U]Int32 numbers, the corresponding Helper classes
  * need to be defined as separate types (not just mere specializations).
  * This class only derives from the Traits class to avoid member access
  * ambiguities resulting from multiple inheritance.

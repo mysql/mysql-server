@@ -454,7 +454,7 @@ spawn_process(const char* progname, const Vector<BaseString>& args)
 }
 
 /*
-  retry failed spawn after sleep until fork suceeds or
+  retry failed spawn after sleep until fork succeeds or
   max number of retries occurs
 */
 

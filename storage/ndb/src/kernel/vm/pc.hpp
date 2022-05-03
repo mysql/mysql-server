@@ -249,7 +249,7 @@ extern thread_local Uint32 NDB_THREAD_TLS_RES_OWNER;
 #define LOG_NO_OF_FRAGS_PER_CHUNK 2
 
 /* ---------------------------------------------------------------- */
-// To avoid synching too big chunks at a time we synch after writing
+// To avoid syncing too big chunks at a time we synch after writing
 // a certain number of data/UNDO pages. (e.g. 2 MBytes).
 /* ---------------------------------------------------------------- */
 #define MAX_REDO_PAGES_WITHOUT_SYNCH 32

@@ -285,7 +285,7 @@ TEST_F(RouterRoutingTest, ConnectTimeoutShutdownEarly) {
   });
 
   const auto start = clock_type::now();
-  // give the connect thread chance to initate the connection, even if it
+  // give the connect thread chance to initiate the connection, even if it
   // sometimes does not it should be fine, we just test a different scenario
   // then
   std::this_thread::sleep_for(200ms);
@@ -381,7 +381,7 @@ TEST_F(RouterRoutingTest, ConnectTimeoutShutdownEarlyXProtocol) {
   });
 
   const auto start = clock_type::now();
-  // give the connect thread chance to initate the connection, even if it
+  // give the connect thread chance to initiate the connection, even if it
   // sometimes does not it should be fine, we just test a different scenario
   // then
   std::this_thread::sleep_for(200ms);
@@ -748,7 +748,7 @@ TEST_F(RouterMaxConnectionsTest,
                     std::runtime_error,
                     "Too many connections to MySQL Router (1040)");
 
-  // trying to connect to x routes shold fail, as max_total_connections limit
+  // trying to connect to x routes should fail, as max_total_connections limit
   // has been reached
   for (size_t i = 0; i < 5; ++i) {
     XProtocolSession x_session;

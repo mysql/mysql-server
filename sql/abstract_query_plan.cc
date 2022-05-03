@@ -1024,7 +1024,7 @@ void Table_access::compute_type_and_index() const {
       /*
         It means that the decision on which access method to use
         will be taken late (as rows from the preceding operation arrive).
-        This operation is therefor not pushable.
+        This operation is therefore not pushable.
       */
       DBUG_PRINT("info", ("Operation %d has 'dynamic range' -> not pushable",
                           m_tab_no));

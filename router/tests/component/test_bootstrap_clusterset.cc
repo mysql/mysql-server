@@ -65,7 +65,7 @@ class RouterClusterSetBootstrapTest : public RouterComponentBootstrapTest,
 struct TargetClusterTestParams {
   // which cluster from the CS should be used as a param for --bootstrap
   unsigned bootstrap_cluster_id;
-  // which node from the selected cluster hould be used as a param for
+  // which node from the selected cluster should be used as a param for
   // --bootstrap
   unsigned bootstrap_node_id;
   // what should be the value for --conf-target-cluster (if empty do not use
@@ -237,7 +237,7 @@ INSTANTIATE_TEST_SUITE_P(
         // target_cluster=UUID-OF-PRIMARY-CLUSTER
         // NOTE: since we are using "current" on the Primary cluster we expect
         // the warning on the console
-        // NOTE: also checks that the "current" option is case insesitive
+        // NOTE: also checks that the "current" option is case insensitive
         // [@FR3.1.1] [@FR3.3] [@TS_R2_1/1]
         TargetClusterTestParams{
             /*bootstrap_cluster_id*/ 0,
@@ -295,7 +295,7 @@ INSTANTIATE_TEST_SUITE_P(
         // target_cluster=UUID-OF-REPLICA-CLUSTER
         // NOTE: since this is not the PRIMARY cluster we do not expect the
         // warning now NOTE: also checks that the "current" option is case
-        // insesitive
+        // insensitive
         // [@FR3.2] [@TS_R2_1/3]
         TargetClusterTestParams{
             /*bootstrap_cluster_id*/ 1,
@@ -337,7 +337,7 @@ INSTANTIATE_TEST_SUITE_P(
 
         // we bootstrap against various ClusterSet nodes using
         // "--conf-target-cluster=primary" so we expect target_cluster=primary
-        // NOTE: also checks that the "current" option is case insesitive
+        // NOTE: also checks that the "current" option is case insensitive
         // [@FR3.2] [@FR3.3] [@TS_R3_1/1]
         TargetClusterTestParams{/*bootstrap_cluster_id*/ 0,
                                 /*bootstrap_node_id*/ 0,
@@ -526,7 +526,7 @@ INSTANTIATE_TEST_SUITE_P(
 struct BootstrapParametersErrorTestParams {
   // which cluster from the CS should be used as a param for --bootstrap
   unsigned bootstrap_cluster_id;
-  // which node from the selected cluster hould be used as a param for
+  // which node from the selected cluster should be used as a param for
   // --bootstrap
   unsigned bootstrap_node_id;
 

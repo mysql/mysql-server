@@ -34,12 +34,12 @@
  * It also contains the Sysfile.
  * Since the Sysfile can be larger than on StartMeConf signal,
  *   there might be more than on of these signals sent before
- *   the entire sysfile is transfered
+ *   the entire sysfile is transferred
  *
  */
 class StartMeReq {
   /**
-   * Sender(s) / Reciver(s)
+   * Sender(s) / Receiver(s)
    */
   friend class Dbdih;
   

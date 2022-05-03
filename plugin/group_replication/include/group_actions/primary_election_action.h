@@ -166,7 +166,7 @@ class Primary_election_action : public Group_action, Group_event_observer {
 
    @return status
    @retval true failed to stop the thread
-   @retval false thread stopped succesfully.
+   @retval false thread stopped successfully.
   */
   bool stop_transaction_monitor_thread();
 

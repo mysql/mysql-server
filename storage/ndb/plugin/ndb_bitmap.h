@@ -61,10 +61,10 @@ class Ndb_bitmap_buf {
   @param buf        Buffer to hold the bits for the bitmap
   @param num_bits   Max number of bits to store in the bitmap
 
-  NOTE! Since no memory need to be allocated the 'bitmap_init' funtion
+  NOTE! Since no memory need to be allocated the 'bitmap_init' function
   never fails.
 
-  NOTE! Size of provided buffer automatically defferred by
+  NOTE! Size of provided buffer automatically deferred by
   usage of template and thus it's possible to check that
   bitmap is not initialized larger than what the buffer can hold.
 

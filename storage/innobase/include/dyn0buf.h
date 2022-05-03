@@ -348,13 +348,13 @@ class dyn_buf_t {
   block_t *back() { return (UT_LIST_GET_LAST(m_list)); }
 
   /*
-  @return true if request can be fullfilled */
+  @return true if request can be fulfilled */
   bool has_space(ulint size) const {
     return (back()->m_used + size <= MAX_DATA_SIZE);
   }
 
   /*
-  @return true if request can be fullfilled */
+  @return true if request can be fulfilled */
   bool has_space(ulint size) {
     return (back()->m_used + size <= MAX_DATA_SIZE);
   }

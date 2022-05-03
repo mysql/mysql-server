@@ -1813,7 +1813,7 @@ Ndb_cluster_connection_impl::select_node(NdbImpl *impl_ndb,
             if (best_usage - usage < HINT_COUNT_HALF)
             {
               /**
-               * hint_count may wrap, for this calculation it is assummed that
+               * hint_count may wrap, for this calculation it is assumed that
                * the two counts should be near each other, and so if the
                * difference is small above, best_usage is greater than usage.
                */

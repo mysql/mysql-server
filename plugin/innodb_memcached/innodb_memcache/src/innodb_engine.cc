@@ -73,7 +73,7 @@ static bool bk_thd_exited = true;
 
 /** The SDI buffer length for storing list of SDI keys. Example output
 looks like "1:2|2:2|3:4|..". So SDI list of key retrieval has this limit of
-characters from memcached plugin. This is sufficent for testing. */
+characters from memcached plugin. This is sufficient for testing. */
 const uint32_t SDI_LIST_BUF_MAX_LEN [[maybe_unused]] = 10000;
 
 /** Tells whether all connections need to release MDL locks */
@@ -144,7 +144,7 @@ static ENGINE_ERROR_CODE innodb_arithmetic(
                               or decrement */
     const bool create,        /*!< in: whether to create the key
                               value pair if can't find */
-    const uint64_t delta,     /*!< in: value to add/substract */
+    const uint64_t delta,     /*!< in: value to add/subtract */
     const uint64_t initial,   /*!< in: initial */
     const rel_time_t exptime, /*!< in: expiration time */
     uint64_t *cas,            /*!< out: new cas value */
@@ -423,7 +423,7 @@ static ENGINE_ERROR_CODE innodb_initialize(
   /* In case you want to make sure that your MTR is robust in case
   of longer plugin initialization, consider adding
      sleep(10);
-  here - I've found lots of errors this way, hopefuly all are fixed.*/
+  here - I've found lots of errors this way, hopefully all are fixed.*/
 
   ENGINE_ERROR_CODE return_status = ENGINE_SUCCESS;
   struct innodb_engine *innodb_eng = innodb_handle(handle);
@@ -1611,7 +1611,7 @@ static int convert_to_char(
 }
 
 /*******************************************************************/ /**
- Free value assocaited with key */
+ Free value associated with key */
 static void innodb_free_item(
     /*=====================*/
     void *item) /*!< in: Item to be freed */
@@ -1843,7 +1843,7 @@ static ENGINE_ERROR_CODE innodb_get(
   if (is_range_srch && err != DB_END_OF_INDEX) {
     /* we set it only after the first search. This is used to
     tell innodb_api_search() if it is the first search, which
-    might need to do the intial position of cursor */
+    might need to do the initial position of cursor */
     conn_data->range = true;
   }
 
@@ -2193,7 +2193,7 @@ static ENGINE_ERROR_CODE innodb_arithmetic(
                               or decrement */
     const bool create,        /*!< in: whether to create the key
                               value pair if can't find */
-    const uint64_t delta,     /*!< in: value to add/substract */
+    const uint64_t delta,     /*!< in: value to add/subtract */
     const uint64_t initial,   /*!< in: initial */
     const rel_time_t exptime, /*!< in: expiration time */
     uint64_t *cas,            /*!< out: new cas value */
@@ -2528,7 +2528,7 @@ static bool innodb_sdi_get(innodb_conn_data_t *conn_data,
   } else {
     /* Allocate memory of 64 KB, assuming SDI will fit into
     it. If retrieval fails, we will get actual length of SDI.
-    We retry afer allocating the required memory */
+    We retry after allocating the required memory */
     const uint32_t mem_size = 64 * 1024;
     void *new_mem = realloc(conn_data->sdi_buf, mem_size);
 

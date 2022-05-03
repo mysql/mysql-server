@@ -505,7 +505,7 @@ TEST_F(MasterKeyReaderWriterTest,
 /*
  * @test
  *       verify that if master key exists and is not empty and bootstrap pass,
- * then original master key is not overriden.
+ * then original master key is not overridden.
  */
 TEST_F(MasterKeyReaderWriterTest,
        DontWriteMasterKeyAtBootstrapIfMasterKeyAlreadyExists) {

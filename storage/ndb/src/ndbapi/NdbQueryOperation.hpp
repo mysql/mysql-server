@@ -169,7 +169,7 @@ public:
    *    or NdbRecord associated with the NdbQueryOperation!
    *  - ::nextResult() is required to retrieve the first row. This may
    *    also cause any error / status info assicioated with the result set
-   *    iself to be returned (Like 'NoData', posible type conversion errors,
+   *    itself to be returned (Like 'NoData', possible type conversion errors,
    *    or constraint violations associated with each specific row in the
    *    result set.)
    *
@@ -333,7 +333,7 @@ public:
 
   /** Define result ordering for ordered index scan. It is an error to call
    * this method on an operation that is not a scan, or to call it if an
-   * ordering was already set on the operation defintion by calling 
+   * ordering was already set on the operation definition by calling 
    * NdbQueryOperationDef::setOrdering().
    * @param ordering The desired ordering of results.
    * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
@@ -454,7 +454,7 @@ class NdbQueryParamValue
 {
 public:
 
-  // Raw data formated according to bound Column format.
+  // Raw data formatted according to bound Column format.
   // NOTE: This is how mysqld prepare parameter values!
   NdbQueryParamValue(const void* val, bool shrinkVarChar= false);
 

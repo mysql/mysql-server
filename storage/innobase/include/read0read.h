@@ -89,7 +89,7 @@ class MVCC {
   }
 
   /**
-  Set the view creator transaction id. Note: This shouldbe set only
+  Set the view creator transaction id. Note: This should be set only
   for views created by RW transactions.
   @param view   Set the creator trx id for this view
   @param id     Transaction id to set */

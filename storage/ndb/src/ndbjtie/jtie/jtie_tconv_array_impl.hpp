@@ -278,7 +278,7 @@ private:
  * The reason for the difficulties of this mapping stems from an asymmetry:
  * The natural 1-1 mapping of Java 'MyClass[]' is C 'MyClass**' while C
  * 'MyClass*', strictly speaking, has no Java Object array pendant, for
- * lack of notion of (contigous arrays of) embedded Java Objects.
+ * lack of notion of (contiguous arrays of) embedded Java Objects.
  *
  * While assumed to work, this mapping has not been used and tested yet;
  * we're keeping it, for it still meets best Java programmers' expectations

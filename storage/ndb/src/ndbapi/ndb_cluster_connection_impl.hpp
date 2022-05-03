@@ -117,7 +117,7 @@ private:
     Int32 adjusted_group; // Proximity group adjusted via ndbapi calls
     Uint32 id;
     /**
-     * Counts how many times node was choosen for hint when
+     * Counts how many times node was chosen for hint when
      * more than one were possible.
      */
     Uint32 hint_count;

@@ -45,7 +45,7 @@ class MySQLRoutingConnectionBase;
  * @brief Basic Concurrent Map
  *
  * The concurrent_map is a hash-map, with fixed number of buckets.
- * The numer of buckets can be specified in constructor parameter
+ * The number of buckets can be specified in constructor parameter
  * (num_buckets), by default is set to 23.
  */
 template <typename Key, typename Value, typename Hash = std::hash<Key>>

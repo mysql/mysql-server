@@ -843,7 +843,7 @@ class ExpectedImpl<void, E> : public ExpectedImplBase {
     }
   }
 
-  // error accesors
+  // error accessors
   constexpr const error_type &error() const & {
     RESO_ASSUME(!has_value());
     return storage_.error();

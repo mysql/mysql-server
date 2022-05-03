@@ -440,7 +440,7 @@ runReadOne(NDBT_Context* ctx, NDBT_Step* step){
   }    
 
   // Read a record with NoCommit
-  // Since the record isn't inserted yet it wil return 626
+  // Since the record isn't inserted yet it will return 626
   const int res1 = readOneNoCommit(pNdb, pTrans, tab, &row1);
   g_info << "|- res1 = " << res1 << endl;
 
@@ -458,7 +458,7 @@ runReadOne(NDBT_Context* ctx, NDBT_Step* step){
 
   // Now the record should have been inserted
   // Read it once again in the same transaction
-  // Should also reutrn 626 if reads are consistent
+  // Should also return 626 if reads are consistent
 
   // NOTE! Currently it's not possible to start a new operation
   // on a transaction that has returned an error code

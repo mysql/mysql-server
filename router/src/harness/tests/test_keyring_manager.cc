@@ -326,7 +326,7 @@ TEST(KeyringManager, init_with_key_file) {
   }
   mysql_harness::reset_keyring();
 
-  // the orignal keyring should still be unchanged, but not the keyfile
+  // the original keyring should still be unchanged, but not the keyfile
   bool b1 = check_kf.check_unchanged();
   bool b2 = check_kr.check_unchanged();
   EXPECT_FALSE(b1);

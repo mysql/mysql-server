@@ -200,7 +200,7 @@ enum class Csi {
   CHA = 'G',
   // cursor position absolute
   CUP = 'H',
-  // cursor tab foreward
+  // cursor tab forward
   CHT = 'I',
   // erase in display
   ED = 'J',

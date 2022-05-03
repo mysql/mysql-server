@@ -46,7 +46,7 @@ namespace mysql_harness {
  * This function is optimised for speed, but see note below for use
  * restrictions. If these are a problem, use truncate_string_r() instead.
  *
- * This function returns a refernce to the input string if input.size() <=
+ * This function returns a reference to the input string if input.size() <=
  * max_len, otherwise it returns a reference to a truncated copy of input
  * string.
  *

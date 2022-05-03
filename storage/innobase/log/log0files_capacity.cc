@@ -49,7 +49,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
       (space to use for deltas)
       |
       +- `next_file_earlier_margin`
-      |  ("snake's tounge" - we want to never *need* more than LOG_N_FILES-1)
+      |  ("snake's tongue" - we want to never *need* more than LOG_N_FILES-1)
       |
       +- `hard_logical_capacity`
          (this is how log writer sees the capacity)

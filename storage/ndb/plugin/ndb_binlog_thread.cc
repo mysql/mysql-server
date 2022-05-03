@@ -58,7 +58,7 @@ int Ndb_binlog_thread::do_deinit() {
   reset index. This means that ndbcluster also need to clear its own binlog
   index(which is stored in the mysql.ndb_binlog_index table).
 
-  @return 0 on sucess
+  @return 0 on success
 */
 int Ndb_binlog_thread::do_after_reset_master(void *) {
   DBUG_TRACE;

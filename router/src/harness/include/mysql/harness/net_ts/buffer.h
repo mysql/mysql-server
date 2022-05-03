@@ -314,7 +314,7 @@ inline size_t buffer_size<mutable_buffer>(const mutable_buffer &b) noexcept {
  * @param dest buffer-sequence to copy to
  * @param src buffer-sequence to copy from
  * @param max_size max bytes to copy
- * @return bytes transfered from src to dest
+ * @return bytes transferred from src to dest
  *
  * see: 16.9 [buffer.copy]
  */
@@ -679,7 +679,7 @@ class transfer_exactly {
    * @returns bytes to transfer
    */
   size_t operator()(const std::error_code &ec, size_t n) const {
-    // "unspecificed non-zero number"
+    // "unspecified non-zero number"
     constexpr size_t N = std::numeric_limits<size_t>::max();
 
     if (!ec && n < exact_) return std::min(exact_ - n, N);

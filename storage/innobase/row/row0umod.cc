@@ -73,7 +73,7 @@ IMPORTANT NOTE: Any operation that generates redo MUST check that there
 is enough space in the redo log before for that operation. This is
 done by calling log_free_check(). The reason for checking the
 availability of the redo log space before the start of the operation is
-that we MUST not hold any synchonization objects when performing the
+that we MUST not hold any synchronization objects when performing the
 check.
 If you make a change in this module make sure that no codepath is
 introduced where a call to log_free_check() is bypassed. */
@@ -579,7 +579,7 @@ func_exit_no_pcur:
     dict_index_t *index, /*!< in: index */
     dtuple_t *entry,     /*!< in: index entry */
     undo_no_t undo_no)
-/*!< in: undo number upto which to rollback.*/
+/*!< in: undo number up to which to rollback.*/
 {
   btr_pcur_t pcur;
   btr_cur_t *btr_cur = pcur.get_btr_cur();

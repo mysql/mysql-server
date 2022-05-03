@@ -30,7 +30,7 @@
 /*
  * ndb::span - a view into an existing buffer
  *
- * ndb::span is a partial implmentation of C++20 std::span.
+ * ndb::span is a partial implementation of C++20 std::span.
  * If further extended, keep it compatible with std::span.
  *
  * A typical use case is a function that takes a buffer that can not change

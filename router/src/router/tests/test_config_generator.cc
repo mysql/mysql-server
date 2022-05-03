@@ -752,7 +752,7 @@ TEST_F(ConfigGeneratorTest, create_accounts_multiple_accounts_if_not_exists) {
  * - SHOW WARNINGS parsing code handles well
  */
 TEST_F(ConfigGeneratorTest, create_accounts___show_warnings_parser_1) {
-  // SHOW WARNIGNS example output
+  // SHOW WARNINGS example output
   // +-------+------+---------------------------------------------+
   // | Level | Code | Message                                     |
   // +-------+------+---------------------------------------------+
@@ -2671,7 +2671,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
         3,
         {{"91d0107263cd11ec9a29080027ac264d", "my-cluster", "somehost:3306"}});
     common_pass_group_name(mock_mysql.get());
-    // force a failure during account creationg
+    // force a failure during account creation
     mock_mysql->expect_execute("").then_error("boo!", 1234);
 
     KeyringInfo keyring_info("delme", "delme.key");
@@ -3158,7 +3158,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
         FAIL() << "Expected std::invalid_argument to be thrown";
       } catch (const std::runtime_error &e) {
         if (opt == "--ssl-mode") {
-          // The error for -ssl-mode is sligtly different than for other options
+          // The error for -ssl-mode is slightly different than for other options
           // - detected differently
           EXPECT_STREQ("Invalid value for --ssl-mode option", e.what());
         } else {
@@ -3648,7 +3648,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_from_uri_unixsocket) {
   });
 }
 
-// a invalid URI (port too large) should trigger a expection
+// a invalid URI (port too large) should trigger an exception
 TEST_F(ConfigGeneratorTest, bootstrap_from_invalid_uri) {
   mysqlrouter::set_prompt_password(
       [](const std::string &) -> std::string { return ""; });
@@ -3737,7 +3737,7 @@ TEST_F(ConfigGeneratorTest,
        bootstrap_generate_password_force_password_validation) {
   const std::string kDirName = "./gen_pass_test";
 
-  // copy expected bootstrap queries brefore CREATE USER
+  // copy expected bootstrap queries before CREATE USER
   std::vector<query_entry_t> bootstrap_queries;
   for (unsigned i = 0; i < kCreateUserQuery; ++i) {
     bootstrap_queries.push_back(expected_bootstrap_queries.at(i));
@@ -3770,7 +3770,7 @@ TEST_F(ConfigGeneratorTest,
 TEST_F(ConfigGeneratorTest, bootstrap_generate_password_no_native_plugin) {
   const std::string kDirName = "./gen_pass_test";
 
-  // copy expected bootstrap queries brefore CREATE USER
+  // copy expected bootstrap queries before CREATE USER
   std::vector<query_entry_t> bootstrap_queries;
   for (unsigned i = 0; i < kCreateUserQuery; ++i) {
     bootstrap_queries.push_back(expected_bootstrap_queries.at(i));
@@ -3782,7 +3782,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_no_native_plugin) {
        " IDENTIFIED WITH mysql_native_password AS",
        ACTION_ERROR, 0, 1524});
 
-  // that should lead to rollback and retry witout hashed password
+  // that should lead to rollback and retry without hashed password
   bootstrap_queries.push_back({"ROLLBACK", ACTION_EXECUTE});
 
   bootstrap_queries.push_back(
@@ -3809,7 +3809,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_no_native_plugin) {
 TEST_F(ConfigGeneratorTest, bootstrap_generate_password_with_native_plugin) {
   const std::string kDirName = "./gen_pass_test";
 
-  // copy expected bootstrap queries brefore CREATE USER
+  // copy expected bootstrap queries before CREATE USER
   std::vector<query_entry_t> bootstrap_queries;
   for (unsigned i = 0; i < kCreateUserQuery; ++i) {
     bootstrap_queries.push_back(expected_bootstrap_queries.at(i));
@@ -3841,7 +3841,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_with_native_plugin) {
 TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_ok) {
   const std::string kDirName = "./gen_pass_test";
 
-  // copy expected bootstrap queries brefore CREATE USER
+  // copy expected bootstrap queries before CREATE USER
   std::vector<query_entry_t> bootstrap_queries;
   for (unsigned i = 0; i < kCreateUserQuery; ++i) {
     bootstrap_queries.push_back(expected_bootstrap_queries.at(i));
@@ -3853,7 +3853,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_ok) {
        " IDENTIFIED WITH mysql_native_password AS",
        ACTION_ERROR, 0, 1524});
 
-  // that should lead to rollback and retry witout hashed password
+  // that should lead to rollback and retry without hashed password
   bootstrap_queries.push_back({"ROLLBACK", ACTION_EXECUTE});
 
   // emulate error 1819) (password does not satisfy the current policy
@@ -3863,7 +3863,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_ok) {
        " IDENTIFIED BY",
        ACTION_ERROR, 0, 1819});
 
-  // that should lead to rollback and another retry witout hashed password
+  // that should lead to rollback and another retry without hashed password
   bootstrap_queries.push_back({"ROLLBACK", ACTION_EXECUTE});
 
   bootstrap_queries.push_back(
@@ -3891,7 +3891,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_failed) {
   const std::string kDirName = "./gen_pass_test";
   const unsigned kPasswordRetries = 3;
 
-  // copy expected bootstrap queries brefore CREATE USER
+  // copy expected bootstrap queries before CREATE USER
   std::vector<query_entry_t> bootstrap_queries;
   for (unsigned i = 0; i < kCreateUserQuery; ++i) {
     bootstrap_queries.push_back(expected_bootstrap_queries.at(i));
@@ -3903,7 +3903,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_failed) {
        " IDENTIFIED WITH mysql_native_password AS",
        ACTION_ERROR, 0, 1524});
 
-  // that should lead to rollback and retry witout hashed password for
+  // that should lead to rollback and retry without hashed password for
   // "kPasswordRetries" number of times
   for (unsigned i = 0; i < kPasswordRetries; ++i) {
     bootstrap_queries.push_back({"ROLLBACK", ACTION_EXECUTE});

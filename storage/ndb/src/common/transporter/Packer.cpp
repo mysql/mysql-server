@@ -91,7 +91,7 @@ TransporterRegistry::dump_and_report_bad_message(const char file[], unsigned lin
     size_t reserve;
     if (!nextMsgOffset)
     {
-      // If next message wont be dumped, print as much as possible
+      // If next message won't be dumped, print as much as possible
       // from start of buffer.
       reserve = 0;
     }

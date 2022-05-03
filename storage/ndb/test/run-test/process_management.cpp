@@ -219,7 +219,7 @@ bool ProcessManagement::startProcess(atrt_process &proc, bool run_setup) {
     } else {
       /**
        * If no MYSQL_BASE_DIR set, derive basedir from program path.
-       * Assumming that program path is on the form
+       * Assuming that program path is on the form
        *   <basedir>/{bin,sql}/mysqld
        */
       const BaseString sep("/");
@@ -408,7 +408,7 @@ bool ProcessManagement::waitNdb(int goal) {
 
     while (now < end) {
       /**
-       * 1) retreive current state
+       * 1) retrieve current state
        */
       state = 0;
       do {

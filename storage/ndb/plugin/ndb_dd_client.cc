@@ -666,7 +666,7 @@ bool Ndb_dd_client::install_table(
   // matches the table name to install
   assert(ndb_dd_fs_name_case(install_table->name()) == table_name);
 
-  // Verify that table defintion unpacked from NDB
+  // Verify that table definition unpacked from NDB
   // does not have any se_private fields set, those will be set
   // from the NDB table metadata
   assert(install_table->se_private_id() == dd::INVALID_OBJECT_ID);
@@ -724,7 +724,7 @@ bool Ndb_dd_client::install_table(
     // not to request "force_overwrite"
     if (ndb_table_id == object_id && ndb_table_version == object_version) {
       // Table is already installed, with same id and version
-      // return sucess
+      // return success
       return true;
     }
 

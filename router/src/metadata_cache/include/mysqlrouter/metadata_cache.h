@@ -259,7 +259,7 @@ class METADATA_CACHE_EXPORT MetadataCacheAPIBase
    * bootstrapped as a ClusterSet, empty otherwise)
    * @param metadata_servers The list of cluster metadata servers
    * @param ttl_config metadata TTL configuration
-   * @param ssl_options SSL relatd options for connection
+   * @param ssl_options SSL related options for connection
    * @param target_cluster object identifying the Cluster this operation refers
    * to
    * @param session_config Metadata MySQL session configuration

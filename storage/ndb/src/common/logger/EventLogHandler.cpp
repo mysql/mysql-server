@@ -98,7 +98,7 @@ check_message_resource(void)
 static bool
 setup_eventlogging(const char* source_name)
 {
-  // Check that this binary have mesage resource compiled in
+  // Check that this binary have message resource compiled in
   if (!check_message_resource())
     return false;
 

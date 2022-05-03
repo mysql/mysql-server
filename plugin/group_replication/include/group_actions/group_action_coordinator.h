@@ -98,7 +98,7 @@ class Group_action_coordinator : public Group_event_observer {
   int stop_coordinator_process(bool coordinator_stop, bool wait = true);
 
   /**
-    Resets flags as the coordinator can live trough multiple stops and starts
+    Resets flags as the coordinator can live through multiple stops and starts
   */
   void reset_coordinator_process();
 

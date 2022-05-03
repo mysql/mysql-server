@@ -73,7 +73,7 @@ private:
     /*
      * MY_ALL_CHARSETS_SIZE is actually 2048.
      * But the actual number of charsets is very low.
-     * So, CharsetMapImpl now supports upto 512 charsets.
+     * So, CharsetMapImpl now supports up to 512 charsets.
      * */
     const char * mysql_charset_name[512];
 };

@@ -631,7 +631,7 @@ class Ha_trx_info_list {
   Ha_trx_info const *operator->() const;
   /**
     Equality operator that compares with another instance of this class. It
-    evalutes to true if both object's underlying head point to the same
+    evaluates to true if both object's underlying head point to the same
     address.
 
     @param rhs The object to compare this object to.
@@ -642,7 +642,7 @@ class Ha_trx_info_list {
   bool operator==(Ha_trx_info_list const &rhs) const;
   /**
     Equality operator that compares with an instance of Ha_trx_info
-    class. It evalutes to true if this object's underlying head point to
+    class. It evaluates to true if this object's underlying head points to
     the same address of the parameter object.
 
     @param rhs The object to compare this object to.
@@ -652,7 +652,7 @@ class Ha_trx_info_list {
    */
   bool operator==(Ha_trx_info const *rhs) const;
   /**
-    Equality operator that compares with null. It evalutes to true if this
+    Equality operator that compares with null. It evaluates to true if this
     object's underlying head points to null.
 
     @param rhs The `nullptr` value
@@ -663,7 +663,7 @@ class Ha_trx_info_list {
   bool operator==(std::nullptr_t rhs) const;
   /**
     Inequality operator that compares with another instance of this
-    class. It evalutes to true if both object's underlying head point to
+    class. It evaluates to true if both object's underlying head point to
     the different addresses.
 
     @param rhs The object to compare this object to.
@@ -674,8 +674,8 @@ class Ha_trx_info_list {
   bool operator!=(Ha_trx_info_list const &rhs) const;
   /**
     Inequality operator that compares with an instance of Ha_trx_info
-    class. It evalutes to true if this object's underlying head point to
-    a difference address of the parameter object.
+    class. It evaluates to true if this object's underlying head points to
+    a different address of the parameter object.
 
     @param rhs The object to compare this object to.
 
@@ -684,7 +684,7 @@ class Ha_trx_info_list {
    */
   bool operator!=(Ha_trx_info const *rhs) const;
   /**
-    Inequality operator that compares with null. It evalutes to true if
+    Inequality operator that compares with null. It evaluates to true if
     this object's underlying head points to a non-null value.
 
     @param rhs The `nullptr` value

@@ -291,7 +291,7 @@ class Session_plugin_thread {
   thread_state m_session_thread_state;
   /** Session termination flag */
   bool m_session_thread_terminate;
-  /** Session tread error flag */
+  /** Session thread error flag */
   int m_session_thread_error;
 };
 

@@ -44,7 +44,7 @@
 namespace {
 // a placeholder that will be replaced with a valid value
 //
-// for "port", the currently assinged port will be used
+// for "port", the currently assigned port will be used
 // for "ssl_cert", a valid certificate
 // ... and so on
 const std::string_view kPlaceholder{"@good_placeholder@"};
@@ -729,7 +729,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "",
      404},
 
-    // ssl options igored
+    // ssl options ignored
 
     {"file exists, ssl=0, no ssl-params",
      "WL12524::TS_01",
@@ -785,7 +785,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 #endif
 
 const HttpServerPlainParams http_server_static_files_unusable_params[]{
-    // works, but can't be run in automated tests as it can't be guarenteed that
+    // works, but can't be run in automated tests as it can't be guaranteed that
     // the default
     // port is not in use by something else
     {"all defaults",
@@ -1217,7 +1217,7 @@ TEST_P(HttpServerSecureTest, ensure) {
       mysql_harness::ConfigBuilder::build_section("http_server", http_section),
       nullptr, "mysqlrouter.conf", "", false)};
 
-  // timeout for waiting for ready notification is increased to adress the case
+  // timeout for waiting for ready notification is increased to address the case
   // of strong dh params which takes long on overloaded CPUs
   ProcessWrapper &http_server{
       launch_router({"-c", conf_file},

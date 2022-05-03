@@ -789,7 +789,7 @@ class Plugin_waitlock {
  public:
   /**
     Constructor.
-    Instatiate the mutex lock, mutex condition,
+    Instantiate the mutex lock, mutex condition,
     mutex and condition key.
 
     @param  lock  the mutex lock for access to class and condition variables

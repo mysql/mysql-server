@@ -291,7 +291,7 @@ static ib_err_t ib_read_tuple(
   offset_size = rec_offs_size(offsets);
 
   if (cmp_tuple && mode) {
-    /* This is a case of "read upto" certain value. Used for
+    /* This is a case of "read up to" certain value. Used for
     index scan for "<" or "<=" case */
     cmp = cmp_tuple->ptr->compare(rec, index, offsets, &match);
 
@@ -2789,7 +2789,7 @@ dberr_t ib_sdi_set(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
     /* Existing row found. We should update it. */
 
     /* First check if the new row and old row are same */
-    /* We only S-lock the record when doing the comparision. */
+    /* We only S-lock the record when doing the comparison. */
 
     ib_tpl_t key_tpl = ib_sdi_create_search_tuple(ib_crsr, ib_sdi_key->sdi_key);
 
@@ -3351,7 +3351,7 @@ ib_err_t ib_memc_sdi_drop(ib_crsr_t crsr) {
   return (ib_sdi_drop(tablespace_id));
 }
 
-/** Wrapper function to retreive list of SDI keys into the buffer
+/** Wrapper function to retrieve list of SDI keys into the buffer
 The SDI keys are copied in the from x:y and separated by '|'
 @param[in,out]  crsr            Memcached cursor
 @param[in]      key_str         Memcached key

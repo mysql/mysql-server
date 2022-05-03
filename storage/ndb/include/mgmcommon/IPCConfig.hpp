@@ -35,7 +35,7 @@ struct IPCConfig
     Create and configure transporters in TransporterRegistry
 
     Returns:
-      true  - sucessfully created and (re)configured transporters
+      true  - successfully created and (re)configured transporters
       false - at least one transporter could not be created
               or (re)configured
   */

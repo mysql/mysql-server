@@ -192,7 +192,7 @@ extern EventLogger* g_eventLogger;
  *
  * The hash data structure stores each row as one element of 8 bytes that
  * resides in a container, the container has an 8 byte header and there can
- * be upto 144 containers in a 8 kByte page. The pages are filled to around
+ * be up to 144 containers in a 8 kByte page. The pages are filled to around
  * 70% in the normal case. Thus each row requires about 15 bytes of memory
  * in DBACC.
  *
@@ -908,7 +908,7 @@ void Dbacc::releaseFragRecord(FragmentrecPtr regFragPtr)
 /* -------------------------------------------------------------------------- */
 /* ADDFRAGTOTAB                                                               */
 /*       DESCRIPTION: PUTS A FRAGMENT ID AND A POINTER TO ITS RECORD INTO     */
-/*                                TABLE ARRRAY OF THE TABLE RECORD.           */
+/*                                TABLE ARRAY OF THE TABLE RECORD.            */
 /* -------------------------------------------------------------------------- */
 bool Dbacc::addfragtotab(Uint32 rootIndex, Uint32 fid) const
 {
@@ -944,7 +944,7 @@ bool Dbacc::addfragtotab(Uint32 rootIndex, Uint32 fid) const
 /* ACCSEIZEREQ                                           SEIZE REQ                   */
 /*                                                    SENDER: LQH,    LEVEL B        */
 /*          ENTER ACCSEIZEREQ WITH                                                   */
-/*                    TUSERPTR ,                     CONECTION PTR OF LQH            */
+/*                    TUSERPTR ,                     CONNECTION PTR OF LQH            */
 /*                    TUSERBLOCKREF                  BLOCK REFERENCE OF LQH          */
 /* ******************--------------------------------------------------------------- */
 /* ******************--------------------------------------------------------------- */
@@ -955,7 +955,7 @@ void Dbacc::execACCSEIZEREQ(Signal* signal)
 {
   jamEntry();
   Uint32 userptr = signal->theData[0];
-  /* CONECTION PTR OF LQH            */
+  /* CONNECTION PTR OF LQH            */
   BlockReference userblockref = signal->theData[1];
   /* BLOCK REFERENCE OF LQH          */
   if (!oprec_pool.seize(operationRecPtr))
@@ -1023,7 +1023,7 @@ bool Dbacc::seize_op_rec(Uint32 userptr,
 /* --------------------------------------------------------------------------------- */
 /* --------------------------------------------------------------------------------- */
 /* INIT_OP_REC                                                                       */
-/*           INFORMATION WHICH IS RECIEVED BY ACCKEYREQ WILL BE SAVED                */
+/*           INFORMATION WHICH IS RECEIVED BY ACCKEYREQ WILL BE SAVED                */
 /*           IN THE OPERATION RECORD.                                                */
 /* --------------------------------------------------------------------------------- */
 void Dbacc::initOpRec(const AccKeyReq* signal, Uint32 siglen) const
@@ -1442,7 +1442,7 @@ Dbacc::startNext(Signal* signal, OperationrecPtr lastOp)
   }
   
   /**
-   * There is an op in serie queue...
+   * There is an op in serial queue...
    *   Check if it can run
    */
   ndbrequire(oprec_pool.getValidPtr(nextOp));
@@ -1542,7 +1542,7 @@ Dbacc::startNext(Signal* signal, OperationrecPtr lastOp)
   
 upgrade:
   /**
-   * Move first op in serie queue to end of parallel queue
+   * Move first op in serial queue to end of parallel queue
    */
   
   tmp.i = loPtr.p->nextSerialQue = nextOp.p->nextSerialQue;
@@ -1569,7 +1569,7 @@ upgrade:
   nextbits |= Operationrec::OP_RUN_QUEUE;
   
   /**
-   * Currently no grouping of ops in serie queue
+   * Currently no grouping of ops in serial queue
    */
   ndbrequire(nextOp.p->nextParallelQue == RNIL);
 
@@ -2083,7 +2083,7 @@ Dbacc::validate_lock_queue(OperationrecPtr opPtr)const
     }
   }
   
-  // Validate serie queue  
+  // Validate serial queue  
   if (loPtr.p->nextSerialQue != RNIL)
   {
     Uint32 prev = loPtr.i;
@@ -2175,7 +2175,7 @@ operator<<(NdbOut & out, Dbacc::OperationrecPtr ptr)
     ,OP_ACC_LOCK_MODE       = 0x00020 // Or:de lock mode of all operation
                                       // before me
     ,OP_LOCK_OWNER          = 0x00040
-    ,OP_RUN_QUEUE           = 0x00080 // In parallell queue of lock owner
+    ,OP_RUN_QUEUE           = 0x00080 // In parallel queue of lock owner
     ,OP_DIRTY_READ          = 0x00100
     ,OP_LOCK_REQ            = 0x00200 // isAccLockReq
     ,OP_COMMIT_DELETE_CHECK = 0x00400
@@ -2451,7 +2451,7 @@ Dbacc::placeReadInLockQueue(OperationrecPtr lockOwnerPtr) const
   
   /**
    * Last operation in parallel queue of lock owner is same trans
-   *   and ACC_LOCK_MODE is exlusive, then we can proceed
+   *   and ACC_LOCK_MODE is exclusive, then we can proceed
    */
   Uint32 lastbits = lastOpPtr.p->m_op_bits;
   bool same = operationRecPtr.p->is_same_trans(lastOpPtr.p);
@@ -3572,7 +3572,7 @@ void Dbacc::addnewcontainer(Page8Ptr pageptr,
 /*         OUTPUT:                                                                   */
 /*                TGFL_PAGEINDEX(POINTER TO A FREE BUFFER IN THE FREEPAGE), AND      */
 /*                TGFL_BUF_TYPE( TYPE OF THE FREE BUFFER).                           */
-/*         DESCRIPTION: SEARCHS IN THE FREE LIST OF THE FREE BUFFER IN THE PAGE HEAD */
+/*         DESCRIPTION: SEARCHES IN THE FREE LIST OF THE FREE BUFFER IN THE PAGE HEAD*/
 /*                     (WORD32(1)),AND RETURN ADDRESS OF A FREE BUFFER OR NIL.       */
 /*                     THE FREE BUFFER CAN BE A RIGHT CONTAINER OR A LEFT ONE        */
 /*                     THE KIND OF THE CONTAINER IS NOTED BY TGFL_BUF_TYPE.          */
@@ -3596,7 +3596,7 @@ void Dbacc::getfreelist(Page8Ptr pageptr, Uint32& pageindex, Uint32& buftype)
 /*       INPUT:                                                                      */
 /*               ILC_PAGEPTR     PAGE POINTER TO INCREASE NUMBER OF CONTAINERS IN    */
 /*           A CONTAINER OF AN OVERFLOW PAGE (FREEPAGEPTR) IS ALLOCATED, NR OF       */
-/*           ALLOCATED CONTAINER HAVE TO BE INCRESE BY ONE .                         */
+/*           ALLOCATED CONTAINER HAVE TO BE INCREASED BY ONE.                        */
 /*           IF THE NUMBER OF ALLOCATED CONTAINERS IS ABOVE THE FREE LIMIT WE WILL   */
 /*           REMOVE THE PAGE FROM THE FREE LIST.                                     */
 /* --------------------------------------------------------------------------------- */
@@ -3953,7 +3953,7 @@ Dbacc::getElement(const AccKeyReq* signal,
   elemPageptr = bucketPageptr;
   tgePageindex = bucketConidx;
   /*
-   * The value seached is
+   * The value searched is
    * - table key for ACCKEYREQ, stored in TUP
    * - local key (1 word) for ACC_LOCKREQ and UNDO, stored in ACC
    */
@@ -4293,7 +4293,7 @@ void Dbacc::commitdelete(Signal* signal)
     {
       /**
        * Initialize scanInProgress with the active scans which have not
-       * completly scanned the container.  Then check which scan actually
+       * completely scanned the container.  Then check which scan actually
        * currently scan the container.
        */
       Uint16 scansInProgress =
@@ -4338,7 +4338,7 @@ void Dbacc::commitdelete(Signal* signal)
     {
       /**
        * Initialize scanInProgress with the active scans which have not
-       * completly scanned the container.  Then check which scan actually
+       * completely scanned the container.  Then check which scan actually
        * currently scan the container.
        */
       Uint16 scansInProgress = fragrecptr.p->activeScanMask & ~conhead.getScanBits();
@@ -5149,7 +5149,7 @@ Dbacc::abortSerieQueueOperation(Signal* signal, OperationrecPtr opPtr)
       }
       else
       {
-	// nextS is RNIL, i.e we're last in serie queue...
+	// nextS is RNIL, i.e we're last in serial queue...
 	// we must update lockOwner.m_lo_last_serial_op_ptr_i
 	loPtr = prevS;
 	while ((loPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER) == 0)
@@ -5170,7 +5170,7 @@ Dbacc::abortSerieQueueOperation(Signal* signal, OperationrecPtr opPtr)
        * Abort S2
        */
 
-      // nextS is RNIL, i.e we're last in serie queue...
+      // nextS is RNIL, i.e we're last in serial queue...
       // and we have no parallel queue, 
       // we must update lockOwner.m_lo_last_serial_op_ptr_i
       prevS.p->nextSerialQue = RNIL;
@@ -6015,7 +6015,7 @@ Uint32 Dbacc::allocOverflowPage()
 /* ******************------------------------------+                                 */
 /* SENDER: ACC,    LEVEL B         */
 /* A BUCKET OF THE FRAGMENT WILL   */
-/* BE EXPANDED ACORDING TO LH3,    */
+/* BE EXPANDED ACCORDING TO LH3,   */
 /* AND COMMIT TRANSACTION PROCESS  */
 /* WILL BE CONTINUED */
 Uint32 Dbacc::checkScanExpand(Uint32 splitBucket)
@@ -6174,7 +6174,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
 
   bool doSplit = fragrecptr.p->level.getSplitBucket(splitBucket, receiveBucket);
 
-  // Check that splitted bucket is not currently scanned
+  // Check that split bucket is not currently scanned
   if (doSplit && checkScanExpand(splitBucket) == 1) {
     jam();
     /*--------------------------------------------------------------*/
@@ -6715,7 +6715,7 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
 /* ******************------------------------------+                                 */
 /*   SENDER: ACC,    LEVEL B       */
 /* TWO BUCKETS OF THE FRAGMENT     */
-/* WILL BE JOINED  ACORDING TO LH3 */
+/* WILL BE JOINED ACCORDING TO LH3 */
 /* AND COMMIT TRANSACTION PROCESS  */
 /* WILL BE CONTINUED */
 Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
@@ -7604,7 +7604,7 @@ void Dbacc::execNEXT_SCANREQ(Signal* signal)
     ndbassert(fragrecptr.p->activeScanMask & scanPtr.p->scanMask);
     /* ---------------------------------------------------------------------
      * THE SCAN PROCESS IS FINISHED. RELOCK ALL LOCKED EL. 
-     * RELESE ALL INVOLVED REC.
+     * RELEASE ALL INVOLVED REC.
      * ------------------------------------------------------------------- */
     releaseScanLab(signal);
     return;
@@ -8282,7 +8282,7 @@ void Dbacc::execACC_TO_REQ(Signal* signal)
  *                            container for found element.
  * @param[in,out]  conidx     Index within page for first container to scan, on
  *                            return container for found element.
- * @param[out]     conptr     Pointer withing page of first container to scan,
+ * @param[out]     conptr     Pointer within page of first container to scan,
  *                            on return container for found element.
  * @param[in,out]  isforward  Direction of first container to scan, on return
  *                            the direction of container for found element.
@@ -8658,7 +8658,7 @@ void Dbacc::releaseScanRec()
   // released
   ndbrequire(scanPtr.p->scanOpsAllocated==0);
 
-  // Check that all locks this scan might have aquired 
+  // Check that all locks this scan might have acquired
   // have been properly released
   ndbrequire(scanPtr.p->scanLockHeld == 0);
   ndbrequire(scanPtr.p->scanFirstLockedOp == RNIL);

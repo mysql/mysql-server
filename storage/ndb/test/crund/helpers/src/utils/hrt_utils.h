@@ -37,7 +37,7 @@ extern "C" {
 /*
  * High-Resolution Time Measurement Utilities
  *
- * This module provides fuctions for measuring the system's real time
+ * This module provides functions for measuring the system's real time
  * and the current process's cpu time.
  *
  * In the Unix universe, various system functions exist of different
@@ -57,7 +57,7 @@ extern "C" {
  * - a default method of measuring real and cpu times by selecting
  *   the function with highest resolution available, and
  * - functions to calculate the amount of time between measurements
- *   at microsecond resolution (but not neccessarily accuracy).
+ *   at microsecond resolution (but not necessarily accuracy).
  *
  * The choice of the measurement function is controlled by the macros
  *   HRT_REALTIME_METHOD for real time and
@@ -119,7 +119,7 @@ extern "C" {
  * Use: clock_gettime()		[SUSv2, POSIX.1-2001, #include <time.h>
  *                               _POSIX_C_SOURCE >= 199309L]
  * Real time and, possibly, CPU time in nanosecond resolution (but not
- * neccessarily accuracy).  Optional support for clock types:
+ * necessarily accuracy).  Optional support for clock types:
  *   CLOCK_REALTIME             (systemwide realtime clock)
  *   CLOCK_MONOTONIC            (realtime clock, cannot be set)
  *   CLOCK_PROCESS_CPUTIME_ID   (per-process timer)
@@ -131,7 +131,7 @@ extern "C" {
 
 /**
  * Use: getrusage()	[SVr4, 4.3BSD, POSIX.1-2001, #include <sys/time.h>]
- * CPU time in microsecond resolution (but not neccessarily accuracy).
+ * CPU time in microsecond resolution (but not necessarily accuracy).
  * Inclusion of child's and grandchild's time reported as unreliable.
  */
 #define HRT_USE_GETRUSAGE 2
@@ -139,7 +139,7 @@ extern "C" {
 /**
  * Use: gettimeofday()	[SVr4, 4.3BSD, POSIX.1-2001, #include <sys/time.h>
  *    			 POSIX.1-2008 marks gettimeofday() as obsolete]
- * Real time in microsecond resolution (but not neccessarily accuracy).
+ * Real time in microsecond resolution (but not necessarily accuracy).
  * On some architectures, can be done completely in userspace using the
  * vdso/vsyscall method avoiding the syscall overhead.
  */
@@ -169,7 +169,7 @@ extern "C" {
 
 /**
  * Use: clock()		[C89, C99, POSIX.1-2001, #include <time.h>]
- * CPU time in microseconds resolution (but not neccessarily accuracy).
+ * CPU time in microseconds resolution (but not necessarily accuracy).
  * Returns the CPU time as a clock_t value or -1 if not available.
  * To get the number of seconds used, divide by CLOCKS_PER_SEC; POSIX
  * requires CLOCKS_PER_SEC=1000000 independent of the actual resolution.
@@ -289,14 +289,14 @@ extern int
 hrt_tnow(hrt_tstamp* x);
 
 /**
- * Returns the time amount between two real timestamps in microseonds
+ * Returns the time amount between two real timestamps in microseconds
  * (i.e., y - x).
  */
 extern double
 hrt_rtmicros(const hrt_rtstamp* y, const hrt_rtstamp* x);
 
 /**
- * Returns the time amount between two cpu timestamps in microseonds
+ * Returns the time amount between two cpu timestamps in microseconds
  * (i.e., y - x).
  */
 extern double

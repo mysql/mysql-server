@@ -233,7 +233,7 @@ static void reset_cache() {
   link_init(&protected_lru, TYPE_HASH("lru_machine"));
   link_init(&probation_lru, TYPE_HASH("lru_machine"));
   link_init(&hash_stack, TYPE_HASH("stack_machine"));
-  init_cache_size(); /* After cache has been intialized, size is 0 */
+  init_cache_size(); /* After cache has been initialized, size is 0 */
   last_removed_cache = null_synode;
   highest_msgno = 0;
 }
@@ -500,7 +500,7 @@ size_t pax_machine_size(pax_machine const *p) {
 }
 /* }}} */
 
-/* The cache itself is statically allocated, set size of dynamically allocted
+/* The cache itself is statically allocated, set size of dynamically allocated
  * data to 0 */
 void init_cache_size() { cache_size = 0; }
 

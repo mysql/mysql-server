@@ -104,7 +104,7 @@ constexpr auto I_S_PAGE_TYPE_LAST = I_S_PAGE_TYPE_SDI;
 
 constexpr auto I_S_PAGE_TYPE_BITS = 6;
 
-/** I_S.innodb_* views version postfix. Everytime the define of any InnoDB I_S
+/** I_S.innodb_* views version postfix. Every time the define of any InnoDB I_S
 table is changed, this value has to be increased accordingly */
 constexpr uint8_t i_s_innodb_plugin_version_postfix = 2;
 

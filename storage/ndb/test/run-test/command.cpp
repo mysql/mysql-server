@@ -126,7 +126,7 @@ static bool do_change_prefix(atrt_config& config, SqlResultSet& command) {
   proc.m_proc.m_path =
       g_resources.getExecutableFullPath(exename.c_str(), new_prefix_idx).c_str();
   if (proc.m_proc.m_path == "") {
-    // Atempt to dynamically find executable that was not previously registered
+    // Attempt to dynamically find executable that was not previously registered
     proc.m_proc.m_path =
         g_resources.findExecutableFullPath(exename.c_str(), new_prefix_idx).c_str();
   }

@@ -87,7 +87,7 @@ int Sql_service_interface::open_thread_session(void *plugin_ptr) {
   m_session = nullptr;
   /* open a server session after server is in operating state */
   if (!wait_for_session_server(SESSION_WAIT_TIMEOUT)) {
-    /* initalize new thread to be used with server session */
+    /* initialize new thread to be used with server session */
     if (srv_session_init_thread(plugin_ptr)) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL,

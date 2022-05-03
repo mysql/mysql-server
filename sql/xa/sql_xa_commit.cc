@@ -38,7 +38,7 @@ namespace {
 /**
   Forces the transaction to be rolled back upon error in the commit process.
 
-  It, temporarely, changes `THD::lex::sql_command` to
+  It, temporarily, changes `THD::lex::sql_command` to
   `SQLCOM_XA_ROLLBACK` so that the executed rollback stack may behave as
   an actual `XA ROLLBACK` was issued (log an `XA ROLLBACK` to the binary
   log, for instance).

@@ -362,7 +362,7 @@ class Data_notification : public Parameterized_notification<false> {
  private:
   /**
     Task implemented by this notification which calls the functor
-    with the parameters provided in the contructor.
+    with the parameters provided in the constructor.
   */
 
   void do_execute() override;

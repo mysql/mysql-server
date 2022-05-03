@@ -43,7 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0types.h"
 #include "univ.i"
 
-/** Converts an implict lock on the record to explict in case of partial
+/** Converts an implicit lock on the record to explicit in case of partial
  rollback.
 @param[in]      cursor          cursor to record
 @param[in]      node            undo node */
@@ -79,7 +79,7 @@ is assigned to handle an undo log record in the chain of different versions
 of the record, and the other thread happens to get the x-latch to the
 clustered index record at the right time.
         If a query thread notices that the clustered index record it is looking
-for is missing, or the roll ptr field in the record doed not point to the
+for is missing, or the roll ptr field in the record does not point to the
 undo log record the thread was assigned to handle, then it gives up the undo
 task for that undo log record, and fetches the next. This situation can occur
 just in the case where the transaction modified the same record several times

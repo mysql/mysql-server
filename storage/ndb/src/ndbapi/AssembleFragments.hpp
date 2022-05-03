@@ -37,7 +37,7 @@
  * When one need to send a long signal that is too big for a Protocol6 message
  * one can send it fragmented.
  *
- * The section data is splitted up and several smaller long signals are sent
+ * The section data is split up and several smaller long signals are sent
  * and receiver needs to assemble the fragments back to a big long signal
  * before proceessing.
  *
@@ -71,7 +71,7 @@ public:
     /* For all error codes below.
      * Current signal/fragment does not fit the batched fragments in progress.
      * Call extract_signal_only() to get broken signal.
-     * Then call assemble() again wth current fragment.
+     * Then call assemble() again with current fragment.
      */
     ERR_BATCH_IN_PROGRESS,
     ERR_DATA_DROPPED,

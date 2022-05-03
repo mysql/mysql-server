@@ -75,7 +75,7 @@ class NDB_SCHEMA_OBJECT {
   mutable struct State {
     // Mutex protecting state
     std::mutex m_lock;
-    // Condition for communication betwen client and coordinator
+    // Condition for communication between client and coordinator
     std::condition_variable m_cond;
 
     // Use counter controlling lifecycle of the NDB_SCHEMA_OBJECT
@@ -86,9 +86,9 @@ class NDB_SCHEMA_OBJECT {
 
     // List of participant nodes in schema operation.
     // Used like this:
-    // 1) When coordinator recieves the schema op event it adds all the
+    // 1) When coordinator receives the schema op event it adds all the
     //    nodes currently subscribed as participants
-    // 2) When coordinator recieves reply or failure from a participant it will
+    // 2) When coordinator receives reply or failure from a participant it will
     //    be removed from the list
     // 3) When list of participants is empty the coordinator will
     //    send the final ack, clearing all slock bits(thus releasing also any
@@ -105,7 +105,7 @@ class NDB_SCHEMA_OBJECT {
     std::unordered_map<uint32, Participant> m_participants;
 
     // Set after coordinator has received replies from all participants and
-    // recieved the final ack which cleared all the slock bits
+    // received the final ack which cleared all the slock bits
     bool m_coordinator_completed{false};
 
     enum object_state {
@@ -289,7 +289,7 @@ class NDB_SCHEMA_OBJECT {
      participants which haven't already completed as timedout.
      @param result The result to set on the participant
      @param message The message to set on the participant
-     @return true if timeout occured (and all participants have completed)
+     @return true if timeout occurred (and all participants have completed)
    */
   bool check_timeout(int timeout_seconds, uint32 result,
                      const char *message) const;

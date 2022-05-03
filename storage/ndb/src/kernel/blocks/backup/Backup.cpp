@@ -463,7 +463,7 @@ void
 Backup::calculate_next_delay(const NDB_TICKS curr_time)
 {
   /**
-   * Adjust for upto 10 millisecond delay of this signal. Longer
+   * Adjust for up to 10 millisecond delay of this signal. Longer
    * delays will not be handled, in this case the system is most
    * likely under too high load and it won't matter very much that
    * we decrease the speed of checkpoints.
@@ -2082,7 +2082,7 @@ Backup::calculate_disk_write_speed(Signal *signal)
   if (c_lqh->is_ldm_instance_io_lagging())
   {
     /**
-     * With IO lagging behind we will decrease the LCP speed to accomodate
+     * With IO lagging behind we will decrease the LCP speed to accommodate
      * for more REDO logging bandwidth. The definition of REDO log IO lagging
      * is kept in DBLQH, but will be a number of seconds of outstanding REDO
      * IO requests that LQH is still waiting for completion of.
@@ -3084,7 +3084,7 @@ Backup::get_disk_write_speed_record(Uint32 start_index)
   else if (last_disk_write_speed_report == 0)
   {
     /**
-     * We might still be in inital phase when not all records have
+     * We might still be in initial phase when not all records have
      * been written yet.
      */
     return DISK_WRITE_SPEED_REPORT_SIZE;
@@ -4325,7 +4325,7 @@ Uint32 Backup::validateEncryptionPassword(const EncryptionKeyMaterial* epd)
 }
 /*****************************************************************************
  * 
- * Master functionallity - Define backup
+ * Master functionality - Define backup
  *
  * Backup master = BACKUP instance 1 (LDM1) on master node.
  * Backup master receives BACKUP_REQ and sends control signals to all slaves
@@ -4778,7 +4778,7 @@ Backup::dictCommitTableMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal)
 
 /*****************************************************************************
  * 
- * Master functionallity - Define backup cont'd (from now on all slaves are in)
+ * Master functionality - Define backup cont'd (from now on all slaves are in)
  *
  *****************************************************************************/
 
@@ -4996,7 +4996,7 @@ Backup::defineBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
 
 /*****************************************************************************
  * 
- * Master functionallity - Prepare triggers
+ * Master functionality - Prepare triggers
  *
  *****************************************************************************/
 void
@@ -5260,7 +5260,7 @@ Backup::createTrigReply(Signal* signal, BackupRecordPtr ptr)
 
 /*****************************************************************************
  * 
- * Master functionallity - Start backup
+ * Master functionality - Start backup
  *
  *****************************************************************************/
 void
@@ -5494,7 +5494,7 @@ Backup::execWAIT_GCP_CONF(Signal* signal){
 
 /*****************************************************************************
  * 
- * Master functionallity - Backup fragment
+ * Master functionality - Backup fragment
  *
  *****************************************************************************/
 void
@@ -5734,7 +5734,7 @@ Backup::execBACKUP_FRAGMENT_COMPLETE_REP(Signal* signal)
 
 /*****************************************************************************
  *
- * Slave functionallity - Drop triggers
+ * Slave functionality - Drop triggers
  *
  *****************************************************************************/
 
@@ -5967,7 +5967,7 @@ Backup::dropTrigReply(Signal* signal, BackupRecordPtr ptr)
 
 /*****************************************************************************
  * 
- * Master functionallity - Stop backup
+ * Master functionality - Stop backup
  *
  *****************************************************************************/
 void
@@ -6191,7 +6191,7 @@ Backup::reportStatus(Signal* signal, BackupRecordPtr ptr,
 
 /*****************************************************************************
  * 
- * Master functionallity - Abort backup
+ * Master functionality - Abort backup
  *
  *****************************************************************************/
 void
@@ -6304,7 +6304,7 @@ Backup::abort_scan(Signal * signal, BackupRecordPtr ptr)
 
 /*****************************************************************************
  * 
- * Slave functionallity: Define Backup 
+ * Slave functionality: Define Backup 
  *
  *****************************************************************************/
 void
@@ -6469,7 +6469,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
 #endif
     if (!c_backups.getPool().seizeId(ptr, ptrI)) {
       jam();
-      ndbabort(); // If master has succeeded slave should succed
+      ndbabort(); // If master has succeeded slave should succeed
     }//if
     c_backups.addFirst(ptr);
   }//if
@@ -7224,7 +7224,7 @@ Backup::openFilesReply(Signal* signal,
 {
   jam();
   /**
-   * Check if all files have recived open_reply
+   * Check if all files have received open_reply
    */
   for(ptr.p->files.first(filePtr); filePtr.i!=RNIL;ptr.p->files.next(filePtr)) 
   {
@@ -7861,7 +7861,7 @@ Backup::getFragmentInfoDone(Signal* signal, BackupRecordPtr ptr)
 
 /*****************************************************************************
  * 
- * Slave functionallity: Start backup
+ * Slave functionality: Start backup
  *
  *****************************************************************************/
 void
@@ -7940,7 +7940,7 @@ Backup::execSTART_BACKUP_REQ(Signal* signal)
 
 /*****************************************************************************
  * 
- * Slave functionallity: Backup fragment
+ * Slave functionality: Backup fragment
  *
  *****************************************************************************/
 void
@@ -8264,7 +8264,7 @@ Backup::init_file_for_lcp(Signal *signal,
  *   for executing complex SQL queries.
  *
  * 2) Local checkpoints (LCPs)
- *   These can operate continously without user interaction. The LCPs are
+ *   These can operate continuously without user interaction. The LCPs are
  *   needed to ensure that we can cut the REDO log. If LCPs execute too slow
  *   the we won't have sufficient REDO log to store all user transactions that
  *   are writing on logging tables.
@@ -10151,8 +10151,8 @@ Backup::check_pause_lcp_backup(BackupRecordPtr ptr,
    * since the last time we had a real-time break.
    *
    * If we are lagging for some reason the desired write speed since
-  * the start of the scan, we write a bit more on each real-time
-   * break until we have catched up. There could be many reasons why
+   * the start of the scan, we write a bit more on each real-time
+   * break until we have caught up. There could be many reasons why
    * this is necessary, one could be that we had a real-time break
    * that overslept a bit.
    *
@@ -10532,7 +10532,7 @@ Backup::execFSAPPENDCONF(Signal* signal)
   up resources that are needed by the REDO log.
 
   The second problem is that in Linux we can get severe problems if we
-  write very much to the disk without synching. In the worst case we
+  write very much to the disk without syncing. In the worst case we
   can have Gigabytes of data in the Linux page cache before we reach
   the limit of how much we can write. If this happens the performance
   will drop significantly when we reach this limit since the Linux flush
@@ -10779,7 +10779,7 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
 
 /****************************************************************************
  * 
- * Slave functionallity: Perform logging
+ * Slave functionality: Perform logging
  *
  ****************************************************************************/
 void
@@ -11143,7 +11143,7 @@ Backup::sendAbortBackupOrd(Signal* signal, BackupRecordPtr ptr,
 
 /*****************************************************************************
  * 
- * Slave functionallity: Stop backup
+ * Slave functionality: Stop backup
  *
  *****************************************************************************/
 void
@@ -11591,12 +11591,12 @@ Backup::closeFilesDone(Signal* signal, BackupRecordPtr ptr)
 
 /*****************************************************************************
  * 
- * Slave functionallity: Abort backup
+ * Slave functionality: Abort backup
  *
  *****************************************************************************/
 /*****************************************************************************
  * 
- * Slave functionallity: Abort backup
+ * Slave functionality: Abort backup
  *
  *****************************************************************************/
 void
@@ -12410,7 +12410,7 @@ Backup::execFSREMOVECONF(Signal* signal)
  *    We will also use the 1 free bit in the second word in the page map.
  *    This bit will be used to store the LCP state at the previous LCP.
  *    When we reach a page in the LCP scan we will set the state of the last
- *    LCP based on the current state and of oter flags as described below.
+ *    LCP based on the current state and of other flags as described below.
  *
  *    The state that no page map entry exists is also a valid state, this
  *    state indicates that the previous LCP state was that the page was
@@ -12699,7 +12699,7 @@ Backup::execFSREMOVECONF(Signal* signal)
  * It must have been inserted in either of the following LCPs
  * or the last LCP and since it will be marked with a higher GCI
  * when inserted it will be part of the next LCP after being
- * inserted, similary any updates will be recorded in some LCP if
+ * inserted, similarly any updates will be recorded in some LCP if
  * it happens before or during the last LCP. Thus the row exists
  * after applying rows according to Corollary 1 such that Theorem 1
  * holds true.
@@ -12884,7 +12884,7 @@ Backup::execFSREMOVECONF(Signal* signal)
  * .....................
  * This is the trickiest problem to solve. Using partial LCP we aim for
  * LCPs to complete in 5-10 minutes, but writing the initial LCP after
- * synching the data with the live node might take many hours if the
+ * syncing the data with the live node might take many hours if the
  * node contains terabytes of data.
  *
  * We solve this by running local LCPs before we become part of the
@@ -13096,7 +13096,7 @@ Backup::execFSREMOVECONF(Signal* signal)
   So most of the startup and shutdown logic for LCPs, both for the entire
   LCP and messages per fragment LCP is ok to raise to JBA level. They are
   short and concise messages and won't bother the user transactions at any
-  noticable level. We will avoid fixing GET_TABINFO for that since it
+  noticeable level. We will avoid fixing GET_TABINFO for that since it
   is only one signal per fragment LCP and also the code path is also used
   many other activitites which are not suitable to run at JBA-level.
 
@@ -15259,7 +15259,7 @@ Backup::calculate_number_of_parts(BackupRecordPtr ptr)
    *
    *   It is still possible to use the old algorithm where we always
    *   write everything in each LCP. This is kept for better backwards
-   *   compatability and for risk averse users. It also works very well
+   *   compatibility and for risk averse users. It also works very well
    *   still for smaller database sizes that updates most of the data
    *   all the time.
    *
@@ -15738,7 +15738,7 @@ Backup::lcp_start_complete_processing(Signal *signal, BackupRecordPtr ptr)
    * on the fragment and sync's them one by one with potential throttling of
    * write speed here.
    *
-   * The second stage is synching the extent pages. This always happens in
+   * The second stage is syncing the extent pages. This always happens in
    * the PGMAN proxy block that takes care of the extent pages. Here we
    * sync all extent pages that are dirty for each fragment checkpoint. The
    * reason is that one extent page is shared by many fragments, also the

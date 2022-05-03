@@ -646,7 +646,7 @@ bool thd_holds_xa_transaction(THD *thd);
 
   @param thd THD session object.
 
-  @return true if the underlying statment is an `XA PREPARE`, false
+  @return true if the underlying statement is an `XA PREPARE`, false
           if not
  */
 bool is_xa_prepare(THD *thd);
@@ -655,7 +655,7 @@ bool is_xa_prepare(THD *thd);
 
   @param thd THD session object.
 
-  @return true if the underlying statment is an `XA ROLLBACK`, false
+  @return true if the underlying statement is an `XA ROLLBACK`, false
           if not
  */
 bool is_xa_rollback(THD *thd);

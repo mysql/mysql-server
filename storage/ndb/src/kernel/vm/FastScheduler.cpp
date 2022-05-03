@@ -46,7 +46,7 @@
 
 FastScheduler::FastScheduler()
 {
-   // These constants work for sun only, but they should be initated from
+   // These constants work for sun only, but they should be initiated from
    // Emulator.C as soon as VMTime has been initiated.
    theJobBuffers[0].newBuffer(JBASIZE);
    theJobBuffers[1].newBuffer(JBBSIZE);

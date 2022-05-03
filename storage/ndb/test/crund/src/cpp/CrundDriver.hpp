@@ -78,7 +78,7 @@ protected:
     // resources
     Loads myLoads;
 
-    // intializers/finalizers
+    // initializers/finalizers
     virtual void init();
     virtual void close();
     virtual void initProperties();

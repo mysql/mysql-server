@@ -213,8 +213,8 @@ void Trix::execNDB_STTOR(Signal* signal)
   Uint16 startphase = signal->theData[2];      /* RESTART PHASE           */
   Uint16 mynode = signal->theData[1];		 
   //Uint16 restarttype = signal->theData[3];	 
-  //UintR configInfo1 = signal->theData[6];     /* CONFIGRATION INFO PART 1 */
-  //UintR configInfo2 = signal->theData[7];     /* CONFIGRATION INFO PART 2 */
+  //UintR configInfo1 = signal->theData[6];     /* CONFIGURATION INFO PART 1 */
+  //UintR configInfo2 = signal->theData[7];     /* CONFIGURATION INFO PART 2 */
   switch (startphase) {
   case 3:
     jam();
@@ -1282,7 +1282,7 @@ void Trix::executeBuildInsertTransaction(Signal* signal,
       return;
 
     if (i < subRec->noOfIndexColumns)
-      // Renumber index attributes in consequtive order
+      // Renumber index attributes in consecutive order
       keyAttrHead->setAttributeId(i);
     else
       // Calculate total size of PK attribute

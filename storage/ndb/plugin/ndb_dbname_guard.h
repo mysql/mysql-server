@@ -111,7 +111,7 @@ class Ndb_dbname_guard {
   static bool check_dbname(Ndb *ndb, const std::string &dbname) {
     // Check that:
     // - dbname parameter is not empty string
-    // - database name of the Ndb object is identical to the dbname paramter
+    // - database name of the Ndb object is identical to the dbname parameter
     if (dbname.empty() || dbname != ndb->getDatabaseName()) {
       assert(false);  // Internal error, crash here in debug
       return false;

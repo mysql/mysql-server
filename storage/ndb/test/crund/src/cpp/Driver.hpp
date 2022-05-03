@@ -96,7 +96,7 @@ protected:
     typedef vector< Load * > Loads;
     Loads loads;
 
-    // intializers/finalizers
+    // initializers/finalizers
     virtual void init();
     virtual void close();
     virtual void loadProperties();

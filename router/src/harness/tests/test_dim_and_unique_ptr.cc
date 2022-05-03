@@ -211,7 +211,7 @@ TEST_F(UniquePtrTest, moving_stuff) {
   EXPECT_FALSE(p3);
 
 #ifndef __clang__
-  // Clang genereates -Wself-move warning, because self-move is undefined per
+  // Clang generates -Wself-move warning, because self-move is undefined per
   // C++11 standard. However, a lot of people feel it should be a no-op. Our
   // UniquePtr adheres to that tighter specification.
   p4 = std::move(p4);
@@ -442,7 +442,7 @@ class B : public A {
 };
 
 TEST_F(DIMTest, singleton_simple) {
-  // 1st get_A() call should create a new istance
+  // 1st get_A() call should create a new instance
   {
     ::testing::StrictMock<Notifier> notifier;
     set_notifier(notifier);
@@ -606,7 +606,7 @@ TEST_F(DIMTest, factory_object_should_remember_its_deleter) {
   EXPECT_CALL(notifier, called_deleter("B2")).Times(1);
 
   // changing deleter should not affect objects already instantiated
-  // (instantiated objects should "remeber their deleter" - they should be
+  // (instantiated objects should "remember their deleter" - they should be
   // deleted with the deleter current at the time of their instantiation)
   {
     dim.set_A([]() { return new B; }, deleter0);

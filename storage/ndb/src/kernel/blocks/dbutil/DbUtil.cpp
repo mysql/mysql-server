@@ -1358,7 +1358,7 @@ DbUtil::execGET_TABINFOREF(Signal* signal){
  * Prepare Operation
  * 
  * Using a prepare record, prepare an operation (i.e. create PreparedOperation).
- * Info from both Pepare request (PreparePages) and DictTabInfo is used.
+ * Info from both Prepare request (PreparePages) and DictTabInfo is used.
  * 
  * Algorithm:
  * -# Seize AttrbuteMapping

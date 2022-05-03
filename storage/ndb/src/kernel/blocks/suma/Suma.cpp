@@ -2454,7 +2454,7 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
     jam();
 
     /**
-     * We havent started syncing yet
+     * We haven't started syncing yet
      */
     sendSubCreateRef(signal, senderRef, senderData,
                      SubCreateRef::NotStarted);
@@ -3543,7 +3543,7 @@ Suma::execSUB_START_REQ(Signal* signal){
     jam();
 
     /**
-     * We havent started syncing yet
+     * We haven't started syncing yet
      */
     sendSubStartRef(signal,
                     senderRef, senderData, SubStartRef::NotStarted);
@@ -4183,7 +4183,7 @@ Suma::execSUB_STOP_REQ(Signal* signal){
     jam();
 
     /**
-     * We havent started syncing yet
+     * We haven't started syncing yet
      */
     sendSubStopRef(signal,
                    senderRef, senderData, SubStopRef::NotStarted);
@@ -5719,7 +5719,7 @@ Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
    * If count match the number of buckets that should be reported
    * complete, send subscription data streams identifiers.
    * If this is not the case fallback on old signal without
-   * the streams identifiers, but that should not happend!
+   * the streams identifiers, but that should not happen!
    */
   if (stream_count == m_gcp_complete_rep_count)
   {
@@ -6205,7 +6205,7 @@ Suma::execSUB_REMOVE_REQ(Signal* signal)
     jam();
 
     /**
-     * We havent started syncing yet
+     * We haven't started syncing yet
      */
     sendSubRemoveRef(signal,  req, SubRemoveRef::NotStarted);
     return;

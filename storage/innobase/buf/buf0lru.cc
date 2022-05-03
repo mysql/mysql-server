@@ -293,7 +293,7 @@ scan_again:
     (Other conflicting access paths to the adaptive hash
     index should not be possible, because when a
     tablespace is being discarded or dropped, there must
-    be no concurrect access to the contained tables.) */
+    be no concurrent access to the contained tables.) */
     assert_block_ahi_valid(block);
 
     bool skip = bpage->buf_fix_count > 0 || !block->index;
@@ -645,7 +645,7 @@ static bool flush_page_flush_list(buf_pool_t *buf_pool, buf_page_t *bpage) {
     1. It makes the function behaviour change from sync to async for temp
        tablespaces and if redo is disabled. The caller must not assume
        the page is flushed when we return flushed = T.
-    2. For bulk flush aysnc trigger could be better for performance and seems
+    2. For bulk flush async trigger could be better for performance and seems
        to be the case in 5.7. Need to validate if 8.0 forcing sync flush
        is intentional - No functional impact. */
     flushed = buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE, false);
@@ -908,7 +908,7 @@ scan_again:
       (Other conflicting access paths to the adaptive hash
       index should not be possible, because when a
       tablespace is being discarded or dropped, there must
-      be no concurrect access to the contained tables.) */
+      be no concurrent access to the contained tables.) */
       assert_block_ahi_empty((buf_block_t *)bpage);
     }
 
@@ -1171,7 +1171,7 @@ static bool buf_LRU_free_from_common_LRU_list(buf_pool_t *buf_pool,
 
 /** Try to free a replaceable block.
 @param[in,out]  buf_pool        buffer pool instance
-@param[in]      scan_all        scan whole LRU list if ture, otherwise scan
+@param[in]      scan_all        scan whole LRU list if true, otherwise scan
                                 only BUF_LRU_SEARCH_SCAN_THRESHOLD blocks
 @return true if found and freed */
 bool buf_LRU_scan_and_free_block(buf_pool_t *buf_pool, bool scan_all) {

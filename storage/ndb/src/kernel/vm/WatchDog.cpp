@@ -317,7 +317,7 @@ WatchDog::run()
       g_eventLogger->warning("Watchdog: Time ticked backwards %llu ms.",
                              NdbTick_Elapsed(now, last_ticks).milliSec());
       /**
-       * A backtick after sleeping 100ms, is considdered a
+       * A backtick after sleeping 100ms, is considered a
        * fatal error if monotonic timers are used.
        */
       assert(!NdbTick_IsMonotonic());

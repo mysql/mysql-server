@@ -34,7 +34,7 @@
 #include "storage/ndb/plugin/ndb_thd.h"
 
 /*
-  Default value for max number of transactions createable against NDB from
+  Default value for max number of transactions creatable against NDB from
   the handler. Should really be 2 but there is a transaction to much allocated
   when lock table is used, and one extra to used for global schema lock.
 */
@@ -80,7 +80,7 @@ bool Thd_ndb::recycle_ndb(void) {
   }
 
   if (ndb->init(MAX_TRANSACTIONS) != 0) {
-    // Failed to init Ndb object, relase the newly created Ndb
+    // Failed to init Ndb object, release the newly created Ndb
     delete ndb;
     ndb = nullptr;
     return false;

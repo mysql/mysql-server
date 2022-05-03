@@ -85,7 +85,7 @@ class Gcs_xcom_communication_interface : public Gcs_communication_interface {
     Buffer packets when a view is not installed yet and the state
     exchange phase is being executed.
 
-    Note that this method must be excuted by the same thread that
+    Note that this method must be executed by the same thread that
     processes global view messages and data message in order to
     avoid any concurrency issue.
 
@@ -101,7 +101,7 @@ class Gcs_xcom_communication_interface : public Gcs_communication_interface {
     installed so this is used to send any buffered packet to upper
     layers.
 
-    Note that this method must be excuted by the same thread that
+    Note that this method must be executed by the same thread that
     processes global view messages and data message in order to
     avoid any concurrency issue.
   */
@@ -114,7 +114,7 @@ class Gcs_xcom_communication_interface : public Gcs_communication_interface {
     new global view message was received triggering a new state
     exchange phase.
 
-    Note that this method must be excuted by the same thread that
+    Note that this method must be executed by the same thread that
     processes global view messages and data message in order to
     avoid any concurrency issue.
   */
@@ -124,7 +124,7 @@ class Gcs_xcom_communication_interface : public Gcs_communication_interface {
   /**
     Return the number of buffered packets.
 
-    Note that this method must be excuted by the same thread that
+    Note that this method must be executed by the same thread that
     processes global view messages and data message in order to
     avoid any concurrency issue.
   */

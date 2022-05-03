@@ -65,7 +65,7 @@ using AllowedNodesChangedCallback =
     std::function<void(const AllowedNodes &, const AllowedNodes &, const bool,
                        const std::string &)>;
 // NOTE: this has to be container like std::list that does not invalidate
-// iterators when it is modified as we return the iterator to the insterted
+// iterators when it is modified as we return the iterator to the inserted
 // callback to the caller to allow unregistering
 using AllowedNodesChangeCallbacksList = std::list<AllowedNodesChangedCallback>;
 using AllowedNodesChangeCallbacksListIterator =

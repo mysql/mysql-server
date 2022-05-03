@@ -28,7 +28,7 @@
 //      TransporterRegistry
 //
 //  DESCRIPTION
-//      TransporterRegistry (singelton) is the interface to the 
+//      TransporterRegistry (singleton) is the interface to the 
 //      transporter layer. It handles transporter states and 
 //      holds the transporter arrays.
 //
@@ -222,7 +222,7 @@ public:
 
   /**
    * Iff using non-default TransporterReceiveHandle's
-   *   they need to get initalized
+   *   they need to get initialized
    */
   bool init(TransporterReceiveHandle&);
 

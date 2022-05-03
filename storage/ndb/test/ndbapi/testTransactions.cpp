@@ -66,7 +66,7 @@ struct OperationTestCase {
  *
  *         NOTE: S-READ vs DML is not unpredictable as DML locks both replicas
  *        
- *         Therefor those combinations are removed from the matrix
+ *         Therefore those combinations are removed from the matrix
  */
 OperationTestCase matrix[] = {
   { "ReadRead",         true, "READ",   1, "READ",      0, 1,   0, 1 },

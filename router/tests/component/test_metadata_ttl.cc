@@ -415,7 +415,7 @@ TEST_P(MetadataChacheTTLTestInstanceListUnordered, InstancesListUnordered) {
   const std::string needle = "Potential changes detected in cluster";
   const std::string log_content = router.get_logfile_content();
 
-  // 1 is expected, that comes from the inital reading of the metadata
+  // 1 is expected, that comes from the initial reading of the metadata
   EXPECT_EQ(1, count_str_occurences(log_content, needle)) << log_content;
 }
 
@@ -534,7 +534,7 @@ TEST_F(MetadataChacheTTLTest, CheckMetadataUpgradeBetweenTTLs) {
       "// there should be no cluster change reported caused by the version "
       "upgrade");
   needle = "Potential changes detected in cluster";
-  // 1 is expected, that comes from the inital reading of the metadata
+  // 1 is expected, that comes from the initial reading of the metadata
   EXPECT_EQ(1, count_str_occurences(log_content, needle));
 
   // router should exit noramlly

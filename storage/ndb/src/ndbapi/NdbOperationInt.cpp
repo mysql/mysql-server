@@ -325,7 +325,7 @@ NdbOperation::intermediate_interpreterCheck()
 /*****************************************************************************
  * int incValue(const char* anAttrName, char* aValue, Uint32 aValue)
  *
- * Return Value:  Return 0 : incValue was succesful.
+ * Return Value:  Return 0 : incValue was successful.
  *                Return -1: In all other case.   
  * Parameters:    anAttrName : Attribute name where the attribute value 
  *                             will be save.
@@ -373,7 +373,7 @@ incValue_error1:
 /*****************************************************************************
  * int subValue(const char* anAttrName, char* aValue, Uint32 aValue)
  *
- * Return Value:   Return 0 : incValue was succesful.
+ * Return Value:   Return 0 : incValue was successful.
  *                 Return -1: In all other case.   
  * Parameters:     anAttrName : Attribute name where the attribute value 
  *                              will be save.
@@ -421,7 +421,7 @@ NdbOperation::subValue(const NdbColumnImpl* tNdbColumnImpl, Uint32 aValue)
 /******************************************************************************
  * int incValue(const char* anAttrName, char* aValue, Uint64 aValue)
  *
- * Return Value:   Return 0 : incValue was succesful.
+ * Return Value:   Return 0 : incValue was successful.
  *                 Return -1: In all other case.   
  * Parameters:     anAttrName : Attribute name where the attribute value will 
  *                             be save.
@@ -462,7 +462,7 @@ incValue_error1:
 /*****************************************************************************
  * int subValue(const char* anAttrName, char* aValue, Uint64 aValue)
  *
- * Return Value:   Return 0 : incValue was succesful.
+ * Return Value:   Return 0 : incValue was successful.
  *                Return -1: In all other case.   
  * Parameters:     anAttrName : Attribute name where the attribute value will 
  *                              be save.

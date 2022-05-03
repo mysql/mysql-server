@@ -82,7 +82,7 @@ void Dbtup::execSEND_PACKED(Signal* signal)
 }
 
 /**
- * Copy a TRANSID_AI signal, which alread has its header constructed in 'signal',
+ * Copy a TRANSID_AI signal, which already has its header constructed in 'signal',
  * into a packed buffer structure.
  *
  * Prereq:
@@ -184,7 +184,7 @@ void Dbtup::sendAPI_TRANSID_AI(Signal* signal,
       dataBuf = &signal->theData[25];
     }
 
-    // Send already buffered TRANSID_AI(s) preceeding this TRANSID_AI
+    // Send already buffered TRANSID_AI(s) preceding this TRANSID_AI
     const BlockReference TBref = numberToRef(API_PACKED, nodeId);
     MEMCOPY_NO_WORDS(&signal->theData[0], &buffer->packetBufferTA[0], TpacketLen);
     sendSignal(TBref, GSN_TRANSID_AI, signal, TpacketLen, JBB);
@@ -207,7 +207,7 @@ void Dbtup::sendAPI_TRANSID_AI(Signal* signal,
      *
      * Note that the check for fitting a 1-word signal in addition
      * to this signal serves dual purposes:
-     * - The 1-word signal is the smalles possible signal which
+     * - The 1-word signal is the smallest possible signal which
      *   can either be added later, or already is buffered.
      * - So failing to also add a 1-word signal implies that any
      *   previously buffered signals were flushed above.

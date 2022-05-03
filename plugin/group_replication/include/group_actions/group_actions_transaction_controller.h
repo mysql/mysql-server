@@ -74,7 +74,7 @@ class Transaction_monitor_thread {
 
     @return success
     @retval true failed to terminate
-    @retval false thread terminated succesfully.
+    @retval false thread terminated successfully.
   */
   bool terminate();
 

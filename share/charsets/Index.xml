@@ -336,7 +336,7 @@ To make maintaining easier please:
   <family>Cyrillic</family>
   <description>KOI8-U Ukrainian</description>
   <alias>koi8-u</alias>
-  <collation name="koi8u_general_ci"	id="22"	order="Ukranian"	flag="primary"/>
+  <collation name="koi8u_general_ci"	id="22"	order="Ukrainian"	flag="primary"/>
   <collation name="koi8u_bin"		id="75"	order="Binary"	flag="binary"/>
 </charset>
 

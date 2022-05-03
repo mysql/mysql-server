@@ -104,7 +104,7 @@ SocketClient::bind(const char* local_hostname,
     if (local_port == 0 &&
         m_last_used_port != 0)
     {
-      // Faild to bind same port as last, retry with any
+      // Failed to bind same port as last, retry with any
       // ephemeral port(as originally requested)
       m_last_used_port = 0; // Reset last used port
       local.sin6_port = htons(0); // Try bind with any port

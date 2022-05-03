@@ -64,7 +64,7 @@ const char *fk_split_name(char dst[], const char *src, bool index) {
      *  set db to ''
      *  and return pointer to name
      *
-     * This is for compability with create_fk/drop_fk tools...
+     * This is for compatibility with create_fk/drop_fk tools...
      */
     dst[0] = 0;
     strcpy(dst + 1, save);
@@ -189,7 +189,7 @@ bool retrieve_foreign_key_list_from_ndb(NdbDictionary::Dictionary *dict,
                                         Ndb_fk_list *fk_list) {
   DBUG_TRACE;
 
-  // Loop the dependant list and retrieve all FKs
+  // Loop the dependent list and retrieve all FKs
   NdbDictionary::Dictionary::List list;
   if (dict->listDependentObjects(list, *table) != 0) {
     DBUG_PRINT("error", ("Failed to list dependent objects for table '%s'",

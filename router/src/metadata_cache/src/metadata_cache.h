@@ -395,7 +395,7 @@ class METADATA_CACHE_EXPORT MetadataCache
 
 std::string to_string(metadata_cache::ServerMode mode);
 
-/** Gets user readable information string about the nodes atributes
+/** Gets user readable information string about the nodes attributes
  * related to _hidden and _disconnect_existing_sessions_when_hidden tags.
  */
 std::string get_hidden_info(const metadata_cache::ManagedInstance &instance);

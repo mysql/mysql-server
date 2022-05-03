@@ -29,12 +29,12 @@
  * ========
  *
  * Metadata Cache plugin communicates with Metadata and Group Replication
- * exposed by the cluster to obtain its topology and availablity information.
+ * exposed by the cluster to obtain its topology and availability information.
  * The digest of this information is then exposed to Routing Plugin in form of a
  * routing table.
  * Key components:
  * - Metadata Cache API - interface through which it exposes its service
- * - Refresh Mechansim - responsible for updating routing table
+ * - Refresh Mechanism - responsible for updating routing table
  *
  *
  *
@@ -279,7 +279,7 @@
  * MySQL Shell to reconfigure the cluster, which automatically updates both
  * GR and MD, keeping them in sync. But if for some reason the user tinkers with
  * GR directly and adds nodes without updating MD accordingly,
- * availablity/quorum calculations will be skewed. We run checks to detect such
+ * availability/quorum calculations will be skewed. We run checks to detect such
  * situation, and log a warning like so:
  *
  *     log_error("Member %s:%d (%s) found in Group Replication, yet is not
@@ -397,7 +397,7 @@
  *      also deployed on an InnoDB cluster.
  *
  * [02] It might be better to always start from the last successfully-connected
- *      server, rather than 1st on the list, to avoid unneccessary connection
+ *      server, rather than 1st on the list, to avoid unnecessary connection
  *      attempts when 1st server is dead.
  *
  *

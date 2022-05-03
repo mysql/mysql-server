@@ -189,9 +189,9 @@ private:
 /**
  * All memory allocation for events are done from memory blocks.
  * Each memory block is tagged with an 'expiry-epoch', which holds
- * the highest epoch known upto the point where the block got full.
+ * the highest epoch known up to the point where the block got full.
  *
- * No freeing of objects allocted from the memory block is required.
+ * No freeing of objects allocated from the memory block is required.
  * Instead we free the entire block when the client has consumed the
  * last event with an epoch >= the 'expiry-epoch' of the memory block.
  */
@@ -327,7 +327,7 @@ private:
 
 /**
  * The Gci_container creates a collection of EventBufData and
- * the NdbEventOperationImpl receiving an event withing this
+ * the NdbEventOperationImpl receiving an event within this
  * specific epoch. Once 'completed', an 'EpochData' is created from
  * the Gci_container, representing a more static view of the 
  * epoch ready to be consumed by the client.
@@ -421,7 +421,7 @@ public:
  * a list of all NdbEventOperationImpl which received an event.
  * (Except exceptional events)
  *
- * m_error shows the error identified when receiveing an epoch:
+ * m_error shows the error identified when receiving an epoch:
  *  a buffer overflow at the sender (ndb suma) or receiver (event buffer).
  *  This error information is a duplicate, same info is available in
  *  the dummy EventBufData. The reason to store the duplicate is to remove
@@ -743,7 +743,7 @@ private:
    *  m_pre_gap_epoch = 0 && m_begin_gap_epoch = 0 && m_end_gap_epoch = 0.
    *
    * PARTIALLY_DISCARDING :
-   *  event data upto epochs m_pre_gap_epoch are buffered,
+   *  event data up to epochs m_pre_gap_epoch are buffered,
    *  others are discarded.
    *  Entry condition:
    *   m_pre_gap_epoch > 0 && m_begin_gap = 0 && m_end_gap_epoch = 0.
@@ -998,7 +998,7 @@ public:
   unsigned get_eventbuffer_free_percent();
   void set_eventbuffer_free_percent(unsigned free);
 
-  // threshholds to report status
+  // thresholds to report status
   unsigned m_free_thresh, m_min_free_thresh, m_max_free_thresh;
   unsigned m_gci_slip_thresh;
   NDB_TICKS m_last_log_time; // Limit frequency of event buffer status reports

@@ -229,7 +229,7 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
   struct ClusterSetTopology {
     // we at least once successfully read the metadata from one of the metadata
     // servers we had stored in the state file; if true we have the
-    // clusters-nodes assignement, we know which cluster is the primary etc. so
+    // clusters-nodes assignment, we know which cluster is the primary etc. so
     // when refreshing the metadata we can only check one node per cluster for
     // highiest view_id
     bool is_set{false};
@@ -303,7 +303,7 @@ void GRClusterMetadata::update_cluster_status(
 
   log_debug("Updating cluster status from GR for '%s'", target_cluster.c_str());
 
-  // iterate over all cadidate nodes until we find the node that is part of
+  // iterate over all candidate nodes until we find the node that is part of
   // quorum
   bool found_quorum = false;
   std::shared_ptr<MySQLSession> gr_member_connection;
@@ -385,7 +385,7 @@ void GRClusterMetadata::update_cluster_status(
           log_warning(
               "quorum for cluster '%s' consists only of recovering nodes!",
               target_cluster.c_str());
-          found_quorum = true;  // no point in futher search
+          found_quorum = true;  // no point in further search
           break;
         case GRClusterStatus::Unavailable:  // we have nothing
           log_warning("%s is not part of quorum for cluster '%s'",
@@ -563,7 +563,7 @@ GRClusterStatus GRClusterMetadata::check_cluster_status(
   if (!have_quorum) return GRClusterStatus::Unavailable;
 
   // if we have quorum but no primary/secondary instances, it means the quorum
-  // is composed purely of recovering nodes (this is an unlikey cornercase)
+  // is composed purely of recovering nodes (this is an unlikely cornercase)
   if (!(have_primary_instance || have_secondary_instance))
     return GRClusterStatus::UnavailableRecovering;
 
@@ -788,7 +788,7 @@ GRClusterMetadata::fetch_cluster_topology(
         }
 
         // for a standalone Cluster which is not part of a ClusterSet we are ok
-        // with first successfull read for a ClusterSet we need to go over all
+        // with first successful read for a ClusterSet we need to go over all
         // of them to find highiest view_id
         result = std::move(result_tmp);
         if (metadata_backend_->get_cluster_type() !=

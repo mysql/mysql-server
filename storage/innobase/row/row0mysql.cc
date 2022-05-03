@@ -768,7 +768,7 @@ handle_new_error:
 
 /* Maximum size of the buffer needed for conversion of INTs from
 little endian format to big endian format in an index. An index
-can have maximum 16 columns (MAX_REF_PARTS) in it. Therfore
+can have maximum 16 columns (MAX_REF_PARTS) in it. Therefore
 Max size for PK: 16 * 8 bytes (BIGINT's size) = 128 bytes
 Max size Secondary index: 16 * 8 bytes + PK = 256 bytes. */
 constexpr uint32_t MAX_SRCH_KEY_VAL_BUFFER = 2 * 8 * MAX_REF_PARTS;
@@ -1457,7 +1457,7 @@ static dberr_t row_insert_for_mysql_using_cursor(const byte *mysql_rec,
 
   /* Step-5: If error is encountered while inserting entries to any
   of the index then entries inserted to previous indexes are removed
-  explicity. Automatic rollback is not in action as UNDO logs are
+  explicitly. Automatic rollback is not in action as UNDO logs are
   turned-off. */
   if (err != DB_SUCCESS) {
     node->entry = UT_LIST_GET_FIRST(node->entry_list);
@@ -1858,7 +1858,7 @@ static dberr_t row_fts_update_or_delete(
 /** Initialize the Doc ID system for FK table with FTS index */
 static void init_fts_doc_id_for_ref(
     dict_table_t *table, /*!< in: table */
-    ulint *depth)        /*!< in: recusive call depth */
+    ulint *depth)        /*!< in: recursive call depth */
 {
   dict_foreign_t *foreign;
 
@@ -1960,7 +1960,7 @@ static dberr_t row_update_inplace_for_intrinsic(const upd_node_t *node) {
 typedef std::vector<btr_pcur_t, ut::allocator<btr_pcur_t>> cursors_t;
 
 /** Delete row from table (corresponding entries from all the indexes).
-Function will maintain cursor to the entries to invoke explicity rollback
+Function will maintain cursor to the entries to invoke explicitly rollback
 just in case update action following delete fails.
 
 @param[in]      node            update node carrying information to delete.
@@ -2937,7 +2937,7 @@ dberr_t row_create_index_for_mysql(
 
   /* For temp-table we avoid insertion into SYSTEM TABLES to
   maintain performance and so we have separate path that directly
-  just updates dictonary cache. */
+  just updates dictionary cache. */
   if (!table->is_temporary()) {
     /* Create B-tree */
     dict_build_index_def(table, index, trx);
@@ -2964,7 +2964,7 @@ dberr_t row_create_index_for_mysql(
 #endif
 
     /* add index to dictionary cache and also free index object.
-    We allow instrinsic table to violate the size limits because
+    We allow intrinsic table to violate the size limits because
     they are used by optimizer for all record formats. */
     err = dict_index_add_to_cache(table, index, FIL_NULL,
                                   !table->is_intrinsic() && trx_is_strict(trx));
@@ -3089,7 +3089,7 @@ func_exit:
 
 /** Drops a table for MySQL as a background operation. MySQL relies on Unix
  in ALTER TABLE to the fact that the table handler does not remove the
- table before all handles to it has been removed. Furhermore, the MySQL's
+ table before all handles to it has been removed. Furthermore, the MySQL's
  call to drop table must be non-blocking. Therefore we do the drop table
  as a background operation, which is taken care of by the master thread
  in srv0srv.cc.
@@ -4771,7 +4771,7 @@ bool row_prebuilt_t::can_prefetch_records() const {
 }
 
 bool row_prebuilt_t::skip_concurrency_ticket() const {
-  /* Since there are no locks on instrinsic tables, we should skip
+  /* Since there are no locks on intrinsic tables, we should skip
   this for intrinsic temporary tables. */
 
   /* When InnoDB uses DD APIs, it leaves InnoDB and re-inters InnoDB again.

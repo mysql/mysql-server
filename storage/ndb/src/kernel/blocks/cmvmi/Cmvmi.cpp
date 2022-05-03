@@ -1435,7 +1435,7 @@ void Cmvmi::execTAMPER_ORD(Signal* signal)
     /*--------------------------------------------------------------------*/
 
     /**
-     * since CMVMI doesnt keep track of master,
+     * since CMVMI doesn't keep track of master,
      * send to local DIH
      */
     signal->theData[0] = 5;
@@ -1449,7 +1449,7 @@ void Cmvmi::execTAMPER_ORD(Signal* signal)
     jam();
 
     /**
-     * since CMVMI doesnt keep track of master,
+     * since CMVMI doesn't keep track of master,
      * send to local DIH
      */
     signal->theData[0] = 5;
@@ -1855,7 +1855,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     {
       /**
        * If memory decreased more than once...
-       *   it must also increase atleast once
+       *   it must also increase at least once
        */
       ndbrequire(cnt_inc > 0);
     }
@@ -3269,7 +3269,7 @@ Cmvmi::execTESTSIG(Signal* signal){
       /* Unicast linear sections to self */
       sendSignal(ref, GSN_TESTSIG, signal, signal->length(), JBB, ptr, secs);
     } else {
-      /* Boradcast linear sections to all nodes */
+      /* Broadcast linear sections to all nodes */
       sendSignal(rg, GSN_TESTSIG, signal, signal->length(), JBB, ptr, secs);
     }
     for(Uint32 i = 0; i<secs; i++){

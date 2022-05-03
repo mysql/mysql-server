@@ -656,7 +656,7 @@ NdbQueryIndexScanOperationDef::~NdbQueryIndexScanOperationDef()
 
 NdbQueryOperationDefImpl::~NdbQueryOperationDefImpl()
 {
-  // Unlink any parent and child refering this object
+  // Unlink any parent and child referring this object
   if (m_parent != NULL)
   {
     m_parent->removeChild(this);
@@ -877,7 +877,7 @@ NdbQueryBuilder::linkedValue(const NdbQueryOperationDef* parent, const char* att
   const NdbColumnImpl* column = parentImpl.getTable().getColumn(attr);
   returnErrIf(column==0, Err_UnknownColumn); // Unknown column
 
-  // Locate refered parrent column in parent operations SPJ projection list;
+  // Locate referred parent column in parent operations SPJ projection list;
   // Add if not already present
   int error = 0;
   Uint32 colIx = parentImpl.addColumnRef(column, error);
@@ -933,7 +933,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
     // A 'Key' value is undefined
     returnErrIf(keys[i]==NULL, QRY_TOO_FEW_KEY_VALUES);
   }
-  // Check for propper NULL termination of keys[] spec
+  // Check for proper NULL termination of keys[] spec
   returnErrIf(keys[keyfields]!=NULL, QRY_TOO_MANY_KEY_VALUES);
 
   int error = 0;
@@ -1007,7 +1007,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
     // A 'Key' value is undefined
     returnErrIf(keys[i]==NULL, QRY_TOO_FEW_KEY_VALUES);
   }
-  // Check for propper NULL termination of keys[] spec
+  // Check for proper NULL termination of keys[] spec
   returnErrIf(keys[inxfields]!=NULL, QRY_TOO_MANY_KEY_VALUES);
 
   int error = 0;
@@ -1134,7 +1134,7 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
               op->m_bound.highKeys > indexImpl.getNoOfColumns(),
               QRY_TOO_MANY_KEY_VALUES);
 
-  // Bind lowKeys, and if applicable, highKeys to the column being refered
+  // Bind lowKeys, and if applicable, highKeys to the column being referred
   Uint32 i;
   for (i=0; i<op->m_bound.lowKeys; ++i)
   {
@@ -1905,7 +1905,7 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
   
           /**
            * We must compare key parts in the prefix that contains the 
-           * distribution key. Even if subseqent parts should be different,
+           * distribution key. Even if subsequent parts should be different,
            * all matching tuples must have the same (distribution) hash.
            *
            * For example, assume there is a ordered index on {a, dist_key, b}.
@@ -1920,7 +1920,7 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
           assert(column.m_keyInfoPos < tableRecord->noOfColumns);
           const NdbRecord::Attr& recAttr = tableRecord->columns[column.m_keyInfoPos];
           /**
-           * Shrinked varchars should already have been converted in
+           * Shrunk varchars should already have been converted in
            * NdbQueryImpl::setBound(), so no need to deal with them here.
            * (See also bug#56853 and http://lists.mysql.com/commits/121387 .)
            */
@@ -1985,7 +1985,7 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
     else if (hashValue != newHashValue)
     {
       /* This bound does not have the same hash value as the previous one. 
-       * So we make the pessimistic assumtion that it will not hash to the 
+       * So we make the pessimistic assumption that it will not hash to the 
        * same node. (See also comments in 
        * NdbScanOperation::getPartValueFromInfo()).
        */
@@ -2106,7 +2106,7 @@ NdbQueryOperationDefImpl::linkWithParent(NdbQueryOperationDefImpl* parentOp)
      * It is likely that the conflict is due to one of the
      * parents actually being a grand parent.
      * This can be resolved if existing parent actually was a grandparent.
-     * Then register new parentOp as the real parrent.
+     * Then register new parentOp as the real parent.
      */
     if (parentOp->isChildOf(m_parent))
     { // Remove existing grandparent linkage being replaced by parentOp.
@@ -2267,7 +2267,7 @@ static void printMargin(Uint32 depth,
 {
   if (depth > 0)
   {
-    // Print vertical lines to the siblings of the ancestore nodes.
+    // Print vertical lines to the siblings of the ancestor nodes.
     for (Uint32 i = 0; i<depth-1; i++)
     {
       if (hasMoreSiblingsMask.get(i+1))

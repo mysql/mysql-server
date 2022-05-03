@@ -941,8 +941,8 @@ static inline ulint dict_max_v_field_len_store_undo(dict_table_t *table,
 
   /* This calculation conforms to the non-virtual column
   maximum log length calculation:
-  1) if No atomic BLOB, upto REC_ANTELOPE_MAX_INDEX_COL_LEN
-  2) if atomic BLOB, upto col->max_prefix or
+  1) if No atomic BLOB, up to REC_ANTELOPE_MAX_INDEX_COL_LEN
+  2) if atomic BLOB, up to col->max_prefix or
   REC_VERSION_56_MAX_INDEX_COL_LEN, whichever is less */
   if (dict_table_has_atomic_blobs(table)) {
     if (DATA_BIG_COL(col) && col->max_prefix > 0) {
@@ -1165,7 +1165,7 @@ inline void dict_table_t::acquire_with_lock() {
   /* Acquiring the lock first, to prevent race between n_ref_count and
   stat_initialized in dict_table_close(). This lock makes sure the close
   code path either destroys the stats information before increasing
-  n_ref_count, or finds the n_ref_count is not 0, so not to destry the stats
+  n_ref_count, or finds the n_ref_count is not 0, so not to destroy the stats
   information. */
   lock();
   MONITOR_INC(MONITOR_TABLE_REFERENCE);

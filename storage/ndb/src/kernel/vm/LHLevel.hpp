@@ -267,7 +267,7 @@ template<typename Int> inline Int LHBits<Int>::highbit() const
 }
 
 /**
- * Implementaion LHLevel
+ * Implementation LHLevel
  **/
 
 inline LHLevel::LHLevel()
@@ -435,7 +435,7 @@ inline LHBits16 LHLevelRH::reduce(LHBits32 hash_value) const
 
 inline LHBits16 LHLevelRH::reduceForSplit(LHBits32 hash_value) const
 {
-  // As reduce() with an extra bit shifted out to compansate for a
+  // As reduce() with an extra bit shifted out to compensate for a
   // coming expand().
   // But we do it on the LHBits32-value so we do not shift out
   // one bit from the resulting LHBits16-value needlessly.

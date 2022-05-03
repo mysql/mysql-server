@@ -114,7 +114,7 @@ typedef struct mci_item {
  Register InnoDB Callback functions */
 void register_innodb_cb(
     /*===============*/
-    void *p); /*!<in: Pointer to callback function arrary */
+    void *p); /*!<in: Pointer to callback function array */
 
 /*********************************************************************
 Open a table and return a cursor for the table. */
@@ -123,7 +123,7 @@ ib_err_t innodb_api_begin(
     innodb_engine_t *engine,       /*!< in: InnoDB Memcached engine */
     const char *dbname,            /*!< in: database name */
     const char *name,              /*!< in: table name */
-    innodb_conn_data_t *conn_data, /*!< in/out: connnection specific
+    innodb_conn_data_t *conn_data, /*!< in/out: connection specific
                                    data */
     ib_trx_t ib_trx,               /*!< in: transaction */
     ib_crsr_t *crsr,               /*!< out: innodb cursor */

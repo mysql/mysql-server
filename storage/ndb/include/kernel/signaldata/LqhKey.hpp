@@ -836,7 +836,7 @@ private:
   };
   Uint32 transId1;
   Uint32 transId2;
-  Uint32 numFiredTriggers; // bit 31 defered trigger
+  Uint32 numFiredTriggers; // bit 31 deferred trigger
 
   static Uint32 getFiredCount(Uint32 v) {
     return NoOfFiredTriggers::getFiredCount(v);

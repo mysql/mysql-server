@@ -3069,8 +3069,8 @@ class user_var_entry {
   bool mem_realloc(size_t length);
 
   /**
-    Check if m_ptr point to an external buffer previously alloced by realloc().
-    @retval true  - an external buffer is alloced.
+    Check if m_ptr points to an external buffer previously allocated by realloc().
+    @retval true  - an external buffer is allocated.
     @retval false - m_ptr is null, or points to the internal buffer.
   */
   bool alloced() { return m_ptr && m_ptr != internal_buffer_ptr(); }

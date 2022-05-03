@@ -37,7 +37,7 @@
  *   http://en.wikipedia.org/wiki/Moving_average
  *   http://www-uxsup.csx.cam.ac.uk/~fanf2/hermes/doc/antiforgery/stats.pdf
  *
- * A 'simple moving average' is calculated upto the 
+ * A 'simple moving average' is calculated up to the 
  * specified 'sampleSize', short description:
  *
  *   Suppose that the data set is x1, x2,..., xn then for each xn

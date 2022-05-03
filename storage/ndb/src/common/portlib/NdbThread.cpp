@@ -859,7 +859,7 @@ NdbThread_SetThreadPrio(struct NdbThread *pThread,
  * ids for processors we will use a mapping scheme from processor number
  * to processor group number and processor id within this group. So if your
  * CPU is located in Processor Group 2 and is processor 10 in this group, then
- * your NDB processor number will be 2 * 64 + 10 = 138. Thus the configuation
+ * your NDB processor number will be 2 * 64 + 10 = 138. Thus the configuration
  * should always use these NDB processor numbers on Windows when using systems
  * with more than 64 logical processors which are becoming fairly commonplace
  * these days.

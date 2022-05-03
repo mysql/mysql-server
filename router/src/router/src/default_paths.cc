@@ -141,7 +141,7 @@ std::string find_full_executable_path(const std::string &argv0) {
         path_name = path.substr(begin, found - begin);
       }
 
-      if (!path_name.empty()) {  // if not only a seperator
+      if (!path_name.empty()) {  // if not only a separator
         auto abs_file_path = mysql_harness::Path(path_name).join(argv0);
 
         if (mysqlrouter::my_check_access(abs_file_path.str())) {

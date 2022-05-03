@@ -129,7 +129,7 @@ struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
   { MAKE_VERSION(6,2,NDB_VERSION_BUILD), MAKE_VERSION(6,1,19), UG_Range },
   { MAKE_VERSION(6,1,NDB_VERSION_BUILD), MAKE_VERSION(6,1,6), UG_Range},
   /* var page reference 32bit->64bit making 6.1.6 not backwards compatible */
-  /* ndb_apply_status table changed, and no compatability code written */
+  /* ndb_apply_status table changed, and no compatibility code written */
   { MAKE_VERSION(6,1,4), MAKE_VERSION(6,1,2), UG_Range},
   { MAKE_VERSION(5,1,NDB_VERSION_BUILD), MAKE_VERSION(5,1,0), UG_Range},
 

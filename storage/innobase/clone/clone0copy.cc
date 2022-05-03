@@ -594,7 +594,7 @@ bool Clone_Snapshot::build_file_name(Clone_File_Meta *file_meta,
 
   size_t alloc_len = new_len;
 
-  /* For reallocation, allocate in multple of base size to avoid frequent
+  /* For reallocation, allocate in multiple of base size to avoid frequent
   allocation by rename DDL. */
   if (file_meta->m_file_name_alloc_len > 0) {
     alloc_len = ut_calc_align(new_len, S_FILE_NAME_BASE_LEN);

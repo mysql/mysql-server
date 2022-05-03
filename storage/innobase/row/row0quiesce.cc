@@ -326,7 +326,7 @@ static dberr_t row_quiesce_write_dropped_col_metadata(
   }
 
   /* Write elements for enum column type.
-  [4]     bytes : numner of elements
+  [4]     bytes : number of elements
   For each element
     [4]     bytes : element name length (len+1)
     [len+1] bytes : element name */

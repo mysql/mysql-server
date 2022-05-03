@@ -46,7 +46,7 @@ class HARNESS_EXPORT RandomGeneratorInterface {
    *
    * @param length length of string requested
    * @param alphabet_mask bitmasmask indicating which alphabet symbol groups
-   * should be used for indentifier generation (see AlphabetContent enum for
+   * should be used for identifier generation (see AlphabetContent enum for
    * possible values that can be or-ed)
    * @return string with the generated random chars
    *

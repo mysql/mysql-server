@@ -262,7 +262,7 @@ bool buf_are_flush_lists_empty_validate();
 
 /** We use Flush_observer to track flushing of non-redo logged pages in bulk
 create index(btr0load.cc).Since we disable redo logging during a index build,
-we need to make sure that all dirty pages modifed by the index build are
+we need to make sure that all dirty pages modified by the index build are
 flushed to disk before any redo logged operations go to the index. */
 
 class Flush_observer {
@@ -270,7 +270,7 @@ class Flush_observer {
   /** Constructor
   @param[in] space_id   table space id
   @param[in] trx                trx instance
-  @param[in,out] stage PFS progresss monitoring instance, it's used by
+  @param[in,out] stage PFS progress monitoring instance, it's used by
   ALTER TABLE. It is passed to log_preflush_pool_modified_pages() for
   accounting. */
   Flush_observer(space_id_t space_id, trx_t *trx, Alter_stage *stage) noexcept;

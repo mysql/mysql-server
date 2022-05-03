@@ -90,7 +90,7 @@ class Ndb_dd_sync {
                              bool force_overwrite) const;
 
   /*
-    @brief Compares if files retrieved from NDB Dicionary match those retrieved
+    @brief Compares if files retrieved from NDB Dictionary match those retrieved
            from DD. Used to check undofiles assigned to logfile groups and
            datafiles assigned to tablespaces
 
@@ -244,12 +244,12 @@ class Ndb_dd_sync {
   /*
    * @brief Iterate over all temporary tables in NDB, process them by the name:
    *          - the temporary tables, whose names start with prefix #sql2, will
-   *          produce error, becasue original data has been renamed and cannot
+   *          produce error, because original data has been renamed and cannot
    *          be accessed by user, this tables will be kept to prevent any data
    *          loss,
    *          - the temporary tables, whose names start with prefix #sql (and
    *          not #sql2), will be deleted, they ware created as a copy of
-   *          orignal data, which should exists in the NDB under its original
+   *          original data, which should exists in the NDB under its original
    *          name or as temporary table prefixed #sql2.
    *
    * @parm schema_name                  Name of the schema

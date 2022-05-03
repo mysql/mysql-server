@@ -192,7 +192,7 @@ public:
    * 			    <br>
    *                        <b>TupleId</b> means that a <em>tuple identity</em>
    *                        is used.  The tuple identity is 
-   *                        a unique key indentifying each record of the 
+   *                        a unique key identifying each record of the 
    *                        created table.
    *                        The tuple identity is a (non-stored)
    *                        64 bit attribute named <b>NDB$TID</b>.

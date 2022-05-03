@@ -57,7 +57,7 @@ bool is_generate_invisible_primary_key_mode_active(THD *thd);
   @param[in]   column_name   Name of a column.
 
   @retval   true   column_name matches generated invisible primary key
-                   colum name.
+                   column name.
   @retval   false  Otherwise.
 */
 bool is_generated_invisible_primary_key_column_name(const char *column_name);

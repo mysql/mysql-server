@@ -56,7 +56,7 @@ enum class resolver_errc {
   bad_address_family =
       EAI_ADDRFAMILY,  //!< address family for NAME not supported
 #endif
-  fail = EAI_FAIL,             //!< non recoverable faile on name resolution
+  fail = EAI_FAIL,             //!< non recoverable failed on name resolution
   bad_family = EAI_FAMILY,     //!< ai_family not supported
   out_of_memory = EAI_MEMORY,  //!< memory allocation failed
 #ifdef EAI_NODATA
@@ -90,7 +90,7 @@ enum class resolver_errc {
 #endif
 #ifdef EAI_INTR
   // glibc
-  interrupted = EAI_INTR,  //!< interruped
+  interrupted = EAI_INTR,  //!< interrupted
 #endif
 #ifdef EAI_IDN_ENCODE
   // glibc
@@ -154,7 +154,7 @@ inline stdx::expected<void, std::error_code> gethostname(char *buf,
   }
 
   // POSIX says that it is unspecified if the returned string contains
-  // a \0 char if truncation occured.
+  // a \0 char if truncation occurred.
   //
   // Looks like only Solaris doesn't add \0 and doesn't return an error.
   //

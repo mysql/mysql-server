@@ -221,7 +221,7 @@ class MysqlRoutingXConnection : public MySQLRoutingConnectionBase {
     kServerRecvExpectOpenResponseForward,
     kServerRecvExpectOpenResponseForwardLast,
 
-    // expect::clsoe
+    // expect::close
     kClientExpectClose,
     kServerRecvExpectCloseResponse,
     kServerRecvExpectCloseResponseForward,

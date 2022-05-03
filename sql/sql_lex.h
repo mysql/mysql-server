@@ -1177,7 +1177,7 @@ class Query_block : public Query_term {
   void destroy_tree() override { m_parent = nullptr; }
 
   bool open_result_tables(THD *, int) override;
-  /// end of overriden methods from Query_term
+  /// end of overridden methods from Query_term
   bool absorb_limit_of(Query_block *block);
 
   Item *where_cond() const { return m_where_cond; }

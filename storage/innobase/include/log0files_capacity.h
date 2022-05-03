@@ -84,11 +84,11 @@ class Log_files_capacity {
   @return maximum allowed size on disk, in bytes */
   os_offset_t current_physical_capacity() const;
 
-  /** If a redo downsize is in progress, it is the targetted value for the
+  /** If a redo downsize is in progress, it is the targeted value for the
   current_physical_capacity() (is equal if there is no resize in progress).
   It is set to srv_redo_log_capacity_used when @see update is called.
   @note This value changes only during calls to @see update or @see initialize.
-  @return targetted physical capacity, in bytes */
+  @return targeted physical capacity, in bytes */
   os_offset_t target_physical_capacity() const;
 
   /** Soft limit for logical capacity of the redo log. When the log writer
@@ -122,7 +122,7 @@ class Log_files_capacity {
   adaptive_flush_min_age  adaptive_flush_max_age  aggressive_checkpoint_min_age
          |                        |                     |
   -------!------------------------!---------------------!----------------->age
-  regular     adaptive flushing      aggresive flushing   aggr. checkpoints
+  regular     adaptive flushing     aggressive flushing   aggr. checkpoints
   @return limitation to start adaptive flushing */
   lsn_t adaptive_flush_min_age() const;
 

@@ -70,7 +70,7 @@ bool ensure_http_method(HttpRequest &req, HttpMethod::Bitset allowed_methods);
 /**
  * ensure request is authenticated.
  *
- * sends HTTP-response with status 401 if authentication was not succesful.
+ * sends HTTP-response with status 401 if authentication was not successful.
  *
  * @returns success
  * @retval true if request is authenticaticated

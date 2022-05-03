@@ -116,7 +116,7 @@ public:
   {
     if (m_proc)
     {
-      //stop the proces
+      //stop the process
       stop();
     }
 
@@ -1503,7 +1503,7 @@ runTestUnresolvedHosts1(NDBT_Context* ctx, NDBT_Step* step)
 /* WL#13860: AllowUnresolvedHostnames=true
    This test uses a configuration with 144 data nodes, of which 143 have
    unresolvable hostnames, and shows that the one data node with a usable
-   hostname succesfully connects, while a second data node with a bad hostname
+   hostname successfully connects, while a second data node with a bad hostname
    times out (within 40 seconds) with failure to allocate node id.
 */
 int

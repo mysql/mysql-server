@@ -34,7 +34,7 @@
 
 /** @struct Plugin_abi
  *
- * @brief The assumend and expected beginning of each version of Plugin struct
+ * @brief The assumed and expected beginning of each version of Plugin struct
  *
  **/
 struct Plugin_abi {
@@ -45,7 +45,7 @@ struct Plugin_abi {
  *
  * @brief Data fields of the first version of the Plugin struct.
  *        Whenever this changes, add a new struct (callded vX) here,
- *        respective contructor to Plugin_info and its handling
+ *        respective constructor to Plugin_info and its handling
  *
  **/
 struct Plugin_v1 {
@@ -75,7 +75,7 @@ class Plugin_info {
  public:
   /** @brief Constructor
    *
-   * @param plugin contructor from v1 of Plugin struct
+   * @param plugin constructor from v1 of Plugin struct
    **/
   explicit Plugin_info(const Plugin_v1 &plugin);
 

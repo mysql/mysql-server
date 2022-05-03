@@ -268,7 +268,7 @@ void trx_undo_insert_cleanup(trx_undo_ptr_t *undo_ptr, bool noredo);
 
 /** At shutdown, frees the undo logs of a transaction which was either
 PREPARED or (ACTIVE and recovered).
-@param[in]     trx       transation which undo logs are freed
+@param[in]     trx       transaction which undo logs are freed
 @param[in]     prepared  whether or not the undo segment is in prepared or
                          prepared in tc states */
 void trx_undo_free_trx_with_prepared_or_active_logs(trx_t *trx,

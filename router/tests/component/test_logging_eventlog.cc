@@ -106,7 +106,7 @@ class EventlogSubscription {
    *
    * Starts subscription to Router-generated log events coming from Eventlog,
    * and forwards their payload in form of one-line XML strings to
-   * `user_handler`. This hander can be changed mid-flight if desired, please
+   * `user_handler`. This handler can be changed mid-flight if desired, please
    * see `set_user_handler()` documentation.
    *
    * @param user_handler user-defined handler that will be called every time a
@@ -170,7 +170,7 @@ class EventlogSubscription {
    * @throws std::runtime_error on subscription failure
    */
   void subscribe_to_eventlog() {
-    // On Windows 10 (and probly many others), 'Application' is that thing you
+    // On Windows 10 (and probably many others), 'Application' is that thing you
     // see in Event Viewer program, under 'Windows Logs' tree (next to
     // 'Security', 'Setup', 'System', etc)
     const wchar_t *channel = L"Application";
@@ -333,7 +333,7 @@ class EventlogSubscription {
     //   </Event>
     //
     // clang-format on
-    // Note that the above example is nicely formated - the actual XML string
+    // Note that the above example is nicely formatted - the actual XML string
     // we get from EvtRenderEventXml() is just a single line.
     constexpr DWORD buf_size = 16 * 1024;
     wchar_t buf[buf_size];  // one-line XML will show up here
@@ -557,11 +557,11 @@ TEST_F(RouterEventlogTest, wrapper_running_as_unknown) {
  */
 TEST_F(RouterEventlogTest, wrapper_running_as_service) {
   // This test is a stub that we might implement one day. Two prerequisites
-  // must be fullfilled to implement it:
+  // must be fulfilled to implement it:
   // - we'd need to register Router as a Service
   // - have some error message to test on. Right now, the moment between
   //   launching as a service and entering main() is very narrow, and there's
-  //   nothing inbetween that logs.
+  //   nothing in between that logs.
 }
 
 /**
@@ -634,7 +634,7 @@ TEST_F(RouterEventlogTest, wrapper_running_as_process) {
  */
 TEST_F(RouterEventlogTest, application_running_as_service_preconfig) {
   // This test is a stub that we might implement one day. A prerequisite must
-  // be fullfilled to implement it:
+  // be fulfilled to implement it:
   // - we'd need to register Router as a Service
 }
 

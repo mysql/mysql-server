@@ -1428,7 +1428,7 @@ protected:
    * Compare either a full (non-NULL) key, or a single attr.
    *
    * Character strings are compared taking their normalized
-   * 'weight' into considderation, as defined by their collation.
+   * 'weight' into consideration, as defined by their collation.
    *
    * No intermediate xfrm'ed string are produced during the compare.
    *

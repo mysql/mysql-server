@@ -178,7 +178,7 @@ public:
 
   /*
    * Data specification i.e. array of types.  Usually constructed on the
-   * heap, so keep fairly small.  Used for boths keys and bounds.
+   * heap, so keep fairly small.  Used for both keys and bounds.
    */
   class Spec : public Error {
   public:

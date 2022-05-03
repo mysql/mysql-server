@@ -1461,7 +1461,7 @@ dberr_t buf_pool_init(ulint total_size, ulint n_instances) {
 #ifdef UNIV_LINUX
   ulint n_cores = sysconf(_SC_NPROCESSORS_ONLN);
 
-  /* Magic nuber 8 is from empirical testing on a
+  /* Magic number 8 is from empirical testing on a
   4 socket x 10 Cores x 2 HT host. 128G / 16 instances
   takes about 4 secs, compared to 10 secs without this
   optimisation.. */
@@ -6574,7 +6574,7 @@ void buf_print_io(FILE *file) /*!< in/out: buffer where to print */
     }
   }
 
-  /* Print the aggreate buffer pool info */
+  /* Print the aggregate buffer pool info */
   buf_print_io_instance(pool_info_total, file);
 
   /* If there are more than one buffer pool, print each individual pool

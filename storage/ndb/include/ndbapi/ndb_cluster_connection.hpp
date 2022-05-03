@@ -154,7 +154,7 @@ public:
    *
    * @param timeout_ms millisecond timeout. As with ndb_mgm_set_timeout,
    *                   only increments of 1000 are really supported,
-   *                   with not to much gaurentees about calls completing
+   *                   with not too many guarantees about calls completing
    *                   in any hard amount of time.
    * @return 0 on success
    */
@@ -171,7 +171,7 @@ public:
    * @param retry_delay_in_seconds specifies how often retries should
    *        be performed
    *
-   * @param verbose specifies if the method should print a report of its progess
+   * @param verbose specifies if the method should print a report of its progress
    *
    * @return 0 = success, 
    *         1 = recoverable error,

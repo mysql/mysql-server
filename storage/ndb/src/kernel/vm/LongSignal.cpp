@@ -44,7 +44,7 @@ SectionSegmentPool::handleOutOfSegments(SectionSegment_basepool& pool)
 /**
  * verifySection
  * Assertion method to check that a segmented section is constructed
- * 'properly' where 'properly' is loosly defined.
+ * 'properly' where 'properly' is loosely defined.
  */
 bool
 verifySection(Uint32 firstIVal, SectionSegmentPool& thePool)

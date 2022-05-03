@@ -131,7 +131,7 @@ std::string ConfigSection::do_replace(const std::string &value,
   //
   // At any point of the iteration, everything before the mark is
   // already in the result string, and everything at the mark and
-  // later is not transfered to the result string.
+  // later is not transferred to the result string.
   for (auto current = value.begin(); current != value.end(); ++current) {
     if (inside_braces && *current == '}') {
       // Inside braces and found the end brace.

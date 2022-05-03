@@ -52,7 +52,7 @@ namespace trx_coordinator {
                True by default, otherwise, does not execute the
                after_commit hook in the function.
 
-  @return false if execution succeded, true otherwise.
+  @return false if execution succeeded, true otherwise.
  */
 bool commit_detached_by_xid(THD *thd, bool run_after_commit = true);
 /**
@@ -60,7 +60,7 @@ bool commit_detached_by_xid(THD *thd, bool run_after_commit = true);
 
   @param thd The THD session object holding the detached XA/XID.
 
-  @return false if execution succeded, true otherwise.
+  @return false if execution succeeded, true otherwise.
  */
 bool rollback_detached_by_xid(THD *thd);
 /**
@@ -123,7 +123,7 @@ int set_prepared_in_tc_in_engines(THD *thd, bool all = false);
 
   @param thd THD session object.
 
-  @return true if the underlying statment should trigger setting the
+  @return true if the underlying statement should trigger setting the
           transaction as `PREPARED_IN_TC`, false if not
  */
 bool should_statement_set_prepared_in_tc(THD *thd);

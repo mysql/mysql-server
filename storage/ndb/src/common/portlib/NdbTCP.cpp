@@ -159,7 +159,7 @@ Ndb_inet_ntop(int af,
 {
   // Function assume there is at least some space in "dst" since there
   // are no way to return failure without writing into "dst". Check
-  // that noone seem to call function with too small "dst_size"
+  // that no one seem to call function with too small "dst_size"
   assert(dst);
   assert(dst_size > 0);
 
@@ -231,7 +231,7 @@ Ndb_inet_ntop(int af,
  * This function takes a string splits it into the address/hostname part
  * and port/service part.
  * If string contains space, it is expected that the part preceding space is
- * host address or name and the succeding part is service port.
+ * host address or name and the succeeding part is service port.
  * It does not do deep verification that passed string makes sense.
  * It is quite optimistic only checking for []: (ipv6-address) and
  * single : (ipv4-address or hostname).

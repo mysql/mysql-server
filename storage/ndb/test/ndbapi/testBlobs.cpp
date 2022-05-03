@@ -3929,7 +3929,7 @@ static int bugtest_62321()
   DBG("bugtest_62321 : Error code from other ops in batch obscured");
 
   /*
-     1) Setup table : 1 row exists, another doesnt
+     1) Setup table : 1 row exists, another doesn't
      2) Start transaction
      3) Define failing before op
      4) Define Blob op with/without post-exec part

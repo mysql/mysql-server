@@ -538,7 +538,7 @@ void MVCC::view_open(ReadView *&view, trx_t *trx) {
     ut_ad(view->m_closed);
 
     /* NOTE: This can be optimised further, for now we only
-    resuse the view iff there are no active RW transactions.
+    reuse the view if there are no active RW transactions.
 
     There is an inherent race here between purge and this
     thread. Purge will skip views that are marked as closed.

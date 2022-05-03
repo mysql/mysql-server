@@ -52,7 +52,7 @@ namespace mysql_harness {
  *
  *
  *   2. UniquePtr constructor ALWAYS defines a custom deleter, which is a must
- *      if we're passing unique_ptr accross DLL boundaries (the idea is to
+ *      if we're passing unique_ptr across DLL boundaries (the idea is to
  *      release the memory within the same DLL in which it was allocated).
  *      However, if all we need is a default deleter, it will implicitly define
  *      it for us:

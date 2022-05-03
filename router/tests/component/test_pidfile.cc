@@ -80,7 +80,7 @@ class RouterPidfileTest : public RouterComponentTest {
     params.at("logging_folder") = logging_folder.name();
     params.at("runtime_folder") = runtime_folder.name();
 
-    // define the additonal keepalive section
+    // define the additional keepalive section
     keepalive = "[keepalive]\ninterval = 10\n";
 
     // load keepalive with 10sec duration
@@ -344,7 +344,7 @@ TEST_F(RouterPidfileOptionTest, PidFileOptionEnvWhitespace) {
 
 /**
  * @test
- *      --pid-file option on command line - succcessful cases
+ *      --pid-file option on command line - successful cases
  */
 struct PidFileOptionParams {
   std::string filename;
@@ -405,7 +405,7 @@ INSTANTIATE_TEST_SUITE_P(
         // shell does, so this should be identical to the quoted TS_FR01_02 (O)
         // case.
         PidFileOptionParams("mysqlrouter.pid", true),
-        // realtive with subfolders and filename : TS_FR05_01 (O)
+        // relative with subfolders and filename : TS_FR05_01 (O)
         PidFileOptionParams(
             mysql_harness::Path(FOO).join(BAR).join(PIDFILE).c_str(), false),
         // optional filename : TS_FR05_03
@@ -423,7 +423,7 @@ INSTANTIATE_TEST_SUITE_P(
                                 .join(PIDFILE)
                                 .c_str(),
                             false),
-        // twice realtive to relative filename : TS_FR05_02
+        // twice relative to relative filename : TS_FR05_02
         PidFileOptionParams(mysql_harness::Path(FOO)
                                 .join("..")
                                 .join(FOO)

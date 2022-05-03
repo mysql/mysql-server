@@ -690,7 +690,7 @@ class Clone_Handle {
   @param[in]    state   clone handle state */
   void set_state(Clone_Handle_State state) { m_clone_handle_state = state; }
 
-  /** Set clone to ABORT sate end any attached snapshot. */
+  /** Set clone to ABORT state end any attached snapshot. */
   void set_abort();
 
   /** Check if clone state is active
@@ -711,7 +711,7 @@ class Clone_Handle {
 
   /** Restart copy after a network failure
   @param[in]    thd     server THD object
-  @param[in]    loc     locator wit copy state from remote client
+  @param[in]    loc     locator with copy state from remote client
   @param[in]    loc_len locator length in bytes
   @return error code */
   int restart_copy(THD *thd, const byte *loc, uint loc_len);
@@ -1224,7 +1224,7 @@ class Clone_Sys {
     /* Call function once before waiting. */
     err = func(false, wait);
 
-    /* Start with 1 ms sleep and increase upto target sleep time. */
+    /* Start with 1 ms sleep and increase up to target sleep time. */
     Clone_Msec cur_sleep_time{1};
 
     while (!is_timeout && wait && err == 0) {

@@ -519,7 +519,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   args.get("endian", &endian);
   args.get("name", &name);
   args.get("timeout", &timeout);
-  /* for backwards compatability keep track if client uses new protocol */
+  /* for backwards compatibility keep track if client uses new protocol */
   const bool log_event_version= args.get("log_event", &log_event);
 
   m_output->println("get nodeid reply");
@@ -1906,7 +1906,7 @@ MgmApiSession::transporter_connect(Parser_t::Context &ctx,
   else
   {
     /*
-      Conversion to transporter suceeded
+      Conversion to transporter succeeded
       Stop this session thread and release resources
       but don't close the socket, it's been taken over
       by the transporter

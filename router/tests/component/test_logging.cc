@@ -874,7 +874,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         // We can't reliably check if the eventlog logging is working with a
         // component test as this is too operating system intrusive and also
-        // requires admin priviledges to setup and we are supposed to run on pb2
+        // requires admin privileges to setup and we are supposed to run on pb2
         // environment. Let's at least check that this sink type is supported.
         // Level note to eventlog,filelog (TS_FR1_03)
         LoggingConfigOkParams(
@@ -1072,7 +1072,7 @@ INSTANTIATE_TEST_SUITE_P(
             "Configuration error: Log level 'invalid' is not valid. Valid "
             "values are: debug, error, fatal, info, note, system, and warning"),
 
-        // Both level and sinks valuse invalid in the [logger] section
+        // Both level and sinks values invalid in the [logger] section
         /*9*/
         LoggingConfigErrorParams(
             "[logger]\n"
@@ -1127,7 +1127,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         // We can't reliably check if the eventlog logging is working with a
         // component test as this is too operating system intrusive and also
-        // requires admin priviledges to setup and we are supposed to run on pb2
+        // requires admin privileges to setup and we are supposed to run on pb2
         // environment. Let's at least check that this sink type is supported
         LoggingConfigErrorParams(
             "[logger]\n"
@@ -1696,7 +1696,7 @@ TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
   static_assert(
       sizeof(name) > 255,
       "too long");  // log message max length is 256, we want something that
-                    // guarrantees the limit would be exceeded
+                    // guarantees the limit would be exceeded
 
   // launch the router in bootstrap mode
   auto &router = launch_router_for_fail({
@@ -1722,7 +1722,7 @@ TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
 }
 
 /**
- * @test verify that debug logs are not written to console during boostrap if
+ * @test verify that debug logs are not written to console during bootstrap if
  * bootstrap configuration file is not provided.
  */
 TEST_F(RouterLoggingTest, is_debug_logs_disabled_if_no_bootstrap_config_file) {
@@ -1756,7 +1756,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_disabled_if_no_bootstrap_config_file) {
 }
 
 /**
- * @test verify that debug logs are written to console during boostrap if
+ * @test verify that debug logs are written to console during bootstrap if
  * log_level is set to DEBUG in bootstrap configuration file.
  */
 TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
@@ -2200,7 +2200,7 @@ TEST_F(MetadataCacheLoggingTest,
 
 /**
  * @test Checks that the logs rotation works (meaning Router will recreate
- * it's log file when it was moved and HUP singnal was sent to the Router).
+ * its log file when it was moved and HUP signal was sent to the Router).
  */
 TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal) {
   TempDirectory conf_dir;
@@ -2868,7 +2868,7 @@ INSTANTIATE_TEST_SUITE_P(
                                          "destination=" FILENAME "\n",
                                          USER_LOGFILE_NAME, false,
                                          "Illegal destination"),
-        // TS_FR10_03 consolelog destination set to realtive file
+        // TS_FR10_03 consolelog destination set to relative file
         /*17*/
         LoggingConfigFilenameErrorParams("[logger]\n"
                                          "sinks=consolelog\n"
@@ -2876,7 +2876,7 @@ INSTANTIATE_TEST_SUITE_P(
                                          "destination=" REL_PATH "\n",
                                          USER_LOGFILE_NAME, true,
                                          "Illegal destination"),
-        // TS_FR10_04 consolelog destination set to realtive file
+        // TS_FR10_04 consolelog destination set to relative file
         /*18*/
         LoggingConfigFilenameErrorParams("[logger]\n"
                                          "sinks=consolelog\n"
@@ -2884,7 +2884,7 @@ INSTANTIATE_TEST_SUITE_P(
                                          "destination=" ABS_PATH "\n",
                                          USER_LOGFILE_NAME, true,
                                          "Illegal destination"),
-        // TS_FR10_05 consolelog destination set to realtive file
+        // TS_FR10_05 consolelog destination set to relative file
         /*19*/
         LoggingConfigFilenameErrorParams("[logger]\n"
                                          "sinks=consolelog\n"

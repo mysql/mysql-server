@@ -530,7 +530,7 @@ const ReBootstrapOkBasePortTestParam rebootstrap_ok_base_port_test_param[] = {
      /* expected_port_x_ro */ 4},
 
     // create a config with legacy defaults [6446, 6447, 64460, 64470]
-    // bootstrap again on top of that config with specifing conf-base-port
+    // bootstrap again on top of that config with specifying conf-base-port
     // parameter even though the existing conf uses legacy default we change
     // them because the user used conf-base-port, so we should not be using
     // defaults
@@ -1452,7 +1452,7 @@ class RouterBootstrapBootstrapNoGroupReplicationSetup
 
 /**
  * @test
- *       ensure a resonable error message if schema exists, but no
+ *       ensure a reasonable error message if schema exists, but no
  * group-replication is setup.
  */
 TEST_P(RouterBootstrapBootstrapNoGroupReplicationSetup,
@@ -1485,7 +1485,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 /**
  * @test
- *       ensure a resonable error message if metadata schema does not exist.
+ *       ensure a reasonable error message if metadata schema does not exist.
  */
 TEST_F(RouterBootstrapTest, BootstrapNoMetadataSchema) {
   std::vector<Config> config{

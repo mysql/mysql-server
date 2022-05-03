@@ -37,7 +37,7 @@ public:
   /**
    * Create a scan filter for table tab
    * colNo - column to filter on
-   * val - val to use when selecting valu to filter on
+   * val - val to use when selecting value to filter on
    *
    */
   ScanFilter(const NDBT_Table& tab, 

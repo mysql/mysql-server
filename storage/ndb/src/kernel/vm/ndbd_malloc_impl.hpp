@@ -381,7 +381,7 @@ private:
    * mapped into memory.
    *
    * This is normally not changed but still some thread safety is needed for
-   * the rare cases when changes do happend whenever map() is called.
+   * the rare cases when changes do happen whenever map() is called.
    *
    * A static array is used since pointers can not be protected by NdbSeqLock.
    *
@@ -959,7 +959,7 @@ Ndbd_mem_manager::get_page(Uint32 page_num) const
  * This function is typically used for converting legacy code using static
  * arrays of records to dynamically allocated records.
  * For these static arrays there has been possible to inspect state of freed
- * records to detemine that they are free.  Still this was a weak way to ensure
+ * records to determine that they are free.  Still this was a weak way to ensure
  * if the reference to record actually is to the right version of record.
  *
  * In some cases it is used to dump the all records of a kind for debugging

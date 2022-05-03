@@ -58,7 +58,7 @@ static void rollback_from_undolog(DeleteContext *ctx, dict_index_t *index,
 @param[in]      index           clustered index in which LOB is present
 @param[in]      trxid           the transaction that is being rolled back.
 @param[in]      undo_no         during rollback to savepoint, rollback only
-                                upto this undo number.
+                                up to this undo number.
 @param[in]      rec_type        undo record type.
 @param[in]      uf              update vector of the concerned field. */
 static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
@@ -187,7 +187,7 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 @param[in]      index           clustered index in which LOB is present
 @param[in]      trxid           the transaction that is being rolled back.
 @param[in]      undo_no         during rollback to savepoint, rollback only
-                                upto this undo number.
+                                up to this undo number.
 @param[in]      rec_type        undo record type. */
 static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
                        undo_no_t undo_no, ulint rec_type) {
@@ -281,7 +281,7 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 @param[in] ctx                        The delete operation context information.
 @param[in] index                Clustered index in which LOB is present
 @param[in] trxid                The transaction that is being purged.
-@param[in] undo_no              During rollback to savepoint, purge only upto
+@param[in] undo_no              During rollback to savepoint, purge only up to
                                 this undo number.
 @param[in] rec_type                 Undo record type.
 @param[in,out] purge_node       if nullptr, free the complete LOB. Otherwise,

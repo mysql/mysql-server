@@ -329,7 +329,7 @@ inline constexpr int cstrbuf<Extent, Owning>::replace_end_if_truncated(
    * N < Extent is intended since char[N] do not need to be null terminated.
    * This strict check will have the side effect that one can not pass a
    * truncation mark as string literal that would fill whole buffer. If one want
-   * to do that one will need to declare a char array and initalize that without
+   * to do that one will need to declare a char array and initialize that without
    * null termination.
    */
   static_assert(Extent == ndb::dynamic_extent || N < Extent);

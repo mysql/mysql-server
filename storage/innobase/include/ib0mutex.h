@@ -401,8 +401,8 @@ struct TTASEventMutex {
     m_policy.init(*this, id, filename, line);
   }
 
-  /** This is the real desctructor. This mutex can be created in BSS and
-  its desctructor will be called on exit(). We can't call
+  /** This is the real destructor. This mutex can be created in BSS and
+  its destructor will be called on exit(). We can't call
   os_event_destroy() at that stage. */
   void destroy() UNIV_NOTHROW {
     ut_ad(!is_locked());
@@ -657,7 +657,7 @@ struct PolicyMutex {
 
     /* There is a subtlety here, we check the mutex ordering
     after locking here. This is only done to avoid add and
-    then remove if the trylock was unsuccesful. */
+    then remove if the trylock was unsuccessful. */
 
     int ret = m_impl.try_lock() ? 0 : 1;
 

@@ -3143,7 +3143,7 @@ try_again:
     if (success) {
       buf_page_t *page = &block->page;
       /* Move the header page to the end of the LRU so that
-      it get's flushed at the earliest. */
+      it gets flushed at the earliest. */
       buf_page_make_old(page);
     }
     return success;
@@ -3208,7 +3208,7 @@ try_to_extend:
   if (fsp_try_extend_data_file(space, space_header, mtr)) {
     buf_page_t *page = &block->page;
     /* Move the header page to the end of the LRU so that
-    it get's flushed at the earliest. */
+    it gets flushed at the earliest. */
     buf_page_make_old(page);
     goto try_again;
   }

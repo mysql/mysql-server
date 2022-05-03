@@ -88,7 +88,7 @@ class RestMetadataCacheApiWithoutClusterTest
     : public RestApiTestBase,
       public ::testing::WithParamInterface<RestApiTestParams> {};
 
-// precondition to these tests is that we can start a router agianst a
+// precondition to these tests is that we can start a router against a
 // metadata-cluster which has no nodes. But with Bug#28352482 (no empty
 // bootstrap_server_addresses) fixed we can't bring the metadata into that state
 // anymore. We just won't start.

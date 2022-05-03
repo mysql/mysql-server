@@ -190,7 +190,7 @@ struct z_index_entry_t {
   @param[in]    trxid           the transaction that is being rolled
                                   back.
   @param[in]    undo_no         the savepoint undo number of trx,
-                                  upto which rollback happens.
+                                  up to which rollback happens.
   @return true if this entry can be rolled back, false otherwise. */
   bool can_rollback(trx_id_t trxid, undo_no_t undo_no) {
     /* For rollback, make use of creator trx id. */

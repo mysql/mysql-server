@@ -57,7 +57,7 @@ struct Compare_key {
   ~Compare_key() = default;
 
   /** Compare two tuples.
-  @param[in] lhs                Tuple to comapre on the left hand side
+  @param[in] lhs                Tuple to compare on the left hand side
   @param[in] rhs                Tuple to compare on the Right hand side
   @retval +ve - if lhs > rhs
   @retval -ve - if lhs < rhs

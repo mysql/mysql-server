@@ -315,7 +315,7 @@ NdbOperation::doSendKeyReq(int aNodeId,
 /******************************************************************************
 int doSend()
 
-Return Value:   Return >0 : send was succesful, returns number of signals sent
+Return Value:   Return >0 : send was successful, returns number of signals sent
                 Return -1: In all other case.   
 Parameters:     aProcessorId: Receiving processor node
 Remark:         Sends the TCKEYREQ signal and optional KEYINFO and ATTRINFO 
@@ -444,7 +444,7 @@ NdbOperation::prepareGetLockHandle()
 int prepareSend(Uint32 aTC_ConnectPtr,
                 Uint64 aTransactionId)
 
-Return Value:   Return 0 : preparation of send was succesful.
+Return Value:   Return 0 : preparation of send was successful.
                 Return -1: In all other case.   
 Parameters:     aTC_ConnectPtr: the Connect pointer to TC.
 		aTransactionId:	the Transaction identity of the transaction.
@@ -558,7 +558,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   tcKeyReq->requestInfo = tReqInfo;
 
 //-------------------------------------------------------------
-// The next step is to fill in the upto three conditional words.
+// The next step is to fill in the up to three conditional words.
 //-------------------------------------------------------------
   Uint32* tOptionalDataPtr = &tcKeyReq->scanInfo;
   Uint32 tScanInfo = theScanInfo;
@@ -694,7 +694,7 @@ NdbOperation::repack_read(Uint32 len)
 int prepareSendInterpreted()
 
 Make preparations to send an interpreted operation.
-Return Value:   Return 0 : succesful.
+Return Value:   Return 0 : successful.
                 Return -1: In all other case.   
 ***************************************************************************/
 int
@@ -1760,7 +1760,7 @@ NdbOperation::checkState_TransId(const NdbApiSignal* aSignal)
 /***************************************************************************
 int receiveTCKEYREF( NdbApiSignal* aSignal)
 
-Return Value:   Return 0 : send was succesful.
+Return Value:   Return 0 : send was successful.
                 Return -1: In all other case.   
 Parameters:     aSignal: the signal object that contains the TCKEYREF signal from TC.
 Remark:         Handles the reception of the TCKEYREF signal.

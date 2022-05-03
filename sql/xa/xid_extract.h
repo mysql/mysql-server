@@ -82,14 +82,14 @@ class XID_extractor {
   size_t extract(std::string const &source,
                  size_t max_extractions = std::numeric_limits<size_t>::max());
   /**
-    Retrieves an interator pointing to the befinning of the extracted XID
+    Retrieves an iterator pointing to the beginning of the extracted XID
     list.
 
     @return an iterator to the beginning of the XID list.
    */
   xid_list::iterator begin();
   /**
-    Retrieves an interator pointing to the end of the extracted XID list.
+    Retrieves an iterator pointing to the end of the extracted XID list.
 
     @return an iterator to the end of the XID list.
    */

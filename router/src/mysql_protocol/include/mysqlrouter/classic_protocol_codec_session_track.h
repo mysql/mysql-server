@@ -76,7 +76,7 @@ class Codec<session_track::TransactionState>
    * @param buffers input buffser sequence
    * @param caps protocol capabilities
    *
-   * @retval std::pair<size_t, message::server::Ok> on sucess, with bytes
+   * @retval std::pair<size_t, message::server::Ok> on success, with bytes
    * processed
    * @retval codec_errc::not_enough_input not enough data to parse the whole
    * message
@@ -151,7 +151,7 @@ class Codec<session_track::TransactionCharacteristics>
    * @param caps protocol capabilities
    *
    * @retval std::pair<size_t, session_track::TransactionCharacteristics> on
-   * sucess, with bytes processed
+   * success, with bytes processed
    * @retval codec_errc::not_enough_input not enough data to parse the whole
    * message
    */
@@ -204,7 +204,7 @@ class Codec<session_track::State>
    * @param buffers input buffser sequence
    * @param caps protocol capabilities
    *
-   * @retval std::pair<size_t, session_track::State> on sucess, with bytes
+   * @retval std::pair<size_t, session_track::State> on success, with bytes
    * processed
    * @retval codec_errc::not_enough_input not enough data to parse the whole
    * message
@@ -256,7 +256,7 @@ class Codec<session_track::Schema>
    * @param buffers input buffser sequence
    * @param caps protocol capabilities
    *
-   * @retval std::pair<size_t, session_track::Schema> on sucess, with bytes
+   * @retval std::pair<size_t, session_track::Schema> on success, with bytes
    * processed
    * @retval codec_errc::not_enough_input not enough data to parse the whole
    * message
@@ -312,7 +312,7 @@ class Codec<session_track::SystemVariable>
    * @param buffers input buffser sequence
    * @param caps protocol capabilities
    *
-   * @retval std::pair<size_t, session_track::SystemVariable> on sucess, with
+   * @retval std::pair<size_t, session_track::SystemVariable> on success, with
    * bytes processed
    * @retval codec_errc::not_enough_input not enough data to parse the whole
    * message
@@ -343,7 +343,7 @@ class Codec<session_track::SystemVariable>
  * format:
  *
  * - FixedInt<int> spec (only 0 is in use for now)
- * - VarString     payload (payload accoring to spec).
+ * - VarString     payload (payload according to spec).
  *
  * payload for spec 0:
  * - GTID in human-readable form like 4dd0f9d5-3b00-11eb-ad70-003093140e4e:23929
@@ -443,7 +443,7 @@ class Codec<session_track::Field>
    * @param buffers input buffser sequence
    * @param caps protocol capabilities
    *
-   * @retval std::pair<size_t, session_track::Field> on sucess, with bytes
+   * @retval std::pair<size_t, session_track::Field> on success, with bytes
    * processed
    * @retval codec_errc::not_enough_input not enough data to parse the whole
    * message

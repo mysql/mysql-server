@@ -56,7 +56,7 @@ public:
 
   /**
    * Provide functionality for fetch and reconstruct of tick value.
-   * Usefull when a 'tick' is sent as part of a signal, or when
+   * Useful when a 'tick' is sent as part of a signal, or when
    * the clock is used to generate a pseudo random number.
    */
   Uint64 getUint64() const
@@ -117,7 +117,7 @@ NdbTick_Elapsed(NDB_TICKS start, NDB_TICKS end);
  * start/end = NdbTick_getCurrentTicks() and
  * elapsed = NdbTick_Elapsed...(start,end).
  *
- * All usage except in test utilties, should be considdered
+ * All usage except in test utilities, should be considered
  * a bug.
  */
 static Uint64 NdbTick_CurrentMillisecond(void);
@@ -189,8 +189,8 @@ NdbTick_Elapsed(NDB_TICKS start, NDB_TICKS end)
 
   /**
    * Clock has ticked backwards! 
-   * We protect agains backward leaping timers by returning 0
-   * if detected. This is less harmfull than returning a huge
+   * We protect against backward leaping timers by returning 0
+   * if detected. This is less harmful than returning a huge
    * Uint64 which would be the result of that subtraction.
    * Even the monotonic clock is known buggy
    * on some older BIOS and virtualized platforms.
@@ -211,7 +211,7 @@ NdbTick_CurrentMillisecond(void)
   if (ticks < (UINT_MAX64 / 1000))
     return ((ticks*1000) / NdbDuration::tick_frequency); // Best precision
   else
-    return (ticks / (NdbDuration::tick_frequency/1000)); // Avoids oveflow,
+    return (ticks / (NdbDuration::tick_frequency/1000)); // Avoids overflow,
 }
 
 /******************************************************

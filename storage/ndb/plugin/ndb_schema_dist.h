@@ -141,7 +141,7 @@ class Ndb_schema_dist_client {
   bool m_holding_acl_mutex;
 
   // List of schema operation results, populated when schema operation has
-  // completed sucessfully.
+  // completed successfully.
   struct Schema_op_result {
     uint32 nodeid;
     uint32 result;
@@ -160,7 +160,7 @@ class Ndb_schema_dist_client {
 
   /**
      @brief Write row to ndb_schema to initiate the schema operation
-     @return true on sucess and false on failure
+     @return true on success and false on failure
    */
   bool write_schema_op_to_NDB(Ndb *ndb, const char *query, int query_length,
                               const char *db, const char *name, uint32 id,

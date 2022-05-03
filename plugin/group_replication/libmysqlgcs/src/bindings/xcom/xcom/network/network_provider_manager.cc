@@ -59,7 +59,7 @@ bool Network_provider_manager::finalize() {
   this->cleanup_secure_connections_context();
   this->finalize_secure_connections_context();
 
-  // Remove the defaul provider, which is XCom
+  // Remove the default provider, which is XCom
   this->remove_network_provider(XCOM_PROTOCOL);
 
   return false;

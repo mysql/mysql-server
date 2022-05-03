@@ -87,7 +87,7 @@ static uint buf_flush_lsn_scan_factor = 3;
 static lsn_t buf_flush_sync_lsn = 0;
 
 #ifdef UNIV_DEBUG
-/** Get the lsn upto which data pages are to be synchronously flushed.
+/** Get the lsn up to which data pages are to be synchronously flushed.
 @return target lsn for the requested flush_sync */
 lsn_t get_flush_sync_lsn() noexcept { return buf_flush_sync_lsn; }
 #endif /* UNIV_DEBUG */
@@ -132,7 +132,7 @@ struct page_cleaner_slot_t {
   /*!< number of requested pages
   for the slot */
   /* These values are updated during state==PAGE_CLEANER_STATE_FLUSHING,
-  and commited with state==PAGE_CLEANER_STATE_FINISHED.
+  and committed with state==PAGE_CLEANER_STATE_FINISHED.
   The consistency is protected by the 'state' */
   ulint n_flushed_lru;
   /*!< number of flushed pages

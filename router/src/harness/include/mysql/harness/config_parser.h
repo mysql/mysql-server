@@ -300,7 +300,7 @@ class HARNESS_EXPORT Config {
   /**
    * Construct a configuration.
    *
-   * Construct a configuration instace by reading a configuration file
+   * Construct a configuration instance by reading a configuration file
    * and overriding the values read from a list of supplied
    * parameters.
    *

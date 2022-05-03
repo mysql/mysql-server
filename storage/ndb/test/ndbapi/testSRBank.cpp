@@ -217,8 +217,8 @@ runMixRestart(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 /**
- * Verify Bank consisteny after load has been stopped.
- * Then, unconditionaly drop the Bank-DB
+ * Verify Bank consistency after load has been stopped.
+ * Then, unconditionally drop the Bank-DB
  */
 int 
 runVerifyAndDropBank(NDBT_Context* ctx, NDBT_Step* step)

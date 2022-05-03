@@ -115,7 +115,7 @@ class Thd_ndb {
     NO_LOG_SCHEMA_OP = 1 << 0,
     /*
       This Thd_ndb is a participant in a global schema distribution.
-      Whenver a GSL lock is required, it is acquired by the coordinator.
+      Whenever a GSL lock is required, it is acquired by the coordinator.
       The participant can then assume that the GSL lock is already held
       for the schema operation it is part of. Thus it should not take
       any GSL locks itself.

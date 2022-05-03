@@ -2201,7 +2201,7 @@ trx->lock.schedule_weight.
 @param[in]    in_lock   Lock which was released, or
                         partially released by modifying its type/mode
                         (see lock_trx_release_read_locks) or
-                        reseting heap_no-th bit in the bitmap
+                        resetting heap_no-th bit in the bitmap
                         (see lock_rec_release)
 @param[in]    heap_no   Heap number within the page on which the
 lock was (or still is) held */
@@ -2567,12 +2567,12 @@ static void lock_rec_inherit_to_gap(
   If such a record is delete-marked, it may then become purged, and
   lock_rec_inheirt_to_gap will be called to decide the fate of each lock on it:
   either it will be inherited as gap lock, or discarded.
-  In READ COMMITTED and less restricitve isolation levels we generaly avoid gap
+  In READ COMMITTED and less restricitve isolation levels we generally avoid gap
   locks, but we make an exception for precisely this situation: we want to
   inherit locks created for constraint checks.
   More precisely we need to keep inheriting them only for the duration of the
   query which has requested them, as such inserts have two phases : first they
-  check for constraints, then they do actuall row insert, and they trust that
+  check for constraints, then they do actual row insert, and they trust that
   the locks set in the first phase will survive till the second phase.
   It is not easy to tell if a particular lock was created for constraint check
   or not, because we do not store this bit of information on it.

@@ -50,18 +50,18 @@ enum class Base64Endianess { LITTLE, BIG };
  * they differ by
  *
  * - alphabet
- * - endianess
+ * - endianness
  * - padding
  *
  * Base64Impl provides generic encode and decode methods which are parametrized
- * by Endianess, Padding.
+ * by Endianness, Padding.
  *
  * Parametrization with templates allows to provide:
  *
  * - one implementation for all combinations
  * - without extra runtime overhead as dead code is removed by the compiler
  *
- * Endianess
+ * Endianness
  * =========
  *
  * Little Endian

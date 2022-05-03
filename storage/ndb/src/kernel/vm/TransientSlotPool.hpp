@@ -55,7 +55,7 @@
  * at tail.  This to put some pressure for prefer reusing low id records and
  * free high id records.
  *
- * Pool can only be shrinked from top one page at a time.
+ * Pool can only be shrunk from top one page at a time.
  *
  * First slot is aligned to 8 words within page.
  */

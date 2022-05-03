@@ -508,7 +508,7 @@ void connect_client_and_query_port(unsigned router_port, std::string &out_port,
   out_port = std::string((*result)[0]);
 }
 
-// Wait for the nth occurence of the log_regex in the log_file with the timeout
+// Wait for the nth occurrence of the log_regex in the log_file with the timeout
 // If it's found returns the full line containing the log_regex
 // If the timeout has been reached returns unexpected
 static std::optional<std::string> wait_log_line(
@@ -541,7 +541,7 @@ std::optional<std::chrono::time_point<std::chrono::system_clock>>
 get_log_timestamp(const std::string &log_file, const std::string &log_regex,
                   const unsigned occurence,
                   const std::chrono::milliseconds timeout) {
-  // first wait for the nth occurence of the pattern
+  // first wait for the nth occurrence of the pattern
   const auto log_line = wait_log_line(log_file, log_regex, occurence, timeout);
   if (!log_line) {
     return std::nullopt;

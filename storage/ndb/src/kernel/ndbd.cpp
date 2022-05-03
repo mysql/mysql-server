@@ -589,7 +589,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
   {
     /**
      * Request extra undo buffer memory to be allocated when
-     * InitialLogFileGroup is specifed in config.
+     * InitialLogFileGroup is specified in config.
      *
      *  - Use default size or the value specified by the
      *    undo_buffer_size= key.

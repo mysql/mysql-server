@@ -7180,7 +7180,7 @@ int ha_rollback_trans(THD *thd, bool all);
                        coordinated transactions as found in the internal
                        transaction coordinator state.
 
-  @return 0 if recovery was successfull, non-zero otherwise.
+  @return 0 if recovery was successful, non-zero otherwise.
 */
 int ha_recover(Xid_commit_list *commit_list = nullptr,
                Xa_state_list *xa_state_list = nullptr);

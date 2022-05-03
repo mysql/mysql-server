@@ -631,7 +631,7 @@ bool Dbtup::receive_defvalue(Signal* signal, const TablerecPtr& regTabPtr)
     /*
      * The condition is for BIT type.
      * Even though it is fixed, the compare operator should be > rather than ==,
-     * for the 4-byte alignemnt, the space for BIT type occupied 4 bytes at least.
+     * for the 4-byte alignment, the space for BIT type occupied 4 bytes at least.
      * yet the bytes of default value can be 1, 2, 3, 4, 5, 6, 7, 8 bytes.
      */
     jam();
@@ -3447,7 +3447,7 @@ Dbtup::get_lcp_frag_stats(Uint32 fragPtrI,
    *
    * During REDO log apply it is important to count the changes made
    * that wasn't part of the LCP. We know the Max Completed GCI of
-   * each LCP, so if the row that is to be commited has a GCI which
+   * each LCP, so if the row that is to be committed has a GCI which
    * is higher than this Max Completed GCI then we know that the
    * row have already been changed since we started the REDO log
    * execution and we can thus ignore the change when counting the

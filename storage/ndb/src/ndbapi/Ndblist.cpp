@@ -67,7 +67,7 @@ Ndb::checkFailedNode()
  * int createConIdleList(int aNrOfCon);
  * 
  * Return Value:   Return the number of created connection object 
- *                 if createConIdleList was succesful
+ *                 if createConIdleList was successful
  *                 Return -1: In all other case.  
  * Parameters:     aNrOfCon : Number of connections offered to the application.
  * Remark:         Create connection idlelist with NdbTransaction objects.
@@ -86,7 +86,7 @@ Ndb::createConIdleList(int aNrOfCon)
  * int createOpIdleList(int aNrOfOp);
  *
  * Return Value:   Return the number of created operation object if 
- *                 createOpIdleList was succesful.
+ *                 createOpIdleList was successful.
  *                 Return -1: In all other case.
  * Parameters:     aNrOfOp:  Number of operations offered to the application. 
  * Remark:         Create  operation idlelist with NdbOperation objects..
@@ -185,7 +185,7 @@ Ndb::getNdbSubroutine()
 /***************************************************************************
 NdbOperation* getOperation();
 
-Return Value:   Return theOpList : if the  getOperation was succesful.
+Return Value:   Return theOpList : if the  getOperation was successful.
                 Return NULL : In all other case.  
 Remark:         Get an operation from theOpIdleList and return the object .
 ***************************************************************************/ 
@@ -198,7 +198,7 @@ Ndb::getOperation()
 /***************************************************************************
 NdbScanOperation* getScanOperation();
 
-Return Value:   Return theOpList : if the  getScanOperation was succesful.
+Return Value:   Return theOpList : if the  getScanOperation was successful.
                 Return NULL : In all other case.  
 Remark:         Get an operation from theScanOpIdleList and return the object .
 ***************************************************************************/ 
@@ -211,7 +211,7 @@ Ndb::getScanOperation()
 /***************************************************************************
 NdbIndexOperation* getIndexOperation();
 
-Return Value:   Return theOpList : if the  getIndexOperation was succesful.
+Return Value:   Return theOpList : if the  getIndexOperation was successful.
                 Return NULL : In all other case.  
 Remark:         Get an operation from theIndexOpIdleList and return the object .
 ***************************************************************************/ 

@@ -78,7 +78,7 @@ Group_action_information::~Group_action_information() = default;
 
  On critical action errors it can be set to false on awake_coordinator_on_error.
  This usually means the member will leave the group or the coordinator is
- stopping, meaning new actions wont be accepted or processed since the member
+ stopping, meaning new actions won't be accepted or processed since the member
  left.
 
  There is a wait based on this variable in the execute_group_action_handler but
@@ -316,7 +316,7 @@ int Group_action_coordinator::coordinate_action_execution(
 
   if (thread_killed()) {
     local_action_killed = true;
-    // If it is not the local one running the method wont do nothing
+    // If it is not the local one running the method won't do anything
     if (action_running) {
       action->stop_action_execution(true);
     }

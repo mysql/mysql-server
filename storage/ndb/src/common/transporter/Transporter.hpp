@@ -239,7 +239,7 @@ protected:
 
   /**
    * Blocking, for max timeOut milli seconds
-   *   Returns true if connect succeded
+   *   Returns true if connect succeeded
    */
   virtual bool connect_server_impl(ndb_socket_t) = 0;
   virtual bool connect_client_impl(ndb_socket_t) = 0;

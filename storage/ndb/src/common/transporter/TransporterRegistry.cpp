@@ -1012,7 +1012,7 @@ TransporterRegistry::createSHMTransporter(TransporterConfiguration *config)
 /**
  * prepareSend() - queue a signal for later asynchronous sending.
  *
- * A successfull prepareSend() only guarantee that the signal has been
+ * A successful prepareSend() only guarantee that the signal has been
  * stored in some send buffers. Normally it will later be sent, but could
  * also be discarded if the transporter *later* disconnects.
  *
@@ -1045,7 +1045,7 @@ TransporterRegistry::createSHMTransporter(TransporterConfiguration *config)
  * should not matter.
  *
  * Note that sending behaves differently wrt disconnect / reconnect
- * synching compared to 'receive'. Receiver side *is* synchroinized with
+ * syncing compared to 'receive'. Receiver side *is* synchroinized with
  * the receiver transporter disconnect / reconnect by both requiring the
  * 'poll-right'. Thus receiver logic may check Transporter::isConnected()
  * directly.
@@ -1914,7 +1914,7 @@ TransporterRegistry::set_recv_thread_idx(Transporter *t,
  * from the scheduler main-loop, and thus it will handle
  * all 'm_transporters'.
  *
- * Clients has to aquire a 'poll right' (see TransporterFacade)
+ * Clients has to acquire a 'poll right' (see TransporterFacade)
  * which gives it the right to temporarily acts as a receive 
  * thread with the right to poll *all* transporters.
  *
@@ -1928,7 +1928,7 @@ TransporterRegistry::set_recv_thread_idx(Transporter *t,
  *
  * With regular intervals we have to ::update_connections()
  * in order to bring DISCONNECTING transporters into
- * a DISCONNECTED state. At earlies at this point, resources
+ * a DISCONNECTED state. At earliest at this point, resources
  * used by performReceive() may be reset or released.
  * A transporter should be brought to the DISCONNECTED state
  * before it can reconnect again. (Note: There is a break of
@@ -2058,7 +2058,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata,
    * receivebuffer. The data *is received*, and will stay in
    * the  receiveBuffer even if a disconnect is started during
    * unpack. 
-   * When ::update_connection() finaly completes the disconnect,
+   * When ::update_connection() finally completes the disconnect,
    * (synced with ::performReceive()), 'm_has_data_transporters'
    * will be cleared, which will terminate further unpacking.
    *
@@ -2613,7 +2613,7 @@ TransporterRegistry::do_disconnect(NodeId node_id,
  * either be called from the same (receive-)thread as performReceive(),
  * or by the (API) client holding the poll-right.
  *
- * The send buffers needs similar protection against concurent
+ * The send buffers needs similar protection against concurrent
  * enable/disable of the same send buffers. Thus the sender
  * side is also handled here.
  */
@@ -2707,7 +2707,7 @@ TransporterRegistry::report_disconnect(TransporterReceiveHandle& recvdata,
    * while trying to 'CONNECTING'. This cause a transition
    * from CONNECTING to DISCONNECTING without first being CONNECTED.
    * Thus there can be multiple reset & disable of the buffers (below)
-   * without being 'enabled' inbetween.
+   * without being 'enabled' in between.
    */
   TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
   Uint32 num_ids;
@@ -3220,7 +3220,7 @@ TransporterRegistry::report_error(NodeId nodeId, TransporterError errorCode,
  * update_connections on a specific set of recvdata *must not* be run
  * concurrently with :performReceive() on the same recvdata. Thus,
  * it must either be called from the same (receive-)thread as
- * performReceive(), or protected by aquiring the (client) poll rights.
+ * performReceive(), or protected by acquiring the (client) poll rights.
  */
 Uint32
 TransporterRegistry::update_connections(TransporterReceiveHandle& recvdata,

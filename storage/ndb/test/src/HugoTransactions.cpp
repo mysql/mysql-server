@@ -1916,7 +1916,7 @@ HugoTransactions::lockRecords(Ndb* pNdb,
 			      int lockTime){
   // Place a lock on percentToLock% of the records in the Db
   // Keep the locks for lockTime ms, commit operation
-  // and lock som other records
+  // and lock some other records
   int                  r = 0;
   int                  retryAttempt = 0;
   int                  check;

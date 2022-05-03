@@ -159,10 +159,10 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
   }
 
   // @brief wait until global read from the mock server is greater or equal
-  // epxected threashold
-  // @retval true selected global is greated or equal expectred threashold
-  // @retval false timed out waiting for selectged global to become greater or
-  // equal expected threashold
+  // expected threashold
+  // @retval true selected global is greater or equal to expected threshold
+  // @retval false timed out waiting for selected global to become greater or
+  // equal to expected threshold
   bool wait_global_ge(const uint16_t http_port, const std::string &name,
                       int threashold, std::chrono::milliseconds timeout = 15s) {
     const auto kStep = 100ms;
@@ -337,7 +337,7 @@ struct TargetClusterChangeInMetataTestParams {
   // and the expected connections destinations for that cluster
   TargetClusterTestParams changed_target_cluster;
 
-  // wether the initial connections (the ones for first target_cluster before
+  // whether the initial connections (the ones for first target_cluster before
   // the change) are expected to be dropped or expected to stay
   bool initial_connections_should_drop;
 };
@@ -366,7 +366,7 @@ TEST_F(ClusterSetTest, TargetClusterNoChange) {
   const std::string needle = "New target cluster assigned in the metadata";
   const std::string log_content = router.get_logfile_content();
 
-  // 1 is expected, that comes from the inital reading of the metadata
+  // 1 is expected, that comes from the initial reading of the metadata
   EXPECT_EQ(1, count_str_occurences(log_content, needle));
 }
 

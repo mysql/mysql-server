@@ -31,7 +31,7 @@
 
 /**
  * @class SimpleProperties
- * @brief Key-value-pair container.  Actully a list of named elements.
+ * @brief Key-value-pair container.  Actually a list of named elements.
  *
  * SimpleProperties:
  * - The keys are Uint16

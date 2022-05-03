@@ -168,7 +168,7 @@ dict_persist_t *dict_persist = nullptr;
 /** @brief the data dictionary rw-latch protecting dict_sys
 
 table create, drop, etc. reserve this in X-mode; implicit or
-backround operations purge, rollback, foreign key checks reserve this
+background operations purge, rollback, foreign key checks reserve this
 in S-mode; we cannot trust that MySQL protects implicit or background
 operations a table drop since MySQL does not know of them; therefore
 we need this; NOTE: a transaction which reserves this must keep book
@@ -4335,7 +4335,7 @@ static void dict_persist_update_log_margin() {
   /* Every page split needs at most this log margin, if not root split. */
   static const uint32_t log_margin_per_split_no_root = 500;
 
-  /* Extra marge for root split, we always leave this margin,
+  /* Extra margin for root split, we always leave this margin,
   since we don't know exactly it will split root or not */
   static const uint32_t log_margin_per_split_root =
       univ_page_size.physical() / 2 * 3; /* Add 50% margin. */

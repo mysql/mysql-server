@@ -1440,7 +1440,7 @@ void do_cb_xcom_receive_data(synode_no message_id, synode_no origin,
     happen because global view messages are delivered periodically after
     communication channels have been established.
 
-    When a global view message is received and can be successfuly processed,
+    When a global view message is received and can be successfully processed,
     the node can start receiving data messages. Note though that it does not
     mean that the application has received a view change notification and
     and can start receiving data messages. Recall that the state exchange

@@ -39,7 +39,7 @@ class Sql_cmd_xa_recover : public Sql_cmd {
   /**
     Class constructor.
 
-    @param print_xid_as_hex Whether or not to print the XID as hexdecimal.
+    @param print_xid_as_hex Whether or not to print the XID as hexadecimal.
    */
   explicit Sql_cmd_xa_recover(bool print_xid_as_hex);
   virtual ~Sql_cmd_xa_recover() override = default;
@@ -60,7 +60,7 @@ class Sql_cmd_xa_recover : public Sql_cmd {
     @param thd The `THD` session object within which the command is being
                executed.
 
-    @return false if the execution is successfull, true otherwise.
+    @return false if the execution is successful, true otherwise.
    */
   bool execute(THD *thd) override;
 

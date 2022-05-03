@@ -174,7 +174,7 @@ bool ndb_is_load_default_arg_separator(const char* arg);
  * option after all options have been parsed.
  *
  * If any option need post processing the application must call
- * ndb_option::post_process_options() after hte call do Ndb_opts::handle_options().
+ * ndb_option::post_process_options() after the call do Ndb_opts::handle_options().
  *
  * If an option need post processing, the get_option() function must register
  * option in a list by calling ndb_option::push_back().

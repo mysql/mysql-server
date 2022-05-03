@@ -183,7 +183,7 @@ std::string strip_copy(std::string str, const char *chars = " \t\n\r\f\v");
 bool matches_glob(const std::string &word, const std::string &pattern);
 
 /*
- * Checks wheter given string matches the pattern using extended posix regex.
+ * Checks whether given string matches the pattern using extended posix regex.
  */
 bool regex_pattern_matches(const std::string &s, const std::string &pattern);
 

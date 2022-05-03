@@ -37,7 +37,7 @@ static int NDB_TRACE_NUMA = 0;
 /**
  * Load libnuma using dlopen, not have to put link dependency on it...
  * - handle fact that there are 2 versions of libnuma...
- *   use existance of symbol "numa_all_nodes_ptr" to use v2 abi
+ *   use existence of symbol "numa_all_nodes_ptr" to use v2 abi
  */
 struct bitmask;
 extern "C"

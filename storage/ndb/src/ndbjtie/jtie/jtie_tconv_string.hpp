@@ -39,7 +39,7 @@
 // comments:
 // - The offered mappings of '[const] char *' to Java Strings
 //   - require a) null-terminated and b) (modified) UTF8-encoded strings
-//     (as descibed by the JNI specification);
+//     (as described by the JNI specification);
 //   - always copy content (by the JNI API as well as encoding conversion);
 //     for pass-by-reference semantics, a ByteBuffer mapping is the only way.
 // - For 'char *' mappings:

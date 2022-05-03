@@ -173,7 +173,7 @@ void Recovery_module::leave_group_on_recovery_failure() {
   * Step 0: Declare recovery running after extracting group information
 
   * Step 1: Wait for the applier to execute pending transactions and suspend.
-    Even if the joiner is alone, it goes trough this phase so it is declared
+    Even if the joiner is alone, it goes through this phase so it is declared
     ONLINE only when it executed all pending local transactions.
 
   * Step 2: Declare the node ONLINE if alone.

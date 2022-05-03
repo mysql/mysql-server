@@ -1096,7 +1096,7 @@ dist_scan_body(Ndb* pNdb, int records, int parts, PartInfo* partInfo, bool usePr
                                                             tabRow,
                                                             tab->getColumn(DistTabDKeyCol)->getAttrId()));
           dKeyVal= partValue;
-          // dKeyVal= partValue + 1; // Test failue case
+          // dKeyVal= partValue + 1; // Test failure case
           
           pSpec.type= Ndb::PartitionSpec::PS_DISTR_KEY_RECORD;
           pSpec.KeyRecord.keyRecord= tabRecord;

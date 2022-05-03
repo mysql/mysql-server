@@ -153,7 +153,7 @@ enum dd_partition_keys {
   /** Row format for this partition */
   DD_PARTITION_ROW_FORMAT,
   /** Columns before first instant ADD COLUMN.
-  This is necessary for each partition because differnet partition
+  This is necessary for each partition because different partition
   may have different instant column numbers, especially, for a
   newly truncated partition, it can have no instant columns.
   So partition level one should be always >= table level one. */
@@ -343,7 +343,7 @@ The decode/encode are necessary because that the default values would b
 kept as InnoDB format stream, which is in fact byte stream. However,
 to store them in the DD se_private_data, it requires text(char).
 So basically, the encode will change the byte stream into char stream,
-by spliting every byte into two chars, for example, 0xFF, would be splitted
+by splitting every byte into two chars, for example, 0xFF, would be split
 into 0x0F and 0x0F. So the final storage space would be double. For the
 decode, it's the converse process, combining two chars into one byte. */
 class DD_instant_col_val_coder {
@@ -1202,14 +1202,14 @@ operation.
 @param[in]      dd_space_id     dd tablespace id
 @param[in]      is_system_cs    true, if space name is in system characters set.
                                 While renaming during bootstrap we have it
-                                in system cs. Othwerwise, in file system cs.
+                                in system cs. Otherwise, in file system cs.
 @param[in]      new_space_name  dd_tablespace name
 @param[in]      new_path        new data file path
 @retval DB_SUCCESS on success. */
 dberr_t dd_tablespace_rename(dd::Object_id dd_space_id, bool is_system_cs,
                              const char *new_space_name, const char *new_path);
 
-/** Create metadata for specified tablespace, acquiring exlcusive MDL first
+/** Create metadata for specified tablespace, acquiring exclusive MDL first
 @param[in,out]  dd_client       data dictionary client
 @param[in,out]  dd_space_name   dd tablespace name
 @param[in]      space_id        InnoDB tablespace ID
@@ -1538,7 +1538,7 @@ void fill_dict_dropped_columns(const dd::Table *dd_table,
 
 /** Check if given column is renamed during ALTER.
 @param[in]      ha_alter_info   alter info
-@param[in]      old_name        colmn old name
+@param[in]      old_name        column old name
 @param[out]     new_name        column new name
 @return true if column is renamed, false otherwise. */
 bool is_renamed(const Alter_inplace_info *ha_alter_info, const char *old_name,

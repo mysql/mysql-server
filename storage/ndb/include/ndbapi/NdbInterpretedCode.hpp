@@ -109,7 +109,7 @@ public:
   ~NdbInterpretedCode();
 
   /**
-   * Descibe how a comparison involving a NULL value should behave.
+   * Describe how a comparison involving a NULL value should behave.
    * Old API behaviour was to cmp 'NULL == NULL -> true' and
    * 'NULL < <any non-null> -> true. (CmpHasNoUnknowns). However,
    * MySQL specify that a comparison involving a NULL-value is 'unknown',
@@ -484,7 +484,7 @@ public:
    * @param ErrorCode An error code which will be returned as part
    * of the operation.  If not supplied, defaults to 626. Applications should 
    * use error code 626 or any code in the [6000-6999] range. Error code 899
-   * is supported for backwards compatibility, but 626 is recommmended instead.
+   * is supported for backwards compatibility, but 626 is recommended instead.
    * For other codes, the behavior is undefined and may change at any time 
    * without prior notice.
    *
@@ -732,7 +732,7 @@ private:
    *   First subroutine (if any)
    *   First subroutine label defs (if any)
    *   Second subroutine (if any)
-   *   Second subroutine lable defs ....
+   *   Second subroutine label defs ....
    * 
    * The subroutines should be in order of subroutine number
    * as they must be defined in-order.  The labels can be in

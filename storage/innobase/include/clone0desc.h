@@ -240,7 +240,7 @@ class Chnunk_Bitmap {
     }
 
    private:
-    /** Refernce to BITMAP array */
+    /** Reference to BITMAP array */
     uint32_t *&m_bitmap_ref;
 
     /** Current array position */

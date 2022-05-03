@@ -59,7 +59,7 @@
  *
  * @section secSequence   Module: The Sequence Service
  *
- * A sequence is a varaible stored in the database.  Each time it is 
+ * A sequence is a variable stored in the database.  Each time it is 
  * requested with "NextVal" it returns a unique number.  If requested 
  * with "CurrVal" it returns the current number.
  * 

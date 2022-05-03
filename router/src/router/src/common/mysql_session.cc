@@ -355,7 +355,7 @@ void MySQLSession::execute(const std::string &q) {
   Execute query on the session and iterate the results with the given
   callback.
 
-  The processor callback is called with a vector of strings, which conain the
+  The processor callback is called with a vector of strings, which contain the
   values of each field of a row. It is called once per row.
   If the processor returns false, the result row iteration stops.
  */

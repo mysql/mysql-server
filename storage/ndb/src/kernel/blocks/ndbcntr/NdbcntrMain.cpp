@@ -497,7 +497,7 @@ parse_spec(Vector<ddentry> & dst,
       if (first)
       {
         /**
-         * push group aswell
+         * push group as well
          */
         first = false;
         dst.push_back(group);
@@ -878,7 +878,7 @@ DBDIH now prepares the node restart process by locking the meta data. This
 means that we will wait until any ongoing meta data operation is completed
 and when it is completed we will lock the meta data such that no meta data
 changes can be done until we're done with the phase where we are copying the
-metadata informatiom.
+metadata information.
 
 The reason for locking is that all meta data and distribution info is fully
 replicated. So we need to lock this information while we are copying the data
@@ -1226,7 +1226,7 @@ this phase of the restart.
   COMPLETED RESTORING ON-LINE RECOVERABLE DATABASE
 ------------------------------------------------------------------------------
 | At this point we have managed to restored all data and we have brought it  |
-| online and now we have also executed a local checkpoint afer enabling      |
+| online and now we have also executed a local checkpoint after enabling     |
 | logging and so now data in the starting node is also recoverable. So this  |
 | means that the database is now fully online again.                         |
 ------------------------------------------------------------------------------
@@ -1324,7 +1324,7 @@ drive the STTOR/STTORRY signals for the various startup phases.
 The MISSRA was later merged into NDBCNTR and is a submodule of NDBCNTR
 nowadays. The name of STTOR and STTORRY has some basis in the AXE systems
 way of naming signals in early days but has been forgotten now. At least
-the ST had something to do wih Start/Restart.
+the ST had something to do with Start/Restart.
 
 2) The reason for introducing the NDB_STTOR was since we envisioned a system
 where the NDB kernel was just one subsystem within the run-time environment.
@@ -2905,7 +2905,7 @@ void Ndbcntr::ph2GLab(Signal* signal)
 /*###########################################################################*/
 // SEND SIGNAL NDBSTTOR TO ALL BLOCKS, ACC, DICT, DIH, LQH, TC AND TUP
 // WHEN ALL BLOCKS HAVE RETURNED THEIR NDB_STTORRY ALL BLOCK HAVE FINISHED
-// THEIR LOCAL CONNECTIONs SUCESSFULLY
+// THEIR LOCAL CONNECTIONs SUCCESSFULLY
 // AND THEN WE CAN SEND APPL_STARTREG TO INFORM QMGR THAT WE ARE READY TO
 // SET UP DISTRIBUTED CONNECTIONS.
 /*--------------------------------------------------------------*/
@@ -3066,7 +3066,7 @@ void Ndbcntr::waitpoint41Lab(Signal* signal)
 /*--------------------------------------*/
 /* SLAVE NODES WILL PASS HERE ONCE AND  */
 /* SEND A WAITPOINT REPORT TO MASTER.   */
-/* SLAVES WONT DO ANYTHING UNTIL THEY   */
+/* SLAVES WON'T DO ANYTHING UNTIL THEY  */
 /* RECEIVE A WAIT REPORT FROM THE MASTER*/
 /*--------------------------------------*/
     signal->theData[0] = getOwnNodeId();
@@ -3309,7 +3309,7 @@ void Ndbcntr::ph5ALab(Signal* signal)
     /* DURING SYSTEMRESTART AND INITALSTART:*/
     /* SLAVE NODES WILL PASS HERE ONCE AND  */
     /* SEND A WAITPOINT REPORT TO MASTER.   */
-    /* SLAVES WONT DO ANYTHING UNTIL THEY   */
+    /* SLAVES WON'T DO ANYTHING UNTIL THEY  */
     /* RECEIVE A WAIT REPORT FROM THE MASTER*/
     /* WHEN THE MASTER HAS FINISHED HIS WORK*/
     /*--------------------------------------*/
@@ -3925,7 +3925,7 @@ void Ndbcntr::execREAD_NODESREQ(Signal* signal)
   /**
    * Prepare inactiveNodes bitmask.
    * The concept as such is by the way pretty useless.
-   * It makes parallell starts more or less impossible...
+   * It makes parallel starts more or less impossible...
    */
   NdbNodeBitmask tmp1; 
   tmp1.bitOR(c_cntr_startedNodeSet);

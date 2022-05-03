@@ -35,7 +35,7 @@ class THD;
   @param lock               Indicates whether GSL should be locked or unlocked
   @param record_gsl         Record and track the GSL so that it can be used to
                             detect any possible deadlocks
-  @param victimized         'true' if locking failed as we were choosen
+  @param victimized         'true' if locking failed as we were chosen
                              as a victim in order to avoid possible deadlocks.
 
   @return false ok

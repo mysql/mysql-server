@@ -2937,7 +2937,7 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
 
     /**
      * 0 = 00 - free - 100% free
-     * 1 = 01 - atleast some row free
+     * 1 = 01 - at least some row free
      * 2 = 10 - full
      * 3 = 11 - full, special state set when in uncommitted state
      */

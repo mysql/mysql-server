@@ -598,7 +598,7 @@ bool Util_table_creator::install_in_DD(bool reinstall) {
       The table existed in and was deleted from DD. It's possible
       that someone has tried to use it and thus it might have been
       inserted in the table definition cache. Close the table
-      in the table definition cace(tdc).
+      in the table definition cache(tdc).
     */
     ndb_log_verbose(1, "Removing '%s' from table definition cache",
                     m_name.c_str());

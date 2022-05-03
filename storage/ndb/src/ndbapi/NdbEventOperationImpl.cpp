@@ -822,7 +822,7 @@ NdbEventOperationImpl::stop()
       }
     }
     NdbMutex_Lock(m_ndb->theEventBuffer->m_mutex);
-    if (m_stop_gci == MAX_EPOCH) //A CLUSTER_FAILURE could happen inbetween
+    if (m_stop_gci == MAX_EPOCH) //A CLUSTER_FAILURE could happen in between
     {
       m_stop_gci = MonotonicEpoch(m_ndb->theEventBuffer->m_epoch_generation, stop_gci);
     }
@@ -1530,7 +1530,7 @@ NdbEventBuffer::remove_op()
  * Init the *receiver thread* part of the event buffers.
  *
  * NOTE:
- *  ::consume_all() is the propper way to empty the client
+ *  ::consume_all() is the proper way to empty the client
  *  side buffers.
  */
 void
@@ -1601,7 +1601,7 @@ NdbEventBuffer::pollEvents(Uint64 *highestQueuedEpoch)
     /*
       Events consumed or ignored including m_latest_poll_GCI.
       We can free all event-data, gci_ops, memory-blocks and
-      stopped event operations, upto m_latest_poll_GCI inclusive.
+      stopped event operations, up to m_latest_poll_GCI inclusive.
     */
     remove_consumed(m_latest_poll_GCI);
     m_current_data = NULL;
@@ -2386,7 +2386,7 @@ NdbEventBuffer::create_empty_exceptional_epoch(Uint64 gci, Uint32 type)
   // Create EpochData for error epoch events to make the search for
   // inconsistent(Uint64& gci) to be effective (backward compatibility)
   void* memptr = alloc(sizeof(EpochData));
-  assert(memptr != NULL);  // alloc failure catched in ::alloc()
+  assert(memptr != NULL);  // alloc failure caught in ::alloc()
   const MonotonicEpoch epoch(m_epoch_generation,gci);
   EpochData *newEpochData = new(memptr) EpochData(epoch, NULL, 0,
                                                   exceptional_event_data);
@@ -2961,7 +2961,7 @@ NdbEventBuffer::find_sub_data_stream_number(Uint16 sub_data_stream)
  * to expect from the datanodes before the epoch can be considered
  * completed from all datanodes. Thus we init m_total_buckets
  * to a high initial value, and later use ::set_total_buckets()
- * to set the correct 'cnt' as recieved as part of SUB_START_CONF.
+ * to set the correct 'cnt' as received as part of SUB_START_CONF.
  *
  * As there is a possible race between SUB_START_CONF from SUMA and 
  * GSN_SUB_TABLE_DATA & SUB_GCP_COMPLETE_REP arriving from the
@@ -3066,7 +3066,7 @@ NdbEventBuffer::report_node_failure_completed(Uint32 node_id)
 
   /**
    * Incompleted and/or 'out-of-order' Gci_containers should be cleared after
-   * a failure. (Nothing more will ever arrive for whatever remaing there)
+   * a failure. (Nothing more will ever arrive for whatever remaining there)
    * Temporary keep the last one, the failure-event will complete it.
    */
   while (minpos != maxpos && array[minpos] != gci)
@@ -3119,7 +3119,7 @@ NdbEventBuffer::report_node_failure_completed(Uint32 node_id)
   assert(tmp);
   if (found)
   {
-    assert(m_max_gci_index == maxpos); // shouldnt have changed...
+    assert(m_max_gci_index == maxpos); // shouldn't have changed...
   }
   else
   {
@@ -3398,7 +3398,7 @@ NdbEventBuffer::alloc_data()
 {
   DBUG_ENTER_EVENT("alloc_data");
   void* memptr = alloc(sizeof(EventBufData));
-  assert(memptr != NULL);  // Alloc failures catched in ::alloc()
+  assert(memptr != NULL);  // Alloc failures caught in ::alloc()
   EventBufData* data = new(memptr) EventBufData();
   DBUG_RETURN_EVENT(data);
 }
@@ -3408,7 +3408,7 @@ NdbEventBuffer::alloc_data_main()
 {
   DBUG_ENTER_EVENT("alloc_data_main");
   void* memptr = alloc(sizeof(EventBufDataHead));
-  assert(memptr != NULL);  // Alloc failures catched in ::alloc()
+  assert(memptr != NULL);  // Alloc failures caught in ::alloc()
   EventBufDataHead* data = new(memptr) EventBufDataHead();
   DBUG_RETURN_EVENT(data);
 }
@@ -3430,7 +3430,7 @@ NdbEventBuffer::alloc_mem(EventBufData* data,
 
   assert(data->memory == NULL);
   data->memory = (Uint32*)alloc(alloc_size);
-  assert(data->memory != NULL);  // Alloc failures catched in ::alloc
+  assert(data->memory != NULL);  // Alloc failures caught in ::alloc
 
   Uint32* memptr = data->memory + sz4;
   for (int i = 0; i <= 2; i++)
@@ -3628,7 +3628,7 @@ void NdbEventBuffer::remove_consumed_memory(MonotonicEpoch consumed_epoch)  //Ne
   /**
    * Possibly reduce the number of MemoryBlock we keep in the
    * free list. As the EventBuffer memory usage may fluctate
-   * a lot over time, we are quite aggresive in avoiding keeping
+   * a lot over time, we are quite aggressive in avoiding keeping
    * unused free space too long.
    */
   if (prev_highest_epoch != MonotonicEpoch::min)  //Released memory block(s)
@@ -3636,7 +3636,7 @@ void NdbEventBuffer::remove_consumed_memory(MonotonicEpoch consumed_epoch)  //Ne
     while (m_mem_block_free != NULL)
     {
       // Keep a maximum of 20% of total allocated memory as free_data
-      // ... Pluss an aditional 3 'small memory blocks'.
+      // ... Plus an additional 3 'small memory blocks'.
       const Uint64 max_free_data_sz = (3*MEM_BLOCK_SMALL) + (m_total_alloc / 5);
       if (get_free_data_sz() <= max_free_data_sz)
       {
@@ -4195,7 +4195,7 @@ Gci_container::add_gci_op(Gci_op g)
       Gci_op* old_list = m_gci_op_list;
 
       void* memptr = m_event_buffer->alloc(n*sizeof(Gci_op));
-      assert(memptr != NULL);  // alloc failure catched in ::alloc()
+      assert(memptr != NULL);  // alloc failure caught in ::alloc()
       m_gci_op_list = new(memptr) Gci_op[n];
 
       if (m_gci_op_alloc != 0) {
@@ -4231,7 +4231,7 @@ Gci_container::createEpochData(Uint64 gci)
   assert(m_head);
 
   void* memptr = m_event_buffer->alloc(sizeof(EpochData));
-  assert(memptr != NULL);  // alloc failure catched in ::alloc()
+  assert(memptr != NULL);  // alloc failure caught in ::alloc()
   const MonotonicEpoch epoch(m_event_buffer->m_epoch_generation,gci);
   EpochData *newEpochData = new(memptr) EpochData(epoch, m_gci_op_list,
                                                   m_gci_op_count,
@@ -4664,7 +4664,7 @@ EventBufData_hash::expand()
     m_hash_size *= 3;
 
   void* memptr = m_event_buffer->alloc(m_hash_size*sizeof(HashBucket));
-  assert(memptr != NULL);  // alloc failure catched in ::alloc()
+  assert(memptr != NULL);  // alloc failure caught in ::alloc()
   m_hash = static_cast<HashBucket *>(memptr);
   for (size_t i = 0; i < m_hash_size; i++) {
     new(&m_hash[i]) HashBucket(EventBufAllocator<Pos>(m_event_buffer));

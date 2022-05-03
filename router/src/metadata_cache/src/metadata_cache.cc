@@ -142,7 +142,7 @@ void MetadataCache::refresh_thread() {
 
       {
         std::unique_lock<std::mutex> lock(refresh_wait_mtx_);
-        // frist check if we were not told to leave or refresh again while we
+        // first check if we were not told to leave or refresh again while we
         // were outside of the wait_for
         if (terminated_) return;
         if (refresh_requested_) {
@@ -624,7 +624,7 @@ void MetadataCache::update_router_attributes() {
       if (e.code() == ER_TABLEACCESS_DENIED_ERROR) {
         // if the update fails because of the lack of the access rights that
         // most likely means that the Router has been upgraded, we need to
-        // keep retrying it untill the metadata gets upgraded too and our db
+        // keep retrying it until the metadata gets upgraded too and our db
         // user gets missing access rights
 
         // we log it only once

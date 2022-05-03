@@ -267,7 +267,7 @@ GlobalDictCache::get(const BaseString& name, int *error)
   tmp.m_version = 0;
   tmp.m_impl = 0;
   tmp.m_status = RETREIVING;
-  tmp.m_refCount = 1; // The one retreiving it
+  tmp.m_refCount = 1; // The one retrieving it
   if (versions->push_back(tmp))
   {
     *error = -1;
@@ -290,14 +290,14 @@ GlobalDictCache::put(const BaseString& name, NdbTableImpl * tab)
   Vector<TableVersion> * vers =
       m_tableHash.getData(name.c_str(), name.length());
   if(vers == 0){
-    // Should always tried to retreive it first 
+    // Should always tried to retrieve it first 
     // and thus there should be a record
     abort(); 
   }
 
   const Uint32 sz = vers->size();
   if(sz == 0){
-    // Should always tried to retreive it first 
+    // Should always tried to retrieve it first 
     // and thus there should be a record
     abort(); 
   }
@@ -430,14 +430,14 @@ GlobalDictCache::release(const NdbTableImpl * tab, int invalidate)
     m_tableHash.getData(tab->m_internalName.c_str(),
                         tab->m_internalName.length());
   if(vers == 0){
-    // Should always tried to retreive it first 
+    // Should always tried to retrieve it first 
     // and thus there should be a record
     abort(); 
   }
 
   const Uint32 sz = vers->size();
   if(sz == 0){
-    // Should always tried to retreive it first 
+    // Should always tried to retrieve it first 
     // and thus there should be a record
     abort(); 
   }

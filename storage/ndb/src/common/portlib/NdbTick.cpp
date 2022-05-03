@@ -118,7 +118,7 @@ void NdbTick_Init()
   assert(NdbDuration::tick_frequency != 0);
 
 #else
-  /* Considder to deprecate platforms not supporting monotonic counters */
+  /* Consider to deprecate platforms not supporting monotonic counters */
   //#error "A monotonic counter was not available on this platform"
 
   // gettimeofday() resolution is usec
@@ -166,7 +166,7 @@ const NDB_TICKS NdbTick_getCurrentTicks(void)
    * timespec arg is an invalid pointer.
    * As we test the clk_id in NdbTick_Init() at startup,
    * and is in control of the tp-arg ourself, it should be
-   * safe to assume that errors wil never be returned.
+   * safe to assume that errors will never be returned.
    */
   assert(res==0);
   (void)res;

@@ -32,7 +32,7 @@
  * Return Value:  None
  * Parameters:    aNdb: Pointers to the Ndb object.
  *                aTable: Pointers to the Table object
- * Remark:        Creat an object of NdbOperation. 
+ * Remark:        Create an object of NdbOperation. 
  ****************************************************************************/
 NdbOperation::NdbOperation(Ndb* aNdb, NdbOperation::Type aType) :
   m_type(aType),

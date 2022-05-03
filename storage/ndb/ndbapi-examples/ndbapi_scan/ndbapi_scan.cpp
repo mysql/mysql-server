@@ -248,7 +248,7 @@ int scan_delete(Ndb* myNdb,
   /**
    * Loop as long as :
    *  retryMax not reached
-   *  failed operations due to TEMPORARY erros
+   *  failed operations due to TEMPORARY errors
    *
    * Exit loop;
    *  retyrMax reached
@@ -300,7 +300,7 @@ int scan_delete(Ndb* myNdb,
     } 
     
     /**
-     * Use NdbScanFilter to define a search critera
+     * Use NdbScanFilter to define search criteria
      */ 
     NdbScanFilter filter(myScanOp) ;   
     if(filter.begin(NdbScanFilter::AND) < 0  || 
@@ -431,7 +431,7 @@ int scan_update(Ndb* myNdb,
   /**
    * Loop as long as :
    *  retryMax not reached
-   *  failed operations due to TEMPORARY erros
+   *  failed operations due to TEMPORARY errors
    *
    * Exit loop;
    *  retryMax reached
@@ -484,7 +484,7 @@ int scan_update(Ndb* myNdb,
     } 
 
     /**
-     * Use NdbScanFilter to define a search critera
+     * Use NdbScanFilter to define search criteria
      */ 
     NdbScanFilter filter(myScanOp) ;   
     if(filter.begin(NdbScanFilter::AND) < 0  || 
@@ -622,7 +622,7 @@ int scan_print(Ndb * myNdb)
   /**
    * Loop as long as :
    *  retryMax not reached
-   *  failed operations due to TEMPORARY erros
+   *  failed operations due to TEMPORARY errors
    *
    * Exit loop;
    *  retyrMax reached
@@ -678,7 +678,7 @@ int scan_print(Ndb * myNdb)
      * Define storage for fetched attributes.
      * E.g., the resulting attributes of executing
      * myOp->getValue("REG_NO") is placed in myRecAttr[0].
-     * No data exists in myRecAttr until transaction has commited!
+     * No data exists in myRecAttr until transaction has committed!
      */
     myRecAttr[0] = myScanOp->getValue("REG_NO");
     myRecAttr[1] = myScanOp->getValue("BRAND");

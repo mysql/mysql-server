@@ -71,7 +71,7 @@ trp_client::PollQueue::~PollQueue()
 {
   /**
    * Require that trp_client user
-   * doesnt destroy object when holding any locks.
+   * doesn't destroy object when holding any locks.
    */
   if (unlikely(
       m_waiting != PQ_IDLE ||
@@ -266,7 +266,7 @@ trp_client::do_forceSend(bool forceSend)
  * Append the private client send buffers to the
  * TransporterFacade lists of prepared send buffers.
  * The TransporterFacade may then send these whenever
- * it find convienient.
+ * it find convenient.
  *
  * Build an aggregated bitmap 'm_flushed_nodes_mask'
  * of nodes this client has flushed messages to.

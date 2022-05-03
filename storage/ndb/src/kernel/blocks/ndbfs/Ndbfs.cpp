@@ -186,7 +186,7 @@ Ndbfs::~Ndbfs()
    */
 
   /**
-   * Post enought Request::end to saturate all unbound threads
+   * Post enough Request::end to saturate all unbound threads
    */
   Request request;
   request.action = Request::end;
@@ -398,7 +398,7 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
     /**
      * each logpart keeps up to 3 logfiles open at any given time...
      *   (bound)
-     * make sure noIdleFiles is atleast 4 times #logparts
+     * make sure noIdleFiles is at least 4 times #logparts
      * In addition the LCP execution can have up to 4 files open in each
      * LDM thread. In the LCP prepare phase we can have up to 2 files
      * (2 CTL files first, then 1 CTL file and finally 1 CTL file and

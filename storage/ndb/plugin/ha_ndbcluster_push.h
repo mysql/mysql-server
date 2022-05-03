@@ -363,7 +363,7 @@ class ndb_pushed_builder_ctx {
      *  1) SPJ allows us to refer values from any ancestor tables.
      *     (grand-(grand-...)parents).
      *  2) A table is implicitly dependending on any table in the embedding
-     *     nests, even if no join condition is refering that table.
+     *     nests, even if no join condition is referring that table.
      *
      * For the query above we may use this to add an extra dependency from
      * t3 on t2. Furthermore t3's join condition on t1 is made a grand-parent
@@ -457,7 +457,7 @@ class ndb_pushed_builder_ctx {
      * Note that tables can still be inner- and outer-joined inside the sj_nest.
      * Unlike the inner_ and upper_nest maps representing these joins, the
      * sj_nest for a particular table contains all tables in the sj_nest. (Not
-     * only the preceeding tables.)
+     * only the preceding tables.)
      */
     ndb_table_access_map m_sj_nest;
 
@@ -481,7 +481,7 @@ class ndb_pushed_builder_ctx {
      *
      * The set of 'key_parents[]' are collected when analyzing query for
      * join pushability, and saved for later usage by ::optimize_query_plan(),
-     * which will select the actuall m_parent to be used for each table.
+     * which will select the actual m_parent to be used for each table.
      */
     ndb_table_access_map *m_key_parents;
 
@@ -553,12 +553,12 @@ class ndb_pushed_builder_ctx {
      *           (t3 (t4))
      *
      * (Note also the nest-dependeny-comments above regarding how extra
-     * dependecies between tables in the same inner-nest may be added)
+     * dependencies between tables in the same inner-nest may be added)
      */
     ndb_table_access_map m_ancestors;
 
     /**
-     * The actual parent as choosen by ::optimize_query_plan()
+     * The actual parent as chosen by ::optimize_query_plan()
      */
     uint m_parent;
 

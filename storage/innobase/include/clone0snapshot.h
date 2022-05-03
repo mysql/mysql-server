@@ -1067,7 +1067,7 @@ class Clone_Snapshot {
   /** Enable PFS monitoring */
   bool m_enable_pfs;
 
-  /** Performance Schema accounting object to monitor stage progess */
+  /** Performance Schema accounting object to monitor stage progress */
   Clone_Monitor m_monitor;
 };
 

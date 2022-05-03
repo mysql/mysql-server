@@ -68,7 +68,7 @@ struct Protocol6 {
  * m = Message length       - 16 Bits (0-65536) (In word -> 0-256k bytes)
  * d = Signal data length   -  5 Bits (0-31)
  * t = trace                -  6 Bits (0-63)
- * r = Recievers block no   - 16 Bits
+ * r = Receivers block no   - 16 Bits
  * s = Senders block no     - 16 Bits
  * u = Unused               -  7 Bits
  * f = FragmentInfo1        -  1 Bit

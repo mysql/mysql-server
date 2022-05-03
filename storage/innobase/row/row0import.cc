@@ -293,7 +293,7 @@ struct row_import {
   dict_col_t *m_cols; /*!< Column data */
 
   byte **m_col_names; /*!< Column names, we store the
-                      column naems separately becuase
+                      column names separately because
                       there is no field to store the
                       value in dict_col_t */
 
@@ -555,7 +555,7 @@ class AbstractCallback : public PageCallback {
   initialized: the pages >= this limit are, by definition, free;
   note that in a single-table tablespace where size < 64 pages,
   this number is 64, i.e., we have initialized the space about
-  the first extent, but have not physically allocted those pages
+  the first extent, but have not physically allocated those pages
   to the file. @see FSP_LIMIT. */
   page_no_t m_free_limit;
 
@@ -905,7 +905,7 @@ class PageConverter : public AbstractCallback {
   @return DB_SUCCESS or error code */
   dberr_t update_index_page(buf_block_t *block) UNIV_NOTHROW;
 
-  /** Update the BLOB refrences and write UNDO log entries for
+  /** Update the BLOB references and write UNDO log entries for
   rows that can't be purged optimistically.
   @param block block to update
   @retval DB_SUCCESS or error code */
@@ -2362,7 +2362,7 @@ dberr_t PageConverter::adjust_cluster_record(
   return (err);
 }
 
-/** Update the BLOB refrences and write UNDO log entries for
+/** Update the BLOB references and write UNDO log entries for
 rows that can't be purged optimistically.
 @param block block to update
 @retval DB_SUCCESS or error code */
@@ -3401,7 +3401,7 @@ Refer to row_quiesce_write_default_value() for the format details.
   } else {
     ut::delete_arr(str);
 
-    /* Legnth bytes */
+    /* Length bytes */
     if ((str = row_import_read_bytes(file, 4)) == nullptr) {
       return (DB_IO_ERROR);
     }
@@ -4345,7 +4345,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   char *filepath = nullptr;
 
   /* The caller assured that this is not read_only_mode and that no
-  temorary tablespace is being imported. */
+  temporary tablespace is being imported. */
   ut_ad(!srv_read_only_mode);
   ut_ad(!table->is_temporary());
 

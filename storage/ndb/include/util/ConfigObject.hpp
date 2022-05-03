@@ -124,7 +124,7 @@ public: /* Public methods */
 
   /**
    * A configuration binary is created from the contents of the ConfigObject.
-   * This returns a pointer to a contiguos memory area that has to be free'd
+   * This returns a pointer to a contiguous memory area that has to be free'd
    * by the caller.
    */
   Uint32 get_v2_packed_size(Uint32 node_id) const;

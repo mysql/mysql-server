@@ -164,8 +164,8 @@ extern "C" {
 #endif
 
 /*
-  Dont allow use of min() or max() macros
-   - in order to enforce forward compatibilty
+  Don't allow use of min() or max() macros
+   - in order to enforce forward compatibility
 */
 
 #ifdef min

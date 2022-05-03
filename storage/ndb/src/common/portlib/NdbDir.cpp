@@ -465,7 +465,7 @@ TAPTEST(DirIterator)
   CHECK(NdbDir::remove_recursive(path));
   CHECK(gone(path));
 
-  // Remove non exisiting directory(again)
+  // Remove non existing directory(again)
   CHECK(!NdbDir::remove_recursive(path));
   CHECK(gone(path));
 

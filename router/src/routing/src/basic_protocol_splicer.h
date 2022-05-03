@@ -288,7 +288,7 @@ class ProtocolStateBase {
  * wraps
  *
  * - a low-level connections (conn)
- * - a routing connection (endpoints, destiantions, ...)
+ * - a routing connection (endpoints, destinations, ...)
  * - a tls switchable (a SSL_CTX * wrapper)
  * - protocol state (classic, xproto)
  */

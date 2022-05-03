@@ -81,7 +81,7 @@ class ha_ndbcluster_cond {
     return m_scan_filter_params;
   }
 
-  // Get the 'Field' refered by Ndb_param (from previous table in query plan).
+  // Get the 'Field' referred by Ndb_param (from previous table in query plan).
   static const Item_field *get_param_item(const Ndb_param *param);
 
   void set_condition(const Item *cond);
@@ -128,7 +128,7 @@ class ha_ndbcluster_cond {
   /**
    * Stores condition which we assumed could be pushed, but too late
    * turned out to be unpushable. (Failed to generate code, or another
-   * access methode not allowing push condition selected). In these cases
+   * access method not allowing push condition selected). In these cases
    * we need to emulate the effect of the (non-)pushed condition by
    * requiring ha_ndbclustet to evaluate 'm_unpushed_cond' before returning
    * only qualifying rows.

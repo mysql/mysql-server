@@ -60,7 +60,7 @@ class SslModeOption {
   mysql_ssl_mode operator()(const std::string &value,
                             const std::string &option_desc) {
     std::string name = value;
-    // convert name to upper-case to get case-insenstive comparison.
+    // convert name to upper-case to get case-insensitive comparison.
     std::transform(value.begin(), value.end(), name.begin(), ::toupper);
 
     // check if the mode is known
