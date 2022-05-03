@@ -760,7 +760,9 @@ IF(LINUX)
       NAMES eu-readelf readelf
       )
     IF(NOT READELF_EXECUTABLE)
-      MESSAGE(FATAL_ERROR "Cannot find eu-readelf or readelf")
+      MESSAGE(WARNING "Cannot find eu-readelf or readelf")
+      MESSAGE(FATAL_ERROR
+        "Install the 'elfutils' package, or do cmake -DWITH_BUILD_ID=OFF")
     ENDIF()
   ENDIF()
 ENDIF()
@@ -2295,18 +2297,12 @@ INCLUDE(${CMAKE_BINARY_DIR}/info_macros.cmake)
 CREATE_INFO_SRC(${CMAKE_BINARY_DIR}/Docs)
 MY_ADD_CUSTOM_TARGET(INFO_SRC ALL
   COMMAND ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/cmake/info_src.cmake
+  BYPRODUCTS ${CMAKE_BINARY_DIR}/Docs/INFO_SRC
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-)
-
-# Build flags: This must be postponed to the make phase.
-MY_ADD_CUSTOM_TARGET(INFO_BIN ALL
-  COMMAND ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/cmake/info_bin.cmake
-  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  COMMENT "Generating Docs/INFO_SRC"
 )
 
 IF(HAVE_BUILD_ID_SUPPORT AND NOT WITHOUT_SERVER)
-  ADD_DEPENDENCIES(INFO_BIN mysqld)
-
   # Show it by default in pushuild, but not for developers.
   IF(DEFINED ENV{PB2WORKDIR})
     OPTION(SHOW_BUILD_ID "Show mysqld build id as final target" ON)
@@ -2335,9 +2331,34 @@ IF(HAVE_BUILD_ID_SUPPORT AND NOT WITHOUT_SERVER)
     # Other "ALL" targets.
     ADD_DEPENDENCIES(show_build_id
       GenSysSchemaC
-      INFO_BIN
+      # INFO_BIN see below
       run_libmysql_api_test
       )
+  ENDIF()
+ENDIF()
+
+UNSET(MYSQLD_EXECUTABLE_FOR_INFO_BIN)
+IF(HAVE_BUILD_ID_SUPPORT AND NOT WITHOUT_SERVER)
+  SET(MYSQLD_EXECUTABLE_FOR_INFO_BIN
+    "-DMYSQLD_EXECUTABLE=$<TARGET_FILE:mysqld>")
+ENDIF()
+
+# Build flags: This must be postponed to the make phase.
+MY_ADD_CUSTOM_TARGET(INFO_BIN ALL
+  COMMAND ${CMAKE_COMMAND}
+  ${MYSQLD_EXECUTABLE_FOR_INFO_BIN}
+  -DCMAKE_BUILD_TYPE=$<CONFIG>
+  -P ${CMAKE_SOURCE_DIR}/cmake/info_bin.cmake
+  BYPRODUCTS ${CMAKE_BINARY_DIR}/Docs/INFO_BIN
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  COMMENT "Generating Docs/INFO_BIN"
+)
+# Adding $<TARGET_FILE:mysqld> seems to a dependency on 'mysqld'.
+# Add an explicit one anyways.
+IF(MYSQLD_EXECUTABLE_FOR_INFO_BIN)
+  ADD_DEPENDENCIES(INFO_BIN mysqld)
+  IF(TARGET show_build_id)
+    ADD_DEPENDENCIES(show_build_id INFO_BIN)
   ENDIF()
 ENDIF()
 

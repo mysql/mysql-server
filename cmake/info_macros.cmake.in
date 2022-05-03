@@ -37,31 +37,34 @@ SET(EXTRA_VERSION "@EXTRA_VERSION@")
 SET(CMAKE_SOURCE_DIR "@CMAKE_SOURCE_DIR@")
 SET(CMAKE_BINARY_DIR "@CMAKE_BINARY_DIR@")
 SET(CMAKE_GENERATOR "@CMAKE_GENERATOR@")
-SET(CMAKE_SIZEOF_VOID_P "@CMAKE_SIZEOF_VOID_P@")
 SET(GIT_EXECUTABLE "@GIT_EXECUTABLE@")
-SET(CMAKE_CROSSCOMPILING "@CMAKE_CROSSCOMPILING@")
 SET(CMAKE_HOST_SYSTEM "@CMAKE_HOST_SYSTEM@")
 SET(CMAKE_HOST_SYSTEM_PROCESSOR "@CMAKE_HOST_SYSTEM_PROCESSOR@")
-SET(CMAKE_SYSTEM "@CMAKE_SYSTEM@")
-SET(CMAKE_SYSTEM_PROCESSOR "@CMAKE_SYSTEM_PROCESSOR@")
 SET(CWD_DEFINITIONS "@CWD_DEFINITIONS@")
+
 SET(CMAKE_C_FLAGS "@CMAKE_C_FLAGS@")
 SET(CMAKE_CXX_FLAGS "@CMAKE_CXX_FLAGS@")
-SET(CMAKE_BUILD_TYPE "@CMAKE_BUILD_TYPE@")
-SET(CMAKE_BUILD_TYPE_UPPER "@CMAKE_BUILD_TYPE_UPPER@")
-SET(BUILD_IS_SINGLE_CONFIG "@BUILD_IS_SINGLE_CONFIG@")
+
 SET(CMAKE_C_FLAGS_DEBUG "@CMAKE_C_FLAGS_DEBUG@")
 SET(CMAKE_CXX_FLAGS_DEBUG "@CMAKE_CXX_FLAGS_DEBUG@")
 SET(CMAKE_C_FLAGS_RELWITHDEBINFO "@CMAKE_C_FLAGS_RELWITHDEBINFO@")
 SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "@CMAKE_CXX_FLAGS_RELWITHDEBINFO@")
+SET(CMAKE_C_FLAGS_RELEASE "@CMAKE_C_FLAGS_RELEASE@")
+SET(CMAKE_CXX_FLAGS_RELEASE "@CMAKE_CXX_FLAGS_RELEASE@")
+SET(CMAKE_C_FLAGS_MINSIZEREL "@CMAKE_C_FLAGS_MINSIZEREL@")
+SET(CMAKE_CXX_FLAGS_MINSIZEREL "@CMAKE_CXX_FLAGS_MINSIZEREL@")
+
 SET(CMAKE_CXX_COMPILER_ID "@CMAKE_CXX_COMPILER_ID@")
 SET(CMAKE_CXX_COMPILER_VERSION "@CMAKE_CXX_COMPILER_VERSION@")
 SET(HAVE_BUILD_ID_SUPPORT "@HAVE_BUILD_ID_SUPPORT@")
 SET(WITHOUT_SERVER "@WITHOUT_SERVER@")
-SET(DEBUG_EXTNAME "@DEBUG_EXTNAME@")
 
 SET(COMPILER_ID_AND_VERSION
   "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+
+MACRO(STRING_APPEND STRING_VAR INPUT)
+  SET(${STRING_VAR} "${${STRING_VAR}}${INPUT}")
+ENDMACRO()
 
 # Create an "INFO_SRC" file with information about the source (only).
 # We use "git log", if possible, and the "VERSION" contents.
@@ -72,19 +75,24 @@ SET(COMPILER_ID_AND_VERSION
 MACRO(CREATE_INFO_SRC target_dir)
   SET(INFO_SRC "${target_dir}/INFO_SRC")
 
-  STRING(TIMESTAMP bdate "%Y-%m-%d %H:%M:%S +0000" UTC)
-
   IF(GIT_EXECUTABLE AND EXISTS ${CMAKE_SOURCE_DIR}/.git)
     # Sources are in a GIT repository: Always update.
     EXECUTE_PROCESS(
       COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
       WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
       OUTPUT_VARIABLE bname
-    )
+      )
+
+    STRING(TIMESTAMP bdate "%Y-%m-%d %H:%M:%SZ" UTC)
+
+    SET(GIT_PRETTY_ARG "")
+    STRING_APPEND(GIT_PRETTY_ARG "commit: %H%ndate: %ci%n")
+    STRING_APPEND(GIT_PRETTY_ARG "created at: ${bdate}%n")
+    STRING_APPEND(GIT_PRETTY_ARG "branch: ${bname}")
 
     EXECUTE_PROCESS(
       COMMAND ${GIT_EXECUTABLE} log -1
-      --pretty="commit: %H%ndate: %ci%nbuild-date: ${bdate} %nshort: %h%nbranch: ${bname}"
+      --pretty="${GIT_PRETTY_ARG}"
       WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
       OUTPUT_VARIABLE VERSION_INFO
     )
@@ -100,11 +108,13 @@ MACRO(CREATE_INFO_SRC target_dir)
       FILE(APPEND ${INFO_SRC} "${EXTRA_VERSION}")
     ENDIF()
     FILE(APPEND ${INFO_SRC} "\n")
+
   ELSEIF(EXISTS ${INFO_SRC})
     # Outside a git tree, there is no need to change an existing "INFO_SRC",
     # it cannot be improved.
   ELSEIF(EXISTS ${CMAKE_SOURCE_DIR}/Docs/INFO_SRC)
-    # If we are building from a source distribution, it also contains "INFO_SRC".
+    # If we are building from a source distribution,
+    # it also contains "INFO_SRC".
     # Similar, the export used for a release build already has the file.
     EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E copy_if_different
       ${CMAKE_SOURCE_DIR}/Docs/INFO_SRC ${INFO_SRC}
@@ -125,88 +135,67 @@ ENDMACRO(CREATE_INFO_SRC)
 
 MACRO(CREATE_INFO_BIN)
   SET(INFO_BIN "Docs/INFO_BIN")
-
   FILE(WRITE ${INFO_BIN} "===== Information about the build process: =====\n")
-  IF (WIN32)
-    EXECUTE_PROCESS(COMMAND cmd /c date /T
-        OUTPUT_VARIABLE TMP_DATE OUTPUT_STRIP_TRAILING_WHITESPACE)
-  ELSEIF(UNIX)
-    EXECUTE_PROCESS(COMMAND date "+%Y-%m-%d %H:%M:%S"
-        OUTPUT_VARIABLE TMP_DATE OUTPUT_STRIP_TRAILING_WHITESPACE)
-  ELSE()
-    SET(TMP_DATE "(no date command known for this platform)")
-  ENDIF()
-  SITE_NAME(HOSTNAME)
-  FILE(APPEND ${INFO_BIN} "Build was run at ${TMP_DATE} on host '${HOSTNAME}'\n\n")
 
-  # According to the cmake docs, these variables should always be set.
-  # However, they are empty in my tests, using cmake 2.6.4 on Linux, various Unix, and Windows.
-  # Still, include this code, so we will profit if a build environment does provide that info.
-  IF(CMAKE_HOST_SYSTEM)
-    FILE(APPEND ${INFO_BIN} "Build was done on  ${CMAKE_HOST_SYSTEM} using ${CMAKE_HOST_SYSTEM_PROCESSOR}\n")
-  ENDIF()
-  IF(CMAKE_CROSSCOMPILING)
-    FILE(APPEND ${INFO_BIN} "Build was done for ${CMAKE_SYSTEM} using ${CMAKE_SYSTEM_PROCESSOR}\n")
-  ENDIF()
+  STRING(TIMESTAMP TMP_DATE "%Y-%m-%d %H:%M:%SZ" UTC)
+  FILE(APPEND ${INFO_BIN} "Build was run at ${TMP_DATE}\n")
+
+  FILE(APPEND ${INFO_BIN}
+    "Build was done on ${CMAKE_HOST_SYSTEM} "
+    "processor ${CMAKE_HOST_SYSTEM_PROCESSOR}\n"
+    )
 
   FILE(APPEND ${INFO_BIN} "Build was done using cmake ${CMAKE_VERSION}\n\n")
 
-  IF (WIN32)
-    FILE(APPEND ${INFO_BIN} "===== Compiler / generator used: =====\n")
-    FILE(APPEND ${INFO_BIN} ${CMAKE_GENERATOR} "\n\n")
-  ENDIF()
+  FILE(APPEND ${INFO_BIN} "===== CMAKE_GENERATOR =====\n")
+  FILE(APPEND ${INFO_BIN} ${CMAKE_GENERATOR} "\n\n")
 
   FILE(APPEND ${INFO_BIN} "===== Feature flags used: =====\n")
-  IF(EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
-    # Attention: "-N" prevents cmake from entering a recursion, and it must be a separate flag from "-L".
-    EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -N -L ${CMAKE_BINARY_DIR} OUTPUT_VARIABLE FEATURE_FLAGS)
-    FILE(APPEND ${INFO_BIN} ${FEATURE_FLAGS} "\n")
-  ELSE()
-    FILE(APPEND ${INFO_BIN} "File 'CMakeCache.txt' is not yet found.\n\n")
-  ENDIF()
+
+  # -L List non-advanced cached variables.
+  # -N View mode only.
+  # Only load the cache. Do not actually run configure and generate steps.
+  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND}
+    -N -L ${CMAKE_BINARY_DIR} OUTPUT_VARIABLE FEATURE_FLAGS)
+  FILE(APPEND ${INFO_BIN} ${FEATURE_FLAGS} "\n")
 
   FILE(APPEND ${INFO_BIN} "===== Compiler flags used: =====\n")
-  IF(CMAKE_BUILD_TYPE AND BUILD_IS_SINGLE_CONFIG)
-    FILE(APPEND ${INFO_BIN} "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}\n")
-  ENDIF()
+  FILE(APPEND ${INFO_BIN} "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}\n")
   FILE(APPEND ${INFO_BIN} "Compiler: ${COMPILER_ID_AND_VERSION}\n")
   FILE(APPEND ${INFO_BIN} "COMPILE_DEFINITIONS: ${CWD_DEFINITIONS}\n")
   FILE(APPEND ${INFO_BIN} "CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}\n")
   FILE(APPEND ${INFO_BIN} "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}\n")
-  IF(CMAKE_BUILD_TYPE AND BUILD_IS_SINGLE_CONFIG)
-    STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
-    FILE(APPEND ${INFO_BIN}
-      "CMAKE_C_FLAGS_${CMAKEBT}: ${CMAKE_C_FLAGS_${CMAKEBT}}\n")
-    FILE(APPEND ${INFO_BIN}
-      "CMAKE_CXX_FLAGS_${CMAKEBT}: ${CMAKE_CXX_FLAGS_${CMAKEBT}}\n")
-  ENDIF()
-  IF(NOT BUILD_IS_SINGLE_CONFIG)
-    FILE(APPEND ${INFO_BIN} "CMAKE_C_FLAGS_DEBUG: ${CMAKE_C_FLAGS_DEBUG}\n")
-    FILE(APPEND ${INFO_BIN} "CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}\n")
-    FILE(APPEND ${INFO_BIN}
-      "CMAKE_C_FLAGS_RELWITHDEBINFO: ${CMAKE_C_FLAGS_RELWITHDEBINFO}\n")
-    FILE(APPEND ${INFO_BIN}
-      "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}\n")
-  ENDIF()
+
+  STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
+  FILE(APPEND ${INFO_BIN}
+    "CMAKE_C_FLAGS_${CMAKEBT}: ${CMAKE_C_FLAGS_${CMAKEBT}}\n")
+  FILE(APPEND ${INFO_BIN}
+    "CMAKE_CXX_FLAGS_${CMAKEBT}: ${CMAKE_CXX_FLAGS_${CMAKEBT}}\n")
+
   IF(HAVE_BUILD_ID_SUPPORT AND NOT WITHOUT_SERVER)
     FILE(APPEND ${INFO_BIN} "\n===== BUILD ID =====\n")
-    SET(MYSQLD_EXECUTABLE "mysqld")
-    IF(DEBUG_EXTNAME AND CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
-      SET(MYSQLD_EXECUTABLE "mysqld-debug")
-    ENDIF()
     EXECUTE_PROCESS(COMMAND
-      ${CMAKE_BINARY_DIR}/runtime_output_directory/${MYSQLD_EXECUTABLE} --help
+      ${MYSQLD_EXECUTABLE} --help
       OUTPUT_VARIABLE mysqld_help
+      RESULT_VARIABLE mysqld_help_result
+      ERROR_VARIABLE mysqld_help_error
       OUTPUT_STRIP_TRAILING_WHITESPACE
       )
+    IF(mysqld_help_result)
+      MESSAGE(FATAL_ERROR "mysqld --help failed: ${mysqld_help_error}")
+    ENDIF()
     STRING(REPLACE "\n" ";" mysqld_help_list "${mysqld_help}")
+    UNSET(BUILD_ID_FOUND)
     FOREACH(LINE ${mysqld_help_list})
       IF(LINE MATCHES "BuildID")
         FILE(APPEND ${INFO_BIN} "${LINE}\n")
+        SET(BUILD_ID_FOUND 1)
         BREAK()
       ENDIF()
     ENDFOREACH()
+    IF(NOT BUILD_ID_FOUND)
+      MESSAGE(FATAL_ERROR "Could not find BuildID for mysqld")
+    ENDIF()
   ENDIF()
   FILE(APPEND ${INFO_BIN} "===== EOF =====\n")
 ENDMACRO(CREATE_INFO_BIN)
-
