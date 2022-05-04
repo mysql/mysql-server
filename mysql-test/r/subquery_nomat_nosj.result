@@ -698,7 +698,6 @@ x
 9
 9
 INSERT INTO t1 (x) VALUES ((SELECT SUM(x) FROM t2));
-ERROR 42S22: Unknown column 'x' in 'field list'
 INSERT INTO t1 (x) SELECT (SELECT SUM(a)+b FROM t2) from t3;
 select * from t1;
 x
@@ -707,6 +706,7 @@ x
 3
 9
 9
+NULL
 3
 4
 drop table t1, t2, t3;

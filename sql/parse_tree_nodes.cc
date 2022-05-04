@@ -1320,20 +1320,16 @@ bool PT_derived_table::contextualize(Parse_context *pc) {
   assert(outer_query_block->linkage != GLOBAL_OPTIONS_TYPE);
 
   /*
-    Determine the first outer context to try for the derived table:
+    Determine the immediate outer context for the derived table:
     - if lateral: context of query which owns the FROM i.e. outer_query_block
     - if not lateral: context of query outer to query which owns the FROM.
-    This is just a preliminary decision. Name resolution
-    {Item_field,Item_ref}::fix_fields() may use or ignore this outer context
-    depending on where the derived table is placed in it.
+    For a lateral derived table. this is just a preliminary decision.
+    Name resolution {Item_field,Item_ref}::fix_fields() may use or ignore this
+    outer context depending on where the derived table is placed in it.
   */
-  if (!m_lateral)
-    pc->thd->lex->push_context(
-        outer_query_block->master_query_expression()->outer_query_block()
-            ? &outer_query_block->master_query_expression()
-                   ->outer_query_block()
-                   ->context
-            : nullptr);
+  if (!m_lateral) {
+    pc->thd->lex->push_context(outer_query_block->context.outer_context);
+  }
 
   if (m_subquery->contextualize(pc)) return true;
 

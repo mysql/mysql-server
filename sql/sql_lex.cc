@@ -635,7 +635,8 @@ Query_expression *LEX::create_query_expr_and_block(
   instead.
   Set the new query_block as the current query_block of the LEX object.
 
-  @param curr_query_block    current query specification
+  @param curr_query_block    current query block, NULL if an outer-most
+                             query block should be created.
 
   @return new query specification if successful, NULL if error
 */
@@ -645,14 +646,15 @@ Query_block *LEX::new_query(Query_block *curr_query_block) {
   Name_resolution_context *outer_context = current_context();
 
   enum_parsing_context parsing_place =
-      curr_query_block ? curr_query_block->parsing_place : CTX_NONE;
+      curr_query_block != nullptr ? curr_query_block->parsing_place : CTX_NONE;
 
-  Query_expression *const sel_query_expression = create_query_expr_and_block(
+  Query_expression *const new_query_expression = create_query_expr_and_block(
       thd, curr_query_block, nullptr, nullptr, parsing_place);
-  if (sel_query_expression == nullptr) return nullptr;
-  Query_block *const select = sel_query_expression->first_query_block();
+  if (new_query_expression == nullptr) return nullptr;
+  Query_block *const new_query_block =
+      new_query_expression->first_query_block();
 
-  if (select->set_context(nullptr)) return nullptr; /* purecov: inspected */
+  if (new_query_block->set_context(nullptr)) return nullptr;
   /*
     Assume that a subquery has an outer name resolution context
     (even a non-lateral derived table may have outer references).
@@ -666,29 +668,26 @@ Query_block *LEX::new_query(Query_block *curr_query_block) {
   */
   if (parsing_place == CTX_NONE)  // Outer-most query block
   {
-  } else if ((parsing_place == CTX_INSERT_VALUES) ||
-             (parsing_place == CTX_INSERT_UPDATE &&
-              curr_query_block->master_query_expression()
-                  ->is_set_operation())) {
+  } else if (parsing_place == CTX_INSERT_UPDATE &&
+             curr_query_block->master_query_expression()->is_set_operation()) {
     /*
       Outer references are not allowed for
-      - subqueries in INSERT ... VALUES clauses
-      - subqueries in INSERT ... ON DUPLICATE KEY UPDATE clauses,
-        when the outer query expression is a UNION.
+      subqueries in INSERT ... ON DUPLICATE KEY UPDATE clauses,
+      when the outer query expression is a UNION.
     */
-    assert(select->context.outer_context == nullptr);
+    assert(new_query_block->context.outer_context == nullptr);
   } else {
-    select->context.outer_context = outer_context;
+    new_query_block->context.outer_context = outer_context;
   }
   /*
     in subquery is SELECT query and we allow resolution of names in SELECT
     list
   */
-  select->context.resolve_in_select_list = true;
-  DBUG_PRINT("outer_field",
-             ("ctx %p <-> SL# %d", &select->context, select->select_number));
+  new_query_block->context.resolve_in_select_list = true;
+  DBUG_PRINT("outer_field", ("ctx %p <-> SL# %d", &new_query_block->context,
+                             new_query_block->select_number));
 
-  return select;
+  return new_query_block;
 }
 
 /**

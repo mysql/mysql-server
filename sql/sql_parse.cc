@@ -5614,7 +5614,7 @@ bool Query_block::find_common_table_expr(THD *thd, Table_ident *table_name,
       If no match in the WITH clause of 'select', maybe this is a subquery, so
       look up in the outer query's WITH clause:
     */
-  } while (cte == nullptr && (select = unit->outer_query_block()));
+  } while (cte == nullptr && (select = select->outer_query_block()));
 
   if (cte == nullptr) return false;
   *found = true;
@@ -5641,15 +5641,14 @@ bool Query_block::find_common_table_expr(THD *thd, Table_ident *table_name,
   auto wc_save = wc->enter_parsing_definition(tl);
 
   /*
-    The proper outer context for the CTE, is not the query block where the CTE
-    reference is; neither is it the outer query block of this. It is the query
-    block which immediately contains the query expression where the CTE
-    definition is. Indeed, per the standard, evaluation of the CTE happens
-    as first step of evaluation of the said query expression; so the CTE may
-    not contain references into the said query expression.
+    The outer context for the CTE is the current context of the query block
+    that immediately contains the query expression that contains the CTE
+    definition, which is the same as the outer context of the query block
+    belonging to that query expression. Unless the CTE is contained in
+    the outermost query expression, in which case there is no outer context.
   */
-  thd->lex->push_context(unit->outer_query_block()
-                             ? &unit->outer_query_block()->context
+  thd->lex->push_context(select->outer_query_block() != nullptr
+                             ? select->context.outer_context
                              : nullptr);
   assert(thd->lex->will_contextualize);
   if (node->contextualize(pc)) return true;

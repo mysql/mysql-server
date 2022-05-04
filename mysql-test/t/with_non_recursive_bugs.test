@@ -1033,3 +1033,40 @@ create table t2 with t1 as (select 72 as col from t1) select * from t1;
 select * from t1;
 select * from t2;
 drop table t1,t2;
+
+--echo # Bug#32678303: Assertion 'table_num_to_node_num[table_num] != -1 failed
+
+CREATE TABLE t1(a INTEGER);
+
+--error ER_BAD_FIELD_ERROR
+SELECT COUNT(sq1_t1.a) AS sq1_field1
+FROM t1 AS sq1_t1 RIGHT JOIN
+       t1 AS sq1_t2 LEFT JOIN t1 AS sq1_t3
+       ON sq1_t2.a IN
+         (WITH cte2 AS
+           (SELECT sq1_t1.a AS c_sq1_field1
+            FROM t1 AS c_sq1_t1
+           )
+          SELECT * FROM cte2
+         )
+     ON sq1_t3.a = sq1_t2.a;
+
+--error ER_BAD_FIELD_ERROR
+SELECT (WITH cte1 AS
+         (SELECT COUNT(sq1_t1.a) AS sq1_field1
+          FROM t1 AS sq1_t1 RIGHT JOIN
+                 t1 AS sq1_t2 LEFT JOIN t1 AS sq1_t3
+                 ON sq1_t2.a IN
+                   (WITH cte2 AS
+                     (SELECT sq1_t1.a AS c_sq1_field1
+                             FROM t1 AS c_sq1_t1
+                     )
+                    SELECT * FROM cte2
+                   )
+                ON sq1_t3.a = sq1_t2.a
+         )
+        SELECT * FROM cte1
+       ) AS field3
+FROM t1 AS table1;
+
+DROP TABLE t1;

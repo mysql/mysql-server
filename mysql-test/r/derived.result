@@ -4639,3 +4639,33 @@ a	(SELECT MIN(c) FROM cte AS cte2 WHERE t2.d = cte2.b)
 2	60
 3	60
 DROP TABLE t1, t2;
+# Bug#32678303: Assertion 'table_num_to_node_num[table_num] != -1 failed
+CREATE TABLE t1 (a INTEGER);
+SELECT *
+FROM t1 AS ot1
+LEFT JOIN
+t1 AS ot2 ON ot1.a IN
+(SELECT * FROM (SELECT ot3.a) AS d
+)
+LEFT JOIN t1 AS ot3 ON TRUE;
+ERROR 42S22: Unknown column 'ot3.a' in 'field list'
+SELECT *
+FROM t1 AS ot1
+LEFT JOIN
+t1 AS ot2 ON ot1.a IN
+(SELECT ot3.a
+)
+LEFT JOIN t1 AS ot3 ON TRUE;
+ERROR 42S22: Unknown column 'ot3.a' in 'field list'
+DROP TABLE t1;
+# Bug#34131822: Outer references in INSERT ... VALUES are not recognized
+CREATE TABLE t1 (a INTEGER, b INTEGER);
+INSERT INTO t1 (a, b) VALUES (777, a);
+INSERT INTO t1 (a, b) VALUES (888, (SELECT a));
+INSERT INTO t1 (a, b) VALUES (999, (SELECT a UNION SELECT a));
+SELECT a, b FROM t1;
+a	b
+777	777
+888	888
+999	999
+DROP TABLE t1;

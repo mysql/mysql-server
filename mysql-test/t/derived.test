@@ -3338,3 +3338,38 @@ FROM t2 LEFT JOIN cte AS cte1 ON t2.a = cte1.a
         LEFT JOIN t2 AS tx ON tx.e = cte1.c;
 
 DROP TABLE t1, t2;
+
+--echo # Bug#32678303: Assertion 'table_num_to_node_num[table_num] != -1 failed
+
+CREATE TABLE t1 (a INTEGER);
+
+--error ER_BAD_FIELD_ERROR
+SELECT *
+FROM t1 AS ot1
+     LEFT JOIN
+     t1 AS ot2 ON ot1.a IN
+        (SELECT * FROM (SELECT ot3.a) AS d
+        )
+     LEFT JOIN t1 AS ot3 ON TRUE;
+
+--error ER_BAD_FIELD_ERROR
+SELECT *
+FROM t1 AS ot1
+     LEFT JOIN
+     t1 AS ot2 ON ot1.a IN
+        (SELECT ot3.a
+        )
+     LEFT JOIN t1 AS ot3 ON TRUE;
+
+DROP TABLE t1;
+
+--echo # Bug#34131822: Outer references in INSERT ... VALUES are not recognized
+
+CREATE TABLE t1 (a INTEGER, b INTEGER);
+
+INSERT INTO t1 (a, b) VALUES (777, a);
+INSERT INTO t1 (a, b) VALUES (888, (SELECT a));
+INSERT INTO t1 (a, b) VALUES (999, (SELECT a UNION SELECT a));
+SELECT a, b FROM t1;
+
+DROP TABLE t1;

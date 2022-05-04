@@ -396,7 +396,6 @@ select * from t1;
 # After this, only data based on old t1 records should have been added.
 INSERT INTO t1 (x) select (SELECT SUM(x)+2 FROM t1) FROM t2;
 select * from t1;
--- error ER_BAD_FIELD_ERROR
 INSERT INTO t1 (x) VALUES ((SELECT SUM(x) FROM t2));
 INSERT INTO t1 (x) SELECT (SELECT SUM(a)+b FROM t2) from t3;
 select * from t1;
