@@ -336,6 +336,7 @@ private:
     Uint32 m_encrypt_key_data_unit_size;
     Uint32 m_encrypt_krm_keying_material_position_in_octets;
     Uint32 m_encrypt_krm_key_count;
+    Uint32 m_zeros02[1];
 
     int toggle_endian();
     int validate() const;

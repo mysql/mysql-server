@@ -161,7 +161,7 @@ FOREACH(warning
 ENDFOREACH()
 
 IF(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
-  MESSAGE(FATAL_ERROR "Only 64-bit build of NDB is supported")
+  MESSAGE(WARNING "Only 64-bit build of NDB is supported")
 ENDIF()
 
 INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/ndb_configure.cmake)

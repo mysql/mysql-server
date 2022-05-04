@@ -1480,7 +1480,7 @@ int ndbxfrm_file::read_forward(ndbxfrm_output_iterator *out)
           size_t block_size = m_file_block_size == 0 ? NDB_O_DIRECT_WRITE_BLOCKSIZE : m_file_block_size;
           size = f_out.size() / block_size * block_size;
         }
-        if (m_file_pos + size > (uintmax_t)m_payload_end)
+        if (m_file_pos + uintmax_t{size} > uintmax_t(m_payload_end))
         {
           size = m_payload_end - m_file_pos;
         }
@@ -1647,7 +1647,7 @@ int ndbxfrm_file::read_backward(ndbxfrm_output_reverse_iterator *out)
               (m_file_block_size == 0) ? NDB_O_DIRECT_WRITE_BLOCKSIZE : m_file_block_size;
           size = f_out.size() / block_size * block_size;
         }
-        if ((uintmax_t)m_file_pos < m_payload_start + size)
+        if (uintmax_t(m_file_pos) < m_payload_start + uintmax_t{size})
         {
           size = m_file_pos - m_payload_start;
         }

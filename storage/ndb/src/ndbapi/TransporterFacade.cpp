@@ -1839,7 +1839,7 @@ TransporterFacade::configure(NodeId nodeId,
                             reserved_send_buffer_size_t))
     {
       g_eventLogger->info(
-          "Unable to allocate %lu bytes of memory for send buffers!!",
+          "Unable to allocate %zu bytes of memory for send buffers!!",
           total_send_buffer_size_t);
       DBUG_RETURN(false);
     }

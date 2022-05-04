@@ -183,7 +183,7 @@ Uint32 Dbtup::copyAttrinfo(Uint32 storedProcId,
       paramLen = cinBuffer[4];
       ndbrequire(reader.getWords(pos, paramLen));
       pos += paramLen;
-      ndbassert(readerLen == (pos - cinBuffer));
+      ndbassert(intmax_t{readerLen} == (pos - cinBuffer));
     }
     else
     {
