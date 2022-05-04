@@ -171,6 +171,14 @@ int main(int argc, char* argv[])
     return 0;
   }
 
+  if (g_file_block_size < 0)
+  {
+    fprintf(stderr,
+            "Error: file_block_size %d can not be negative.\n",
+            g_file_block_size);
+    return 1;
+  }
+
   if (argc != 2)
   {
     fprintf(stderr, "Error: Need one source file and one destination file.");
@@ -266,6 +274,9 @@ int copy_file(const char src[], const char dst[])
                     opt_decrypt_password_state.get_password_length());
   require(r == 0);
 
+  require(g_file_block_size >= 0);
+  size_t file_block_size = g_file_block_size;
+
   r = dst_xfrm.create(dst_file,
                       g_compress,
                       reinterpret_cast<byte*>(
@@ -276,7 +287,7 @@ int copy_file(const char src[], const char dst[])
                       ndb_ndbxfrm1::key_selection_mode_same,
                       1 /* key count */,
                       g_encrypt_block_size,
-                      g_file_block_size,
+                      file_block_size,
                       ndbxfrm_file::INDEFINITE_SIZE);
   require(r == 0);
 

@@ -273,9 +273,9 @@ class ndbxfrm_file
              int key_cipher,  // 0 - none, ndb_ndbxfrm1::cipher_*
              int key_selection_mode,   // ndb_ndbxfrm1::key_selection_mode_*
              int key_count,
-             int key_data_unit_size,
-             off_t file_block_size,
-             off_t data_size);
+             size_t key_data_unit_size,
+             size_t file_block_size,
+             Uint64 data_size);
   /*
    * Use abort when you for example has not fulfilled the initialization of the
    * file content and intend to remove the file after close.
@@ -386,14 +386,14 @@ class ndbxfrm_file
   int read_trailer(ndbxfrm_input_reverse_iterator* in);
   int write_header(
       ndbxfrm_output_iterator* out,
-      off_t data_page_size,
+      size_t data_page_size,
       const byte* pwd_key,
       size_t pwd_key_len,
       int kdf_iter_count,
       int key_cipher,  // 0 - none, 1 - cbc, 2 - xts (always no padding)
       int key_selection_mode,   // 0 - same, 1 - pair, 2 - mixed
       int key_count,
-      int key_data_unit_size);
+      size_t key_data_unit_size);
   int write_trailer(ndbxfrm_output_iterator* out,
                     ndbxfrm_output_iterator* extra);
 };

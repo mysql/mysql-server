@@ -1079,7 +1079,6 @@ ClusterMgr::execDUMP_STATE_ORD(const NdbApiSignal* signal,
     {
       return;
     }
-    Uint32 tot_len = length;
     LinearSectionPtr ptr[3];
     Uint32 sec_max_len = 0;
     for (Uint32 i = 0; i < num_secs; i++)
@@ -1090,7 +1089,6 @@ ClusterMgr::execDUMP_STATE_ORD(const NdbApiSignal* signal,
         sec_max_len = sec_len;
       }
       ptr[i].sz = sec_len;
-      tot_len += sec_len;
     }
     Uint32* dummy_data = new Uint32[sec_max_len];
     for (Uint32 i = 0; i < sec_max_len; i++)
