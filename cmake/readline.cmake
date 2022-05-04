@@ -23,6 +23,27 @@
 # cmake -DWITH_EDITLINE=system|bundled
 # bundled is the default
 
+FUNCTION(WARN_MISSING_SYSTEM_EDITLINE OUTPUT_WARNING)
+  IF(NOT EDITLINE_FOUND AND WITH_EDITLINE STREQUAL "system")
+    MESSAGE(WARNING "Cannot find EDITLINE development libraries. "
+      "You need to install the required packages:\n"
+      "  Debian/Ubuntu:              apt install libedit-dev\n"
+      "  RedHat/Fedora/Oracle Linux: yum install libedit-devel\n"
+      "  SuSE:                       zypper install libedit-devel\n"
+      )
+    SET(${OUTPUT_WARNING} 1 PARENT_SCOPE)
+  ENDIF()
+ENDFUNCTION()
+
+MACRO(RESET_EDITLINE_VARIABLES)
+  UNSET(EDITLINE_INCLUDE_DIR)
+  UNSET(EDITLINE_INCLUDE_DIR CACHE)
+  UNSET(EDITLINE_LIBRARY)
+  UNSET(EDITLINE_LIBRARY CACHE)
+  UNSET(FOUND_EDITLINE_READLINE)
+  UNSET(FOUND_EDITLINE_READLINE CACHE)
+ENDMACRO()
+
 MACRO (MYSQL_CHECK_MULTIBYTE)
   SET(CMAKE_EXTRA_INCLUDE_FILES wchar.h)
   CHECK_TYPE_SIZE(mbstate_t SIZEOF_MBSTATE_T)
@@ -200,7 +221,7 @@ MACRO (MYSQL_CHECK_EDITLINE)
     ELSEIF(WITH_EDITLINE STREQUAL "system")
       FIND_SYSTEM_EDITLINE()
       IF(NOT EDITLINE_FOUND)
-        MESSAGE(FATAL_ERROR "Cannot find system editline libraries.") 
+        RESET_EDITLINE_VARIABLES()
       ENDIF()
     ELSE()
       MESSAGE(FATAL_ERROR "WITH_EDITLINE must be bundled or system")
