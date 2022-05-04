@@ -1,0 +1,103 @@
+# === Purpose ===
+#
+# This test validates that when enabled in a replica, the option
+#  sql_generate_invisible_primary_key
+# does not affect the tables being created by the replication threads.
+# If a table is created in the source with no primary key it shall remain with
+# no primary key in the replica
+#
+# ==== Requirements ====
+#
+# R1. sql_generate_invisible_primary_key is always false in replication threads
+#
+# === Implementation ====
+#
+# 1. In the replica enable, in the session and globally:
+#    - sql_generate_invisible_primary_key
+# 2. Create a table without a primary key on the source
+#    The table should not have a primary key when replicated
+# 3. Create a table without a primary key on the replica
+#    The table should have a generated primary key
+# 4. Cleanup
+#
+# === References ===
+#
+# Bug#34092605: sql_generate_invisible_primary_key makes replica diverge
+#
+
+--echo
+--echo ##############################################################
+--echo # 1. In the replica enable, in the session and globally:
+--echo #    - sql_generate_invisible_primary_key
+
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+
+--let $sysvars_to_save = [ "GLOBAL.sql_generate_invisible_primary_key" ]
+--source include/save_sysvars.inc
+
+SET GLOBAL sql_generate_invisible_primary_key = ON;
+SET SESSION sql_generate_invisible_primary_key = ON;
+
+--echo
+--echo ##############################################################
+--echo # 2. Create a table without a primary key on the source
+--echo #    The table should not have a primary key when replicated
+
+--source include/rpl_connection_master.inc
+
+CREATE TABLE t1(a int); # No primary key
+
+--source include/rpl_connection_slave.inc
+
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $column_count= `SELECT COUNT(*) FROM information_schema.columns WHERE table_name='t1';`
+--let $assert_text= The table only contains a column
+--let $assert_cond= $column_count = 1
+--source include/assert.inc
+
+--let $pk_count= `SELECT COUNT(*) FROM information_schema.columns WHERE table_name='t1' and column_name='my_row_id';`
+--let $assert_text= The table does not contain a generated invisilble primary key
+--let $assert_cond= $pk_count = 0
+--source include/assert.inc
+
+--echo
+--echo ##############################################################
+--echo # 3. Create a table without a primary key on the replica
+--echo #    The table should have a generated primary key
+
+CREATE TABLE t2(a int); # No primary key
+
+SHOW CREATE TABLE t2;
+
+--let $column_count= `SELECT COUNT(*) FROM information_schema.columns WHERE table_name='t2';`
+--let $assert_text= The table contains 2 columns
+--let $assert_cond= $column_count = 2
+--source include/assert.inc
+
+--let $pk_count= `SELECT COUNT(*) FROM information_schema.columns WHERE table_name='t2' and column_name='my_row_id';`
+--let $assert_text= The table contains a generated invisilble primary key
+--let $assert_cond= $pk_count = 1
+--source include/assert.inc
+
+--echo
+--echo ##############################################################
+--echo # 4. Cleanup
+
+--source include/restore_sysvars.inc
+
+DROP TABLE t2;
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t1;
+
+--source include/rpl_end.inc
+
