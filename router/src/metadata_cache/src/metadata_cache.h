@@ -283,9 +283,6 @@ class METADATA_CACHE_EXPORT MetadataCache
   // Update current Router attributes in the metadata
   void update_router_attributes();
 
-  // Update Router last_check_in timestamp in the metadata
-  void update_router_last_check_in();
-
   // Stores the current cluster topology
   metadata_cache::ClusterTopology cluster_topology_;
 
@@ -380,7 +377,6 @@ class METADATA_CACHE_EXPORT MetadataCache
   Monitor<Stats> stats_{{}};
 
   bool update_router_attributes_{true};
-  unsigned last_check_in_updated_{0};
 
   bool ready_announced_{false};
 

@@ -280,7 +280,7 @@ bool ClusterMetadata::update_router_attributes(
   } else {
     query =
         "UPDATE mysql_innodb_cluster_metadata.v2_routers "
-        "SET version = ?, attributes = "
+        "SET version = ?, last_check_in = NOW(), attributes = "
         "JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET( "
         "IF(attributes IS NULL, '{}', attributes), "
         "'$.RWEndpoint', ?), "
@@ -300,52 +300,6 @@ bool ClusterMetadata::update_router_attributes(
 
   transaction.commit();
 
-  return true;
-}
-
-bool ClusterMetadata::update_router_last_check_in(
-    const metadata_cache::metadata_server_t &rw_server,
-    const unsigned router_id) {
-  // only relevant to for metadata V2
-  if (get_cluster_type() == ClusterType::GR_V1) return true;
-
-  auto connection = mysql_harness::DIM::instance().new_MySQLSession();
-  if (!do_connect(*connection, rw_server)) {
-    log_warning(
-        "Updating the router last_check_in in metadata failed: Could not "
-        "connect to the writable cluster member");
-
-    return false;
-  }
-
-  const auto result = mysqlrouter::setup_metadata_session(*connection);
-  if (!result) {
-    log_warning(
-        "Updating the router last_check_in in metadata failed: could not set "
-        "up the metadata session (%s)",
-        result.error().c_str());
-
-    return false;
-  }
-
-  MySQLSession::Transaction transaction(connection.get());
-  // throws metadata_cache::metadata_error and
-  // MetadataUpgradeInProgressException
-  get_and_check_metadata_schema_version(*connection);
-
-  sqlstring query =
-      "UPDATE mysql_innodb_cluster_metadata.v2_routers set last_check_in = "
-      "NOW() where router_id = ?";
-
-  query << router_id << sqlstring::end;
-  try {
-    connection->execute(query);
-  } catch (const std::exception &e) {
-    log_warning("Updating the router last_check_in in metadata failed: %s",
-                e.what());
-  }
-
-  transaction.commit();
   return true;
 }
 

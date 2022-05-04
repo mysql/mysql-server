@@ -67,10 +67,6 @@ class METADATA_CACHE_EXPORT MetaData {
       const unsigned router_id,
       const metadata_cache::RouterAttributes &router_attributes) = 0;
 
-  virtual bool update_router_last_check_in(
-      const metadata_cache::metadata_server_t &rw_server,
-      const unsigned router_id) = 0;
-
   virtual bool connect_and_setup_session(
       const metadata_cache::metadata_server_t &metadata_server) = 0;
 
