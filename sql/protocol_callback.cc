@@ -106,7 +106,7 @@ bool Protocol_callback::store_long(longlong from, uint32) {
 
 bool Protocol_callback::store_longlong(longlong from, bool is_unsigned,
                                        uint32) {
-  if (callbacks.get_integer)
+  if (callbacks.get_longlong)
     return callbacks.get_longlong(callbacks_ctx, from, is_unsigned);
   return false;
 }
@@ -151,7 +151,7 @@ bool Protocol_callback::store_datetime(const MYSQL_TIME &time, uint precision) {
 }
 
 bool Protocol_callback::store_date(const MYSQL_TIME &time) {
-  if (callbacks.get_datetime) return callbacks.get_date(callbacks_ctx, &time);
+  if (callbacks.get_date) return callbacks.get_date(callbacks_ctx, &time);
   return false;
 }
 
