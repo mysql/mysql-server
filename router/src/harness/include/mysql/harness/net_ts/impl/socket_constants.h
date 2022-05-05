@@ -85,7 +85,7 @@ static constexpr message_flags message_waitall = MSG_WAITALL;
 enum class wait_type {
   wait_read = POLLIN,
   wait_write = POLLOUT,
-  wait_error = POLLERR,
+  wait_error = POLLERR | POLLHUP,
 };
 
 }  // namespace socket
