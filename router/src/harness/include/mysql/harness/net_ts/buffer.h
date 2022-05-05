@@ -462,7 +462,12 @@ inline const_buffer buffer(
                       : impl::to_const_buffer(&data.front(), data.size());
 }
 
-// TODO(jkneschk): from-string-view
+template <class CharT, class Traits>
+inline const_buffer buffer(
+    const std::basic_string_view<CharT, Traits> &data) noexcept {
+  return data.empty() ? const_buffer{}
+                      : impl::to_const_buffer(data.data(), data.size());
+}
 
 template <class T, size_t N>
 inline mutable_buffer buffer(T (&data)[N], size_t n) noexcept {
