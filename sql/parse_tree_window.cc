@@ -62,7 +62,7 @@ bool PT_window_list::contextualize(Parse_context *pc) {
   List_iterator<Window> wi(m_windows);
   Window *w;
   while ((w = wi++)) {
-    static_cast<PT_window *>(w)->contextualize(pc);
+    if (static_cast<PT_window *>(w)->contextualize(pc)) return true;
     w->set_def_pos(++count);
   }
 
