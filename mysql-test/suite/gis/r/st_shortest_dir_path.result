@@ -19,11 +19,59 @@ INSERT INTO edges VALUES
 (54, 4, 3, 2.0, "undefined"),
 (55, 3, 5, 6.0, "undefined"),
 (56, 2, 5, 12.0, "undefined"),
-(57, 4, 5, 10.0, "undefined")
+(57, 4, 5, 10.0, "undefined"),
+(58, 5, 7, 3.0, "undefined"),
+(59, 6, 10, 17.0, "undefined"),
+(60, 4, 8, 15.0, "undefined"),
+(61, 2, 6, 16.0, "undefined"),
+(62, 4, 7, 9.0, "undefined"),
+(63, 5, 8, 13.0, "undefined"),
+(64, 8, 9, 4.0, "undefined"),
+(65, 8, 10, 12.0, "undefined"),
+(66, 10, 12, 8.0, "undefined"),
+(67, 9, 11, 5.0, "undefined"),
+(68, 8, 11, 8.0, "undefined"),
+(69, 4, 12, 25.0, "undefined"),
+(70, 12, 13, 3.0, "undefined"),
+(71, 12, 15, 9.0, "undefined"),
+(72, 13, 17, 11.0, "undefined"),
+(73, 14, 15, 2.0, "undefined"),
+(74, 12, 14, 6.0, "undefined"),
+(75, 15, 18, 10.0, "undefined"),
+(76, 18, 20, 7.0, "undefined"),
+(77, 16, 21, 13.0, "undefined"),
+(78, 17, 19, 8.0, "undefined"),
+(79, 15, 19, 14.0, "undefined"),
+(80, 21, 23, 4.0, "undefined"),
+(81, 21, 22, 3.0, "undefined"),
+(82, 21, 25, 9.0, "undefined"),
+(83, 23, 26, 8.0, "undefined"),
+(84, 22, 24, 5.0, "undefined"),
+(85, 20, 24, 10.0, "undefined"),
+(86, 15, 16, 2.0, "undefined"),
+(87, 24, 25, 3.0, "undefined")
 ;
 SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 5) FROM edges;
 ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 5)
-{"cost": 12.0, "path": [{"id": 50, "cost": 3.0}, {"id": 53, "cost": 1.0}, {"id": 54, "cost": 2.0}, {"id": 55, "cost": 6.0}], "visited_nodes": 5}
+{"cost": 12.0, "path": [{"id": 50, "cost": 3.0}, {"id": 53, "cost": 1.0}, {"id": 54, "cost": 2.0}, {"id": 55, "cost": 6.0}], "visited_nodes": 7}
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 4, 12) FROM edges;
+ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 4, 12)
+{"cost": 25.0, "path": [{"id": 69, "cost": 25.0}], "visited_nodes": 4}
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 3, 8) FROM edges;
+ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 3, 8)
+{"cost": 19.0, "path": [{"id": 55, "cost": 6.0}, {"id": 63, "cost": 13.0}], "visited_nodes": 3}
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 4, 10) FROM edges;
+ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 4, 10)
+{"cost": 27.0, "path": [{"id": 60, "cost": 15.0}, {"id": 65, "cost": 12.0}], "visited_nodes": 8}
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 22) FROM edges;
+ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 22)
+{"cost": 55.0, "path": [{"id": 50, "cost": 3.0}, {"id": 53, "cost": 1.0}, {"id": 69, "cost": 25.0}, {"id": 74, "cost": 6.0}, {"id": 73, "cost": 2.0}, {"id": 86, "cost": 2.0}, {"id": 77, "cost": 13.0}, {"id": 81, "cost": 3.0}], "visited_nodes": 27}
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 4, 26) FROM edges;
+ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 4, 26)
+{"cost": 60.0, "path": [{"id": 69, "cost": 25.0}, {"id": 74, "cost": 6.0}, {"id": 73, "cost": 2.0}, {"id": 86, "cost": 2.0}, {"id": 77, "cost": 13.0}, {"id": 80, "cost": 4.0}, {"id": 83, "cost": 8.0}], "visited_nodes": 27}
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 3, 19) FROM edges;
+ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 3, 19)
+{"cost": 61.0, "path": [{"id": 55, "cost": 6.0}, {"id": 63, "cost": 13.0}, {"id": 65, "cost": 12.0}, {"id": 66, "cost": 8.0}, {"id": 74, "cost": 6.0}, {"id": 73, "cost": 2.0}, {"id": 79, "cost": 14.0}], "visited_nodes": 16}
 INSERT INTO edges VALUES
 (10, 0, 1, 2.0, "car"),
 (11, 1, 2, 3.0, "car"),
@@ -39,7 +87,7 @@ INSERT INTO edges VALUES
 ;
 SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 2) FROM edges GROUP BY type;
 ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 2)
-{"cost": 5.0, "path": [{"id": 51, "cost": 5.0}], "visited_nodes": 4}
+{"cost": 5.0, "path": [{"id": 51, "cost": 5.0}], "visited_nodes": 3}
 {"cost": 5.0, "path": [{"id": 10, "cost": 2.0}, {"id": 11, "cost": 3.0}], "visited_nodes": 2}
 {"cost": 40.0, "path": [{"id": 22, "cost": 40.0}], "visited_nodes": 2}
 {"cost": 140.0, "path": [{"id": 30, "cost": 80.0}, {"id": 33, "cost": 40.0}, {"id": 34, "cost": 20.0}], "visited_nodes": 3}
@@ -65,54 +113,103 @@ INSERT INTO points VALUES
 (  8, POINT(  6,  2 ) ),
 (  9, POINT( -2,  1 ) ),
 ( 10, POINT( -3, -2 ) ),
-( 11, POINT( -1,  3 ) )
+( 11, POINT( -1,  3 ) ),
+( 12, POINT( -1,  5 ) ),
+( 13, POINT( -2,  3 ) ),
+( 14, POINT(  3,  3 ) ),
+( 15, POINT(  2,  4 ) ),
+( 16, POINT(  4,  6 ) ),
+( 17, POINT(  4,  7 ) ),
+( 18, POINT(  6,  3 ) ),
+( 19, POINT(  5,  9 ) ),
+( 20, POINT(  7,  10 ) ),
+( 21, POINT(  9,  11 ) ),
+( 22, POINT(  10,  4 ) ),
+( 23, POINT(  13,  15 ) ),
+( 24, POINT(  12,  14 ) ),
+( 25, POINT(  14,  16 ) ),
+( 26, POINT(  15,  19 ) ),
+( 27, POINT(  17,  22 ) ),
+( 28, POINT(  19,  24 ) ),
+( 29, POINT(  21,  25 ) ),
+( 30, POINT(  26,  30 ) ),
+( 31, POINT(  29,  32 ) ),
+( 32, POINT(  31,  36 ) ),
+( 33, POINT(  35,  39 ) ),
+( 34, POINT(  37,  42 ) ),
+( 35, POINT(  38,  40 ) ),
+( 36, POINT(  25,  32 ) ),
+( 37, POINT(  40,  42 ) )
 ;
 INSERT INTO edges VALUES
-(  0,  0,  2,  1.5 , "spatial" ),
-(  1,  0,  3,  2.9 , "spatial" ),
-(  2,  0,  5,  5.0 , "spatial" ),
-(  3,  3,  1,  3.0 , "spatial" ),
-(  4,  2, 11,  2.0 , "spatial" ),
-(  5,  2, 10,  2.4 , "spatial" ),
-(  6,  2,  9,  2.4 , "spatial" ),
-(  7,  9,  4,  3.65, "spatial" ),
-(  8,  4,  5,  4.0 , "spatial" ),
-(  9,  5,  8,  2.4 , "spatial" ),
-( 10,  5,  6,  2.0 , "spatial" ),
-( 11,  0,  7,  3.2 , "spatial" ),
-( 12,  7,  6,  2.3 , "spatial" ),
-( 13,  8,  6,  2.3 , "spatial" ),
-( 14,  1,  6,  2.0 , "spatial" )
+(0, 0, 1, 3.0, "spatial"),
+(1, 0, 2, 5.0, "spatial"),
+(2, 0, 3, 8.0, "spatial"),
+(3, 1, 4, 1.0, "spatial"),
+(4, 4, 3, 2.0, "spatial"),
+(5, 3, 5, 6.0, "spatial"),
+(6, 2, 5, 12.0, "spatial"),
+(7, 4, 5, 10.0, "spatial"),
+(8, 5, 7, 3.0, "spatial"),
+(9, 6, 10, 17.0, "spatial"),
+(10, 4, 8, 15.0, "spatial"),
+(11, 2, 6, 16.0, "spatial"),
+(12, 4, 7, 9.0, "spatial"),
+(13, 5, 8, 13.0, "spatial"),
+(14, 8, 9, 4.0, "spatial"),
+(15, 8, 10, 12.0, "spatial"),
+(16, 10, 12, 8.0, "spatial"),
+(17, 9, 11, 5.0, "spatial"),
+(18, 8, 11, 8.0, "spatial"),
+(19, 4, 12, 25.0, "spatial"),
+(20, 12, 13, 3.0, "spatial"),
+(21, 12, 15, 9.0, "spatial"),
+(22, 13, 17, 11.0, "spatial"),
+(23, 14, 15, 2.0, "spatial"),
+(24, 12, 14, 6.0, "spatial"),
+(25, 15, 18, 10.0, "spatial"),
+(26, 18, 20, 7.0, "spatial"),
+(27, 16, 21, 13.0, "spatial"),
+(28, 17, 19, 8.0, "spatial"),
+(29, 15, 19, 14.0, "spatial"),
+(30, 21, 23, 4.0, "spatial"),
+(31, 21, 22, 3.0, "spatial"),
+(32, 21, 25, 9.0, "spatial"),
+(33, 23, 26, 8.0, "spatial"),
+(34, 22, 24, 5.0, "spatial"),
+(35, 20, 24, 10.0, "spatial"),
+(36, 15, 16, 2.0, "spatial"),
+(37, 24, 25, 3.0, "spatial")
 ;
-SELECT ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 6)
+SELECT ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 26)
 FROM edges
 JOIN points ON points.id = edges.to_id
 ;
-ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 6)
-{"cost": 5.5, "path": [{"id": 11, "cost": 3.2}, {"id": 12, "cost": 2.3}], "visited_nodes": 2}
-SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 6) FROM edges;
-ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 6)
-{"cost": 5.5, "path": [{"id": 11, "cost": 3.2}, {"id": 12, "cost": 2.3}], "visited_nodes": 9}
+ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 26)
+{"cost": 64.0, "path": [{"id": 0, "cost": 3.0}, {"id": 3, "cost": 1.0}, {"id": 19, "cost": 25.0}, {"id": 24, "cost": 6.0}, {"id": 23, "cost": 2.0}, {"id": 36, "cost": 2.0}, {"id": 27, "cost": 13.0}, {"id": 30, "cost": 4.0}, {"id": 33, "cost": 8.0}], "visited_nodes": 25}
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 26) FROM edges;
+ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 26)
+{"cost": 64.0, "path": [{"id": 0, "cost": 3.0}, {"id": 3, "cost": 1.0}, {"id": 19, "cost": 25.0}, {"id": 24, "cost": 6.0}, {"id": 23, "cost": 2.0}, {"id": 36, "cost": 2.0}, {"id": 27, "cost": 13.0}, {"id": 30, "cost": 4.0}, {"id": 33, "cost": 8.0}], "visited_nodes": 30}
 UPDATE edges SET cost = 1000.0 where id = 12;
-SELECT ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 6)
+SELECT ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 26)
 FROM edges
 JOIN points ON points.id = edges.to_id
 ;
-ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 6)
-{"cost": 7.0, "path": [{"id": 2, "cost": 5.0}, {"id": 10, "cost": 2.0}], "visited_nodes": 5}
-SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 6) FROM edges;
-ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 6)
-{"cost": 7.0, "path": [{"id": 2, "cost": 5.0}, {"id": 10, "cost": 2.0}], "visited_nodes": 9}
+ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 26)
+{"cost": 64.0, "path": [{"id": 0, "cost": 3.0}, {"id": 3, "cost": 1.0}, {"id": 19, "cost": 25.0}, {"id": 24, "cost": 6.0}, {"id": 23, "cost": 2.0}, {"id": 36, "cost": 2.0}, {"id": 27, "cost": 13.0}, {"id": 30, "cost": 4.0}, {"id": 33, "cost": 8.0}], "visited_nodes": 27}
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 26) FROM edges;
+ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 26)
+{"cost": 64.0, "path": [{"id": 0, "cost": 3.0}, {"id": 3, "cost": 1.0}, {"id": 19, "cost": 25.0}, {"id": 24, "cost": 6.0}, {"id": 23, "cost": 2.0}, {"id": 36, "cost": 2.0}, {"id": 27, "cost": 13.0}, {"id": 30, "cost": 4.0}, {"id": 33, "cost": 8.0}], "visited_nodes": 31}
 UPDATE edges SET cost = 1000.0 where id = 10;
-SELECT ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 6)
+SELECT ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 26)
 FROM edges
 JOIN points ON points.id = edges.to_id
 ;
-ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 6)
-{"cost": 7.9, "path": [{"id": 1, "cost": 2.9}, {"id": 3, "cost": 3.0}, {"id": 14, "cost": 2.0}], "visited_nodes": 7}
-SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 6) FROM edges;
-ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 6)
-{"cost": 7.9, "path": [{"id": 1, "cost": 2.9}, {"id": 3, "cost": 3.0}, {"id": 14, "cost": 2.0}], "visited_nodes": 11}
+ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 26)
+{"cost": 64.0, "path": [{"id": 0, "cost": 3.0}, {"id": 3, "cost": 1.0}, {"id": 19, "cost": 25.0}, {"id": 24, "cost": 6.0}, {"id": 23, "cost": 2.0}, {"id": 36, "cost": 2.0}, {"id": 27, "cost": 13.0}, {"id": 30, "cost": 4.0}, {"id": 33, "cost": 8.0}], "visited_nodes": 24}
+SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 26) FROM edges;
+ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 26)
+{"cost": 64.0, "path": [{"id": 0, "cost": 3.0}, {"id": 3, "cost": 1.0}, {"id": 19, "cost": 25.0}, {"id": 24, "cost": 6.0}, {"id": 23, "cost": 2.0}, {"id": 36, "cost": 2.0}, {"id": 27, "cost": 13.0}, {"id": 30, "cost": 4.0}, {"id": 33, "cost": 8.0}], "visited_nodes": 32}
 # -----------------------------
 # |[3] testing error detection|
 # -----------------------------
