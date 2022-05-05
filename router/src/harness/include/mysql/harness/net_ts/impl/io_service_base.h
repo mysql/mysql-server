@@ -68,9 +68,20 @@ inline std::error_code make_error_code(net::io_service_errc e) noexcept {
 struct fd_event {
   using native_handle_type = impl::socket::native_handle_type;
 
-  native_handle_type fd;
-  short event;
+  fd_event() = default;
+  fd_event(native_handle_type _fd, short _event) : fd{_fd}, event{_event} {}
+
+  native_handle_type fd{net::impl::socket::kInvalidSocket};
+  short event{};
 };
+
+inline constexpr bool operator==(const fd_event &a, const fd_event &b) {
+  return a.event == b.event && a.fd == b.fd;
+}
+
+inline constexpr bool operator!=(const fd_event &a, const fd_event &b) {
+  return !(a == b);
+}
 
 class IoServiceBase {
  public:
