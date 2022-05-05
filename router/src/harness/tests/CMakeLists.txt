@@ -109,6 +109,7 @@ SET(TESTS
   test_net_ts_impl_kqueue_io_service.cc
   test_net_ts_impl_linux_epoll_io_service.cc
   test_net_ts_impl_netif.cc
+  test_net_ts_impl_poll_io_service.cc
   test_net_ts_impl_resolver.cc
   test_net_ts_impl_socket.cc
   test_net_ts_internet.cc
