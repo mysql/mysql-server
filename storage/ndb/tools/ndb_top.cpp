@@ -22,6 +22,7 @@
 
 #define _XOPEN_SOURCE_EXTENDED
 #include <stdio.h>
+#include <stdlib.h>
 #include <wchar.h>
 #include <locale.h>
 #include <ndb_config.h>

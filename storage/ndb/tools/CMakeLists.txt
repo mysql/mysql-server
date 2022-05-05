@@ -221,12 +221,12 @@ NDB_ADD_EXECUTABLE(ndb_secretsfile_reader
         LINK_LIBRARIES ndbmgmapi ndbgeneral ndbportlib
         )
 
-IF(NOT WIN32 AND NOT SOLARIS)
-  IF (HAVE_NCURSESW_1 OR
-      HAVE_NCURSESW_2 OR
-      HAVE_NCURSESW_3 OR
-      HAVE_NCURSESW_4 OR
-      HAVE_NCURSESW_5)
+IF(NOT WIN32)
+  IF(HAVE_NCURSESW_CURSES_H OR
+     HAVE_NCURSESW_H OR
+     HAVE_NCURSES_H OR
+     HAVE_NCURSES_CURSES_H)
+
     MESSAGE(STATUS "-- Adding ndb_top executable")
     FIND_LIBRARY(NCURSESW_LIB
       NAMES ncursesw)

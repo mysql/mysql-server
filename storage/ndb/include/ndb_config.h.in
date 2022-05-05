@@ -54,11 +54,6 @@
 #cmakedefine HAVE_NCURSESW_H 1
 #cmakedefine HAVE_NCURSES_H 1
 #cmakedefine HAVE_NCURSES_CURSES_H 1
-#cmakedefine HAVE_NCURSESW_1 1
-#cmakedefine HAVE_NCURSESW_2 1
-#cmakedefine HAVE_NCURSESW_3 1
-#cmakedefine HAVE_NCURSESW_4 1
-#cmakedefine HAVE_NCURSESW_5 1
 #cmakedefine NDB_PORT @NDB_PORT@
 #cmakedefine HAVE_MLOCK 1
 #cmakedefine HAVE_FFS 1
