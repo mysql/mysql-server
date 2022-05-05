@@ -336,7 +336,7 @@ static int field_store_index_name(
   ut_ad(index_name != nullptr);
   ut_ad(field->real_type() == MYSQL_TYPE_VARCHAR);
 
-  /* Since TEMP_INDEX_PREFIX is not a valid UTF8, we need to convert
+  /* Since TEMP_INDEX_PREFIX is not a valid UTF8MB3, we need to convert
   it to something else. */
   if (*index_name == *TEMP_INDEX_PREFIX_STR) {
     char buf[NAME_LEN + 1];
@@ -1184,14 +1184,14 @@ static int i_s_cmp_per_index_fill_low(
       if (dict_index_is_sdi(index)) {
         continue;
       }
-      char db_utf8[dict_name::MAX_DB_UTF8_LEN];
-      char table_utf8[dict_name::MAX_TABLE_UTF8_LEN];
+      char db_utf8mb3[dict_name::MAX_DB_UTF8MB3_LEN];
+      char table_utf8mb3[dict_name::MAX_TABLE_UTF8MB3_LEN];
 
-      dict_fs2utf8(index->table_name, db_utf8, sizeof(db_utf8), table_utf8,
-                   sizeof(table_utf8));
+      dict_fs2utf8(index->table_name, db_utf8mb3, sizeof(db_utf8mb3),
+                   table_utf8mb3, sizeof(table_utf8mb3));
 
-      field_store_string(fields[IDX_DATABASE_NAME], db_utf8);
-      field_store_string(fields[IDX_TABLE_NAME], table_utf8);
+      field_store_string(fields[IDX_DATABASE_NAME], db_utf8mb3);
+      field_store_string(fields[IDX_TABLE_NAME], table_utf8mb3);
       field_store_index_name(fields[IDX_INDEX_NAME], index->name);
     } else {
       /* index not found */
@@ -3506,12 +3506,12 @@ static void innodb_temp_table_populate_cache(const dict_table_t *table,
                                              temp_table_info_t *cache) {
   cache->m_table_id = table->id;
 
-  char db_utf8[dict_name::MAX_DB_UTF8_LEN];
-  char table_utf8[dict_name::MAX_TABLE_UTF8_LEN];
+  char db_utf8mb3[dict_name::MAX_DB_UTF8MB3_LEN];
+  char table_utf8mb3[dict_name::MAX_TABLE_UTF8MB3_LEN];
 
-  dict_fs2utf8(table->name.m_name, db_utf8, sizeof(db_utf8), table_utf8,
-               sizeof(table_utf8));
-  strcpy(cache->m_table_name, table_utf8);
+  dict_fs2utf8(table->name.m_name, db_utf8mb3, sizeof(db_utf8mb3),
+               table_utf8mb3, sizeof(table_utf8mb3));
+  strcpy(cache->m_table_name, table_utf8mb3);
 
   cache->m_n_cols = table->n_cols;
 

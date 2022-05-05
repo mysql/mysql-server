@@ -83,20 +83,21 @@ constexpr char SCHEMA_SEPARATOR[] = "/";
 constexpr size_t SCHEMA_SEPARATOR_LEN = sizeof(SCHEMA_SEPARATOR) - 1;
 
 /** The maximum length in bytes that a database name can occupy when
-stored in UTF8, including the terminating null. */
-constexpr size_t MAX_DB_UTF8_LEN = NAME_LEN + 1;
+stored in UTF8MB3, including the terminating null. */
+constexpr size_t MAX_DB_UTF8MB3_LEN = NAME_LEN + 1;
 
 /** The maximum length in characters for database name. */
 constexpr size_t MAX_DB_CHAR_LEN = NAME_CHAR_LEN;
 
 /** The maximum length in bytes that a table name can occupy when stored in
-UTF8, including the terminating null. NAME_LEN is added 3 times to consider
+UTF8MB3, including the terminating null. NAME_LEN is added 3 times to consider
 table name, partition name and sub-partition name for a partitioned table.
 In innodb each partition/sub-partition is a separate table named as below.
 table_name<PART_SEPARATOR>partition_name<SUB_PART_SEPARATOR>subpartition_name
 This macro only applies to table name, without any database name prefixed. */
-constexpr size_t MAX_TABLE_UTF8_LEN = NAME_LEN + PART_SEPARATOR_LEN + NAME_LEN +
-                                      SUB_PART_SEPARATOR_LEN + NAME_LEN + 1;
+constexpr size_t MAX_TABLE_UTF8MB3_LEN = NAME_LEN + PART_SEPARATOR_LEN +
+                                         NAME_LEN + SUB_PART_SEPARATOR_LEN +
+                                         NAME_LEN + 1;
 
 /** The maximum length in characters for table name. */
 constexpr size_t MAX_TABLE_CHAR_LEN = NAME_CHAR_LEN + PART_SEPARATOR_LEN +

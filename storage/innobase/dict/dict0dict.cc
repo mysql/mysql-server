@@ -4553,16 +4553,17 @@ void dict_table_check_for_dup_indexes(const dict_table_t *table,
 
 /** Converts a database and table name from filesystem encoding (e.g.
 "@code d@i1b/a@q1b@1Kc @endcode", same format as used in  dict_table_t::name)
-in two strings in UTF8 encoding (e.g. dцb and aюbØc). The output buffers must
-be at least MAX_DB_UTF8_LEN and MAX_TABLE_UTF8_LEN bytes.
+in two strings in UTF8MB3 encoding (e.g. dцb and aюbØc). The output buffers must
+be at least MAX_DB_UTF8MB3_LEN and MAX_TABLE_UTF8MB3_LEN bytes.
 @param[in]      db_and_table    database and table names,
                                 e.g. "@code d@i1b/a@q1b@1Kc @endcode"
-@param[out]     db_utf8         database name, e.g. dцb
-@param[in]      db_utf8_size    dbname_utf8 size
-@param[out]     table_utf8      table name, e.g. aюbØc
-@param[in]      table_utf8_size table_utf8 size */
-void dict_fs2utf8(const char *db_and_table, char *db_utf8, size_t db_utf8_size,
-                  char *table_utf8, size_t table_utf8_size) {
+@param[out]     db_utf8mb3         database name, e.g. dцb
+@param[in]      db_utf8mb3_size    db_utf8mb3 size
+@param[out]     table_utf8mb3      table name, e.g. aюbØc
+@param[in]      table_utf8mb3_size table_utf8mb3 size */
+void dict_fs2utf8(const char *db_and_table, char *db_utf8mb3,
+                  size_t db_utf8mb3_size, char *table_utf8mb3,
+                  size_t table_utf8mb3_size) {
   char db[MAX_DATABASE_NAME_LEN + 1];
   ulint db_len;
   uint errors;
@@ -4574,8 +4575,8 @@ void dict_fs2utf8(const char *db_and_table, char *db_utf8, size_t db_utf8_size,
   memcpy(db, db_and_table, db_len);
   db[db_len] = '\0';
 
-  strconvert(&my_charset_filename, db, system_charset_info, db_utf8,
-             db_utf8_size, &errors);
+  strconvert(&my_charset_filename, db, system_charset_info, db_utf8mb3,
+             db_utf8mb3_size, &errors);
 
   /* convert each # to @0023 in table name and store the result in buf */
   const char *table = dict_remove_db_name(db_and_table);
@@ -4599,11 +4600,11 @@ void dict_fs2utf8(const char *db_and_table, char *db_utf8, size_t db_utf8_size,
   buf_p[0] = '\0';
 
   errors = 0;
-  strconvert(&my_charset_filename, buf, system_charset_info, table_utf8,
-             table_utf8_size, &errors);
+  strconvert(&my_charset_filename, buf, system_charset_info, table_utf8mb3,
+             table_utf8mb3_size, &errors);
 
   if (errors != 0) {
-    snprintf(table_utf8, table_utf8_size, "%s", table);
+    snprintf(table_utf8mb3, table_utf8mb3_size, "%s", table);
   }
 }
 

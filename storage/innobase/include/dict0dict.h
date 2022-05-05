@@ -1231,16 +1231,17 @@ void dict_ind_init(void);
 
 /** Converts a database and table name from filesystem encoding (e.g.
 "@code d@i1b/a@q1b@1Kc @endcode", same format as used in  dict_table_t::name)
-in two strings in UTF8 encoding (e.g. dцb and aюbØc). The output buffers must
-be at least MAX_DB_UTF8_LEN and MAX_TABLE_UTF8_LEN bytes.
+in two strings in UTF8MB3 encoding (e.g. dцb and aюbØc). The output buffers must
+be at least MAX_DB_UTF8MB3_LEN and MAX_TABLE_UTF8MB3_LEN bytes.
 @param[in]      db_and_table    database and table names,
                                 e.g. "@code d@i1b/a@q1b@1Kc @endcode"
-@param[out]     db_utf8         database name, e.g. dцb
-@param[in]      db_utf8_size    dbname_utf8 size
-@param[out]     table_utf8      table name, e.g. aюbØc
-@param[in]      table_utf8_size table_utf8 size */
-void dict_fs2utf8(const char *db_and_table, char *db_utf8, size_t db_utf8_size,
-                  char *table_utf8, size_t table_utf8_size);
+@param[out]     db_utf8mb3         database name, e.g. dцb
+@param[in]      db_utf8mb3_size    db_utf8mb3 size
+@param[out]     table_utf8mb3      table name, e.g. aюbØc
+@param[in]      table_utf8mb3_size table_utf8mb3 size */
+void dict_fs2utf8(const char *db_and_table, char *db_utf8mb3,
+                  size_t db_utf8mb3_size, char *table_utf8mb3,
+                  size_t table_utf8mb3_size);
 
 /** Resize the hash tables based on the current buffer pool size. */
 void dict_resize();
