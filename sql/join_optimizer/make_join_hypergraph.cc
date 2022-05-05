@@ -907,20 +907,30 @@ bool AlreadyExistsOnJoin(Item *cond, const RelationalExpression &expr) {
     }
   }
 
-  // If "cond" is an equality created from a multiple equality, it's a bit
-  // arbitrary if it ends up as a=b or b=a. If we didn't find an exact match,
-  // see if we find one with the operands swapped.
+  // If "cond" is an equality created from a multiple equality, it might already
+  // be present on the join in a slightly different shape, because it can be a
+  // bit arbitrary exactly which single equalities a multiple equality is
+  // expanded to.
+  //
+  // For example, a=b and b=a should be considered the same. Also, if we have a
+  // multiple equality t1.x=t2.x=t2.y, we should consider t1.x=t2.x as present
+  // on the join if t1.x=t2.y is already there. We can do this because we know
+  // the t2.x=t2.y predicate will be pushed down as a table predicate (see
+  // EarlyExpandMultipleEquals() and ExpandSameTableFromMultipleEquals()), and
+  // t1.x=t2.x is implied by t1.x=t2.y and t2.x=t2.y.
+  //
+  // This means we only need to check if we have another equality that comes
+  // from the same multiple equality and connects the same two tables.
   Item_func_eq *cond_eq = is_function_of_type(cond, Item_func::EQ_FUNC)
                               ? down_cast<Item_func_eq *>(cond)
                               : nullptr;
   if (cond_eq != nullptr && cond_eq->source_multiple_equality != nullptr) {
+    const table_map used_tables = cond_eq->used_tables();
+    assert(PopulationCount(used_tables) == 2);
     for (Item *item : expr.join_conditions) {
-      if (ComesFromMultipleEquality(item, cond_eq->source_multiple_equality)) {
-        Item_func_eq *item_eq = down_cast<Item_func_eq *>(item);
-        if (cond_eq->get_arg(0)->eq(item_eq->get_arg(1), binary_cmp) &&
-            cond_eq->get_arg(1)->eq(item_eq->get_arg(0), binary_cmp)) {
-          return true;
-        }
+      if (ComesFromMultipleEquality(item, cond_eq->source_multiple_equality) &&
+          item->used_tables() == used_tables) {
+        return true;
       }
     }
   }

@@ -844,6 +844,54 @@ TEST_F(MakeHypergraphTest, MultiEqualityPredicateAppliedOnce) {
   EXPECT_FLOAT_EQ(COND_FILTER_EQUALITY, graph.edges[4].selectivity);
 }
 
+TEST_F(MakeHypergraphTest, MultiEqualityPredicateNoRedundantJoinCondition) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2, (t3 LEFT JOIN t4 ON t3.x = t4.x), t5 "
+      "WHERE t2.x = t3.x AND t3.x = t5.x AND t3.x = t3.y AND t1.x <> t5.x",
+      /*nullable=*/true);
+
+  // Build multiple equalities from the WHERE condition.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  string trace;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  ASSERT_EQ(5, graph.nodes.size());
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t4", graph.nodes[3].table->alias);
+  EXPECT_STREQ("t5", graph.nodes[4].table->alias);
+
+  EXPECT_EQ(6, graph.edges.size());
+
+  // Find the edge between t2 and t3.
+  int t2_t3_edge_idx = -1;
+  for (size_t i = 0; i < graph.graph.edges.size(); ++i) {
+    if (graph.graph.edges[i].left == TableBitmap(1) &&
+        graph.graph.edges[i].right == TableBitmap(2)) {
+      t2_t3_edge_idx = i / 2;
+      break;
+    }
+  }
+  ASSERT_NE(-1, t2_t3_edge_idx);
+
+  // Check the condition on the edge. It should be a single equality predicate;
+  // either t2.x = t3.x or t2.x = t3.y. It used to have both predicates, and
+  // therefore double-count the selectivity. (Having one of the predicates is
+  // enough, because t3.x = t3.y will always be applied as a table predicate and
+  // make the other join predicate redundant.)
+  const JoinPredicate &predicate = graph.edges[t2_t3_edge_idx];
+  EXPECT_TRUE(predicate.expr->join_conditions.empty());
+  EXPECT_EQ(1, predicate.expr->equijoin_conditions.size());
+  EXPECT_FLOAT_EQ(COND_FILTER_EQUALITY, predicate.selectivity);
+}
+
 TEST_F(MakeHypergraphTest, HyperpredicatesDoNotBlockExtraCycleEdges) {
   Query_block *query_block = ParseAndResolve(
       "SELECT 1 "
