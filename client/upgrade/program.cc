@@ -113,8 +113,8 @@ class Program : public Base::Abstract_connection_program {
 
     this->create_new_option(
         &this->m_write_binlog, "write-binlog",
-        "Write all executed SQL statements to binary log. Disabled by default; "
-        "use when statements should be sent to replication slaves.");
+        "Write all executed SQL statements to the binary log. Disabled by "
+        "default. Use of this option is discouraged.");
 
     this->create_new_option(&this->m_ignore_errors, "force",
                             "Force execution of SQL statements even if "
