@@ -217,6 +217,7 @@ class Item_func : public Item_result_field {
     NOT_FUNC,
     NOT_ALL_FUNC,
     NOW_FUNC,
+    FROM_DAYS_FUNC,
     TRIG_COND_FUNC,
     SUSERVAR_FUNC,
     GUSERVAR_FUNC,
