@@ -95,11 +95,6 @@ SET(UNLOAD_TEST_DIR "${NDBJTIE_DIR}/jtie/test/unload")
 SET(UNLOAD_TEST_JAR
   "${UNLOAD_TEST_DIR}/jtie-test-unload-${JAVA_NDB_VERSION}.jar")
 
-IF(WITH_ASAN)
-  MESSAGE(STATUS "Skipping java tests for ASAN builds")
-  RETURN()
-ENDIF()
-
 # Needed on Windows, to find SSL .dlls at runtime.
 IF(WIN32)
   SET(JAVATEST_WORKING_DIRECTORY
