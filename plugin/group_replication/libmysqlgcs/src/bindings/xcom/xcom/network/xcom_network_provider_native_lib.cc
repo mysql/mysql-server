@@ -299,9 +299,7 @@ void Xcom_network_provider_library::gcs_shutdown_socket(int *sock) {
              &dwBytesReturned, nullptr, nullptr);
   }
   if (DisconnectEx != nullptr) {
-    (DisconnectEx(*sock, (LPOVERLAPPED) nullptr, (DWORD)0, (DWORD)0) == TRUE)
-        ? 0
-        : -1;
+    DisconnectEx(*sock, (LPOVERLAPPED) nullptr, (DWORD)0, (DWORD)0);
   } else {
     shutdown(*sock, SOCK_SHUT_RDWR);
   }

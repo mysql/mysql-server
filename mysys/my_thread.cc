@@ -154,6 +154,11 @@ int my_thread_cancel(my_thread_handle *thread) {
 #endif
 }
 
+// _endthreadex(_ReturnCode) is not tagged with noreturn.
+#ifdef _WIN32
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Winvalid-noreturn")
+#endif
 void my_thread_exit(void *value_ptr [[maybe_unused]]) {
 #ifndef _WIN32
   pthread_exit(value_ptr);
@@ -161,6 +166,9 @@ void my_thread_exit(void *value_ptr [[maybe_unused]]) {
   _endthreadex(0);
 #endif
 }
+#ifdef _WIN32
+MY_COMPILER_DIAGNOSTIC_POP()
+#endif
 
 /**
   Maximum name length used for my_thread_self_setname(),

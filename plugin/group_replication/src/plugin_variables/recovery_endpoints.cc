@@ -125,7 +125,6 @@ int Recovery_endpoints::local_interfaces_ips(std::set<std::string> &local_ips) {
   DWORD retval = 0;
   PIP_ADAPTER_ADDRESSES addresses;
   PIP_ADAPTER_ADDRESSES curr_addresses;
-  ULONG number_of_interfaces = 0;
 
   out_buflen = WORKING_BUFFER_SIZE;
 

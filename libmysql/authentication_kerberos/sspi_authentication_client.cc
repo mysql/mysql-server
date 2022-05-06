@@ -46,8 +46,7 @@ Sspi_client::Sspi_client(const std::string &spn, MYSQL_PLUGIN_VIO *vio,
       m_kdc_host{kdc_host} {}
 
 bool Sspi_client::obtain_store_credentials() {
-  bool ret_val{false};
-  TimeStamp ticket_validy_time{0, 0};
+  TimeStamp ticket_validy_time{{0, 0}};
   SECURITY_STATUS sspi_status{0};
   /*
     Package name as described in:
@@ -72,24 +71,28 @@ bool Sspi_client::obtain_store_credentials() {
         "Sspi obtain and store TGT: Plug-in is trying to obtain tickets using "
         "user name and password.");
     if (!m_kdc_host.empty()) {
-      identity.Domain = (unsigned char *)(m_kdc_host.c_str());
+      identity.Domain = reinterpret_cast<unsigned char *>(
+          const_cast<char *>(m_kdc_host.c_str()));
       identity.DomainLength = m_kdc_host.length();
     }
     if (!m_upn.empty()) {
-      identity.User = (unsigned char *)(m_upn.c_str());
+      identity.User =
+          reinterpret_cast<unsigned char *>(const_cast<char *>(m_upn.c_str()));
       identity.UserLength = m_upn.length();
     }
     if (!m_password.empty()) {
-      identity.Password = (unsigned char *)(m_password.c_str());
+      identity.Password = reinterpret_cast<unsigned char *>(
+          const_cast<char *>(m_password.c_str()));
       identity.PasswordLength = m_password.length();
     }
     identity.Flags = SEC_WINNT_AUTH_IDENTITY_ANSI;
   }
 
   sspi_status = AcquireCredentialsHandle(
-      m_password.empty() ? nullptr : (LPSTR)m_upn.c_str(), mechanism,
-      SECPKG_CRED_BOTH, nullptr, m_password.empty() ? nullptr : &identity,
-      nullptr, nullptr, &m_cred, &ticket_validy_time);
+      m_password.empty() ? nullptr : const_cast<char *>(m_upn.c_str()),
+      mechanism, SECPKG_CRED_BOTH, nullptr,
+      m_password.empty() ? nullptr : &identity, nullptr, nullptr, &m_cred,
+      &ticket_validy_time);
 
   /*
     If the AcquireCredentialsHandle succeeds, the AcquireCredentialsHandle
@@ -134,7 +137,7 @@ bool Sspi_client::authenticate() {
   Kerberos_client_io client_io{m_vio};
   CtxtHandle context;
   ULONG attribs{0};
-  TimeStamp ticket_validy_time{0, 0};
+  TimeStamp ticket_validy_time{{0, 0}};
   SECURITY_STATUS sspi_status{SEC_E_LOGON_DENIED};
   SecBufferDesc input_buf_desc;
   SecBuffer input_buf;
@@ -171,9 +174,10 @@ bool Sspi_client::authenticate() {
     */
     sspi_status = InitializeSecurityContext(
         &m_cred, SecIsValidHandle(&context) ? &context : nullptr,
-        (SEC_CHAR *)m_service_principal.c_str(), ISC_REQ_ALLOCATE_MEMORY, 0,
-        SECURITY_NATIVE_DREP, input_buf.cbBuffer ? &input_buf_desc : nullptr, 0,
-        &context, &output_buf_desc, &attribs, &ticket_validy_time);
+        const_cast<char *>(m_service_principal.c_str()),
+        ISC_REQ_ALLOCATE_MEMORY, 0, SECURITY_NATIVE_DREP,
+        input_buf.cbBuffer ? &input_buf_desc : nullptr, 0, &context,
+        &output_buf_desc, &attribs, &ticket_validy_time);
 
     if (!succeeded(sspi_status)) {
       log_client_sspi_error(sspi_status,

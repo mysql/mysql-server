@@ -53,7 +53,13 @@ if(CYGWIN OR MSYS)
 endif()
 
 if(WIN32)
+  IF(WIN32_CLANG)
+    add_definitions(-DWIN32_LEAN_AND_MEAN)
+    STRING_APPEND(CMAKE_C_FLAGS
+      " -Wno-tautological-constant-out-of-range-compare")
+  ELSE()
 	add_definitions(-DWIN32_LEAN_AND_MEAN -D_WIN32_WINNT=0x0600)
+  ENDIF()
 endif()
 
 if(APPLE)

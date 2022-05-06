@@ -714,7 +714,7 @@ static int ignoresig(int signum) {
 }
 #else
 #define SIGPIPE 0
-static int ignoresig(int signum) { return 0; }
+static int ignoresig(int) { return 0; }
 #endif
 
 static int recently_active(pax_machine *p) {
