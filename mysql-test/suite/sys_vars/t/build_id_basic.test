@@ -1,4 +1,5 @@
---source include/have_build_id.inc
+# Only supported on Linux
+--source include/linux.inc
 
 SELECT COUNT(@@GLOBAL.build_id);
 
