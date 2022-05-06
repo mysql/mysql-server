@@ -741,9 +741,16 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
           raise it to the user;
     */
     if (stmt_reprepare_observer == nullptr || thd->is_fatal_error() ||
-        thd->killed || thd->get_stmt_da()->mysql_errno() != ER_NEED_REPREPARE)
+        thd->killed || thd->get_stmt_da()->mysql_errno() != ER_NEED_REPREPARE) {
+      /*
+        If an error occurred before execution, make sure next execution is
+        started with a clean statement:
+      */
+      if (m_lex->is_metadata_used() && !m_lex->is_exec_started()) {
+        invalidate();
+      }
       return true;
-
+    }
     /*
       Reprepare_observer ensures that the statement is retried a maximum number
       of times, to avoid an endless loop.
