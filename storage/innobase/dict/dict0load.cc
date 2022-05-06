@@ -828,20 +828,16 @@ dict_index_t.
 @return error message
 @retval NULL on success */
 static const char *dict_load_field_low(
-    byte *index_id,          /*!< in/out: index id (8 bytes)
-                             an "in" value if index != NULL
-                             and "out" if index == NULL */
-    dict_index_t *index,     /*!< in/out: index, could be NULL
-                             if we just populate a dict_field_t
-                             struct with information from
-                             a SYS_FIELDS record */
-    dict_field_t *sys_field, /*!< out: dict_field_t to be
-                             filled */
-    ulint *pos,              /*!< out: Field position */
-    byte *last_index_id,     /*!< in: last index id */
-    mem_heap_t *heap,        /*!< in/out: memory heap
-                             for temporary storage */
-    const rec_t *rec)        /*!< in: SYS_FIELDS record */
+    byte *index_id,      /*!< in/out: index id (8 bytes)
+                         an "in" value if index != NULL
+                         and "out" if index == NULL */
+    dict_index_t *index, /*!< in/out: index, could be NULL
+                         if we just populate a dict_field_t
+                         struct with information from
+                         a SYS_FIELDS record */
+    mem_heap_t *heap,    /*!< in/out: memory heap
+                         for temporary storage */
+    const rec_t *rec)    /*!< in: SYS_FIELDS record */
 {
   const byte *field;
   ulint len;
@@ -849,10 +845,9 @@ static const char *dict_load_field_low(
   ulint prefix_len;
   bool is_ascending;
   bool first_field;
-  ulint position;
 
-  /* Either index or sys_field is supplied, not both */
-  ut_a((!index) || (!sys_field));
+  /* Index is supplied */
+  ut_a(index);
 
   if (rec_get_deleted_flag(rec, 0)) {
     return (dict_load_field_del);
@@ -869,15 +864,9 @@ static const char *dict_load_field_low(
     return ("incorrect column length in SYS_FIELDS");
   }
 
-  if (!index) {
-    ut_a(last_index_id);
-    memcpy(index_id, (const char *)field, 8);
-    first_field = memcmp(index_id, last_index_id, 8);
-  } else {
-    first_field = (index->n_def == 0);
-    if (memcmp(field, index_id, 8)) {
-      return ("SYS_FIELDS.INDEX_ID mismatch");
-    }
+  first_field = (index->n_def == 0);
+  if (memcmp(field, index_id, 8)) {
+    return ("SYS_FIELDS.INDEX_ID mismatch");
   }
 
   /* The next field stores the field position in the index and a
@@ -904,11 +893,9 @@ static const char *dict_load_field_low(
   if (first_field || pos_and_prefix_len > 0xFFFFUL) {
     prefix_len = pos_and_prefix_len & 0x7FFFUL;
     is_ascending = !(pos_and_prefix_len & 0x8000UL);
-    position = (pos_and_prefix_len & 0xFFFF0000UL) >> 16;
   } else {
     prefix_len = 0;
     is_ascending = true;
-    position = pos_and_prefix_len & 0xFFFFUL;
   }
 
   rec_get_nth_field_offs_old(nullptr, rec, DICT_FLD__SYS_FIELDS__DB_TRX_ID,
@@ -928,17 +915,8 @@ static const char *dict_load_field_low(
     goto err_len;
   }
 
-  if (index) {
-    index->add_field(mem_heap_strdupl(heap, (const char *)field, len),
-                     prefix_len, is_ascending);
-  } else {
-    ut_a(sys_field);
-    ut_a(pos);
-
-    sys_field->name = mem_heap_strdupl(heap, (const char *)field, len);
-    sys_field->prefix_len = prefix_len;
-    *pos = position;
-  }
+  index->add_field(mem_heap_strdupl(heap, (const char *)field, len), prefix_len,
+                   is_ascending);
 
   return (nullptr);
 }
@@ -1796,8 +1774,7 @@ static ulint dict_load_fields(
 
     ut_a(pcur.is_on_user_rec());
 
-    err_msg =
-        dict_load_field_low(buf, index, nullptr, nullptr, nullptr, heap, rec);
+    err_msg = dict_load_field_low(buf, index, heap, rec);
 
     if (err_msg == dict_load_field_del) {
       /* There could be delete marked records in
