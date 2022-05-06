@@ -1281,7 +1281,7 @@ int Clone_Handle::send_data(Clone_Task *task, const Clone_file_ctx *file_ctx,
     err = file_callback(callback, task, size, false, offset
 #ifdef UNIV_PFS_IO
                         ,
-                        __FILE__, __LINE__
+                        UT_LOCATION_HERE
 #endif /* UNIV_PFS_IO */
     );
   }

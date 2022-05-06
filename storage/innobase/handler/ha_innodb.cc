@@ -19205,8 +19205,8 @@ static int innodb_show_rwlock_status(handlerton *hton, THD *thd,
     }
 
     buf1len = snprintf(buf1, sizeof buf1, "rwlock: %s:%lu",
-                       innobase_basename(rw_lock->cfile_name),
-                       static_cast<ulong>(rw_lock->cline));
+                       innobase_basename(rw_lock->clocation.filename),
+                       static_cast<ulong>(rw_lock->clocation.line));
 
     int buf2len;
     char buf2[IO_SIZE];
@@ -19228,8 +19228,8 @@ static int innodb_show_rwlock_status(handlerton *hton, THD *thd,
     char buf1[IO_SIZE];
 
     buf1len = snprintf(buf1, sizeof buf1, "sum rwlock: %s:%lu",
-                       innobase_basename(block_rwlock->cfile_name),
-                       static_cast<ulong>(block_rwlock->cline));
+                       innobase_basename(block_rwlock->clocation.filename),
+                       static_cast<ulong>(block_rwlock->clocation.line));
 
     int buf2len;
     char buf2[IO_SIZE];

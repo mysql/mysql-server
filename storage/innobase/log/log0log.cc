@@ -654,7 +654,7 @@ static void log_sys_create() {
       ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*log.sn_lock_inst)));
   new (log.sn_lock_inst) rw_lock_t;
   rw_lock_create_func(log.sn_lock_inst, SYNC_LOG_SN, "log.sn_lock_inst",
-                      __FILE__, __LINE__);
+                      UT_LOCATION_HERE);
 #endif /* UNIV_DEBUG */
 
   /* Allocate buffers. */

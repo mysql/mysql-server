@@ -7058,8 +7058,8 @@ static dberr_t os_aio_windows_handler(ulint segment, fil_node_t **m1, void **m2,
       PSI_file_locker_state state;
       register_pfs_file_io_begin(
           &state, locker, slot->file, slot->len,
-          slot->type.is_write() ? PSI_FILE_WRITE : PSI_FILE_READ, __FILE__,
-          __LINE__);
+          slot->type.is_write() ? PSI_FILE_WRITE : PSI_FILE_READ,
+          UT_LOCATION_HERE);
 #endif /* UNIV_PFS_IO */
 
       if (slot->type.is_read()) {
