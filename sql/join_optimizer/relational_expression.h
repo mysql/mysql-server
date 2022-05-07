@@ -33,7 +33,7 @@
 #include "sql/sql_class.h"
 
 struct AccessPath;
-class Item_func_eq;
+class Item_eq_base;
 
 struct ContainedSubquery {
   AccessPath *path;
@@ -145,7 +145,7 @@ struct RelationalExpression {
   Mem_root_array<RelationalExpression *>
       multi_children;  // See MULTI_INNER_JOIN.
   Mem_root_array<Item *> join_conditions;
-  Mem_root_array<Item_func_eq *> equijoin_conditions;
+  Mem_root_array<Item_eq_base *> equijoin_conditions;
 
   // For each element in join_conditions and equijoin_conditions (respectively),
   // contains some cached properties that the join optimizer would like to have

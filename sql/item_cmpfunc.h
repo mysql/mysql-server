@@ -55,7 +55,7 @@
 
 class Arg_comparator;
 class Field;
-class Item_func_eq;
+class Item_eq_base;
 class Item_in_subselect;
 class Item_subselect;
 class Item_sum_hybrid;
@@ -82,12 +82,12 @@ typedef int (Arg_comparator::*arg_cmp_func)();
 /// the Item might be a typecast. Either way, the caller should use these Items
 /// when i.e. reading the values from the join condition, so that the values are
 /// read in the right data type context. See the comments for
-/// Item_func_eq::create_cast_if_needed for more details around this.
+/// Item_eq_base::create_cast_if_needed for more details around this.
 class HashJoinCondition {
  public:
-  HashJoinCondition(Item_func_eq *join_condition, MEM_ROOT *mem_root);
+  HashJoinCondition(Item_eq_base *join_condition, MEM_ROOT *mem_root);
 
-  Item_func_eq *join_condition() const { return m_join_condition; }
+  Item_eq_base *join_condition() const { return m_join_condition; }
 
   Item *left_extractor() const { return m_left_extractor; }
   Item *right_extractor() const { return m_right_extractor; }
@@ -103,8 +103,12 @@ class HashJoinCondition {
 
   bool store_full_sort_key() const { return m_store_full_sort_key; }
 
+  /// Returns true if this join condition evaluates to TRUE if both
+  /// operands are NULL.
+  bool null_equals_null() const { return m_null_equals_null; }
+
  private:
-  Item_func_eq *m_join_condition;
+  Item_eq_base *m_join_condition;
   Item *m_left_extractor;
   Item *m_right_extractor;
 
@@ -127,6 +131,9 @@ class HashJoinCondition {
   // we hash the hash). If so, we have to do a recheck afterwards, in order to
   // guard against hash collisions.
   bool m_store_full_sort_key;
+
+  // True if NULL is considered equal to NULL, and not as UNKNOWN.
+  bool m_null_equals_null;
 };
 
 class Arg_comparator {
@@ -971,28 +978,19 @@ class Item_func_nop_all final : public Item_func_not_all {
 };
 
 /**
-  Implements the comparison operator equals (=)
+  Base class for the equality comparison operators = and <=>.
+
+  Both of these operators can be used to construct a key for a hash join, as
+  both represent an equality, only differing in how NULL values are handled. The
+  common code for constructing hash join keys is located in this class.
 */
-class Item_func_eq : public Item_func_comparison {
- public:
-  Item_func_eq(Item *a, Item *b) : Item_func_comparison(a, b) {}
-  Item_func_eq(const POS &pos, Item *a, Item *b)
+class Item_eq_base : public Item_func_comparison {
+ protected:
+  Item_eq_base(Item *a, Item *b) : Item_func_comparison(a, b) {}
+  Item_eq_base(const POS &pos, Item *a, Item *b)
       : Item_func_comparison(pos, a, b) {}
-  longlong val_int() override;
-  enum Functype functype() const override { return EQ_FUNC; }
-  enum Functype rev_functype() const override { return EQ_FUNC; }
-  cond_result eq_cmp_result() const override { return COND_TRUE; }
-  const char *func_name() const override { return "="; }
-  Item *negated_item() override;
-  bool equality_substitution_analyzer(uchar **) override { return true; }
-  Item *equality_substitution_transformer(uchar *arg) override;
-  bool gc_subst_analyzer(uchar **) override { return true; }
 
-  float get_filtering_effect(THD *thd, table_map filter_for_table,
-                             table_map read_tables,
-                             const MY_BITMAP *fields_to_ignore,
-                             double rows_in_table) override;
-
+ public:
   /// Read the value from the join condition, and append it to the output vector
   /// "join_key_buffer". The function will determine which side of the condition
   /// to read the value from by using the bitmap "tables".
@@ -1006,7 +1004,8 @@ class Item_func_eq : public Item_func_comparison {
   /// @param is_multi_column_key true if the hash join key has multiple columns
   ///   (that is, the hash join condition is a conjunction)
   ///
-  /// @returns true if an SQL NULL was encountered, false otherwise
+  /// @returns true if this is an ordinary equality (=) predicate and the value
+  /// evaluated to NULL, or false otherwise.
   bool append_join_key_for_hash_join(THD *thd, table_map tables,
                                      const HashJoinCondition &join_condition,
                                      bool is_multi_column_key,
@@ -1026,11 +1025,46 @@ class Item_func_eq : public Item_func_comparison {
   ///
   /// @param mem_root the MEM_ROOT where the typecast node is allocated
   /// @param argument the argument that we might wrap in a typecast. This is
-  ///   either the left or the right side of the Item_func_eq
+  ///   either the left or the right side of the Item_eq_base
   ///
   /// @returns either the argument it was given, or the argument wrapped in a
   ///   typecast
   Item *create_cast_if_needed(MEM_ROOT *mem_root, Item *argument) const;
+
+  /// If this equality originally came from a multi-equality, this documents
+  /// which one it came from (otherwise nullptr). It is used during planning:
+  /// For selectivity estimates and for not pushing down the same multi-equality
+  /// to the same join more than once (see IsBadJoinForCondition()).
+  ///
+  /// This is used only in the hypergraph optimizer; the pre-hypergraph
+  /// optimizer uses COND_EQUAL to find this instead.
+  ///
+  /// It is always nullptr in Item_func_equal objects, as such objects are never
+  /// created from multiple equalities.
+  Item_equal *source_multiple_equality = nullptr;
+};
+
+/**
+  Implements the comparison operator equals (=)
+*/
+class Item_func_eq final : public Item_eq_base {
+ public:
+  Item_func_eq(Item *a, Item *b) : Item_eq_base(a, b) {}
+  Item_func_eq(const POS &pos, Item *a, Item *b) : Item_eq_base(pos, a, b) {}
+  longlong val_int() override;
+  enum Functype functype() const override { return EQ_FUNC; }
+  enum Functype rev_functype() const override { return EQ_FUNC; }
+  cond_result eq_cmp_result() const override { return COND_TRUE; }
+  const char *func_name() const override { return "="; }
+  Item *negated_item() override;
+  bool equality_substitution_analyzer(uchar **) override { return true; }
+  Item *equality_substitution_transformer(uchar *arg) override;
+  bool gc_subst_analyzer(uchar **) override { return true; }
+
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table) override;
 
   /// See if this is a condition where any of the arguments refers to a field
   /// that is outside the bits marked by 'left_side_tables' and
@@ -1065,15 +1099,6 @@ class Item_func_eq : public Item_func_comparison {
   void ensure_multi_equality_fields_are_available(table_map left_side_tables,
                                                   table_map right_side_tables,
                                                   bool replace, bool *found);
-
-  // If this equality originally came from a multi-equality, this documents
-  // which one it came from (otherwise nullptr). It is used during planning:
-  // For selectivity estimates and for not pushing down the same multi-equality
-  // to the same join more than once (see IsBadJoinForCondition()).
-  //
-  // This is used only in the hypergraph optimizer; the pre-hypergraph optimizer
-  // uses COND_EQUAL to find this instead.
-  Item_equal *source_multiple_equality = nullptr;
 };
 
 /**
@@ -1085,13 +1110,12 @@ class Item_func_eq : public Item_func_comparison {
 
   Notice that the result is TRUE or FALSE, and never UNKNOWN.
 */
-class Item_func_equal final : public Item_func_comparison {
+class Item_func_equal final : public Item_eq_base {
  public:
-  Item_func_equal(Item *a, Item *b) : Item_func_comparison(a, b) {
+  Item_func_equal(Item *a, Item *b) : Item_eq_base(a, b) {
     null_on_null = false;
   }
-  Item_func_equal(const POS &pos, Item *a, Item *b)
-      : Item_func_comparison(pos, a, b) {
+  Item_func_equal(const POS &pos, Item *a, Item *b) : Item_eq_base(pos, a, b) {
     null_on_null = false;
   }
   // Needs null value propagated to parent, even though operator is not nullable

@@ -2081,7 +2081,7 @@ static AccessPath *CreateHashJoinAccessPath(
   // zero-row property to our own join).
   //
   // We also remove the join conditions, to avoid using time on extracting their
-  // hash values. (Also, Item_func_eq::append_join_key_for_hash_join has an
+  // hash values. (Also, Item_eq_base::append_join_key_for_hash_join has an
   // assert that this case should never happen, so it would trigger.)
   const table_map probe_used_tables =
       GetUsedTableMap(probe_path, /*include_pruned_tables=*/false);

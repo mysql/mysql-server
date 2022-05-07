@@ -3613,7 +3613,7 @@ void CostingReceiver::ProposeNestedLoopJoin(
     for (size_t join_cond_idx = 0;
          join_cond_idx < edge->expr->equijoin_conditions.size();
          ++join_cond_idx) {
-      Item_func_eq *condition = edge->expr->equijoin_conditions[join_cond_idx];
+      Item_eq_base *condition = edge->expr->equijoin_conditions[join_cond_idx];
       const CachedPropertiesForPredicate &properties =
           edge->expr->properties_for_equijoin_conditions[join_cond_idx];
 
@@ -3737,7 +3737,7 @@ double CostingReceiver::FindAlreadyAppliedSelectivity(
   for (size_t join_cond_idx = 0;
        join_cond_idx < edge->expr->equijoin_conditions.size();
        ++join_cond_idx) {
-    Item_func_eq *condition = edge->expr->equijoin_conditions[join_cond_idx];
+    Item_eq_base *condition = edge->expr->equijoin_conditions[join_cond_idx];
     const CachedPropertiesForPredicate &properties =
         edge->expr->properties_for_equijoin_conditions[join_cond_idx];
 
@@ -4769,7 +4769,7 @@ bool IsImmediateUpdateCandidate(const TABLE_LIST *table_ref, int node_idx,
       for (Item *condition : expr->join_conditions) {
         AddFieldsToTmpSet(condition, table);
       }
-      for (Item_func_eq *condition : expr->equijoin_conditions) {
+      for (Item_eq_base *condition : expr->equijoin_conditions) {
         AddFieldsToTmpSet(condition, table);
       }
     }
@@ -4781,7 +4781,7 @@ bool IsImmediateUpdateCandidate(const TABLE_LIST *table_ref, int node_idx,
       for (Item *condition : expr->join_conditions) {
         AddFieldsToTmpSet(condition, table);
       }
-      for (Item_func_eq *condition : expr->equijoin_conditions) {
+      for (Item_eq_base *condition : expr->equijoin_conditions) {
         AddFieldsToTmpSet(condition, table);
       }
     }
@@ -5937,7 +5937,7 @@ void FindSargablePredicates(THD *thd, string *trace, JoinHypergraph *graph) {
   }
 }
 
-static bool ComesFromSameMultiEquality(Item *cond1, Item_func_eq *cond2) {
+static bool ComesFromSameMultiEquality(Item *cond1, Item_eq_base *cond2) {
   return cond2->source_multiple_equality != nullptr &&
          is_function_of_type(cond1, Item_func::EQ_FUNC) &&
          down_cast<Item_func_eq *>(cond1)->source_multiple_equality ==
@@ -5958,7 +5958,7 @@ static void CacheCostInfoForJoinConditions(THD *thd,
   for (JoinPredicate &edge : graph->edges) {
     edge.expr->properties_for_equijoin_conditions.init(thd->mem_root);
     edge.expr->properties_for_join_conditions.init(thd->mem_root);
-    for (Item_func_eq *cond : edge.expr->equijoin_conditions) {
+    for (Item_eq_base *cond : edge.expr->equijoin_conditions) {
       CachedPropertiesForPredicate properties;
       properties.selectivity = EstimateSelectivity(thd, cond, trace);
       properties.contained_subqueries.init(thd->mem_root);

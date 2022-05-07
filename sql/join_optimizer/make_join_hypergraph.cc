@@ -889,7 +889,7 @@ bool MultipleEqualityAlreadyExistsOnJoin(Item_equal *equal,
       return true;
     }
   }
-  for (Item_func_eq *item : expr.equijoin_conditions) {
+  for (Item_eq_base *item : expr.equijoin_conditions) {
     if (item->source_multiple_equality == equal) {
       return true;
     }
@@ -2014,7 +2014,7 @@ void ExtractCycleMultipleEqualitiesFromJoinConditions(
   if (expr->type == RelationalExpression::TABLE) {
     return;
   }
-  for (Item_func_eq *eq_item : expr->equijoin_conditions) {
+  for (Item_eq_base *eq_item : expr->equijoin_conditions) {
     if (eq_item->source_multiple_equality != nullptr &&
         ShouldCompleteMeshForCondition(eq_item->source_multiple_equality,
                                        table_num_to_companion_set)) {
@@ -2598,7 +2598,7 @@ size_t EstimateRowWidthForJoin(const JoinHypergraph &graph,
   size_t ret = 0;
 
   // Estimate size of the join keys.
-  for (Item_func_eq *join_condition : expr->equijoin_conditions) {
+  for (Item_eq_base *join_condition : expr->equijoin_conditions) {
     // We heuristically limit our estimate of blobs to 4 kB.
     // Otherwise, the mere presence of a LONGBLOB field would mean
     // we'd estimate essentially infinite row width for a join.

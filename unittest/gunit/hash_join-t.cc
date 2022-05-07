@@ -48,11 +48,11 @@
 #include "sql/join_type.h"
 #include "sql/mem_root_array.h"
 #include "sql/pack_rows.h"
+#include "sql/sql_class.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"
 #include "sql/table.h"
-#include "sql/thr_malloc.h"
 #include "sql_string.h"
 #include "template_utils.h"
 #include "unittest/gunit/benchmark.h"
@@ -69,6 +69,7 @@ class Query_block;
 using pack_rows::TableCollection;
 using std::nullopt;
 using std::optional;
+using std::pair;
 using std::string;
 using std::vector;
 using testing::ElementsAre;
@@ -274,7 +275,7 @@ class HashJoinTestHelper {
   HashJoinTestHelper(const Server_initializer &initializer,
                      vector<optional<int>> left_dataset,
                      vector<optional<int>> right_dataset,
-                     bool is_nullable = false) {
+                     bool is_nullable = false, bool null_safe_equal = false) {
     m_left_table_field.reset(new (&m_mem_root) Mock_field_long(
         "column1", is_nullable, /*is_unsigned=*/false));
     m_left_table.reset(new (&m_mem_root) Fake_TABLE(m_left_table_field.get()));
@@ -283,7 +284,7 @@ class HashJoinTestHelper {
         "column1", is_nullable, /*is_unsigned=*/false));
     m_right_table.reset(new (&m_mem_root)
                             Fake_TABLE(m_right_table_field.get()));
-    SetupFakeTables(initializer);
+    SetupFakeTables(initializer, null_safe_equal);
 
     left_iterator.reset(new (&m_mem_root) FakeIntegerIterator(
         initializer.thd(), m_left_table.get(),
@@ -296,8 +297,8 @@ class HashJoinTestHelper {
   HashJoinTestHelper(const Server_initializer &initializer,
                      vector<optional<string>> left_dataset,
                      vector<optional<string>> right_dataset,
-                     bool is_nullable = false)
-      : extra_conditions(*THR_MALLOC) {
+                     bool is_nullable = false, bool null_safe_equal = false)
+      : extra_conditions(initializer.thd()->mem_root) {
     m_left_table_field.reset(new (&m_mem_root) Mock_field_varstring(
         nullptr, "column1", /*char_len=*/255, is_nullable));
     m_left_table.reset(new (&m_mem_root) Fake_TABLE(m_left_table_field.get()));
@@ -306,7 +307,7 @@ class HashJoinTestHelper {
         nullptr, "column1", /*char_len=*/255, is_nullable));
     m_right_table.reset(new (&m_mem_root)
                             Fake_TABLE(m_right_table_field.get()));
-    SetupFakeTables(initializer);
+    SetupFakeTables(initializer, null_safe_equal);
 
     left_iterator.reset(new (&m_mem_root) FakeStringIterator(
         initializer.thd(), m_left_table.get(),
@@ -326,7 +327,8 @@ class HashJoinTestHelper {
   }
 
  private:
-  void SetupFakeTables(const Server_initializer &initializer) {
+  void SetupFakeTables(const Server_initializer &initializer,
+                       bool null_safe_equal) {
     bitmap_set_all(m_left_table->write_set);
     bitmap_set_all(m_left_table->read_set);
     bitmap_set_all(m_right_table->write_set);
@@ -353,9 +355,14 @@ class HashJoinTestHelper {
     right_qep_tab->table_ref = m_right_table->pos_in_table_list;
     right_qep_tab->set_join(join);
 
-    Item_func_eq *eq =
-        new Item_func_eq(new Item_field(m_left_table->field[0]),
-                         new Item_field(m_right_table->field[0]));
+    Item_field *const left_arg = new Item_field(m_left_table->field[0]);
+    Item_field *const right_arg = new Item_field(m_right_table->field[0]);
+    Item_eq_base *eq;
+    if (null_safe_equal) {
+      eq = new Item_func_equal(left_arg, right_arg);
+    } else {
+      eq = new Item_func_eq(left_arg, right_arg);
+    }
     eq->set_cmp_func();
     join_condition = new (&m_mem_root) HashJoinCondition(eq, &m_mem_root);
   }
@@ -892,6 +899,155 @@ TEST(HashJoinTest, InnerJoinStringNullable) {
   EXPECT_THAT(CollectStringResults(&hash_join_iterator,
                                    test_helper.left_qep_tab->table()->field[0]),
               ElementsAre("abc", "xyz", ""));
+}
+
+TEST(HashJoinTest, InnerJoinIntNullSafeEqual) {
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  HashJoinTestHelper test_helper(initializer, {nullopt, 0, 1, 2, nullopt, 3},
+                                 {nullopt, 0, 1, nullopt, 1, 2, 4},
+                                 /*is_nullable=*/true,
+                                 /*null_safe_equal=*/true);
+
+  HashJoinIterator hash_join_iterator(
+      initializer.thd(), std::move(test_helper.left_iterator),
+      test_helper.left_tables(),
+      /*estimated_build_rows=*/1000, std::move(test_helper.right_iterator),
+      test_helper.right_tables(), /*store_rowids=*/false,
+      /*tables_to_get_rowid_for=*/0,
+      /*max_memory_available=*/size_t{10} * 1024 * 1024,
+      {*test_helper.join_condition},
+      /*allow_spill_to_disk=*/true, JoinType::INNER,
+      test_helper.extra_conditions,
+      /*probe_input_batch_mode=*/false, /*hash_table_generation=*/nullptr);
+
+  ASSERT_FALSE(hash_join_iterator.Init());
+
+  EXPECT_THAT(CollectIntResults(&hash_join_iterator,
+                                test_helper.left_qep_tab->table()->field[0]),
+              ElementsAre(nullopt, nullopt, 0, 1, nullopt, nullopt, 1, 2));
+}
+
+TEST(HashJoinTest, LeftJoinIntNullSafeEqual) {
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  HashJoinTestHelper test_helper(initializer, {nullopt, 0, 1, 2, nullopt, 3},
+                                 {nullopt, 0, 1, nullopt, 1, 2, 4},
+                                 /*is_nullable=*/true,
+                                 /*null_safe_equal=*/true);
+
+  HashJoinIterator hash_join_iterator(
+      initializer.thd(), std::move(test_helper.left_iterator),
+      test_helper.left_tables(),
+      /*estimated_build_rows=*/1000, std::move(test_helper.right_iterator),
+      test_helper.right_tables(), /*store_rowids=*/false,
+      /*tables_to_get_rowid_for=*/0,
+      /*max_memory_available=*/size_t{10} * 1024 * 1024,
+      {*test_helper.join_condition},
+      /*allow_spill_to_disk=*/true, JoinType::OUTER,
+      test_helper.extra_conditions,
+      /*probe_input_batch_mode=*/false, /*hash_table_generation=*/nullptr);
+
+  ASSERT_FALSE(hash_join_iterator.Init());
+
+  const Field *const build_field = test_helper.left_qep_tab->table()->field[0];
+  const Field *const probe_field = test_helper.right_qep_tab->table()->field[0];
+  String buffer;
+  vector<pair<optional<int>, optional<int>>> results;
+  int error;
+  while ((error = hash_join_iterator.Read()) == 0) {
+    pair<optional<int>, optional<int>> &values = results.emplace_back();
+    if (!build_field->is_null()) {
+      values.first = build_field->val_int();
+    }
+    if (!probe_field->is_null()) {
+      values.second = probe_field->val_int();
+    }
+  }
+  EXPECT_EQ(-1, error);
+  EXPECT_THAT(
+      results,
+      ElementsAre(pair(nullopt, nullopt), pair(nullopt, nullopt), pair(0, 0),
+                  pair(1, 1), pair(nullopt, nullopt), pair(nullopt, nullopt),
+                  pair(1, 1), pair(2, 2), pair(nullopt, 4)));
+}
+
+TEST(HashJoinTest, InnerJoinStringNullSafeEqual) {
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  HashJoinTestHelper test_helper(initializer,
+                                 {nullopt, "", "abc", "def", nullopt, "abc"},
+                                 {nullopt, "", "abc", nullopt, "xyz", "def"},
+                                 /*is_nullable=*/true,
+                                 /*null_safe_equal=*/true);
+
+  HashJoinIterator hash_join_iterator(
+      initializer.thd(), std::move(test_helper.left_iterator),
+      test_helper.left_tables(),
+      /*estimated_build_rows=*/1000, std::move(test_helper.right_iterator),
+      test_helper.right_tables(), /*store_rowids=*/false,
+      /*tables_to_get_rowid_for=*/0,
+      /*max_memory_available=*/size_t{10} * 1024 * 1024,
+      {*test_helper.join_condition},
+      /*allow_spill_to_disk=*/true, JoinType::INNER,
+      test_helper.extra_conditions,
+      /*probe_input_batch_mode=*/false, /*hash_table_generation=*/nullptr);
+
+  ASSERT_FALSE(hash_join_iterator.Init());
+
+  EXPECT_THAT(
+      CollectStringResults(&hash_join_iterator,
+                           test_helper.left_qep_tab->table()->field[0]),
+      ElementsAre(nullopt, nullopt, "", "abc", "abc", nullopt, nullopt, "def"));
+}
+
+TEST(HashJoinTest, LeftJoinStringNullSafeEqual) {
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  HashJoinTestHelper test_helper(initializer,
+                                 {nullopt, "", "abc", "def", nullopt, "abc"},
+                                 {nullopt, "", "abc", nullopt, "xyz", "def"},
+                                 /*is_nullable=*/true,
+                                 /*null_safe_equal=*/true);
+
+  HashJoinIterator hash_join_iterator(
+      initializer.thd(), std::move(test_helper.left_iterator),
+      test_helper.left_tables(),
+      /*estimated_build_rows=*/1000, std::move(test_helper.right_iterator),
+      test_helper.right_tables(), /*store_rowids=*/false,
+      /*tables_to_get_rowid_for=*/0,
+      /*max_memory_available=*/size_t{10} * 1024 * 1024,
+      {*test_helper.join_condition},
+      /*allow_spill_to_disk=*/true, JoinType::OUTER,
+      test_helper.extra_conditions,
+      /*probe_input_batch_mode=*/false, /*hash_table_generation=*/nullptr);
+
+  ASSERT_FALSE(hash_join_iterator.Init());
+
+  const Field *const build_field = test_helper.left_qep_tab->table()->field[0];
+  const Field *const probe_field = test_helper.right_qep_tab->table()->field[0];
+  String buffer;
+  vector<pair<optional<string>, optional<string>>> results;
+  int error;
+  while ((error = hash_join_iterator.Read()) == 0) {
+    pair<optional<string>, optional<string>> &row = results.emplace_back();
+    if (!build_field->is_null()) {
+      row.first = to_string(*build_field->val_str(&buffer));
+    }
+    if (!probe_field->is_null()) {
+      row.second = to_string(*probe_field->val_str(&buffer));
+    }
+  }
+  EXPECT_EQ(-1, error);
+  EXPECT_THAT(results,
+              ElementsAre(pair(nullopt, nullopt), pair(nullopt, nullopt),
+                          pair("", ""), pair("abc", "abc"), pair("abc", "abc"),
+                          pair(nullopt, nullopt), pair(nullopt, nullopt),
+                          pair(nullopt, "xyz"), pair("def", "def")));
 }
 
 }  // namespace hash_join_unittest

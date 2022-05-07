@@ -7670,10 +7670,11 @@ static bool append_decimal_value(Item *comparand, bool is_multi_column_key,
 /// we are basically creating a sort key. Other types (DECIMAL and FLOAT(M,N)
 /// and DOUBLE(M, N)) may be wrapped in a typecast in order to get a memcmp-able
 /// format from both sides of the condition.
-/// See Item_func_eq::create_cast_if_needed for more details.
+/// See Item_eq_base::create_cast_if_needed for more details.
 ///
 /// @param thd the thread handler
-/// @param comparand the item we are extracting the value from
+/// @param join_condition The hash join condition from which to get the value
+///   to write into the buffer.
 /// @param comparator the comparator set up by Item_cmpfunc. This gives us the
 ///   context in which the comparison is done. It is also needed for extracting
 ///   the value in case of DATE/TIME/DATETIME/YEAR values in some cases
@@ -7681,23 +7682,18 @@ static bool append_decimal_value(Item *comparand, bool is_multi_column_key,
 ///   argument of the condition. This is needed in case the comparator has set
 ///   up a custom function for extracting the value from the item, as there are
 ///   two separate functions for each side of the condition
-/// @param max_char_length the maximum character length among the two arguments.
-///   This is only relevant when we have a PAD SPACE collation and the SQL mode
-///   PAD_CHAR_TO_FULL_LENGTH enabled, since we will have to pad the shortest
-///   argument to the same length as the longest argument
-/// @param store_full_sort_key if false, will store only a hash of string
-///   fields, instead of the string itself.
-///   @see HashJoinCondition::m_store_full_sort_key
 /// @param is_multi_column_key true if the hash join key has multiple columns
 ///   (that is, the hash join condition is a conjunction)
 /// @param[out] join_key_buffer the output buffer where the extracted value
 ///   is appended
 ///
 /// @returns true if a SQL NULL value was found
-static bool extract_value_for_hash_join(
-    THD *thd, Item *comparand, const Arg_comparator *comparator,
-    bool is_left_argument, size_t max_char_length, bool store_full_sort_key,
-    bool is_multi_column_key, String *join_key_buffer) {
+static bool extract_value_for_hash_join(THD *thd,
+                                        const HashJoinCondition &join_condition,
+                                        const Arg_comparator *comparator,
+                                        bool is_left_argument,
+                                        bool is_multi_column_key,
+                                        String *join_key_buffer) {
   if (comparator->get_compare_type() == ROW_RESULT) {
     // If the comparand returns a row via a subquery or a row value expression,
     // the comparator will be set up with child comparators (one for each column
@@ -7707,6 +7703,8 @@ static bool extract_value_for_hash_join(
     comparator = comparator->get_child_comparators();
   }
 
+  Item *comparand = is_left_argument ? join_condition.left_extractor()
+                                     : join_condition.right_extractor();
   if (comparand->type() == Item::ROW_ITEM) {
     // In case of row value, get hold of the first column in the row. Note that
     // this is not needed for subqueries; val_* will execute and return the
@@ -7733,9 +7731,10 @@ static bool extract_value_for_hash_join(
 
   switch (comparator->get_compare_type()) {
     case STRING_RESULT: {
-      if (store_full_sort_key) {
+      if (join_condition.store_full_sort_key()) {
         return append_string_value(
-            comparand, comparator->cmp_collation.collation, max_char_length,
+            comparand, comparator->cmp_collation.collation,
+            join_condition.max_character_length(),
             (thd->variables.sql_mode & MODE_PAD_CHAR_TO_FULL_LENGTH) > 0,
             is_multi_column_key, join_key_buffer);
       } else {
@@ -7767,30 +7766,33 @@ static bool extract_value_for_hash_join(
   return false;
 }
 
-bool Item_func_eq::append_join_key_for_hash_join(
+bool Item_eq_base::append_join_key_for_hash_join(
     THD *thd, const table_map tables, const HashJoinCondition &join_condition,
     bool is_multi_column_key, String *join_key_buffer) const {
-  if (join_condition.left_uses_any_table(tables)) {
-    assert(!join_condition.right_uses_any_table(tables));
-    return extract_value_for_hash_join(thd, join_condition.left_extractor(),
-                                       &cmp, true,
-                                       join_condition.max_character_length(),
-                                       join_condition.store_full_sort_key(),
-                                       is_multi_column_key, join_key_buffer);
-  } else if (join_condition.right_uses_any_table(tables)) {
-    assert(!join_condition.left_uses_any_table(tables));
-    return extract_value_for_hash_join(thd, join_condition.right_extractor(),
-                                       &cmp, false,
-                                       join_condition.max_character_length(),
-                                       join_condition.store_full_sort_key(),
-                                       is_multi_column_key, join_key_buffer);
+  const bool is_left_argument = join_condition.left_uses_any_table(tables);
+  assert(is_left_argument != join_condition.right_uses_any_table(tables));
+
+  // If this is a NULL-safe equal (<=>), we need to store NULL values in the
+  // hash key. Set it to zero initially to indicate not NULL. Gets updated later
+  // if it turns out the value is NULL.
+  const size_t null_pos = join_key_buffer->length();
+  if (join_condition.null_equals_null()) {
+    join_key_buffer->append(char{0});
   }
 
-  assert(false);
-  return true;
+  const bool is_null =
+      extract_value_for_hash_join(thd, join_condition, &cmp, is_left_argument,
+                                  is_multi_column_key, join_key_buffer);
+
+  if (is_null && join_condition.null_equals_null()) {
+    (*join_key_buffer)[null_pos] = 1;
+    return false;
+  }
+
+  return is_null;
 }
 
-Item *Item_func_eq::create_cast_if_needed(MEM_ROOT *mem_root,
+Item *Item_eq_base::create_cast_if_needed(MEM_ROOT *mem_root,
                                           Item *argument) const {
   // We wrap the argument in a typecast node in two cases:
   // a) If the comparison is done in a DECIMAL context.
@@ -7818,7 +7820,7 @@ Item *Item_func_eq::create_cast_if_needed(MEM_ROOT *mem_root,
   return argument;
 }
 
-HashJoinCondition::HashJoinCondition(Item_func_eq *join_condition,
+HashJoinCondition::HashJoinCondition(Item_eq_base *join_condition,
                                      MEM_ROOT *mem_root)
     : m_join_condition(join_condition),
       m_left_extractor(join_condition->create_cast_if_needed(
@@ -7828,7 +7830,10 @@ HashJoinCondition::HashJoinCondition(Item_func_eq *join_condition,
       m_left_used_tables(join_condition->arguments()[0]->used_tables()),
       m_right_used_tables(join_condition->arguments()[1]->used_tables()),
       m_max_character_length(max(m_left_extractor->max_char_length(),
-                                 m_right_extractor->max_char_length())) {
+                                 m_right_extractor->max_char_length())),
+      m_null_equals_null(join_condition->functype() == Item_func::EQUAL_FUNC &&
+                         (join_condition->get_arg(0)->is_nullable() ||
+                          join_condition->get_arg(1)->is_nullable())) {
   m_store_full_sort_key = true;
 
   const bool using_secondary_storage_engine =

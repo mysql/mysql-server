@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "sql/item.h"
+#include "sql/item_cmpfunc.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/explain_access_path.h"
 #include "sql/join_optimizer/relational_expression.h"
@@ -85,7 +86,7 @@ TEST_F(ConnectJoinTest, SemiJoin) {
   EXPECT_EQ(RelationalExpression::SEMIJOIN,
             root->hash_join().join_predicate->expr->type);
 
-  const Mem_root_array<Item_func_eq *> &join_conditions =
+  const Mem_root_array<Item_eq_base *> &join_conditions =
       root->hash_join().join_predicate->expr->equijoin_conditions;
   ASSERT_EQ(1, join_conditions.size());
   EXPECT_EQ("(t1.x = t2.x)", ItemToString(join_conditions[0]));
@@ -145,7 +146,7 @@ TEST_F(ConnectJoinTest, SemiJoinWithInnerJoin) {
   EXPECT_EQ(RelationalExpression::SEMIJOIN,
             root->hash_join().join_predicate->expr->type);
 
-  const Mem_root_array<Item_func_eq *> &semijoin_conditions =
+  const Mem_root_array<Item_eq_base *> &semijoin_conditions =
       root->hash_join().join_predicate->expr->equijoin_conditions;
   ASSERT_EQ(1, semijoin_conditions.size());
   EXPECT_EQ("(t1.x = t2.x)", ItemToString(semijoin_conditions[0]));
@@ -159,7 +160,7 @@ TEST_F(ConnectJoinTest, SemiJoinWithInnerJoin) {
   EXPECT_EQ(RelationalExpression::INNER_JOIN,
             semi_inner->hash_join().join_predicate->expr->type);
 
-  const Mem_root_array<Item_func_eq *> &inner_join_conditions =
+  const Mem_root_array<Item_eq_base *> &inner_join_conditions =
       semi_inner->hash_join().join_predicate->expr->equijoin_conditions;
   ASSERT_EQ(1, inner_join_conditions.size());
   EXPECT_EQ("(t2.y = t3.y)", ItemToString(inner_join_conditions[0]));
@@ -256,7 +257,7 @@ TEST_F(ConnectJoinTest, SemiJoinWithMultiEqual) {
   EXPECT_EQ(RelationalExpression::SEMIJOIN,
             root->hash_join().join_predicate->expr->type);
 
-  const Mem_root_array<Item_func_eq *> &semijoin_conditions =
+  const Mem_root_array<Item_eq_base *> &semijoin_conditions =
       root->hash_join().join_predicate->expr->equijoin_conditions;
   ASSERT_EQ(1, semijoin_conditions.size());
   EXPECT_EQ("(t3.x = t1.x)", ItemToString(semijoin_conditions[0]));
@@ -270,7 +271,7 @@ TEST_F(ConnectJoinTest, SemiJoinWithMultiEqual) {
   EXPECT_EQ(RelationalExpression::INNER_JOIN,
             semi_inner->hash_join().join_predicate->expr->type);
 
-  const Mem_root_array<Item_func_eq *> &inner_join_conditions =
+  const Mem_root_array<Item_eq_base *> &inner_join_conditions =
       semi_inner->hash_join().join_predicate->expr->equijoin_conditions;
   ASSERT_EQ(1, inner_join_conditions.size());
   EXPECT_EQ("(t2.x = t3.x)", ItemToString(inner_join_conditions[0]));
@@ -376,7 +377,7 @@ TEST_F(ConnectJoinTest, OuterJoin) {
   EXPECT_EQ(RelationalExpression::LEFT_JOIN,
             root->hash_join().join_predicate->expr->type);
 
-  const Mem_root_array<Item_func_eq *> &leftjoin_conditions =
+  const Mem_root_array<Item_eq_base *> &leftjoin_conditions =
       root->hash_join().join_predicate->expr->equijoin_conditions;
   ASSERT_EQ(1, leftjoin_conditions.size());
   EXPECT_EQ("(t2.x = t3.x)", ItemToString(leftjoin_conditions[0]));
@@ -386,7 +387,7 @@ TEST_F(ConnectJoinTest, OuterJoin) {
   EXPECT_EQ(RelationalExpression::INNER_JOIN,
             left_outer->hash_join().join_predicate->expr->type);
 
-  const Mem_root_array<Item_func_eq *> &inner_join_conditions =
+  const Mem_root_array<Item_eq_base *> &inner_join_conditions =
       left_outer->hash_join().join_predicate->expr->equijoin_conditions;
   ASSERT_EQ(1, inner_join_conditions.size());
   EXPECT_EQ("(t1.x = t2.x)", ItemToString(inner_join_conditions[0]));
@@ -467,7 +468,7 @@ TEST_F(ConnectJoinTest, OuterJoinInSemiJoin) {
   EXPECT_EQ(RelationalExpression::SEMIJOIN,
             root->hash_join().join_predicate->expr->type);
 
-  const Mem_root_array<Item_func_eq *> &semijoin_conditions =
+  const Mem_root_array<Item_eq_base *> &semijoin_conditions =
       root->hash_join().join_predicate->expr->equijoin_conditions;
   ASSERT_EQ(1, semijoin_conditions.size());
   EXPECT_EQ("(t1.x = t2.x)", ItemToString(semijoin_conditions[0]));
@@ -481,7 +482,7 @@ TEST_F(ConnectJoinTest, OuterJoinInSemiJoin) {
   EXPECT_EQ(RelationalExpression::LEFT_JOIN,
             semi_inner->hash_join().join_predicate->expr->type);
 
-  const Mem_root_array<Item_func_eq *> &outer_join_conditions =
+  const Mem_root_array<Item_eq_base *> &outer_join_conditions =
       semi_inner->hash_join().join_predicate->expr->equijoin_conditions;
   ASSERT_EQ(1, outer_join_conditions.size());
   EXPECT_EQ("(t2.x = t3.x)", ItemToString(outer_join_conditions[0]));
@@ -587,7 +588,7 @@ TEST_F(ConnectJoinTest, SemiJoinInOuterJoin) {
   EXPECT_EQ(RelationalExpression::LEFT_JOIN,
             root->hash_join().join_predicate->expr->type);
 
-  const Mem_root_array<Item_func_eq *> &leftjoin_conditions =
+  const Mem_root_array<Item_eq_base *> &leftjoin_conditions =
       root->hash_join().join_predicate->expr->equijoin_conditions;
   ASSERT_EQ(1, leftjoin_conditions.size());
   EXPECT_EQ("(t3.x = t1.x)", ItemToString(leftjoin_conditions[0]));
@@ -601,7 +602,7 @@ TEST_F(ConnectJoinTest, SemiJoinInOuterJoin) {
   EXPECT_EQ(RelationalExpression::SEMIJOIN,
             left_inner->hash_join().join_predicate->expr->type);
 
-  const Mem_root_array<Item_func_eq *> &semi_join_conditions =
+  const Mem_root_array<Item_eq_base *> &semi_join_conditions =
       left_inner->hash_join().join_predicate->expr->equijoin_conditions;
   ASSERT_EQ(1, semi_join_conditions.size());
   EXPECT_EQ("(t2.x = t3.x)", ItemToString(semi_join_conditions[0]));
@@ -704,7 +705,7 @@ TEST_F(ConnectJoinTest, SemiJoinWithNotEqual) {
   EXPECT_EQ(RelationalExpression::SEMIJOIN,
             root->hash_join().join_predicate->expr->type);
 
-  const Mem_root_array<Item_func_eq *> &semijoin_conditions =
+  const Mem_root_array<Item_eq_base *> &semijoin_conditions =
       root->hash_join().join_predicate->expr->equijoin_conditions;
   ASSERT_EQ(1, semijoin_conditions.size());
   EXPECT_EQ("(t4.x = t1.x)", ItemToString(semijoin_conditions[0]));
@@ -718,7 +719,7 @@ TEST_F(ConnectJoinTest, SemiJoinWithNotEqual) {
   EXPECT_EQ(RelationalExpression::INNER_JOIN,
             semi_inner->hash_join().join_predicate->expr->type);
 
-  const Mem_root_array<Item_func_eq *> &inner_join_conditions =
+  const Mem_root_array<Item_eq_base *> &inner_join_conditions =
       semi_inner->hash_join().join_predicate->expr->equijoin_conditions;
   ASSERT_EQ(1, inner_join_conditions.size());
   EXPECT_EQ("(t2.x = t4.x)", ItemToString(inner_join_conditions[0]));
@@ -737,7 +738,7 @@ TEST_F(ConnectJoinTest, SemiJoinWithNotEqual) {
   EXPECT_EQ(RelationalExpression::INNER_JOIN,
             filter_child->hash_join().join_predicate->expr->type);
 
-  const Mem_root_array<Item_func_eq *> &below_filter_inner_join_conditions =
+  const Mem_root_array<Item_eq_base *> &below_filter_inner_join_conditions =
       filter_child->hash_join().join_predicate->expr->equijoin_conditions;
   ASSERT_EQ(1, below_filter_inner_join_conditions.size());
   EXPECT_EQ("(t3.x = t4.x)",

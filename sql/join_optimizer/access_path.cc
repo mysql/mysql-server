@@ -24,6 +24,7 @@
 
 #include "my_base.h"
 #include "sql/filesort.h"
+#include "sql/item_cmpfunc.h"
 #include "sql/item_sum.h"
 #include "sql/iterators/basic_row_iterators.h"
 #include "sql/iterators/bka_iterator.h"
@@ -722,8 +723,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         }
         const JoinPredicate *join_predicate = param.join_predicate;
         vector<HashJoinCondition> conditions;
-        for (Item_func_eq *cond : join_predicate->expr->equijoin_conditions) {
-          conditions.emplace_back(HashJoinCondition(cond, thd->mem_root));
+        for (Item_eq_base *cond : join_predicate->expr->equijoin_conditions) {
+          conditions.emplace_back(cond, thd->mem_root);
         }
         const bool probe_input_batch_mode =
             eligible_for_batch_mode && ShouldEnableBatchMode(param.outer);

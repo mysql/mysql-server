@@ -31,6 +31,7 @@
 #include "my_base.h"
 #include "sha2.h"
 #include "sql/filesort.h"
+#include "sql/item_cmpfunc.h"
 #include "sql/item_sum.h"
 #include "sql/iterators/basic_row_iterators.h"
 #include "sql/iterators/bka_iterator.h"
@@ -773,7 +774,7 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join,
       if (predicate->expr->equijoin_conditions.empty()) {
         ret.append(" (no condition)");
       } else {
-        for (Item_func_eq *cond : predicate->expr->equijoin_conditions) {
+        for (Item_eq_base *cond : predicate->expr->equijoin_conditions) {
           if (cond != predicate->expr->equijoin_conditions[0]) {
             ret.push_back(',');
           }

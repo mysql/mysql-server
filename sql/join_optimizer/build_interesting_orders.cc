@@ -162,7 +162,7 @@ static void CollectFunctionalDependenciesFromJoins(
     pred.functional_dependencies_idx.init(thd->mem_root);
     pred.functional_dependencies_idx.reserve(expr->equijoin_conditions.size() +
                                              expr->join_conditions.size());
-    for (Item_func_eq *join_condition : expr->equijoin_conditions) {
+    for (Item_eq_base *join_condition : expr->equijoin_conditions) {
       int fd_idx = AddFunctionalDependencyFromCondition(
           thd, join_condition, /*always_active=*/false, orderings);
       if (fd_idx != -1) {
