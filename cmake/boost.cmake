@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -239,10 +239,11 @@ ENDIF()
 
 IF(LOCAL_BOOST_ZIP AND NOT LOCAL_BOOST_DIR)
   GET_FILENAME_COMPONENT(LOCAL_BOOST_DIR ${LOCAL_BOOST_ZIP} PATH)
+  GET_FILENAME_COMPONENT(LOCAL_BOOST_ZIP_NAME ${LOCAL_BOOST_ZIP} NAME)
   IF(NOT EXISTS "${LOCAL_BOOST_DIR}/${BOOST_PACKAGE_NAME}")
-    MESSAGE(STATUS "cd ${LOCAL_BOOST_DIR}; tar xfj ${LOCAL_BOOST_ZIP}")
+    MESSAGE(STATUS "cd ${LOCAL_BOOST_DIR}; tar xfj ${LOCAL_BOOST_ZIP_NAME}")
     EXECUTE_PROCESS(
-      COMMAND ${CMAKE_COMMAND} -E tar xfj "${LOCAL_BOOST_ZIP}"
+      COMMAND ${CMAKE_COMMAND} -E tar xfj "${LOCAL_BOOST_ZIP_NAME}"
       WORKING_DIRECTORY "${LOCAL_BOOST_DIR}"
       RESULT_VARIABLE tar_result
       )
