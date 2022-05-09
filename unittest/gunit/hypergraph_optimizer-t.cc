@@ -4509,7 +4509,7 @@ TEST_F(HypergraphOptimizerTest, SingleTableDeleteWithOrderByLimit) {
   EXPECT_EQ(m_fake_tables["t1"]->pos_in_table_list->map(),
             root->delete_rows().immediate_tables);
   ASSERT_EQ(AccessPath::SORT, root->delete_rows().child->type);
-  EXPECT_TRUE(root->delete_rows().child->sort().use_limit);
+  EXPECT_EQ(2, root->delete_rows().child->sort().limit);
   ASSERT_EQ(AccessPath::FILTER, root->delete_rows().child->sort().child->type);
   EXPECT_EQ(AccessPath::TABLE_SCAN,
             root->delete_rows().child->sort().child->filter().child->type);
@@ -5147,8 +5147,9 @@ TEST_F(HypergraphSecondaryEngineTest, NoRewriteOnFinalization) {
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
   ASSERT_NE(nullptr, root);
   // Prints out the query plan on failure.
-  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
-                              /*is_root_of_join=*/true));
+  const string query_plan = PrintQueryPlan(0, root, query_block->join,
+                                           /*is_root_of_join=*/true);
+  SCOPED_TRACE(query_plan);
   // Verify that finalization was performed.
   EXPECT_FALSE(query_block->join->needs_finalize);
 
@@ -5173,6 +5174,9 @@ TEST_F(HypergraphSecondaryEngineTest, NoRewriteOnFinalization) {
   Item *order_item = *root->sort().order->item;
   ASSERT_EQ(Item::SUM_FUNC_ITEM, order_item->type());
   EXPECT_EQ(Item_sum::AVG_FUNC, down_cast<Item_sum *>(order_item)->sum_func());
+
+  // Make sure the sort key is shown by EXPLAIN.
+  EXPECT_THAT(query_plan, StartsWith("-> Sort: avg(t1.x) "));
 
   query_block->cleanup(/*full=*/true);
 }

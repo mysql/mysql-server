@@ -18460,7 +18460,7 @@ static int copy_data_between_tables(
         thd, {from}, /*keep_buffers=*/false, order, HA_POS_ERROR,
         /*remove_duplicates=*/false, /*force_sort_rowids=*/true,
         /*unwrap_rollup=*/false));
-    path = NewSortAccessPath(thd, path, fsort.get(),
+    path = NewSortAccessPath(thd, path, fsort.get(), order,
                              /*count_examined_rows=*/false);
   }
 

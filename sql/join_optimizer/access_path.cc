@@ -22,6 +22,7 @@
 
 #include "sql/join_optimizer/access_path.h"
 
+#include "my_base.h"
 #include "sql/filesort.h"
 #include "sql/item_sum.h"
 #include "sql/iterators/basic_row_iterators.h"
@@ -58,12 +59,21 @@ using pack_rows::TableCollection;
 using std::vector;
 
 AccessPath *NewSortAccessPath(THD *thd, AccessPath *child, Filesort *filesort,
-                              bool count_examined_rows) {
+                              ORDER *order, bool count_examined_rows) {
+  assert(child != nullptr);
+  assert(filesort != nullptr);
+  assert(order != nullptr);
+
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::SORT;
   path->count_examined_rows = count_examined_rows;
   path->sort().child = child;
   path->sort().filesort = filesort;
+  path->sort().order = order;
+  path->sort().remove_duplicates = filesort->m_remove_duplicates;
+  path->sort().unwrap_rollup = false;
+  path->sort().limit = filesort->limit;
+  path->sort().force_sort_rowids = !filesort->using_addon_fields();
 
   if (filesort->using_addon_fields()) {
     path->sort().tables_to_get_rowid_for = 0;

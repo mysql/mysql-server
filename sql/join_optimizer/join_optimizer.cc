@@ -4257,7 +4257,7 @@ AccessPath MakeSortPathWithoutFilesort(THD *thd, AccessPath *child,
   sort_path.sort().order = order;
   sort_path.sort().remove_duplicates = false;
   sort_path.sort().unwrap_rollup = true;
-  sort_path.sort().use_limit = false;
+  sort_path.sort().limit = HA_POS_ERROR;
   sort_path.sort().force_sort_rowids = false;
   EstimateSortCost(&sort_path);
   return sort_path;
@@ -5220,7 +5220,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         sort_path.sort().filesort = nullptr;
         sort_path.sort().remove_duplicates = true;
         sort_path.sort().unwrap_rollup = false;
-        sort_path.sort().use_limit = false;
+        sort_path.sort().limit = HA_POS_ERROR;
 
         // The force_sort_rowids flag is only set for UPDATE and DELETE,
         // which don't have any syntax for specifying DISTINCT.
@@ -5300,10 +5300,10 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         sort_path->sort().filesort = nullptr;
         sort_path->sort().remove_duplicates = false;
         sort_path->sort().unwrap_rollup = false;
-        sort_path->sort().use_limit = push_limit_to_filesort;
+        sort_path->sort().limit =
+            push_limit_to_filesort ? limit_rows : HA_POS_ERROR;
         sort_path->sort().order = final_order;
-        EstimateSortCost(sort_path,
-                         push_limit_to_filesort ? limit_rows : HA_POS_ERROR);
+        EstimateSortCost(sort_path);
 
         // If this is a DELETE or UPDATE statement, row IDs must be preserved
         // through the ORDER BY clause, so that we know which rows to delete or
@@ -6234,7 +6234,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         sort_path->sort().filesort = nullptr;
         sort_path->sort().remove_duplicates = false;
         sort_path->sort().unwrap_rollup = true;
-        sort_path->sort().use_limit = false;
+        sort_path->sort().limit = HA_POS_ERROR;
         sort_path->sort().force_sort_rowids = false;
         sort_path->sort().order = sort_ahead_ordering.order;
         EstimateSortCost(sort_path);

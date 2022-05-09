@@ -1183,6 +1183,18 @@ static AccessPath *NewWeedoutAccessPathForTables(
           filesort->clear_addon_fields();
         }
         filesort->m_force_sort_rowids = true;
+        // Since we changed our mind about whether the SORT path below us should
+        // use row IDs, update it to make EXPLAIN display correct information.
+        WalkAccessPaths(path, /*join=*/nullptr,
+                        WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
+                        [filesort](AccessPath *subpath, const JOIN *) {
+                          if (subpath->type == AccessPath::SORT &&
+                              subpath->sort().filesort == filesort) {
+                            subpath->sort().force_sort_rowids = true;
+                            return true;
+                          }
+                          return false;
+                        });
       }
     }
   }
@@ -2960,8 +2972,10 @@ AccessPath *JOIN::create_root_access_path_for_join() {
     // Sorting comes after the materialization (which we're about to add),
     // and should be shown as such.
     Filesort *filesort = qep_tab->filesort;
+    ORDER *filesort_order = qep_tab->filesort_pushed_order;
 
     Filesort *dup_filesort = nullptr;
+    ORDER *dup_filesort_order = nullptr;
     bool limit_1_for_dup_filesort = false;
 
     // The pre-iterator executor did duplicate removal by going into the
@@ -3037,6 +3051,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
             thd, {qep_tab->table()}, /*keep_buffers=*/false, order,
             HA_POS_ERROR, /*remove_duplicates=*/true, force_sort_rowids,
             /*unwrap_rollup=*/false);
+        dup_filesort_order = order;
 
         if (desired_order != nullptr && filesort == nullptr) {
           // We picked up the desired order from the first table, but we cannot
@@ -3046,6 +3061,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
               thd, {qep_tab->table()}, /*keep_buffers=*/false, desired_order,
               HA_POS_ERROR, /*remove_duplicates=*/false, force_sort_rowids,
               /*unwrap_rollup=*/false);
+          filesort_order = desired_order;
         }
       }
     }
@@ -3134,11 +3150,11 @@ AccessPath *JOIN::create_root_access_path_for_join() {
                                       /*reject_multiple_rows=*/false,
                                       /*send_records_override=*/nullptr);
     } else if (dup_filesort != nullptr) {
-      path = NewSortAccessPath(thd, path, dup_filesort,
+      path = NewSortAccessPath(thd, path, dup_filesort, dup_filesort_order,
                                /*count_examined_rows=*/true);
     }
     if (filesort != nullptr) {
-      path = NewSortAccessPath(thd, path, filesort,
+      path = NewSortAccessPath(thd, path, filesort, filesort_order,
                                /*count_examined_rows=*/true);
     }
   }
@@ -3700,7 +3716,7 @@ AccessPath *QEP_TAB::access_path() {
 
     // Wrap the chosen RowIterator in a SortingIterator, so that we get
     // sorted results out.
-    path = NewSortAccessPath(join()->thd, path, filesort,
+    path = NewSortAccessPath(join()->thd, path, filesort, filesort_pushed_order,
                              /*count_examined_rows=*/true);
   }
 

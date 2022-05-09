@@ -1561,7 +1561,7 @@ NULL	NULL	510
 EXPLAIN FORMAT=tree SELECT i, j, i+j, AVG(j) over () from t1 GROUP BY i,j
 WITH ROLLUP HAVING i+j is NULL ORDER BY i;
 EXPLAIN
--> Sort: i
+-> Sort: t1.i
     -> Table scan on <temporary>  (cost=2.50..2.50 rows=0)
         -> Temporary table  (cost=2.50..2.50 rows=0)
             -> Window aggregate with buffering: avg(j) OVER () 

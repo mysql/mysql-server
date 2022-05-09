@@ -3813,7 +3813,7 @@ INSERT INTO t VALUES ('1', 10), ('1', 11), ('2', 20), ('2', 20), ('3', 30);
 EXPLAIN FORMAT=tree SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
 EXPLAIN
 -> Group aggregate: count(distinct t.b)
-    -> Sort: `-(a)`
+    -> Sort: -(a)
         -> Stream results  (cost=*** rows=***)
             -> Table scan on t  (cost=*** rows=***)
 
@@ -3847,7 +3847,7 @@ INSERT INTO t VALUES ('1', 10), ('1', 11), ('2', 20), ('2', 20), ('3', 30);
 EXPLAIN FORMAT=tree SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
 EXPLAIN
 -> Group aggregate: count(distinct t.b)
-    -> Sort: `-(a)`
+    -> Sort: -(a)
         -> Stream results  (cost=*** rows=***)
             -> Table scan on t  (cost=*** rows=***)
 

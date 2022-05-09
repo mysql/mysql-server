@@ -28,6 +28,7 @@
 
 #include <openssl/sha.h>
 
+#include "my_base.h"
 #include "sha2.h"
 #include "sql/filesort.h"
 #include "sql/item_sum.h"
@@ -808,47 +809,43 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join,
       break;
     case AccessPath::SORT: {
       string ret;
-      if (path->sort().filesort == nullptr) {
-        // This is a hack for when computing digests for forcing subplans (which
-        // happens on non-finalized plans, which don't have a filesort object
-        // yet). It means that sorts won't be correctly forced.
-        // TODO(sgunders): Print based on the flags and order instead of the
-        // filesort object, when using the hypergraph join optimizer.
-        description.emplace_back("Sort");
-        children.push_back({path->sort().child});
-        break;
-      }
 
-      if (path->sort().filesort->using_addon_fields()) {
-        ret = "Sort";
-      } else {
+      if (path->sort().force_sort_rowids) {
         ret = "Sort row IDs";
+      } else {
+        ret = "Sort";
       }
-      if (path->sort().filesort->m_remove_duplicates) {
+      if (path->sort().remove_duplicates) {
         ret += " with duplicate removal: ";
       } else {
         ret += ": ";
       }
 
-      bool first = true;
-      for (unsigned i = 0; i < path->sort().filesort->sort_order_length();
-           ++i) {
-        if (first) {
-          first = false;
-        } else {
+      for (ORDER *order = path->sort().order; order != nullptr;
+           order = order->next) {
+        if (order != path->sort().order) {
           ret += ", ";
         }
 
-        const st_sort_field *order = &path->sort().filesort->sortorder[i];
-        ret += ItemToString(order->item);
-        if (order->reverse) {
+        // We usually want to print the item_name if it's set, so that we get
+        // the alias instead of the full expression when there is an alias. If
+        // it is a field reference, we prefer ItemToString() because item_name
+        // in Item_field doesn't include the table name.
+        if (const Item *item = *order->item;
+            item->item_name.is_set() && item->type() != Item::FIELD_ITEM) {
+          ret += item->item_name.ptr();
+        } else {
+          ret += ItemToString(item);
+        }
+        if (order->direction == ORDER_DESC) {
           ret += " DESC";
         }
       }
-      if (path->sort().filesort->limit != HA_POS_ERROR) {
+
+      if (const ha_rows limit = path->sort().limit; limit != HA_POS_ERROR) {
         char buf[256];
         snprintf(buf, sizeof(buf), ", limit input to %llu row(s) per chunk",
-                 path->sort().filesort->limit);
+                 limit);
         ret += buf;
       }
       description.push_back(move(ret));

@@ -309,12 +309,9 @@ static void UpdateReferencesToMaterializedItems(
 
     // Set up a Filesort object for this sort.
     Mem_root_array<TABLE *> tables = CollectTables(thd, path);
-    const ha_rows limit_rows = path->sort().use_limit
-                                   ? join->query_expression()->select_limit_cnt
-                                   : HA_POS_ERROR;
     path->sort().filesort = new (thd->mem_root)
         Filesort(thd, std::move(tables),
-                 /*keep_buffers=*/false, path->sort().order, limit_rows,
+                 /*keep_buffers=*/false, path->sort().order, path->sort().limit,
                  path->sort().remove_duplicates, path->sort().force_sort_rowids,
                  path->sort().unwrap_rollup);
     join->filesorts_to_cleanup.push_back(path->sort().filesort);

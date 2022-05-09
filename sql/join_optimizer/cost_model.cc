@@ -84,12 +84,13 @@ double EstimateCostForRefAccess(THD *thd, TABLE *table, unsigned key_idx,
                            /*worst_seeks=*/DBL_MAX);
 }
 
-void EstimateSortCost(AccessPath *path, ha_rows limit_rows) {
+void EstimateSortCost(AccessPath *path) {
   AccessPath *child = path->sort().child;
   const double num_input_rows = child->num_output_rows;
   const double num_output_rows =
-      path->sort().use_limit ? std::min<double>(num_input_rows, limit_rows)
-                             : num_input_rows;
+      path->sort().limit != HA_POS_ERROR
+          ? std::min<double>(num_input_rows, path->sort().limit)
+          : num_input_rows;
 
   double sort_cost;
   if (num_input_rows <= 1.0) {

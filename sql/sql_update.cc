@@ -669,7 +669,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
             thd, {table}, /*keep_buffers=*/false, order, limit,
             /*remove_duplicates=*/false,
             /*force_sort_rowids=*/true, /*unwrap_rollup=*/false));
-        path = NewSortAccessPath(thd, path, fsort.get(),
+        path = NewSortAccessPath(thd, path, fsort.get(), order,
                                  /*count_examined_rows=*/false);
         iterator = CreateIteratorFromAccessPath(
             thd, path, &join, /*eligible_for_batch_mode=*/true);

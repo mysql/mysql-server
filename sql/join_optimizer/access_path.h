@@ -1098,11 +1098,12 @@ struct AccessPath {
       table_map tables_to_get_rowid_for;
 
       // If filesort is nullptr: A new filesort will be created at the
-      // end of optimization, using this order and flags. Otherwise: Ignored.
+      // end of optimization, using this order and flags. Otherwise: Only
+      // used by EXPLAIN.
       ORDER *order;
+      ha_rows limit;
       bool remove_duplicates;
       bool unwrap_rollup;
-      bool use_limit;
       bool force_sort_rowids;
     } sort;
     struct {
@@ -1204,10 +1205,10 @@ static_assert(std::is_trivially_destructible<AccessPath>::value,
               "on the MEM_ROOT and not wrapped in unique_ptr_destroy_only"
               "(because multiple candidates during planning could point to "
               "the same access paths, and refcounting would be expensive)");
-static_assert(sizeof(AccessPath) <= 136,
+static_assert(sizeof(AccessPath) <= 144,
               "We are creating a lot of access paths in the join "
               "optimizer, so be sure not to bloat it without noticing. "
-              "(96 bytes for the base, 40 bytes for the variant.)");
+              "(96 bytes for the base, 48 bytes for the variant.)");
 
 inline void CopyBasicProperties(const AccessPath &from, AccessPath *to) {
   to->num_output_rows = from.num_output_rows;
@@ -1408,7 +1409,7 @@ inline AccessPath *NewFilterAccessPath(THD *thd, AccessPath *child,
 // Not inline, because it needs access to filesort internals
 // (which are forward-declared in this file).
 AccessPath *NewSortAccessPath(THD *thd, AccessPath *child, Filesort *filesort,
-                              bool count_examined_rows);
+                              ORDER *order, bool count_examined_rows);
 
 inline AccessPath *NewAggregateAccessPath(THD *thd, AccessPath *child,
                                           bool rollup) {
