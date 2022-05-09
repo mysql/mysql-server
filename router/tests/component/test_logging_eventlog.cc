@@ -39,6 +39,7 @@
 #include <gmock/gmock.h>
 
 #include "harness_assert.h"
+#include "my_compiler.h"
 #include "mysqlrouter/utils.h"
 #include "router_component_test.h"
 
@@ -261,18 +262,22 @@ class EventlogSubscription {
     try {
       switch (action) {
         case EvtSubscribeActionError:
-// (DWORD)(event) is what the docs say to do. However, DWORD is unsigned long
-// (32-bit) while `event` is void* (64-bit), so this triggers two warnings:
-//   warning C4311: 'type cast': pointer truncation from 'EVT_HANDLE' to 'DWORD'
-//   warning C4302: 'type cast': truncation from 'EVT_HANDLE' to 'DWORD'
-// So we disable them here
-#pragma warning(push)
-#pragma warning(disable : 4311 4302)
+          // (DWORD)(event) is what the docs say to do. However, DWORD is
+          // unsigned long (32-bit) while `event` is void* (64-bit), so this
+          // triggers two warnings:
+          //   warning C4311: 'type cast': pointer truncation from 'EVT_HANDLE'
+          //   to 'DWORD' warning C4302: 'type cast': truncation from
+          //   'EVT_HANDLE' to 'DWORD'
+          // So we disable them here
+          MY_COMPILER_DIAGNOSTIC_PUSH()
+          MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4311)
+          MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4302)
+          MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wvoid-pointer-to-int-cast")
           throw std::runtime_error(
               "Eventlog callback received an error: %lu\n" +
               std::to_string(
                   (DWORD)(event)));  // c-style cast perscribed by docs
-#pragma warning(pop)
+          MY_COMPILER_DIAGNOSTIC_POP()
           break;
 
         case EvtSubscribeActionDeliver:

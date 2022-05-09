@@ -102,6 +102,7 @@ MY_COMPILER_DIAGNOSTIC_PUSH()
 // TODO(lkotula) Use proper 64bit/32bit signed/unsigned type based on platform.
 // 'initializing': truncation of constant value.
 MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4309)
+MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wconstant-conversion")
 const int kEventBaseInvalidSocket = INVALID_SOCKET;
 MY_COMPILER_DIAGNOSTIC_POP()
 
