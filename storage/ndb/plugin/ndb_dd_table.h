@@ -133,6 +133,11 @@ bool ndb_dd_table_get_schema_uuid(const dd::Table *table_def,
 bool ndb_dd_table_check_column_varbinary(const dd::Table *table_def,
                                          const dd::String_type &col_name);
 
+/*
+  Check if table has associated triggers
+*/
+bool ndb_dd_table_has_trigger(const dd::Table *table_def);
+
 /* interface for working with opaque dd::Table RAII-style */
 class Ndb_dd_table {
   class THD *const m_thd;

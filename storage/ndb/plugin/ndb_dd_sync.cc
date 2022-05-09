@@ -142,6 +142,17 @@ bool Ndb_dd_sync::remove_all_metadata() const {
     ndb_log_verbose(50, "Found %zu NDB tables in schema '%s'",
                     ndb_tables.size(), schema_name);
     for (const std::string &table_name : ndb_tables) {
+      // Check if the table has a trigger. Such tables are handled differently
+      // and not deleted as that would result in the trigger being deleted as
+      // well
+      const dd::Table *table_def;
+      if (!dd_client.get_table(schema_name, table_name.c_str(), &table_def)) {
+        ndb_log_error("Failed to open table '%s.%s' from DD", schema_name,
+                      table_name.c_str());
+        return false;
+      }
+      if (ndb_dd_table_has_trigger(table_def)) continue;
+
       ndb_log_info("Removing table '%s.%s'", schema_name, table_name.c_str());
       if (!remove_table(schema_name, table_name.c_str())) {
         ndb_log_error("Failed to remove table '%s.%s' from DD", schema_name,
