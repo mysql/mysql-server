@@ -1937,3 +1937,37 @@ SELECT COUNT(*) FROM (SELECT SUM(f1) FROM t1) as dt WHERE @a = 1;
 COUNT(*)
 0
 DROP TABLE t1;
+#
+# Bug#34148712: Incorrect DATETIME value: '' on latest MySQL 8.0.29
+#
+CREATE TABLE t1 (f1 INTEGER UNSIGNED);
+PREPARE stmt FROM "SELECT *
+FROM (SELECT NOW() AS time FROM t1 WHERE f1 = ?
+UNION
+SELECT NOW() AS time FROM t1 WHERE f1 = 0) AS dt
+WHERE time <= ?";
+SET @a = 1;
+SET @b = '2022-05-06 16:49:45';
+EXECUTE stmt USING @a, @b;
+time
+PREPARE stmt FROM "EXPLAIN FORMAT=tree SELECT *
+FROM (SELECT NOW() AS time FROM t1 WHERE f1 = ?
+UNION
+SELECT NOW() AS time FROM t1 WHERE f1 = 0) AS dt
+WHERE time <= ?";
+EXECUTE stmt USING @a, @b;
+EXPLAIN
+-> Zero rows (no matching row in const table) (rows=0)
+
+SET @a = 2;
+SET @b = '2023-05-06 16:49:45';
+EXECUTE stmt USING @a, @b;
+EXPLAIN
+-> Table scan on dt (rows=2)
+    -> Union materialize with deduplication (rows=2)
+        -> Filter: (t1.f1 = 2) (rows=1)
+            -> Table scan on t1 (rows=1)
+        -> Filter: (t1.f1 = 0) (rows=1)
+            -> Table scan on t1 (rows=1)
+
+DROP TABLE t1;

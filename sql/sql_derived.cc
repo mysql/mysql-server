@@ -559,7 +559,11 @@ static Item *parse_expression(THD *thd, Item *item, Query_block *query_block,
   thd->lex->reparse_derived_table_condition = true;
   // Get the printout of the expression
   StringBuffer<1024> str;
-  item->print(thd, &str, QT_ORDINARY);
+  // For printing parameters we need to specify the flag QT_NO_DATA_EXPANSION
+  // because for a case when statement gets reprepared during execution, we
+  // still need Item_param::print() to print the '?' rather than the actual data
+  // specified for the parameter.
+  item->print(thd, &str, QT_NO_DATA_EXPANSION);
   str.append('\0');
 
   Derived_expr_parser_state parser_state;
