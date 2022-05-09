@@ -83,6 +83,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /* ut_uint64_align_down */
 #include "ut0byte.h"
 
+// clang-format off
 /**************************************************/ /**
  @page PAGE_INNODB_REDO_LOG_BUF Redo log buffer
 
@@ -246,8 +247,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  in which such concurrent writes might be finished. Each user thread which has
  finished writing, proceeds further without waiting for any other user threads.
 
- @diafile storage/innobase/log/user_thread_writes_to_buffer.dia "One of many
- concurrent writes"
+ @diafile storage/innobase/log/user_thread_writes_to_buffer.dia "One of many concurrent writes"
 
  @note Note that when a user thread has finished writing, still some other user
  threads could be writing their data for smaller lsn values. It is still fine,
@@ -379,8 +379,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
     Hence order of dirty pages in a flush list, is not the same as order by
     their oldest modification lsn.
 
-    @diafile storage/innobase/log/relaxed_order_of_dirty_pages.dia "Relaxed
- order of dirty pages"
+    @diafile storage/innobase/log/relaxed_order_of_dirty_pages.dia "Relaxed order of dirty pages"
 
  @note Note that still the @ref subsect_redo_log_buf_dirty_pages_added_up_to_lsn
  cannot be advanced further than to _start_lsn_. That's because the link from
@@ -464,6 +463,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
    - because the earliest added dirty page in one of flush lists became flushed.
 
  *******************************************************/
+// clang-format on
 
 /** Waits until there is free space in log buffer up to reserved handle.end_sn.
 If there was no space, it basically waits for log writer thread which copies

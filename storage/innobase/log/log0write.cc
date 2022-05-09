@@ -99,6 +99,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /* ut_uint64_align_down */
 #include "ut0byte.h"
 
+// clang-format off
 /**************************************************/ /**
  @page PAGE_INNODB_REDO_LOG_THREADS Background redo log threads
 
@@ -151,8 +152,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
    occupied by the links (in the recent written buffer), the log writer thread
    updates @ref subsect_redo_log_buf_ready_for_write_lsn.
 
-   @diafile storage/innobase/log/recent_written_buffer.dia "Example of links in
- the recent written buffer"
+   @diafile storage/innobase/log/recent_written_buffer.dia "Example of links in the recent written buffer"
 
    @note The log buffer has no holes up to the _log.buf_ready_for_write_lsn_
    (all concurrent writes for smaller lsn have been finished).
@@ -168,8 +168,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
    Such log blocks will not receive any more writes. Hence their headers
    and footers could be easily updated (e.g. checksum is calculated).
 
-   @diafile storage/innobase/log/log_writer_complete_blocks.dia "Complete blocks
- are detected and written"
+   @diafile storage/innobase/log/log_writer_complete_blocks.dia "Complete blocks are detected and written"
 
    If any complete blocks were detected, they are written directly from
    the log buffer (after updating headers and footers). Afterwards the
@@ -185,8 +184,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
    @ref subsect_redo_log_buf_ready_for_write_lsn could be in the middle of
    such block. In such case, next writes are likely incoming to the log block.
 
-   @diafile storage/innobase/log/log_writer_incomplete_block.dia "Incomplete
- block is copied"
+   @diafile storage/innobase/log/log_writer_incomplete_block.dia "Incomplete block is copied"
 
    For performance reasons we often need to write the last incomplete block.
    That's because it turned out, that we should try to reclaim user threads
@@ -327,8 +325,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  single event, which groups all user threads waiting for flush up to any lsn
  within the same log block (or log block with number greater by S*i).
 
- @diafile storage/innobase/log/log_notifier_notifications.dia "Notifications
- executed on slots"
+ @diafile storage/innobase/log/log_notifier_notifications.dia "Notifications executed on slots"
 
  Internal mutex in event is used, to avoid missed notifications (these would
  be worse than the false notifications).
@@ -680,6 +677,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  writing the block.
 
  *******************************************************/
+// clang-format on
 
 /** Writes a given fragment of the log buffer to the current redo log file,
 unless the file is full, in which case a new file is produced and function
