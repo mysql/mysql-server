@@ -943,9 +943,9 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join,
       }
       break;
     case AccessPath::WINDOW: {
+      Window *const window = path->window().window;
       string buf;
       if (path->window().needs_buffering) {
-        Window *window = path->window().temp_table_param->m_window;
         if (window->optimizable_row_aggregates() ||
             window->optimizable_range_aggregates() ||
             window->static_aggregates()) {
@@ -958,15 +958,12 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join,
       }
 
       bool first = true;
-      for (const Func_ptr &func :
-           *(path->window().temp_table_param->items_to_copy)) {
-        if (func.func()->m_is_window_function) {
-          if (!first) {
-            buf += ", ";
-          }
-          buf += ItemToString(func.func());
-          first = false;
+      for (const Item_sum &func : window->functions()) {
+        if (!first) {
+          buf += ", ";
         }
+        buf += ItemToString(&func);
+        first = false;
       }
       description.push_back(move(buf));
       children.push_back({path->window().child});

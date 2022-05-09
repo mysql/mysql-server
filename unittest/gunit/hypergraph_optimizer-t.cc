@@ -97,6 +97,7 @@ using testing::_;
 using testing::ElementsAre;
 using testing::Pair;
 using testing::Return;
+using testing::StartsWith;
 using namespace std::literals;  // For operator""sv.
 
 static Query_block *ParseAndResolve(
@@ -5149,10 +5150,14 @@ TEST_F(HypergraphSecondaryEngineTest, NoRewriteOnFinalization) {
   // Prints out the query plan on failure.
   SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
                               /*is_root_of_join=*/true));
-  EXPECT_EQ(AccessPath::SORT, root->type);
-
   // Verify that finalization was performed.
   EXPECT_FALSE(query_block->join->needs_finalize);
+
+  ASSERT_EQ(AccessPath::SORT, root->type);
+  ASSERT_EQ(AccessPath::STREAM, root->sort().child->type);
+  ASSERT_EQ(AccessPath::AGGREGATE, root->sort().child->stream().child->type);
+  EXPECT_EQ(AccessPath::TABLE_SCAN,
+            root->sort().child->stream().child->aggregate().child->type);
 
   // The item in the select list should be a SUM. It would have been an
   // Item_field pointing into a temporary table if the USE_EXTERNAL_EXECUTOR
@@ -5166,9 +5171,44 @@ TEST_F(HypergraphSecondaryEngineTest, NoRewriteOnFinalization) {
 
   // The order item should be an AVG. It would have been an Item_field pointing
   // into a temporary table if the USE_EXTERNAL_EXECUTOR flag was not set.
-  Item *order_item = *query_block->join->order.order->item;
+  Item *order_item = *root->sort().order->item;
   ASSERT_EQ(Item::SUM_FUNC_ITEM, order_item->type());
   EXPECT_EQ(Item_sum::AVG_FUNC, down_cast<Item_sum *>(order_item)->sum_func());
+
+  query_block->cleanup(/*full=*/true);
+}
+
+TEST_F(HypergraphSecondaryEngineTest, ExplainWindowForExternalExecutor) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT PERCENT_RANK() OVER () FROM t1",
+                      /*nullable=*/true);
+
+  // Disable creation of intermediate temporary tables.
+  handlerton *handlerton =
+      EnableSecondaryEngine(/*aggregation_is_unordered=*/true);
+  handlerton->secondary_engine_flags |=
+      MakeSecondaryEngineFlags(SecondaryEngineFlag::USE_EXTERNAL_EXECUTOR);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+  ASSERT_EQ(AccessPath::WINDOW, root->type);
+  EXPECT_EQ(AccessPath::TABLE_SCAN, root->window().child->type);
+
+  // Finalization should not create temporary tables for the window functions.
+  EXPECT_FALSE(query_block->join->needs_finalize);
+  EXPECT_EQ(nullptr, root->window().temp_table);
+  EXPECT_EQ(nullptr, root->window().temp_table_param);
+
+  // EXPLAIN for WINDOW paths used to get information from the associated
+  // temporary table, which is not available until finalization has run.
+  // Finalization is skipped when USE_EXTERNAL_EXECUTOR is enabled, so this used
+  // to crash.
+  EXPECT_THAT(
+      PrintQueryPlan(0, root, query_block->join,
+                     /*is_root_of_join=*/true),
+      StartsWith("-> Window aggregate with buffering: percent_rank() OVER ()"));
 
   query_block->cleanup(/*full=*/true);
 }

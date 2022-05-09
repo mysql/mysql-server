@@ -1621,11 +1621,14 @@ inline AccessPath *NewAppendAccessPath(
 }
 
 inline AccessPath *NewWindowAccessPath(THD *thd, AccessPath *child,
+                                       Window *window,
                                        Temp_table_param *temp_table_param,
                                        int ref_slice, bool needs_buffering) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::WINDOW;
   path->window().child = child;
+  path->window().window = window;
+  path->window().temp_table = nullptr;
   path->window().temp_table_param = temp_table_param;
   path->window().ref_slice = ref_slice;
   path->window().needs_buffering = needs_buffering;

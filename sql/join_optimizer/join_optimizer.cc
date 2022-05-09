@@ -5325,10 +5325,8 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
 static AccessPath *ApplyWindow(THD *thd, AccessPath *root_path, Window *window,
                                JOIN *join, bool need_rowid_for_window) {
   AccessPath *window_path =
-      NewWindowAccessPath(thd, root_path, /*temp_table_param=*/nullptr,
+      NewWindowAccessPath(thd, root_path, window, /*temp_table_param=*/nullptr,
                           /*ref_slice=*/-1, window->needs_buffering());
-  window_path->window().temp_table = nullptr;
-  window_path->window().window = window;
   CopyBasicProperties(*root_path, window_path);
   window_path->cost += kWindowOneRowCost * window_path->num_output_rows;
 
