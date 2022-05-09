@@ -73,7 +73,7 @@ bool RouterComponentTest::wait_log_contains(const ProcessWrapper &router,
   using clock_type = std::chrono::steady_clock;
   const auto end = clock_type::now() + timeout;
   do {
-    const std::string log_content = router.get_full_logfile();
+    const std::string log_content = router.get_logfile_content();
     found = pattern_found(log_content, pattern);
     if (!found) {
       auto step = std::min(timeout, MSEC_STEP);

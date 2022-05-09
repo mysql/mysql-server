@@ -970,11 +970,11 @@ TEST_F(RestRoutingApiTest, routing_api_no_auth) {
 
   check_exit_code(router, EXIT_FAILURE, 10s);
 
-  const std::string router_output = router.get_full_logfile();
-  EXPECT_THAT(router_output, ::testing::HasSubstr(
-                                 "  init 'rest_routing' failed: option "
-                                 "require_realm in [rest_routing] is required"))
-      << router_output;
+  const std::string router_output = router.get_logfile_content();
+  EXPECT_THAT(
+      router_output,
+      ::testing::HasSubstr("  init 'rest_routing' failed: option "
+                           "require_realm in [rest_routing] is required"));
 }
 
 /**
@@ -994,7 +994,7 @@ TEST_F(RestRoutingApiTest, invalid_realm) {
 
   check_exit_code(router, EXIT_FAILURE, 10s);
 
-  const std::string router_output = router.get_full_logfile();
+  const std::string router_output = router.get_logfile_content();
   EXPECT_THAT(
       router_output,
       ::testing::HasSubstr(
@@ -1062,7 +1062,7 @@ TEST_F(RestRoutingApiTest, rest_routing_section_has_key) {
 
   check_exit_code(router, EXIT_FAILURE, 10s);
 
-  const std::string router_output = router.get_full_logfile();
+  const std::string router_output = router.get_logfile_content();
   EXPECT_THAT(router_output, ::testing::HasSubstr(
                                  "  init 'rest_routing' failed: [rest_routing] "
                                  "section does not expect a key, found 'A'"))

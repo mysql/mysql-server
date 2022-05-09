@@ -256,7 +256,7 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
                         ".*Finished refreshing the cluster metadata.*", 1, 2s);
   if (!first_refresh_stop_timestamp) {
     FAIL() << "Did not find first metadata refresh end log in the logfile.\n"
-           << router.get_full_logfile();
+           << router.get_logfile_content();
   }
 
   SCOPED_TRACE("// Wait for the second metadata refresh to start");
@@ -265,7 +265,7 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
       2, test_params.ttl_expected_max + 1s);
   if (!second_refresh_start_timestamp) {
     FAIL() << "Did not find second metadata refresh start log in the logfile.\n"
-           << router.get_full_logfile();
+           << router.get_logfile_content();
   }
 
   SCOPED_TRACE(
@@ -413,7 +413,7 @@ TEST_P(MetadataChacheTTLTestInstanceListUnordered, InstancesListUnordered) {
 
   SCOPED_TRACE("// check it is not treated as a change");
   const std::string needle = "Potential changes detected in cluster";
-  const std::string log_content = router.get_full_logfile();
+  const std::string log_content = router.get_logfile_content();
 
   // 1 is expected, that comes from the inital reading of the metadata
   EXPECT_EQ(1, count_str_occurences(log_content, needle)) << log_content;
@@ -522,20 +522,20 @@ TEST_F(MetadataChacheTTLTest, CheckMetadataUpgradeBetweenTTLs) {
   // let the router run a bit more
   EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 2));
 
-  const std::string log_content = router.get_full_logfile();
+  const std::string log_content = router.get_logfile_content();
 
   SCOPED_TRACE(
       "// check that the router really saw the version upgrade at some point");
   std::string needle =
       "Metadata version change was discovered. New metadata version is 2.0.0";
-  EXPECT_GE(1, count_str_occurences(log_content, needle)) << log_content;
+  EXPECT_GE(1, count_str_occurences(log_content, needle));
 
   SCOPED_TRACE(
       "// there should be no cluster change reported caused by the version "
       "upgrade");
   needle = "Potential changes detected in cluster";
   // 1 is expected, that comes from the inital reading of the metadata
-  EXPECT_EQ(1, count_str_occurences(log_content, needle)) << log_content;
+  EXPECT_EQ(1, count_str_occurences(log_content, needle));
 
   // router should exit noramlly
   ASSERT_THAT(router.kill(), testing::Eq(0));
@@ -687,7 +687,7 @@ TEST_P(PermissionErrorOnVersionUpdateTest, PermissionErrorOnAttributesUpdate) {
   SCOPED_TRACE(
       "// we expect the error trying to update the attributes in the log "
       "exactly once");
-  const std::string log_content = router.get_full_logfile();
+  const std::string log_content = router.get_logfile_content();
   const std::string needle =
       "Make sure to follow the correct steps to upgrade your metadata.\n"
       "Run the dba.upgradeMetadata() then launch the new Router version "
@@ -794,7 +794,7 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
                                           "password", "", ""));
 
   SCOPED_TRACE("// Info about the update should be logged.");
-  const std::string log_content = router.get_full_logfile();
+  const std::string log_content = router.get_logfile_content();
   ASSERT_TRUE(log_content.find("Cluster metadata upgrade in progress, aborting "
                                "the metada refresh") != std::string::npos);
 }
@@ -1793,7 +1793,7 @@ class InvalidAttributesTagsTest
  protected:
   void check_log_contains(const std::string &expected_string,
                           size_t expected_occurences) {
-    const std::string log_content = router->get_full_logfile();
+    const std::string log_content = router->get_logfile_content();
     EXPECT_EQ(expected_occurences,
               count_str_occurences(log_content, expected_string))
         << log_content;

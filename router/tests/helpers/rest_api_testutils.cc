@@ -396,7 +396,8 @@ void RestApiComponentTest::fetch_and_validate_schema_and_resource(
   ASSERT_TRUE(wait_for_rest_endpoint_ready(test_params.uri, http_port_,
                                            test_params.user_name,
                                            test_params.user_password))
-      << http_server.get_full_output() << http_server.get_full_logfile();
+      << http_server.get_full_output()
+      << http_server.get_logfile_content("", "", 500);
 
   for (HttpMethod::pos_type ndx = 0; ndx < HttpMethod::Pos::_LAST; ++ndx) {
     if (test_params.methods.test(ndx)) {

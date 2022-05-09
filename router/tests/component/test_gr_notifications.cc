@@ -761,7 +761,7 @@ TEST_P(GrNotificationMysqlxWaitTimeoutUnsupportedTest,
   ASSERT_GT(md_queries_count, 1);
 
   // there should be no WARNINGs nor ERRORs in the log file
-  const std::string log_content = router.get_full_logfile();
+  const std::string log_content = router.get_logfile_content();
 
   EXPECT_THAT(log_content,
               ::testing::Not(::testing::AnyOf(
@@ -957,10 +957,9 @@ TEST_P(GrNotificationsConfErrorTest, GrNotificationConfError) {
   const auto wait_for_process_exit_timeout{10000ms};
   check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
 
-  const std::string log_content = router.get_full_logfile();
+  const std::string log_content = router.get_logfile_content();
   EXPECT_NE(log_content.find(test_params.expected_error_message),
-            log_content.npos)
-      << log_content;
+            log_content.npos);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1220,19 +1219,19 @@ TEST_F(GrNotificationsTest, AddNode) {
 
   SCOPED_TRACE(
       "// Check that GR notices have been enabled exactly once on each node");
-  const std::string log_content = router.get_full_logfile();
+  const std::string log_content = router.get_logfile_content();
   for (unsigned i = 0; i < kCurrentClusterNodesCount; ++i) {
     const std::string needle =
         "Enabling GR notices for cluster 'test' "
         "changes on node 127.0.0.1:" +
         std::to_string(cluster_nodes_xports[i]);
-    EXPECT_EQ(1, count_str_occurences(log_content, needle)) << log_content;
+    EXPECT_EQ(1, count_str_occurences(log_content, needle));
   }
 
   SCOPED_TRACE(
       "// Make sure no GR notice connection has been removed in the process");
   const std::string needle = "Removing unused GR notification session";
-  EXPECT_EQ(0, count_str_occurences(log_content, needle)) << log_content;
+  EXPECT_EQ(0, count_str_occurences(log_content, needle));
 }
 
 /**
@@ -1320,13 +1319,13 @@ TEST_F(GrNotificationsTest, RemoveNode) {
 
   SCOPED_TRACE(
       "// Check that GR notices have been enabled exactly once on each node");
-  const std::string log_content = router.get_full_logfile();
+  const std::string log_content = router.get_logfile_content();
   for (unsigned i = 0; i < kCurrentClusterNodesCount; ++i) {
     const std::string needle =
         "Enabling GR notices for cluster 'test' "
         "changes on node 127.0.0.1:" +
         std::to_string(cluster_nodes_xports[i]);
-    EXPECT_EQ(1, count_str_occurences(log_content, needle)) << log_content;
+    EXPECT_EQ(1, count_str_occurences(log_content, needle));
   }
 
   SCOPED_TRACE(

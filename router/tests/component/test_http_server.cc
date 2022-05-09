@@ -292,8 +292,7 @@ TEST_P(HttpServerPlainTest, ensure) {
                 make_error_condition(std::errc::address_not_available));
 
       // wait a bit to let the process actually startup to not kill it too early
-      EXPECT_TRUE(wait_log_contains(http_server, "Running", 1000ms))
-          << "log: " << http_server.get_full_logfile();
+      EXPECT_TRUE(wait_log_contains(http_server, "Running", 1000ms));
 
       // skip
       return;
@@ -308,7 +307,7 @@ TEST_P(HttpServerPlainTest, ensure) {
                     1000ms);  // assume it finishes in 1s
     EXPECT_THAT(http_server.get_full_output(),
                 ::testing::ContainsRegex(GetParam().stderr_regex));
-    EXPECT_THAT(http_server.get_full_logfile(),
+    EXPECT_THAT(http_server.get_logfile_content(),
                 ::testing::ContainsRegex(GetParam().errmsg_regex));
   }
 }
@@ -1281,7 +1280,7 @@ TEST_P(HttpServerSecureTest, ensure) {
             ? "ee key too small"
             : GetParam().errmsg_regex;
 
-    EXPECT_THAT(http_server.get_full_logfile(),
+    EXPECT_THAT(http_server.get_logfile_content(),
                 ::testing::ContainsRegex(errmsg_regex));
   }
 }
@@ -1764,7 +1763,7 @@ TEST_P(HttpServerAuthFailTest, ensure) {
   } else {
     SCOPED_TRACE("// wait process to exit with with error");
     check_exit_code(http_server, EXIT_FAILURE);
-    EXPECT_THAT(http_server.get_full_logfile(),
+    EXPECT_THAT(http_server.get_logfile_content(),
                 ::testing::HasSubstr(GetParam().expected_errmsg));
   }
 }

@@ -611,7 +611,7 @@ void ProcessManager::dump_all() {
       ss << "## Console output:\n\n" << output << "\n";
     }
 
-    auto log_content = proc->get_full_logfile();
+    auto log_content = proc->get_logfile_content("", "", 500);
     if (!log_content.empty()) {
       ss << "## Log content:\n\n" << log_content << "\n";
     }
@@ -691,9 +691,10 @@ void ProcessManager::check_port(bool should_be_ready, ProcessWrapper &process,
   }
 #endif
 
-  ASSERT_EQ(ready, should_be_ready) << process.get_full_output() << "\n"
-                                    << process.get_full_logfile() << "\n"
-                                    << "port: " << std::to_string(port) << "\n"
+  ASSERT_EQ(ready, should_be_ready)
+      << process.get_full_output() << "\n"
+      << process.get_logfile_content("", "", 500) << "\n"
+      << "port: " << std::to_string(port) << "\n"
 #if 0
                                     << "netstat output: " << netstat_info
 #endif

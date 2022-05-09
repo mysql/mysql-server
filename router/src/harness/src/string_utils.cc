@@ -25,6 +25,8 @@
 #include "mysql/harness/string_utils.h"
 
 #include <algorithm>
+#include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -67,6 +69,64 @@ void right_trim(std::string &str) {
 void trim(std::string &str) {
   left_trim(str);
   right_trim(str);
+}
+
+namespace {
+
+/** @brief Finds n-th occurence of character c in string s
+ *
+ * @param s string to search in
+ * @param c character to search for
+ * @param n which occurence of c in s we are looking for
+ *
+ * @return position of the nth occurence of character c in string c if found
+ * @return nullopt if not found
+ */
+static std::optional<size_t> find_nth(const std::string_view &s, const char c,
+                                      size_t n) {
+  if (n == 0) return {};
+
+  size_t result = 0;
+  while (n-- != 0) {
+    result = s.find(c, result);
+    if (result == std::string::npos) return {};
+    result++;
+  }
+  return result - 1;
+}
+}  // namespace
+
+std::string limit_lines(const std::string &str, const size_t limit,
+                        const std::string &replace_with) {
+  size_t num_lines = std::count(str.begin(), str.end(), '\n');
+  if (!str.empty() && str.back() != '\n') num_lines++;
+
+  if (num_lines > limit) {
+    size_t begin_lines = limit / 2 + limit % 2;
+    size_t end_lines = limit - begin_lines;
+
+    std::string result, line;
+    std::istringstream iss_content(str);
+    while ((begin_lines-- != 0) && std::getline(iss_content, line)) {
+      result += line + "\n";
+    }
+
+    result += replace_with;
+
+    if (end_lines > 0) {
+      auto pos_end = find_nth(str, '\n', num_lines - end_lines);
+      if (pos_end) {
+        iss_content.seekg(*pos_end + 1);
+        while (std::getline(iss_content, line)) {
+          result += line + "\n";
+        }
+      }
+    }
+
+    return result;
+  }
+
+  return str;
 }
 
 }  // namespace mysql_harness
