@@ -192,7 +192,7 @@ JOIN points ON points.id = edges.to_id
 ;
 SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 26) FROM edges;
 
-UPDATE edges SET cost = 1000.0 where id = 12;
+UPDATE edges SET cost = 1000.0 where id = 3;
 
 SELECT ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 26)
 FROM edges
@@ -200,7 +200,7 @@ JOIN points ON points.id = edges.to_id
 ;
 SELECT ST_SHORTEST_DIR_PATH(id, from_id, to_id, cost, NULL, 0, 26) FROM edges;
 
-UPDATE edges SET cost = 1000.0 where id = 10;
+UPDATE edges SET cost = 1000.0 where id = 11;
 
 SELECT ST_SHORTEST_DIR_PATH(edges.id, edges.from_id, edges.to_id, edges.cost, points.point, 0, 26)
 FROM edges
