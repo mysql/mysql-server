@@ -23,12 +23,9 @@
 # set common Java variables for ndbjtie unit tests
 # neither wildcards (nor line breaks) for clean targets supported by cmake
 #SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES "*.log")
-IF(HAVE_JAVA)
 
-  # the native path to the JVM
-  FILE(TO_NATIVE_PATH "${Java_JAVA_EXECUTABLE}" Java_JAVA_EXECUTABLE_PATH)
-
-ENDIF(HAVE_JAVA)
+# the native path to the JVM
+FILE(TO_NATIVE_PATH "${Java_JAVA_EXECUTABLE}" Java_JAVA_EXECUTABLE_PATH)
 
 FOREACH(warning
     "unused-but-set-variable"
@@ -43,15 +40,13 @@ ENDFOREACH()
 ADD_SUBDIRECTORY(jtie)
 ADD_SUBDIRECTORY(test)
 
-IF(HAVE_JDK)
-  ADD_CONVENIENCE_LIBRARY(ndbjtie
-    ndbjtie_lib.cpp
-    INCLUDE_DIRECTORIES
-    ${JNI_INCLUDE_DIRS}
-    jtie
-    utils
-    )
-ENDIF(HAVE_JDK)
+ADD_CONVENIENCE_LIBRARY(ndbjtie
+  ndbjtie_lib.cpp
+  INCLUDE_DIRECTORIES
+  ${JNI_INCLUDE_DIRS}
+  jtie
+  utils
+  )
 
 # the NdbJTie Java API
 SET(CLUSTERJ_NDBJTIE_PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/ndbjtie)
