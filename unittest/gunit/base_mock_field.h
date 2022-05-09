@@ -65,10 +65,10 @@ class Base_mock_field_varstring : public Field_varstring {
 
 class Base_mock_field_blob : public Field_blob {
  public:
-  Base_mock_field_blob(uint32 length)
+  Base_mock_field_blob(const char *field_name_arg, uint32 length)
       : Field_blob(length,              // len_arg
                    false,               // maybe_null_arg
-                   "field_NAME",        // field_name_arg
+                   field_name_arg,      // field_name_arg
                    &my_charset_latin1,  // char set
                    true) {}             // set_packlength
 };

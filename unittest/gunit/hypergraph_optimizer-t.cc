@@ -2945,9 +2945,8 @@ TEST_F(HypergraphOptimizerTest, HyperpredicatesConsistentRowEstimates) {
 TEST_F(HypergraphOptimizerTest, SwitchesOrderToMakeSafeForRowid) {
   // Mark t1.y as a blob, to make sure we need rowids for our sort.
   Mock_field_long t1_x(/*is_unsigned=*/false);
-  Base_mock_field_blob t1_y(/*length=*/1000000);
+  Base_mock_field_blob t1_y("y", /*length=*/1000000);
   t1_x.field_name = "x";
-  t1_y.field_name = "y";
 
   Fake_TABLE *t1 = new (m_thd->mem_root) Fake_TABLE(&t1_x, &t1_y);
   m_fake_tables["t1"] = t1;
@@ -5153,11 +5152,11 @@ TEST_F(HypergraphSecondaryEngineTest, NoRewriteOnFinalization) {
   // Verify that finalization was performed.
   EXPECT_FALSE(query_block->join->needs_finalize);
 
+  // There should be no materialization or streaming in the plan.
   ASSERT_EQ(AccessPath::SORT, root->type);
-  ASSERT_EQ(AccessPath::STREAM, root->sort().child->type);
-  ASSERT_EQ(AccessPath::AGGREGATE, root->sort().child->stream().child->type);
+  ASSERT_EQ(AccessPath::AGGREGATE, root->sort().child->type);
   EXPECT_EQ(AccessPath::TABLE_SCAN,
-            root->sort().child->stream().child->aggregate().child->type);
+            root->sort().child->aggregate().child->type);
 
   // The item in the select list should be a SUM. It would have been an
   // Item_field pointing into a temporary table if the USE_EXTERNAL_EXECUTOR
@@ -5209,6 +5208,42 @@ TEST_F(HypergraphSecondaryEngineTest, ExplainWindowForExternalExecutor) {
       PrintQueryPlan(0, root, query_block->join,
                      /*is_root_of_join=*/true),
       StartsWith("-> Window aggregate with buffering: percent_rank() OVER ()"));
+
+  query_block->cleanup(/*full=*/true);
+}
+
+TEST_F(HypergraphSecondaryEngineTest, NoMaterializationForExternalExecutor) {
+  Base_mock_field_blob t1_x{"x", Field::MAX_LONG_BLOB_WIDTH};
+  Mock_field_long t1_y{"y"};
+  m_fake_tables["t1"] = new (m_thd->mem_root) Fake_TABLE{&t1_x, &t1_y};
+
+  Query_block *query_block =
+      ParseAndResolve("SELECT MAX(t1.x) FROM t1 GROUP BY t1.y ORDER BY t1.y",
+                      /*nullable=*/true);
+
+  // Disable creation of intermediate temporary tables.
+  handlerton *handlerton =
+      EnableSecondaryEngine(/*aggregation_is_unordered=*/true);
+  handlerton->secondary_engine_flags |=
+      MakeSecondaryEngineFlags(SecondaryEngineFlag::USE_EXTERNAL_EXECUTOR);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // There should be no materialization into a temporary table in the plan. If
+  // USE_EXTERNAL_EXECUTOR had not been enabled, the plan would have contained a
+  // materialization step between AGGREGATE and SORT because of the BLOB column.
+  ASSERT_EQ(AccessPath::SORT, root->type);
+  ASSERT_EQ(AccessPath::AGGREGATE, root->sort().child->type);
+  ASSERT_EQ(AccessPath::TABLE_SCAN,
+            root->sort().child->aggregate().child->type);
+  EXPECT_STREQ(
+      "t1", root->sort().child->aggregate().child->table_scan().table->alias);
 
   query_block->cleanup(/*full=*/true);
 }

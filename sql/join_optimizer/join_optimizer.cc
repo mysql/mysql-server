@@ -4382,6 +4382,13 @@ AccessPath *CreateMaterializationOrStreamingPath(THD *thd, JOIN *join,
                                                  AccessPath *path,
                                                  bool need_rowid,
                                                  bool copy_items) {
+  if (!IteratorsAreNeeded(thd, path)) {
+    // Let external executors decide for themselves whether they need an
+    // intermediate materialization or streaming step. Don't add it to the plan
+    // for them.
+    return path;
+  }
+
   // See if later sorts will need row IDs from us or not.
   if (!need_rowid) {
     // The common case; we can use streaming.
