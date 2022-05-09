@@ -17497,9 +17497,10 @@ bool ha_ndbcluster::get_num_parts(const char *path [[maybe_unused]],
     // Bootstrap privilege table migration
     // The part_info is not set during generic server upgrade of "legacy
     // privilege tables", use hardcoded value to allow open before
-    // altering to other engine
-    assert(Ndb_dist_priv_util::is_privilege_table(table_share->db.str,
-                                                  table_share->table_name.str));
+    // altering to other engine.
+    //
+    // The hardcoded value is also set for tables with triggers. These tables
+    // are handled separately during generic server upgrades.
     *num_parts = 0;
     return false;
   }

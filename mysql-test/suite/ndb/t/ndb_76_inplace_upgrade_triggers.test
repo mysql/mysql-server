@@ -1,0 +1,146 @@
+--source include/have_multi_ndb.inc
+--source suite/ndb/include/backup_restore_setup.inc
+
+# Test to check inplace upgrade from 7.6 with triggers involved.
+#
+# For inplace upgrade with NDB tables, another requirement is to
+# ensure that the tables are present in NDB Dictionary. This is
+# done through restoring a 7.6 based backup created using the
+# following SQL statements:
+#
+# CREATE DATABASE test;
+# USE test;
+#
+# CREATE TABLE account (
+#   acct_num INT PRIMARY KEY,
+#   amount DECIMAL(10,2)
+# ) ENGINE NDB;
+#
+# CREATE TRIGGER ins_sum BEFORE INSERT ON account
+#   FOR EACH ROW SET @sum = @sum + NEW.amount;
+#
+# CREATE TRIGGER ins_transaction BEFORE INSERT ON account
+#   FOR EACH ROW PRECEDES ins_sum
+#   SET @deposits = @deposits + IF(NEW.amount>0,NEW.amount,0),
+#       @withdrawals = @withdrawals + IF(NEW.amount<0,-NEW.amount,0);
+#
+# CREATE TABLE t1 (
+#   a int PRIMARY KEY,
+#   b varchar(255)
+# ) ENGINE = NDB;
+#
+# This test does the following:
+# 1. Stops both MySQL servers
+# 2. Restores the NDB backup
+# 3. Unzips the 7.6 data directories
+# 4. Restarts both MySQL servers (step where the upgrade takes place)
+# 5. Checks if the triggers are created and working as expected
+# 6. Clean up which includes restarting both MySQL servers
+
+--let $MYSQLD_DATADIR = `select @@datadir`
+--echo # Stop MySQL server 1
+--let $restart_file1 = $MYSQLTEST_VARDIR/tmp/mysqld.1.1.expect
+--exec echo "wait" > $restart_file1
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--connection server2
+--echo # Stop MySQL server 2
+--let $restart_file2 = $MYSQLTEST_VARDIR/tmp/mysqld.2.1.expect
+--exec echo "wait" > $restart_file2
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--connection server1
+--echo # Restore 7.6 backup into NDB
+--exec $NDB_RESTORE -b 1 -n 1 -m -r --disable-indexes --include-databases=mysql,test $NDB_SAVED_BACKUPS/76_inplace_upgrade_triggers_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 2 -r --include-databases=mysql,test $NDB_SAVED_BACKUPS/76_inplace_upgrade_triggers_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 --rebuild-indexes --include-databases=mysql,test $NDB_SAVED_BACKUPS/76_inplace_upgrade_triggers_backup >> $NDB_TOOLS_OUTPUT
+
+--echo # Setup the 7.6 data directory
+--echo # Copy zip files to tmp
+--copy_file $MYSQLTEST_VARDIR/std_data/data76_trigger.zip $MYSQL_TMP_DIR/data76_trigger.zip
+--echo # Check that the file exists in the working folder
+--file_exists $MYSQL_TMP_DIR/data76_trigger.zip
+--echo # Unzip the contents
+--exec unzip -qo $MYSQL_TMP_DIR/data76_trigger.zip -d $MYSQL_TMP_DIR
+--echo # Rename the extracted root directory for server2
+--move_file $MYSQL_TMP_DIR/data76_trigger $MYSQL_TMP_DIR/data76_trigger2
+--echo # Unzip again for server1
+--exec unzip -qo $MYSQL_TMP_DIR/data76_trigger.zip -d $MYSQL_TMP_DIR
+
+--echo # Test upgrade on 7.6 data directory on MySQL server 1
+--let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data76_trigger
+--let $MYSQLD_LOG1 = $MYSQLTEST_VARDIR/log/76_upgrade_server1.log
+--replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG1 MYSQLD_LOG1
+--exec echo "restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG1" > $restart_file1
+--let $wait_counter= 10000
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--let SEARCH_FILE= $MYSQLD_LOG1
+# Server shutdown error can show up during high IO loads
+--let IGNORE_PATTERN= \[ERROR\] \[[^]]*\] \[[^]]*\] Event Scheduler\: \[root@localhost\]\[events\.myevent\] (Unknown column \'c1\' in \'field list\'|Server shutdown in progress)
+--let SEARCH_PATTERN= \[ERROR\]
+--source include/search_pattern.inc
+
+--connection server2
+--echo # Test upgrade on 7.6 data directory on MySQL server 2
+--let $MYSQLD_DATADIR2 = $MYSQL_TMP_DIR/data76_trigger2
+--let $MYSQLD_LOG2 = $MYSQLTEST_VARDIR/log/76_upgrade_server2.log
+--replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR2 MYSQLD_DATADIR2 $MYSQLD_LOG2 MYSQLD_LOG2
+--exec echo "restart: --datadir=$MYSQLD_DATADIR2 --log-error=$MYSQLD_LOG2" > $restart_file2
+--let $wait_counter= 10000
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--let SEARCH_FILE= $MYSQLD_LOG2
+# Server shutdown error can show up during high IO loads
+--let IGNORE_PATTERN= \[ERROR\] \[[^]]*\] \[[^]]*\] Event Scheduler\: \[root@localhost\]\[events\.myevent\] (Unknown column \'c1\' in \'field list\'|Server shutdown in progress)
+--let SEARCH_PATTERN= \[ERROR\]
+--source include/search_pattern.inc
+
+--connection server1
+SHOW TABLES;
+--replace_column 6 #
+SHOW TRIGGERS;
+
+--connection server2
+SHOW TABLES;
+--replace_column 6 #
+SHOW TRIGGERS;
+
+--connection server1
+SET @sum = 0;
+SET @deposits = 0;
+SET @withdrawals = 0;
+INSERT INTO account VALUES(137,14.98),(141,1937.50),(97,-100.00);
+--sorted_result
+SELECT * FROM account;
+SELECT @sum AS 'Sum', @deposits AS 'Deposits', @withdrawals AS 'Withdrawals';
+
+DROP TABLE t1, account;
+
+--exec echo "wait" > $restart_file1
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart" > $restart_file1
+--let $wait_counter= 10000
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--connection server2
+--exec echo "wait" > $restart_file2
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart" > $restart_file2
+--let $wait_counter= 10000
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--force-rmdir $MYSQLD_DATADIR1
+--force-rmdir $MYSQLD_DATADIR2
+--remove_file $MYSQL_TMP_DIR/data76_trigger.zip
+--remove_file $NDB_TOOLS_OUTPUT

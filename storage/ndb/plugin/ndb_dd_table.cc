@@ -255,3 +255,7 @@ bool ndb_dd_table_check_column_varbinary(const dd::Table *table_def,
   return col_def->type() == dd::enum_column_types::VARCHAR &&
          col_def->collation_id() == BINARY_COLLATION_ID;
 }
+
+bool ndb_dd_table_has_trigger(const dd::Table *table_def) {
+  return table_def->has_trigger();
+}

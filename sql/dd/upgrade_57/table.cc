@@ -1836,9 +1836,11 @@ bool migrate_plugin_table_to_dd(THD *thd) {
 }
 
 /**
-  Migration of NDB tables is deferred until later, except for legacy privilege
-  tables stored in NDB, which must be migrated now so that they can be moved to
-  InnoDB later in the upgrade.
+  Migration of NDB tables is deferred until later, except for:
+  1. Legacy privilege tables stored in NDB, which must be migrated now so that
+     they can be moved to InnoDB later in the upgrade.
+  2. Tables that have associated triggers which must be migrated now to avoid
+     loss of the triggers.
 
   To check whether the table is a NDB table, look for the presence of a
   table_name.ndb file in the data directory. These files still exist at this
@@ -1862,6 +1864,8 @@ static bool is_skipped_ndb_table(const char *db_name, const char *table_name) {
       return false;
     }
   }
+
+  if (Trigger_loader::trg_file_exists(db_name, table_name)) return false;
 
   return true;
 }
