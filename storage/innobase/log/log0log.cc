@@ -131,6 +131,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /* UT_DELETE_ARRAY */
 #include "ut0new.h"
 
+// clang-format off
 /**
 @page PAGE_INNODB_REDO_LOG Innodb redo log
 
@@ -283,8 +284,7 @@ Redo log consists of following data layers:
 
 -# User threads need to wait if there is no space in the log files.
 
-   @diafile storage/innobase/log/arch_deleting.dia "Reclaiming space in the redo
-log"
+   @diafile storage/innobase/log/arch_deleting.dia "Reclaiming space in the redo log"
 
 -# Well thought out and tested set of _MONITOR_ counters is maintained and
    documented.
@@ -425,6 +425,7 @@ Read more about redo log details:
 - @subpage PAGE_INNODB_REDO_LOG_FORMAT
 
 *******************************************************/
+// clang-format on
 
 /** Redo log system. Singleton used to populate global pointer. */
 ut::aligned_pointer<log_t, ut::INNODB_CACHE_LINE_SIZE> *log_sys_object;
