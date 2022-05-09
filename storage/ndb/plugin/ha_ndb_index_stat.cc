@@ -930,6 +930,18 @@ static Ndb_index_stat *ndb_index_stat_get_share(NDB_SHARE *share,
   do {
     if (unlikely(!ndb_index_stat_get_allow())) {
       err_out = NdbIndexStat::MyNotAllow;
+      // Detect spurious problem as reported by Bug#32226519 when it happens
+      ndbcluster::ndbrequire(
+          // Ignore error when migrating privilege tables
+          (strcmp(share->db, "mysql") == 0 &&
+           (strcmp(share->table_name, "user") == 0 ||
+            strcmp(share->table_name, "db") == 0 ||
+            strcmp(share->table_name, "tables_priv") == 0 ||
+            strcmp(share->table_name, "columns_priv") == 0 ||
+            strcmp(share->table_name, "procs_priv") == 0 ||
+            strcmp(share->table_name, "proxies_priv") == 0)) ||
+          // Fail otherwise
+          false);
       break;
     }
     st = ndb_index_stat_find_share(share, index, st_last);
