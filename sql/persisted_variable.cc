@@ -824,8 +824,11 @@ bool Persisted_variables_cache::flush_to_file() {
     if (mysql_file_fputs(dest.c_ptr(), m_fd) < 0) {
       ret = true;
     }
+    DBUG_EXECUTE_IF("crash_after_write_persist_file", DBUG_SUICIDE(););
+    /* flush contents to disk immediately */
+    if (mysql_file_fflush(m_fd) != 0) ret = true;
+    if (my_sync(my_fileno(m_fd->m_file), MYF(MY_WME)) == -1) ret = true;
   }
-  DBUG_EXECUTE_IF("crash_after_write_persist_file", DBUG_SUICIDE(););
   close_persist_file();
   if (!ret) {
     DBUG_EXECUTE_IF("crash_after_close_persist_file", DBUG_SUICIDE(););
@@ -1845,6 +1848,10 @@ int Persisted_variables_cache::read_persist_file() {
       LogErr(ERROR_LEVEL, ER_JSON_PARSE_ERROR);
       return 1;
     }
+  } else {
+    /* backup file was read successfully, thus rename it to original. */
+    my_rename(m_persist_backup_filename.c_str(), m_persist_filename.c_str(),
+              MYF(MY_WME));
   }
   Json_object *json_obj = down_cast<Json_object *>(json.get());
   /* Check file version */
