@@ -1,4 +1,5 @@
 # Tests for WL#8084 - Condition pushdown to derived table
+--source include/elide_costs.inc
 
 #setup tables
 CREATE TABLE t0 (
@@ -1205,5 +1206,31 @@ CREATE TABLE t1 (f1 INTEGER);
 SET @a = 0;
 EXPLAIN SELECT COUNT(*) FROM (SELECT SUM(f1) FROM t1) as dt WHERE @a = 1;
 SELECT COUNT(*) FROM (SELECT SUM(f1) FROM t1) as dt WHERE @a = 1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#34148712: Incorrect DATETIME value: '' on latest MySQL 8.0.29
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER UNSIGNED);
+let $query = SELECT *
+             FROM (SELECT NOW() AS time FROM t1 WHERE f1 = ?
+                   UNION
+                   SELECT NOW() AS time FROM t1 WHERE f1 = 0) AS dt
+             WHERE time <= ?;
+eval PREPARE stmt FROM "$query";
+SET @a = 1;
+SET @b = '2022-05-06 16:49:45';
+eval EXECUTE stmt USING @a, @b;
+eval PREPARE stmt FROM "EXPLAIN FORMAT=tree $query";
+--replace_regex $elide_costs
+--skip_if_hypergraph  # Depends on the query plan.
+eval EXECUTE stmt USING @a, @b;
+SET @a = 2;
+SET @b = '2023-05-06 16:49:45';
+--replace_regex $elide_costs
+--skip_if_hypergraph  # Depends on the query plan.
+eval EXECUTE stmt USING @a, @b;
 
 DROP TABLE t1;
