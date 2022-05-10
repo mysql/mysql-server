@@ -87,7 +87,7 @@ FLUSH LOGS;
 --let $sync_point = before_rollback_xa_trx
 --source include/execute_to_conditional_timestamp_sync_point.inc
 --source include/kill_mysqld.inc
---disconnect con1
+--source extra/xa_crash_safe_tests/cleanup_connection.inc
 
 # 6. Restart server and check:
 --source include/start_mysqld.inc

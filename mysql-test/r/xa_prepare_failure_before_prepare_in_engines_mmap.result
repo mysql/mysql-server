@@ -14,6 +14,7 @@ XA END X'78696431',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_prepare_in_engines]
 XA PREPARE X'78696431',X'',1;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart
 include/assert.inc [Found log message(s) for "Rolling back trx with id %, 1 rows to undo"]
 include/assert.inc [Found 1 log message(s) for "in InnoDB engine. No attempts to commit, rollback or prepare any transactions."]

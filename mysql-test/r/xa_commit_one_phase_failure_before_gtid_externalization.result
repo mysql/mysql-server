@@ -18,6 +18,7 @@ include/execute_to_conditional_timestamp_sync_point.inc [before_gtid_externaliza
 XA COMMIT X'78696431',X'',1 ONE PHASE;
 SET SESSION debug = '+d,crash_now_safe';
 ERROR HY000: Lost connection to MySQL server during query
+ERROR HY000: Lost connection to MySQL server during query
 # restart
 include/assert.inc [Found 1 log message(s) for "in InnoDB engine. No attempts to commit, rollback or prepare any transactions."]
 include/assert.inc [GTID_EXECUTED has been updated]

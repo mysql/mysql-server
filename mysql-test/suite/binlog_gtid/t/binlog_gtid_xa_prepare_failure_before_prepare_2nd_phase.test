@@ -75,7 +75,7 @@ INSERT INTO t1 VALUES (1);
 --let $sync_point = before_set_prepared_in_tc
 --source include/execute_to_conditional_timestamp_sync_point.inc
 --source include/kill_mysqld.inc
---disconnect con1
+--source extra/xa_crash_safe_tests/cleanup_connection.inc
 
 # 5. Restart server and check:
 #

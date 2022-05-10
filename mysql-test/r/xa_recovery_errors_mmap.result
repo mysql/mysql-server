@@ -19,6 +19,7 @@ XA END X'626c78726533',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_set_prepared_in_tc]
 XA prepare X'626c78726533',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_async,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to rollback XA transaction X'626c78726533',X'',1 in InnoDB, with failure code XAER_ASYNC.*]
@@ -29,6 +30,7 @@ XA END X'626c78726534',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_set_prepared_in_tc]
 XA prepare X'626c78726534',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_rmerr,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to rollback XA transaction X'626c78726534',X'',1 in InnoDB, with failure code XAER_RMERR.*]
@@ -39,6 +41,7 @@ XA END X'626c78726535',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_set_prepared_in_tc]
 XA prepare X'626c78726535',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_nota,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to rollback XA transaction X'626c78726535',X'',1 in InnoDB, with failure code XAER_NOTA.*]
@@ -49,6 +52,7 @@ XA END X'626c78726536',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_set_prepared_in_tc]
 XA prepare X'626c78726536',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_inval,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to rollback XA transaction X'626c78726536',X'',1 in InnoDB, with failure code XAER_INVAL.*]
@@ -59,6 +63,7 @@ XA END X'626c78726537',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_set_prepared_in_tc]
 XA prepare X'626c78726537',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_proto,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to rollback XA transaction X'626c78726537',X'',1 in InnoDB, with failure code XAER_PROTO.*]
@@ -69,6 +74,7 @@ XA END X'626c78726538',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_set_prepared_in_tc]
 XA prepare X'626c78726538',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_rmfail,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to rollback XA transaction X'626c78726538',X'',1 in InnoDB, with failure code XAER_RMFAIL.*]
@@ -79,6 +85,7 @@ XA END X'626c78726539',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_set_prepared_in_tc]
 XA prepare X'626c78726539',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_dupid,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to rollback XA transaction X'626c78726539',X'',1 in InnoDB, with failure code XAER_DUPID.*]
@@ -89,6 +96,7 @@ XA END X'626c7872653130',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_set_prepared_in_tc]
 XA prepare X'626c7872653130',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_outside,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to rollback XA transaction X'626c7872653130',X'',1 in InnoDB, with failure code XAER_OUTSIDE.*]
@@ -100,6 +108,7 @@ XA PREPARE X'626c7872653131',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_commit_in_engines]
 XA commit X'626c7872653131',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_async,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to prepare XA transaction X'626c7872653131',X'',1 in InnoDB, with failure code XAER_ASYNC.*]
@@ -112,6 +121,7 @@ XA PREPARE X'626c7872653132',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_commit_in_engines]
 XA commit X'626c7872653132',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_rmerr,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to prepare XA transaction X'626c7872653132',X'',1 in InnoDB, with failure code XAER_RMERR.*]
@@ -124,6 +134,7 @@ XA PREPARE X'626c7872653133',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_commit_in_engines]
 XA commit X'626c7872653133',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_nota,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to prepare XA transaction X'626c7872653133',X'',1 in InnoDB, with failure code XAER_NOTA.*]
@@ -136,6 +147,7 @@ XA PREPARE X'626c7872653134',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_commit_in_engines]
 XA commit X'626c7872653134',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_inval,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to prepare XA transaction X'626c7872653134',X'',1 in InnoDB, with failure code XAER_INVAL.*]
@@ -148,6 +160,7 @@ XA PREPARE X'626c7872653135',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_commit_in_engines]
 XA commit X'626c7872653135',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_proto,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to prepare XA transaction X'626c7872653135',X'',1 in InnoDB, with failure code XAER_PROTO.*]
@@ -160,6 +173,7 @@ XA PREPARE X'626c7872653136',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_commit_in_engines]
 XA commit X'626c7872653136',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_rmfail,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to prepare XA transaction X'626c7872653136',X'',1 in InnoDB, with failure code XAER_RMFAIL.*]
@@ -172,6 +186,7 @@ XA PREPARE X'626c7872653137',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_commit_in_engines]
 XA commit X'626c7872653137',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_dupid,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to prepare XA transaction X'626c7872653137',X'',1 in InnoDB, with failure code XAER_DUPID.*]
@@ -184,6 +199,7 @@ XA PREPARE X'626c7872653138',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_commit_in_engines]
 XA commit X'626c7872653138',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_outside,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to prepare XA transaction X'626c7872653138',X'',1 in InnoDB, with failure code XAER_OUTSIDE.*]
@@ -196,6 +212,7 @@ XA PREPARE X'626c7872653139',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_rollback_in_engines]
 XA rollback X'626c7872653139',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_async,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to prepare XA transaction X'626c7872653139',X'',1 in InnoDB, with failure code XAER_ASYNC.*]
@@ -208,6 +225,7 @@ XA PREPARE X'626c7872653230',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_rollback_in_engines]
 XA rollback X'626c7872653230',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_rmerr,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to prepare XA transaction X'626c7872653230',X'',1 in InnoDB, with failure code XAER_RMERR.*]
@@ -220,6 +238,7 @@ XA PREPARE X'626c7872653231',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_rollback_in_engines]
 XA rollback X'626c7872653231',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_nota,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to prepare XA transaction X'626c7872653231',X'',1 in InnoDB, with failure code XAER_NOTA.*]
@@ -232,6 +251,7 @@ XA PREPARE X'626c7872653232',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_rollback_in_engines]
 XA rollback X'626c7872653232',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_inval,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to prepare XA transaction X'626c7872653232',X'',1 in InnoDB, with failure code XAER_INVAL.*]
@@ -244,6 +264,7 @@ XA PREPARE X'626c7872653233',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_rollback_in_engines]
 XA rollback X'626c7872653233',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_proto,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to prepare XA transaction X'626c7872653233',X'',1 in InnoDB, with failure code XAER_PROTO.*]
@@ -256,6 +277,7 @@ XA PREPARE X'626c7872653234',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_rollback_in_engines]
 XA rollback X'626c7872653234',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_rmfail,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to prepare XA transaction X'626c7872653234',X'',1 in InnoDB, with failure code XAER_RMFAIL.*]
@@ -268,6 +290,7 @@ XA PREPARE X'626c7872653235',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_rollback_in_engines]
 XA rollback X'626c7872653235',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_dupid,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to prepare XA transaction X'626c7872653235',X'',1 in InnoDB, with failure code XAER_DUPID.*]
@@ -280,6 +303,7 @@ XA PREPARE X'626c7872653236',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_rollback_in_engines]
 XA rollback X'626c7872653236',X'',1 ;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_outside,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 include/wait_for_pattern_in_file.inc [.*Failed to prepare XA transaction X'626c7872653236',X'',1 in InnoDB, with failure code XAER_OUTSIDE.*]
@@ -291,6 +315,7 @@ XA END X'626c7872653237',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_commit_in_engines]
 XA commit X'626c7872653237',X'',1 one phase;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_async,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 # restart
@@ -301,6 +326,7 @@ XA END X'626c7872653238',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_commit_in_engines]
 XA commit X'626c7872653238',X'',1 one phase;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_rmerr,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 # restart
@@ -311,6 +337,7 @@ XA END X'626c7872653239',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_commit_in_engines]
 XA commit X'626c7872653239',X'',1 one phase;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_nota,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 # restart
@@ -321,6 +348,7 @@ XA END X'626c7872653330',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_commit_in_engines]
 XA commit X'626c7872653330',X'',1 one phase;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_inval,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 # restart
@@ -331,6 +359,7 @@ XA END X'626c7872653331',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_commit_in_engines]
 XA commit X'626c7872653331',X'',1 one phase;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_proto,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 # restart
@@ -341,6 +370,7 @@ XA END X'626c7872653332',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_commit_in_engines]
 XA commit X'626c7872653332',X'',1 one phase;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_rmfail,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 # restart
@@ -351,6 +381,7 @@ XA END X'626c7872653333',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_commit_in_engines]
 XA commit X'626c7872653333',X'',1 one phase;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_dupid,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 # restart
@@ -361,6 +392,7 @@ XA END X'626c7872653334',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_commit_in_engines]
 XA commit X'626c7872653334',X'',1 one phase;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart: --debug=+d,xa_recovery_error_xaer_outside,xa_recovery_error_reporting
 include/wait_for_removed_expect_file.inc
 # restart

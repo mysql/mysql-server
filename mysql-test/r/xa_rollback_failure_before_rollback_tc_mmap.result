@@ -15,6 +15,7 @@ XA PREPARE X'78696431',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_rollback_in_tc]
 XA ROLLBACK X'78696431',X'',1;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart
 include/assert.inc [Found 1 log message(s) for "Successfully prepared 1 XA transaction"]
 include/assert.inc [1 XA transaction(s) in PREPARED state]

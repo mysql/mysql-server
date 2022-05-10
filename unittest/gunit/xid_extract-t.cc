@@ -91,9 +91,9 @@ TEST_F(XID_extract_test, Input_Output_test) {
                64, str64.data(), 64, 1);
   // formatid 0
   expect_valid(tokenizer, "X'', X'', 0", "", 0, "", 0, 0);
-  // formatid 2^63-1
-  expect_valid(tokenizer, "X'', X'', 9223372036854775807", "", 0, "", 0,
-               std::numeric_limits<int64_t>::max());
+  // formatid 2^31-1
+  expect_valid(tokenizer, "X'', X'', 2147483647", "", 0, "", 0,
+               std::numeric_limits<int32_t>::max());
 
   // xid_t::operator!= test
   XID xid;
