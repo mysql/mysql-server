@@ -4762,6 +4762,11 @@ finish:
 
   THD_STAGE_INFO(thd, stage_query_end);
 
+  // Check for receiving a recent kill signal
+  if (thd->killed) {
+    thd->send_kill_message();
+    res = thd->is_error();
+  }
   if (res) {
     if (thd->get_reprepare_observer() != nullptr &&
         thd->get_reprepare_observer()->is_invalidated() &&
@@ -4796,7 +4801,6 @@ finish:
                                    : "MYSQL_AUDIT_QUERY_NESTED_STATUS_END");
 
     /* report error issued during command execution */
-    if (thd->killed) thd->send_kill_message();
     if ((thd->is_error() && !early_error_on_rep_command) ||
         (thd->variables.option_bits & OPTION_MASTER_SQL_ERROR))
       trans_rollback_stmt(thd);

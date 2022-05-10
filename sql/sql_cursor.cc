@@ -230,6 +230,7 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
   parent_locker = thd->m_statement_psi;
   thd->m_digest = nullptr;
   thd->m_statement_psi = nullptr;
+  DBUG_EXECUTE_IF("bug33218625_kill_injection", thd->killed = THD::KILL_QUERY;);
 
   bool rc = mysql_execute_command(thd);
 
