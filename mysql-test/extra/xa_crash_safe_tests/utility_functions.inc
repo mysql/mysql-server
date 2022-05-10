@@ -169,8 +169,8 @@ PROCEDURE
     --let $statement_connection = con1
     --let $statement = COMMIT
     --source include/execute_to_conditional_timestamp_sync_point.inc
-
     --source include/kill_mysqld.inc
+    --source extra/xa_crash_safe_tests/cleanup_connection.inc
 
     --let $debug_point = xa_recovery_error_$xa_error_lc,xa_recovery_error_reporting
     --let $restart_parameters = restart: --debug=+d,$debug_point
@@ -187,7 +187,6 @@ PROCEDURE
 
     --inc $nth_iteration
     --source $json_xa_error_list_next
-    --disconnect con1
   }
 #END OF
 PROCEDURE
@@ -289,8 +288,9 @@ PROCEDURE
     --let $statement_connection = con1
     --let $statement = XA $action $xid $xa_opt
     --source include/execute_to_conditional_timestamp_sync_point.inc
-
     --source include/kill_mysqld.inc
+    --source extra/xa_crash_safe_tests/cleanup_connection.inc
+
     --let $debug_point = xa_recovery_error_$xa_error_lc,xa_recovery_error_reporting
     --let $restart_parameters = restart: --debug=+d,$debug_point
     --let $expect_crash_on_start = 1
@@ -319,7 +319,6 @@ PROCEDURE
 
     --inc $nth_iteration
     --source $json_xa_error_list_next
-    --disconnect con1
   }
 #END OF
 PROCEDURE

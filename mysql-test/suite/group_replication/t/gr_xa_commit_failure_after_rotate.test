@@ -110,6 +110,7 @@ FLUSH LOGS;
 --let $sync_point = before_commit_xa_trx
 --source include/execute_to_conditional_timestamp_sync_point.inc
 --source include/kill_mysqld.inc
+--source extra/xa_crash_safe_tests/cleanup_connection.inc
 
 --let $rpl_connection_name = server2
 --source include/rpl_connection.inc

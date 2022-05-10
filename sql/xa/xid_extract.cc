@@ -44,11 +44,11 @@ xa::XID_extractor::XID_extractor(std::string const &source,
 size_t xa::XID_extractor::extract(std::string const &source,
                                   size_t max_extractions) {
   static const std::regex xid_regex{
-      "X'((?:[0-9a-fA-F]{2}){0,64})'"      // GTRID
-      "(?:[[:space:]]*),(?:[[:space:]]*)"  // white-space and comma
-      "X'((?:[0-9a-fA-F]{2}){0,64})'"      // BQUAL
-      "(?:[[:space:]]*),(?:[[:space:]]*)"  // white-space and comma
-      "(0|[1-9][0-9]{0,19})",              // FORMATID
+      "X'((?:[0-9a-fA-F][0-9a-fA-F]){1,64})?'"  // GTRID
+      "(?:[[:space:]]*),(?:[[:space:]]*)"       // white-space and comma
+      "X'((?:[0-9a-fA-F][0-9a-fA-F]){1,64})?'"  // BQUAL
+      "(?:[[:space:]]*),(?:[[:space:]]*)"       // white-space and comma
+      "(0|[1-9][0-9]{0,19})",                   // FORMATID
       std::regex::optimize};
 
   this->m_xids.clear();

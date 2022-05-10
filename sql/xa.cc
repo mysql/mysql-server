@@ -318,6 +318,7 @@ int ha_recover(Xid_commit_list *commit_list, Xa_state_list *xa_list) {
            static_cast<int>(info.len * sizeof(XID)));
     return 1;
   }
+  auto clean_up_guard = create_scope_guard([&] { delete[] info.list; });
 
   if (plugin_foreach(nullptr, xa::recovery::recover_prepared_in_tc_one_ht,
                      MYSQL_STORAGE_ENGINE_PLUGIN, &info)) {
@@ -327,8 +328,6 @@ int ha_recover(Xid_commit_list *commit_list, Xa_state_list *xa_list) {
                      MYSQL_STORAGE_ENGINE_PLUGIN, &info)) {
     return 1;
   }
-
-  delete[] info.list;
 
   if (info.found_foreign_xids)
     LogErr(WARNING_LEVEL, ER_XA_RECOVER_FOUND_XA_TRX, info.found_foreign_xids);

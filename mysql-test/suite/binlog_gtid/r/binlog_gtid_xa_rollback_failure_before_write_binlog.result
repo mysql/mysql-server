@@ -15,6 +15,7 @@ XA PREPARE X'78696431',X'',1;
 include/execute_to_conditional_timestamp_sync_point.inc [before_write_binlog]
 XA ROLLBACK X'78696431',X'',1;
 # Kill the server
+ERROR HY000: Lost connection to MySQL server during query
 # restart
 include/assert.inc [Found 1 log message(s) for "Successfully prepared 1 XA transaction"]
 include/assert_binlog_events.inc [Gtid # Query/XA START X'78696431',X'',1 # Table_map # Write_rows # Query/XA END X'78696431',X'',1 # XA_prepare/XA PREPARE X'78696431',X'',1]
