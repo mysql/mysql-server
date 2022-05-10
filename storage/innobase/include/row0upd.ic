@@ -53,7 +53,6 @@ static inline upd_t *upd_create(
   update->n_fields = n;
   update->fields = reinterpret_cast<upd_field_t *>(&update[1]);
   update->heap = heap;
-  update->per_stmt_heap = nullptr;
 
   for (ulint i = 0; i < n; ++i) {
     upd_field_t *uf = &update->fields[i];
