@@ -3295,6 +3295,29 @@ static void revise_cache_usage(JOIN_TAB *join_tab) {
     For a nested outer join/semi-join, currently, we either use join buffers for
     all inner tables or for none of them.
 
+    Join buffering is enabled for a few more cases for secondary engine.
+    Currently if blocked nested loop(BNL) is employed for join buffering,
+    it is replaced by hash joins in the executor. So the reasons for disabling
+    join buffering because of the way BNL works are no more valid. This gives
+    us an oppotunity to enable join buffering for more cases. However,
+    we enable it only for secondary engine (in particular for semijoins),
+    because of the following reasons:
+    Secondary engine does not care about the cost based decisions
+    involved in arriving at the best possible semijoin strategy;
+    because it can only interpret a plan using "FirstMatch" strategy
+    and can only do table scans. So the choices are very limited.
+    However, it's not the case for mysql. There are serveral semijoin
+    stratagies that could be picked. And these are picked based
+    on the assumption that a nested-loop join(NLJ) would be used because
+    optimizer currently generates plans only for NLJs and not
+    hash joins. So, when executor replaces with hash joins, the number
+    of rows that would be looked into for a particular semijoin strategy
+    will differ from what the optimizer presumed while picking that
+    strategy.
+    For mysql server, we could enable join buffering for more cases, when
+    a cost model for using hash joins is developed and optimizer could
+    generate plans for hash joins.
+
   @todo
     Support BKA inside SJ-Materialization nests. When doing this, we'll need
     to only store sj-inner tables in the join buffer.
@@ -3392,10 +3415,15 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
       /*
         Use join cache with FirstMatch semi-join strategy only when semi-join
         contains only one table.
+        As mentioned earlier (in comments), we lift this restriction for
+        secondary engine.
       */
-      if (!tab->is_single_inner_of_semi_join()) {
-        assert(tab->use_join_cache() == JOIN_CACHE::ALG_NONE);
-        goto no_join_cache;
+      if (!(current_thd->lex->m_sql_cmd != nullptr &&
+            current_thd->lex->m_sql_cmd->using_secondary_storage_engine())) {
+        if (!tab->is_single_inner_of_semi_join()) {
+          assert(tab->use_join_cache() == JOIN_CACHE::ALG_NONE);
+          goto no_join_cache;
+        }
       }
       break;
 
@@ -3442,10 +3470,16 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
     this cached row again)
      - but a row in a cache has only one "match flag"
      - so if "sj inner table"=="first inner", there is a problem.
+
+    As mentioned earlier(in comments), we lift this restriction for
+    secondary engine.
   */
-  if (tab_sj_strategy == SJ_OPT_FIRST_MATCH &&
-      tab->is_inner_table_of_outer_join())
-    goto no_join_cache;
+  if (!(current_thd->lex->m_sql_cmd != nullptr &&
+        current_thd->lex->m_sql_cmd->using_secondary_storage_engine())) {
+    if (tab_sj_strategy == SJ_OPT_FIRST_MATCH &&
+        tab->is_inner_table_of_outer_join())
+      goto no_join_cache;
+  }
 
   if (join->deps_of_remaining_lateral_derived_tables &
       (tab->prefix_tables() & ~tab->added_tables())) {

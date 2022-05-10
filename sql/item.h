@@ -2558,16 +2558,6 @@ class Item : public Parse_tree_node {
   */
   virtual bool mark_field_in_map(uchar *arg [[maybe_unused]]) { return false; }
 
-  /// Traverse the item tree and replace fields that are outside of reach with
-  /// fields that are within reach. This is used by hash join when it detects
-  /// that a join condition refers to a field that is outside of reach, due to
-  /// equality propagation. See
-  /// Item_func::ensure_multi_equality_fields_are_available_walker for more
-  /// details.
-  virtual bool ensure_multi_equality_fields_are_available_walker(uchar *) {
-    return false;
-  }
-
  protected:
   /**
     Helper function for mark_field_in_map(uchar *arg).
@@ -4376,10 +4366,11 @@ class Item_asterisk : public Item_field {
 // See if the provided item points to a reachable field (one that belongs to a
 // table within 'reachable_tables'). If not, go through the list of 'equal'
 // items in the item and see if we have a field that is reachable. If any such
-// field is found, create a new Item_field that points to this reachable field
-// and return it. If the provided item is already reachable, or if we cannot
-// find a reachable field, return the provided item unchanged. This is used when
-// creating a hash join iterator, where the join condition may point to a
+// field is found,  set "found" to true and create a new Item_field that points
+// to this reachable field and return it if we are asked to "replace". If the
+// provided item is already reachable, or if we cannot find a reachable field,
+// return the provided item unchanged and set "found" to false. This is used
+// when creating a hash join iterator, where the join condition may point to a
 // non-reachable field due to multi-equality propagation during optimization.
 // (Ideally, the optimizer should not set up such condition in the first place.
 // This is difficult, if not impossible, to accomplish, given that the plan
@@ -4387,7 +4378,8 @@ class Item_asterisk : public Item_field {
 // that if the field is not reachable, and we cannot find a reachable field, we
 // provided field is returned unchanged. The effect is that the hash join will
 // degrade into a nested loop.
-Item_field *FindEqualField(Item_field *item_field, table_map reachable_tables);
+Item_field *FindEqualField(Item_field *item_field, table_map reachable_tables,
+                           bool replace, bool *found);
 
 class Item_null : public Item_basic_constant {
   typedef Item_basic_constant super;

@@ -391,6 +391,7 @@ class Item_func_false : public Item_func_bool_const {
   void print(const THD *, String *str, enum_query_type) const override {
     str->append("false");
   }
+  enum Functype functype() const override { return FALSE_FUNC; }
 };
 
 /**
@@ -1058,8 +1059,12 @@ class Item_func_eq : public Item_func_comparison {
   /// To overcome this, we must reverse the changes done by the equality
   /// propagation. It is possible to do so because during equality propagation,
   /// we save a list of all of the fields that were considered equal.
+  /// If we are asked to replace ("replace" set to true), arguments of this
+  /// function are replaced with an equal field. If we are not replacing, we
+  /// set "found" to "true" if an equal field is found, "false" otherwise.
   void ensure_multi_equality_fields_are_available(table_map left_side_tables,
-                                                  table_map right_side_tables);
+                                                  table_map right_side_tables,
+                                                  bool replace, bool *found);
 
   // If this equality originally came from a multi-equality, this documents
   // which one it came from (otherwise nullptr). It is used during planning:
@@ -2724,6 +2729,14 @@ bool get_mysql_time_from_str_no_warn(THD *thd, String *str, MYSQL_TIME *l_time,
 bool get_mysql_time_from_str(THD *thd, String *str,
                              enum_mysql_timestamp_type warn_type,
                              const char *warn_name, MYSQL_TIME *l_time);
+
+// Helper function to ensure_multi_equality_fields_are_available().
+// Finds and adjusts (if "replace" is set to true) an "Item_field" in a
+// function with an equal field in the available tables. For more
+// details look at FindEqualField().
+void find_and_adjust_equal_fields(Item *item, table_map available_tables,
+                                  bool replace, bool *found);
+
 /*
   These need definitions from this file but the variables are defined
   in mysqld.h. The variables really belong in this component, but for

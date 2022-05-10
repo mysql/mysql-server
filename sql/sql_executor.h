@@ -491,6 +491,28 @@ struct PendingCondition {
 };
 
 /**
+  Cache invalidator iterators we need to apply, but cannot yet due to outer
+  joins. As soon as “table_index_to_invalidate” is visible in our current join
+  nest (which means there could no longer be NULL-complemented rows we could
+  forget), we can and must output this invalidator and remove it from the array.
+ */
+struct PendingInvalidator {
+  /**
+    The table whose every (post-join) row invalidates one or more derived
+    lateral tables.
+   */
+  QEP_TAB *qep_tab;
+  plan_idx table_index_to_invalidate;
+};
+
+enum CallingContext {
+  TOP_LEVEL,
+  DIRECTLY_UNDER_SEMIJOIN,
+  DIRECTLY_UNDER_OUTER_JOIN,
+  DIRECTLY_UNDER_WEEDOUT
+};
+
+/**
   Create an AND conjunction of all given items. If there are no items, returns
   nullptr. If there's only one item, returns that item.
  */
@@ -503,7 +525,8 @@ unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
 void SplitConditions(Item *condition, QEP_TAB *current_table,
                      std::vector<Item *> *predicates_below_join,
                      std::vector<PendingCondition> *predicates_above_join,
-                     std::vector<PendingCondition> *join_conditions);
+                     std::vector<PendingCondition> *join_conditions,
+                     plan_idx semi_join_table_idx, qep_tab_map left_tables);
 
 /**
   For a MATERIALIZE access path, move any non-basic iterators (e.g. sorts and
@@ -569,5 +592,14 @@ inline unique_ptr_destroy_only<RowIterator> init_table_iterator(
   return init_table_iterator(thd, table, nullptr, nullptr, nullptr,
                              ignore_not_found_rows, count_examined_rows);
 }
+
+AccessPath *ConnectJoins(plan_idx upper_first_idx, plan_idx first_idx,
+                         plan_idx last_idx, QEP_TAB *qep_tabs, THD *thd,
+                         CallingContext calling_context,
+                         std::vector<PendingCondition> *pending_conditions,
+                         std::vector<PendingInvalidator> *pending_invalidators,
+                         std::vector<PendingCondition> *pending_join_conditions,
+                         qep_tab_map *unhandled_duplicates,
+                         table_map *conditions_depend_on_outer_tables);
 
 #endif /* SQL_EXECUTOR_INCLUDED */

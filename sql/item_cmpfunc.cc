@@ -7868,59 +7868,97 @@ longlong Arg_comparator::extract_value_from_argument(THD *thd, Item *item,
   }
 }
 
+void find_and_adjust_equal_fields(Item *item, table_map available_tables,
+                                  bool replace, bool *found) {
+  WalkItem(item, enum_walk::PREFIX,
+           [available_tables, replace, found](Item *inner_item) {
+             if (inner_item->type() == Item::FUNC_ITEM) {
+               Item_func *func_item = down_cast<Item_func *>(inner_item);
+               for (uint i = 0; i < func_item->arg_count; ++i) {
+                 if (func_item->arguments()[i]->type() == Item::FIELD_ITEM) {
+                   func_item->arguments()[i] = FindEqualField(
+                       down_cast<Item_field *>(func_item->arguments()[i]),
+                       available_tables, replace, found);
+                   if (*found == false && !replace) return true;
+                 }
+               }
+             }
+             return false;
+           });
+}
+
 static void ensure_multi_equality_fields_are_available(
-    Item **args, int arg_idx, table_map available_tables) {
+    Item **args, int arg_idx, table_map available_tables, bool replace,
+    bool *found) {
   if (args[arg_idx]->type() == Item::FIELD_ITEM) {
-    // The argument we want to adjust is an Item_field. Create a new Item_field
-    // with a field that is reachable.
+    // The argument we want to find and adjust is an Item_field. Create a
+    // new Item_field with a field that is reachable if "replace" is
+    // set to true. Else, set "found" to true if a field is found.
     args[arg_idx] = FindEqualField(down_cast<Item_field *>(args[arg_idx]),
-                                   available_tables);
+                                   available_tables, replace, found);
   } else {
     // The argument is not a field item. Walk down the item tree and see if we
     // find any Item_field that needs adjustment.
-    args[arg_idx]->walk(
-        &Item::ensure_multi_equality_fields_are_available_walker,
-        enum_walk::PREFIX, pointer_cast<uchar *>(&available_tables));
+    find_and_adjust_equal_fields(args[arg_idx], available_tables, replace,
+                                 found);
   }
 }
 
 void Item_func_eq::ensure_multi_equality_fields_are_available(
-    table_map left_side_tables, table_map right_side_tables) {
+    table_map left_side_tables, table_map right_side_tables, bool replace,
+    bool *found) {
   table_map left_arg_used_tables = args[0]->used_tables();
   table_map right_arg_used_tables = args[1]->used_tables();
 
   if (left_arg_used_tables == 0 || right_arg_used_tables == 0) {
     // This is a filter, not a join condition.
+    *found = false;
     return;
   }
 
   if (IsSubset(left_arg_used_tables, left_side_tables) &&
-      !IsSubset(right_arg_used_tables, right_side_tables)) {
-    // The left argument matches the left side tables, so adjust the right side
-    // with an "equal" field from right side tables.
-    ::ensure_multi_equality_fields_are_available(args, /*arg_idx=*/1,
-                                                 right_side_tables);
+      IsSubset(right_arg_used_tables, right_side_tables)) {
+    // The left argument matches the left side tables, and the
+    // right one to the right side tables. This can stay
+    // on this join.
+    *found = true;
+  } else if (IsSubset(left_arg_used_tables, right_side_tables) &&
+             IsSubset(right_arg_used_tables, left_side_tables)) {
+    // The left argument matches the right side tables, and the
+    // right one to the left side tables. This can stay
+    // on this join.
+    *found = true;
+  } else if (IsSubset(left_arg_used_tables, left_side_tables) &&
+             !IsSubset(right_arg_used_tables, right_side_tables)) {
+    // The left argument matches the left side tables, so find an
+    // "equal" field from right side tables. Adjust the right side
+    // with the equal field if "replace" is set to true.
+    ::ensure_multi_equality_fields_are_available(
+        args, /*arg_idx=*/1, right_side_tables, replace, found);
   } else if (IsSubset(left_arg_used_tables, right_side_tables) &&
              !IsSubset(right_arg_used_tables, left_side_tables)) {
-    // The left argument matches the right side tables, so adjust the right side
-    // with an "equal" field from the left side tables.
-    ::ensure_multi_equality_fields_are_available(args, /*arg_idx=*/1,
-                                                 left_side_tables);
+    // The left argument matches the right side tables, so find an
+    // "equal" field from the left side tables. Adjust the right side
+    // with the equal field if "replace" is set to true.
+    ::ensure_multi_equality_fields_are_available(
+        args, /*arg_idx=*/1, left_side_tables, replace, found);
   } else if (IsSubset(right_arg_used_tables, left_side_tables) &&
              !IsSubset(left_arg_used_tables, right_side_tables)) {
-    // The right argument matches the left side tables, so adjust the left side
-    // with an "equal" field from the right side tables.
-    ::ensure_multi_equality_fields_are_available(args, /*arg_idx=*/0,
-                                                 right_side_tables);
+    // The right argument matches the left side tables, so find an
+    // "equal" field from the right side tables. Adjust the left side
+    // with the equal field if "replace" is set to true.
+    ::ensure_multi_equality_fields_are_available(
+        args, /*arg_idx=*/0, right_side_tables, replace, found);
   } else if (IsSubset(right_arg_used_tables, right_side_tables) &&
              !IsSubset(left_arg_used_tables, left_side_tables)) {
-    // The right argument matches the right side tables, so adjust the left side
-    // with an "equal" field from the left side tables.
-    ::ensure_multi_equality_fields_are_available(args, /*arg_idx=*/0,
-                                                 left_side_tables);
+    // The right argument matches the right side tables, so find an
+    // "equal" field from the left side tables. Adjust the left side
+    // with the equal field if "replace" is set to true.
+    ::ensure_multi_equality_fields_are_available(
+        args, /*arg_idx=*/0, left_side_tables, replace, found);
   }
 
   // We must update used_tables in case we replaced any of the fields in this
   // join condition.
-  update_used_tables();
+  if (replace) update_used_tables();
 }

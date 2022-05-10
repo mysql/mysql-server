@@ -205,6 +205,7 @@ ENDFOREACH()
 SET(SERVER_TESTS
   character_set_deprecation
   compare_access_paths
+  connect_joins
   copy_info
   create_field
   dd_cache
