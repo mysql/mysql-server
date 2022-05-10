@@ -610,7 +610,7 @@ std::vector<char*> convert_legacy_options(size_t argc, char** argv)
 void doExit()
 {
   ndbout << "Error in redoLogReader(). Exiting!" << endl;
-  xfrm.close(false);
+  xfrm.close(true);
   file.close();
   delete [] redoLogPage;
   ndb_end_and_exit(RETURN_ERROR);

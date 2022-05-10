@@ -702,7 +702,10 @@ AsyncFile::closeReq(Request *request)
   if (m_xfile.is_open())
   {
     int r = m_xfile.close(abort);
-    require(r == 0);
+    if (r != 0)
+    {
+      NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrUnknown); // TODO better error
+    }
   }
   if (m_file.is_open())
   {
