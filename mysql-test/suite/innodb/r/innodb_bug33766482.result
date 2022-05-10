@@ -1,0 +1,33 @@
+DROP TABLE IF EXISTS t1;
+DROP PROCEDURE IF EXISTS fill;
+DROP PROCEDURE IF EXISTS upd;
+create table t1 (
+id int unsigned,
+a json default null,
+primary key (id),
+key ((cast(json_extract(a,_utf8mb4'$.b') as char(255) array)))
+) engine=innodb default charset=utf8mb4 collate=utf8mb4_unicode_ci ;
+create procedure fill()
+begin
+declare v_i bigint unsigned default 0;
+repeat
+set v_i:=v_i+1;
+REPLACE into t1(id,a) values(floor(rand()*100000),concat('{"a":"\'{ab:a,ba:',floor(rand()*100000),',bab:baa}\'","b":"\'{a:bbb,bab:true,bb:[',floor(rand()*100000),',8,7,1,9,10,8,7,3]}\'","ba":"b","baa":[6,1,1,2,9,8,0,5,2,4]}'));
+until v_i=200 end repeat;
+end |
+create procedure upd()
+begin
+declare v_i bigint unsigned default 0;
+repeat
+set v_i:=v_i+1;
+update t1 set a= concat('{"b":',floor(rand()*100000),',"aba":"\'{a:[a,aa,b,aab,aa,bba,baa,a],b:bba}\'","b":',floor(rand()*100000),',"bb":2}');
+until v_i = 10 end repeat;
+end |
+REPLACE into t1(id,a) values(7,concat('{"a":"\'{ab:a,ba:',floor(rand()*100000),',bab:baa}\'","b":"\'{a:bbb,bab:true,bb:[',floor(rand()*100000),',8,7,1,9,10,8,7,3]}\'","ba":"b","baa":[6,1,1,2,9,8,0,5,2,4]}'));
+update t1 set a= concat('{"b":',floor(rand()*100000),',"aba":"\'{a:[a,aa,b,aab,aa,bba,baa,a],b:bba}\'","b":',floor(rand()*100000),',"bb":2}');
+update t1 set a= concat('{"b":',floor(rand()*100000),',"aba":"\'{a:[a,aa,b,aab,aa,bba,baa,a],b:bba}\'","b":',floor(rand()*100000),',"bb":2}');
+call fill();
+call upd();
+DROP PROCEDURE IF EXISTS fill;
+DROP PROCEDURE IF EXISTS upd;
+DROP TABLE t1;
