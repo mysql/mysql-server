@@ -18,7 +18,7 @@ alter table t1 drop partition p2;
 revoke alter on mysqltest_1.* from mysqltest_1@localhost;
 alter table t1 drop partition p3;
 ERROR 42000: ALTER command denied to user 'mysqltest_1'@'localhost' for table 't1'
-revoke select,alter,drop on mysqltest_1.* from mysqltest_1@localhost;
+revoke select,drop on mysqltest_1.* from mysqltest_1@localhost;
 drop table t1;
 create table t1 (s1 int);
 insert into t1 values (1);

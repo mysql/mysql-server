@@ -76,8 +76,6 @@ let $message= update only on column:;
 
         connection default;
 	select current_user;
-	revoke UPDATE     on priv_db.*
-		from test_yesprivs@localhost;
 	revoke UPDATE(f1) on priv_db.t2
                  from test_yesprivs@localhost;
         show grants for test_yesprivs@localhost;
