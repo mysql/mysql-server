@@ -673,3 +673,26 @@ SELECT * FROM t1 y1 LEFT JOIN t1 y2 ON y1.a=-y2.a
 WHERE y1.b+y2.b = (SELECT MAX(m1) FROM x1);
 
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug #34135465 	EXPLAIN ANALYZE: 'Aggregate using temporary table'
+--echo # shows wrong number of rows
+--echo #
+
+CREATE TABLE t1(i INT, j INT);
+INSERT INTO t1 VALUES (0,0),(0,1),(0,2),(1,0),(1,1),(1,2),(2,0),(2,1),(2,2);
+ANALYZE TABLE t1;
+
+# Check that we get the right row count for "Aggregate using temporary table".
+# We aggregate three rows in a temporary table even if we just read two of them.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE INSERT INTO t1 SELECT 4, SUM(i) k1 FROM t1 GROUP BY j LIMIT 2;
+
+# Check that we get the right row count for "Materialize CTE".
+# We materialize three rows even if we just read two of them.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE WITH cte AS (SELECT SUM(i) k1 FROM t1 GROUP BY j)
+SELECT * FROM cte LIMIT 2;
+
+DROP TABLE t1;

@@ -33,48 +33,18 @@
 #include "sql/sql_lex.h"
 
 /**
-  An iterator template that wraps a RowIterator, such that all calls to Init()
-  and Read() are timed (all others are passed through unchanged, and possibly
-  even inlined, since all RowIterator implementations are final). This is used
-  for EXPLAIN ANALYZE.
-
-  If RealIterator has a type called keeps_own_timing (no matter what it
-  is), it must contain num_rows() and num_init_calls() accessors that override
-  the number of Init() calls that is counted. This is useful for
-  MaterializeIterator, where most Init() calls don't actually cause a
-  rematerialization and are effectively free.
-
-  See also NewIterator, below.
- */
-template <class RealIterator>
-class TimingIterator final : public RowIterator {
+   This class is used in implementing the 'EXPLAIN ANALYZE' command.
+   It maintains a set of profiling data.
+*/
+class IteratorProfilerImpl final : public IteratorProfiler {
  public:
-  template <class... Args>
-  TimingIterator(THD *thd, Args &&... args)
-      : RowIterator(thd), m_iterator(thd, std::forward<Args>(args)...) {}
-
-  bool Init() override;
-  int Read() override;
-  void SetNullRowFlag(bool is_null_row) override {
-    m_iterator.SetNullRowFlag(is_null_row);
-  }
-  void UnlockRow() override { m_iterator.UnlockRow(); }
-  void StartPSIBatchMode() override { m_iterator.StartPSIBatchMode(); }
-  void EndPSIBatchModeIfStarted() override {
-    m_iterator.EndPSIBatchModeIfStarted();
-  }
-
-  IteratorTimingData GetTimingData() const override;
-  RowIterator *real_iterator() override { return &m_iterator; }
-  const RowIterator *real_iterator() const override { return &m_iterator; }
-
- private:
   // To avoid a lot of repetitive writing.
   using steady_clock = std::chrono::steady_clock;
-  template <class T>
-  using duration = std::chrono::duration<T>;
+  using duration = steady_clock::time_point::duration;
+  using TimeStamp = steady_clock::time_point;
 
-  steady_clock::time_point now() const {
+  /** Return current time.*/
+  static TimeStamp Now() {
 #if defined(__linux__)
     // Work around very slow libstdc++ implementations of std::chrono
     // (those compiled with _GLIBCXX_USE_CLOCK_GETTIME_SYSCALL).
@@ -88,85 +58,157 @@ class TimingIterator final : public RowIterator {
 #endif
   }
 
-  // These are at the same offset for all TimingIterator specializations,
-  // in the hope that the linker can manage to fold all the TimingString()
-  // implementations into one.
-  uint64_t m_num_rows = 0;
-  uint64_t m_num_init_calls = 0;
-  steady_clock::time_point::duration m_time_spent_in_first_row{0};
-  steady_clock::time_point::duration m_time_spent_in_other_rows{0};
+  double GetFirstRowMs() const override {
+    return DurationToMs(m_elapsed_first_row);
+  }
+  double GetLastRowMs() const override {
+    return DurationToMs(m_elapsed_first_row + m_elapsed_other_rows);
+  }
+
+  uint64_t GetNumInitCalls() const override { return m_num_init_calls; }
+  uint64_t GetNumRows() const override { return m_num_rows; }
+
+  /** Mark the end of an iterator->Init() call.*/
+  void StopInit(TimeStamp start_time) {
+    m_elapsed_first_row += Now() - start_time;
+    m_num_init_calls++;
+    m_first_row = true;
+  }
+
+  /**
+     Update the number of rows read. Note that this function is only called
+     for iterator where we read all rows during iterator->Init()
+     (@see MaterializeIterator and @see TemptableAggregateIterator).
+  */
+  void IncrementNumRows(uint64_t materialized_rows) {
+    m_num_rows += materialized_rows;
+  }
+
+  /**
+      Mark the end of an iterator->Read() call.
+      @param start_time time when Read() started.
+      @param read_ok 'true' if Read() was successful.
+  */
+  void StopRead(TimeStamp start_time, bool read_ok) {
+    if (m_first_row) {
+      m_elapsed_first_row += Now() - start_time;
+      m_first_row = false;
+    } else {
+      m_elapsed_other_rows += Now() - start_time;
+    }
+    if (read_ok) {
+      m_num_rows++;
+    }
+  }
+
+ private:
+  static double DurationToMs(duration dur) {
+    return std::chrono::duration<double>(dur).count() * 1e3;
+  }
+
+  /** The number of loops.*/
+  uint64_t m_num_init_calls{0};
+
+  /** The number of rows fetched. (Sum for all loops.)*/
+  uint64_t m_num_rows{0};
+
+  /** True if we are about to read the first row.*/
   bool m_first_row;
+
+  /**
+     Elapsed time in all calls to m_iterator.Init() and Read() for the
+     first row.
+  */
+  duration m_elapsed_first_row{0};
+
+  /**
+      Elapsed time in all calls to m_iterator.Read() for all but the first
+      row.
+  */
+  duration m_elapsed_other_rows{0};
+};
+
+/**
+  An iterator template that wraps a RowIterator, such that all calls to Init()
+  and Read() are timed (all others are passed through unchanged, and possibly
+  even inlined, since all RowIterator implementations are final). This is used
+  for EXPLAIN ANALYZE.
+
+  Note that MaterializeIterator does not use this class. Doing so
+  would give misleading measurements. MaterializeIterator has an
+  internal member iterator (m_table_iterator) that iterates over the
+  materialized result. Calls to Init()/Read() on that iterator goes
+  via Init()/Read() on the MaterializeIterator. And the internal
+  iterator is listed above MaterializeIterator in 'EXPLAIN ANALYZE'
+  output. Its elapsed time values should thus include both the cost of
+  materialization and iterating over the result, while the entry for
+  MaterializeIterator should only show the time spent on
+  materialization. But if we used TimingIterator, the entry for
+  MaterializeIterator would give the sum of time spent on both
+  materialization and iteration, and the entry for the internal
+  iterator would only show the time spent on iterating over the
+  materialized result. (See also Bug #33834146 "'EXPLAIN ANALYZE' cost
+  estimates and elapsed time values are not cumulative"). This also
+  applies to TemptableAggregateIterator. These classes therefore have
+  other mechanisms for obtaining profiling data.
+
+  See also NewIterator, below.
+ */
+template <class RealIterator>
+class TimingIterator final : public RowIterator {
+ public:
+  template <class... Args>
+  TimingIterator(THD *thd, Args &&... args)
+      : RowIterator(thd), m_iterator(thd, std::forward<Args>(args)...) {}
+
+  bool Init() override {
+    const IteratorProfilerImpl::TimeStamp start_time =
+        IteratorProfilerImpl::Now();
+    bool err = m_iterator.Init();
+    m_profiler.StopInit(start_time);
+    return err;
+  }
+
+  int Read() override {
+    const IteratorProfilerImpl::TimeStamp start_time =
+        IteratorProfilerImpl::Now();
+    int err = m_iterator.Read();
+    m_profiler.StopRead(start_time, err == 0);
+    return err;
+  }
+
+  void SetNullRowFlag(bool is_null_row) override {
+    m_iterator.SetNullRowFlag(is_null_row);
+  }
+  void UnlockRow() override { m_iterator.UnlockRow(); }
+  void StartPSIBatchMode() override { m_iterator.StartPSIBatchMode(); }
+  void EndPSIBatchModeIfStarted() override {
+    m_iterator.EndPSIBatchModeIfStarted();
+  }
+
+  void SetOverrideProfiler(const IteratorProfiler *profiler) override {
+    m_override_profiler = profiler;
+  }
+
+  const IteratorProfiler *GetProfiler() const override {
+    return m_override_profiler == nullptr ? &m_profiler : m_override_profiler;
+  }
+
+  RealIterator *real_iterator() override { return &m_iterator; }
+  const RealIterator *real_iterator() const override { return &m_iterator; }
+
+ private:
+  /** This maintains the profiling measurements.*/
+  IteratorProfilerImpl m_profiler;
+
+  /**
+     For iterators over materialized tables we must make profiling
+     measurements in a different way. This field keeps those measurements.
+  */
+  const IteratorProfiler *m_override_profiler{nullptr};
 
   RealIterator m_iterator;
 };
-
-template <class RealIterator>
-bool TimingIterator<RealIterator>::Init() {
-  ++m_num_init_calls;
-  steady_clock::time_point start = now();
-  bool err = m_iterator.Init();
-  steady_clock::time_point end = now();
-  m_time_spent_in_first_row += end - start;
-  m_first_row = true;
-  return err;
-}
-
-template <class RealIterator>
-int TimingIterator<RealIterator>::Read() {
-  steady_clock::time_point start = now();
-  int err = m_iterator.Read();
-  steady_clock::time_point end = now();
-  if (m_first_row) {
-    m_time_spent_in_first_row += end - start;
-    m_first_row = false;
-  } else {
-    m_time_spent_in_other_rows += end - start;
-  }
-  if (err == 0) {
-    ++m_num_rows;
-  }
-  return err;
-}
-
-// In the default implementation, just return default_num_init_calls.
-template <class RealIterator, class = void>
-struct TimingDataRetriever {
-  inline uint64_t num_init_calls(const RealIterator &,
-                                 uint64_t default_num_init_calls) const {
-    return default_num_init_calls;
-  }
-  inline uint64_t num_rows(const RealIterator &,
-                           uint64_t default_num_rows) const {
-    return default_num_rows;
-  }
-};
-
-// However, if RealIterator::keeps_own_timing exists, call its
-// num_init_calls(). (If it does not exist, this template is not considered
-// due to SFINAE.)
-template <class RealIterator>
-struct TimingDataRetriever<RealIterator,
-                           typename RealIterator::keeps_own_timing> {
-  inline uint64_t num_init_calls(const RealIterator &iterator, uint64_t) const {
-    return iterator.num_init_calls();
-  }
-  inline uint64_t num_rows(const RealIterator &iterator, uint64_t) const {
-    return iterator.num_rows();
-  }
-};
-
-template <class RealIterator>
-IteratorTimingData TimingIterator<RealIterator>::GetTimingData() const {
-  const TimingDataRetriever<RealIterator> timing_data;
-
-  return {
-      duration<double>(m_time_spent_in_first_row).count() * 1e3,
-      duration<double>(m_time_spent_in_first_row + m_time_spent_in_other_rows)
-              .count() *
-          1e3,
-      timing_data.num_init_calls(m_iterator, m_num_init_calls),
-      timing_data.num_rows(m_iterator, m_num_rows)};
-}
 
 // Allocates a new iterator on the given MEM_ROOT. The MEM_ROOT must live
 // for at least as long as the iterator does.

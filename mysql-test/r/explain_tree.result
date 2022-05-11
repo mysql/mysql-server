@@ -1165,3 +1165,31 @@ EXPLAIN
                                 -> Table scan on t1  (cost=0.35 rows=1) (never executed)
 
 DROP TABLE t1;
+#
+# Bug #34135465 	EXPLAIN ANALYZE: 'Aggregate using temporary table'
+# shows wrong number of rows
+#
+CREATE TABLE t1(i INT, j INT);
+INSERT INTO t1 VALUES (0,0),(0,1),(0,2),(1,0),(1,1),(1,2),(2,0),(2,1),(2,2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN ANALYZE INSERT INTO t1 SELECT 4, SUM(i) k1 FROM t1 GROUP BY j LIMIT 2;
+EXPLAIN
+-> Insert into t1
+    -> Limit: 2 row(s)  (actual time=N.NNN..N.NNN rows=2 loops=1)
+        -> Table scan on <temporary>  (actual time=N.NNN..N.NNN rows=2 loops=1)
+            -> Aggregate using temporary table  (actual time=N.NNN..N.NNN rows=3 loops=1)
+                -> Table scan on t1  (cost=1.15 rows=9) (actual time=N.NNN..N.NNN rows=9 loops=1)
+
+EXPLAIN ANALYZE WITH cte AS (SELECT SUM(i) k1 FROM t1 GROUP BY j)
+SELECT * FROM cte LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=0.00..0.00 rows=0) (actual time=N.NNN..N.NNN rows=2 loops=1)
+    -> Table scan on cte  (cost=2.50..2.50 rows=0) (actual time=N.NNN..N.NNN rows=2 loops=1)
+        -> Materialize CTE cte  (cost=2.50..2.50 rows=0) (actual time=N.NNN..N.NNN rows=3 loops=1)
+            -> Table scan on <temporary>  (actual time=N.NNN..N.NNN rows=3 loops=1)
+                -> Aggregate using temporary table  (actual time=N.NNN..N.NNN rows=3 loops=1)
+                    -> Table scan on t1  (cost=1.15 rows=9) (actual time=N.NNN..N.NNN rows=9 loops=1)
+
+DROP TABLE t1;

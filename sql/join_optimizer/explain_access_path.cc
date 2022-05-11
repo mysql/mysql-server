@@ -229,7 +229,7 @@ static void ExplainMaterializeAccessPath(const AccessPath *path, JOIN *join,
         is one.
       */
       if (path->iterator == nullptr ||
-          path->iterator->GetTimingData().get_num_init_calls() == 0) {
+          path->iterator->GetProfiler()->GetNumInitCalls() == 0) {
         // If the CTE was never materialized, print it at the first reference.
         return param->table == param->cte->tmp_tables[0]->table &&
                std::none_of(param->cte->tmp_tables.cbegin(),
@@ -1145,19 +1145,18 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join,
         description.back().push_back(' ');
       }
       description.back().push_back(' ');
-      const IteratorTimingData timingData = path->iterator->GetTimingData();
-      if (timingData.get_num_init_calls() == 0) {
+      const IteratorProfiler *const profiler = path->iterator->GetProfiler();
+      if (profiler->GetNumInitCalls() == 0) {
         description.back() += "(never executed)";
       } else {
         char buf[1024];
-        snprintf(
-            buf, sizeof(buf),
-            "(actual time=%.3f..%.3f rows=%lld loops=%" PRIu64 ")",
-            timingData.get_first_row_ms() / timingData.get_num_init_calls(),
-            timingData.get_last_row_ms() / timingData.get_num_init_calls(),
-            llrintf(static_cast<double>(timingData.get_num_rows()) /
-                    timingData.get_num_init_calls()),
-            timingData.get_num_init_calls());
+        snprintf(buf, sizeof(buf),
+                 "(actual time=%.3f..%.3f rows=%lld loops=%" PRIu64 ")",
+                 profiler->GetFirstRowMs() / profiler->GetNumInitCalls(),
+                 profiler->GetLastRowMs() / profiler->GetNumInitCalls(),
+                 llrintf(static_cast<double>(profiler->GetNumRows()) /
+                         profiler->GetNumInitCalls()),
+                 profiler->GetNumInitCalls());
 
         description.back() += buf;
       }

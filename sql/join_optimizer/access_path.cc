@@ -853,9 +853,11 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           continue;
         }
 
-        iterator = NewIterator<TemptableAggregateIterator>(
-            thd, mem_root, move(job.children[0]), param.temp_table_param,
-            param.table, move(job.children[1]), join, param.ref_slice);
+        iterator = unique_ptr_destroy_only<RowIterator>(
+            temptable_aggregate_iterator::CreateIterator(
+                thd, move(job.children[0]), param.temp_table_param, param.table,
+                move(job.children[1]), join, param.ref_slice));
+
         break;
       }
       case AccessPath::LIMIT_OFFSET: {
@@ -923,12 +925,12 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         }
         unique_ptr_destroy_only<RowIterator> table_iterator =
             move(job.children[0]);
-        Mem_root_array<MaterializeIterator::QueryBlock> query_blocks(
+        Mem_root_array<materialize_iterator::QueryBlock> query_blocks(
             thd->mem_root, param->query_blocks.size());
         for (size_t i = 0; i < param->query_blocks.size(); ++i) {
           const MaterializePathParameters::QueryBlock &from =
               param->query_blocks[i];
-          MaterializeIterator::QueryBlock &to = query_blocks[i];
+          materialize_iterator::QueryBlock &to = query_blocks[i];
           to.subquery_iterator = move(job.children[i + 1]);
           to.select_number = from.select_number;
           to.join = from.join;
@@ -955,24 +957,11 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           }
         }
         JOIN *subjoin = param->ref_slice == -1 ? nullptr : query_blocks[0].join;
-        iterator = NewIterator<MaterializeIterator>(
-            thd, mem_root, std::move(query_blocks), param->table,
-            move(table_iterator), param->cte, param->unit, subjoin,
-            param->ref_slice, param->rematerialize, param->limit_rows,
-            param->reject_multiple_rows);
 
-        if (param->invalidators != nullptr) {
-          MaterializeIterator *materialize =
-              down_cast<MaterializeIterator *>(iterator->real_iterator());
-          for (const AccessPath *invalidator_path : *param->invalidators) {
-            // We create iterators left-to-right, so we should have created the
-            // invalidators before this.
-            assert(invalidator_path->iterator != nullptr);
-
-            materialize->AddInvalidator(down_cast<CacheInvalidatorIterator *>(
-                invalidator_path->iterator->real_iterator()));
-          }
-        }
+        iterator = unique_ptr_destroy_only<RowIterator>(
+            materialize_iterator::CreateIterator(thd, std::move(query_blocks),
+                                                 param, move(table_iterator),
+                                                 subjoin));
 
         break;
       }
