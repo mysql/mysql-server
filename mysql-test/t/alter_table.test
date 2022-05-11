@@ -3710,3 +3710,50 @@ CREATE TABLE t1(a INT);
 ALTER TABLE t1 MODIFY COLUMN a DECIMAL DEFAULT '4648-04-10';
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#34031693: Data are not repartitioned when the partition key's
+--echo # charset is modified
+--echo #
+
+CREATE TABLE t1 (
+  c1 VARCHAR(10) COLLATE utf8mb4_bin DEFAULT NULL
+) COLLATE=utf8mb4_bin PARTITION BY KEY (c1) PARTITIONS 3; 
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES('a');
+
+SELECT partition_name, table_rows FROM
+information_schema.partitions WHERE table_name = 't1';
+
+--echo # Verify that request for INPLACE algorithm gives error
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 MODIFY c1 VARCHAR(10) CHARSET utf8mb4, ALGORITHM=INPLACE;
+
+ALTER TABLE t1 MODIFY c1 VARCHAR(10) CHARSET utf8mb4;
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES('a');
+
+ANALYZE TABLE t1;
+
+SELECT partition_name, table_rows FROM
+information_schema.partitions WHERE table_name = 't1';
+
+SELECT * FROM t1 PARTITION(p2);
+SELECT * FROM t1 PARTITION(p1);
+
+--echo # Verify that collation change on a non-partitioned table can still
+--echo # be done inplace
+CREATE TABLE t2(c1 VARCHAR(10)) COLLATE=utf8mb4_bin;
+ALTER TABLE t1 MODIFY c1 VARCHAR(10) CHARSET utf8mb4, ALGORITHM=INPLACE;
+
+--echo # Verify that charset change on column not used as partitioning key can
+--echo # still be done inplace
+CREATE TABLE t3(c1 VARCHAR(10), c2 VARCHAR(10) COLLATE utf8mb4_bin) PARTITION BY KEY(c1) PARTITIONS 3;
+ALTER TABLE t3 MODIFY c2 VARCHAR(10) CHARSET utf8mb4, ALGORITHM=INPLACE;
+
+--echo # Cleanup
+DROP TABLE t3;
+DROP TABLE t2;
+DROP TABLE t1;

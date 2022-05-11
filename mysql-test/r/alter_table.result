@@ -4589,3 +4589,63 @@ CREATE TABLE t1(a INT);
 ALTER TABLE t1 MODIFY COLUMN a DECIMAL DEFAULT '4648-04-10';
 ERROR HY000: Incorrect decimal value: '4648-04-10' for column 'a' at row 1
 DROP TABLE t1;
+#
+# Bug#34031693: Data are not repartitioned when the partition key's
+# charset is modified
+#
+CREATE TABLE t1 (
+c1 VARCHAR(10) COLLATE utf8mb4_bin DEFAULT NULL
+) COLLATE=utf8mb4_bin PARTITION BY KEY (c1) PARTITIONS 3;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+/*!50100 PARTITION BY KEY (c1)
+PARTITIONS 3 */
+INSERT INTO t1 VALUES('a');
+SELECT partition_name, table_rows FROM
+information_schema.partitions WHERE table_name = 't1';
+PARTITION_NAME	TABLE_ROWS
+p0	0
+p1	0
+p2	1
+# Verify that request for INPLACE algorithm gives error
+ALTER TABLE t1 MODIFY c1 VARCHAR(10) CHARSET utf8mb4, ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
+ALTER TABLE t1 MODIFY c1 VARCHAR(10) CHARSET utf8mb4;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+/*!50100 PARTITION BY KEY (c1)
+PARTITIONS 3 */
+INSERT INTO t1 VALUES('a');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT partition_name, table_rows FROM
+information_schema.partitions WHERE table_name = 't1';
+PARTITION_NAME	TABLE_ROWS
+p0	0
+p1	2
+p2	0
+SELECT * FROM t1 PARTITION(p2);
+c1
+SELECT * FROM t1 PARTITION(p1);
+c1
+a
+a
+# Verify that collation change on a non-partitioned table can still
+# be done inplace
+CREATE TABLE t2(c1 VARCHAR(10)) COLLATE=utf8mb4_bin;
+ALTER TABLE t1 MODIFY c1 VARCHAR(10) CHARSET utf8mb4, ALGORITHM=INPLACE;
+# Verify that charset change on column not used as partitioning key can
+# still be done inplace
+CREATE TABLE t3(c1 VARCHAR(10), c2 VARCHAR(10) COLLATE utf8mb4_bin) PARTITION BY KEY(c1) PARTITIONS 3;
+ALTER TABLE t3 MODIFY c2 VARCHAR(10) CHARSET utf8mb4, ALGORITHM=INPLACE;
+# Cleanup
+DROP TABLE t3;
+DROP TABLE t2;
+DROP TABLE t1;

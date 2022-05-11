@@ -4298,9 +4298,8 @@ static bool check_duplicate_key(THD *thd, const char *error_schema_name,
 }
 
 /**
-  Check if there is a collation change from the old field to the new
-  create field. If so, scan the indexes of the new table (including
-  the added ones), and check if the field is referred by any index.
+  Scan the indexes of the new table (including the added ones), and check
+  if the field is referred by any index.
 
   @param field          Field in old table.
   @param new_field      Field in new table (create field).
@@ -4309,13 +4308,10 @@ static bool check_duplicate_key(THD *thd, const char *error_schema_name,
   @retval true           Field changes collation, and is indexed.
   @retval false          Otherwise.
  */
-static bool is_collation_change_for_indexed_field(
-    const Field &field, const Create_field &new_field,
-    Alter_inplace_info *ha_alter_info) {
+static bool is_field_part_of_index(const Field &field,
+                                   const Create_field &new_field,
+                                   Alter_inplace_info *ha_alter_info) {
   assert(new_field.field == &field);
-
-  // No need to check indexes if the collation stays the same.
-  if (field.charset() == new_field.charset) return false;
 
   const KEY *new_key_end =
       ha_alter_info->key_info_buffer + ha_alter_info->key_count;
@@ -4336,6 +4332,22 @@ static bool is_collation_change_for_indexed_field(
     }
   }
 
+  return false;
+}
+
+/**
+  Scan the fields used in partition expressions of the new table (including
+  the added ones), and check if the field is used by a partitioning
+  expression.
+ */
+static bool is_field_part_of_partition_expression(
+    const Field &field, Alter_inplace_info *ha_alter_info) {
+  if (ha_alter_info->modified_part_info == nullptr) return false;
+  for (Field **ptr = ha_alter_info->modified_part_info->full_part_field_array;
+       *ptr; ptr++) {
+    if (*ptr == &field) return true;
+    assert((*ptr)->field_index() != field.field_index());
+  }
   return false;
 }
 
@@ -11904,17 +11916,19 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
           break;
         case IS_EQUAL_PACK_LENGTH:
           /*
-            New column type differs from the old one, but has compatible packed
-            data representation. Depending on storage engine, such a change can
-            be carried out by simply updating data dictionary without changing
-            actual data (for example, VARCHAR(300) is changed to VARCHAR(400)).
+             New column type differs from the old one, but has compatible packed
+             data representation. Depending on storage engine, such a change can
+             be carried out by simply updating data dictionary without changing
+             actual data (for example, VARCHAR(300) is changed to VARCHAR(400)).
 
-            If the collation has changed, and there is an index on the column,
-            we must mark this as a change in stored column type, which is
-            usually rejected as inplace operation by the SE.
-          */
-          if (is_collation_change_for_indexed_field(*field, *new_field,
-                                                    ha_alter_info)) {
+             If the collation has changed, and the column is part of an index
+             or it is part of a partition expression, we must mark this as a
+             change in stored column type, which is usually rejected as inplace
+             operation by the SE.
+           */
+          if (field->charset() != new_field->charset &&
+              (is_field_part_of_index(*field, *new_field, ha_alter_info) ||
+               is_field_part_of_partition_expression(*field, ha_alter_info))) {
             ha_alter_info->handler_flags |=
                 Alter_inplace_info::ALTER_STORED_COLUMN_TYPE;
           } else {
