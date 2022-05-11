@@ -1654,6 +1654,10 @@ IF(WITH_LTO)
   ENDIF()
 ENDIF(WITH_LTO)
 
+IF(APPLE)
+  OPTION(WITH_DEVELOPER_ENTILEMENTS "Add developer entitlements" OFF)
+ENDIF()
+
 # Explicit list of all -DWITH_XXX=system possibilities
 # *except* boost, which requires one specific version to be downloaded.
 # RapidJSON is also excluded, since the latest released version does not
