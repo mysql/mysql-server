@@ -49,12 +49,45 @@ struct MaterializePathParameters {
   };
   Mem_root_array<QueryBlock> query_blocks;
   Mem_root_array<const AccessPath *> *invalidators;
+
+  /// Handle to table to materialize into.
   TABLE *table;
+
+  /// If materializing a CTE, points to it (see m_cte), otherwise nullptr.
   Common_table_expr *cte;
+
+  /// The query expression we are materializing.
   Query_expression *unit;
+
+  /**
+      @see JOIN. If we are materializing across JOINs, e.g. derived tables,
+      ref_slice should be left at -1.
+  */
   int ref_slice;
+
+  /**
+     True if rematerializing on every Init() call (e.g., because we
+     have a dependency on a value from outside the query block).
+  */
   bool rematerialize;
+
+  /**
+     Used for when pushing LIMIT down to MaterializeIterator; this is
+     more efficient than having a LimitOffsetIterator above the
+     MaterializeIterator, since we can stop materializing when there are
+     enough rows. (This is especially important for recursive CTEs.)
+     Note that we cannot have a LimitOffsetIterator _below_ the
+     MaterializeIterator, as that would count wrong if we have deduplication,
+     and would not work at all for recursive CTEs.
+     Set to HA_POS_ERROR for no limit.
+  */
   ha_rows limit_rows;
+
+  /**
+     True if this is the top level iterator for a
+     materialized derived table transformed from a scalar subquery which needs
+     run-time cardinality check.
+  */
   bool reject_multiple_rows;
 };
 

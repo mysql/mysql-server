@@ -25,7 +25,6 @@
 
 #include <assert.h>
 #include <string>
-#include <vector>
 
 class Item;
 class JOIN;
@@ -33,37 +32,25 @@ class THD;
 struct TABLE;
 
 /**
-   Timing data from a timing iterator, needed by 'EXPLAIN ANALYZE'.
+   Profiling data for an iterator, needed by 'EXPLAIN ANALYZE'.
    Note that an iterator may be iterated over multiple times, e.g. if it is
    the inner operand of a neste loop join. This is denoted 'loops'
    below, and the metrics in this class are aggregated values for all loops.
 */
-class IteratorTimingData final {
+class IteratorProfiler {
  public:
-  IteratorTimingData(double first_row_ms, double last_row_ms,
-                     uint64_t num_init_calls, uint64_t num_rows)
-      : m_first_row_ms(first_row_ms),
-        m_last_row_ms(last_row_ms),
-        m_num_init_calls(num_init_calls),
-        m_num_rows(num_rows) {}
-
-  double get_first_row_ms() const { return m_first_row_ms; }
-  double get_last_row_ms() const { return m_last_row_ms; }
-  uint64_t get_num_init_calls() const { return m_num_init_calls; }
-  uint64_t get_num_rows() const { return m_num_rows; }
-
- private:
   /** Time (in ms) spent fetching the first row. (Sum for all loops.)*/
-  const double m_first_row_ms;
+  virtual double GetFirstRowMs() const = 0;
 
-  /** Time (in ms) spent fetching all rows. (Sum for all loops.)*/
-  const double m_last_row_ms;
+  /** Time (in ms) spent fetching the remaining rows. (Sum for all loops.)*/
+  virtual double GetLastRowMs() const = 0;
 
-  /** The number of loops.*/
-  const uint64_t m_num_init_calls;
+  /** The number of loops (i.e number of iterator->Init() calls.*/
+  virtual uint64_t GetNumInitCalls() const = 0;
 
   /** The number of rows fetched. (Sum for all loops.)*/
-  const uint64_t m_num_rows;
+  virtual uint64_t GetNumRows() const = 0;
+  virtual ~IteratorProfiler() = default;
 };
 
 /**
@@ -164,11 +151,21 @@ class RowIterator {
   // or just ignore it. The right behavior depends on the iterator.
   virtual void UnlockRow() = 0;
 
-  /** Get profiling for this iterator (for 'EXPLAIN ANALYZE').*/
-  virtual IteratorTimingData GetTimingData() const {
+  /** Get profiling data for this iterator (for 'EXPLAIN ANALYZE').*/
+  virtual const IteratorProfiler *GetProfiler() const {
+    /**
+        Valid for TimingIterator, MaterializeIterator and
+        TemptableAggregateIterator only.
+    */
+    assert(false);
+    return nullptr;
+  }
+
+  /** @see TimingIterator .*/
+  virtual void SetOverrideProfiler([
+      [maybe_unused]] const IteratorProfiler *profiler) {
     // Valid for TimingIterator only.
     assert(false);
-    return IteratorTimingData(0.0, 0.0, 0, 0);
   }
 
   /**
