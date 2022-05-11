@@ -76,7 +76,7 @@ ndb$disk_write_speed_base	488	48
 ndb$diskpagebuffer	10	64
 ndb$diskstat	10	48
 ndb$diskstats_1sec	200	52
-ndb$error_messages	788	52
+ndb$error_messages	792	52
 ndb$frag_locks	344	96
 ndb$frag_mem_use	344	100
 ndb$frag_operations	344	192

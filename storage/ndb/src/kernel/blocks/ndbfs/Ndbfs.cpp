@@ -1568,7 +1568,7 @@ Ndbfs::report(Request * request, Signal* signal)
 
       // Keep track on max number of opened files
       if (theOpenFiles.size() > m_maxOpenedFiles)
-	m_maxOpenedFiles = theOpenFiles.size();
+        m_maxOpenedFiles = theOpenFiles.size();
 
       fsConf->filePointer = request->theFilePointer;
       fsConf->fileInfo = 0;
@@ -2063,8 +2063,14 @@ static bool check_for_expected_errors(GlobalSignalNumber gsn, AsyncFile* file,
       {
         return true;
       }
+      // D1/DBDIH/S0.sysfile, D1/NDBCNTR/S0.sysfile
+      if (len >= 19 && strncmp(endp - 10, "S0.sysfile", 10) == 0)
+      {
+        return true;
+      }
+
       // D1/DBDIH/P0.sysfile, D1/NDBCNTR/P0.sysfile
-      if (len >= 19 && strncmp(endp - 7, "sysfile", 7) == 0)
+      if (len >= 19 && strncmp(endp - 10, "P0.sysfile", 10) == 0)
       {
         return true;
       }

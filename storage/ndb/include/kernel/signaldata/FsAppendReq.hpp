@@ -46,6 +46,7 @@ class FsAppendReq {
    * Sender(s)
    */
   friend class Backup;
+  friend class Ndbcntr;
 
   friend bool printFSAPPENDREQ(FILE * output, const Uint32 * theData, 
 			       Uint32 len, Uint16 receiverBlockNo);

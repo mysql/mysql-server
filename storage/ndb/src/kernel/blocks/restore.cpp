@@ -2291,9 +2291,13 @@ Restore::open_data_file(Signal* signal, FilePtr file_ptr)
     lsptr[FsOpenReq::FILENAME].sz = 0;
 
     req->fileFlags |= FsOpenReq::OM_ENCRYPT_KEY;
-    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].p = (Uint32 *)&FsOpenReq::DUMMY_KEY;
+
+    EncryptionKeyMaterial nmk;
+    nmk.length = globalData.nodeMasterKeyLength;
+    memcpy(&nmk.data, globalData.nodeMasterKey, globalData.nodeMasterKeyLength);
+    lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].p = (const Uint32 *)&nmk;
     lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].sz =
-        FsOpenReq::DUMMY_KEY.get_needed_words();
+        nmk.get_needed_words();
 
     sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA,
                lsptr, 2);

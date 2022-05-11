@@ -65,6 +65,8 @@
 #include <signaldata/FsConf.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
 #include <signaldata/FsCloseReq.hpp>
+#include <signaldata/FsAppendReq.hpp>
+
 
 #include <AttributeHeader.hpp>
 #include <Configuration.hpp>
@@ -81,8 +83,8 @@
 
 #include "../backup/BackupFormat.hpp"
 
-#include <EventLogger.hpp>
 #include <NdbGetRUsage.h>
+#include <EventLogger.hpp>
 
 #define JAM_FILE_ID 458
 
@@ -1510,6 +1512,12 @@ Ndbcntr::execREAD_CONFIG_REQ(Signal* signal)
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
+  Uint32 encrypted_filesystem = 0;
+  ndb_mgm_get_int_parameter(
+      p, CFG_DB_ENCRYPTED_FILE_SYSTEM, &encrypted_filesystem);
+  assert(encrypted_filesystem == 0 || encrypted_filesystem == 1);
+  c_encrypted_filesystem = encrypted_filesystem;
+
   Uint32 dl = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &dl);
   if (dl == 0)
@@ -1578,6 +1586,7 @@ void Ndbcntr::execSTTOR(Signal* signal)
 
   switch (cstartPhase) {
   case 0:
+    init_secretsfile_vars();
     if (m_ctx.m_config.getInitialStart())
     {
       jam();
@@ -1587,16 +1596,35 @@ void Ndbcntr::execSTTOR(Signal* signal)
       return;
     }
     g_eventLogger->info("Not initial start");
+
     /**
-     * State in Local sysfile is prioritized before the
-     * state in DIH. So we first check this, if this is
-     * set to initial start of some kind, then it means
-     * that we need to clear the file system.
-     */
-    sendReadLocalSysfile(signal);
+     * If filesystem is encrypted initialize secrets file handling.
+     * When secrets file handling is completed starts the sysfile
+     * handling (in CLOSECONF).
+     * If encryption is not used no need to handle secrets file
+     * so starts sysfile handling immediately.
+     **/
+    if(c_encrypted_filesystem)
+    {
+      ////Open secrets files for reading
+      open_secretsfile(signal, 0, true, false);
+    }
+    else
+    {
+      /** Checks if secrets file exists in the FS.
+       * On a non-initial node restart the secrets file must not exist in the
+       * FS. If secrets file is found OPENCONF will raise an error
+       */
+      open_secretsfile(signal, 0, true, true);
+    }
     break;
   case ZSTART_PHASE_1:
     jam();
+    
+    // filesystemPassword is no longer necessary
+    memset(globalData.filesystemPassword, 0, globalData.filesystemPasswordLength);
+    globalData.filesystemPasswordLength = 0;
+  
     startPhase1Lab(signal);
     break;
   case ZSTART_PHASE_2:
@@ -1845,6 +1873,7 @@ void Ndbcntr::execDIH_RESTARTCONF(Signal* signal)
        c_local_sysfile.m_data[0]);
   }
   cdihStartType = ctypeOfStart;
+
   ph2ALab(signal);
   return;
 }
@@ -5372,6 +5401,12 @@ Ndbcntr::execFSREMOVECONF(Signal* signal)
   if (c_fsRemoveCount == CLEAR_DX + CLEAR_LCP + CLEAR_DD)
   {
     jam();
+    if (c_encrypted_filesystem)
+    {
+      // After initialising the data node filesystem, a new secrets file is created
+      create_secrets_file(signal);
+      return;
+    }
     sendSttorry(signal);
   }
   else
@@ -5837,8 +5872,39 @@ Ndbcntr::send_restorable_gci_rep_to_backup(Signal *signal, Uint32 gci)
     sendSignal(BACKUP_REF, GSN_RESTORABLE_GCI_REP, signal, 1, JBB);
   }
 }
+#define ZVAR_SECRETSFILE_BAT_INDEX 0
+#define ZVAR_LOCAL_SYSFILE_BAT_INDEX 1
 
-#define ZVAR_LOCAL_SYSFILE_BAT_INDEX 0
+void Ndbcntr::alloc_local_bat()
+{
+    NewVARIABLE *bat = allocateBat(2);
+    bat[ZVAR_SECRETSFILE_BAT_INDEX].WA = &c_secretsfile.m_data[0];
+    bat[ZVAR_SECRETSFILE_BAT_INDEX].nrr = sizeof(c_secretsfile.m_data);
+    bat[ZVAR_SECRETSFILE_BAT_INDEX].ClusterSize = sizeof(c_secretsfile.m_data);
+    bat[ZVAR_SECRETSFILE_BAT_INDEX].bits.q = 7; /* 128 words 2^7 = 128 */
+    bat[ZVAR_SECRETSFILE_BAT_INDEX].bits.v = 5; /* Word size 32 bits, 2^5 = 32 */
+    bat[ZVAR_LOCAL_SYSFILE_BAT_INDEX].WA = &c_local_sysfile.m_data[0];
+    bat[ZVAR_LOCAL_SYSFILE_BAT_INDEX].nrr = 1;
+    bat[ZVAR_LOCAL_SYSFILE_BAT_INDEX].ClusterSize = sizeof(c_local_sysfile.m_data);
+    bat[ZVAR_LOCAL_SYSFILE_BAT_INDEX].bits.q = 7; /* 128 words 2^7 = 128 */
+    bat[ZVAR_LOCAL_SYSFILE_BAT_INDEX].bits.v = 5; /* Word size 32 bits, 2^5 = 32 */
+}
+
+void Ndbcntr::init_secretsfile()
+{
+  jam();
+  c_secretsfile.m_sender_ref = 0;
+  c_secretsfile.m_state = SecretsFileOperationRecord::NOT_USED;
+  std::memset(&c_secretsfile.m_data[0], 0, sizeof(c_secretsfile.m_data));
+}
+
+void Ndbcntr::init_secretsfile_vars()
+{
+  jam();
+  c_secretsfile.m_sender_ref = 0;
+  c_secretsfile.m_state = SecretsFileOperationRecord::NOT_USED;
+}
+
 void
 Ndbcntr::init_local_sysfile()
 {
@@ -5848,13 +5914,6 @@ Ndbcntr::init_local_sysfile()
   c_local_sysfile.m_last_write_done = false;
   c_local_sysfile.m_initial_write_local_sysfile_ongoing = false;
   std::memset(&c_local_sysfile.m_data[0], 0, sizeof(c_local_sysfile.m_data));
-
-  NewVARIABLE *bat = allocateBat(1);
-  bat[ZVAR_LOCAL_SYSFILE_BAT_INDEX].WA = &c_local_sysfile.m_data[0];
-  bat[ZVAR_LOCAL_SYSFILE_BAT_INDEX].nrr = 1;
-  bat[ZVAR_LOCAL_SYSFILE_BAT_INDEX].ClusterSize = sizeof(c_local_sysfile.m_data);
-  bat[ZVAR_LOCAL_SYSFILE_BAT_INDEX].bits.q = 7; /* 128 words 2^7 = 128 */
-  bat[ZVAR_LOCAL_SYSFILE_BAT_INDEX].bits.v = 5; /* Word size 32 bits, 2^5 = 32 */
 }
 
 void
@@ -6014,6 +6073,93 @@ Ndbcntr::execWRITE_LOCAL_SYSFILE_REQ(Signal *signal)
   open_local_sysfile(signal, 0, false);
 }
 
+void Ndbcntr::create_secrets_file(Signal *signal)
+{
+  // Generate node master key
+  require(0 ==
+          ndb_openssl_evp::generate_key(globalData.nodeMasterKey,
+                                        c_nodeMasterKeyLength));
+  globalData.nodeMasterKeyLength = c_nodeMasterKeyLength;
+  // Open secrets file for writing
+  open_secretsfile(signal, 0, false, false);
+}
+
+void Ndbcntr::open_secretsfile(Signal *signal,
+                                     Uint32 secretsfile_num,
+                                     bool open_for_read,
+                                     bool check_file_exists)
+{
+  FsOpenReq *req = (FsOpenReq*)signal->getDataPtr();
+  req->userReference = reference();
+  req->userPointer = SecretsFileOperationRecord::FILE_ID;
+
+  FsOpenReq::setVersion(req->fileNumber, 1);
+  FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_SYSFILE);
+  FsOpenReq::v1_setDisk(req->fileNumber, 1);
+  FsOpenReq::v1_setTable(req->fileNumber, -1);
+  FsOpenReq::v1_setFragment(req->fileNumber, -1);
+  FsOpenReq::v1_setS(req->fileNumber, 0);
+  FsOpenReq::v1_setP(req->fileNumber, -1);
+
+  jam();
+  ndbrequire(c_secretsfile.m_state == SecretsFileOperationRecord::NOT_USED ||
+             c_secretsfile.m_state == SecretsFileOperationRecord::WAITING);
+
+  if(check_file_exists)
+  {
+    c_secretsfile.m_state = SecretsFileOperationRecord::CHECK_MISSING_0;
+    jam();
+    req->fileFlags = FsOpenReq::OM_READONLY;
+    req->page_size = 0;
+    req->file_size_hi = UINT32_MAX;
+    req->file_size_lo = UINT32_MAX;
+    req->auto_sync_size = 0;
+    sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
+    return;
+  }
+
+  if (open_for_read)
+  {
+    jam();
+    req->fileFlags = FsOpenReq::OM_READONLY |
+                     FsOpenReq::OM_READ_FORWARD;
+    c_secretsfile.m_state = SecretsFileOperationRecord::OPEN_READ_FILE_0;
+  }
+  else
+  {
+    jam();
+    req->fileFlags =
+        FsOpenReq::OM_WRITEONLY |
+        FsOpenReq::OM_CREATE_IF_NONE |
+        FsOpenReq::OM_APPEND;
+    c_secretsfile.m_state = SecretsFileOperationRecord::OPEN_WRITE_FILE_0;
+  }
+
+  req->fileFlags |= FsOpenReq::OM_ENCRYPT_XTS;
+  req->fileFlags |= FsOpenReq::OM_ENCRYPT_PASSWORD;
+
+  LinearSectionPtr lsptr[3];
+  ndbrequire(FsOpenReq::getVersion(req->fileNumber) != 4);
+  lsptr[FsOpenReq::FILENAME].p = nullptr;
+  lsptr[FsOpenReq::FILENAME].sz = 0;
+
+  EncryptionKeyMaterial ekm;
+  ekm.length = globalData.filesystemPasswordLength;
+  memcpy(&ekm.data, globalData.filesystemPassword, globalData.filesystemPasswordLength);
+  ekm.data[globalData.filesystemPasswordLength] = 0;
+
+  lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].p = (Uint32*)&ekm;
+  lsptr[FsOpenReq::ENCRYPT_KEY_MATERIAL].sz =
+      ekm.get_needed_words();
+
+  req->page_size = 0;
+  req->file_size_hi = UINT32_MAX;
+  req->file_size_lo = UINT32_MAX;
+  req->auto_sync_size = 0;
+  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA,
+             lsptr, 2);
+}
+
 void
 Ndbcntr::open_local_sysfile(Signal *signal,
                             Uint32 sysfile_num,
@@ -6032,7 +6178,7 @@ Ndbcntr::open_local_sysfile(Signal *signal,
 
   FsOpenReq *req = (FsOpenReq*)signal->getDataPtr();
   req->userReference = reference();
-  req->userPointer = 0;
+  req->userPointer = LocalSysfile::FILE_ID;
   req->fileNumber[0] = fileName[0];
   req->fileNumber[1] = fileName[1];
   req->fileNumber[2] = fileName[2];
@@ -6065,22 +6211,117 @@ Ndbcntr::execFSOPENREF(Signal *signal)
   jam();
   jamLine(ref->errorCode);
   jamLine(ref->osErrorCode);
-  if (c_local_sysfile.m_state == LocalSysfile::OPEN_READ_FILE_0)
+
+  if(ref->userPointer == SecretsFileOperationRecord::FILE_ID)
   {
-    jam();
-    c_local_sysfile.m_state = LocalSysfile::OPEN_READ_FILE_1;
-    open_local_sysfile(signal, 1, true);
-    return;
+    if (c_secretsfile.m_state == SecretsFileOperationRecord::CHECK_MISSING_0)
+    {
+      jam();
+      c_secretsfile.m_state = SecretsFileOperationRecord::NOT_USED;
+
+      // Secrets file not found.
+      // Expected case, no secrets file was expected, and none was found.
+      if (ref->errorCode == FsRef::fsErrFileDoesNotExist)
+      {
+        //trigger read sysfile
+        sendReadLocalSysfile(signal);
+        return;
+      }
+      // Secrets file found
+      g_eventLogger->error(
+          "File system encrypted but EncryptedFileSystem "
+          "option not set in data node configuration");
+      progError(__LINE__, NDBD_EXIT_FS_ENCRYPTION_REQUIRED);
+    }
+    else if (c_secretsfile.m_state ==
+             SecretsFileOperationRecord::OPEN_WRITE_FILE_0)
+    {
+      jam();
+      g_eventLogger->error("Failed to open secrets file for writing, "
+                           "error: %d", ref->errorCode);
+      progError(__LINE__, NDBD_EXIT_INVALID_SECRETS_FILE);
+
+    } else if (c_secretsfile.m_state ==
+               SecretsFileOperationRecord::OPEN_READ_FILE_0)
+    {
+      jam();
+      if (ref->errorCode == FsRef::fsErrFileDoesNotExist)
+      {
+        /**
+         * Failed to open the secrets file for reading.
+         * It is not an initial restart and encrypted filesystem is ON.
+         * If filesystem is 'empty' we can also write the secrets file as in
+         * an initial restart otherwise node will fail to start.
+         *
+         * Starts reading the local sysfile.
+         * If it succeeded or failed with something else than
+         * FsRef::fsErrFileDoesNotExist data node start will be aborted.
+         */
+        c_secretsfile.m_state = SecretsFileOperationRecord::WAITING;
+        sendReadLocalSysfile(signal);
+        return;
+      }
+      g_eventLogger->error("Failed to open secrets file for reading, "
+                           "error: %d", ref->errorCode);
+      progError(__LINE__, NDBD_EXIT_INVALID_SECRETS_FILE);
+    }
+    jamLine(c_secretsfile.m_state);
+    ndbabort();
   }
-  else if (c_local_sysfile.m_state == LocalSysfile::OPEN_READ_FILE_1)
+
+  if(ref->userPointer == LocalSysfile::FILE_ID)
   {
-    jam();
-    sendReadLocalSysfileConf(signal,
-                             c_local_sysfile.m_sender_ref,
-                             c_local_sysfile.m_sender_data);
-    return;
+    if (c_local_sysfile.m_state == LocalSysfile::OPEN_READ_FILE_0)
+    {
+      jam();
+
+      if(c_secretsfile.m_state == SecretsFileOperationRecord::WAITING &&
+              ref->errorCode != FsRef::fsErrFileDoesNotExist)
+      {
+      /**
+       * We are trying to open the sysfile #0 just to check for "empty" FS
+       * The secrets file is missing, so if the sysfile is found the
+       * FS is not empty and the node start will be aborted.
+       */
+        g_eventLogger->error("Secrets file is missing from file system");
+        progError(__LINE__, NDBD_EXIT_MISSING_SECRETS_FILE);
+      }
+
+      c_local_sysfile.m_state = LocalSysfile::OPEN_READ_FILE_1;
+      open_local_sysfile(signal, 1, true);
+      return;
+    }
+    else if (c_local_sysfile.m_state == LocalSysfile::OPEN_READ_FILE_1)
+    {
+      jam();
+
+      if(c_secretsfile.m_state == SecretsFileOperationRecord::WAITING &&
+         ref->errorCode != FsRef::fsErrFileDoesNotExist)
+      {
+      /**
+       * We are trying to open the sysfile #1 just to check for "empty" FS
+       * The secrets file is missing, so if the sysfile is found the
+       * FS is not empty and the node start will be aborted.
+      */
+        g_eventLogger->error("Secrets file is missing from file system");
+        progError(__LINE__, NDBD_EXIT_MISSING_SECRETS_FILE);
+      }
+
+      //Both sysfile failed with fsErrFileDoesNotExist, FS is empty
+      //We can now create the secrets file.
+      if(c_secretsfile.m_state == SecretsFileOperationRecord::WAITING &&
+         ref->errorCode == FsRef::fsErrFileDoesNotExist)
+      {
+        create_secrets_file(signal);
+        return;
+      }
+      sendReadLocalSysfileConf(signal, c_local_sysfile.m_sender_ref,
+                               c_local_sysfile.m_sender_data);
+      return;
+    }
+    jamLine(c_local_sysfile.m_state);
+    ndbabort();
   }
-  jamLine(c_local_sysfile.m_state);
   ndbabort();
 }
 
@@ -6089,42 +6330,134 @@ Ndbcntr::execFSOPENCONF(Signal *signal)
 {
   jamEntry();
   FsConf *conf = (FsConf*)signal->getDataPtr();
-  if (c_local_sysfile.m_state == LocalSysfile::OPEN_READ_FILE_0 ||
-      c_local_sysfile.m_state == LocalSysfile::OPEN_READ_FILE_1)
+
+  if(conf->userPointer == SecretsFileOperationRecord::FILE_ID)
   {
-    if (c_local_sysfile.m_state == LocalSysfile::OPEN_READ_FILE_0)
+    if (c_secretsfile.m_state == SecretsFileOperationRecord::CHECK_MISSING_0)
     {
       jam();
-      c_local_sysfile.m_state = LocalSysfile::READ_FILE_0;
+      g_eventLogger->error("File system encrypted but EncryptedFileSystem "
+                           "option not set in data node configuration.");
+      progError(__LINE__, NDBD_EXIT_FS_ENCRYPTION_REQUIRED);
     }
-    else
+    else if (c_secretsfile.m_state == SecretsFileOperationRecord::OPEN_WRITE_FILE_0)
     {
       jam();
-      c_local_sysfile.m_state = LocalSysfile::READ_FILE_1;
+      c_secretsfile.m_file_pointer = conf->filePointer;
+      write_secretsfile(signal);
+      return;
     }
-    c_local_sysfile.m_file_pointer = conf->filePointer;
-    read_local_sysfile(signal);
-    return;
+    else if (c_secretsfile.m_state == SecretsFileOperationRecord::OPEN_READ_FILE_0)
+    {
+      jam();
+      c_secretsfile.m_file_pointer = conf->filePointer;
+      read_secretsfile(signal);
+      return;
+    }
+    jamLine(c_secretsfile.m_state);
+    ndbabort();
   }
-  else if (c_local_sysfile.m_state == LocalSysfile::OPEN_WRITE_FILE_0 ||
-           c_local_sysfile.m_state == LocalSysfile::OPEN_WRITE_FILE_1)
+
+  if(conf->userPointer == LocalSysfile::FILE_ID)
   {
-    if (c_local_sysfile.m_state == LocalSysfile::OPEN_WRITE_FILE_0)
+    if (c_local_sysfile.m_state == LocalSysfile::OPEN_READ_FILE_0 ||
+        c_local_sysfile.m_state == LocalSysfile::OPEN_READ_FILE_1)
     {
-      jam();
-      c_local_sysfile.m_state = LocalSysfile::WRITE_FILE_0;
+      /**
+       * We are trying to open the sysfile just to check for "empty" FS
+       * The secrets file is missing, so since the sysfile open succeed the
+       * FS is not empty and node start will be aborted.
+       */
+      if(c_secretsfile.m_state == SecretsFileOperationRecord::WAITING)
+      {
+        g_eventLogger->error("Secrets file is missing from file system");
+        progError(__LINE__, NDBD_EXIT_MISSING_SECRETS_FILE);
+      }
+      if (c_local_sysfile.m_state == LocalSysfile::OPEN_READ_FILE_0)
+      {
+        jam();
+        c_local_sysfile.m_state = LocalSysfile::READ_FILE_0;
+      } else
+      {
+        jam();
+        c_local_sysfile.m_state = LocalSysfile::READ_FILE_1;
+      }
+      c_local_sysfile.m_file_pointer = conf->filePointer;
+      read_local_sysfile(signal);
+      return;
     }
-    else
+    else if (c_local_sysfile.m_state == LocalSysfile::OPEN_WRITE_FILE_0 ||
+               c_local_sysfile.m_state == LocalSysfile::OPEN_WRITE_FILE_1)
     {
-      jam();
-      c_local_sysfile.m_state = LocalSysfile::WRITE_FILE_1;
+      if (c_local_sysfile.m_state == LocalSysfile::OPEN_WRITE_FILE_0)
+      {
+        jam();
+        c_local_sysfile.m_state = LocalSysfile::WRITE_FILE_0;
+      }
+      else
+      {
+        jam();
+        c_local_sysfile.m_state = LocalSysfile::WRITE_FILE_1;
+      }
+      c_local_sysfile.m_file_pointer = conf->filePointer;
+      write_local_sysfile(signal);
+      return;
     }
-    c_local_sysfile.m_file_pointer = conf->filePointer;
-    write_local_sysfile(signal);
-    return;
+    jamLine(c_secretsfile.m_state);
+    ndbabort();
   }
-  jamLine(c_local_sysfile.m_state);
   ndbabort();
+}
+
+void Ndbcntr::read_secretsfile(Signal *signal)
+{
+  jam();
+  ndbrequire(c_secretsfile.m_state == SecretsFileOperationRecord::OPEN_READ_FILE_0);
+  c_secretsfile.m_state = SecretsFileOperationRecord::READ_FILE_0;
+
+  FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtr();
+  req->filePointer = c_secretsfile.m_file_pointer;
+  req->userReference = reference();
+  req->userPointer = SecretsFileOperationRecord::FILE_ID;
+  req->operationFlag = 0;
+  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatArrayOfPages);
+  req->varIndex = ZVAR_SECRETSFILE_BAT_INDEX;
+  req->numberOfPages = 1;
+  req->data.arrayOfPages.varIndex = 0;
+  req->data.arrayOfPages.fileOffset = 0;
+  std::memset(&c_secretsfile.m_data[0], 0, sizeof(c_secretsfile.m_data));
+  sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 8, JBA);
+}
+
+
+void Ndbcntr::write_secretsfile(Signal *signal)
+{
+  jam();
+  ndbrequire(c_secretsfile.m_state == SecretsFileOperationRecord::OPEN_WRITE_FILE_0);
+  c_secretsfile.m_state = SecretsFileOperationRecord::WRITE_FILE_0;
+
+  Uint32 cnt=0;
+  memcpy(&c_secretsfile.m_data[cnt], "NDBSCRT1", 8);
+  cnt += ndb_ceil_div<Uint32>(8, sizeof(Uint32));
+  memcpy(&c_secretsfile.m_data[cnt],
+         &globalData.nodeMasterKeyLength,
+         sizeof(globalData.nodeMasterKeyLength));
+  cnt += ndb_ceil_div<Uint32>(sizeof(globalData.nodeMasterKeyLength),sizeof(Uint32));
+
+  memcpy(&c_secretsfile.m_data[cnt],
+         globalData.nodeMasterKey,
+         globalData.nodeMasterKeyLength);
+
+  FsAppendReq *req = (FsAppendReq*)signal->getDataPtr();
+  req->filePointer = c_secretsfile.m_file_pointer;
+  req->userReference = reference();
+  req->userPointer = SecretsFileOperationRecord::FILE_ID;
+  req->varIndex = ZVAR_SECRETSFILE_BAT_INDEX;
+
+  req->offset = 0;
+  req->size = sizeof(c_secretsfile.m_data) / 4;
+  req->synch_flag = 0;
+  sendSignal(NDBFS_REF, GSN_FSAPPENDREQ, signal, FsAppendReq::SignalLength, JBA);
 }
 
 void
@@ -6133,7 +6466,7 @@ Ndbcntr::read_local_sysfile(Signal *signal)
   FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtr();
   req->filePointer = c_local_sysfile.m_file_pointer;
   req->userReference = reference();
-  req->userPointer = 0;
+  req->userPointer = LocalSysfile::FILE_ID;
   req->operationFlag = 0;
   req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatArrayOfPages);
   req->varIndex = ZVAR_LOCAL_SYSFILE_BAT_INDEX;
@@ -6146,10 +6479,11 @@ Ndbcntr::read_local_sysfile(Signal *signal)
 void
 Ndbcntr::write_local_sysfile(Signal *signal)
 {
+
   FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtr();
   req->filePointer = c_local_sysfile.m_file_pointer;
   req->userReference = reference();
-  req->userPointer = 0;
+  req->userPointer = LocalSysfile::FILE_ID;
   req->operationFlag = 0;
   req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatArrayOfPages);
   req->varIndex = ZVAR_LOCAL_SYSFILE_BAT_INDEX;
@@ -6159,18 +6493,63 @@ Ndbcntr::write_local_sysfile(Signal *signal)
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 8, JBA);
 }
 
+
 void
 Ndbcntr::execFSREADREF(Signal *signal)
 {
   jamEntry();
-  if (c_local_sysfile.m_state == LocalSysfile::READ_FILE_0 ||
-      c_local_sysfile.m_state == LocalSysfile::READ_FILE_1)
+
+  FsRef *ref = (FsRef*)signal->getDataPtr();
+  if(ref->userPointer == SecretsFileOperationRecord::FILE_ID)
+  {
+    if (c_secretsfile.m_state == SecretsFileOperationRecord::READ_FILE_0)
+    {
+      jam();
+      g_eventLogger->error("Failed to read secrets file, error: %d",
+                           ref->errorCode);
+      progError(__LINE__, NDBD_EXIT_INVALID_SECRETS_FILE);
+    }
+    jamLine(c_secretsfile.m_state);
+    ndbabort();
+  }
+  if(ref->userPointer == LocalSysfile::FILE_ID)
+  {
+    if (c_local_sysfile.m_state == LocalSysfile::READ_FILE_0 ||
+        c_local_sysfile.m_state == LocalSysfile::READ_FILE_1)
+    {
+      jam();
+      handle_read_refuse(signal);
+    }
+    jamLine(c_local_sysfile.m_state);
+    ndbabort();
+  }
+  ndbabort();
+}
+
+void Ndbcntr::read_secretsfile_data(Signal *signal)
+{
+  char magic[8];
+  memset(globalData.nodeMasterKey, 0, MAX_NODE_MASTER_KEY_LENGTH);
+  unsigned char *ptr = (unsigned char *) c_secretsfile.m_data;
+  Uint32 cnt=0;
+  memcpy(magic, ptr+cnt, sizeof(magic));
+
+  if (memcmp(magic, "NDBSCRT1", 8) != 0)
   {
     jam();
-    handle_read_refuse(signal);
+    g_eventLogger->error("Failed to read secrets file using the "
+                         "provided filesystem password (wrong password?)");
+    progError(__LINE__, NDBD_EXIT_WRONG_FILESYSTEM_PASSWORD);
   }
-  jamLine(c_local_sysfile.m_state);
-  ndbabort();
+
+  cnt += sizeof(magic);
+  Uint32 key_len;
+  memcpy(&key_len, ptr+cnt, sizeof(key_len));
+  assert(key_len == c_nodeMasterKeyLength);
+  cnt += sizeof(key_len);
+  memset(globalData.nodeMasterKey, 0, MAX_NODE_MASTER_KEY_LENGTH);
+  memcpy(globalData.nodeMasterKey, ptr+cnt, key_len);
+  globalData.nodeMasterKeyLength = key_len;
 }
 
 const char*
@@ -6192,6 +6571,7 @@ Ndbcntr::get_restorable_flag_string(Uint32 restorable_flag)
 void
 Ndbcntr::read_local_sysfile_data(Signal *signal)
 {
+  jam();
   const Uint32 version = c_local_sysfile.m_data[0];
   Uint32 node_restorable_flag = c_local_sysfile.m_data[1];
   Uint32 max_restorable_gci = c_local_sysfile.m_data[2];
@@ -6208,16 +6588,34 @@ void
 Ndbcntr::execFSREADCONF(Signal *signal)
 {
   jamEntry();
-  if (c_local_sysfile.m_state == LocalSysfile::READ_FILE_0 ||
-      c_local_sysfile.m_state == LocalSysfile::READ_FILE_1)
+  FsConf *conf = (FsConf*)signal->getDataPtr();
+
+  if(conf->userPointer == SecretsFileOperationRecord::FILE_ID)
   {
-    jam();
-    read_local_sysfile_data(signal);
-    c_local_sysfile.m_state = LocalSysfile::CLOSE_READ_FILE;
-    close_local_sysfile(signal);
-    return;
+    if (c_secretsfile.m_state == SecretsFileOperationRecord::READ_FILE_0)
+    {
+      jam();
+      read_secretsfile_data(signal);
+      close_secretsfile(signal);
+      return;
+    }
+    jamLine(c_secretsfile.m_state);
+    ndbabort();
   }
-  jamLine(c_local_sysfile.m_state);
+
+  if(conf->userPointer == LocalSysfile::FILE_ID)
+  {
+    if (c_local_sysfile.m_state == LocalSysfile::READ_FILE_0 ||
+        c_local_sysfile.m_state == LocalSysfile::READ_FILE_1) {
+      jam();
+      read_local_sysfile_data(signal);
+      c_local_sysfile.m_state = LocalSysfile::CLOSE_READ_FILE;
+      close_local_sysfile(signal);
+      return;
+    }
+    jamLine(c_local_sysfile.m_state);
+    ndbabort();
+  }
   ndbabort();
 }
 
@@ -6233,21 +6631,21 @@ void
 Ndbcntr::execFSWRITECONF(Signal *signal)
 {
   jamEntry();
-  if (c_local_sysfile.m_state == LocalSysfile::WRITE_FILE_0 ||
-      c_local_sysfile.m_state == LocalSysfile::WRITE_FILE_1)
+  FsConf *conf = (FsConf*)signal->getDataPtr();
+  if(conf->userPointer == LocalSysfile::FILE_ID)
   {
-    if (c_local_sysfile.m_state == LocalSysfile::WRITE_FILE_0)
-    {
-      jam();
-      c_local_sysfile.m_state = LocalSysfile::CLOSE_WRITE_FILE_0;
+    if (c_local_sysfile.m_state == LocalSysfile::WRITE_FILE_0 ||
+        c_local_sysfile.m_state == LocalSysfile::WRITE_FILE_1) {
+      if (c_local_sysfile.m_state == LocalSysfile::WRITE_FILE_0) {
+        jam();
+        c_local_sysfile.m_state = LocalSysfile::CLOSE_WRITE_FILE_0;
+      } else {
+        jam();
+        c_local_sysfile.m_state = LocalSysfile::CLOSE_WRITE_FILE_1;
+      }
+      close_local_sysfile(signal);
+      return;
     }
-    else
-    {
-      jam();
-      c_local_sysfile.m_state = LocalSysfile::CLOSE_WRITE_FILE_1;
-    }
-    close_local_sysfile(signal);
-    return;
   }
   jamLine(c_local_sysfile.m_state);
   ndbabort();
@@ -6261,7 +6659,7 @@ Ndbcntr::handle_read_refuse(Signal *signal)
     jam();
     c_local_sysfile.m_state = LocalSysfile::CLOSE_READ_REF_0;
   }
-  else if (c_local_sysfile.m_state == LocalSysfile::READ_FILE_0)
+  else if (c_local_sysfile.m_state == LocalSysfile::READ_FILE_1)
   {
     jam();
     c_local_sysfile.m_state = LocalSysfile::CLOSE_READ_REF_1;
@@ -6273,13 +6671,60 @@ Ndbcntr::handle_read_refuse(Signal *signal)
   close_local_sysfile(signal);
 }
 
+void Ndbcntr::execFSAPPENDREF(Signal *signal)
+{
+  jam();
+  FsRef *ref = (FsRef*)signal->getDataPtr();
+    g_eventLogger->error("Failed to write secrets file, "
+        "error: %d", ref->errorCode);
+  progError(__LINE__, NDBD_EXIT_INVALID_SECRETS_FILE);
+}
+
+void Ndbcntr::execFSAPPENDCONF(Signal *signal)
+{
+  jamEntry();
+  FsConf *conf = (FsConf*)signal->getDataPtr();
+  if(conf->userPointer == SecretsFileOperationRecord::FILE_ID)
+  {
+    if (c_secretsfile.m_state == SecretsFileOperationRecord::WRITE_FILE_0)
+    {
+      close_secretsfile(signal);
+      return;
+    }
+  }
+  jamEntry();
+  jamLine(c_secretsfile.m_state);
+  ndbabort();
+}
+
+void Ndbcntr::close_secretsfile(Signal *signal)
+{
+  jam();
+  ndbrequire(
+          c_secretsfile.m_state == SecretsFileOperationRecord::READ_FILE_0 ||
+          c_secretsfile.m_state == SecretsFileOperationRecord::WRITE_FILE_0 );
+
+  c_secretsfile.m_state =
+          (c_secretsfile.m_state == SecretsFileOperationRecord::READ_FILE_0) ?
+          SecretsFileOperationRecord::CLOSE_READ_FILE_0 :
+          SecretsFileOperationRecord::CLOSE_WRITE_FILE_0;
+
+  FsCloseReq *req = (FsCloseReq*)signal->getDataPtr();
+  req->filePointer = c_secretsfile.m_file_pointer;
+  req->userReference = reference();
+  req->userPointer = SecretsFileOperationRecord::FILE_ID;
+  req->fileFlag = 0;
+  sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal, 4, JBA);
+}
+
 void
 Ndbcntr::close_local_sysfile(Signal *signal)
 {
+  jam();
   FsCloseReq *req = (FsCloseReq*)signal->getDataPtr();
   req->filePointer = c_local_sysfile.m_file_pointer;
   req->userReference = reference();
-  req->userPointer = 0;
+  req->userPointer = LocalSysfile::FILE_ID;
   req->fileFlag = 0;
   sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal, 4, JBA);
 }
@@ -6288,6 +6733,32 @@ void
 Ndbcntr::execFSCLOSEREF(Signal *signal)
 {
   jamEntry();
+  FsRef *ref = (FsRef*)signal->getDataPtr();
+  jam();
+  jamLine(ref->errorCode);
+  jamLine(ref->osErrorCode);
+
+  if(ref->userPointer == SecretsFileOperationRecord::FILE_ID)
+  {
+    if (c_secretsfile.m_state == SecretsFileOperationRecord::CLOSE_WRITE_FILE_0)
+    {
+      jam();
+      g_eventLogger->error("Failed to write secrets file, error: %d",
+                           ref->errorCode);
+      progError(__LINE__, NDBD_EXIT_INVALID_SECRETS_FILE);
+      return;
+    }
+    else if (c_secretsfile.m_state == SecretsFileOperationRecord::CLOSE_READ_FILE_0)
+    {
+      jam();
+      //TODO new error: checksum validation failed
+      g_eventLogger->error("Failed to read secrets file using the "
+                           "provided filesystem password (wrong password?)");
+      progError(__LINE__, NDBD_EXIT_WRONG_FILESYSTEM_PASSWORD);
+    }
+    jamLine(c_secretsfile.m_state);
+    ndbabort();
+  }
   ndbabort();
 }
 
@@ -6362,43 +6833,86 @@ void
 Ndbcntr::execFSCLOSECONF(Signal *signal)
 {
   jamEntry();
-  if (c_local_sysfile.m_state == LocalSysfile::CLOSE_READ_FILE)
+  FsConf *conf = (FsConf*)signal->getDataPtr();
+  if(conf->userPointer == SecretsFileOperationRecord::FILE_ID)
   {
-    jam();
-    sendReadLocalSysfileConf(signal,
-                             c_local_sysfile.m_sender_ref,
-                             c_local_sysfile.m_sender_data);
-    return;
+    if (c_secretsfile.m_state == SecretsFileOperationRecord::CLOSE_WRITE_FILE_0)
+    {
+      jam();
+      // Secrets File Operation Record no longer needed
+      c_secretsfile.m_state = SecretsFileOperationRecord::NOT_USED;
+
+      //If we are using the sysfile to check for empty FS and then create
+      //secrets file, continue sysfile handling to its original state
+      if(c_local_sysfile.m_state == LocalSysfile::OPEN_READ_FILE_1)
+      {
+        sendReadLocalSysfileConf(signal, c_local_sysfile.m_sender_ref,
+                                 c_local_sysfile.m_sender_data);
+        return;
+      }
+      c_local_sysfile.m_state = LocalSysfile::NOT_USED;
+      sendSttorry(signal);
+      return;
+    }
+    else if (c_secretsfile.m_state ==
+             SecretsFileOperationRecord::CLOSE_READ_FILE_0)
+    {
+      jam();
+      // Secrets File Operation Record no longer needed
+      c_secretsfile.m_state = SecretsFileOperationRecord::NOT_USED;
+      /**
+     * State in Local sysfile is prioritized before the
+     * state in DIH. So we first check this, if this is
+     * set to initial start of some kind, then it means
+     * that we need to clear the file system.
+       */
+      sendReadLocalSysfile(signal);
+      return;
+    }
+    jamLine(c_secretsfile.m_state);
+    ndbabort();
   }
-  else if (c_local_sysfile.m_state == LocalSysfile::CLOSE_READ_REF_0)
+  if(conf->userPointer == LocalSysfile::FILE_ID)
   {
-    jam();
-    c_local_sysfile.m_state = LocalSysfile::OPEN_READ_FILE_1;
-    open_local_sysfile(signal, 1, true);
-    return;
+    if (c_local_sysfile.m_state == LocalSysfile::CLOSE_READ_FILE)
+    {
+      jam();
+      sendReadLocalSysfileConf(signal,
+                               c_local_sysfile.m_sender_ref,
+                               c_local_sysfile.m_sender_data);
+      return;
+    }
+    else if (c_local_sysfile.m_state == LocalSysfile::CLOSE_READ_REF_0)
+    {
+      jam();
+      c_local_sysfile.m_state = LocalSysfile::OPEN_READ_FILE_1;
+      open_local_sysfile(signal, 1, true);
+      return;
+    }
+    else if (c_local_sysfile.m_state == LocalSysfile::CLOSE_READ_REF_1)
+    {
+      jam();
+      sendReadLocalSysfileConf(signal,
+                               c_local_sysfile.m_sender_ref,
+                               c_local_sysfile.m_sender_data);
+      return;
+    }
+    else if (c_local_sysfile.m_state == LocalSysfile::CLOSE_WRITE_FILE_0)
+    {
+      jam();
+      c_local_sysfile.m_state = LocalSysfile::OPEN_WRITE_FILE_1;
+      open_local_sysfile(signal, 1, false);
+      return;
+    }
+    else if (c_local_sysfile.m_state == LocalSysfile::CLOSE_WRITE_FILE_1)
+    {
+      jam();
+      sendWriteLocalSysfileConf(signal);
+      return;
+    }
+    jamLine(c_local_sysfile.m_state);
+    ndbabort();
   }
-  else if (c_local_sysfile.m_state == LocalSysfile::CLOSE_READ_REF_1)
-  {
-    jam();
-    sendReadLocalSysfileConf(signal,
-                             c_local_sysfile.m_sender_ref,
-                             c_local_sysfile.m_sender_data);
-    return;
-  }
-  else if (c_local_sysfile.m_state == LocalSysfile::CLOSE_WRITE_FILE_0)
-  {
-    jam();
-    c_local_sysfile.m_state = LocalSysfile::OPEN_WRITE_FILE_1;
-    open_local_sysfile(signal, 1, false);
-    return;
-  }
-  else if (c_local_sysfile.m_state == LocalSysfile::CLOSE_WRITE_FILE_1)
-  {
-    jam();
-    sendWriteLocalSysfileConf(signal);
-    return;
-  }
-  jamLine(c_local_sysfile.m_state);
   ndbabort();
 }
 

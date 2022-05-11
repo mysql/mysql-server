@@ -51,6 +51,7 @@
 #endif
 
 #include <NdbGetRUsage.h>
+#include <ndb_openssl_evp.h>
 #include <EventLogger.hpp>
 #include <LogBuffer.hpp>
 #include <OutputStream.hpp>
@@ -1224,6 +1225,23 @@ ndbd_run(bool foreground, int report_fd,
     g_eventLogger->info("Data node configured to have encryption "
                          "but password not provided");
     ndbd_exit(-1);
+  }
+
+  if (have_password_option && encrypted_file_system == 1)
+  {
+    const char *pwd = g_filesystem_password_state.get_password();
+    size_t pwd_size = g_filesystem_password_state.get_password_length();
+    if(pwd_size <=0)
+    {
+      g_eventLogger->info("Invalid filesystem password, "
+          "empty password not allowed");
+      ndbd_exit(-1);
+    }
+
+    memcpy(globalData.filesystemPassword, pwd, pwd_size);
+    globalData.filesystemPassword[pwd_size] = '\0';
+    globalData.filesystemPasswordLength = pwd_size;
+    require(globalData.filesystemPasswordLength> 0);
   }
 
   /**

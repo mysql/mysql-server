@@ -92,10 +92,6 @@ public:
   SECTION( FILENAME = 0 );
   SECTION(ENCRYPT_KEY_MATERIAL = 1);
 
-  static constexpr EncryptionKeyMaterial DUMMY_PWD = {5, "DUMMY"};
-  static constexpr EncryptionKeyMaterial DUMMY_KEY = {
-      32, "DUMMYKEYDUMMYKEYDUMMYKEYDUMMYKEY"};
-
  private:
   /**
    * DATA VARIABLES

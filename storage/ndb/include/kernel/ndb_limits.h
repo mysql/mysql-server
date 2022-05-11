@@ -423,6 +423,9 @@
 // Max. 256 bytes for encryption password given via mgmapi
 #define MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH 256
 
+// Max. 32 bytes for node master key
+#define MAX_NODE_MASTER_KEY_LENGTH 64
+
 static_assert(NDB_DEFAULT_HASHMAP_BUCKETS <= NDB_MAX_HASHMAP_BUCKETS);
 static_assert(MAX_NDB_PARTITIONS <= NDB_MAX_HASHMAP_BUCKETS);
 static_assert(MAX_NDB_PARTITIONS - 1 <= NDB_PARTITION_MASK);

@@ -47,6 +47,9 @@ void Ndbcntr::initData()
   // schema trans
   c_schemaTransId = 0;
   c_schemaTransKey = 0;
+
+  alloc_local_bat();
+  init_secretsfile();
   init_local_sysfile();
 
   m_any_lcp_started = false;
@@ -196,6 +199,8 @@ Ndbcntr::Ndbcntr(Block_context& ctx):
   addRecSignal(GSN_FSWRITECONF, &Ndbcntr::execFSWRITECONF);
   addRecSignal(GSN_FSCLOSEREF, &Ndbcntr::execFSCLOSEREF, true);
   addRecSignal(GSN_FSCLOSECONF, &Ndbcntr::execFSCLOSECONF);
+  addRecSignal(GSN_FSAPPENDREF, &Ndbcntr::execFSAPPENDREF, true);
+  addRecSignal(GSN_FSAPPENDCONF, &Ndbcntr::execFSAPPENDCONF);
   
   initData();
   ctypeOfStart = NodeState::ST_ILLEGAL_TYPE;

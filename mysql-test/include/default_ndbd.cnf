@@ -29,7 +29,7 @@ SpinMethod=CostBasedSpinning
 ODirect= 1
 CompressedLCP= 1
 CompressedBackup= 1
-# the following parametes just function as a small regression
+# the following parameters just function as a small regression
 # test that the parameter exists
 InitialNoOfOpenFiles= 27
 

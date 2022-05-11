@@ -136,6 +136,16 @@ static const ErrStruct errArray[] =
    {NDBD_EXIT_UPGRADE_INITIAL_REQUIRED, XRE,
     "Node upgrade requires initial restart to rebuild filesystem. "
     "Please retry with --initial or reconsider."},
+   {NDBD_EXIT_WRONG_FILESYSTEM_PASSWORD, XRE,
+    "Unable to read secrets file using the provided filesystem password. "
+    "To define a new password retry with --initial"},
+   {NDBD_EXIT_FS_ENCRYPTION_REQUIRED, XRE,
+    "File system encrypted but EncryptedFileSystem "
+    "option not set in data node configuration"},
+   {NDBD_EXIT_INVALID_SECRETS_FILE, XRE,
+    "Invalid secrets file"},
+    {NDBD_EXIT_MISSING_SECRETS_FILE, XRE,
+    "Secrets file is missing"},
 
    /* DIH */
    {NDBD_EXIT_MAX_CRASHED_REPLICAS, XFL,
