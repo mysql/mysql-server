@@ -50,6 +50,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_executor.h"  // QEP_TAB
 #include "sql/sql_lex.h"
+#include "sql/sql_plugin_var.h"  // SYS_VAR
 #ifndef NDEBUG
 #include "sql/sql_test.h"  // print_where
 #endif
@@ -1223,8 +1224,8 @@ void ha_ndbcluster::set_rec_per_key(THD *thd) {
         // we get better index statistics).
 
         {
-          const bool index_stat_enable = THDVAR(nullptr, index_stat_enable) &&
-                                         THDVAR(thd, index_stat_enable);
+          const bool index_stat_enable = ndb_index_stat_get_enable(nullptr) &&
+                                         ndb_index_stat_get_enable(thd);
           if (index_stat_enable) {
             const int err = ndb_index_stat_set_rpk(i);
             if (err != 0 &&
@@ -12978,7 +12979,7 @@ ha_rows ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
   {
     THD *thd = current_thd;
     const bool index_stat_enable =
-        THDVAR(NULL, index_stat_enable) && THDVAR(thd, index_stat_enable);
+        ndb_index_stat_get_enable(nullptr) && ndb_index_stat_get_enable(thd);
 
     if (index_stat_enable) {
       ha_rows rows = HA_POS_ERROR;
@@ -18150,6 +18151,15 @@ static MYSQL_SYSVAR_BOOL(log_transaction_id,         /* name */
                          0     /* default */
 );
 
+bool opt_ndb_log_trx_compression;
+static MYSQL_SYSVAR_BOOL(log_transaction_compression, /* name */
+                         opt_ndb_log_trx_compression, /* var */
+                         PLUGIN_VAR_OPCMDARG, "Compress the Ndb Binlog",
+                         NULL, /* check func. */
+                         NULL, /* update func. */
+                         0     /* default */
+);
+
 bool opt_ndb_clear_apply_status;
 static MYSQL_SYSVAR_BOOL(
     clear_apply_status,         /* name */
@@ -18488,6 +18498,7 @@ static SYS_VAR *system_variables[] = {
     MYSQL_SYSVAR(log_empty_epochs),
     MYSQL_SYSVAR(log_apply_status),
     MYSQL_SYSVAR(log_transaction_id),
+    MYSQL_SYSVAR(log_transaction_compression),
     MYSQL_SYSVAR(log_fail_terminate),
     MYSQL_SYSVAR(clear_apply_status),
     MYSQL_SYSVAR(schema_dist_upgrade_allowed),
