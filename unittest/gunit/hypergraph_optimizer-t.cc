@@ -95,6 +95,7 @@ using testing::ElementsAre;
 using testing::Pair;
 using testing::Return;
 using testing::StartsWith;
+using testing::UnorderedElementsAre;
 using namespace std::literals;  // For operator""sv.
 
 static AccessPath *FindBestQueryPlanAndFinalize(THD *thd,
@@ -717,6 +718,35 @@ TEST_F(MakeHypergraphTest, CyclePushedFromOuterJoinCondition) {
   EXPECT_EQ("(t3.x = t4.x)", ItemToString(graph.predicates[2].condition));
   EXPECT_EQ(0x0c, graph.predicates[2].total_eligibility_set);  // t3/t4.
   EXPECT_TRUE(graph.predicates[2].was_join_condition);
+}
+
+TEST_F(MakeHypergraphTest, CycleWithNullSafeEqual) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2, t3 WHERE "
+      "t1.x <=> t2.x AND t2.y <=> t3.y AND t1.z <=> t3.z",
+      /*nullable=*/true);
+
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  string trace;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  // Expect a hypergraph of three nodes, and one simple edge connecting each
+  // pair of nodes.
+  EXPECT_EQ(3, graph.nodes.size());
+  EXPECT_EQ(3, graph.edges.size());
+
+  // All the edges should have equijoin conditions.
+  vector<string> predicates;
+  for (const JoinPredicate &predicate : graph.edges) {
+    const RelationalExpression *expr = predicate.expr;
+    EXPECT_TRUE(expr->join_conditions.empty());
+    ASSERT_EQ(1, expr->equijoin_conditions.size());
+    predicates.push_back(ItemToString(expr->equijoin_conditions[0]));
+  }
+  EXPECT_THAT(predicates,
+              UnorderedElementsAre("(t1.x <=> t2.x)", "(t2.y <=> t3.y)",
+                                   "(t1.z <=> t3.z)"));
 }
 
 TEST_F(MakeHypergraphTest, MultipleEqualitiesCauseCycle) {
@@ -2379,6 +2409,34 @@ TEST_F(HypergraphOptimizerTest, StraightJoin) {
 
   // We should see only the two table scans and then t1-t2, no other orders.
   EXPECT_EQ(m_thd->m_current_query_partial_plans, 3);
+}
+
+TEST_F(HypergraphOptimizerTest, NullSafeEqualHashJoin) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT 1 FROM t1, t2 WHERE t1.x <=> t2.x",
+                      /*nullable=*/true);
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t2"]->file->stats.records = 10000;
+
+  // Set up some large scan costs to discourage nested loop.
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
+  m_fake_tables["t2"]->file->stats.data_file_length = 100e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->type);
+
+  // The <=> predicate should be an equijoin condition.
+  const RelationalExpression *expr = root->hash_join().join_predicate->expr;
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, expr->type);
+  EXPECT_EQ(0, expr->join_conditions.size());
+  ASSERT_EQ(1, expr->equijoin_conditions.size());
+  EXPECT_EQ("(t1.x <=> t2.x)", ItemToString(expr->equijoin_conditions[0]));
 }
 
 TEST_F(HypergraphOptimizerTest, Cycle) {

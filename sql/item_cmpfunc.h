@@ -704,7 +704,6 @@ class Item_func_comparison : public Item_bool_func2 {
   bool is_null() override;
 
   bool cast_incompatible_args(uchar *) override;
-  bool contains_only_equi_join_condition() const override;
 };
 
 /**
@@ -991,6 +990,8 @@ class Item_eq_base : public Item_func_comparison {
       : Item_func_comparison(pos, a, b) {}
 
  public:
+  bool contains_only_equi_join_condition() const final;
+
   /// Read the value from the join condition, and append it to the output vector
   /// "join_key_buffer". The function will determine which side of the condition
   /// to read the value from by using the bitmap "tables".

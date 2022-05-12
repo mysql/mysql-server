@@ -81,11 +81,10 @@ col1	col1
 EXPLAIN FORMAT=tree
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 <=> t2.col1;
 EXPLAIN
--> Filter: (t1.col1 <=> t2.col1)  (cost=5.30 rows=6)
-    -> Inner hash join (no condition)  (cost=5.30 rows=6)
-        -> Table scan on t2  (cost=0.06 rows=7)
-        -> Hash
-            -> Table scan on t1  (cost=0.85 rows=6)
+-> Inner hash join (t1.col1 <=> t2.col1)
+    -> Table scan on t2
+    -> Hash
+        -> Table scan on t1
 
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 <=> t2.col1 ORDER BY t1.col1;
 col1	col1
@@ -122,18 +121,16 @@ Warnings:
 Warning	4095	Delimiter '#' in position 4 in datetime value '2001#01#01' at row 1 is deprecated. Prefer the standard '-'.
 EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE a<=>b;
 EXPLAIN
--> Filter: (t1.a <=> cast(t2.b as datetime(6)))  (cost=1.30 rows=2)
-    -> Inner hash join (no condition)  (cost=1.30 rows=2)
-        -> Table scan on t2  (cost=0.18 rows=3)
-        -> Hash
-            -> Table scan on t1  (cost=0.45 rows=2)
+-> Inner hash join (t1.a <=> cast(t2.b as datetime(6)))
+    -> Table scan on t2
+    -> Hash
+        -> Table scan on t1
 
 SELECT * FROM t1, t2 WHERE a<=>b;
 a	b
 2001-01-01 00:00:00	2001#01#01
 NULL	NULL
 NULL	NULL
-Warning	4095	Delimiter '#' in position 4 in datetime value '2001#01#01' at row 1 is deprecated. Prefer the standard '-'.
 Warning	4095	Delimiter '#' in position 4 in datetime value '2001#01#01' at row 1 is deprecated. Prefer the standard '-'.
 Warnings:
 DROP TABLE t1, t2;
@@ -162,11 +159,10 @@ col1	col1
 EXPLAIN FORMAT=tree
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 <=> t2.col1;
 EXPLAIN
--> Filter: (t1.col1 <=> t2.col1)  (cost=4.70 rows=6)
-    -> Inner hash join (no condition)  (cost=4.70 rows=6)
-        -> Table scan on t2  (cost=0.06 rows=6)
-        -> Hash
-            -> Table scan on t1  (cost=0.85 rows=6)
+-> Inner hash join (t1.col1 <=> t2.col1)  (cost=4.70 rows=6)
+    -> Table scan on t2  (cost=0.06 rows=6)
+    -> Hash
+        -> Table scan on t1  (cost=0.85 rows=6)
 
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 <=> t2.col1;
 col1	col1
@@ -201,11 +197,10 @@ col1	col1
 EXPLAIN FORMAT=tree
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 <=> t2.col1;
 EXPLAIN
--> Filter: (t1.col1 <=> t2.col1)  (cost=4.70 rows=6)
-    -> Inner hash join (no condition)  (cost=4.70 rows=6)
-        -> Table scan on t2  (cost=0.06 rows=6)
-        -> Hash
-            -> Table scan on t1  (cost=0.85 rows=6)
+-> Inner hash join (t1.col1 <=> t2.col1)  (cost=4.70 rows=6)
+    -> Table scan on t2  (cost=0.06 rows=6)
+    -> Hash
+        -> Table scan on t1  (cost=0.85 rows=6)
 
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 <=> t2.col1;
 col1	col1
@@ -240,11 +235,10 @@ col1	col1
 5	5.000000000000000000000000000000
 EXPLAIN FORMAT=tree SELECT * FROM t1,t2 WHERE t1.col1 <=> t2.col1;
 EXPLAIN
--> Filter: (t1.col1 <=> t2.col1)  (cost=2.90 rows=4)
-    -> Inner hash join (no condition)  (cost=2.90 rows=4)
-        -> Table scan on t2  (cost=0.09 rows=5)
-        -> Hash
-            -> Table scan on t1  (cost=0.65 rows=4)
+-> Inner hash join (t1.col1 <=> t2.col1)
+    -> Table scan on t2
+    -> Hash
+        -> Table scan on t1
 
 SELECT * FROM t1,t2 WHERE t1.col1 <=> t2.col1;
 col1	col1
@@ -272,11 +266,10 @@ col1	col1
 1	1
 EXPLAIN FORMAT=tree SELECT * FROM t1,t2 where t1.col1<=>t2.col1;
 EXPLAIN
--> Filter: (t1.col1 <=> t2.col1)  (cost=1.30 rows=2)
-    -> Inner hash join (no condition)  (cost=1.30 rows=2)
-        -> Table scan on t2  (cost=0.18 rows=3)
-        -> Hash
-            -> Table scan on t1  (cost=0.45 rows=2)
+-> Inner hash join (t1.col1 <=> t2.col1)
+    -> Table scan on t2
+    -> Hash
+        -> Table scan on t1
 
 SELECT * FROM t1,t2 where t1.col1<=>t2.col1;
 col1	col1
@@ -305,11 +298,10 @@ id1	HEX(b1)	id2	HEX(b2)
 3	1	3	0
 EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE id1 <=> id2;
 EXPLAIN
--> Filter: (t1.id1 <=> t2.id2)  (cost=2.20 rows=3)
-    -> Inner hash join (no condition)  (cost=2.20 rows=3)
-        -> Table scan on t2  (cost=0.20 rows=3)
-        -> Hash
-            -> Table scan on t1  (cost=0.80 rows=3)
+-> Inner hash join (t1.id1 <=> t2.id2)  (cost=2.20 rows=3)
+    -> Table scan on t2  (cost=0.20 rows=3)
+    -> Hash
+        -> Table scan on t1  (cost=0.80 rows=3)
 
 SELECT id1, HEX(b1), id2, HEX(b2) FROM t1, t2 WHERE id1 <=> id2;
 id1	HEX(b1)	id2	HEX(b2)
@@ -338,11 +330,10 @@ id1	HEX(b1)	id2	HEX(b2)
 3	2	3	0
 EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE id1 <=> id2;
 EXPLAIN
--> Filter: (t1.id1 <=> t2.id2)  (cost=1.70 rows=3)
-    -> Inner hash join (no condition)  (cost=1.70 rows=3)
-        -> Table scan on t2  (cost=0.12 rows=3)
-        -> Hash
-            -> Table scan on t1  (cost=0.55 rows=3)
+-> Inner hash join (t1.id1 <=> t2.id2)  (cost=1.70 rows=3)
+    -> Table scan on t2  (cost=0.12 rows=3)
+    -> Hash
+        -> Table scan on t1  (cost=0.55 rows=3)
 
 SELECT id1, HEX(b1), id2, HEX(b2) FROM t1, t2 WHERE id1 <=> id2;
 id1	HEX(b1)	id2	HEX(b2)
@@ -372,7 +363,7 @@ col1	col1
 EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE t1.col1 <=> t2.col1;
 EXPLAIN
 -> Filter: (t1.col1 <=> t2.col1)  (cost=1.50 rows=2)
-    -> Inner hash join (no condition)  (cost=1.50 rows=2)
+    -> Inner hash join (<hash>(t1.col1)=<hash>(t2.col1))  (cost=1.50 rows=2)
         -> Table scan on t2  (cost=0.18 rows=4)
         -> Hash
             -> Table scan on t1  (cost=0.45 rows=2)
@@ -550,11 +541,10 @@ ORDER BY
 t1.int_col;
 EXPLAIN
 -> Aggregate: count(0), sum(length(t1.text_col)), sum(t2.bigint_col)  (cost=5544125.95 rows=1)
-    -> Filter: (t1.int_col <=> t2.int_col)  (cost=5543959.54 rows=1664)
-        -> Inner hash join (no condition)  (cost=5543959.54 rows=1664)
-            -> Table scan on t2  (cost=42963.43 rows=129)
-            -> Hash
-                -> Table scan on t1  (cost=13.90 rows=129)
+    -> Inner hash join (t1.int_col <=> t2.int_col)  (cost=5543959.54 rows=1664)
+        -> Table scan on t2  (cost=42963.43 rows=129)
+        -> Hash
+            -> Table scan on t1  (cost=13.90 rows=129)
 
 SELECT
 COUNT(*),
@@ -662,11 +652,10 @@ EXPLAIN FORMAT=TREE
 SELECT * FROM t t1, t t2
 WHERE t1.a = t2.a AND t1.b <=> t2.b AND t1.c = t2.c AND t1.d <=> t2.d;
 EXPLAIN
--> Filter: ((t1.b <=> t2.b) and (t1.d <=> t2.d))  (cost=11.50 rows=10)
-    -> Inner hash join (t2.c = t1.c), (t2.a = t1.a)  (cost=11.50 rows=10)
-        -> Table scan on t2  (cost=0.04 rows=10)
-        -> Hash
-            -> Table scan on t1  (cost=1.25 rows=10)
+-> Inner hash join (t2.c = t1.c), (t2.a = t1.a), (t1.b <=> t2.b), (t1.d <=> t2.d)  (cost=11.50 rows=10)
+    -> Table scan on t2  (cost=0.04 rows=10)
+    -> Hash
+        -> Table scan on t1  (cost=1.25 rows=10)
 
 SELECT * FROM t t1, t t2
 WHERE t1.a = t2.a AND t1.b <=> t2.b AND t1.c = t2.c AND t1.d <=> t2.d;

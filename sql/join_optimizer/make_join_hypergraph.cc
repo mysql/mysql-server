@@ -2098,7 +2098,7 @@ void MakeHashJoinConditions(THD *thd, RelationalExpression *expr) {
            item->type() == Item::COND_ITEM)) {
         Item_func *func_item = down_cast<Item_func *>(item);
         if (func_item->contains_only_equi_join_condition()) {
-          Item_func_eq *join_condition = down_cast<Item_func_eq *>(func_item);
+          Item_eq_base *join_condition = down_cast<Item_eq_base *>(func_item);
           // Join conditions with items that returns row values (subqueries or
           // row value expression) are set up with multiple child comparators,
           // one for each column in the row. As long as the row contains only
@@ -2109,8 +2109,7 @@ void MakeHashJoinConditions(THD *thd, RelationalExpression *expr) {
           // will return 0.
           if (join_condition->get_comparator()->get_child_comparator_count() <
               2) {
-            expr->equijoin_conditions.push_back(
-                down_cast<Item_func_eq *>(func_item));
+            expr->equijoin_conditions.push_back(join_condition);
             continue;
           }
         }
@@ -2868,8 +2867,8 @@ void AddCycleEdges(THD *thd, const Mem_root_array<Item *> &cycle_inducing_edges,
       pred->selectivity *= EstimateSelectivity(thd, cond, trace);
     }
     if (cond->type() == Item::FUNC_ITEM &&
-        down_cast<Item_func *>(cond)->functype() == Item_func::EQ_FUNC) {
-      expr->equijoin_conditions.push_back(down_cast<Item_func_eq *>(cond));
+        down_cast<Item_func *>(cond)->contains_only_equi_join_condition()) {
+      expr->equijoin_conditions.push_back(down_cast<Item_eq_base *>(cond));
     } else {
       expr->join_conditions.push_back(cond);
     }

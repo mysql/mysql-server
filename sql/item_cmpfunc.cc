@@ -2543,6 +2543,8 @@ float Item_func_equal::get_filtering_effect(THD *, table_map filter_for_table,
       contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
   if (!fld) return COND_FILTER_ALLPASS;
 
+  // TODO(khatlen): Use histograms for field <=> const, like in Item_func_eq?
+
   return fld->get_cond_filter_default_probability(rows_in_table,
                                                   COND_FILTER_EQUALITY);
 }
@@ -7427,7 +7429,7 @@ bool Item_cond_and::contains_only_equi_join_condition() const {
   return true;
 }
 
-bool Item_func_comparison::contains_only_equi_join_condition() const {
+bool Item_eq_base::contains_only_equi_join_condition() const {
   assert(arg_count == 2);
   Item *left_arg = args[0];
   Item *right_arg = args[1];
@@ -7465,7 +7467,7 @@ bool Item_func_comparison::contains_only_equi_join_condition() const {
       (*(down_cast<Item_ref *>(right_arg)->ref))->used_tables() == 0)
     return false;
 
-  return functype() == EQ_FUNC;
+  return true;
 }
 
 bool Item_func_trig_cond::contains_only_equi_join_condition() const {

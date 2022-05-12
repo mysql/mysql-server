@@ -144,6 +144,7 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
   // to find a better selectivity estimate. We look for indexes on both
   // fields, and pick the least selective (see EstimateFieldSelectivity()
   // for why).
+  // TODO(khatlen): Do the same for field <=> field?
   double selectivity_cap = 1.0;
   if (condition->type() == Item::FUNC_ITEM &&
       down_cast<Item_func *>(condition)->functype() == Item_func::EQ_FUNC) {

@@ -92,6 +92,7 @@ static int AddFunctionalDependencyFromCondition(THD *thd, Item *condition,
 
   if (down_cast<Item_func *>(condition)->functype() != Item_func::EQ_FUNC) {
     // We only deal with equalities.
+    // TODO(khatlen): Also collect functional dependencies from EQUAL_FUNC?
     return -1;
   }
   Item_func_eq *eq = down_cast<Item_func_eq *>(condition);

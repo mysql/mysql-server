@@ -1952,7 +1952,7 @@ static AccessPath *CreateHashJoinAccessPath(
         if (func_item->contains_only_equi_join_condition() &&
             !ItemRefersToOneSideOnly(func_item, left_table_map,
                                      right_table_map)) {
-          Item_func_eq *join_condition = down_cast<Item_func_eq *>(func_item);
+          Item_eq_base *join_condition = down_cast<Item_eq_base *>(func_item);
           // Join conditions with items that returns row values (subqueries or
           // row value expression) are set up with multiple child comparators,
           // one for each column in the row. As long as the row contains only
