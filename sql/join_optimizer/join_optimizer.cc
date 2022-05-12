@@ -5080,6 +5080,41 @@ ORDER *BuildFinalOrdering(THD *thd, const LogicalOrderings &orderings,
   return BuildSortAheadOrdering(thd, &orderings, reduced_ordering);
 }
 
+AccessPath MakeSortPathForDistinct(
+    THD *thd, AccessPath *root_path, int ordering_idx,
+    bool aggregation_is_unordered, const LogicalOrderings &orderings,
+    LogicalOrderings::StateIndex ordering_state) {
+  AccessPath sort_path;
+  sort_path.type = AccessPath::SORT;
+  sort_path.count_examined_rows = false;
+  sort_path.sort().child = root_path;
+  sort_path.sort().filesort = nullptr;
+  sort_path.sort().remove_duplicates = true;
+  sort_path.sort().unwrap_rollup = false;
+  sort_path.sort().limit = HA_POS_ERROR;
+  sort_path.sort().force_sort_rowids = false;
+
+  if (aggregation_is_unordered) {
+    // Even though we create a sort node for the distinct operation,
+    // the engine does not actually sort the rows. (The deduplication
+    // flag is the hint in this case.)
+    sort_path.ordering_state = 0;
+  } else {
+    sort_path.ordering_state = ordering_state;
+  }
+
+  // This sort is potentially after materialization, so we must make a
+  // copy of the ordering so that ReplaceOrderItemsWithTempTableFields()
+  // doesn't accidentally rewrite the items in a sort on the same
+  // sort-ahead ordering before the materialization.
+  ORDER *order_copy =
+      BuildSortAheadOrdering(thd, &orderings, orderings.ordering(ordering_idx));
+  sort_path.sort().order = order_copy;
+
+  EstimateSortCost(&sort_path);
+  return sort_path;
+}
+
 }  // namespace
 
 JoinHypergraph::Node *FindNodeWithTable(JoinHypergraph *graph, TABLE *table) {
@@ -5198,6 +5233,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
       // derived from DISTINCT clause, because the DISTINCT clause might
       // help us elide the sort for ORDER BY later, if the DISTINCT clause
       // is broader than the ORDER BY clause.
+      bool found_usable_sort = false;
       for (const SortAheadOrdering &sort_ahead_ordering :
            sort_ahead_orderings) {
         // A broader DISTINCT could help elide ORDER BY. Not vice versa. Note
@@ -5213,39 +5249,29 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         if (!orderings.DoesFollowOrder(ordering_state, distinct_ordering_idx)) {
           continue;
         }
-        AccessPath sort_path;
-        sort_path.type = AccessPath::SORT;
-        sort_path.count_examined_rows = false;
-        sort_path.sort().child = root_path;
-        sort_path.sort().filesort = nullptr;
-        sort_path.sort().remove_duplicates = true;
-        sort_path.sort().unwrap_rollup = false;
-        sort_path.sort().limit = HA_POS_ERROR;
 
+        found_usable_sort = true;
         // The force_sort_rowids flag is only set for UPDATE and DELETE,
         // which don't have any syntax for specifying DISTINCT.
         assert(!force_sort_rowids);
-        sort_path.sort().force_sort_rowids = false;
-
-        if (aggregation_is_unordered) {
-          // Even though we create a sort node for the distinct operation,
-          // the engine does not actually sort the rows. (The deduplication
-          // flag is the hint in this case.)
-          sort_path.ordering_state = 0;
-        } else {
-          sort_path.ordering_state = ordering_state;
-        }
-
-        // This sort is potentially after materialization, so we must make a
-        // copy of the ordering so that ReplaceOrderItemsWithTempTableFields()
-        // doesn't accidentally rewrite the items in a sort on the same
-        // sort-ahead ordering before the materialization.
-        ORDER *order_copy = BuildSortAheadOrdering(
-            thd, &orderings,
-            orderings.ordering(sort_ahead_ordering.ordering_idx));
-        sort_path.sort().order = order_copy;
-
-        EstimateSortCost(&sort_path);
+        AccessPath sort_path = MakeSortPathForDistinct(
+            thd, root_path, sort_ahead_ordering.ordering_idx,
+            aggregation_is_unordered, orderings, ordering_state);
+        receiver.ProposeAccessPath(&sort_path, &new_root_candidates,
+                                   /*obsolete_orderings=*/0, "");
+      }
+      if (!found_usable_sort) {
+        // All the interesting orders have been checked without finding a
+        // match for the distinct ordering index, and no access paths have
+        // been created. This can happen if distinct_ordering_idx > max
+        // interesting orders, which fails on a bounds check even if a
+        // matching order is present. Go ahead with creating a sort access
+        // path using distinct_ordering_idx.
+        LogicalOrderings::StateIndex ordering_state = orderings.ApplyFDs(
+            orderings.SetOrder(distinct_ordering_idx), fd_set);
+        AccessPath sort_path = MakeSortPathForDistinct(
+            thd, root_path, distinct_ordering_idx, aggregation_is_unordered,
+            orderings, ordering_state);
         receiver.ProposeAccessPath(&sort_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, "");
       }
@@ -5505,6 +5531,44 @@ static int FindBestOrderingForWindow(
   return best_ordering_idx;
 }
 
+namespace {
+
+AccessPath *MakeSortPathAndApplyWindows(
+    THD *thd, JOIN *join, AccessPath *root_path, int ordering_idx, ORDER *order,
+    const LogicalOrderings &orderings,
+    Bounds_checked_array<bool> windows_this_iteration,
+    FunctionalDependencySet fd_set, int num_where_predicates,
+    bool need_rowid_for_window, int single_window_idx,
+    Bounds_checked_array<bool> finished_windows, int *num_windows_left) {
+  AccessPath sort_path =
+      MakeSortPathWithoutFilesort(thd, root_path, order,
+                                  /*ordering_state=*/0, num_where_predicates);
+  sort_path.ordering_state =
+      orderings.ApplyFDs(orderings.SetOrder(ordering_idx), fd_set);
+  root_path = new (thd->mem_root) AccessPath(sort_path);
+
+  if (single_window_idx >= 0) {
+    root_path = ApplyWindow(thd, root_path, join->m_windows[single_window_idx],
+                            join, need_rowid_for_window);
+    finished_windows[single_window_idx] = true;
+    --(*num_windows_left);
+    return root_path;
+  }
+  for (size_t window_idx = 0; window_idx < join->m_windows.size();
+       ++window_idx) {
+    if (!windows_this_iteration[window_idx]) {
+      continue;
+    }
+    root_path = ApplyWindow(thd, root_path, join->m_windows[window_idx], join,
+                            need_rowid_for_window);
+    finished_windows[window_idx] = true;
+    --(*num_windows_left);
+  }
+  return root_path;
+}
+
+}  // namespace
+
 /**
   Apply window functions.
 
@@ -5645,33 +5709,41 @@ static Prealloced_array<AccessPath *, 4> ApplyWindowFunctions(
         windows_this_iteration = reserved_windows;
         final_sort_ahead_ordering_idx = -1;
       }
+
       if (sort_ahead_ordering_idx == -1) {
-        // Should never happen.
-        assert(false);
+        // No sort-ahead orderings left, but some windows are left. The
+        // remaining windows are handled after this loop.
         break;
       }
 
-      AccessPath sort_path = MakeSortPathWithoutFilesort(
-          thd, root_path, sort_ahead_orderings[sort_ahead_ordering_idx].order,
-          /*ordering_state=*/0, num_where_predicates);
-      sort_path.ordering_state = orderings.ApplyFDs(
-          orderings.SetOrder(
-              sort_ahead_orderings[sort_ahead_ordering_idx].ordering_idx),
-          fd_set);
-      root_path = new (thd->mem_root) AccessPath(sort_path);
+      root_path = MakeSortPathAndApplyWindows(
+          thd, join, root_path,
+          sort_ahead_orderings[sort_ahead_ordering_idx].ordering_idx,
+          sort_ahead_orderings[sort_ahead_ordering_idx].order, orderings,
+          windows_this_iteration, fd_set, num_where_predicates,
+          need_rowid_for_window, /*single_window_idx*/ -1, finished_windows,
+          &num_windows_left);
+    }
+    // The remaining windows (if any) have orderings which are not present in
+    // the interesting orders bitmap, e.g. when the number of orders in the
+    // query > kMaxSupportedOrderings. Create a sort path for each of
+    // these windows using the window's own order instead of looking up an
+    // order in the interesting-orders list.
+    for (size_t window_idx = 0;
+         window_idx < join->m_windows.size() && num_windows_left > 0;
+         ++window_idx) {
+      if (finished_windows[window_idx]) continue;
 
-      for (size_t window_idx = 0; window_idx < join->m_windows.size();
-           ++window_idx) {
-        if (!windows_this_iteration[window_idx]) {
-          continue;
-        }
-        root_path = ApplyWindow(thd, root_path, join->m_windows[window_idx],
-                                join, need_rowid_for_window);
-        finished_windows[window_idx] = true;
-        --num_windows_left;
-      }
+      Bounds_checked_array<bool> windows_this_iteration;
+      root_path = MakeSortPathAndApplyWindows(
+          thd, join, root_path, join->m_windows[window_idx]->m_ordering_idx,
+          join->m_windows[window_idx]->sorting_order(thd), orderings,
+          windows_this_iteration, fd_set, num_where_predicates,
+          need_rowid_for_window, window_idx, finished_windows,
+          &num_windows_left);
     }
 
+    assert(num_windows_left == 0);
     receiver.ProposeAccessPath(root_path, &new_root_candidates,
                                /*obsolete_orderings=*/0, "");
   }
