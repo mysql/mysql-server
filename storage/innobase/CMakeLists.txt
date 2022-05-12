@@ -261,6 +261,13 @@ IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
     COMPILE_FLAGS "-Wno-free-nonheap-object")
 ENDIF()
 
+IF(MSVC)
+  # TODO(Bug#33985941): update the code and remove the disabled warnings
+  MY_ADD_COMPILE_DEFINITIONS(os/os0file.cc
+    COMPILE_DEFINITIONS "_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING"
+    )
+ENDIF()
+
 IF(MSVC AND NOT WIN32_CLANG)
   # Disable C4505: unreferenced local function has been removed
   ADD_COMPILE_FLAGS(pars/lexyy.cc COMPILE_FLAGS "/wd4505")

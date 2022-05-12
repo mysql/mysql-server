@@ -197,11 +197,6 @@ IF(MSVC)
 
   #TODO(Bug#33985941): update the code and remove the disabled warnings
 
-  # warning STL4015 The std::iterator class
-  # (used as a base class to provide typedefs) is deprecated in C++17
-  STRING_APPEND(CMAKE_CXX_FLAGS
-    " -D_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING")
-
   # 'strcpy' is deprecated. This function or variable may be unsafe.
   STRING_APPEND(CMAKE_C_FLAGS   " -D_CRT_SECURE_NO_WARNINGS")
   STRING_APPEND(CMAKE_CXX_FLAGS " -D_CRT_SECURE_NO_WARNINGS")
@@ -214,14 +209,6 @@ IF(MSVC)
   # 'inet_addr' is deprecated. Use inet_pton()
   STRING_APPEND(CMAKE_C_FLAGS   " -D_WINSOCK_DEPRECATED_NO_WARNINGS")
   STRING_APPEND(CMAKE_CXX_FLAGS " -D_WINSOCK_DEPRECATED_NO_WARNINGS")
-
-  # 'std::wbuffer_convert' is deprecated. Use MultiByteToWideChar
-  STRING_APPEND(CMAKE_C_FLAGS   " -D_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING")
-  STRING_APPEND(CMAKE_CXX_FLAGS " -D_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING")
-
-  # 'std::Header_strstream' is deprecated.
-  STRING_APPEND(CMAKE_C_FLAGS   " -D_SILENCE_CXX17_STRSTREAM_DEPRECATION_WARNING")
-  STRING_APPEND(CMAKE_CXX_FLAGS " -D_SILENCE_CXX17_STRSTREAM_DEPRECATION_WARNING")
 
   # 'var' : conversion from 'size_t' to 'type', possible loss of data
   STRING_APPEND(CMAKE_C_FLAGS " /wd4267")
