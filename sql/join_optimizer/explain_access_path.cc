@@ -89,7 +89,7 @@ struct ExplainData {
   vector<Child> children;
 };
 
-static string JoinTypeToString(JoinType join_type) {
+string JoinTypeToString(JoinType join_type) {
   switch (join_type) {
     case JoinType::INNER:
       return "inner join";
@@ -105,7 +105,7 @@ static string JoinTypeToString(JoinType join_type) {
   }
 }
 
-static string HashJoinTypeToString(RelationalExpression::Type join_type) {
+string HashJoinTypeToString(RelationalExpression::Type join_type) {
   switch (join_type) {
     case RelationalExpression::INNER_JOIN:
     case RelationalExpression::STRAIGHT_INNER_JOIN:

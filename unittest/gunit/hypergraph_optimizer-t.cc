@@ -32,7 +32,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_inttypes.h"
@@ -44,7 +43,6 @@
 #include "sql/filesort.h"
 #include "sql/handler.h"
 #include "sql/item.h"
-#include "sql/item_subselect.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/common_subexpression_elimination.h"
@@ -58,10 +56,8 @@
 #include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/join_type.h"
 #include "sql/mem_root_array.h"
-#include "sql/nested_join.h"
 #include "sql/sort_param.h"
 #include "sql/sql_class.h"
-#include "sql/sql_cmd.h"
 #include "sql/sql_const.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
@@ -79,6 +75,7 @@
 #include "unittest/gunit/handler-t.h"
 #include "unittest/gunit/mock_field_datetime.h"
 #include "unittest/gunit/mock_field_long.h"
+#include "unittest/gunit/optimizer_test.h"
 #include "unittest/gunit/parsertest.h"
 #include "unittest/gunit/test_utils.h"
 
@@ -94,18 +91,6 @@ using testing::Pair;
 using testing::Return;
 using namespace std::literals;  // For operator""sv.
 
-static Query_block *ParseAndResolve(
-    const char *query, bool nullable, const Server_initializer &initializer,
-    unordered_map<string, Fake_TABLE *> *fake_tables);
-static void ResolveQueryBlock(THD *thd, Query_block *query_block, bool nullable,
-                              unordered_map<string, Fake_TABLE *> *fake_tables);
-static void ResolveFieldToFakeTable(
-    Item *item, const unordered_map<string, Fake_TABLE *> &fake_tables);
-static void ResolveAllFieldsToFakeTable(
-    const mem_root_deque<TABLE_LIST *> &join_list,
-    const unordered_map<string, Fake_TABLE *> &fake_tables);
-static void SetJoinConditions(const mem_root_deque<TABLE_LIST *> &join_list);
-
 static AccessPath *FindBestQueryPlanAndFinalize(THD *thd,
                                                 Query_block *query_block,
                                                 string *trace) {
@@ -115,264 +100,6 @@ static AccessPath *FindBestQueryPlanAndFinalize(THD *thd,
     EXPECT_FALSE(FinalizePlanForQueryBlock(thd, query_block));
   }
   return path;
-}
-
-static void DestroyFakeTables(
-    const unordered_map<string, Fake_TABLE *> &fake_tables) {
-  for (const auto &[name, table] : fake_tables) {
-    destroy(table);
-  }
-}
-
-// Base class for the hypergraph unit tests. Its parent class is a type
-// parameter, so that it can be used as a base class for both non-parameterized
-// tests (::testing::Test) and parameterized tests (::testing::TestWithParam).
-template <typename Parent>
-class HypergraphTestBase : public Parent {
- public:
-  void SetUp() override {
-    m_initializer.SetUp();
-    m_thd = m_initializer.thd();
-  }
-  void TearDown() override {
-    ClearFakeTables();
-    m_initializer.TearDown();
-  }
-
- protected:
-  Query_block *ParseAndResolve(const char *query, bool nullable) {
-    return ::ParseAndResolve(query, nullable, m_initializer, &m_fake_tables);
-  }
-  void ClearFakeTables() {
-    DestroyFakeTables(m_fake_tables);
-    m_fake_tables.clear();
-  }
-  handlerton *EnableSecondaryEngine(bool aggregation_is_unordered);
-
-  Server_initializer m_initializer;
-  THD *m_thd = nullptr;
-  std::unordered_map<std::string, Fake_TABLE *> m_fake_tables;
-};
-
-static Query_block *ParseAndResolve(
-    const char *query, bool nullable, const Server_initializer &initializer,
-    unordered_map<string, Fake_TABLE *> *fake_tables) {
-  Query_block *query_block = ::parse(&initializer, query, 0);
-  ResolveQueryBlock(initializer.thd(), query_block, nullable, fake_tables);
-  return query_block;
-}
-
-static void ResolveQueryBlock(
-    THD *thd, Query_block *query_block, bool nullable,
-    unordered_map<string, Fake_TABLE *> *fake_tables) {
-  Query_block *const saved_current_query_block =
-      thd->lex->current_query_block();
-  thd->lex->set_current_query_block(query_block);
-
-  // The hypergraph optimizer does not do const tables,
-  // nor does it evaluate subqueries during optimization.
-  query_block->add_active_options(OPTION_NO_CONST_TABLES |
-                                  OPTION_NO_SUBQUERY_DURING_OPTIMIZATION);
-
-  // Create fake TABLE objects for all tables mentioned in the query.
-  int num_tables = 0;
-  for (TABLE_LIST *tl = query_block->get_table_list(); tl != nullptr;
-       tl = tl->next_global) {
-    // If we already have created a fake table with this name (for example to
-    // get columns of specific types), use that one. Otherwise, create a new one
-    // with four integer columns.
-    Fake_TABLE *&fake_table = (*fake_tables)[tl->alias];
-    if (fake_table == nullptr) {
-      List<Field> fields;
-      for (const char *field_name : {"x", "y", "z", "w"}) {
-        fields.push_back(new (thd->mem_root) Mock_field_long(
-            field_name, nullable, /*is_unsigned=*/false));
-      }
-      fake_table = new (thd->mem_root) Fake_TABLE(fields);
-    }
-    fake_table->alias = tl->alias;
-    fake_table->pos_in_table_list = tl;
-    fake_table->s->db = {tl->db, tl->db_length};
-    fake_table->s->table_name = {tl->table_name, tl->table_name_length};
-    tl->table = fake_table;
-    tl->set_tableno(num_tables++);
-    tl->set_updatable();
-    tl->grant.privilege = ~0UL;
-  }
-
-  // Find all Item_field objects, and resolve them to fields in the fake tables.
-  ResolveAllFieldsToFakeTable(query_block->top_join_list, *fake_tables);
-
-  // Also in any conditions and subqueries within the WHERE condition.
-  if (query_block->where_cond() != nullptr) {
-    WalkItem(query_block->where_cond(), enum_walk::POSTFIX, [&](Item *item) {
-      if (item->type() == Item::SUBSELECT_ITEM &&
-          down_cast<Item_subselect *>(item)->substype() ==
-              Item_subselect::IN_SUBS) {
-        Item_in_subselect *item_subselect =
-            down_cast<Item_in_subselect *>(item);
-        ResolveFieldToFakeTable(item_subselect->left_expr, *fake_tables);
-        Query_block *child_query_block =
-            item_subselect->unit->first_query_block();
-        ResolveAllFieldsToFakeTable(child_query_block->top_join_list,
-                                    *fake_tables);
-        if (child_query_block->where_cond() != nullptr) {
-          ResolveFieldToFakeTable(child_query_block->where_cond(),
-                                  *fake_tables);
-        }
-        for (Item *field_item : child_query_block->fields) {
-          ResolveFieldToFakeTable(field_item, *fake_tables);
-        }
-        return true;  // Don't go down into item_subselect->left_expr again.
-      } else if (item->type() == Item::FIELD_ITEM) {
-        ResolveFieldToFakeTable(item, *fake_tables);
-      }
-      return false;
-    });
-  }
-
-  // And in the SELECT, GROUP BY and ORDER BY lists.
-  for (Item *item : query_block->fields) {
-    ResolveFieldToFakeTable(item, *fake_tables);
-  }
-  for (ORDER *cur_group = query_block->group_list.first; cur_group != nullptr;
-       cur_group = cur_group->next) {
-    ResolveFieldToFakeTable(*cur_group->item, *fake_tables);
-  }
-  for (ORDER *cur_group = query_block->order_list.first; cur_group != nullptr;
-       cur_group = cur_group->next) {
-    ResolveFieldToFakeTable(*cur_group->item, *fake_tables);
-  }
-
-  // Set up necessary context for UPDATE and single-table DELETE.
-  if (thd->lex->sql_command == SQLCOM_DELETE ||
-      thd->lex->sql_command == SQLCOM_UPDATE_MULTI) {
-    assert(query_block->context.table_list == nullptr);
-    assert(query_block->context.first_name_resolution_table == nullptr);
-    query_block->context.table_list =
-        query_block->context.first_name_resolution_table =
-            query_block->get_table_list();
-  }
-
-  query_block->prepare(thd, nullptr);
-
-  // Mark deleted and updated tables.
-  switch (thd->lex->sql_command) {
-    case SQLCOM_DELETE:
-    case SQLCOM_DELETE_MULTI:
-      for (TABLE_LIST *tl = query_block->leaf_tables; tl != nullptr;
-           tl = tl->next_leaf) {
-        if (tl->updating) {
-          tl->set_deleted();
-        }
-      }
-      break;
-    case SQLCOM_UPDATE:
-    case SQLCOM_UPDATE_MULTI: {
-      table_map update_tables = 0;
-      for (Item *item : query_block->visible_fields()) {
-        update_tables |= item->used_tables();
-      }
-      for (TABLE_LIST *tl = query_block->leaf_tables; tl != nullptr;
-           tl = tl->next_leaf) {
-        if (Overlaps(tl->map(), update_tables)) {
-          tl->set_updated();
-        }
-      }
-    } break;
-    default:
-      break;
-  }
-
-  // Create a fake, tiny JOIN. (This would normally be done in optimization.)
-  query_block->join = new (thd->mem_root) JOIN(thd, query_block);
-  query_block->join->where_cond = query_block->where_cond();
-  query_block->join->having_cond = query_block->having_cond();
-  query_block->join->fields = &query_block->fields;
-  query_block->join->alloc_func_list();
-  SetJoinConditions(query_block->top_join_list);
-
-  if (query_block->select_limit != nullptr) {
-    query_block->master_query_expression()->select_limit_cnt =
-        query_block->select_limit->val_int();
-  }
-
-  thd->lex->set_current_query_block(saved_current_query_block);
-}
-
-static void ResolveFieldToFakeTable(
-    Item *item_arg, const unordered_map<string, Fake_TABLE *> &fake_tables) {
-  WalkItem(item_arg, enum_walk::POSTFIX, [&](Item *item) {
-    if (item->type() == Item::FIELD_ITEM) {
-      Item_field *item_field = down_cast<Item_field *>(item);
-      Fake_TABLE *table = fake_tables.at(item_field->table_name);
-      item_field->table_ref = table->pos_in_table_list;
-      Field *field = nullptr;
-      if (strcmp(item_field->field_name, "x") == 0) {
-        field = table->field[0];
-      } else if (strcmp(item_field->field_name, "y") == 0) {
-        field = table->field[1];
-      } else if (strcmp(item_field->field_name, "z") == 0) {
-        field = table->field[2];
-      } else if (strcmp(item_field->field_name, "w") == 0) {
-        field = table->field[3];
-      } else {
-        assert(false);
-      }
-      item_field->field = field;
-      item_field->set_nullable(field->is_nullable());
-      item_field->set_data_type(field->type());
-      item_field->collation.set(field->charset(), field->derivation(),
-                                field->repertoire());
-    }
-    return false;
-  });
-}
-
-static void ResolveAllFieldsToFakeTable(
-    const mem_root_deque<TABLE_LIST *> &join_list,
-    const unordered_map<string, Fake_TABLE *> &fake_tables) {
-  for (TABLE_LIST *tl : join_list) {
-    if (tl->join_cond() != nullptr) {
-      ResolveFieldToFakeTable(tl->join_cond(), fake_tables);
-    }
-    if (tl->nested_join != nullptr) {
-      ResolveAllFieldsToFakeTable(tl->nested_join->join_list, fake_tables);
-    }
-  }
-}
-
-static void SetJoinConditions(const mem_root_deque<TABLE_LIST *> &join_list) {
-  for (TABLE_LIST *tl : join_list) {
-    tl->set_join_cond_optim(tl->join_cond());
-    if (tl->nested_join != nullptr) {
-      SetJoinConditions(tl->nested_join->join_list);
-    }
-  }
-}
-
-template <typename T>
-handlerton *HypergraphTestBase<T>::EnableSecondaryEngine(
-    bool aggregation_is_unordered) {
-  auto hton = new (m_thd->mem_root) Fake_handlerton;
-  hton->flags = HTON_SUPPORTS_SECONDARY_ENGINE;
-  if (aggregation_is_unordered) {
-    hton->secondary_engine_flags =
-        MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_HASH_JOIN,
-                                 SecondaryEngineFlag::AGGREGATION_IS_UNORDERED);
-  } else {
-    hton->secondary_engine_flags =
-        MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_HASH_JOIN);
-  }
-  hton->secondary_engine_modify_access_path_cost = nullptr;
-
-  for (const auto &name_and_table : m_fake_tables) {
-    name_and_table.second->file->ht = hton;
-  }
-
-  m_thd->lex->m_sql_cmd->use_secondary_storage_engine(hton);
-
-  return hton;
 }
 
 namespace {
@@ -461,7 +188,7 @@ void SortNodes(JoinHypergraph *graph) {
 
 }  // namespace
 
-using MakeHypergraphTest = HypergraphTestBase<::testing::Test>;
+using MakeHypergraphTest = OptimizerTestBase<::testing::Test>;
 
 TEST_F(MakeHypergraphTest, SingleTable) {
   Query_block *query_block =
@@ -1503,7 +1230,7 @@ TEST_F(MakeHypergraphTest, UnpushableMultipleEqualityWithSameTableTwice) {
 // We test with the inequality referring to both tables in turn, to make sure
 // that we're not just getting lucky.
 using MakeHypergraphMultipleEqualParamTest =
-    HypergraphTestBase<::testing::TestWithParam<int>>;
+    OptimizerTestBase<::testing::TestWithParam<int>>;
 
 TEST_P(MakeHypergraphMultipleEqualParamTest,
        MultipleEqualityOnAntijoinGetsIdeallyResolved) {
@@ -2448,7 +2175,7 @@ static string PrintSargablePredicate(const SargablePredicate &sp,
 // Verify that when we add a cycle in the graph due to a multiple equality,
 // that join predicate also becomes sargable.
 using HypergraphOptimizerCyclePredicatesSargableTest =
-    HypergraphTestBase<::testing::TestWithParam<const char *>>;
+    OptimizerTestBase<::testing::TestWithParam<const char *>>;
 
 TEST_P(HypergraphOptimizerCyclePredicatesSargableTest,
        CyclePredicatesSargable) {
@@ -3011,7 +2738,7 @@ std::ostream &operator<<(std::ostream &os, const FullTextParam &param) {
 }  // namespace
 
 using HypergraphFullTextTest =
-    HypergraphTestBase<::testing::TestWithParam<FullTextParam>>;
+    OptimizerTestBase<::testing::TestWithParam<FullTextParam>>;
 
 TEST_P(HypergraphFullTextTest, FullTextSearch) {
   SCOPED_TRACE(GetParam().query);
@@ -5022,7 +4749,7 @@ std::ostream &operator<<(std::ostream &os, const RejectionParam &param) {
 }  // namespace
 
 using HypergraphSecondaryEngineRejectionTest =
-    HypergraphTestBase<::testing::TestWithParam<RejectionParam>>;
+    OptimizerTestBase<::testing::TestWithParam<RejectionParam>>;
 
 TEST_P(HypergraphSecondaryEngineRejectionTest, RejectPathType) {
   const RejectionParam &param = GetParam();
@@ -5415,7 +5142,7 @@ TEST(ConflictDetectorTest, CountPlansLargeOperatorSet) {
   initializer.TearDown();
 }
 
-class CSETest : public HypergraphTestBase<::testing::Test> {
+class CSETest : public OptimizerTestBase<::testing::Test> {
  protected:
   string TestCSE(const string &expression);
 };

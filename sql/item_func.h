@@ -294,7 +294,8 @@ class Item_func : public Item_result_field {
     JSON_UNQUOTE_FUNC,
     MEMBER_OF_FUNC,
     STRCMP_FUNC,
-    TRUE_FUNC
+    TRUE_FUNC,
+    FALSE_FUNC
   };
   enum optimize_type {
     OPTIMIZE_NONE,
@@ -644,8 +645,6 @@ class Item_func : public Item_result_field {
   /// for hash join (join conditions in hash join must be equi-join conditions),
   /// or if it should be placed as a filter after the join.
   virtual bool contains_only_equi_join_condition() const { return false; }
-
-  bool ensure_multi_equality_fields_are_available_walker(uchar *) override;
 
  protected:
   /**
@@ -4039,6 +4038,8 @@ Item_field *get_gc_for_expr(const Item *func, Field *fld, Item_result type,
                             Field **found = nullptr);
 
 void retrieve_tablespace_statistics(THD *thd, Item **args, bool *null_value);
+
+bool is_function_of_type(const Item *item, Item_func::Functype type);
 
 extern bool volatile mqh_used;
 

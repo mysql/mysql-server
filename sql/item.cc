@@ -10720,8 +10720,10 @@ string ItemToString(const Item *item) {
   return to_string(str);
 }
 
-Item_field *FindEqualField(Item_field *item_field, table_map reachable_tables) {
+Item_field *FindEqualField(Item_field *item_field, table_map reachable_tables,
+                           bool replace, bool *found) {
   if (item_field->item_equal_all_join_nests == nullptr) {
+    *found = false;
     return item_field;
   }
 
@@ -10740,12 +10742,17 @@ Item_field *FindEqualField(Item_field *item_field, table_map reachable_tables) {
 
     table_map item_field_used_tables = other_item_field.used_tables();
     if ((item_field_used_tables & reachable_tables) == item_field_used_tables) {
-      Item_field *new_item_field = new Item_field(current_thd, item_field);
-      new_item_field->reset_field(other_item_field.field);
-      return new_item_field;
+      *found = true;
+      if (replace) {
+        Item_field *new_item_field = new Item_field(current_thd, item_field);
+        new_item_field->reset_field(other_item_field.field);
+        return new_item_field;
+      } else {
+        return item_field;
+      }
     }
   }
-
+  *found = false;
   return item_field;
 }
 

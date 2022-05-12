@@ -1629,6 +1629,8 @@ inline AccessPath *NewWindowAccessPath(THD *thd, AccessPath *child,
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::WINDOW;
   path->window().child = child;
+  path->window().window = nullptr;
+  path->window().temp_table = nullptr;
   path->window().temp_table_param = temp_table_param;
   path->window().ref_slice = ref_slice;
   path->window().needs_buffering = needs_buffering;

@@ -3695,6 +3695,12 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
     remaining_tables |= positions[i].table->table_ref->map();
     if (positions[i].table->emb_sj_nest) table_count++;
   }
+  // Join buffering is enabled/disabled based on how blocked nested loop (BNL)
+  // worked. However, with hash joins replacing BNL in the executor now, we have
+  // opportunity to enable join buffering for some more cases. For now, we
+  // enable it only for secondary engine in case of FirstMatch (since secondary
+  // engine is currently able to interpret plans generated using FirstMatch
+  // strategy only). More details in setup_join_buffering().
   if (loosescan) {
     // LooseScan: May use join buffering for all tables after last inner table.
     for (no_jbuf_before = last_tab; no_jbuf_before > first_tab;
@@ -3705,7 +3711,14 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
     no_jbuf_before++;
   } else {
     // FirstMatch: May use join buffering if there is only one inner table.
-    no_jbuf_before = (table_count > 1) ? last_tab + 1 : first_tab;
+    // Restriction is lifted for secondary engine.
+    if (table_count > 1 &&
+        !(thd->lex->m_sql_cmd != nullptr &&
+          thd->lex->m_sql_cmd->using_secondary_storage_engine())) {
+      no_jbuf_before = last_tab + 1;
+    } else {
+      no_jbuf_before = first_tab;
+    }
   }
 
   Table_map_restorer deps_lateral(
