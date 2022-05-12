@@ -55,7 +55,7 @@
 #include "print_version.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
-#if HAVE_CHOWN
+#ifdef HAVE_CHOWN
 #include <pwd.h>
 #endif
 
@@ -113,7 +113,7 @@ static char *opt_datadir = nullptr;
 static char default_data_dir[] = MYSQL_DATADIR;
 static char *opt_suffix = nullptr;
 static char default_suffix[] = MYSQL_SERVER_VERSION;
-#if HAVE_CHOWN
+#ifdef HAVE_CHOWN
 static char *opt_userid = nullptr;
 struct passwd *user_info = nullptr;
 #endif /* HAVE_CHOWN */
@@ -137,7 +137,7 @@ static struct my_option my_options[] = {
     {"suffix", 's', "Suffix to be added in certificate subject line",
      &opt_suffix, &opt_suffix, nullptr, GET_STR_ALLOC, REQUIRED_ARG,
      (longlong)&default_suffix, 0, 0, nullptr, 0, nullptr},
-#if HAVE_CHOWN
+#ifdef HAVE_CHOWN
     {"uid", 0, "The effective user id to be used for file permission",
      &opt_userid, &opt_userid, nullptr, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
@@ -187,7 +187,7 @@ static int set_file_pair_permission(const Sql_string_t &priv,
           << pub.c_str() << endl;
     return 1;
   }
-#if HAVE_CHOWN
+#ifdef HAVE_CHOWN
   if (user_info) {
     if (chown(priv.c_str(), user_info->pw_uid, user_info->pw_gid) ||
         chown(pub.c_str(), user_info->pw_uid, user_info->pw_gid)) {
@@ -217,7 +217,7 @@ static int remove_file(const Sql_string_t &filename, bool report_error = true) {
 static void free_resources() {
   if (opt_datadir) my_free(opt_datadir);
   if (opt_suffix) my_free(opt_suffix);
-#if HAVE_CHOWN
+#ifdef HAVE_CHOWN
   if (opt_userid) my_free(opt_userid);
 #endif
 }
@@ -473,7 +473,7 @@ int main(int argc, char *argv[]) {
       ret_val = 1;
       goto end;
     }
-#if HAVE_CHOWN
+#ifdef HAVE_CHOWN
     if (opt_userid && geteuid() == 0) {
       user_info = getpwnam(opt_userid);
       if (!user_info) {

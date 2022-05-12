@@ -187,8 +187,10 @@ static char *current_prompt = nullptr;
 static char *delimiter_str = nullptr;
 static char *opt_init_command = nullptr;
 static const char *default_charset = MYSQL_AUTODETECT_CHARSET_NAME;
+#ifdef HAVE_READLINE
 static char *histfile;
 static char *histfile_tmp;
+#endif
 static char *opt_histignore = nullptr;
 static String glob_buffer, old_buffer;
 static String processed_prompt;
@@ -1547,7 +1549,7 @@ void handle_ctrlc_signal(int) {
   @param sig              Signal number
 */
 
-void handle_quit_signal(int sig) {
+void handle_quit_signal(int sig [[maybe_unused]]) {
   const char *reason = "Terminal close";
 
   if (!executing_query) {
@@ -4649,8 +4651,7 @@ static int sql_real_connect(char *host, char *database, char *user, char *,
     batch_readline_end(status.line_buff);
 
     /* Re-initialize line buffer from the converted string */
-    if (!(status.line_buff =
-              batch_readline_command(NULL, (char *)tmp.c_ptr_safe())))
+    if (!(status.line_buff = batch_readline_command(nullptr, tmp.c_ptr_safe())))
       return 1;
   }
   execute_buffer_conversion_done = true;

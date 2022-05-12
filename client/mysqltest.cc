@@ -253,7 +253,7 @@ static uint opt_test_ssl_fips_mode = 0;
 static DWORD opt_safe_process_pid;
 static HANDLE mysqltest_thread;
 // Event handle for stacktrace request event
-static HANDLE stacktrace_request_event = NULL;
+static HANDLE stacktrace_request_event = nullptr;
 static std::thread wait_for_stacktrace_request_event_thread;
 #endif
 
@@ -716,7 +716,7 @@ static int socket_event_listen(my_socket fd) {
   FD_SET(fd, &readfds);
   FD_SET(fd, &writefds);
 
-  result = select((int)(fd + 1), &readfds, &writefds, &exceptfds, NULL);
+  result = select((int)(fd + 1), &readfds, &writefds, &exceptfds, nullptr);
   if (result < 0) {
     DWORD error_code = WSAGetLastError();
     verbose_msg("Cannot determine the status due to error :%lu\n", error_code);
@@ -1573,7 +1573,8 @@ static void cleanup_and_exit(int exit_code) {
 #ifdef _WIN32
   if (opt_safe_process_pid) {
     // Close the stack trace request event handle
-    if (stacktrace_request_event != NULL) CloseHandle(stacktrace_request_event);
+    if (stacktrace_request_event != nullptr)
+      CloseHandle(stacktrace_request_event);
 
     // Detach or stop the thread waiting for stack trace event to occur.
     if (wait_for_stacktrace_request_event_thread.joinable())
@@ -1581,7 +1582,7 @@ static void cleanup_and_exit(int exit_code) {
 
     // Close the thread handle
     if (!CloseHandle(mysqltest_thread))
-      die("CloseHandle failed, err = %d.\n", GetLastError());
+      die("CloseHandle failed, err = %lu.\n", GetLastError());
   }
 
   fflush(stdout);
@@ -2016,7 +2017,7 @@ static bool show_diff(DYNAMIC_STRING *ds, const char *filename1,
     if (opt_colored_diff) {
       // Most "diff" tools return '> 1' if error
       exit_code = run_tool(diff_name, &ds_diff, "-u --color='always'",
-                           filename1, filename2, "2>&1", NULL);
+                           filename1, filename2, "2>&1", nullptr);
 
       if (exit_code > 1)
         die("Option '--colored-diff' is not supported on this machine. "
@@ -2027,19 +2028,19 @@ static bool show_diff(DYNAMIC_STRING *ds, const char *filename1,
       // diff with "diff -u".
       dynstr_set(&ds_diff, "");
       exit_code = run_tool(diff_name, &ds_diff, "-u", filename1, filename2,
-                           "2>&1", NULL);
+                           "2>&1", nullptr);
 
       if (exit_code > 1) {
         // Clear the diff string and fallback to context diff with "diff -c"
         dynstr_set(&ds_diff, "");
         exit_code = run_tool(diff_name, &ds_diff, "-c", filename1, filename2,
-                             "2>&1", NULL);
+                             "2>&1", nullptr);
 
         if (exit_code > 1) {
           // Clear the diff string and fallback to simple diff with "diff"
           dynstr_set(&ds_diff, "");
-          exit_code =
-              run_tool(diff_name, &ds_diff, filename1, filename2, "2>&1", NULL);
+          exit_code = run_tool(diff_name, &ds_diff, filename1, filename2,
+                               "2>&1", nullptr);
           if (exit_code > 1) diff_name = nullptr;
         }
       } else if (exit_code == 1 && opt_hypergraph &&
@@ -3224,7 +3225,6 @@ static FILE *my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
   if (command->type == Q_EXECW) {
     wchar_t wcmd[4096];
     wchar_t wmode[10];
-    const char *cmd = ds_cmd->str;
     uint dummy_errors;
     size_t len;
     len = my_convert((char *)wcmd, sizeof(wcmd) - sizeof(wcmd[0]),
@@ -5619,7 +5619,7 @@ static bool is_process_active(int pid) {
   DWORD exit_code;
   HANDLE proc;
   proc = OpenProcess(PROCESS_QUERY_INFORMATION, false, pid);
-  if (proc == NULL) return false; /* Process could not be found. */
+  if (proc == nullptr) return false; /* Process could not be found. */
 
   if (!GetExitCodeProcess(proc, &exit_code)) exit_code = 0;
 
@@ -5645,7 +5645,7 @@ static bool kill_process(int pid) {
 #ifdef _WIN32
   HANDLE proc;
   proc = OpenProcess(PROCESS_TERMINATE, false, pid);
-  if (proc == NULL) return true; /* Process could not be found. */
+  if (proc == nullptr) return true; /* Process could not be found. */
 
   if (!TerminateProcess(proc, 201)) killed = false;
 
@@ -5667,7 +5667,7 @@ static void abort_process(int pid, const char *path [[maybe_unused]]) {
   HANDLE proc;
   proc = OpenProcess(PROCESS_ALL_ACCESS, false, pid);
   verbose_msg("Aborting pid %d (handle: %p)\n", pid, proc);
-  if (proc != NULL) {
+  if (proc != nullptr) {
     char name[FN_REFLEN], *end;
     BOOL is_debugged;
 
@@ -5677,7 +5677,7 @@ static void abort_process(int pid, const char *path [[maybe_unused]]) {
       name[sizeof(name) - 1] = '\0';
       end = name + std::strlen(name);
       /* Make sure "/mysqld.nnnnnnnnnn.dmp" fits */
-      if ((end - name) < (sizeof(name) - 23)) {
+      if ((end - name) < static_cast<long long>(sizeof(name) - 23)) {
         if (!is_directory_separator(end[-1])) {
           end[0] = FN_LIBCHAR2;  // datadir path normally uses '/'.
           end++;
@@ -5693,7 +5693,7 @@ static void abort_process(int pid, const char *path [[maybe_unused]]) {
     if (CheckRemoteDebuggerPresent(proc, &is_debugged) && is_debugged) {
       if (!DebugBreakProcess(proc)) {
         DWORD err = GetLastError();
-        verbose_msg("DebugBreakProcess failed: %d\n", err);
+        verbose_msg("DebugBreakProcess failed: %lu\n", err);
       } else
         verbose_msg("DebugBreakProcess succeeded!\n");
       CloseHandle(proc);
@@ -5703,7 +5703,7 @@ static void abort_process(int pid, const char *path [[maybe_unused]]) {
     }
   } else {
     DWORD err = GetLastError();
-    verbose_msg("OpenProcess failed: %d\n", err);
+    verbose_msg("OpenProcess failed: %lu\n", err);
   }
 #else
   kill(pid, SIGABRT);
@@ -8112,13 +8112,12 @@ void init_win_path_patterns() {
 }
 
 void free_win_path_patterns() {
-  uint i = 0;
   const char **pat;
   for (pat = patterns->begin(); pat != patterns->end(); ++pat) {
     my_free(const_cast<char *>(*pat));
   }
   delete patterns;
-  patterns = NULL;
+  patterns = nullptr;
 }
 
 /*
@@ -8135,7 +8134,7 @@ void free_win_path_patterns() {
   => all \ from c:\mysql\m... until next space is converted into /
 */
 
-void fix_win_paths(const char *val, size_t len) {
+void fix_win_paths(const char *val, size_t len [[maybe_unused]]) {
   DBUG_TRACE;
   const char **pat;
   for (pat = patterns->begin(); pat != patterns->end(); ++pat) {
@@ -8144,7 +8143,7 @@ void fix_win_paths(const char *val, size_t len) {
 
     /* Find and fix each path in this string */
     p = const_cast<char *>(val);
-    while (p = strstr(p, *pat)) {
+    while ((p = strstr(p, *pat))) {
       DBUG_PRINT("info", ("Found %s in val p: %s", *pat, p));
       /* Found the pattern.  Back up to the start of this path */
       while (p > val && !my_isspace(charset_info, *(p - 1))) {
@@ -9272,8 +9271,8 @@ static void init_signal_handling(void) {
   UINT mode;
 
   mysqltest_thread = OpenThread(THREAD_ALL_ACCESS, FALSE, GetCurrentThreadId());
-  if (mysqltest_thread == NULL)
-    die("OpenThread failed, err = %d.", GetLastError());
+  if (mysqltest_thread == nullptr)
+    die("OpenThread failed, err = %lu.", GetLastError());
 
   /* Set output destination of messages to the standard error stream. */
   _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
@@ -9303,37 +9302,37 @@ static void handle_wait_stacktrace_request_event() {
   fprintf(stderr, "Test case timeout failure.\n");
 
   // Suspend the thread running the test
-  if (SuspendThread(mysqltest_thread) == -1) {
+  if (SuspendThread(mysqltest_thread) == static_cast<DWORD>(-1)) {
     DWORD error = GetLastError();
     CloseHandle(mysqltest_thread);
-    die("Error suspending thread, err = %d.\n", error);
+    die("Error suspending thread, err = %lu.\n", error);
   }
 
   // Fetch the thread context
-  CONTEXT test_thread_ctx = {0};
+  CONTEXT test_thread_ctx = {};
   test_thread_ctx.ContextFlags = CONTEXT_FULL;
 
   if (GetThreadContext(mysqltest_thread, &test_thread_ctx) == FALSE) {
     DWORD error = GetLastError();
     CloseHandle(mysqltest_thread);
-    die("Error while fetching thread conext information, err = %d.\n", error);
+    die("Error while fetching thread conext information, err = %lu.\n", error);
   }
 
-  EXCEPTION_POINTERS exp = {0};
+  EXCEPTION_POINTERS exp = {};
   exp.ContextRecord = &test_thread_ctx;
 
   // Set up an Exception record with EXCEPTION_BREAKPOINT code
-  EXCEPTION_RECORD exc_rec = {0};
+  EXCEPTION_RECORD exc_rec = {};
   exc_rec.ExceptionCode = EXCEPTION_BREAKPOINT;
   exp.ExceptionRecord = &exc_rec;
 
   exception_filter(&exp);
 
   // Resume the suspended test thread
-  if (ResumeThread(mysqltest_thread) == -1) {
+  if (ResumeThread(mysqltest_thread) == static_cast<DWORD>(-1)) {
     DWORD error = GetLastError();
     CloseHandle(mysqltest_thread);
-    die("Error resuming thread, err = %d.\n", error);
+    die("Error resuming thread, err = %lu.\n", error);
   }
 
   my_set_exception_pointers(nullptr);
@@ -9348,7 +9347,7 @@ static void wait_stacktrace_request_event() {
       handle_wait_stacktrace_request_event();
       break;
     default:
-      die("Unexpected result %d from WaitForSingleObject.", wait_res);
+      die("Unexpected result %lu from WaitForSingleObject.", wait_res);
       break;
   }
   CloseHandle(stacktrace_request_event);
@@ -9363,11 +9362,11 @@ static void wait_stacktrace_request_event() {
 /// log file.
 static void create_stacktrace_request_event() {
   char event_name[64];
-  std::sprintf(event_name, "mysqltest[%d]stacktrace", opt_safe_process_pid);
+  std::sprintf(event_name, "mysqltest[%lu]stacktrace", opt_safe_process_pid);
 
   // Create an event for the signal handler
-  if ((stacktrace_request_event = CreateEvent(NULL, TRUE, FALSE, event_name)) ==
-      NULL)
+  if ((stacktrace_request_event =
+           CreateEvent(nullptr, TRUE, FALSE, event_name)) == nullptr)
     die("Failed to create timeout_event.");
 
   wait_for_stacktrace_request_event_thread =

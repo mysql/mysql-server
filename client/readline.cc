@@ -65,7 +65,8 @@ LINE_BUFFER *batch_readline_init(ulong max_size, FILE *file) {
   return line_buff;
 }
 
-char *batch_readline(LINE_BUFFER *line_buff, bool binary_mode) {
+char *batch_readline(LINE_BUFFER *line_buff,
+                     bool binary_mode [[maybe_unused]]) {
   char *pos;
   ulong out_length;
 

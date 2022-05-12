@@ -124,6 +124,9 @@ TODO:
 #ifdef _WIN32
 #define srandom srand
 #define random rand
+#define RANDOM_FORMAT "%d"
+#else
+#define RANDOM_FORMAT "%ld"
 #endif
 
 #if defined(_WIN32)
@@ -307,7 +310,7 @@ static long int timedif(struct timeval a, struct timeval b) {
 }
 
 #ifdef _WIN32
-static int gettimeofday(struct timeval *tp, void *tzp) {
+static int gettimeofday(struct timeval *tp, void *) {
   unsigned int ticks;
   ticks = GetTickCount();
   tp->tv_usec = ticks * 1000;
@@ -922,8 +925,8 @@ static statement *build_update_string(void) {
 
   if (num_int_cols)
     for (col_count = 1; col_count <= num_int_cols; col_count++) {
-      if (snprintf(buf, HUGE_STRING_LENGTH, "intcol%d = %ld", col_count,
-                   random()) > HUGE_STRING_LENGTH) {
+      if (snprintf(buf, HUGE_STRING_LENGTH, "intcol%d = " RANDOM_FORMAT,
+                   col_count, random()) > HUGE_STRING_LENGTH) {
         fprintf(stderr, "Memory Allocation error in creating update\n");
         exit(1);
       }
@@ -1011,7 +1014,7 @@ static statement *build_insert_string(void) {
 
   if (num_int_cols)
     for (col_count = 1; col_count <= num_int_cols; col_count++) {
-      if (snprintf(buf, HUGE_STRING_LENGTH, "%ld", random()) >
+      if (snprintf(buf, HUGE_STRING_LENGTH, RANDOM_FORMAT, random()) >
           HUGE_STRING_LENGTH) {
         fprintf(stderr, "Memory Allocation error in creating insert\n");
         exit(1);

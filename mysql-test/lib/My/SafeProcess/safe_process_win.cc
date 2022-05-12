@@ -131,7 +131,7 @@ DWORD get_parent_pid(DWORD pid) {
 
   CloseHandle(snapshot);
 
-  if (parent_pid == -1) die("Could not find parent pid");
+  if (parent_pid == static_cast<DWORD>(-1)) die("Could not find parent pid");
 
   return parent_pid;
 }
@@ -255,8 +255,8 @@ int main(int argc, const char **argv) {
         (unsigned long)parent_pid);
 
   // Create the child process in a job
-  JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli = {0};
-  STARTUPINFO si = {0};
+  JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli = {};
+  STARTUPINFO si = {};
   si.cb = sizeof(si);
 
   // Create the job object to make it possible to kill the process
@@ -324,9 +324,10 @@ int main(int argc, const char **argv) {
 
   BOOL jobobject_assigned = FALSE;
   BOOL process_created = FALSE;
-  PROCESS_INFORMATION process_info = {0};
+  PROCESS_INFORMATION process_info = {};
 
-  for (int i = 0; i < sizeof(create_flags) / sizeof(create_flags[0]); i++) {
+  for (unsigned int i = 0; i < sizeof(create_flags) / sizeof(create_flags[0]);
+       i++) {
     process_created = CreateProcess(
         NULL, (LPSTR)child_args, NULL, NULL, TRUE,  // Inherit handles
         CREATE_SUSPENDED | create_flags[i], NULL, NULL, &si, &process_info);

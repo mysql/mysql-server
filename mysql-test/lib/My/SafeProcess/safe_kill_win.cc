@@ -49,7 +49,7 @@ int main(int argc, const char **argv) {
 
   if (std::strcmp(argv[2], "mysqltest") == 0) {
     char event_name[64];
-    std::sprintf(event_name, "mysqltest[%d]stacktrace", pid);
+    std::sprintf(event_name, "mysqltest[%lu]stacktrace", pid);
 
     HANDLE stacktrace_request_event =
         OpenEvent(EVENT_MODIFY_STATE, FALSE, event_name);
@@ -61,9 +61,9 @@ int main(int argc, const char **argv) {
 
       // Check if the process is alive.
       if (mysqltest_process)
-        std::fprintf(stderr,
-                     "Failed to open stacktrace_request_event %s, error = %d\n",
-                     event_name, GetLastError());
+        std::fprintf(
+            stderr, "Failed to open stacktrace_request_event %s, error = %lu\n",
+            event_name, GetLastError());
     } else {
       if (SetEvent(stacktrace_request_event) == 0) {
         // Failed to set timeout event
@@ -79,7 +79,7 @@ int main(int argc, const char **argv) {
   }
 
   char safe_process_name[32] = {0};
-  std::sprintf(safe_process_name, "safe_process[%d]", pid);
+  std::sprintf(safe_process_name, "safe_process[%lu]", pid);
 
   int retry_open_event = 2;
 
@@ -99,8 +99,8 @@ int main(int argc, const char **argv) {
 
     DWORD exit_code;
     if (!GetExitCodeProcess(process, &exit_code)) {
-      std::fprintf(stderr, "GetExitCodeProcess failed, pid= %d, err= %d\n", pid,
-                   GetLastError());
+      std::fprintf(stderr, "GetExitCodeProcess failed, pid= %lu, err= %lu\n",
+                   pid, GetLastError());
       std::exit(1);
     }
 
@@ -115,14 +115,14 @@ int main(int argc, const char **argv) {
     if (retry_open_event--)
       Sleep(100);
     else {
-      std::fprintf(stderr, "Failed to open shutdown_event '%s', error: %d\n",
+      std::fprintf(stderr, "Failed to open shutdown_event '%s', error: %lu\n",
                    safe_process_name, GetLastError());
       std::exit(3);
     }
   }
 
   if (SetEvent(shutdown_event) == 0) {
-    std::fprintf(stderr, "Failed to signal shutdown_event '%s', error: %d\n",
+    std::fprintf(stderr, "Failed to signal shutdown_event '%s', error: %lu\n",
                  safe_process_name, GetLastError());
     CloseHandle(shutdown_event);
     std::exit(4);

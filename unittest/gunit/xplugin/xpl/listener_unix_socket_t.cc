@@ -46,19 +46,21 @@ using namespace ::testing;  // NOLINT(build/namespaces)
 const uint32_t BACKLOG = 122;
 const my_socket SOCKET_OK = 10;
 const int BIND_OK = 0;
+#if defined(HAVE_SYS_UN_H)
+const int CLOSE_ERR = -1;
+const int FSYNC_ERR = -1;
 const int LISTEN_ERR = -1;
-const int LISTEN_OK = 0;
 const int OPEN_ERR = -1;
 const int READ_ERR = -1;
-const int WRITE_ERR = -1;
 const int UNLINK_ERR = -1;
-const int UNLINK_OK = 0;
-const int FSYNC_ERR = -1;
-const int FSYNC_OK = 0;
-const int CLOSE_ERR = -1;
+const int WRITE_ERR = -1;
+#endif
 const int CLOSE_OK = 0;
-const int CURRENT_PPID = 2;
 const int CURRENT_PID = 6;
+const int CURRENT_PPID = 2;
+const int FSYNC_OK = 0;
+const int LISTEN_OK = 0;
+const int UNLINK_OK = 0;
 
 const char *const UNIX_SOCKET_FILE_CONTENT = "6\n";  // "%d" % CURRENT_PID
 const char *const UNIX_SOCKET_FILE = "/tmp/xplugin_test.sock";

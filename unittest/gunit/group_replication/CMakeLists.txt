@@ -65,4 +65,10 @@ IF(WIN32)
   MY_TARGET_LINK_OPTIONS(
     group_replication_gcs_mysql_network_provider-t "/ignore:4286"
     )
+  # With clang we get 4217 rather than 4286
+  IF(WIN32_CLANG)
+    MY_TARGET_LINK_OPTIONS(
+      group_replication_gcs_mysql_network_provider-t "/ignore:4217"
+      )
+  ENDIF()
 ENDIF()

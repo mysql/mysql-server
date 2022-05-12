@@ -185,7 +185,7 @@ static bool print_win_error_msg(DWORD error, bool verbose) {
   if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
                     NULL, error, 0, (LPTSTR)&s, 0, NULL)) {
     if (verbose)
-      printf("Win32 error code %d: %s", error, s);
+      printf("Win32 error code %lu: %s", error, s);
     else
       puts(s);
     LocalFree(s);
