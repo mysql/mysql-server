@@ -5,7 +5,24 @@ option values and ranges
 set @@SESSION.ndb_log_transaction_compression = ON;
 ERROR HY000: Variable 'ndb_log_transaction_compression' is a GLOBAL variable and should be set with SET GLOBAL
 set @@GLOBAL.ndb_log_transaction_compression = ON;
+set @@SESSION.ndb_log_transaction_compression_level_zstd = 1;
+ERROR HY000: Variable 'ndb_log_transaction_compression_level_zstd' is a GLOBAL variable and should be set with SET GLOBAL
+set @@GLOBAL.ndb_log_transaction_compression_level_zstd = 0;
+Warnings:
+Warning	1292	Truncated incorrect ndb_log_transaction_compression_level_zstd value: '0'
+Truncated to 1
+show variables like 'ndb_log_transaction_compression_level_zstd';
+Variable_name	Value
+ndb_log_transaction_compression_level_zstd	1
+set @@GLOBAL.ndb_log_transaction_compression_level_zstd = 23;
+Warnings:
+Warning	1292	Truncated incorrect ndb_log_transaction_compression_level_zstd value: '23'
+Truncated to 22
+show variables like 'ndb_log_transaction_compression_level_zstd';
+Variable_name	Value
+ndb_log_transaction_compression_level_zstd	22
 set @@GLOBAL.ndb_log_transaction_compression = DEFAULT;
+set @@GLOBAL.ndb_log_transaction_compression_level_zstd = DEFAULT;
 ################################################
 Case 1: Observe binlog compression in ndbcluster
 when ndb_log_transaction_compression = default
@@ -16,9 +33,9 @@ ndb_log_bin	ON
 show variables like 'ndb_log_transaction_compression';
 Variable_name	Value
 ndb_log_transaction_compression	OFF
-show variables like 'binlog_transaction_compression_level_zstd';
+show variables like 'ndb_log_transaction_compression_level_zstd';
 Variable_name	Value
-binlog_transaction_compression_level_zstd	3
+ndb_log_transaction_compression_level_zstd	3
 create table t1 (a int) engine=ndb;
 insert into t1 values (1);
 insert into t1 select a+1 from t1;

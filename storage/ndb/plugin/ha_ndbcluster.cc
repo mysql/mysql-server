@@ -18160,6 +18160,19 @@ static MYSQL_SYSVAR_BOOL(log_transaction_compression, /* name */
                          0     /* default */
 );
 
+uint opt_ndb_log_trx_compression_level_zstd;
+static MYSQL_SYSVAR_UINT(log_transaction_compression_level_zstd, /* name */
+                         opt_ndb_log_trx_compression_level_zstd, /* var */
+                         PLUGIN_VAR_OPCMDARG,
+                         "Compression level for ZSTD transaction "
+                         "compression in the NDB Binlog.",
+                         NULL, /* check func. */
+                         NULL, /* update func. */
+                         3,    /* default */
+                         1,    /* min */
+                         22,   /* max */
+                         0);
+
 bool opt_ndb_clear_apply_status;
 static MYSQL_SYSVAR_BOOL(
     clear_apply_status,         /* name */
@@ -18499,6 +18512,7 @@ static SYS_VAR *system_variables[] = {
     MYSQL_SYSVAR(log_apply_status),
     MYSQL_SYSVAR(log_transaction_id),
     MYSQL_SYSVAR(log_transaction_compression),
+    MYSQL_SYSVAR(log_transaction_compression_level_zstd),
     MYSQL_SYSVAR(log_fail_terminate),
     MYSQL_SYSVAR(clear_apply_status),
     MYSQL_SYSVAR(schema_dist_upgrade_allowed),

@@ -101,6 +101,7 @@ extern bool opt_ndb_log_binlog_index;
 extern bool opt_ndb_log_apply_status;
 extern bool opt_ndb_log_transaction_id;
 extern bool opt_ndb_log_trx_compression;
+extern bool opt_ndb_log_trx_compression_level_zstd;
 extern bool opt_ndb_log_empty_update;
 extern bool opt_ndb_clear_apply_status;
 extern bool opt_ndb_log_fail_terminate;
@@ -6484,7 +6485,7 @@ void Ndb_binlog_thread::fix_per_epoch_trans_settings(THD *thd) {
   thd->variables.binlog_trx_compression_type =
       global_system_variables.binlog_trx_compression_type;
   thd->variables.binlog_trx_compression_level_zstd =
-      global_system_variables.binlog_trx_compression_level_zstd;
+      opt_ndb_log_trx_compression_level_zstd;
 
   // Without HA_BLOB_PARTIAL_UPDATE setting has no effect
   // thd->variables.binlog_row_value_options & PARTIAL_JSON

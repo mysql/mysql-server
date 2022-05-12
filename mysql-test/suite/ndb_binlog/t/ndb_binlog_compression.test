@@ -14,9 +14,19 @@
 
 --error ER_GLOBAL_VARIABLE
 set @@SESSION.ndb_log_transaction_compression = ON;
-
 set @@GLOBAL.ndb_log_transaction_compression = ON;
+
+--error ER_GLOBAL_VARIABLE
+set @@SESSION.ndb_log_transaction_compression_level_zstd = 1;
+set @@GLOBAL.ndb_log_transaction_compression_level_zstd = 0;
+--echo Truncated to 1
+show variables like 'ndb_log_transaction_compression_level_zstd';
+set @@GLOBAL.ndb_log_transaction_compression_level_zstd = 23;
+--echo Truncated to 22
+show variables like 'ndb_log_transaction_compression_level_zstd';
+
 set @@GLOBAL.ndb_log_transaction_compression = DEFAULT;
+set @@GLOBAL.ndb_log_transaction_compression_level_zstd = DEFAULT;
 
 --echo ################################################
 --echo Case 1: Observe binlog compression in ndbcluster
@@ -25,7 +35,7 @@ set @@GLOBAL.ndb_log_transaction_compression = DEFAULT;
 
 show variables like 'ndb_log_bin';
 show variables like 'ndb_log_transaction_compression';
-show variables like 'binlog_transaction_compression_level_zstd';
+show variables like 'ndb_log_transaction_compression_level_zstd';
 
 # Create and insert rows to the table to check if the data is compressed.
 create table t1 (a int) engine=ndb;
