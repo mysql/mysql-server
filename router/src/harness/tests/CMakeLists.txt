@@ -103,6 +103,7 @@ SET(TESTS
   test_net_ts_buffer.cc
   test_net_ts_executor.cc
   test_net_ts_impl_file.cc
+  test_net_ts_impl_io_service_base.cc
   test_net_ts_impl_kqueue_io_service.cc
   test_net_ts_impl_linux_epoll_io_service.cc
   test_net_ts_impl_netif.cc

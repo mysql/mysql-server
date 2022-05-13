@@ -58,6 +58,54 @@ static_assert(
         net::prepared_buffers<net::const_buffer>>::value,
     "net::prepared_buffers<net::const_buffer> MUST be a const_buffer_sequence");
 
+TEST(net_buffer, from_string_view) {
+  std::string_view o{"abc"};
+  auto b = net::buffer(o);
+
+  EXPECT_EQ(b.size(), o.size());
+  EXPECT_EQ(b.data(), o.data());
+}
+
+TEST(net_buffer, from_empty_string_view) {
+  std::string_view o;
+  auto b = net::buffer(o);
+
+  EXPECT_EQ(b.size(), o.size());
+  EXPECT_EQ(b.data(), nullptr);
+}
+
+TEST(net_buffer, from_string) {
+  std::string o{"abc"};
+  auto b = net::buffer(o);
+
+  EXPECT_EQ(b.size(), o.size());
+  EXPECT_EQ(b.data(), o.data());
+}
+
+TEST(net_buffer, from_empty_string) {
+  std::string o;
+  auto b = net::buffer(o);
+
+  EXPECT_EQ(b.size(), o.size());
+  EXPECT_EQ(b.data(), nullptr);
+}
+
+TEST(net_buffer, from_vector) {
+  std::vector<char> o{'a', 'b', 'c'};
+  auto b = net::buffer(o);
+
+  EXPECT_EQ(b.size(), o.size());
+  EXPECT_EQ(b.data(), o.data());
+}
+
+TEST(net_buffer, from_empty_vector) {
+  std::vector<char> o;
+  auto b = net::buffer(o);
+
+  EXPECT_EQ(b.size(), o.size());
+  EXPECT_EQ(b.data(), nullptr);
+}
+
 TEST(dynamic_string_buffer, size_empty) {
   std::string s;
   auto sb = net::dynamic_buffer(s);
