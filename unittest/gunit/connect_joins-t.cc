@@ -226,7 +226,7 @@ TEST_F(ConnectJoinTest, SemiJoinWithMultiEqual) {
   for (unsigned int i = 0; i < query_block->join->primary_tables; i++) {
     JOIN_TAB *join_tab = &query_block->join->join_tab[i];
     table_map used_tables = join_tab->prefix_tables();
-    table_map current_map = 1 << i;
+    table_map current_map = 1ULL << i;
     cond = make_cond_for_table(m_thd, *where_cond, used_tables, current_map,
                                /*exclude_expensive_cond=*/false);
     if (cond) join->qep_tab[join_tab->idx()].set_condition(cond);
@@ -338,7 +338,7 @@ TEST_F(ConnectJoinTest, OuterJoin) {
   for (unsigned int i = 0; i < query_block->join->primary_tables; i++) {
     JOIN_TAB *join_tab = &query_block->join->join_tab[i];
     table_map used_tables = join_tab->prefix_tables();
-    table_map current_map = 1 << i;
+    table_map current_map = 1ULL << i;
     cond = make_cond_for_table(m_thd, *where_cond, used_tables, current_map,
                                /*exclude_expensive_cond=*/false);
     if (cond)
@@ -546,7 +546,7 @@ TEST_F(ConnectJoinTest, SemiJoinInOuterJoin) {
   for (unsigned int i = 0; i < query_block->join->primary_tables; i++) {
     JOIN_TAB *join_tab = &query_block->join->join_tab[i];
     table_map used_tables = join_tab->prefix_tables();
-    table_map current_map = 1 << i;
+    table_map current_map = 1ULL << i;
     cond = make_cond_for_table(m_thd, *where_cond, used_tables, current_map,
                                /*exclude_expensive_cond=*/false);
     if (cond) join->qep_tab[join_tab->idx()].set_condition(cond);
@@ -671,7 +671,7 @@ TEST_F(ConnectJoinTest, SemiJoinWithNotEqual) {
   for (unsigned int i = 0; i < query_block->join->primary_tables; i++) {
     JOIN_TAB *join_tab = &query_block->join->join_tab[i];
     table_map used_tables = join_tab->prefix_tables();
-    table_map current_map = 1 << i;
+    table_map current_map = 1ULL << i;
     cond = make_cond_for_table(m_thd, *where_cond, used_tables, current_map,
                                /*exclude_expensive_cond=*/false);
     if (cond) join->qep_tab[join_tab->idx()].set_condition(cond);
