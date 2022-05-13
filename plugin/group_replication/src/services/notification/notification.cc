@@ -27,6 +27,8 @@
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/services/notification/notification.h"
 
+#include <list>
+
 enum SvcTypes { kGroupMembership = 0, kGroupMemberStatus };
 
 typedef int (*svc_notify_func)(Notification_context &, my_h_service);
@@ -86,15 +88,15 @@ static bool notify(SvcTypes svc_type, Notification_context &ctx) {
   SERVICE_TYPE(registry_query) *rq = nullptr;
   my_h_service_iterator h_ret_it = nullptr;
   my_h_service h_listener_svc = nullptr;
-  my_h_service h_listener_default_svc = nullptr;
   bool res = false;
-  bool default_notified = false;
+  bool is_service_default_implementation = true;
   std::string svc_name;
   svc_notify_func notify_func_ptr;
+  std::list<std::string> listeners_names;
 
   if (!registry_module || !(r = registry_module->get_registry_handle()) ||
       !(rq = registry_module->get_registry_query_handle()))
-    goto err; /* purecov: inspected */
+    return true;
 
   /*
     Decides which listener service to notify, based on the
@@ -121,29 +123,32 @@ static bool notify(SvcTypes svc_type, Notification_context &ctx) {
       break;
   }
 
-  /* acquire the default service */
-  if (r->acquire(svc_name.c_str(), &h_listener_default_svc) ||
-      !h_listener_default_svc)
-    /* no listener registered, skip */
-    goto end;
-
   /*
     create iterator to navigate notification GMS change
     notification listeners
   */
   if (rq->create(svc_name.c_str(), &h_ret_it)) {
-    goto err; /* purecov: inspected */
+    /* no listener registered, skip */
+    if (h_ret_it) {
+      rq->release(h_ret_it);
+    }
+    return false;
   }
 
-  /* notify all listeners */
-  while (h_ret_it != nullptr &&
-         /* is_valid returns false on success */
-         rq->is_valid(h_ret_it) == false) {
-    int svc_ko = 0;
+  /*
+    To avoid acquire multiple re-entrant locks on the services
+    registry, which would happen by calling registry_module::acquire()
+    after calling registry_module::create(), we store the services names
+    and only notify them after release the iterator.
+  */
+  for (; h_ret_it != nullptr && !rq->is_valid(h_ret_it); rq->next(h_ret_it)) {
     const char *next_svc_name = nullptr;
 
     /* get next registered listener */
-    if (rq->get(h_ret_it, &next_svc_name)) goto err; /* purecov: inspected */
+    if (rq->get(h_ret_it, &next_svc_name)) {
+      res |= true;
+      continue;
+    }
 
     /*
       The iterator currently contains more service implementations than
@@ -156,41 +161,42 @@ static bool notify(SvcTypes svc_type, Notification_context &ctx) {
     std::string s(next_svc_name);
     if (s.find(svc_name, 0) == std::string::npos) break;
 
-    /* acquire next listener */
-    if (r->acquire(next_svc_name, &h_listener_svc))
-      goto err; /* purecov: inspected */
-
-    /* don't notify the default service twice */
-    if (h_listener_svc != h_listener_default_svc || !default_notified) {
-      if (notify_func_ptr(ctx, h_listener_svc))
-        LogPluginErr(WARNING_LEVEL,
-                     ER_GRP_RPL_FAILED_TO_NOTIFY_GRP_MEMBERSHIP_EVENT,
-                     next_svc_name); /* purecov: inspected */
-
-      default_notified =
-          default_notified || (h_listener_svc == h_listener_default_svc);
+    /*
+      The iterator currently contains more service implementations than
+      those named after the given service name, the first registered
+      service will be listed twice: 1) default service, 2) regular service.
+      The spec says that the name given is used to position the iterator
+      start on the first registered service implementation prefixed with
+      that name. We need to skip the first service since it will be listed
+      twice.
+    */
+    if (is_service_default_implementation) {
+      is_service_default_implementation = false;
+      continue;
     }
 
-    /* release the listener service */
-    if (r->release(h_listener_svc) || svc_ko) goto err; /* purecov: inspected */
-
-    /* update iterator */
-    if (rq->next(h_ret_it)) goto err; /* purecov: inspected */
+    listeners_names.push_back(s);
   }
 
-end:
   /* release the iterator */
   if (h_ret_it) rq->release(h_ret_it);
 
-  /* release the default service */
-  if (h_listener_default_svc)
-    if (r->release(h_listener_default_svc)) res = true; /* purecov: inspected */
+  /* notify all listeners */
+  for (std::string listener_name : listeners_names) {
+    /* acquire listener */
+    if (!r->acquire(listener_name.c_str(), &h_listener_svc)) {
+      if (notify_func_ptr(ctx, h_listener_svc)) {
+        LogPluginErr(WARNING_LEVEL,
+                     ER_GRP_RPL_FAILED_TO_NOTIFY_GRP_MEMBERSHIP_EVENT,
+                     listener_name.c_str());
+      }
+    }
+
+    /* release the listener service */
+    r->release(h_listener_svc);
+  }
 
   return res;
-
-err:
-  res = true; /* purecov: inspected */
-  goto end;
 }
 
 /* Public Functions */
