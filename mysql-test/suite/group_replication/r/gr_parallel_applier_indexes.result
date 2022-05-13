@@ -106,8 +106,9 @@ Inspected 3 transactions, all with correct transaction length.
 
 ############################################################
 # 3.  Wait for stable set propagation and certification info
-#     garbage collection.
+#     garbage collection on members 1 and 2.
 [connection server1]
+[connection server2]
 
 # Execute some more transactions and assert that
 # last_committed index was update with previous
