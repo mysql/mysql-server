@@ -114,7 +114,7 @@ static bool nextDecimal(char decimal[], size_t len)
   require(len <= INT_MAX);
   for (int i = len - 1; i >= 0; i--)
   {
-    reuquire('0' <= decimal[i] && decimal[i] <= '9');
+    require('0' <= decimal[i] && decimal[i] <= '9');
     if (decimal[i] < '9') { decimal[i]++; return false; }
     decimal[i] = '0';
   }
