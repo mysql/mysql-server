@@ -258,8 +258,8 @@ AsyncFile::openReq(Request * request)
     if (created)
     {
       int key_count;
-      int key_data_unit_size;
-      int file_block_size;
+      size_t key_data_unit_size;
+      size_t file_block_size;
       if (page_size == 0 || use_gz)
       {
         size_t xts_data_unit_size = GLOBAL_PAGE_SIZE;

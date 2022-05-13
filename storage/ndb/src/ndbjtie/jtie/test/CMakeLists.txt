@@ -22,12 +22,18 @@
 
 # The jties tests intentionally checks more or less all permutations of
 # const result/parameter types in order to see what is supported
-# by C++ vs. Java. Tthis causes warnings about "type qualifiers ignored
+# by C++ vs. Java. This causes warnings about "type qualifiers ignored
 # on function return type" (which is turned on by -Wextra in maintainer.cmake).
+# And also some shadow-field warnings with clang.
 # Avoid the superfluous warnings by turning them off.
 MY_CHECK_CXX_COMPILER_WARNING("ignored-qualifiers" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
   MESSAGE(STATUS "Turning off ignored qualifier warnings for jtie tests")
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
+MY_CHECK_CXX_COMPILER_WARNING("shadow-field" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  MESSAGE(STATUS "Turning off shadow field warnings for jtie tests")
   STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
 ENDIF()
 

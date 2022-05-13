@@ -83,7 +83,7 @@ TFBuffer::validate() const
     assert(m_head != 0);
     assert(m_tail != 0);
   }
-  Uint32 sum = 0;
+  Uint32 sum [[maybe_unused]] = 0;
   TFPage * p = m_head;
   while (p)
   {

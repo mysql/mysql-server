@@ -28,6 +28,7 @@
 #include <NdbTick.h>
 #include <NdbThread.h>
 #include <ndb_limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include "../src/common/util/parse_mask.hpp"
 #include <iostream>
@@ -2834,7 +2835,7 @@ test_create_cpumap()
 void
 printdata(const struct ndb_hwinfo* data, Uint32 cpu)
 {
-  long long sum_sys = 0;
+  uintmax_t sum_sys = 0;
 
   for (Uint32 i = 0; i < data->cpu_cnt; i++)
   {
@@ -2845,7 +2846,7 @@ printdata(const struct ndb_hwinfo* data, Uint32 cpu)
     sum_sys += data->cpu_data[i].cs_guest_nice_us;
   }
 
-  long long elapsed = 0;
+  uintmax_t elapsed = 0;
   elapsed += data->cpu_data[cpu].cs_user_us;
   elapsed += data->cpu_data[cpu].cs_idle_us;
   elapsed += data->cpu_data[cpu].cs_nice_us;
@@ -2857,7 +2858,7 @@ printdata(const struct ndb_hwinfo* data, Uint32 cpu)
   elapsed += data->cpu_data[cpu].cs_guest_us;
   elapsed += data->cpu_data[cpu].cs_guest_nice_us;
 
-  long long cpu_sys = 0;
+  uintmax_t cpu_sys = 0;
   cpu_sys += data->cpu_data[cpu].cs_sys_us;
   cpu_sys += data->cpu_data[cpu].cs_irq_us;
   cpu_sys += data->cpu_data[cpu].cs_sirq_us;
@@ -2865,9 +2866,11 @@ printdata(const struct ndb_hwinfo* data, Uint32 cpu)
   cpu_sys += data->cpu_data[cpu].cs_guest_nice_us;
   cpu_sys += data->cpu_data[cpu].cs_steal_us;
 
-  printf("time: %llu sys: %llu%%",
+  printf("Cpu %u time: %juus sys: %ju%% All cpu sys: %juus\n",
+         cpu,
          elapsed,
-         elapsed ? (100 * cpu_sys) / elapsed : 0);
+         elapsed ? (100 * cpu_sys) / elapsed : 0,
+         sum_sys);
 }
 
 TAPTEST(NdbCPU)

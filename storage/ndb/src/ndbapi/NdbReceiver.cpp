@@ -273,6 +273,10 @@ static
 const Uint8*
 pad(const Uint8* src, Uint32 align, Uint32 bitPos);
 
+static
+size_t
+pad_pos(size_t pos, Uint32 align, Uint32 bitPos);
+
 NdbReceiver::NdbReceiver(Ndb *aNdb) :
   theMagicNumber(0),
   m_ndb(aNdb),
@@ -517,7 +521,7 @@ Uint32 packed_rowsize(const NdbRecord *result_record,
 {
   Uint32 nullCount = 0;
   Uint32 bitPos = 0;
-  const Uint8 *pos = NULL;
+  UintPtr pos = 0;
 
   bool pk_is_known = false;
   if (likely(result_record != NULL))
@@ -541,13 +545,13 @@ Uint32 packed_rowsize(const NdbRecord *result_record,
 
         switch(align){
         case DictTabInfo::aBit:
-          pos = pad(pos, 0, 0);
+          pos = pad_pos(pos, 0, 0);
           bitPos += col->bitCount;
           pos += 4 * (bitPos / 32);
           bitPos = (bitPos % 32);
           break;
         default:
-          pos = pad(pos, align, bitPos);
+          pos = pad_pos(pos, align, bitPos);
           bitPos = 0;
           pos += col->maxSize;
           break;
@@ -558,8 +562,7 @@ Uint32 packed_rowsize(const NdbRecord *result_record,
       }
     }
   }
-  Uint32 sizeInWords =
-      (Uint32)(((const Uint32*)pad(pos, 0, bitPos) - (Uint32*)NULL));
+  Uint32 sizeInWords = pad_pos(pos, 0, bitPos);
 
   // Add AttributeHeader::READ_PACKED or ::READ_ALL (Uint32) and
   // variable size bitmask the 'packed' columns and their null bits.
@@ -755,16 +758,17 @@ NdbReceiver::result_bufsize(const NdbRecord *result_record,
  */
 static
 inline
-const Uint8*
-pad(const Uint8* src, Uint32 align, Uint32 bitPos)
+UintPtr
+pad_pos(UintPtr pos, Uint32 align, Uint32 bitPos)
 {
-  UintPtr ptr = UintPtr(src);
-  switch(align){
+  UintPtr ptr = pos;
+  switch(align)
+  {
   case DictTabInfo::aBit:
   case DictTabInfo::a32Bit:
   case DictTabInfo::a64Bit:
   case DictTabInfo::a128Bit:
-    return (Uint8*)(((ptr + 3) & ~(UintPtr)3) + 4 * ((bitPos + 31) >> 5));
+    return (((ptr + 3) & ~UintPtr{3}) + 4 * ((bitPos + 31) >> 5));
 
   default:
 #ifdef VM_TRACE
@@ -774,8 +778,17 @@ pad(const Uint8* src, Uint32 align, Uint32 bitPos)
 
   case DictTabInfo::an8Bit:
   case DictTabInfo::a16Bit:
-    return src + 4 * ((bitPos + 31) >> 5);
+    return pos + 4 * ((bitPos + 31) >> 5);
   }
+}
+
+static
+inline
+const Uint8*
+pad(const Uint8* src, Uint32 align, Uint32 bitPos)
+{
+  UintPtr ptr = UintPtr(src);
+  return (const Uint8*)pad_pos(ptr, align, bitPos);
 }
 
 /**
