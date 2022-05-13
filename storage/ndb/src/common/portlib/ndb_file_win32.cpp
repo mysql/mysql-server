@@ -65,10 +65,7 @@ int ndb_file::write_forward(const void* buf, ndb_file::size_t count)
     return -1;
   }
   assert(ndb_file::size_t(dwWritten) == count);
-  if (!m_synced_on_write)
-  {
-    m_write_byte_count.fetch_add(dwWritten);
-  }
+  if (do_sync_after_write(dwWritten) == -1) return -1;
   return dwWritten;
 }
 
@@ -92,10 +89,7 @@ int ndb_file::write_pos(const void* buf, ndb_file::size_t count, ndb_file::off_t
     return -1;
   }
   assert(ndb_file::size_t(dwWritten) == count);
-  if (!m_synced_on_write)
-  {
-    m_write_byte_count.fetch_add(dwWritten);
-  }
+  if (do_sync_after_write(dwWritten) == -1) return -1;
   return dwWritten;
 }
 
@@ -363,20 +357,14 @@ int ndb_file::open(const char name[], unsigned flags)
 
   init();
 
-#if 0
-  const unsigned bad_flags = flags & ~(FsOpenReq::OM_APPEND |
-      FsOpenReq::OM_SYNC | FsOpenReq::OM_READ_WRITE_MASK |
-      FsOpenReq::OM_TRUNCATE);
-#else
   const unsigned bad_flags = flags & ~(FsOpenReq::OM_APPEND |
       FsOpenReq::OM_READ_WRITE_MASK );
-#endif
 
   if (bad_flags != 0) abort();
 
   m_open_flags = 0;
-  m_sync_on_write = false;
-  m_synced_on_write = false;
+  m_write_need_sync = false;
+  m_os_syncs_each_write = false;
 
   // for open.flags, see signal FSOPENREQ
   DWORD dwCreationDisposition;
@@ -394,12 +382,6 @@ int ndb_file::open(const char name[], unsigned flags)
   }
 
   // OM_APPEND not used.
-
-  if (flags & FsOpenReq::OM_SYNC)
-  {
-    m_sync_on_write = true;
-    m_synced_on_write = true;
-  }
 
   switch (flags & FsOpenReq::OM_READ_WRITE_MASK)
   {
@@ -458,7 +440,7 @@ int ndb_file::set_direct_io(bool /* assume_implicit_datasync */)
 
 int ndb_file::reopen_with_sync(const char /* name */ [])
 {
-  if (m_synced_on_write)
+  if (m_os_syncs_each_write)
   {
     /*
      * If already synced on write by for example implicit by direct I/O mode no
@@ -467,7 +449,7 @@ int ndb_file::reopen_with_sync(const char /* name */ [])
     return 0;
   }
 
-  m_sync_on_write = true;
+  m_write_need_sync = true;
 
   return 0;
 }
