@@ -1176,6 +1176,9 @@ void ha_innopart::clear_ins_upd_nodes() {
       /* Free memory from update nodes. */
       if (part.m_upd_node != nullptr) {
         upd_node_t *upd = part.m_upd_node;
+        if (upd->update) {
+          upd->update->free_per_stmt_heap();
+        }
         if (upd->cascade_heap) {
           mem_heap_free(upd->cascade_heap);
           upd->cascade_heap = nullptr;
