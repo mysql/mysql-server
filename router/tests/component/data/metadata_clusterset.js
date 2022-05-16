@@ -8,6 +8,10 @@ if (mysqld.global.update_attributes_count === undefined) {
   mysqld.global.update_attributes_count = 0;
 }
 
+if (mysqld.global.update_last_check_in_count === undefined) {
+  mysqld.global.update_last_check_in_count = 0;
+}
+
 var options = {
   cluster_type: "gr",
   metadata_schema_version: [2, 1, 0],
@@ -67,6 +71,9 @@ var router_start_transaction =
 var router_update_attributes =
     common_stmts.get("router_update_attributes_v2", options);
 
+var router_update_last_check_in =
+    common_stmts.get("router_update_last_check_in_v2", options);
+
 
 ({
   stmts: function(stmt) {
@@ -76,6 +83,9 @@ var router_update_attributes =
     } else if (stmt === router_start_transaction.stmt) {
       mysqld.global.transaction_count++;
       return router_start_transaction;
+    } else if (stmt === router_update_last_check_in.stmt) {
+      mysqld.global.update_last_check_in_count++;
+      return router_update_last_check_in;
     } else if (
         (res = common_stmts.handle_regex_stmt(stmt, common_responses_regex)) !==
         undefined) {

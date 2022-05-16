@@ -176,8 +176,54 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
     return false;
   }
 
+  void verify_only_primary_gets_updates(const unsigned primary_cluster_id,
+                                        const unsigned primary_node_id = 0) {
+    // <cluster_id, node_id>
+    using NodeId = std::pair<unsigned, unsigned>;
+    std::map<NodeId, size_t> count;
+
+    // in the first run pick up how many times the last_check_in updte was
+    // performed on each node so far
+    for (const auto &cluster : clusterset_data_.clusters) {
+      unsigned node_id = 0;
+      for (const auto &node : cluster.nodes) {
+        count[NodeId(cluster.id, node_id)] =
+            get_int_global_value(node.http_port, "update_last_check_in_count");
+        ++node_id;
+      }
+    }
+
+    // in the next step wait for the counter to be incremented on the primary
+    // node
+    const auto http_port = clusterset_data_.clusters[primary_cluster_id]
+                               .nodes[primary_node_id]
+                               .http_port;
+    EXPECT_TRUE(
+        wait_global_ge(http_port, "update_last_check_in_count",
+                       count[NodeId(primary_cluster_id, primary_node_id)] + 1));
+
+    // the counter for all other nodes should not change
+    for (const auto &cluster : clusterset_data_.clusters) {
+      unsigned node_id = 0;
+      for (const auto &node : cluster.nodes) {
+        // only primary node of the primary cluster is expected do the
+        // metadata version update and last_check_in updates
+        if (cluster.id != primary_cluster_id || node_id != primary_node_id) {
+          EXPECT_EQ(get_int_global_value(node.http_port,
+                                         "update_last_check_in_count"),
+                    count[NodeId(cluster.id, node_id)]);
+        }
+        ++node_id;
+      }
+    }
+  }
+
   int get_update_attributes_count(const std::string &json_string) {
     return get_int_field_value(json_string, "update_attributes_count");
+  }
+
+  int get_update_last_check_in_count(const std::string &json_string) {
+    return get_int_field_value(json_string, "update_last_check_in_count");
   }
 
   std::string router_conf_file;
@@ -764,6 +810,8 @@ TEST_F(ClusterSetTest, ClusterRolesChangeInTheRuntime) {
                           .nodes[kRONodeId]
                           .classic_port);
 
+  verify_only_primary_gets_updates(primary_cluster_id);
+
   ////////////////////////////////////
   SCOPED_TRACE(
       "// Change the primary cluster in the metadata, now the first Replica "
@@ -801,6 +849,9 @@ TEST_F(ClusterSetTest, ClusterRolesChangeInTheRuntime) {
       router_port_ro, clusterset_data_.clusters[primary_cluster_id]
                           .nodes[kRONodeId + 1 % 2]
                           .classic_port);
+
+  // check the new primary gets updates
+  verify_only_primary_gets_updates(primary_cluster_id);
 
   ////////////////////////////////////
   SCOPED_TRACE(
@@ -906,6 +957,9 @@ TEST_F(ClusterSetTest, TargetClusterStickToPrimaryUUID) {
                           .nodes[kRONodeId]
                           .classic_port);
 
+  // check that the primary cluster is getting the periodic metadata updates
+  verify_only_primary_gets_updates(primary_cluster_id);
+
   ////////////////////////////////////
   SCOPED_TRACE(
       "// Change the primary cluster in the metadata, now the first Replica "
@@ -943,6 +997,9 @@ TEST_F(ClusterSetTest, TargetClusterStickToPrimaryUUID) {
                           .nodes[(kRWNodeId + 1) % 3]
                           .classic_port);
   verify_new_connection_fails(router_port_rw);
+
+  // check that the primary cluster is getting the periodic metadata updates
+  verify_only_primary_gets_updates(primary_cluster_id);
 
   ////////////////////////////////////
   SCOPED_TRACE(
@@ -1599,6 +1656,8 @@ TEST_P(ReplicaTargetClusterMarkedInvalidInTheMetadataTest,
       router_port_ro,
       clusterset_data_.clusters[kFirstReplicaClusterId].nodes[0].classic_port);
 
+  verify_only_primary_gets_updates(kPrimaryClusterId);
+
   SCOPED_TRACE(
       "// Simulate the invalidating scenario: clusters PRIMARY and REPLICA1 "
       "become invalid, REPLICA2 is a new PRIMARY");
@@ -1638,6 +1697,9 @@ TEST_P(ReplicaTargetClusterMarkedInvalidInTheMetadataTest,
                                .nodes[1]
                                .classic_port);
   }
+
+  // make sure only new PRIMARY (former REPLICA2) gets the periodic updates now
+  verify_only_primary_gets_updates(kSecondReplicaClusterId);
 }
 
 INSTANTIATE_TEST_SUITE_P(

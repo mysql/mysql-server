@@ -33,6 +33,10 @@ if (mysqld.global.update_attributes_count === undefined) {
   mysqld.global.update_attributes_count = 0;
 }
 
+if (mysqld.global.update_last_check_in_count === undefined) {
+  mysqld.global.update_last_check_in_count = 0;
+}
+
 if (mysqld.global.router_version === undefined) {
   mysqld.global.router_version = "";
 }
@@ -119,11 +123,15 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_cluster_type_v2",
       "router_select_group_replication_primary_member",
       "router_select_group_membership_with_primary_mode",
+      "router_update_last_check_in_v2",
     ],
     options);
 
 var router_update_attributes_strict_v2 =
     common_stmts.get("router_update_attributes_strict_v2", options);
+
+var router_update_last_check_in_v2 =
+    common_stmts.get("router_update_last_check_in_v2", options);
 
 var router_select_metadata =
     common_stmts.get("router_select_metadata_v2_gr", options);
@@ -159,6 +167,9 @@ var router_start_transaction =
         }
       } else
         return router_update_attributes_strict_v2;
+    } else if (stmt === router_update_last_check_in_v2.stmt) {
+      mysqld.global.update_last_check_in_count++;
+      return router_update_last_check_in_v2;
     } else if (stmt === router_select_metadata.stmt) {
       mysqld.global.md_query_count++;
       return router_select_metadata;
