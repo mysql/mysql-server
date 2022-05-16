@@ -4278,7 +4278,10 @@ static int com_use(String *buffer [[maybe_unused]], char *line) {
     (latter one not yet available by the time the comment was written)
     If this command fails we assume we lost connection.
   */
-  if (get_current_db()) connected = false;
+  if (get_current_db()) {
+    connected = false;
+    mysql_close(&mysql);
+  }
 
   if (!current_db || cmp_database(charset_info, current_db, tmp)) {
     if (one_database) {
