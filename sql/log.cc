@@ -878,7 +878,7 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
                   (ulong) thd->get_sent_row_count(),
                   (ulong) thd->get_examined_row_count()) == (uint) -1)
     goto err;
-  if (thd->db().str && strcmp(thd->db().str, db))
+  if (thd->db().str)
   {						// Database changed
     if (my_b_printf(&log_file,"use %s;\n",thd->db().str) == (uint) -1)
       goto err;
