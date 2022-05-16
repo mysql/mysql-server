@@ -819,7 +819,7 @@ function get_response(stmt_key, options) {
     case "router_update_attributes_v2":
       return {
         "stmt_regex": "UPDATE mysql_innodb_cluster_metadata\\.v2_routers" +
-            " SET version = .*, last_check_in = NOW\\(\\), attributes = JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(" +
+            " SET version = .*, attributes = JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(" +
             " IF\\(attributes IS NULL, '\\{\\}', attributes\\)," +
             " '\\$\\.RWEndpoint', '.*'\\), '\\$\\.ROEndpoint', '.*'\\), '\\$\\.RWXEndpoint', '.*'\\)," +
             " '\\$\\.ROXEndpoint', '.*'\\), '\\$\\.MetadataUser', '.*'\\) WHERE router_id = .*",
@@ -829,8 +829,7 @@ function get_response(stmt_key, options) {
       return {
         "stmt": "UPDATE mysql_innodb_cluster_metadata.v2_routers" +
             " SET version = '" + options.router_version +
-            "', last_check_in = NOW()" +
-            ", attributes = JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(" +
+            "', attributes = JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(" +
             " IF(attributes IS NULL, '{}', attributes)," +
             " '$.RWEndpoint', '" + options.router_rw_classic_port +
             "'), '$.ROEndpoint', '" + options.router_ro_classic_port +
@@ -838,6 +837,13 @@ function get_response(stmt_key, options) {
             "'), '$.ROXEndpoint', '" + options.router_ro_x_port +
             "'), '$.MetadataUser', '" + options.router_metadata_user +
             "') WHERE router_id = " + options.router_id,
+        "ok": {}
+      };
+    case "router_update_last_check_in_v2":
+      return {
+        "stmt":
+            "UPDATE mysql_innodb_cluster_metadata.v2_routers set last_check_in = " +
+            "NOW() where router_id = " + options.router_id,
         "ok": {}
       };
     case "router_set_session_options":

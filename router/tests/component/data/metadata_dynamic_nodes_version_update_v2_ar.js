@@ -37,6 +37,10 @@ if (mysqld.global.update_attributes_count === undefined) {
   mysqld.global.update_attributes_count = 0;
 }
 
+if (mysqld.global.update_last_check_in_count === undefined) {
+  mysqld.global.update_last_check_in_count = 0;
+}
+
 if (mysqld.global.router_version === undefined) {
   mysqld.global.router_version = "";
 }
@@ -122,7 +126,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_set_session_options", "router_set_gr_consistency_level",
       "router_commit", "router_rollback", "router_select_schema_version",
       "router_select_cluster_type_v2", "router_select_view_id_v2_ar",
-      "select_port"
+      "router_update_last_check_in_v2", "select_port"
     ],
     options);
 
@@ -132,6 +136,9 @@ var router_select_metadata =
 
 var router_update_attributes_strict_v2 =
     common_stmts.get("router_update_attributes_strict_v2", options);
+
+var router_update_last_check_in_v2 =
+    common_stmts.get("router_update_last_check_in_v2", options);
 
 var router_start_transaction =
     common_stmts.get("router_start_transaction", options);
@@ -164,6 +171,9 @@ var router_start_transaction =
         }
       } else
         return router_update_attributes_strict_v2;
+    } else if (stmt === router_update_last_check_in_v2.stmt) {
+      mysqld.global.update_last_check_in_count++;
+      return router_update_last_check_in_v2;
     } else if (stmt === router_select_metadata.stmt) {
       mysqld.global.md_query_count++;
       return router_select_metadata;

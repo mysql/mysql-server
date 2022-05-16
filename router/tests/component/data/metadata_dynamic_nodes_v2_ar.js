@@ -93,6 +93,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_cluster_type_v2",
       "router_select_schema_version",
       "router_select_view_id_v2_ar",
+      "router_update_last_check_in_v2",
     ],
     options);
 

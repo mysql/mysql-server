@@ -96,7 +96,8 @@ void MetadataCache::refresh_thread() {
   bool auth_cache_force_update = true;
   while (!terminated_) {
     bool refresh_ok{false};
-    const bool needs_writable_node = update_router_attributes_;
+    const bool needs_writable_node =
+        update_router_attributes_ || last_check_in_updated_ % 10 == 0;
     try {
       // Component tests are using this log message as a indicator of metadata
       // refresh start
@@ -129,6 +130,9 @@ void MetadataCache::refresh_thread() {
         update_auth_cache();
         auth_cache_force_update = false;
       }
+
+      // we want to update the router.last_check_in every 10 ttl queries
+      update_router_last_check_in();
     }
 
     auto ttl_left = ttl_config_.ttl;
@@ -650,4 +654,20 @@ void MetadataCache::update_router_attributes() {
         "Did not find writable instance to update the Router attributes in "
         "the metadata.");
   }
+}
+
+void MetadataCache::update_router_last_check_in() {
+  if (last_check_in_updated_ % 10 == 0) {
+    last_check_in_updated_ = 0;
+    if (cluster_topology_.cluster_data.writable_server) {
+      const auto &rw_server =
+          cluster_topology_.cluster_data.writable_server.value();
+      try {
+        meta_data_->update_router_last_check_in(rw_server, router_id_);
+      } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
+      } catch (...) {
+      }
+    }
+  }
+  ++last_check_in_updated_;
 }
