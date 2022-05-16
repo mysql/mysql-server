@@ -277,6 +277,13 @@ class Histogram {
   LEX_CSTRING m_column_name;
 
   /**
+    An internal function for getting a selectivity estimate prior to adustment.
+    @see get_selectivity() for details.
+   */
+  bool get_raw_selectivity(Item **items, size_t item_count, enum_operator op,
+                           double *selectivity) const;
+
+  /**
     An internal function for getting the selecitvity estimation.
 
     This function will read/evaluate the value from the given Item, and pass

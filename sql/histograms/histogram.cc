@@ -1574,6 +1574,53 @@ bool Histogram::get_selectivity_dispatcher(Item *item, const enum_operator op,
 
 bool Histogram::get_selectivity(Item **items, size_t item_count,
                                 enum_operator op, double *selectivity) const {
+  if (get_raw_selectivity(items, item_count, op, selectivity)) return true;
+
+  /*
+    We return a selectivity of at least 0.001 in order to avoid returning very
+    low estimates in the following cases:
+
+    1) We miss a value or underestimate its frequency during sampling. With our
+       current histogram format this causes "holes" between buckets where we
+       estimate a selectivity of zero.
+
+    2) We miss a range of values. With our format we are particularly vulnerable
+       around the min and max of the distribution as the sampled min is likely
+       greater than the true min and the sampled max likely smaller than the
+       true max.
+
+    3) Within-bucket heuristics produce very low estimates. This can for example
+       happen for range-queries within a bucket. Another example is if we have
+       many infrequent values and one highly frequent value in a bucket.
+
+    4) The histogram has gone stale. While the usual assumption is that the
+       value distribution remains nearly constant this assumption fails in some
+       common use cases. Consider for example a date column where the current
+       date is inserted.
+
+    The reason for the choice of 0.001 for the lower bound is that we typically
+    sample fewer than 1000 pages with the default settings. With a sample of
+    1000 pages the probablity of missing a value or range of values with a
+    selectivity of 0.001 is around 1/e (~0.368) as the size of the table goes to
+    infinity in the worst case when the values of interest are concentrated on
+    few pages.
+
+    The cost of using a minimum selectivity of 0.001 is that we may sometimes
+    over-estimate the selectivity. For very large tables 0.1% of the rows is
+    still a lot in absolute terms -- 1000 rows for a table with 1 million rows,
+    and 1 million rows for a table with 1 billion rows.
+
+    We could improve this estimate by considering the actual number of pages
+    sampled when the histogram was constructed.
+  */
+  const double minimum_selectivity = 0.001;
+  *selectivity = std::max(*selectivity, minimum_selectivity);
+  return false;
+}
+
+bool Histogram::get_raw_selectivity(Item **items, size_t item_count,
+                                    enum_operator op,
+                                    double *selectivity) const {
   // Do some sanity checking first
   switch (op) {
     case enum_operator::EQUALS_TO:

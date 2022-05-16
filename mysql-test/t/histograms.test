@@ -2249,6 +2249,53 @@ UNLOCK INSTANCE;
 DROP TABLE t1;
 --disconnect con1
 
+-- echo #
+-- echo # Bug#33935417 Histograms cause zero row estimates for values outside
+-- echo #              histogram buckets
+-- echo #
+
+# Verify that selectivity estimates are lower bounded by 0.001.
+CREATE TABLE ten (x INT);
+INSERT INTO ten VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
+
+CREATE TABLE hundred (x INT);
+INSERT INTO hundred SELECT 10*ten1.x + ten0.x AS v
+FROM ten AS ten1, ten AS ten0 ORDER BY v;
+
+CREATE TABLE ten_thousand (x INT);
+INSERT INTO ten_thousand SELECT 100*h1.x + h0.x AS v
+FROM hundred AS h1, hundred AS h0 ORDER BY v;
+
+# The default selectivity used for equality predicates is 0.1.
+EXPLAIN SELECT * FROM ten WHERE x = -1;
+EXPLAIN SELECT * FROM hundred WHERE x = -1;
+EXPLAIN SELECT * FROM ten_thousand WHERE x = -1;
+
+# Build histograms on all tables and ensure statistics are up to date.
+ANALYZE TABLE ten UPDATE HISTOGRAM ON x;
+ANALYZE TABLE ten;
+ANALYZE TABLE hundred UPDATE HISTOGRAM ON x;
+ANALYZE TABLE hundred;
+ANALYZE TABLE ten_thousand UPDATE HISTOGRAM ON x;
+ANALYZE TABLE ten_thousand;
+
+# The old optimizer uses a selectivity estimate of max(1/#rows, histogram_estimate).
+# At 10k rows we should see the difference with the new lower bound of 1/1000
+# being used instead of 1/10000.
+EXPLAIN SELECT * FROM ten WHERE x = -1;
+EXPLAIN SELECT * FROM hundred WHERE x = -1;
+EXPLAIN SELECT * FROM ten_thousand WHERE x = -1;
+
+# The lower bound is used for all predicates supported by the histogram.
+EXPLAIN SELECT * FROM ten_thousand WHERE x < -1;
+EXPLAIN SELECT * FROM ten_thousand WHERE x BETWEEN -100 AND -1;
+EXPLAIN SELECT * FROM ten_thousand WHERE x IN (-2, -1);
+EXPLAIN SELECT * FROM ten_thousand WHERE x IN (1, 2, 3);
+
+DROP TABLE ten;
+DROP TABLE hundred;
+DROP TABLE ten_thousand;
+
 # Run a restart without any special parameters, which causes "check testcase" to
 # be run. Always keep this at the very end of the test!
 let $restart_parameters = restart:;
