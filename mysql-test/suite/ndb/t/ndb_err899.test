@@ -14,6 +14,10 @@ INSERT INTO test.t1 values (101,101), (202,202);
 
 --exec $NDB_MGM -e "all error 5093" >> $NDB_TOOLS_OUTPUT
 
+let $injected_error_count =
+  `SELECT COUNT(*) FROM ndbinfo.ndb\\\$threadblock_details
+   WHERE error_insert_value <> 0`;
+
 # Test for multiple ops on specific tuple in transaction, where overall result
 # is deletion of tuple. Error insert re-orders COMMIT and delays COMPLETE to
 # provide a time window where
@@ -40,6 +44,14 @@ while ($i)
 --enable_query_log
 
 drop table test.t1;
+
+let $remaining_error_count =
+  `SELECT COUNT(*) FROM ndbinfo.ndb\\\$threadblock_details
+   WHERE error_insert_value <> 0`;
+if ($remaining_error_count == $injected_error_count)
+{
+  die Error injection not hit;
+}
 
 --echo compare current DBTUP resource usage w/usage before test to check for leaks
 --exec $NDB_MGM -e "all dump 4001" >> $NDB_TOOLS_OUTPUT
@@ -82,6 +94,14 @@ while ($i)
 --enable_query_log
 
 drop table test.t1;
+
+let $remaining_error_count =
+  `SELECT COUNT(*) FROM ndbinfo.ndb\\\$threadblock_details
+   WHERE error_insert_value <> 0`;
+if ($remaining_error_count == $injected_error_count)
+{
+  die Error injection not hit;
+}
 
 --echo compare current DBTUP resource usage w/usage before test to check for leaks
 --exec $NDB_MGM -e "all dump 4001" >> $NDB_TOOLS_OUTPUT
@@ -144,6 +164,14 @@ drop procedure work;
 
 drop table test.t1;
 
+let $remaining_error_count =
+  `SELECT COUNT(*) FROM ndbinfo.ndb\\\$threadblock_details
+   WHERE error_insert_value <> 0`;
+if ($remaining_error_count == $injected_error_count)
+{
+  die Error injection not hit;
+}
+
 --echo compare current DBTUP resource usage w/usage before test to check for leaks
 --exec $NDB_MGM -e "all dump 4001" >> $NDB_TOOLS_OUTPUT
 
@@ -177,6 +205,14 @@ while ($i)
 
 drop table test.t1;
 
+let $remaining_error_count = `select count(*) from ndbinfo.ndb\\\$threadblock_details where error_insert_value <> 0`;
+if ($remaining_error_count == $injected_error_count)
+{
+  die Error injection not hit;
+}
+
 --echo compare current DBTUP resource usage w/usage before test to check for leaks
 --exec $NDB_MGM -e "all dump 4001" >> $NDB_TOOLS_OUTPUT
 --remove_file $NDB_TOOLS_OUTPUT
+
+--exec $NDB_MGM -e "all error 0"

@@ -66,6 +66,12 @@ void Ndbinfo::Row::check_attribute_type(AttributeHeader &ah,
 #endif
 }
 
+void Ndbinfo::Row::write_null() {
+  // Write nothing for this columns, will be treated as NULL value at receiver.
+  col_counter++;
+  return;
+}
+
 void Ndbinfo::Row::write_string(const char *str) {
   const size_t clen = strlen(str) + 1;
   // Create AttributeHeader

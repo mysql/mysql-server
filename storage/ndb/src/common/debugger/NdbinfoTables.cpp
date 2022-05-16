@@ -237,6 +237,25 @@ DECLARE_NDBINFO_TABLE(THREADBLOCKS, 4) = {
         {"block_instance", Ndbinfo::Number, "block instance"},
     }};
 
+DECLARE_NDBINFO_TABLE(THREADBLOCK_DETAILS, 6) = {
+    {"threadblock_details", 6, 0,
+     [](const Ndbinfo::Counts &c) {
+       // In this estimate, 18 is the number of single-instance blocks,
+       // and 11 is the number of multi-instance blocks.
+       // The result is not exact.
+       return c.data_nodes * (18 + (c.instances.lqh * 11));
+     },
+     "which blocks are run in which threads and some internal state "
+     "details"},
+    {
+        {"node_id", Ndbinfo::Number, "node id"},
+        {"thr_no", Ndbinfo::Number, "thread number"},
+        {"block_number", Ndbinfo::Number, "block number"},
+        {"block_instance", Ndbinfo::Number, "block instance"},
+        {"error_insert_value", Ndbinfo::Number, "error insert value"},
+        {"error_insert_extra", Ndbinfo::Number, "error insert extra"},
+    }};
+
 DECLARE_NDBINFO_TABLE(THREADSTAT, 18) = {
     {"threadstat", 18, 0,
      [](const Ndbinfo::Counts &c) {
@@ -1211,7 +1230,9 @@ static struct ndbinfo_table_list_entry {
     DBINFOTBL(CPUDATA_50MS),
     DBINFOTBL(CPUDATA_1SEC),
     DBINFOTBL(CPUDATA_20SEC),
-    DBINFOTBL(CERTIFICATES)};
+    DBINFOTBL(CERTIFICATES),
+    DBINFOTBL(THREADBLOCK_DETAILS),
+};
 
 static int no_ndbinfo_tables =
     sizeof(ndbinfo_tables) / sizeof(ndbinfo_tables[0]);

@@ -592,6 +592,11 @@ class alignas(NDB_CL) SimulatedBlock
   Uint32 getInstanceNo(Uint32 nodeId, Uint32 tableId, Uint32 fragId);
   Uint32 getInstanceFromKey(Uint32 nodeId, Uint32 instanceKey);
 
+#if defined(ERROR_INSERT)
+  Uint32 getErrorInsertValue() const { return ERROR_INSERT_VALUE; }
+  Uint32 getErrorInsertExtra() const { return ERROR_INSERT_EXTRA; }
+#endif
+
   /**
    * This method will make sure that when callback in called each
    *   thread running an instance any of the threads in blocks[]

@@ -91,7 +91,8 @@ class Ndbinfo {
     CPUDATA_50MS_TABLEID = 46,
     CPUDATA_1SEC_TABLEID = 47,
     CPUDATA_20SEC_TABLEID = 48,
-    CERTIFICATES_TABLEID = 49
+    CERTIFICATES_TABLEID = 49,
+    THREADBLOCK_DETAILS_TABLEID = 50
   };
 
   enum BufferId {
@@ -151,6 +152,7 @@ class Ndbinfo {
 
     Uint32 *getDataPtr() const { return start; }
 
+    void write_null();
     void write_string(const char *col);
     void write_uint32(Uint32 value);
     void write_uint64(Uint64 value);

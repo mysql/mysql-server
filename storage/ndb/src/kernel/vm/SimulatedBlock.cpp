@@ -138,8 +138,6 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
 
   m_callbackTableAddr = 0;
 
-  CLEAR_ERROR_INSERT_VALUE;
-
 #ifndef NDBD_MULTITHREADED
   /* Ndbd, init from GlobalScheduler */
   m_pHighResTimer = globalScheduler.getHighResTimerPtr();
