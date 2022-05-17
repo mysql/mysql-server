@@ -252,13 +252,6 @@ CHECK_FUNCTION_EXISTS (getrlimit HAVE_GETRLIMIT)
 IF(WITH_ASAN)
   MESSAGE(STATUS "Skip building ClusterJ by default for ASAN builds")
   SET(WITH_NDB_JAVA_DEFAULT OFF)
-ELSEIF(NOT MYSQL_CLUSTER_VERSION)
-  # Don't build the Java parts of NDB by default in MySQL Server
-  # (this lowers the threshold for checking that things
-  #  work also with engine = NDB)
-  SET(WITH_NDB_JAVA_DEFAULT OFF)
-  MESSAGE(STATUS "Default value for WITH_NDB_JAVA set to 0 in "
-                 "MySQL Server version")
 ELSE()
   # Check if the default for WITH_NDB_JAVA should be
   # magically overriden
