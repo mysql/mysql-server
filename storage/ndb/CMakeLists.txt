@@ -32,88 +32,85 @@ INCLUDE(ndb_add_target_property)
 INCLUDE(ndb_add_test)
 INCLUDE(ndb_add_executable)
 
-#
-# Add the ndbcluster plugin
-#
-SET(NDBCLUSTER_SOURCES
-  ../../sql/abstract_query_plan.cc
-  plugin/ha_ndbcluster.cc
-  plugin/ha_ndbcluster_cond.cc
-  plugin/ha_ndbcluster_push.cc
-  plugin/ha_ndbcluster_connection.cc
-  plugin/ha_ndbcluster_binlog.cc
-  plugin/ha_ndb_index_stat.cc
-  plugin/ha_ndb_ddl_fk.cc
-  plugin/ha_ndbinfo.cc
-  plugin/ha_ndbinfo_sql.cc
-  plugin/ndb_local_connection.cc
-  plugin/ndb_share.cc
-  plugin/ndb_thd.cc
-  plugin/ndb_thd_ndb.cc
-  plugin/ndb_global_schema_lock.cc
-  plugin/ndb_mi.cc
-  plugin/ndb_conflict_trans.cc
-  plugin/ndb_anyvalue.cc
-  plugin/ndb_ndbapi_util.cc
-  plugin/ndb_binlog_extra_row_info.cc
-  plugin/ndb_event_data.cc
-  plugin/ndb_schema_object.cc
-  plugin/ndb_schema_dist.cc
-  plugin/ndb_component.cc
-  plugin/ndb_repl_tab.cc
-  plugin/ndb_conflict.cc
-  plugin/ndb_tdc.cc
-  plugin/ndb_log.cc
-  plugin/ndb_binlog_thread.cc
-  plugin/ndb_name_util.cc
-  plugin/ndb_bitmap.cc
-  plugin/ndb_table_map.cc
-  plugin/ndb_dd.cc
-  plugin/ndb_modifiers.cc
-  plugin/ndb_dd_client.cc
-  plugin/ndb_dd_schema.cc
-  plugin/ndb_dd_table.cc
-  plugin/ndb_dd_sdi.cc
-  plugin/ndb_plugin_reference.cc
-  plugin/ndb_server_hooks.cc
-  plugin/ndb_binlog_client.cc
-  plugin/ndb_metadata.cc
-  plugin/ndb_dd_disk_data.cc
-  plugin/ndb_dd_upgrade_table.cc
-  plugin/ndb_binlog_hooks.cc
-  plugin/ndb_util_table.cc
-  plugin/ndb_schema_dist_table.cc
-  plugin/ndb_fk_util.cpp
-  plugin/ndb_schema_trans_guard.cc
-  plugin/ndb_create_helper.cc
-  plugin/ndb_apply_status_table.cc
-  plugin/ndb_metadata_change_monitor.cc
-  plugin/ndb_schema_result_table.cc
-  plugin/ndb_metadata_sync.cc
-  plugin/ndb_ddl_transaction_ctx.cc
-  plugin/ndb_record_layout.cc
-  plugin/ndb_sql_metadata_table.cc
-  plugin/ndb_stored_grants.cc
-  plugin/ndb_dd_fk.cc
-  plugin/ndb_pfs_init.cc
-  plugin/ndb_pfs_table.cc
-  plugin/ndb_sync_pending_objects_table.cc
-  plugin/ndb_sync_excluded_objects_table.cc
-  plugin/ndb_dd_sync.cc
-  plugin/ndb_upgrade_util.cc
-  plugin/ndb_mysql_services.cc
-  plugin/ndb_table_stats.cc
-  plugin/ndb_index_stat_head_table.cc
-  plugin/ndb_index_stat_sample_table.cc
-)
-
-NDB_ADD_TEST("ndb_bitmap-t" "plugin/ndb_bitmap.cc" LIBS ndbgeneral)
-NDB_ADD_TEST("ndb_blobs_buffer-t" "plugin/ndb_blobs_buffer.cc" LIBS ndbgeneral)
-
-# Include directories used when building ha_ndbcluster
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
-
 IF(NOT WITHOUT_SERVER)
+  #
+  # Add the ndbcluster plugin
+  #
+  SET(NDBCLUSTER_SOURCES
+    ../../sql/abstract_query_plan.cc
+    plugin/ha_ndbcluster.cc
+    plugin/ha_ndbcluster_cond.cc
+    plugin/ha_ndbcluster_push.cc
+    plugin/ha_ndbcluster_connection.cc
+    plugin/ha_ndbcluster_binlog.cc
+    plugin/ha_ndb_index_stat.cc
+    plugin/ha_ndb_ddl_fk.cc
+    plugin/ha_ndbinfo.cc
+    plugin/ha_ndbinfo_sql.cc
+    plugin/ndb_local_connection.cc
+    plugin/ndb_share.cc
+    plugin/ndb_thd.cc
+    plugin/ndb_thd_ndb.cc
+    plugin/ndb_global_schema_lock.cc
+    plugin/ndb_mi.cc
+    plugin/ndb_conflict_trans.cc
+    plugin/ndb_anyvalue.cc
+    plugin/ndb_ndbapi_util.cc
+    plugin/ndb_binlog_extra_row_info.cc
+    plugin/ndb_event_data.cc
+    plugin/ndb_schema_object.cc
+    plugin/ndb_schema_dist.cc
+    plugin/ndb_component.cc
+    plugin/ndb_repl_tab.cc
+    plugin/ndb_conflict.cc
+    plugin/ndb_tdc.cc
+    plugin/ndb_log.cc
+    plugin/ndb_binlog_thread.cc
+    plugin/ndb_name_util.cc
+    plugin/ndb_bitmap.cc
+    plugin/ndb_table_map.cc
+    plugin/ndb_dd.cc
+    plugin/ndb_modifiers.cc
+    plugin/ndb_dd_client.cc
+    plugin/ndb_dd_schema.cc
+    plugin/ndb_dd_table.cc
+    plugin/ndb_dd_sdi.cc
+    plugin/ndb_plugin_reference.cc
+    plugin/ndb_server_hooks.cc
+    plugin/ndb_binlog_client.cc
+    plugin/ndb_metadata.cc
+    plugin/ndb_dd_disk_data.cc
+    plugin/ndb_dd_upgrade_table.cc
+    plugin/ndb_binlog_hooks.cc
+    plugin/ndb_util_table.cc
+    plugin/ndb_schema_dist_table.cc
+    plugin/ndb_fk_util.cpp
+    plugin/ndb_schema_trans_guard.cc
+    plugin/ndb_create_helper.cc
+    plugin/ndb_apply_status_table.cc
+    plugin/ndb_metadata_change_monitor.cc
+    plugin/ndb_schema_result_table.cc
+    plugin/ndb_metadata_sync.cc
+    plugin/ndb_ddl_transaction_ctx.cc
+    plugin/ndb_record_layout.cc
+    plugin/ndb_sql_metadata_table.cc
+    plugin/ndb_stored_grants.cc
+    plugin/ndb_dd_fk.cc
+    plugin/ndb_pfs_init.cc
+    plugin/ndb_pfs_table.cc
+    plugin/ndb_sync_pending_objects_table.cc
+    plugin/ndb_sync_excluded_objects_table.cc
+    plugin/ndb_dd_sync.cc
+    plugin/ndb_upgrade_util.cc
+    plugin/ndb_mysql_services.cc
+    plugin/ndb_table_stats.cc
+    plugin/ndb_index_stat_head_table.cc
+    plugin/ndb_index_stat_sample_table.cc
+  )
+
+  # Include directories used when building ha_ndbcluster
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
+
   MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
     DEFAULT STATIC_ONLY
     LINK_LIBRARIES ndbclient_static)
@@ -122,6 +119,9 @@ IF(NOT WITHOUT_SERVER)
   IF (NOT WITH_NDBCLUSTER)
     MESSAGE(FATAL_ERROR "MYSQL_ADD_PLUGIN decided to skip build")
   ENDIF()
+
+  NDB_ADD_TEST("ndb_bitmap-t" "plugin/ndb_bitmap.cc" LIBS ndbgeneral)
+  NDB_ADD_TEST("ndb_blobs_buffer-t" "plugin/ndb_blobs_buffer.cc" LIBS ndbgeneral)
 ENDIF()
 
 # Disable strict-aliasing for storage/ndb
