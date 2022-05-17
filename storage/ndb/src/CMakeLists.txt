@@ -68,10 +68,19 @@ ENDIF()
 
 MESSAGE(STATUS "LIBS_TO_MERGE ${LIBS_TO_MERGE}")
 
+IF(NOT WITH_NDB)
+  SET(SKIP_INSTALL_NDBCLIENT_STATIC SKIP_INSTALL)
+ENDIF()
+
 MERGE_CONVENIENCE_LIBRARIES(ndbclient_static ${LIBS_TO_MERGE}
+  ${SKIP_INSTALL_NDBCLIENT_STATIC}
   COMPONENT Development
   LINK_LIBRARIES ${SSL_LIBRARIES} ${LIBS_TO_LINK}
   )
+
+IF(NOT WITH_NDB)
+  RETURN()
+ENDIF()
 
 # Build test program to check linking against ndclient_static
 ADD_EXECUTABLE(ndbclient_static_link_test ndbclient_link_test.cpp)

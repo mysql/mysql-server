@@ -62,6 +62,9 @@ CONFIGURE_FILE(ndb_version.h.in
 # Exclude ndb_version.h from "make dist"
 LIST(APPEND CPACK_SOURCE_IGNORE_FILES include/ndb_version\\\\.h$)
 
+IF(NOT WITH_NDB)
+  RETURN()
+ENDIF()
 
 # Install public headers
 SET(NDB_GENERAL_HEADERS

@@ -20,10 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-IF(NOT WITH_NDBCLUSTER)
-  RETURN()
-ENDIF()
-
 # Add both MySQL and NDB cmake repositories to search path
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/cmake
@@ -32,7 +28,15 @@ INCLUDE(ndb_add_target_property)
 INCLUDE(ndb_add_test)
 INCLUDE(ndb_add_executable)
 
+DISABLE_MISSING_PROFILE_WARNING()
+
 IF(NOT WITHOUT_SERVER)
+  IF(NOT WITH_NDB AND NOT DEFINED WITH_NDBCLUSTER_STORAGE_ENGINE)
+    IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
+      # Do not build ndbcluster plugin by default for 32-bit MySQL Server
+      SET(WITH_NDBCLUSTER_STORAGE_ENGINE 0)
+    ENDIF()
+  ENDIF()
   #
   # Add the ndbcluster plugin
   #
@@ -111,17 +115,32 @@ IF(NOT WITHOUT_SERVER)
   # Include directories used when building ha_ndbcluster
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 
+  # This will add WITH_NDBCLUSTER_STORAGE_ENGINE to the CACHE,
+  # unless it is explicitly disabled on the command line.
   MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
     DEFAULT STATIC_ONLY
     LINK_LIBRARIES ndbclient_static)
 
   # Sanity check that MYSQL_ADD_PLUGIN didn't decide to skip build
-  IF (NOT WITH_NDBCLUSTER)
-    MESSAGE(FATAL_ERROR "MYSQL_ADD_PLUGIN decided to skip build")
+  IF (NOT WITH_NDBCLUSTER_STORAGE_ENGINE)
+    IF(WITH_NDB)
+      MESSAGE(FATAL_ERROR
+        "Ndbcluster plugin required when building MySQL Cluster")
+    ELSE()
+      RETURN()
+    ENDIF()
+  ELSE()
+    MESSAGE(STATUS "Building ndbcluster plugin")
   ENDIF()
 
   NDB_ADD_TEST("ndb_bitmap-t" "plugin/ndb_bitmap.cc" LIBS ndbgeneral)
   NDB_ADD_TEST("ndb_blobs_buffer-t" "plugin/ndb_blobs_buffer.cc" LIBS ndbgeneral)
+ELSEIF(NOT WITH_NDB)
+  IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
+    MESSAGE(WARNING "Skips building ndbcluster plugin, WITHOUT_SERVER=ON "
+      "overrides WITH_NDBCLUSTER_STORAGE_ENGINE=ON")
+  ENDIF()
+  RETURN()
 ENDIF()
 
 # Disable strict-aliasing for storage/ndb
@@ -224,7 +243,7 @@ ELSE()
     MESSAGE(STATUS "Default value for WITH_NDB_JAVA set to 0 since "
                    "bootstrapping was detected")
   ELSE()
-    SET(WITH_NDB_JAVA_DEFAULT ON)
+  SET(WITH_NDB_JAVA_DEFAULT ${WITH_NDB})
   ENDIF()
 ENDIF()
 OPTION(WITH_NDB_JAVA
@@ -238,6 +257,10 @@ ENDIF(WITH_NDB_JAVA)
 
 ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(src)
+
+IF(NOT WITH_NDB)
+  RETURN()
+ENDIF()
 
 SET(WITH_NDBAPI_EXAMPLES_DEFAULT OFF)
 OPTION(WITH_NDB_TEST

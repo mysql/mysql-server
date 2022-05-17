@@ -36,7 +36,7 @@ SET(CPACK_COMPONENTS_USED
   SharedLibraries
   )
 
-IF(WITH_NDBCLUSTER)
+IF(WITH_NDB)
   MESSAGE(STATUS "This is Cluster build, append additional components")
   SET(CPACK_COMPONENTS_USED
     "${CPACK_COMPONENTS_USED};ClusterTools;ClusterDataNode;ClusterManagementServer;ClusterManagementClient;ClusterJ;nodejs")
@@ -134,7 +134,7 @@ SET(CPACK_COMPONENT_GROUP_MISC_WIX_LEVEL 100)
   SET(CPACK_COMPONENT_INIFILES_GROUP "Misc")
   SET(CPACK_COMPONENT_SERVER_SCRIPTS_GROUP "Misc")
 
-IF(WITH_NDBCLUSTER)
+IF(WITH_NDB)
   MESSAGE(STATUS "This is Cluster build, define additional components")
   #Feature "Cluster"
   SET(CPACK_COMPONENT_GROUP_CLUSTER_DISPLAY_NAME "MySQL Cluster")

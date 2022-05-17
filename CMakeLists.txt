@@ -520,32 +520,51 @@ ELSE()
   MARK_AS_ADVANCED(MYSQL_PROJECT_NAME)
 ENDIF()
 
-# Remember if WITH_NDBCLUSTER was specified by user
+# Handle upgrade of old cmake cache
+IF(DEFINED WITH_PLUGIN_NDBCLUSTER)
+  IF(NOT WITH_NDBCLUSTER)
+    IF(WITH_PLUGIN_NDBCLUSTER OR WITH_NDBCLUSTER_STORAGE_ENGINE)
+      MESSAGE(FATAL_ERROR
+        "Old broken config, WITH_NDBCLUSTER_STORAGE_ENGINE have changed "
+        "meaning, to build MySQL Cluster please add -DWITH_NDB=ON and "
+        "-UWITH_PLUGIN_NDBCLUSTER")
+    ENDIF()
+  ENDIF()
+ENDIF()
+
+# Allow WITH_NDBCLUSTER, makes it possible to bisect between
+# old and new source code and use cmake -DWITH_NDBCLUSTER=xx for both.
+# If both WITH_NDB and WITH_NDBCLUSTER is set they must be equal.
+# Else WITH_NDB is set as WITH_NDBCLUSTER.
+# WITH_NDBCLUSTER is unset and not cached to not intefere with
+# legacy logic in MYSQL_ADD_PLUGIN.
 IF(DEFINED WITH_NDBCLUSTER)
   SET(HAVE_WITH_NDBCLUSTER 1)
-ENDIF()
-OPTION(WITH_NDBCLUSTER "Build MySQL Cluster" OFF)
-OPTION(WITH_NDBCLUSTER_STORAGE_ENGINE
-  "Legacy and deprecated alias for WITH_NDBCLUSTER" OFF)
-OPTION(WITH_PLUGIN_NDBCLUSTER
-  "Legacy and deprecated alias for WITH_NDBCLUSTER" OFF)
-MARK_AS_ADVANCED(WITH_NDBCLUSTER_STORAGE_ENGINE WITH_PLUGIN_NDBCLUSTER)
-IF(NOT HAVE_WITH_NDBCLUSTER)
-  # Unless user has used WITH_NDBCLUSTER also look at
-  # some of the legacy variables
-  IF(WITH_PLUGIN_NDBCLUSTER)
-    MESSAGE(WARNING "WITH_PLUGIN_NDBCLUSTER is deprecated and will be "
-      "removed in a future release. Please use WITH_NDBCLUSTER instead.")
-    SET(WITH_NDBCLUSTER ON)
+  IF(DEFINED WITH_NDB)
+    # The extra NOTs are needed to normalize the boolean values else for
+    # example ON is not treated equal to 1.
+    IF(NOT (NOT WITH_NDB) EQUAL (NOT WITH_NDBCLUSTER))
+      MESSAGE(FATAL_ERROR
+        "WITH_NDB=${WITH_NDB} do not match WITH_NDBCLUSTER=${WITH_NDBCLUSTER}")
+    ENDIF()
+    SET(WITH_NDB_DEFAULT OFF)
+  ELSEIF(WITH_NDBCLUSTER)
+    MESSAGE(WARNING "WITH_NDBCLUSTER option is deprecated, please use "
+      "WITH_NDB instead. For backward compatibility WITH_NDBCLUSTER=ON sets "
+      "WITH_NDB=ON")
+    SET(WITH_NDB_DEFAULT ON)
+  ELSE()
+    SET(WITH_NDB_DEFAULT OFF)
   ENDIF()
-  IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
-    MESSAGE(WARNING "WITH_NDBCLUSTER_STORAGE_ENGINE is deprecated and "
-      "will be removed in a future release. Please use WITH_NDBCLUSTER "
-      "instead.")
-    SET(WITH_NDBCLUSTER ON)
-  ENDIF()
+  # Unset WITH_NDBCLUSTER to not intefere with MYSQL_ADD_PLUGIN logic.
+  # It will be added to cache at end of this file.
+  UNSET(WITH_NDBCLUSTER CACHE)
+ELSE()
+  SET(WITH_NDB_DEFAULT OFF)
 ENDIF()
-IF(WITH_NDBCLUSTER)
+
+OPTION(WITH_NDB "Build MySQL Cluster" ${WITH_NDB_DEFAULT})
+IF(WITH_NDB)
   MESSAGE(STATUS "Building MySQL Cluster")
 ENDIF()
 
@@ -709,6 +728,7 @@ MESSAGE(STATUS "SIZEOF_VOIDP ${SIZEOF_VOIDP}")
 # On some platforms, cmake may think that CMAKE_SIZEOF_VOID_P == 4
 # even if we have configured for 64bit build....
 SET(CMAKE_SIZEOF_VOID_P ${SIZEOF_VOIDP})
+
 
 INCLUDE(compile_flags)
 INCLUDE(install_layout)
@@ -2156,7 +2176,7 @@ IF(NOT WITHOUT_SERVER)
   CONFIGURE_PLUGINS()
 ELSE()
   IF(EXISTS "${CMAKE_SOURCE_DIR}/storage/ndb")
-    # We may still want Cluster client libraries, use -DWITH_NDBCLUSTER=1
+    # We may still want Cluster client libraries, use -DWITH_NDB=1
     ADD_SUBDIRECTORY(storage/ndb)
   ENDIF()
 ENDIF()
@@ -2596,3 +2616,9 @@ MESSAGE(STATUS "CMAKE_CXX_LINK_FLAGS: ${CMAKE_CXX_LINK_FLAGS}")
 MESSAGE(STATUS "CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS}")
 MESSAGE(STATUS "CMAKE_MODULE_LINKER_FLAGS ${CMAKE_MODULE_LINKER_FLAGS}")
 MESSAGE(STATUS "CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS}")
+
+# If user provided WITH_NDBCLUSTER keep it in cache
+IF(HAVE_WITH_NDBCLUSTER)
+  SET(WITH_NDBCLUSTER ${WITH_NDB} CACHE BOOL
+    "Deprecated legacy option for MySQL Cluster")
+ENDIF()

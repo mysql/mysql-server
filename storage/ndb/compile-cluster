@@ -158,7 +158,7 @@ if(! -d "$opt_srcdir/libmysqld")
   {
     # Hardcoded options controlling how to build MySQL Server
     push(@args, "-DWITH_SSL=system"); # Consistent error messages
-    push(@args, "-DWITH_NDBCLUSTER=1"); # Build MySQL Cluster
+    push(@args, "-DWITH_NDB=1"); # Build MySQL Cluster
 
     # Hardcoded options controlling how to build NDB
     push(@args, "-DWITH_NDB_TEST=1");

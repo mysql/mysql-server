@@ -3624,7 +3624,11 @@ sub check_ndbcluster_support ($) {
 
   my $ndbcluster_supported = 0;
   if ($mysqld_variables{'ndb-connectstring'}) {
-    $ndbcluster_supported = 1;
+    $exe_ndbd =
+      my_find_bin($bindir,
+                  [ "runtime_output_directory", "libexec", "sbin", "bin" ],
+                  "ndbd", NOT_REQUIRED);
+    $ndbcluster_supported = $exe_ndbd ? 1 : 0;
   }
 
   if ($opt_skip_ndbcluster && $opt_include_ndbcluster) {
