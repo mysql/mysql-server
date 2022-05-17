@@ -162,44 +162,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}/include
 )
 
-SET(WITH_NDBAPI_EXAMPLES_DEFAULT OFF)
-OPTION(WITH_NDB_TEST
-  "Include the NDB Cluster ndbapi test programs" OFF)
-IF(WITH_NDB_TEST)
-  MESSAGE(STATUS "Building NDB test programs")
-ELSE()
-  # Turn on NDB tests automatically for gcov builds
-  IF(ENABLE_GCOV AND NOT WIN32 AND NOT APPLE)
-    MESSAGE(STATUS "Building NDB test programs for improved gcov coverage")
-    SET(WITH_NDB_TEST ON)
-    MESSAGE(STATUS "Building NdbApi examples for improved gcov coverage")
-    SET(WITH_NDBAPI_EXAMPLES_DEFAULT ON)
-  ENDIF()
-  # Turn on NDB tests automatically for valgrind builds
-  IF(WITH_VALGRIND)
-    MESSAGE(STATUS "Building NDB test programs for improved valgrind coverage")
-    SET(WITH_NDB_TEST ON)
-    MESSAGE(STATUS "Building NdbApi examples for improved valgrind coverage")
-    SET(WITH_NDBAPI_EXAMPLES_DEFAULT ON)
-  ENDIF()
-  # Turn on NDB tests automatically for "-devbld" debug builds
-  # to increase test coverage
-  IF(PACKAGE_SUFFIX STREQUAL "-devbld" AND
-     CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
-    MESSAGE(STATUS "Building NDB test programs for \"-devbld\" debug build")
-    SET(WITH_NDB_TEST ON)
-    MESSAGE(STATUS "Building NdbApi examples for \"-devbld\" debug build")
-    SET(WITH_NDBAPI_EXAMPLES_DEFAULT ON)
-  ENDIF()
-  # Turn on build of NDB tests automatically for "-werror" builds
-  IF(PACKAGE_SUFFIX STREQUAL "-werror")
-    MESSAGE(STATUS "Building NDB test programs for \"-werror\" build")
-    SET(WITH_NDB_TEST ON)
-    MESSAGE(STATUS "Building NdbApi examples for \"-werror\" build")
-    SET(WITH_NDBAPI_EXAMPLES_DEFAULT ON)
-  ENDIF()
-ENDIF()
-
 SET(DEBUG_FLAGS
   -DACC_SAFE_QUEUE
   -DAPI_TRACE
@@ -276,6 +238,45 @@ ENDIF(WITH_NDB_JAVA)
 
 ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(src)
+
+SET(WITH_NDBAPI_EXAMPLES_DEFAULT OFF)
+OPTION(WITH_NDB_TEST
+  "Include the NDB Cluster ndbapi test programs" OFF)
+IF(WITH_NDB_TEST)
+  MESSAGE(STATUS "Building NDB test programs")
+ELSE()
+  # Turn on NDB tests automatically for gcov builds
+  IF(ENABLE_GCOV AND NOT WIN32 AND NOT APPLE)
+    MESSAGE(STATUS "Building NDB test programs for improved gcov coverage")
+    SET(WITH_NDB_TEST ON)
+    MESSAGE(STATUS "Building NdbApi examples for improved gcov coverage")
+    SET(WITH_NDBAPI_EXAMPLES_DEFAULT ON)
+  ENDIF()
+  # Turn on NDB tests automatically for valgrind builds
+  IF(WITH_VALGRIND)
+    MESSAGE(STATUS "Building NDB test programs for improved valgrind coverage")
+    SET(WITH_NDB_TEST ON)
+    MESSAGE(STATUS "Building NdbApi examples for improved valgrind coverage")
+    SET(WITH_NDBAPI_EXAMPLES_DEFAULT ON)
+  ENDIF()
+  # Turn on NDB tests automatically for "-devbld" debug builds
+  # to increase test coverage
+  IF(PACKAGE_SUFFIX STREQUAL "-devbld" AND
+     CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
+    MESSAGE(STATUS "Building NDB test programs for \"-devbld\" debug build")
+    SET(WITH_NDB_TEST ON)
+    MESSAGE(STATUS "Building NdbApi examples for \"-devbld\" debug build")
+    SET(WITH_NDBAPI_EXAMPLES_DEFAULT ON)
+  ENDIF()
+  # Turn on build of NDB tests automatically for "-werror" builds
+  IF(PACKAGE_SUFFIX STREQUAL "-werror")
+    MESSAGE(STATUS "Building NDB test programs for \"-werror\" build")
+    SET(WITH_NDB_TEST ON)
+    MESSAGE(STATUS "Building NdbApi examples for \"-werror\" build")
+    SET(WITH_NDBAPI_EXAMPLES_DEFAULT ON)
+  ENDIF()
+ENDIF()
+
 ADD_SUBDIRECTORY(tools)
 ADD_SUBDIRECTORY(test)
 IF(WITH_NDB_TEST)
