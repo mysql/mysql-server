@@ -38,7 +38,6 @@
 #include <memory>
 #include <sstream>
 #include <stdexcept>
-#include <strstream>
 #include <vector>
 
 #include "mysql/harness/utility/string.h"
@@ -133,8 +132,10 @@ void PasswordVault::load_passwords() {
                       vault_path.c_str(), code));
   }
 
-  std::strstream ss(reinterpret_cast<char *>(buf_decrypted.pbData),
-                    buf_decrypted.cbData, std::ios_base::in);
+  std::stringstream ss(
+      std::string(reinterpret_cast<char *>(buf_decrypted.pbData),
+                  buf_decrypted.cbData),
+      std::ios_base::in);
 
   std::string line;
   std::string section_name;

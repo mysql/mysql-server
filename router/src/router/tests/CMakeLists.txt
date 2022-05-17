@@ -220,13 +220,6 @@ TARGET_COMPILE_DEFINITIONS(
     ROUTER_LIB_STATIC_DEFINE=1
   )
 
-IF(WIN32)
-  # TODO(Bug#33985941): update the code and remove the disabled warnings
-  TARGET_COMPILE_DEFINITIONS(router_lib_export_all
-    PRIVATE _SILENCE_CXX17_STRSTREAM_DEPRECATION_WARNING
-    )
-ENDIF()
-
 ADD_HARNESS_TEST_FILE(test_config_generator.cc
   MODULE ${TEST_MODULE}
   LIB_DEPENDS

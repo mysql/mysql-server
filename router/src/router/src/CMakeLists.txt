@@ -80,13 +80,6 @@ TARGET_INCLUDE_DIRECTORIES(router_lib
   ${CMAKE_CURRENT_BINARY_DIR}/../include
   )
 
-IF(WIN32)
-  # TODO(Bug#33985941): update the code and remove the disabled warnings
-  TARGET_COMPILE_DEFINITIONS(router_lib
-    PRIVATE _SILENCE_CXX17_STRSTREAM_DEPRECATION_WARNING
-    )
-ENDIF()
-
 SET_TARGET_PROPERTIES(router_lib PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
