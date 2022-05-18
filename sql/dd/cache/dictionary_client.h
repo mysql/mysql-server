@@ -786,9 +786,11 @@ class Dictionary_client {
   /**
     Retrieve a table object by its se private id.
 
-    @param       engine        Name of the engine storing the table.
-    @param       se_private_id SE private id of the table.
-    @param [out] table         Table object, if present; otherwise NULL.
+    @param       engine          Name of the engine storing the table.
+    @param       se_private_id   SE private id of the table.
+    @param [out] table           Table object, if present; otherwise NULL.
+    @param       skip_spi_cache  Optionally skip looking into the missing
+                                 SE private ID cache. Defaults to false.
 
     @note The object must be acquired uncached since we cannot acquire a
           metadata lock in advance since we do not know the table name.
@@ -801,7 +803,8 @@ class Dictionary_client {
   */
 
   [[nodiscard]] bool acquire_uncached_table_by_se_private_id(
-      const String_type &engine, Object_id se_private_id, Table **table);
+      const String_type &engine, Object_id se_private_id, Table **table,
+      bool skip_spi_cache = false);
 
   /**
     Retrieve a table object by its partition se private id.

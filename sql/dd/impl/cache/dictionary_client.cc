@@ -1554,14 +1554,19 @@ bool Dictionary_client::acquire_for_modification(
 
 // Retrieve a table object by its se private id.
 bool Dictionary_client::acquire_uncached_table_by_se_private_id(
-    const String_type &engine, Object_id se_private_id, Table **table) {
+    const String_type &engine, Object_id se_private_id, Table **table,
+    bool skip_spi_cache) {
   assert(table);
   *table = nullptr;
-  bool no_table =
-      is_cached(m_no_table_spids, se_private_id, SPI_missing_type::TABLES);
+  bool no_table = false;
 
-  if (no_table) {
-    return false;
+  if (!skip_spi_cache) {
+    no_table =
+        is_cached(m_no_table_spids, se_private_id, SPI_missing_type::TABLES);
+
+    if (no_table) {
+      return false;
+    }
   }
 
   // Create se private key.
@@ -1579,7 +1584,9 @@ bool Dictionary_client::acquire_uncached_table_by_se_private_id(
 
   // If object was not found.
   if (stored_object == nullptr) {
-    m_no_table_spids->insert(se_private_id, SPI_missing_type::TABLES);
+    if (!skip_spi_cache) {
+      m_no_table_spids->insert(se_private_id, SPI_missing_type::TABLES);
+    }
     return false;
   }
   assert(no_table == false);
