@@ -8327,7 +8327,7 @@ static int fix_paths(void)
   my_realpath(mysql_home,mysql_home,MYF(0));
   /* Ensure that mysql_home ends in FN_LIBCHAR */
   pos=strend(mysql_home);
-  if (pos[-1] != FN_LIBCHAR)
+  if (mysql_home == pos || pos[-1] != FN_LIBCHAR)
   {
     pos[0]= FN_LIBCHAR;
     pos[1]= 0;
