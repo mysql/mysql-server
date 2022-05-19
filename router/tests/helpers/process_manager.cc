@@ -286,14 +286,16 @@ ProcessWrapper &ProcessManager::Spawner::launch_command_and_wait(
           wait_for_notified_ready(notify_socket, sync_point_timeout_));
 
       EXPECT_TRUE(result.wait_for_sync_point_result())
-          << "waiting for READY on socket: " << socket_node;
+          << "waited " << sync_point_timeout_.count()
+          << "ms for READY on socket: " << socket_node;
     } break;
     case SyncPoint::RUNNING: {
       result.wait_for_sync_point_result(wait_for_notified(
           notify_socket, "STATUS=running", sync_point_timeout_));
 
       EXPECT_TRUE(result.wait_for_sync_point_result())
-          << "waiting for RUNNING on socket: " << socket_node;
+          << "waited " << sync_point_timeout_.count()
+          << "ms for RUNNING on socket: " << socket_node;
 
     } break;
     case SyncPoint::NONE:
