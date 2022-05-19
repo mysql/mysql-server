@@ -127,7 +127,7 @@ class AsyncReplicasetTest : public RouterComponentTest {
                       const std::string &routing_section,
                       const std::string &state_file_path,
                       const int expected_errorcode = EXIT_SUCCESS,
-                      std::chrono::milliseconds wait_for_notify_ready = 5s) {
+                      std::chrono::milliseconds wait_for_notify_ready = 30s) {
     const std::string masterkey_file =
         Path(temp_test_dir).join("master.key").str();
     const std::string keyring_file = Path(temp_test_dir).join("keyring").str();

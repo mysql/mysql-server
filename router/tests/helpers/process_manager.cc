@@ -448,7 +448,7 @@ std::vector<std::string> ProcessManager::mysql_server_mock_cmdline_args(
 ProcessWrapper &ProcessManager::launch_mysql_server_mock(
     const std::vector<std::string> &server_params, unsigned port,
     int expected_exit_code,
-    std::chrono::milliseconds wait_for_notify_ready /*= 5s*/) {
+    std::chrono::milliseconds wait_for_notify_ready /*= 30s*/) {
   auto &result = spawner(mysqlserver_mock_exec_.str())
                      .expected_exit_code(expected_exit_code)
                      .wait_for_notify_ready(wait_for_notify_ready)
