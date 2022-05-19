@@ -61,7 +61,7 @@ class SocketCloseTest : public RouterComponentTest {
   auto &launch_router(const std::string &metadata_cache_section,
                       const std::string &routing_section,
                       const int expected_exitcode,
-                      std::chrono::milliseconds wait_for_notify_ready = 5s) {
+                      std::chrono::milliseconds wait_for_notify_ready = 30s) {
     auto default_section = get_DEFAULT_defaults();
     init_keyring(default_section, get_test_temp_dir_name(), router_user,
                  router_password);
