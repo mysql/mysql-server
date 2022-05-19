@@ -22,9 +22,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <string_view>
 #include <system_error>
 #include <thread>
 
+#include <gmock/gmock-more-matchers.h>
 #include <gmock/gmock.h>
 
 #include <event2/event.h>  // EVENT__HAVE_OPENSSL
@@ -39,23 +41,19 @@
 #include "tcp_port_pool.h"
 #include "test/temp_directory.h"
 
+namespace {
 // a placeholder that will be replaced with a valid value
 //
 // for "port", the currently assinged port will be used
 // for "ssl_cert", a valid certificate
 // ... and so on
-const char kPlaceholder[]{"@good_placeholder@"};
-const char kPlaceholderDatadir[]{"@placeholder_datadir@"};
-const char kPlaceholderStddataDir[]{"@placeholder_stddatadir@"};
-const char kPlaceholderHttpBaseDir[]{"@placeholder_httpbasedir@"};
-const char kSubdirWithSpace[]{"with space"};
-const char kSubdirWithIndex[]{"with_index"};
-
-const char kSuccessfulLogOutput[]{""};
-
-const size_t placeholder_datadir_length{strlen(kPlaceholderDatadir)};
-const size_t placeholder_stddatadir_length{strlen(kPlaceholderStddataDir)};
-const size_t placeholder_httpbasedir_length{strlen(kPlaceholderHttpBaseDir)};
+const std::string_view kPlaceholder{"@good_placeholder@"};
+const std::string_view kPlaceholderDatadir{"@placeholder_datadir@"};
+const std::string_view kPlaceholderStddataDir{"@placeholder_stddatadir@"};
+const std::string_view kPlaceholderHttpBaseDir{"@placeholder_httpbasedir@"};
+const std::string_view kSubdirWithSpace{"with space"};
+const std::string_view kSubdirWithIndex{"with_index"};
+}  // namespace
 
 #if 0
 // invalid bind-address must be chosen wisely to
@@ -227,20 +225,20 @@ TEST_P(HttpServerPlainTest, ensure) {
       value = std::to_string(http_port_);
       has_port = true;
     } else if (e.first == "static_folder") {
-      if (e.second.substr(0, placeholder_httpbasedir_length) ==
+      if (e.second.substr(0, kPlaceholderHttpBaseDir.size()) ==
           kPlaceholderHttpBaseDir) {
         auto fp = mysql_harness::Path(http_base_dir_.name());
         {
-          auto subpath = e.second.substr(placeholder_httpbasedir_length);
+          auto subpath = e.second.substr(kPlaceholderHttpBaseDir.size());
           if (!subpath.empty()) {
             fp = fp.join(subpath);
           }
         }
         value = fp.real_path().str();
-      } else if (e.second.substr(0, placeholder_datadir_length) ==
+      } else if (e.second.substr(0, kPlaceholderDatadir.size()) ==
                  kPlaceholderDatadir) {
         value = get_data_dir()
-                    .join(e.second.substr(placeholder_datadir_length))
+                    .join(e.second.substr(kPlaceholderDatadir.size()))
                     .str();
       }
     }
@@ -321,7 +319,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      localhost_ipv4,
      {
          {"bind_address", "0.0.0.0"},
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
      },
      true,
      "^$",
@@ -336,7 +334,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      localhost_ipv6,
      {
          {"bind_address", "::"},
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
      },
      true,
      "^$",
@@ -351,7 +349,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      localhost_ipv4,
      {
          {"bind_address", "127.0.0.1"},
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
      },
      true,
      "^$",
@@ -366,7 +364,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      localhost_ipv4,
      {
          {"bind_address", " 127.0.0.1"},
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
      },
      true,
      "^$",
@@ -383,7 +381,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      {
          {"bind_address", " 127.0.0.1"},
          {"bind_address", " 127.0.0.1"},
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
      },
      false,
      "Option 'bind_address'",
@@ -399,7 +397,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-10",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
      },
      true,
      "^$",
@@ -427,8 +425,8 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-13",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
+         {"port", std::string(kPlaceholder)},
      },
      false,
      "Option 'port' already defined",
@@ -443,7 +441,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      localhost_ipv4,
      {
          {"bind_address", "127.0.0.1"},
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
      },
      true,
      "^$",
@@ -459,7 +457,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-16",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"static_folder", "does-not-exist"},
      },
      true,
@@ -474,7 +472,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-18",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"static_folder", " "},
      },
      true,
@@ -489,7 +487,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-18",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"static_folder", ""},
      },
      true,
@@ -504,8 +502,8 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-18",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
-         {"static_folder", kHttpBasedir + "/" + kSubdirWithSpace},
+         {"port", std::string(kPlaceholder)},
+         {"static_folder", kHttpBasedir + "/" + std::string(kSubdirWithSpace)},
      },
      true,
      "^$",
@@ -521,7 +519,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-20",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
      true,
@@ -536,7 +534,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-21",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
      true,
@@ -551,7 +549,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-22",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
      true,
@@ -566,7 +564,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891:TS-23,WL11891::TS-15",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
      true,
@@ -581,7 +579,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-24",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
      true,
@@ -596,7 +594,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-25",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
      true,
@@ -611,7 +609,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-26",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
      true,
@@ -626,7 +624,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-27",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
      true,
@@ -643,7 +641,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-29",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
      true,
@@ -660,7 +658,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
      true,
@@ -675,7 +673,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-31",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
      true,
@@ -690,7 +688,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-31",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
      true,
@@ -705,7 +703,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-32",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
      true,
@@ -720,7 +718,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
      true,
@@ -735,7 +733,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
      },
      true,
@@ -752,7 +750,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL12524::TS_01",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
          {"ssl", "0"},
      },
@@ -768,7 +766,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL12524::TS_02",
      localhost_ipv4,
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"static_folder", kHttpBasedir},
          {"ssl", "0"},
          {"ssl_key", "does-not-exist"},
@@ -790,7 +788,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "WL11891::TS-8",
      {
          {"bind_address", kInvalidBindAddress},
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
      },
      false,
      "getaddrinfo",
@@ -1214,15 +1212,15 @@ TEST_P(HttpServerSecureTest, ensure) {
       value = std::to_string(http_port_);
     } else if (e.first == "ssl_cert" || e.first == "ssl_key" ||
                e.first == "ssl_dh_param") {
-      if (e.second.substr(0, placeholder_stddatadir_length) ==
+      if (e.second.substr(0, kPlaceholderStddataDir.size()) ==
           kPlaceholderStddataDir) {
         value = ssl_cert_data_dir_
-                    .join(e.second.substr(placeholder_stddatadir_length))
+                    .join(e.second.substr(kPlaceholderStddataDir.size()))
                     .str();
-      } else if (e.second.substr(0, placeholder_datadir_length) ==
+      } else if (e.second.substr(0, kPlaceholderDatadir.size()) ==
                  kPlaceholderDatadir) {
         value = get_data_dir()
-                    .join(e.second.substr(placeholder_datadir_length))
+                    .join(e.second.substr(kPlaceholderDatadir.size()))
                     .str();
       }
     }
@@ -1267,9 +1265,11 @@ TEST_P(HttpServerSecureTest, ensure) {
     ASSERT_TRUE(req) << rest_client.error_msg();
     ASSERT_EQ(req.get_response_code(), 404);
   } else {
-    check_exit_code(http_server, EXIT_FAILURE,
-                    1000ms);  // assume it finishes in 1s
-    EXPECT_EQ(kSuccessfulLogOutput, http_server.get_full_output());
+    SCOPED_TRACE("// wait until process has finished.");
+    check_exit_code(http_server, EXIT_FAILURE, 10s);
+
+    SCOPED_TRACE("// stderr should be empty");
+    EXPECT_THAT(http_server.get_full_output(), ::testing::IsEmpty());
 
     // if openssl 1.1.0 is used and it is compiled with
     // "-DOPENSSL_TLS_SECURITY_LEVEL" > 1 we may also get "ee key too small"
@@ -1292,8 +1292,8 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"ssl, no cert, no key",
      "WL12524::TS_CR_01",
      {
-         {"port", kPlaceholder},  //
-         {"ssl", "1"},            // enable SSL
+         {"port", std::string(kPlaceholder)},  //
+         {"ssl", "1"},                         // enable SSL
      },
      false,
      kErrmsgRegexNoSslCertKey},
@@ -1301,9 +1301,9 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"ssl_is_hex",
      "",
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"ssl", "0x1"},  // hex-numbers should fail.
-         {"ssl_key", kPlaceholder},
+         {"ssl_key", std::string(kPlaceholder)},
      },
      false,
      R"(option ssl in \[http_server\] needs value between 0 and 1 inclusive, was '0x1')"},
@@ -1311,9 +1311,9 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"ssl=1, no cert",
      "WL12524::TS_CR_01",
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"ssl", "1"},  // enable SSL
-         {"ssl_key", kPlaceholder},
+         {"ssl_key", std::string(kPlaceholder)},
      },
      false,
      kErrmsgRegexNoSslCertKey},
@@ -1321,17 +1321,17 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"ssl=1, no key",
      "WL12524::TS_CR_01",
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"ssl", "1"},  // enable SSL
          {"ssl_cert",
-          kPlaceholderStddataDir + std::string("/") + kServerCertFile},
+          std::string(kPlaceholderStddataDir) + "/" + kServerCertFile},
      },
      false,
      kErrmsgRegexNoSslCertKey},
     {"ssl=1, bad cert",
      "WL12524::TS_CR_02",
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key", "does-not-exist"},
          {"ssl_cert", "does-not-exist"},
@@ -1342,12 +1342,12 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"ssl=1, cert, some unacceptable ciphers",
      "WL12524::TS_CR_05",
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key",
-          kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
+          std::string(kPlaceholderStddataDir) + "/" + kServerKeyFile},
          {"ssl_cert",
-          kPlaceholderStddataDir + std::string("/") + kServerCertFile},
+          std::string(kPlaceholderStddataDir) + "/" + kServerCertFile},
          {"ssl_cipher", "AES128-SHA:TLSv1.2"},
      },
      // if SSL support is disabled in libevent, we should see a failure,
@@ -1357,12 +1357,12 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"ssl=1, cert, only acceptable ciphers",
      "WL12524::TS_CR_07",
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key",
-          kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
+          std::string(kPlaceholderStddataDir) + "/" + kServerKeyFile},
          {"ssl_cert",
-          kPlaceholderStddataDir + std::string("/") + kServerCertFile},
+          std::string(kPlaceholderStddataDir) + "/" + kServerCertFile},
          {"ssl_cipher", "ECDHE-RSA-AES128-SHA256"},
      },
      // if SSL support is disabled in libevent, we should see a failure,
@@ -1372,12 +1372,12 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"dh_param file does not exist",
      "",
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key",
-          kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
+          std::string(kPlaceholderStddataDir) + "/" + kServerKeyFile},
          {"ssl_cert",
-          kPlaceholderStddataDir + std::string("/") + kServerCertFile},
+          std::string(kPlaceholderStddataDir) + "/" + kServerCertFile},
          {"ssl_cipher", "AES128-SHA256"},
          {"ssl_dh_param", "does-not-exist"},
      },
@@ -1386,26 +1386,26 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"dh_param file is no PEM",
      "WL12524::TS_CR_08",
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key",
-          kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
+          std::string(kPlaceholderStddataDir) + "/" + kServerKeyFile},
          {"ssl_cert",
-          kPlaceholderStddataDir + std::string("/") + kServerCertFile},
+          std::string(kPlaceholderStddataDir) + "/" + kServerCertFile},
          {"ssl_dh_param",
-          kPlaceholderDatadir + std::string("/") + "my_port.js"},
+          std::string(kPlaceholderDatadir) + "/" + "my_port.js"},
      },
      false,
      "setting ssl_dh_params failed"},
     {"dh ciphers, default dh-params",
      "WL12524::TS_CR_09",
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key",
-          kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
+          std::string(kPlaceholderStddataDir) + "/" + kServerKeyFile},
          {"ssl_cert",
-          kPlaceholderStddataDir + std::string("/") + kServerCertFile},
+          std::string(kPlaceholderStddataDir) + "/" + kServerCertFile},
          // force a DHE cipher that's known to the server
          {"ssl_cipher", "DHE-RSA-AES256-SHA256"},
      },
@@ -1416,16 +1416,16 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"dh ciphers, strong dh-params",
      "WL12524::TS_SR4_01,WL12524::TS_SR3_01",
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key",
-          kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
+          std::string(kPlaceholderStddataDir) + "/" + kServerKeyFile},
          {"ssl_cert",
-          kPlaceholderStddataDir + std::string("/") + kServerCertFile},
+          std::string(kPlaceholderStddataDir) + "/" + kServerCertFile},
          // force a DHE cipher that's known to the server
          {"ssl_cipher", "DHE-RSA-AES256-SHA256"},
          {"ssl_dh_param",
-          kPlaceholderDatadir + std::string("/") + kDhParams2048File},
+          std::string(kPlaceholderDatadir) + "/" + kDhParams2048File},
      },
      // if SSL support is disabled in libevent, we should see a failure,
      // success otherwise
@@ -1434,15 +1434,15 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"non-dh-cipher, strong dh-params",
      "WL12524::TS_SR4_01,WL12524::TS_SR3_01",
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key",
-          kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
+          std::string(kPlaceholderStddataDir) + "/" + kServerKeyFile},
          {"ssl_cert",
-          kPlaceholderStddataDir + std::string("/") + kServerCertFile},
+          std::string(kPlaceholderStddataDir) + "/" + kServerCertFile},
          {"ssl_cipher", "AES128-SHA256"},
          {"ssl_dh_param",
-          kPlaceholderDatadir + std::string("/") + kDhParams2048File},
+          std::string(kPlaceholderDatadir) + "/" + kDhParams2048File},
      },
      // if SSL support is disabled in libevent, we should see a failure,
      // success otherwise
@@ -1451,16 +1451,16 @@ const HttpServerSecureParams http_server_secure_params[]{
     {"dh ciphers, weak dh-params",
      "WL12524::TS_SR7_01",
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key",
-          kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
+          std::string(kPlaceholderStddataDir) + "/" + kServerKeyFile},
          {"ssl_cert",
-          kPlaceholderStddataDir + std::string("/") + kServerCertFile},
+          std::string(kPlaceholderStddataDir) + "/" + kServerCertFile},
          // force a DHE cipher that's known to the server
          {"ssl_cipher", "DHE-RSA-AES256-SHA256"},
          {"ssl_dh_param",
-          kPlaceholderDatadir + std::string("/") + kDhParams4File},
+          std::string(kPlaceholderDatadir) + "/" + kDhParams4File},
      },
      false,
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
@@ -1486,12 +1486,12 @@ const HttpServerSecureParams http_server_secure_params_pre_openssl_111[]{
     {"ssl_1_cert_only_unacceptable_ciphers",
      "WL12524::TS_CR_04",
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key",
-          kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
+          std::string(kPlaceholderStddataDir) + "/" + kServerKeyFile},
          {"ssl_cert",
-          kPlaceholderStddataDir + std::string("/") + kServerCertFile},
+          std::string(kPlaceholderStddataDir) + "/" + kServerCertFile},
          {"ssl_cipher", "AES128-SHA"},
      },
      // connection will fail as ciphers can't be negotiated or libevent may
@@ -1516,24 +1516,24 @@ const HttpServerSecureParams http_server_secure_openssl102_plus_params[]{
     {"ssl_cert weak",
      "WL12524::TS_SR6_01",
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key",
-          kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
+          std::string(kPlaceholderStddataDir) + "/" + kServerKeyFile},
          {"ssl_cert",
-          kPlaceholderStddataDir + std::string("/") + kServerCertRsa1024File},
+          std::string(kPlaceholderStddataDir) + "/" + kServerCertRsa1024File},
      },
      false,
      kErrmsgRegexWeakSslKey},
     {"ecdh cipher",
      "WL12524::TS_SR6_01",
      {
-         {"port", kPlaceholder},
+         {"port", std::string(kPlaceholder)},
          {"ssl", "1"},
          {"ssl_key",
-          kPlaceholderStddataDir + std::string("/") + kServerKeyFile},
+          std::string(kPlaceholderStddataDir) + "/" + kServerKeyFile},
          {"ssl_cert",
-          kPlaceholderStddataDir + std::string("/") + kServerCertFile},
+          std::string(kPlaceholderStddataDir) + "/" + kServerCertFile},
          {"ssl_cipher", "ECDHE"},
          {"ssl_curves", "P-256"},
      },
