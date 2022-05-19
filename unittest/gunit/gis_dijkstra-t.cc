@@ -59,7 +59,7 @@ TEST_F(DijkstraTest, NullHeuristic) {
     edge_map.insert(std::pair(e.from, e));
   }
   double cost;
-  Dijkstra dijkstra(&edge_map);
+  Dijkstra dijkstra(edge_map);
 
   // check 0 -> 3
   std::vector<Edge> path = dijkstra(0, 3, &cost);
@@ -128,8 +128,8 @@ TEST_F(DijkstraTest, EuclideanHeuristic) {
   double cost;
   int target_point = 6; // G
   int popped_points_null, popped_points_euclid;
-  Dijkstra null_dijkstra(&edge_map);
-  Dijkstra euclidean_dijkstra{&edge_map, [&points, &target_point](const int& point) -> double {
+  Dijkstra null_dijkstra(edge_map);
+  Dijkstra euclidean_dijkstra{edge_map, [&points, &target_point](const int& point) -> double {
     return std::sqrt(
       std::pow(points[point].first - points[target_point].first, 2) +
       std::pow(points[point].second - points[target_point].second, 2)

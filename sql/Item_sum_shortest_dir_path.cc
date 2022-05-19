@@ -53,7 +53,7 @@ bool Item_sum_shortest_dir_path::val_json(Json_wrapper *wr) {
     // Dijkstra's externally allocated memory (my_malloc)
     std::deque<void*> allocated_memory;
     {
-      Dijkstra dijkstra(&m_edge_map, heuristic, [&allocated_memory](const size_t n) -> void* {
+      Dijkstra dijkstra(m_edge_map, heuristic, [&allocated_memory](const size_t n) -> void* {
         void* p = my_malloc(key_memory_Dijkstra, n, MYF(MY_WME | ME_FATALERROR));
         allocated_memory.push_front(p);
         return p;

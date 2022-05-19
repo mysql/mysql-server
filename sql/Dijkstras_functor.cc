@@ -4,7 +4,7 @@
 #endif
 
 template<class EdgeAllocator>
-Dijkstra<EdgeAllocator>::Dijkstra(const EdgeMapType* edges,
+Dijkstra<EdgeAllocator>::Dijkstra(const EdgeMapType& edges,
            const std::function<double(const int& point_id)>& heu_func,
            const std::function<void*(const size_t n)>& allocate)
     : m_edges(edges), m_heu(heu_func),
@@ -21,7 +21,7 @@ std::vector<Edge> Dijkstra<EdgeAllocator>::operator()(const int& start_point_id,
   Point& node = m_point_map[point] = Point{ 0, /*m_heu(point)*/ 0, nullptr };
   // A*
   while (point != end_point_id) {
-    const std::pair<edge_iterator, edge_iterator> edge_range_it = m_edges->equal_range(point);
+    const std::pair<edge_iterator, edge_iterator> edge_range_it = m_edges.equal_range(point);
     // checks all edges from point (i.e. current point)
     for (edge_iterator edge_it = edge_range_it.first; edge_it != edge_range_it.second; edge_it++) {
       const Edge& edge = edge_it->second;

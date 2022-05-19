@@ -6,7 +6,6 @@
 #include <functional>       // std::function
 #include <algorithm>        // std::push_heap & std::reverse
 #include <cmath>            // INFINITY
-#include <cstring>          // memcmp
 
 /**
  * @brief Edge data for Dijkstra functor
@@ -70,7 +69,7 @@ class Dijkstra {
   typedef typename EdgeMapType::const_iterator edge_iterator;
 
   // key = Edge.from
-  const EdgeMapType* m_edges;
+  const EdgeMapType& m_edges;
   const std::function<double(const int& point_id)> m_heu;
 
   /**
@@ -104,7 +103,7 @@ class Dijkstra {
    * @param allocate custom allocator e.g. for measuring memory usage
    *  * memory will not be deallocated if custom allocate function is given
    */
-  Dijkstra(const EdgeMapType* edges,
+  Dijkstra(const EdgeMapType& edges,
            const std::function<double(const int& point_id)>& heu_func = [](const int&) -> double { return 0.0; },
            const std::function<void*(const size_t n)>& allocate = {});
   /**
