@@ -349,12 +349,11 @@ TEST_F(RestOpenApiTest, invalid_realm) {
 
   check_exit_code(router, EXIT_FAILURE, 10s);
 
-  const std::string router_output = router.get_full_logfile();
+  const std::string router_output = router.get_logfile_content();
   EXPECT_THAT(router_output, ::testing::HasSubstr(
                                  "Configuration error: unknown authentication "
                                  "realm for [rest_api] '': invalidrealm, known "
-                                 "realm(s): somerealm"))
-      << router_output;
+                                 "realm(s): somerealm"));
 }
 
 /**
@@ -400,7 +399,7 @@ TEST_F(RestOpenApiTest, rest_api_section_key) {
 
   check_exit_code(router, EXIT_FAILURE, 10s);
 
-  const std::string router_output = router.get_full_logfile();
+  const std::string router_output = router.get_logfile_content();
   EXPECT_THAT(
       router_output,
       ::testing::HasSubstr(" Configuration error: [rest_api] section does "

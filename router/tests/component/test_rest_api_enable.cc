@@ -518,7 +518,7 @@ TEST_F(TestRestApiEnable, ensure_rest_is_disabled) {
   EXPECT_EQ(std::error_code{}, router.send_clean_shutdown_event());
   EXPECT_EQ(0, router.wait_for_exit());
 
-  EXPECT_THAT(router.get_full_logfile(),
+  EXPECT_THAT(router.get_logfile_content(),
               ::testing::Not(::testing::HasSubstr("rest_routing")));
 }
 
@@ -848,7 +848,7 @@ TEST_P(RestApiInvalidUserCerts,
       "' or SSL certificate file '" +
       datadir_path.real_path().join(router_cert_filename).str() + "' failed";
   EXPECT_THAT(
-      router.get_full_logfile("mysqlrouter.log", get_logging_dir().str()),
+      router.get_logfile_content("mysqlrouter.log", get_logging_dir().str()),
       ::testing::HasSubstr(log_error));
 }
 

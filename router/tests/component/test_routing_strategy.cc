@@ -1392,7 +1392,7 @@ TEST_F(RefreshSharedQuarantineOnTTL, KeepDestination) {
   // even though the first RO node is no longer in the metadata it should not be
   // removed from the quarantine queue because other plugin still references it
   EXPECT_THAT(
-      router.get_full_logfile(),
+      router.get_logfile_content(),
       ::testing::Not(::testing::ContainsRegex(
           "Remove '.*" + std::to_string(cluster_nodes_ports[1]) +
           "' from quarantine, no plugin is using this destination candidate")));

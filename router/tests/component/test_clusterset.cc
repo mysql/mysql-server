@@ -364,10 +364,10 @@ TEST_F(ClusterSetTest, TargetClusterNoChange) {
 
   // check the new target_cluster was repoted only once
   const std::string needle = "New target cluster assigned in the metadata";
-  const std::string log_content = router.get_full_logfile();
+  const std::string log_content = router.get_logfile_content();
 
   // 1 is expected, that comes from the inital reading of the metadata
-  EXPECT_EQ(1, count_str_occurences(log_content, needle)) << log_content;
+  EXPECT_EQ(1, count_str_occurences(log_content, needle));
 }
 
 class ClusterChangeTargetClusterInTheMetadataTest
@@ -699,8 +699,7 @@ TEST_P(UnknownClusterSetTargetClusterTest, UnknownClusterSetTargetCluster) {
   SCOPED_TRACE("// Prepare the dynamic state file for the Router");
   auto &router = launch_router(EXIT_SUCCESS, -1s);
 
-  EXPECT_TRUE(wait_log_contains(router, GetParam().expected_error, 2s))
-      << router.get_full_logfile();
+  EXPECT_TRUE(wait_log_contains(router, GetParam().expected_error, 2s));
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[1].nodes[0].http_port, 2));
@@ -768,8 +767,7 @@ TEST_F(ClusterSetTest, TargetClusterEmptyInMetadata) {
   EXPECT_TRUE(wait_log_contains(router,
                                 "Target cluster for router_id=1 not set, using "
                                 "'primary' as a target cluster",
-                                2s))
-      << router.get_full_logfile();
+                                2s));
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[1].nodes[0].http_port, 2));

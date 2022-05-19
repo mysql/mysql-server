@@ -273,11 +273,10 @@ TEST_F(RestRouterApiTest, rest_router_section_has_key) {
 
   check_exit_code(router, EXIT_FAILURE, 10s);
 
-  const std::string router_output = router.get_full_logfile();
+  const std::string router_output = router.get_logfile_content();
   EXPECT_THAT(router_output,
               ::testing::HasSubstr("  init 'rest_router' failed: [rest_router] "
-                                   "section does not expect a key, found 'A'"))
-      << router_output;
+                                   "section does not expect a key, found 'A'"));
 }
 
 /**
@@ -297,11 +296,10 @@ TEST_F(RestRouterApiTest, router_api_no_auth) {
 
   check_exit_code(router, EXIT_FAILURE, 10s);
 
-  const std::string router_output = router.get_full_logfile();
+  const std::string router_output = router.get_logfile_content();
   EXPECT_THAT(router_output, ::testing::HasSubstr(
                                  "  init 'rest_router' failed: option "
-                                 "require_realm in [rest_router] is required"))
-      << router_output;
+                                 "require_realm in [rest_router] is required"));
 }
 
 /**
@@ -320,13 +318,12 @@ TEST_F(RestRouterApiTest, invalid_realm) {
 
   check_exit_code(router, EXIT_FAILURE, 10s);
 
-  const std::string router_output = router.get_full_logfile();
+  const std::string router_output = router.get_logfile_content();
   EXPECT_THAT(
       router_output,
       ::testing::HasSubstr(
           "Configuration error: The option 'require_realm=invalidrealm' "
-          "in [rest_router] does not match any http_auth_realm."))
-      << router_output;
+          "in [rest_router] does not match any http_auth_realm."));
 }
 
 int main(int argc, char *argv[]) {

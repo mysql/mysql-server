@@ -262,3 +262,19 @@ bool ProcessWrapper::autorespond_on_matching_pattern(const std::string &line) {
 
   return false;
 }
+
+std::string ProcessWrapper::get_logfile_content(
+    const std::string &file_name /*= ""*/,
+    const std::string &file_path /*= ""*/, size_t lines_limit /*= 0*/) const {
+  const std::string path = file_path.empty() ? logging_dir_ : file_path;
+  const std::string name = file_name.empty() ? logging_file_ : file_name;
+
+  if (name.empty()) return "";
+
+  const auto content = get_file_output(name, path);
+
+  if (lines_limit > 0)
+    return mysql_harness::limit_lines(content, lines_limit, "<snap>\n");
+  else
+    return content;
+}

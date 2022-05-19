@@ -133,7 +133,7 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_logfile) {
   // 2018-12-19 03:54:04 main ERROR [7f539f628780] Configuration error: option
   // destinations in [routing] is required
   auto file_content =
-      router.get_full_logfile("mysqlrouter.log", logging_folder.name());
+      router.get_logfile_content("mysqlrouter.log", logging_folder.name());
   auto lines = mysql_harness::split_string(file_content, '\n');
 
   EXPECT_THAT(lines,
@@ -485,7 +485,7 @@ TEST_P(RouterLoggingTestConfig, check) {
 
   // check the file log if it contains what's expected
   const std::string file_log_txt =
-      router.get_full_logfile("mysqlrouter.log", tmp_dir.name());
+      router.get_logfile_content("mysqlrouter.log", tmp_dir.name());
 
   if (test_params.filelog_expected_level >= LogLevel::kDebug &&
       test_params.filelog_expected_level != LogLevel::kNotSet) {
@@ -1256,7 +1256,7 @@ TEST_P(RouterLoggingTestTimestampPrecisionConfig, check) {
 
   // check the file log if it contains what's expected
   std::string file_log_txt =
-      router.get_full_logfile("mysqlrouter.log", tmp_dir.name());
+      router.get_logfile_content("mysqlrouter.log", tmp_dir.name());
 
   // strip first line before checking if needed
   if (std::mismatch(file_log_txt.begin(), file_log_txt.end(), prefix.begin(),
@@ -1848,7 +1848,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
   //
   // SQL queries are logged with host:port at the start.
   auto file_content =
-      router.get_full_logfile("mysqlrouter.log", bootstrap_conf.name());
+      router.get_logfile_content("mysqlrouter.log", bootstrap_conf.name());
   auto lines = mysql_harness::split_string(file_content, '\n');
 
   EXPECT_THAT(lines, ::testing::Contains(::testing::HasSubstr(
@@ -2229,7 +2229,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal) {
   // Now both old and new files should exist
   EXPECT_TRUE(retry_for([&log_file]() { return log_file.exists(); }, 1000ms));
 
-  EXPECT_TRUE(log_file.exists()) << router.get_full_logfile();
+  EXPECT_TRUE(log_file.exists()) << router.get_logfile_content();
   EXPECT_TRUE(log_file_1.exists());
 }
 
@@ -2254,7 +2254,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal_no_file_move) {
   ASSERT_TRUE(retry_for([&log_file]() { return log_file.exists(); }, 1000ms));
 
   // grab the current log content
-  const std::string log_content = router.get_full_logfile();
+  const std::string log_content = router.get_logfile_content();
 
   // send the log-rotate signal
   const auto pid = static_cast<pid_t>(router.get_pid());
@@ -2265,7 +2265,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal_no_file_move) {
 
   EXPECT_TRUE(retry_for(
       [log_content, &log_content_2, &router]() {
-        log_content_2 = router.get_full_logfile();
+        log_content_2 = router.get_logfile_content();
 
         return log_content != log_content_2;
       },
@@ -2443,7 +2443,7 @@ TEST_P(RouterLoggingTestConfigFilename, LoggingTestConfigFilename) {
 
   // check the file log if it contains what's expected
   const std::string file_log_txt =
-      router.get_full_logfile(test_params.filename, tmp_dir.name());
+      router.get_logfile_content(test_params.filename, tmp_dir.name());
 
   // check the routertestplugin_logger's message is in the logfile.
   EXPECT_THAT(file_log_txt, HasSubstr("I'm a system message"))
@@ -3045,7 +3045,7 @@ TEST_P(RouterLoggingTestConfigFilenameLoggingFolder, check) {
       EXPECT_TRUE(console_log_txt.empty()) << "\nconsole:\n" << console_log_txt;
       EXPECT_TRUE(logfile.exists());
       std::string file_log_txt =
-          router.get_full_logfile(test_params.filename, Path(lf).str());
+          router.get_logfile_content(test_params.filename, Path(lf).str());
       EXPECT_THAT(file_log_txt, HasSubstr(errmsg)) << "\nlog:\n"
                                                    << file_log_txt;
     }
@@ -3245,7 +3245,8 @@ TEST_F(RouterLoggingTest, switch_without_consolelog) {
   // only filelog should have content.
   EXPECT_THAT(router.get_full_output(), ::testing::IsEmpty());
   EXPECT_TRUE(Path(router.get_logfile_path()).exists());
-  EXPECT_THAT(router.get_full_logfile(), ::testing::Not(::testing::IsEmpty()));
+  EXPECT_THAT(router.get_logfile_content(),
+              ::testing::Not(::testing::IsEmpty()));
 }
 
 TEST_F(RouterLoggingTest, switch_with_consolelog) {
@@ -3264,7 +3265,8 @@ TEST_F(RouterLoggingTest, switch_with_consolelog) {
   EXPECT_THAT(router.get_full_output(), ::testing::Not(::testing::IsEmpty()));
   EXPECT_THAT(router.get_full_output(),
               ::testing::Not(::testing::HasSubstr("stopping to log")));
-  EXPECT_THAT(router.get_full_logfile(), ::testing::Not(::testing::IsEmpty()));
+  EXPECT_THAT(router.get_logfile_content(),
+              ::testing::Not(::testing::IsEmpty()));
 }
 
 int main(int argc, char *argv[]) {

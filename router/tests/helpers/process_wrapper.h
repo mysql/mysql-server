@@ -31,6 +31,7 @@
 #include <atomic>
 #include <cstring>
 #include <mutex>
+#include <optional>
 #include <thread>
 
 using mysql_harness::Path;
@@ -96,16 +97,13 @@ class ProcessWrapper {
    * given process is using
    * @param file_path path to the logfile, use "" for default path that the
    * component test is using
+   * @param lines_limit maximum numbers of lines that should be returned; if 0
+   * return all lines; if greater than 0 only return limit/2 beginning lines and
+   * limit/2 ending lines
    */
-  std::string get_full_logfile(const std::string &file_name = "",
-                               const std::string &file_path = "") const {
-    const std::string path = file_path.empty() ? logging_dir_ : file_path;
-    const std::string name = file_name.empty() ? logging_file_ : file_name;
-
-    if (name.empty()) return "";
-
-    return get_file_output(name, path);
-  }
+  std::string get_logfile_content(const std::string &file_name = "",
+                                  const std::string &file_path = "",
+                                  size_t lines_limit = 0) const;
 
   /**
    * get the current output of the process.

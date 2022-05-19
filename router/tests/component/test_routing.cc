@@ -598,7 +598,7 @@ TEST_F(RouterMaxConnectionsTest, RoutingTooManyServerConnections) {
 
   // There should be no trace of the connection errors counter incremented as a
   // result of the result from error
-  const auto log_content = router.get_full_logfile();
+  const auto log_content = router.get_logfile_content();
   const std::string pattern = "1 connection errors for 127.0.0.1";
   ASSERT_FALSE(pattern_found(log_content, pattern)) << log_content;
 }
@@ -1177,7 +1177,7 @@ TEST_P(RoutingConfigTest, check) {
 
   std::vector<std::string> lines;
   {
-    std::istringstream ss{router.get_full_logfile()};
+    std::istringstream ss{router.get_logfile_content()};
 
     std::string line;
     while (std::getline(ss, line, '\n')) {
@@ -1601,7 +1601,7 @@ TEST_P(RoutingDefaultConfigTest, check) {
 
   std::vector<std::string> lines;
   {
-    std::istringstream ss{router.get_full_logfile()};
+    std::istringstream ss{router.get_logfile_content()};
 
     std::string line;
     while (std::getline(ss, line, '\n')) {

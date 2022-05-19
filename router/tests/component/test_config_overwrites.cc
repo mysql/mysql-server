@@ -381,7 +381,7 @@ TEST_P(OverwriteErrorTest, OverwriteError) {
   // logger issues will be reported on the console, the other in the logfile so
   // we merge them both when looking for error messages
   const std::string router_out =
-      router.get_full_logfile() + "\n" + router.get_full_output();
+      router.get_logfile_content() + "\n" + router.get_full_output();
   EXPECT_THAT(router_out, ::testing::HasSubstr(GetParam().expected_error_msg));
 }
 

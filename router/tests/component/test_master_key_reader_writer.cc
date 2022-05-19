@@ -623,7 +623,8 @@ TEST_F(MasterKeyReaderWriterTest,
   // wait a bit for log to generate.
   std::this_thread::sleep_for(1s);
 
-  auto log_lines = mysql_harness::split_string(router.get_full_logfile(), '\n');
+  auto log_lines =
+      mysql_harness::split_string(router.get_logfile_content(), '\n');
   EXPECT_THAT(
       log_lines,
       ::testing::Not(::testing::Contains(::testing::HasSubstr(master_key_))));

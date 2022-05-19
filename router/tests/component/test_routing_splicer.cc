@@ -228,7 +228,7 @@ TEST_F(SplicerTest, invalid_metadata) {
 
   SCOPED_TRACE("// check for the expected error-msg");
   EXPECT_THAT(
-      router.get_full_logfile(),
+      router.get_logfile_content(),
       ::testing::HasSubstr("Error parsing host:port in metadata for instance"));
 }
 
@@ -275,7 +275,7 @@ TEST_P(SplicerFailParamTest, fails) {
   check_exit_code(router, EXIT_FAILURE);
 
   EXPECT_NO_FATAL_FAILURE(GetParam().checker(
-      mysql_harness::split_string(router.get_full_logfile(), '\n')));
+      mysql_harness::split_string(router.get_logfile_content(), '\n')));
 }
 
 const SplicerFailParam splicer_fail_params[] = {

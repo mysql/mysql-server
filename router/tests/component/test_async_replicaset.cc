@@ -580,14 +580,14 @@ TEST_F(AsyncReplicasetTest, ClusterSecondaryQueryErrors) {
       "the metadata from both secondaries");
   check_state_file(state_file, ClusterType::RS_V2, cluster_id,
                    cluster_nodes_ports, view_id);
-  const std::string log_content = router.get_full_logfile();
+  const std::string log_content = router.get_logfile_content();
 
   for (size_t i = 1; i <= 2; i++) {
     const std::string pattern =
         "metadata_cache WARNING .* Failed fetching metadata from metadata "
         "server on 127.0.0.1:" +
         std::to_string(cluster_nodes_ports[i]);
-    ASSERT_TRUE(pattern_found(log_content, pattern)) << log_content;
+    ASSERT_TRUE(pattern_found(log_content, pattern));
   }
 }
 
@@ -1576,9 +1576,8 @@ TEST_P(ClusterTypeMismatchTest, ClusterTypeMismatch) {
                                      "password", "", ""));
 
   SCOPED_TRACE("// Logfile should contain proper message");
-  const std::string log_content = router.get_full_logfile();
-  ASSERT_TRUE(pattern_found(log_content, GetParam().expected_error))
-      << log_content;
+  const std::string log_content = router.get_logfile_content();
+  ASSERT_TRUE(pattern_found(log_content, GetParam().expected_error));
 }
 
 INSTANTIATE_TEST_SUITE_P(

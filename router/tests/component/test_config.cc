@@ -373,7 +373,7 @@ TEST_F(UnknownConfigOptionValidConfigTest, UnknownConfigOptionValidConfig) {
   check_exit_code(router, EXIT_SUCCESS, 5s);
 
   EXPECT_THAT(
-      router.get_full_logfile(),
+      router.get_logfile_content(),
       ::testing::Not(::testing::ContainsRegex("WARNING .* unknown .*")));
 }
 
