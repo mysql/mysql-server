@@ -20,7 +20,7 @@ struct Edge {
   double cost;
   // TODO mv to gis_dijkstra-t.cc
   bool operator==(const Edge& other) const {
-    return !memcmp(this, &other, sizeof(Edge));
+    return id == other.id /* && from == other.from && to == other.to && cost == other.cost */;
   }
 };
 
