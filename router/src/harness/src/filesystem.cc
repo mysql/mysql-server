@@ -30,6 +30,7 @@
 #include <functional>
 #include <iterator>
 #include <ostream>
+#include <string_view>
 
 namespace mysql_harness {
 
@@ -39,8 +40,8 @@ namespace mysql_harness {
 Path::Path() noexcept : type_(FileType::EMPTY_PATH) {}
 
 // throws std::invalid_argument
-Path::Path(const std::string &path)
-    : path_(path), type_(FileType::TYPE_UNKNOWN) {
+Path::Path(std::string path)
+    : path_(std::move(path)), type_(FileType::TYPE_UNKNOWN) {
 #ifdef _WIN32
   // in Windows, we normalize directory separator from \ to /, to not
   // confuse the rest of the code, which assume \ to be an escape char
@@ -58,9 +59,6 @@ Path::Path(const std::string &path)
   else
     throw std::invalid_argument("Empty path");
 }
-
-// throws std::invalid_argument
-Path::Path(const char *path) : Path(std::string(path)) {}
 
 // throws std::invalid_argument
 void Path::validate_non_empty_path() const {
