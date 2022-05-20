@@ -556,8 +556,8 @@ static void row_mysql_convert_row_to_innobase(
                               NOTE: do not discard as long as
                               row is used, as row may contain
                               pointers to this record! */
-    mem_heap_t **heap)        /*!< in: heap will be used to duplicate
-                              multi_value & blob data */
+    mem_heap_t **blob_heap)   /*!< in: FIX_ME, remove this after
+                              server fixes its issue */
 {
   const mysql_row_templ_t *templ;
   dfield_t *dfield;
@@ -608,13 +608,14 @@ static void row_mysql_convert_row_to_innobase(
                                dfield, &prebuilt->mv_data[n_m_v_col - 1], 0,
                                dict_table_is_comp(prebuilt->table),
                                prebuilt->heap);
+
       /* For multi-value data, the deep copy may cost too much.
       So ideally this should be optimized by keeping and reading the
-      raw data. */
-      if (*heap == nullptr) {
-        *heap = mem_heap_create(128, UT_LOCATION_HERE);
-      }
-      dfield_multi_value_dup(dfield, *heap);
+      raw data. However, once more virtual column data needs to be
+      calculated later, for example, insert by modify, server will
+      overwrites the memory used here. So the safest way is a deep
+      copy. */
+      dfield_multi_value_dup(dfield, prebuilt->heap);
     } else {
       row_mysql_store_col_in_innobase_format(
           dfield, prebuilt->ins_upd_rec_buff + templ->mysql_col_offset,
@@ -626,10 +627,10 @@ static void row_mysql_convert_row_to_innobase(
       and we need to duplicate it with our own memory here */
       if (templ->is_virtual &&
           DATA_LARGE_MTYPE(dfield_get_type(dfield)->mtype)) {
-        if (*heap == nullptr) {
-          *heap = mem_heap_create(dfield->len, UT_LOCATION_HERE);
+        if (*blob_heap == nullptr) {
+          *blob_heap = mem_heap_create(dfield->len, UT_LOCATION_HERE);
         }
-        dfield_dup(dfield, *heap);
+        dfield_dup(dfield, *blob_heap);
       }
     }
   }
@@ -1506,9 +1507,9 @@ static dberr_t row_insert_for_mysql_using_ins_graph(const byte *mysql_rec,
   trx_t *trx = prebuilt->trx;
   ins_node_t *node = prebuilt->ins_node;
   dict_table_t *table = prebuilt->table;
-  /* This temp heap is used to duplicate multi-value data and to compensate an
-  issue in server for virtual column blob handling. */
-  mem_heap_t *temp_heap = nullptr;
+  /* FIX_ME: This blob heap is used to compensate an issue in server
+  for virtual column blob handling */
+  mem_heap_t *blob_heap = nullptr;
 
   ut_ad(trx);
   ut_a(prebuilt->magic_n == ROW_PREBUILT_ALLOCATED);
@@ -1560,7 +1561,7 @@ static dberr_t row_insert_for_mysql_using_ins_graph(const byte *mysql_rec,
   row_get_prebuilt_insert_row(prebuilt);
   node = prebuilt->ins_node;
 
-  row_mysql_convert_row_to_innobase(node->row, prebuilt, mysql_rec, &temp_heap);
+  row_mysql_convert_row_to_innobase(node->row, prebuilt, mysql_rec, &blob_heap);
 
   savept = trx_savept_take(trx);
 
@@ -1604,8 +1605,8 @@ run_again:
 
     trx->op_info = "";
 
-    if (temp_heap != nullptr) {
-      mem_heap_free(temp_heap);
+    if (blob_heap != nullptr) {
+      mem_heap_free(blob_heap);
     }
 
     return (err);
@@ -1691,8 +1692,8 @@ run_again:
   row_update_statistics_if_needed(table);
   trx->op_info = "";
 
-  if (temp_heap != nullptr) {
-    mem_heap_free(temp_heap);
+  if (blob_heap != nullptr) {
+    mem_heap_free(blob_heap);
   }
 
   return (err);
@@ -1793,8 +1794,6 @@ upd_t *row_get_prebuilt_update_vector(
     node = row_create_update_node_for_mysql(table, prebuilt->heap);
 
     prebuilt->upd_node = node;
-    prebuilt->upd_node->update->per_stmt_heap =
-        mem_heap_create(128, UT_LOCATION_HERE);
 
     prebuilt->upd_graph = static_cast<que_fork_t *>(que_node_get_parent(
         pars_complete_graph_for_exec(static_cast<upd_node_t *>(node),

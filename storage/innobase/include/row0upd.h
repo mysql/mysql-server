@@ -562,33 +562,16 @@ static inline void upd_fld_set_virtual_col(upd_field_t *upd_fld) {
 
 /* Update vector structure */
 struct upd_t {
-  /** Heap from which memory allocated. This is not a new heap, rather
-  will point to other heap. Therefore memory allocated from this heap
-  is released when the pointed heap is freed or emptied. */
-  mem_heap_t *heap;
+  mem_heap_t *heap;    /*!< heap from which memory allocated */
+  ulint info_bits;     /*!< new value of info bits to record;
+                       default is 0 */
+  dtuple_t *old_vrow;  /*!< pointer to old row, used for
+                       virtual column update now */
+  dict_table_t *table; /*!< the table object */
+  TABLE *mysql_table;  /*!< the mysql table object */
 
-  /** Heap from which memory is allocated if required only for current
-  statement. This heap is emtied at the end of statement from inside
-  ha_innobase::end_stmt(). */
-  mem_heap_t *per_stmt_heap;
-
-  /** New value of info bits to record; default is 0. */
-  ulint info_bits;
-
-  /** Pointer to old row, used for virtual column update now. */
-  dtuple_t *old_vrow;
-
-  /** The table object. */
-  dict_table_t *table;
-
-  /** The mysql table object. */
-  TABLE *mysql_table;
-
-  /** Number of update fields. */
-  ulint n_fields;
-
-  /** Array of update fields. */
-  upd_field_t *fields;
+  ulint n_fields;      /*!< number of update fields */
+  upd_field_t *fields; /*!< array of update fields */
 
   /** Append an update field to the end of array
   @param[in]    field   an update field */
@@ -643,14 +626,6 @@ struct upd_t {
       total += bdiff.length();
     }
     return (total);
-  }
-
-  /** Free the per_stmt_heap. */
-  void free_per_stmt_heap() {
-    if (per_stmt_heap != nullptr) {
-      mem_heap_free(per_stmt_heap);
-      per_stmt_heap = nullptr;
-    }
   }
 
   std::ostream &print(std::ostream &out) const;
