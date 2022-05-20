@@ -30,58 +30,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/components/services/mysql_string.h>
 #include <mysql/psi/mysql_rwlock.h>
-#include <sql/auto_thd.h>
-#include <sql/current_thd.h>
 #include <sql/mysqld.h>
 #include <sql/set_var.h>
 #include <sql/sql_class.h>
 #include <sql/sql_lex.h>
 #include <sql/sql_list.h>
-#include <sql/sql_thd_internal_api.h>
 #include <sql/sys_vars_shared.h>
 #include <sql_string.h>
 #include "sql/item_func.h"  // Item_func_set_user_var
-
-/**
-  A version of Auto_THD that:
-   - doesn't catch or print the error onto the error log but just passes it up
-   - stores and restores the current_thd correctly
-*/
-class Storing_auto_THD {
-  THD *m_previous_thd, *thd;
-
- public:
-  Storing_auto_THD() {
-    m_previous_thd = current_thd;
-    /* Allocate thread local memory if necessary. */
-    if (!m_previous_thd) {
-      my_thread_init();
-    }
-    thd = create_internal_thd();
-  }
-
-  ~Storing_auto_THD() {
-    if (m_previous_thd) {
-      Diagnostics_area *prev_da = m_previous_thd->get_stmt_da();
-      Diagnostics_area *curr_da = thd->get_stmt_da();
-      /* We need to put any errors in the DA as well as the condition list. */
-      if (curr_da->is_error())
-        prev_da->set_error_status(curr_da->mysql_errno(),
-                                  curr_da->message_text(),
-                                  curr_da->returned_sqlstate());
-
-      prev_da->copy_sql_conditions_from_da(m_previous_thd, curr_da);
-    }
-    destroy_internal_thd(thd);
-    if (!m_previous_thd) {
-      my_thread_end();
-    }
-    if (m_previous_thd) {
-      m_previous_thd->store_globals();
-    }
-  }
-  THD *get_THD() { return thd; }
-};
+#include "storing_auto_thd.h"
 
 /**
   Set a custom lock wait timeout for this session.

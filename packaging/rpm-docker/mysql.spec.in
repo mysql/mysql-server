@@ -277,6 +277,7 @@ for p in \
          component_test_status_var_service.so \
          component_test_status_var_service_str.so \
          component_test_status_var_service_unreg_only.so \
+         component_test_status_var_reader.so \
          component_test_string_service_charset.so \
          component_test_string_service_long.so \
          component_test_string_service.so \

@@ -84,8 +84,9 @@ bool add_status_vars(const SHOW_VAR *list);
 void remove_status_vars(SHOW_VAR *list);
 void init_status_vars();
 void free_status_vars();
-bool get_status_var(THD *thd, SHOW_VAR *list, const char *name,
-                    char *const buff, enum_var_type var_type, size_t *length);
+bool get_recursive_status_var(THD *thd, const char *name, char *const value,
+                              enum_var_type var_type, size_t *length,
+                              const CHARSET_INFO **charset);
 void reset_status_vars();
 ulonglong get_status_vars_version(void);
 bool show_create_trigger(THD *thd, const sp_name *trg_name);

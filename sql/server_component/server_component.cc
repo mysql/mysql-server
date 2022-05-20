@@ -41,6 +41,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/mysql_query_attributes.h>
 #include <mysql/components/services/mysql_runtime_error_service.h>
 #include <mysql/components/services/mysql_rwlock_service.h>
+#include <mysql/components/services/mysql_status_variable_reader.h>
 #include <mysql/components/services/mysql_system_variable.h>
 #include <mysql/components/services/table_access_service.h>
 
@@ -76,6 +77,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_runtime_error_imp.h"
 #include "mysql_server_keyring_lockable_imp.h"
 #include "mysql_server_runnable_imp.h"
+#include "mysql_status_variable_reader_imp.h"
 #include "mysql_string_service_imp.h"
 #include "mysql_system_variable_update_imp.h"
 #include "mysql_thd_attributes_imp.h"
@@ -527,6 +529,9 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
 mysql_command_consumer_dom_imp::client_capabilities
 END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_status_variable_string)
+mysql_status_variable_reader_imp::get END_SERVICE_IMPLEMENTATION();
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, persistent_dynamic_loader),
@@ -683,6 +688,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_text_consumer_get_date_time_v1),
     PROVIDES_SERVICE(mysql_server, mysql_text_consumer_get_string_v1),
     PROVIDES_SERVICE(mysql_server, mysql_text_consumer_client_capabilities_v1),
+    PROVIDES_SERVICE(mysql_server, mysql_status_variable_string),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();

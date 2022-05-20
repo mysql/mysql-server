@@ -172,3 +172,6 @@ component_test_sensitive_system_variables  	plugin_output_directory no TEST_SENS
 # TO test mysql command services
 component_test_mysql_command_services  	plugin_output_directory no TEST_MYSQL_COMMAND_SERVICES
 test_services_command_services    plugin_output_directory   no  TEST_SERVICES_COMMAND_SERVICES_PLUGIN
+
+# component test_status_var_reader
+component_test_status_var_reader  	        plugin_output_directory no TEST_STATUS_VAR_READER

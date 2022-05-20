@@ -189,6 +189,7 @@ usr/lib/mysql/plugin/debug/component_test_udf_services.so
 usr/lib/mysql/plugin/debug/component_test_mysql_system_variable_set.so
 usr/lib/mysql/plugin/debug/component_test_table_access.so
 usr/lib/mysql/plugin/debug/component_test_sensitive_system_variables.so
+usr/lib/mysql/plugin/debug/component_test_status_var_reader.so
 ")
 
 IF (DEB_PRODUCT STREQUAL "commercial")

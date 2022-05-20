@@ -1,0 +1,62 @@
+--echo #
+--echo # WL#15173: A component service to read status variable values
+--echo #
+
+INSTALL COMPONENT "file://component_test_status_var_reader";
+
+# Exclusions are due to not doing aggregation prior to fetching
+
+--echo # FR5: test that no aggregation is triggered for session-altered variables
+--echo # Should return 0 rows
+query_vertical
+SELECT VARIABLE_NAME, VARIABLE_VALUE, test_get_status_var(VARIABLE_NAME, 0)
+  FROM performance_schema.global_status
+  WHERE VARIABLE_VALUE = test_get_status_var(VARIABLE_NAME, 0) AND
+     VARIABLE_NAME IN (
+        'Bytes_received',
+        'Bytes_sent');
+
+--echo # FR2, FR3, FR4.1 Test global status: should return 0 rows
+#variables listed in the NOT IN should only be ones that are changed
+#at session level and then aggregated
+query_vertical
+SELECT VARIABLE_NAME, VARIABLE_VALUE, test_get_status_var(VARIABLE_NAME, 0)
+  FROM performance_schema.global_status
+  WHERE VARIABLE_VALUE <> test_get_status_var(VARIABLE_NAME, 0) AND
+     VARIABLE_NAME NOT IN (
+        'Bytes_received',
+        'Bytes_sent',
+        'Handler_commit',
+        'Handler_external_lock',
+        'Handler_write',
+        'Handler_read_key',
+        'Handler_read_next',
+        'Handler_read_rnd_next',
+        'Created_tmp_disk_tables',
+        'Created_tmp_tables',
+        'Handler_read_first',
+        'Com_stmt_reprepare');
+
+--echo # FR4 Test session status: should return 0 rows
+# Should be the same list as above
+query_vertical
+SELECT VARIABLE_NAME, VARIABLE_VALUE, test_get_status_var(VARIABLE_NAME, 1)
+  FROM performance_schema.session_status
+  WHERE VARIABLE_VALUE <> test_get_status_var(VARIABLE_NAME, 1) AND
+     VARIABLE_NAME NOT IN (
+        'Bytes_received',
+        'Bytes_sent',
+        'Handler_commit',
+        'Handler_external_lock',
+        'Handler_write',
+        'Handler_read_key',
+        'Handler_read_next',
+        'Handler_read_rnd_next',
+        'Created_tmp_disk_tables',
+        'Created_tmp_tables',
+        'Handler_read_first',
+        'Com_stmt_reprepare');
+
+UNINSTALL COMPONENT "file://component_test_status_var_reader";
+
+--echo # End of 8.0 tests

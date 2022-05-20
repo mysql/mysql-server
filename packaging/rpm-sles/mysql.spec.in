@@ -1247,6 +1247,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_services_host_application_signal.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_mysqlx_global_reset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sensitive_system_variables.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_reader.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
@@ -1338,6 +1339,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_host_application_signal.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysqlx_global_reset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sensitive_system_variables.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_reader.so
 
 %if 0%{?cluster}
 %files management-server
