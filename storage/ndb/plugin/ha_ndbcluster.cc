@@ -6289,6 +6289,22 @@ int ha_ndbcluster::index_init(uint index, bool sorted) {
   DBUG_PRINT("enter", ("index: %u  sorted: %d", index, sorted));
   if (index < MAX_KEY && m_index[index].type == UNDEFINED_INDEX)
     return fail_index_offline(table, index);
+
+  if (m_thd_ndb->is_slave_thread()) {
+    if (table_share->primary_key == MAX_KEY &&  // hidden pk
+        m_thd_ndb->m_unsent_bytes) {
+      // Applier starting read from table with hidden pk when there are already
+      // defined operations that need to be prepared in order to "read your own
+      // writes" as well as handle errors uniformly.
+      DBUG_PRINT("info", ("Prepare already defined operations before read"));
+      constexpr bool IGNORE_NO_KEY = true;
+      if (execute_no_commit(m_thd_ndb, m_thd_ndb->trans, IGNORE_NO_KEY) != 0) {
+        m_thd_ndb->trans_tables.reset_stats();
+        return ndb_err(m_thd_ndb->trans);
+      }
+    }
+  }
+
   active_index = index;
   m_sorted = sorted;
   /*
@@ -6544,11 +6560,15 @@ bool ha_ndbcluster::Copying_alter::check_saved_commit_count(
 }
 
 int ha_ndbcluster::rnd_init(bool) {
-  int error;
   DBUG_TRACE;
 
-  if ((error = close_scan())) return error;
-  index_init(table_share->primary_key, 0);
+  if (int error = close_scan()) {
+    return error;
+  }
+
+  if (int error = index_init(table_share->primary_key, 0)) {
+    return error;
+  }
 
   if (m_thd_ndb->sql_command() == SQLCOM_ALTER_TABLE) {
     // Detected start of scan for copying ALTER TABLE. Save commit count of the
@@ -13528,8 +13548,8 @@ bool ha_ndbcluster::choose_mrr_impl(uint keyno, uint n_ranges, ha_rows n_rows,
 int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
                                          void *seq_init_param, uint n_ranges,
                                          uint mode, HANDLER_BUFFER *buffer) {
-  int error;
   DBUG_TRACE;
+  assert(!m_thd_ndb->is_slave_thread());  // mrr not used by applier
 
   /*
     If supplied buffer is smaller than needed for just one range, we cannot do
@@ -13553,7 +13573,9 @@ int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
    * There may still be an open m_multi_cursor from the previous mrr access on
    * this handler. Close it now to free up resources for this NdbScanOperation.
    */
-  if (unlikely((error = close_scan()))) return error;
+  if (int error = close_scan()) {
+    return error;
+  }
 
   m_disable_multi_read = false;
 
