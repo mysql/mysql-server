@@ -800,8 +800,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
     {"metadata_list_invalid_methods",
      std::string(rest_api_basepath) + "/metadata/", "/metadata",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options |
-         HttpMethod::Connect,
+         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
@@ -813,8 +812,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
          metadata_cache_section_name + "/status",
      "/metadata/{metadataName}/status",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options |
-         HttpMethod::Connect,
+         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
@@ -826,8 +824,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
          metadata_cache_section_name + "/config",
      "/metadata/{metadataName}/config",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options |
-         HttpMethod::Connect,
+         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,

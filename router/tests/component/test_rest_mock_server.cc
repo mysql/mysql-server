@@ -34,6 +34,7 @@
 #include "dim.h"
 #include "mock_server_rest_client.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysqlrouter/http_request.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
@@ -527,8 +528,6 @@ INSTANTIATE_TEST_SUITE_P(
                         HttpStatusCode::MethodNotAllowed),
         std::make_tuple(HttpMethod::Options, kMockServerGlobalsRestUri,
                         HttpStatusCode::MethodNotAllowed),
-        std::make_tuple(HttpMethod::Connect, kMockServerGlobalsRestUri,
-                        HttpStatusCode::MethodNotAllowed),
         std::make_tuple(HttpMethod::Head, kMockServerGlobalsRestUri,
                         HttpStatusCode::MethodNotAllowed)));
 
@@ -544,8 +543,6 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(HttpMethod::Trace, kMockServerConnectionsRestUri,
                         HttpStatusCode::MethodNotAllowed),
         std::make_tuple(HttpMethod::Options, kMockServerConnectionsRestUri,
-                        HttpStatusCode::MethodNotAllowed),
-        std::make_tuple(HttpMethod::Connect, kMockServerConnectionsRestUri,
                         HttpStatusCode::MethodNotAllowed),
         std::make_tuple(HttpMethod::Head, kMockServerConnectionsRestUri,
                         HttpStatusCode::MethodNotAllowed)),

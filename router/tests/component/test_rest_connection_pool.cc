@@ -220,8 +220,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      std::string(rest_api_basepath) + "/connection_pool/main/status",
      "/connection_pool/main/status",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options |
-         HttpMethod::Connect,
+         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,

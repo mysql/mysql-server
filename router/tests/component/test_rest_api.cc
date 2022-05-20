@@ -29,6 +29,7 @@
 #endif
 
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 #include <rapidjson/document.h>
 #include <rapidjson/pointer.h>
 #include <rapidjson/schema.h>
@@ -38,13 +39,13 @@
 #include "dim.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/utility/string.h"  // ::join
+#include "mysqlrouter/http_request.h"
 #include "mysqlrouter/mysql_session.h"
+#include "mysqlrouter/rest_client.h"
+#include "rest_api_testutils.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
 #include "test/temp_directory.h"
-
-#include "mysqlrouter/rest_client.h"
-#include "rest_api_testutils.h"
 
 using namespace std::chrono_literals;
 
@@ -92,7 +93,6 @@ TEST_P(RestOpenApiTest, ensure_openapi) {
 
       SCOPED_TRACE("// requesting /swagger.json with " +
                    http_method_to_string(method));
-
       JsonDocument json_doc;
       ASSERT_NO_FATAL_FAILURE(request_json(rest_client, http_uri, method,
                                            GetParam().status_code, json_doc,
@@ -284,8 +284,8 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
     {"swagger_json_invalid_methods",
      rest_api_basepath,
      "/swagger.json",
-     HttpMethod::Trace | HttpMethod::Options | HttpMethod::Connect |
-         HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch,
+     HttpMethod::Trace | HttpMethod::Options | HttpMethod::Post |
+         HttpMethod::Delete | HttpMethod::Patch,
      HttpStatusCode::MethodNotAllowed,
      kContentTypeJsonProblem,
      kRestApiUsername,
@@ -312,7 +312,7 @@ static const RestApiTestParams rest_api_invalid_methods_no_auth_params[]{
      rest_api_basepath,
      "/swagger.json",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Trace | HttpMethod::Options | HttpMethod::Connect,
+         HttpMethod::Trace | HttpMethod::Options,
      HttpStatusCode::MethodNotAllowed,
      kContentTypeJsonProblem,
      /*username =*/"",
