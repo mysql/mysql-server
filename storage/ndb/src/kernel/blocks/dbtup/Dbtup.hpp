@@ -1314,6 +1314,12 @@ TupTriggerData_pool c_triggerPool;
       return no;
     }
 
+    Uint32 get_checksum_length() const {
+      if (m_bits & TR_Checksum)
+        return 1;
+      return 0;
+    }
+
     struct {
       Uint16 m_no_of_fixsize;
       Uint16 m_no_of_varsize;
@@ -1768,9 +1774,13 @@ typedef Ptr<HostBuffer> HostBufferPtr;
       return m_first_words + tabPtrP->m_offsets[MM].m_disk_ref_offset;
     }
 
+    static Uint32 get_mm_gci_pos(const Tablerec* tabPtrP) {
+      return Tuple_header::HeaderSize + tabPtrP->get_checksum_length();
+    }
+
     Uint32 *get_mm_gci(const Tablerec* tabPtrP){
       /* Mandatory position even if TR_RowGCI isn't set (happens in restore */
-      return m_data + (tabPtrP->m_bits & Tablerec::TR_Checksum);
+      return m_data + tabPtrP->get_checksum_length();
     }
 
     Uint32 *get_dd_gci(const Tablerec* tabPtrP, Uint32 mm){
