@@ -196,6 +196,7 @@ static int opt_port = 0;
 static int opt_max_connect_retries;
 static int opt_result_format_version;
 static int opt_max_connections = DEFAULT_MAX_CONN;
+static char *opt_init_command = nullptr;
 static bool opt_colored_diff = false;
 static bool opt_compress = false, silent = false, verbose = false,
             trace_exec = false;
@@ -6719,6 +6720,8 @@ static void do_connect(struct st_command *command) {
 
   if (!mysql_init(&con_slot->mysql)) die("Failed on mysql_init()");
 
+  if (opt_init_command)
+    mysql_options(&con_slot->mysql, MYSQL_INIT_COMMAND, opt_init_command);
   if (opt_connect_timeout)
     mysql_options(&con_slot->mysql, MYSQL_OPT_CONNECT_TIMEOUT,
                   (void *)&opt_connect_timeout);
@@ -7711,6 +7714,11 @@ static struct my_option my_long_options[] = {
      "Write line number and elapsed time to <testname>.progress.",
      &opt_mark_progress, &opt_mark_progress, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
+    {"init-command", OPT_INIT_COMMAND,
+     "SQL Command to execute when connecting to MySQL server. Will "
+     "automatically be re-executed when reconnecting.",
+     &opt_init_command, &opt_init_command, nullptr, GET_STR, REQUIRED_ARG, 0, 0,
+     0, nullptr, 0, nullptr},
     {"max-connect-retries", OPT_MAX_CONNECT_RETRIES,
      "Maximum number of attempts to connect to server.",
      &opt_max_connect_retries, &opt_max_connect_retries, nullptr, GET_INT,
@@ -8850,6 +8858,8 @@ static int util_query(MYSQL *org_mysql, const char *query) {
     DBUG_PRINT("info", ("Creating util_mysql"));
     if (!(mysql = mysql_init(mysql))) die("Failed in mysql_init()");
 
+    if (opt_init_command)
+      mysql_options(mysql, MYSQL_INIT_COMMAND, opt_init_command);
     if (opt_connect_timeout)
       mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT,
                     (void *)&opt_connect_timeout);
@@ -9558,6 +9568,8 @@ int main(int argc, char **argv) {
 
   st_connection *con = connections;
   if (!(mysql_init(&con->mysql))) die("Failed in mysql_init()");
+  if (opt_init_command)
+    mysql_options(&con->mysql, MYSQL_INIT_COMMAND, opt_init_command);
   if (opt_connect_timeout)
     mysql_options(&con->mysql, MYSQL_OPT_CONNECT_TIMEOUT,
                   (void *)&opt_connect_timeout);
