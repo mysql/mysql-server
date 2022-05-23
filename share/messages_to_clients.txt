@@ -9803,6 +9803,9 @@ ER_DROP_PK_COLUMN_TO_DROP_GIPK
 ER_CREATE_SELECT_WITH_GIPK_DISALLOWED_IN_SBR
   eng "Generating an invisible primary key for a table created using CREATE TABLE ... SELECT ... is disallowed when binlog_format=STATEMENT. It cannot be guaranteed that the SELECT retrieves rows in the same order on source and replica. Therefore, it cannot be guaranteed that the value generated for the generated implicit primary key column will be the same on source and replica for all rows. Use binlog_format=ROW or MIXED to execute this statement."
 
+ER_DA_EXPIRE_LOGS_DAYS_IGNORED
+  eng "The option expire_logs_days cannot be used together with option binlog_expire_logs_seconds. To set one, first unset the other by setting it to 0."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
