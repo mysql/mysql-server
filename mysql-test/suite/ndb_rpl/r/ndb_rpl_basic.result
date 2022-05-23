@@ -82,15 +82,16 @@ nid	nom	prenom
 3	CCC	DDD
 4	EEE	FFF
 UPDATE t1 set nid=nid+1;
+UPDATE t1 set nom="CCP" where nid = 4;
 select * from t1 order by nid;
 nid	nom	prenom
 2	XYZ1	ABC1
-4	CCC	DDD
+4	CCP	DDD
 5	EEE	FFF
 select * from t1 order by nid;
 nid	nom	prenom
 2	XYZ1	ABC1
-4	CCC	DDD
+4	CCP	DDD
 5	EEE	FFF
 DROP table t1;
 CREATE TABLE `t1` (

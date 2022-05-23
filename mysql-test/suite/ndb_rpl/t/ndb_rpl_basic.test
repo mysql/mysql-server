@@ -105,11 +105,7 @@ select * from t1 order by nid;
 
 --connection master
 UPDATE t1 set nid=nid+1;
-# Due to Bug#16029263, the below update would have failed when
-# sync_slave_with_master is called. So as a temporary workaround,
-# comment this update. When the bug gets fixed, this needs to be
-# reverted and re record the subsequent select *.
-#UPDATE t1 set nom="CCP" where nid = 4;
+UPDATE t1 set nom="CCP" where nid = 4;
 select * from t1 order by nid;
 
 # make sure all rows are on the slave.

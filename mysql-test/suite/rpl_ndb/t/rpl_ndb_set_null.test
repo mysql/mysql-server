@@ -2,8 +2,9 @@
 -- source include/have_binlog_format_mixed_or_row.inc
 -- source suite/ndb_rpl/ndb_master-slave.inc
 
-# With HASH_SCAN, the slave fails to find the row due to Bug#16029263
-# So temporarily use TABLE_SCAN until this gets fixed.
+# With HASH_SCAN, the slave fails to find the row on "keyless table with
+# BIT columns" due to Bug#34199339, workaround by temporarily using
+# TABLE_SCAN until fixed.
 --connection slave
 select @@global.slave_rows_search_algorithms;
 set @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
