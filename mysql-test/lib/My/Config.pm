@@ -58,7 +58,7 @@ sub option {
   }
 
   my $opt;
-  if ($value) {
+  if (defined $value) {
     $opt = "--$name=$value";
   } else {
     $opt = "--$name";
