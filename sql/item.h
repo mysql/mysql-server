@@ -6181,14 +6181,19 @@ class Item_cache;
 class Cached_item {
  protected:
   Item *item;  ///< The item whose value to cache.
-  explicit Cached_item(Item *i) : item(i), null_value(false) {}
+  explicit Cached_item(Item *i) : item(i) {}
 
  public:
-  bool null_value;
+  bool null_value{true};
   virtual ~Cached_item() = default;
   /**
-    If cached value is different from item's, returns true and updates
-    cached value with item's.
+    Compare the value associated with the item with the stored value.
+    If they are different, update the stored value with item's value and
+    return true.
+
+    @returns true if item's value and stored value are different.
+             Notice that first call is to establish an initial value and
+             return value should be ignored.
   */
   virtual bool cmp() = 0;
   Item *get_item() { return item; }
@@ -6196,12 +6201,14 @@ class Cached_item {
 };
 
 class Cached_item_str : public Cached_item {
-  String value, tmp_value;
+  // Make sure value.ptr() is never nullptr, as not all collation functions
+  // are prepared for that (even with empty strings).
+  String value{"", 0, &my_charset_bin};
+  String tmp_value;
 
  public:
-  explicit Cached_item_str(Item *arg);
+  explicit Cached_item_str(Item *arg) : Cached_item(arg) {}
   bool cmp() override;
-  ~Cached_item_str() override;  // Deallocate String:s
 };
 
 /// Cached_item subclass for JSON values.
@@ -6214,26 +6221,26 @@ class Cached_item_json : public Cached_item {
 };
 
 class Cached_item_real : public Cached_item {
-  double value;
+  double value{0.0};
 
  public:
-  Cached_item_real(Item *item_par) : Cached_item(item_par), value(0.0) {}
+  explicit Cached_item_real(Item *item_par) : Cached_item(item_par) {}
   bool cmp() override;
 };
 
 class Cached_item_int : public Cached_item {
-  longlong value;
+  longlong value{0};
 
  public:
-  Cached_item_int(Item *item_par) : Cached_item(item_par), value(0) {}
+  explicit Cached_item_int(Item *item_par) : Cached_item(item_par) {}
   bool cmp() override;
 };
 
 class Cached_item_temporal : public Cached_item {
-  longlong value;
+  longlong value{0};
 
  public:
-  Cached_item_temporal(Item *item_par) : Cached_item(item_par), value(0) {}
+  explicit Cached_item_temporal(Item *item_par) : Cached_item(item_par) {}
   bool cmp() override;
 };
 
@@ -6241,7 +6248,7 @@ class Cached_item_decimal : public Cached_item {
   my_decimal value;
 
  public:
-  Cached_item_decimal(Item *item_par);
+  explicit Cached_item_decimal(Item *item_par) : Cached_item(item_par) {}
   bool cmp() override;
 };
 

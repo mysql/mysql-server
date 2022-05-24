@@ -72,40 +72,24 @@ Cached_item *new_Cached_item(THD *thd, Item *item) {
   }
 }
 
-Cached_item_str::Cached_item_str(Item *arg)
-    : Cached_item(arg),
-      // Make sure value.data() is never nullptr, as not all collation functions
-      // are prepared for that (even with empty strings).
-      value(16) {}
-
-/**
-  Compare with old value and replace value with new value.
-
-  @return
-    Return true if values have changed
-*/
-bool Cached_item_str::cmp(void) {
-  bool tmp;
-
+bool Cached_item_str::cmp() {
   DBUG_TRACE;
   assert(!item->is_temporal());
   assert(item->data_type() != MYSQL_TYPE_JSON);
   String *res = item->val_str(&tmp_value);
   DBUG_PRINT("info", ("old: %s, new: %s", value.c_ptr_safe(),
                       res ? res->c_ptr_safe() : ""));
-  if (null_value != item->null_value) {
-    if ((null_value = item->null_value)) return true;  // New value was null
-    tmp = true;
-  } else if (null_value)
-    return false;  // new and old value was null
-  else
-    tmp = sortcmp(&value, res, item->collation.collation) != 0;
-  if (tmp) value.copy(*res);  // Remember for next cmp
-  return tmp;
-}
-
-Cached_item_str::~Cached_item_str() {
-  item = nullptr;  // Safety
+  if (item->null_value) {
+    if (null_value) return false;
+    null_value = true;
+    return true;
+  } else if (null_value ||
+             sortcmp(&value, res, item->collation.collation) != 0) {
+    null_value = false;
+    value.copy(*res);  // Remember for next comparison
+    return true;
+  }
+  return false;
 }
 
 Cached_item_json::Cached_item_json(Item *item_arg)
@@ -125,86 +109,98 @@ bool Cached_item_json::cmp() {
     null_value = true; /* purecov: inspected */
     return true;       /* purecov: inspected */
   }
-  if (null_value != item->null_value) {
-    null_value = item->null_value;
-    if (null_value) return true;  // New value is null.
-  } else if (null_value) {
-    return false;  // New and old are null.
-  } else if (!m_value->empty() && m_value->compare(wr) == 0) {
-    return false;  // New and old are equal.
+  if (item->null_value) {
+    if (null_value) return false;
+    null_value = true;
+    return true;
+  } else if (null_value || m_value->empty() || m_value->compare(wr) != 0) {
+    null_value = false;
+    /*
+      Old and new are not equal, and new is not null.
+      Remember the current value till the next time we're called.
+    */
+    *m_value = std::move(wr);
+    /*
+      The row buffer may change, which would garble the JSON binary
+      representation pointed to by m_value. Convert to DOM so that we
+      own the copy.
+    */
+    m_value->to_dom();
+    return true;
   }
-
-  /*
-    Otherwise, old and new are not equal, and new is not null.
-    Remember the current value till the next time we're called.
-  */
-  *m_value = std::move(wr);
-
-  /*
-    The row buffer may change, which would garble the JSON binary
-    representation pointed to by m_value. Convert to DOM so that we
-    own the copy.
-  */
-  m_value->to_dom();
-
-  return true;
+  return false;
 }
 
-bool Cached_item_real::cmp(void) {
+bool Cached_item_real::cmp() {
   DBUG_TRACE;
   double nr = item->val_real();
   DBUG_PRINT("info", ("old: %f, new: %f", value, nr));
-  if (null_value != item->null_value || nr != value) {
-    null_value = item->null_value;
+  if (item->null_value) {
+    if (null_value) return false;
+    null_value = true;
+    return true;
+  } else if (null_value || nr != value) {
+    null_value = false;
     value = nr;
     return true;
   }
   return false;
 }
 
-bool Cached_item_int::cmp(void) {
+bool Cached_item_int::cmp() {
   DBUG_TRACE;
   longlong nr = item->val_int();
   DBUG_PRINT("info", ("old: 0x%.16llx, new: 0x%.16llx", (ulonglong)value,
                       (ulonglong)nr));
-
-  if (null_value != item->null_value || nr != value) {
-    null_value = item->null_value;
+  if (item->null_value) {
+    if (null_value) return false;
+    null_value = true;
+    return true;
+  } else if (null_value || nr != value) {
+    null_value = false;
     value = nr;
     return true;
   }
   return false;
 }
 
-bool Cached_item_temporal::cmp(void) {
+bool Cached_item_temporal::cmp() {
   DBUG_TRACE;
   longlong nr = item->val_temporal_by_field_type();
   DBUG_PRINT("info", ("old: %lld, new: %lld", value, nr));
-  if (null_value != item->null_value || nr != value) {
-    null_value = item->null_value;
+  if (item->null_value) {
+    if (null_value) return false;
+    null_value = true;
+    return true;
+  } else if (null_value || nr != value) {
+    null_value = false;
     value = nr;
     return true;
   }
   return false;
 }
 
-Cached_item_decimal::Cached_item_decimal(Item *it) : Cached_item(it) {
-  my_decimal_set_zero(&value);
-}
-
 bool Cached_item_decimal::cmp() {
+  DBUG_TRACE;
+
   my_decimal tmp;
   my_decimal *ptmp = item->val_decimal(&tmp);
-  DBUG_TRACE;
   /*
-    NULL handling is wrong here, see Bug#25407964 GROUP BY DESC GIVES WRONG
-    RESULT WHEN GROUPS ON DECIMAL AND SEES A NULL.
+    Intermediate decimal values may have higher precision than the expected
+    result, thus to get a correct result it may be needed to round the
+    value according to the desired precision (scale).
   */
-  if (null_value != item->null_value ||
-      (!item->null_value && my_decimal_cmp(&value, ptmp))) {
-    null_value = item->null_value;
-    /* Save only not null values */
-    if (!null_value) my_decimal2decimal(ptmp, &value);
+  if (ptmp != nullptr && ptmp->frac > item->decimals) {
+    if (my_decimal_round(E_DEC_FATAL_ERROR, ptmp, item->decimals, false, ptmp))
+      return false;
+  }
+  if (item->null_value) {
+    if (null_value) return false;
+    null_value = true;
+    return true;
+  } else if (null_value || my_decimal_cmp(&value, ptmp)) {
+    null_value = false;
+    my_decimal2decimal(ptmp, &value);
     return true;
   }
   return false;
