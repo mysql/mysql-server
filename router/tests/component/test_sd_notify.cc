@@ -99,7 +99,9 @@ class NotifyTest : public RestApiComponentTest {
     UNREFERENCED_PARAMETER(router);
     return true;
 #else
-    return wait_log_contains(router, "Starting: ", 5s);
+    // log_reopen service reports readiness after the signal handler is
+    // initialized in the current implementation
+    return wait_log_contains(router, "ready 'log_reopen'", 5s);
 #endif
   }
 

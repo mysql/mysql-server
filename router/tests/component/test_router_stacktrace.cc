@@ -43,6 +43,17 @@
 #include "scope_guard.h"
 #include "test/temp_directory.h"
 
+#if !defined(__has_feature)
+#define __has_feature(x) 0
+#endif
+
+// GCC defines __SANITIZE_ADDRESS
+// clang has __has_feature and 'address_sanitizer'
+#if defined(__SANITIZE_ADDRESS__) || (__has_feature(address_sanitizer)) || \
+    (__has_feature(thread_sanitizer))
+#define HAS_FEATURE_ASAN
+#endif
+
 namespace {
 constexpr const int abrt_status{
 #ifdef _WIN32
@@ -52,6 +63,9 @@ constexpr const int abrt_status{
 #endif
 };
 
+// only used for tests that we disable for ASAN
+#ifndef HAS_FEATURE_ASAN
+
 constexpr const int segv_status{
 #ifdef _WIN32
     static_cast<int>(0xC0000005)  // STATUS_ACCESS_VIOLATION
@@ -59,6 +73,9 @@ constexpr const int segv_status{
     SIGSEGV
 #endif
 };
+
+#endif  // HAS_FEATURE_ASAN
+
 }  // namespace
 
 class RouterStacktraceTest : public RouterComponentTest {};
@@ -239,6 +256,10 @@ INSTANTIATE_TEST_SUITE_P(Spec, RouterStacktraceInvalidOptionTest,
                          ::testing::ValuesIn(invalid_options),
                          [](auto info) { return info.param.name; });
 
+// we skip those when ASAN is used as it marks them as failed seeing ABORT
+// signal
+#ifndef HAS_FEATURE_ASAN
+
 // TS_3_1
 TEST_F(RouterStacktraceTest, crash_me_via_rest_signal_abort) {
   TempDirectory tmp_dir;
@@ -305,6 +326,8 @@ TEST_F(RouterStacktraceTest, crash_me_via_rest_signal_abort) {
           ));
 }
 
+#endif  // HAS_FEATURE_ASAN
+
 TEST_F(RouterStacktraceTest, crash_me_via_event) {
   TempDirectory tmp_dir;
 
@@ -364,6 +387,10 @@ TEST_F(RouterStacktraceTest, crash_me_via_event) {
           ::testing::HasSubstr("stop reason = signal SIG")          // lldb
           ));
 }
+
+// we skip those when ASAN is used as it marks them as failed seeing ABORT
+// signal
+#ifndef HAS_FEATURE_ASAN
 
 // TS_3_1
 TEST_F(RouterStacktraceTest, crash_me_core_file_1) {
@@ -540,6 +567,8 @@ TEST_F(RouterStacktraceTest, core_file_0) {
   SCOPED_TRACE("// console output has stacktrace");
   EXPECT_THAT(r.get_full_output(), ::testing::HasSubstr("my_print_stacktrace"));
 }
+
+#endif  // HAS_FEATURE_ASAN
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
