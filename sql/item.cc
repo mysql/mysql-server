@@ -919,21 +919,32 @@ bool Item_field::is_valid_for_pushdown(uchar *arg) {
     // is not correct.
     // Trigger fields need complicated resolving when we clone a condition
     // having them.
+    // Expressions which have system variables in the underlying derived
+    // table cannot be pushed as of now because Item_func_get_system_var::print
+    // does not print the original expression which leads to an incorrect clone.
     Query_expression *derived_query_expression =
         derived_table->derived_query_expression();
     for (Query_block *qb = derived_query_expression->first_query_block();
          qb != nullptr; qb = qb->next_query_block()) {
       Item *item = qb->get_derived_expr(field->field_index());
       bool has_trigger_field = false;
-      WalkItem(item, enum_walk::PREFIX, [&has_trigger_field](Item *inner_item) {
-        if (inner_item->type() == Item::TRIGGER_FIELD_ITEM) {
-          has_trigger_field = true;
-          return true;
-        }
-        return false;
-      });
+      bool has_system_var = false;
+      WalkItem(item, enum_walk::PREFIX,
+               [&has_trigger_field, &has_system_var](Item *inner_item) {
+                 if (inner_item->type() == Item::TRIGGER_FIELD_ITEM) {
+                   has_trigger_field = true;
+                   return true;
+                 }
+                 if (inner_item->type() == Item::FUNC_ITEM &&
+                     down_cast<Item_func *>(inner_item)->functype() ==
+                         Item_func::GSYSVAR_FUNC) {
+                   has_system_var = true;
+                   return true;
+                 }
+                 return false;
+               });
       if (item->has_subquery() || item->is_non_deterministic() ||
-          has_trigger_field)
+          has_trigger_field || has_system_var)
         return true;
     }
     return false;
