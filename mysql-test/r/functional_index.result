@@ -634,3 +634,76 @@ DROP TABLE t5;
 DROP TABLE t6;
 DROP TABLE t7;
 DROP TABLE t8;
+#
+# Bug#33851055: Correlated subquery does not use functional index
+#
+CREATE TABLE t (
+id INT DEFAULT NULL,
+KEY functional_index ((id * id))
+);
+CREATE TABLE t2 (
+id INT NOT NULL AUTO_INCREMENT,
+val INT,
+PRIMARY KEY (id)
+);
+INSERT INTO t(id) VALUES (1), (1), (2), (-1), (-2);
+INSERT INTO t2(val) VALUES (1), (2), (3), (4);
+ANALYZE TABLE t,t2;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN SELECT id, val, (SELECT id FROM t WHERE (id * id) = val LIMIT 1) AS tid FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	DEPENDENT SUBQUERY	t	NULL	ref	functional_index	functional_index	9	test.t2.val	2	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t2.val' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`val` AS `val`,(/* select#2 */ select `test`.`t`.`id` from `test`.`t` where ((`id` * `id`) = `test`.`t2`.`val`) limit 1) AS `tid` from `test`.`t2`
+SELECT id, val, (SELECT id FROM t WHERE (id * id) = val LIMIT 1) AS tid FROM t2;
+id	val	tid
+1	1	1
+2	2	NULL
+3	3	NULL
+4	4	2
+EXPLAIN SELECT id, val, (SELECT id FROM t WHERE (id * id) BETWEEN val and val + 2 LIMIT 1) AS tid FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	DEPENDENT SUBQUERY	t	NULL	ALL	functional_index	NULL	NULL	NULL	5	20.00	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1276	Field or reference 'test.t2.val' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t2.val' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`val` AS `val`,(/* select#2 */ select `test`.`t`.`id` from `test`.`t` where ((`id` * `id`) between `test`.`t2`.`val` and (`test`.`t2`.`val` + 2)) limit 1) AS `tid` from `test`.`t2`
+SELECT id, val, (SELECT id FROM t WHERE (id * id) BETWEEN val and val + 2 LIMIT 1) AS tid FROM t2;
+id	val	tid
+1	1	1
+2	2	2
+3	3	2
+4	4	2
+EXPLAIN SELECT id, val, (SELECT id FROM t WHERE (id * id) IN (val) LIMIT 1) AS tid FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	DEPENDENT SUBQUERY	t	NULL	ref	functional_index	functional_index	9	test.t2.val	2	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t2.val' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`val` AS `val`,(/* select#2 */ select `test`.`t`.`id` from `test`.`t` where ((`id` * `id`) = `test`.`t2`.`val`) limit 1) AS `tid` from `test`.`t2`
+SELECT id, val, (SELECT id FROM t WHERE (id * id) IN (val) LIMIT 1) AS tid FROM t2;
+id	val	tid
+1	1	1
+2	2	NULL
+3	3	NULL
+4	4	2
+EXPLAIN SELECT id, val, (SELECT id FROM t WHERE (id * id) = val + (SELECT 1 FROM t WHERE id > 1) LIMIT 1) AS tid FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	DEPENDENT SUBQUERY	t	NULL	ref	functional_index	functional_index	9	func	2	100.00	Using where
+3	SUBQUERY	t	NULL	ALL	NULL	NULL	NULL	NULL	5	33.33	Using where
+Warnings:
+Note	1276	Field or reference 'test.t2.val' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`val` AS `val`,(/* select#2 */ select `test`.`t`.`id` from `test`.`t` where ((`id` * `id`) = (`test`.`t2`.`val` + (/* select#3 */ select 1 from `test`.`t` where (`test`.`t`.`id` > 1)))) limit 1) AS `tid` from `test`.`t2`
+SELECT id, val, (SELECT id FROM t WHERE (id * id) = val + (SELECT 1 FROM t WHERE id > 1) LIMIT 1) AS tid FROM t2;
+id	val	tid
+1	1	NULL
+2	2	NULL
+3	3	2
+4	4	NULL
+DROP TABLE t, t2;
