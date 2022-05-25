@@ -876,7 +876,7 @@ retry:
 		}
 
 		if (node->size == 0) {
-			ulint	extent_size;
+			uint64_t	extent_size;
 
 			extent_size = page_size.physical() * FSP_EXTENT_SIZE;
 
@@ -5029,7 +5029,7 @@ retry:
 	}
 
 	page_size_t	pageSize(space->flags);
-	const ulint	page_size = pageSize.physical();
+	const os_offset_t	page_size = pageSize.physical();
 	fil_node_t*	node = UT_LIST_GET_LAST(space->chain);
 
 	if (!node->being_extended) {
