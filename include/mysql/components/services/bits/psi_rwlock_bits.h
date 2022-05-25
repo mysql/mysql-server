@@ -249,7 +249,7 @@ typedef struct PSI_rwlock_locker *(*start_rwlock_rdwait_v1_t)(
 /**
   Record a rwlock instrumentation read wait end event.
   @param locker a thread locker for the running thread
-  @param rc the wait operation return code
+  @param rc 0 if the lock was acquired, 1 if it was not
 */
 typedef void (*end_rwlock_rdwait_v1_t)(struct PSI_rwlock_locker *locker,
                                        int rc);
@@ -270,7 +270,7 @@ typedef struct PSI_rwlock_locker *(*start_rwlock_wrwait_v1_t)(
 /**
   Record a rwlock instrumentation write wait end event.
   @param locker a thread locker for the running thread
-  @param rc the wait operation return code
+  @param rc 0 if the lock was acquired, 1 if it was not
 */
 typedef void (*end_rwlock_wrwait_v1_t)(struct PSI_rwlock_locker *locker,
                                        int rc);

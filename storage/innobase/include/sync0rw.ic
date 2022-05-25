@@ -535,7 +535,8 @@ static inline void pfs_rw_lock_x_lock_func(rw_lock_t *lock, ulint pass,
       ret = rw_lock_x_lock_func_nowait(lock, location);
 
       if (locker != nullptr) {
-        PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, static_cast<int>(ret));
+        const int rc = (ret ? 0 : 1);
+        PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, rc);
       }
 
       return ret;
@@ -640,7 +641,8 @@ static inline void pfs_rw_lock_sx_lock_func(rw_lock_t *lock, ulint pass,
       ret = rw_lock_s_lock_low(lock, pass, location);
 
       if (locker != nullptr) {
-        PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, static_cast<int>(ret));
+        const int rc = (ret ? 0 : 1);
+        PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, rc);
       }
 
       return ret;
@@ -677,7 +679,8 @@ static inline void pfs_rw_lock_sx_lock_func(rw_lock_t *lock, ulint pass,
       ret = rw_lock_sx_lock_low(lock, pass, location);
 
       if (locker != nullptr) {
-        PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, static_cast<int>(ret));
+        const int rc = (ret ? 0 : 1);
+        PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, rc);
       }
 
       return (ret);
