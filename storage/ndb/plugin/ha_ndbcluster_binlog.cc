@@ -101,7 +101,7 @@ extern bool opt_ndb_log_binlog_index;
 extern bool opt_ndb_log_apply_status;
 extern bool opt_ndb_log_transaction_id;
 extern bool opt_ndb_log_trx_compression;
-extern bool opt_ndb_log_trx_compression_level_zstd;
+extern uint opt_ndb_log_trx_compression_level_zstd;
 extern bool opt_ndb_log_empty_update;
 extern bool opt_ndb_clear_apply_status;
 extern bool opt_ndb_log_fail_terminate;
