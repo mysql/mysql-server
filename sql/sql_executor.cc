@@ -1503,6 +1503,7 @@ AccessPath *MoveCompositeIteratorsFromTablePath(AccessPath *path) {
       case AccessPath::EQ_REF:
       case AccessPath::ALTERNATIVE:
       case AccessPath::CONST_TABLE:
+      case AccessPath::INDEX_SCAN:
       case AccessPath::INDEX_RANGE_SCAN:
         // We found our real bottom.
         path->materialize().table_path = sub_path;
