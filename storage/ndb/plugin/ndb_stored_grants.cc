@@ -674,10 +674,11 @@ void ThreadContext::create_user(std::string &name, std::string &statement) {
   }
 
   if (!exists_local) {
-    /* Create the user with a random password */
+    /* Create the user with a random password and add it to the local cache */
     ndb_log_info("From stored snapshot, adding NDB stored user: %s",
                  name.c_str());
     run_acl_statement(create_user + name + random_pass);
+    local_granted_users.insert(name);
   }
 
   /* Revoke any privileges the user may have had prior to this snapshot. */

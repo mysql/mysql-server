@@ -1,0 +1,15 @@
+server 1:
+CREATE USER 'albus'@'%' IDENTIFIED BY 'xrm0Baa';
+GRANT SELECT, INSERT,UPDATE,DELETE,CREATE,REFERENCES,INDEX,ALTER,CREATE VIEW
+ON *.* TO 'albus'@'%';
+GRANT NDB_STORED_USER ON *.* TO 'albus'@'%';
+server 2:
+SELECT user FROM mysql.user WHERE user = "albus";
+user
+albus
+DROP USER 'albus'@'%';
+SELECT user FROM mysql.user WHERE user = "albus";
+user
+server 1:
+SELECT user FROM mysql.user WHERE user = "albus";
+user
