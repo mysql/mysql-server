@@ -642,6 +642,18 @@ sub main {
                               template_path => "include/default_my.cnf",);
     unshift(@$tests, $tinfo);
   }
+  my $secondary_engine_suite = 0;
+  if (defined $::secondary_engine and $secondary_engine_support) {
+    foreach(@$tests) {
+      if ($_->{name} =~ /^$::secondary_engine/) {
+        $secondary_engine_suite = 1;
+        last;
+      }
+    }
+  }
+  if (!$secondary_engine_suite) {
+    $secondary_engine_support = 0;
+  }
 
   my $num_tests = @$tests;
   if ($num_tests == 0) {
