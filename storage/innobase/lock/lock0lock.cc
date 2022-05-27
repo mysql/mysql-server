@@ -454,6 +454,13 @@ static inline ulint lock_rec_get_insert_intention(
   return (lock->type_mode & LOCK_INSERT_INTENTION);
 }
 namespace locksys {
+
+enum class Conflict {
+  HAS_TO_WAIT,
+  NO_CONFLICT,
+  CAN_BYPASS,
+};
+
 /** Checks if a new request for a record lock has to wait for existing request.
 @param[in]  trx                   The trx requesting the new lock
 @param[in]  type_mode             precise mode of the new lock to set: LOCK_S or
@@ -472,97 +479,101 @@ namespace locksys {
                                   heap_no (which is implicitly the bit common to
                                   all lock2 objects passed) which can be used by
                                   this function to cache some partial results.
-@return true if new lock has to wait for lock2 to be removed */
-static inline bool rec_lock_has_to_wait(const trx_t *trx, ulint type_mode,
-                                        const lock_t *lock2,
-                                        bool lock_is_on_supremum,
-                                        Trx_locks_cache &trx_locks_cache)
+@retval NO_CONFLICT the trx does not have to wait for lock2
+@retval CAN_BYPASS  the trx does not have to wait for lock2, as it can bypass it
+@retval HAS_TO_WAIT the trx has to wait for lock2
+*/
+static inline Conflict rec_lock_check_conflict(const trx_t *trx,
+                                               ulint type_mode,
+                                               const lock_t *lock2,
+                                               bool lock_is_on_supremum,
+                                               Trx_locks_cache &trx_locks_cache)
 
 {
   ut_ad(trx && lock2);
   ut_ad(lock_get_type_low(lock2) == LOCK_REC);
 
-  const bool is_hp = trx_is_high_priority(trx);
-  if (trx != lock2->trx &&
-      !lock_mode_compatible(static_cast<lock_mode>(LOCK_MODE_MASK & type_mode),
-                            lock_get_mode(lock2))) {
-    /* If our trx is High Priority and the existing lock is WAITING and not
-        high priority, then we can ignore it. */
-    if (is_hp && lock2->is_waiting() && !trx_is_high_priority(lock2->trx)) {
-      return (false);
-    }
-
-    /* We have somewhat complex rules when gap type record locks
-    cause waits */
-
-    if ((lock_is_on_supremum || (type_mode & LOCK_GAP)) &&
-        !(type_mode & LOCK_INSERT_INTENTION)) {
-      /* Gap type locks without LOCK_INSERT_INTENTION flag
-      do not need to wait for anything. This is because
-      different users can have conflicting lock types
-      on gaps. */
-
-      return (false);
-    }
-
-    if (!(type_mode & LOCK_INSERT_INTENTION) && lock_rec_get_gap(lock2)) {
-      /* Record lock (LOCK_ORDINARY or LOCK_REC_NOT_GAP
-      does not need to wait for a gap type lock */
-
-      return (false);
-    }
-
-    if ((type_mode & LOCK_GAP) && lock_rec_get_rec_not_gap(lock2)) {
-      /* Lock on gap does not need to wait for
-      a LOCK_REC_NOT_GAP type lock */
-
-      return (false);
-    }
-
-    if (lock_rec_get_insert_intention(lock2)) {
-      /* No lock request needs to wait for an insert
-      intention lock to be removed. This is ok since our
-      rules allow conflicting locks on gaps. This eliminates
-      a spurious deadlock caused by a next-key lock waiting
-      for an insert intention lock; when the insert
-      intention lock was granted, the insert deadlocked on
-      the waiting next-key lock.
-
-      Also, insert intention locks do not disturb each
-      other. */
-
-      return (false);
-    }
-
-    /* This is very important that LOCK_INSERT_INTENTION should not overtake a
-    WAITING Gap or Next-Key lock on the same heap_no, because the following
-    insertion of the record would split the gap duplicating the waiting lock,
-    violating the rule that a transaction can have at most one waiting lock. */
-    if (!(type_mode & LOCK_INSERT_INTENTION) && lock2->is_waiting() &&
-        lock2->mode() == LOCK_X && (type_mode & LOCK_MODE_MASK) == LOCK_X) {
-      // We would've already returned false if it was a gap lock.
-      ut_ad(!(type_mode & LOCK_GAP));
-      // Similarly, since locks on supremum are either LOCK_INSERT_INTENTION or
-      // gap locks, we would've already returned false if it's about supremum.
-      ut_ad(!lock_is_on_supremum);
-      // If lock2 was a gap lock (in particular: insert intention), it could
-      // only block LOCK_INSERT_INTENTION, which we've ruled out.
-      ut_ad(!lock_rec_get_gap(lock2));
-      // So, both locks are REC_NOT_GAP or Next-Key locks
-      ut_ad(lock2->is_record_not_gap() || lock2->is_next_key_lock());
-      ut_ad((type_mode & LOCK_REC_NOT_GAP) ||
-            lock_mode_is_next_key_lock(type_mode));
-      /* In this case, we should ignore lock2, if trx already has a GRANTED lock
-      blocking lock2 from being granted. */
-      if (trx_locks_cache.has_granted_blocker(trx, lock2)) {
-        return false;
-      }
-    }
-
-    return (true);
+  if (trx == lock2->trx ||
+      lock_mode_compatible(static_cast<lock_mode>(LOCK_MODE_MASK & type_mode),
+                           lock_get_mode(lock2))) {
+    return Conflict::NO_CONFLICT;
   }
 
-  return (false);
+  const bool is_hp = trx_is_high_priority(trx);
+  /* If our trx is High Priority and the existing lock is WAITING and not
+      high priority, then we can ignore it. */
+  if (is_hp && lock2->is_waiting() && !trx_is_high_priority(lock2->trx)) {
+    return Conflict::NO_CONFLICT;
+  }
+
+  /* We have somewhat complex rules when gap type record locks
+  cause waits */
+
+  if ((lock_is_on_supremum || (type_mode & LOCK_GAP)) &&
+      !(type_mode & LOCK_INSERT_INTENTION)) {
+    /* Gap type locks without LOCK_INSERT_INTENTION flag
+    do not need to wait for anything. This is because
+    different users can have conflicting lock types
+    on gaps. */
+
+    return Conflict::NO_CONFLICT;
+  }
+
+  if (!(type_mode & LOCK_INSERT_INTENTION) && lock_rec_get_gap(lock2)) {
+    /* Record lock (LOCK_ORDINARY or LOCK_REC_NOT_GAP
+    does not need to wait for a gap type lock */
+
+    return Conflict::NO_CONFLICT;
+  }
+
+  if ((type_mode & LOCK_GAP) && lock_rec_get_rec_not_gap(lock2)) {
+    /* Lock on gap does not need to wait for
+    a LOCK_REC_NOT_GAP type lock */
+
+    return Conflict::NO_CONFLICT;
+  }
+
+  if (lock_rec_get_insert_intention(lock2)) {
+    /* No lock request needs to wait for an insert
+    intention lock to be removed. This is ok since our
+    rules allow conflicting locks on gaps. This eliminates
+    a spurious deadlock caused by a next-key lock waiting
+    for an insert intention lock; when the insert
+    intention lock was granted, the insert deadlocked on
+    the waiting next-key lock.
+
+    Also, insert intention locks do not disturb each
+    other. */
+
+    return Conflict::NO_CONFLICT;
+  }
+
+  /* This is very important that LOCK_INSERT_INTENTION should not overtake a
+  WAITING Gap or Next-Key lock on the same heap_no, because the following
+  insertion of the record would split the gap duplicating the waiting lock,
+  violating the rule that a transaction can have at most one waiting lock. */
+  if (!(type_mode & LOCK_INSERT_INTENTION) && lock2->is_waiting() &&
+      lock2->mode() == LOCK_X && (type_mode & LOCK_MODE_MASK) == LOCK_X) {
+    // We would've already returned false if it was a gap lock.
+    ut_ad(!(type_mode & LOCK_GAP));
+    // Similarly, since locks on supremum are either LOCK_INSERT_INTENTION or
+    // gap locks, we would've already returned false if it's about supremum.
+    ut_ad(!lock_is_on_supremum);
+    // If lock2 was a gap lock (in particular: insert intention), it could
+    // only block LOCK_INSERT_INTENTION, which we've ruled out.
+    ut_ad(!lock_rec_get_gap(lock2));
+    // So, both locks are REC_NOT_GAP or Next-Key locks
+    ut_ad(lock2->is_record_not_gap() || lock2->is_next_key_lock());
+    ut_ad((type_mode & LOCK_REC_NOT_GAP) ||
+          lock_mode_is_next_key_lock(type_mode));
+    /* In this case, we should ignore lock2, if trx already has a GRANTED lock
+    blocking lock2 from being granted. */
+    if (trx_locks_cache.has_granted_blocker(trx, lock2)) {
+      return Conflict::CAN_BYPASS;
+    }
+  }
+
+  return Conflict::HAS_TO_WAIT;
 }
 
 /** Checks if a record lock request lock1 has to wait for request lock2.
@@ -577,8 +588,9 @@ static inline bool rec_lock_has_to_wait(const lock_t *lock1,
                                         Trx_locks_cache &lock1_cache) {
   ut_ad(lock1->is_waiting());
   ut_ad(lock_rec_get_nth_bit(lock2, lock_rec_find_set_bit(lock1)));
-  return rec_lock_has_to_wait(lock1->trx, lock1->type_mode, lock2,
-                              lock1->includes_supremum(), lock1_cache);
+  return rec_lock_check_conflict(lock1->trx, lock1->type_mode, lock2,
+                                 lock1->includes_supremum(),
+                                 lock1_cache) == Conflict::HAS_TO_WAIT;
 }
 
 bool has_to_wait(const lock_t *lock1, const lock_t *lock2,
@@ -893,32 +905,46 @@ static const lock_t *lock_rec_other_has_expl_req(
 }
 #endif /* UNIV_DEBUG */
 
+namespace locksys {
+struct Conflicting {
+  /** a conflicting lock or null if no conflicting lock found */
+  const lock_t *wait_for;
+  /** true iff the trx has bypassed one of waiting locks */
+  bool bypassed;
+};
+} /*namespace locksys*/
 /** Checks if some other transaction has a conflicting explicit lock request
  in the queue, so that we have to wait.
- @return lock or NULL */
-static const lock_t *lock_rec_other_has_conflicting(
-    ulint mode,               /*!< in: LOCK_S or LOCK_X,
-                              possibly ORed to LOCK_GAP or
-                              LOC_REC_NOT_GAP,
-                              LOCK_INSERT_INTENTION */
-    const buf_block_t *block, /*!< in: buffer block containing
-                              the record */
-    ulint heap_no,            /*!< in: heap number of the record */
-    const trx_t *trx)         /*!< in: our transaction */
-{
+ @param[in]     mode        LOCK_S or LOCK_X, possibly ORed to
+                            LOCK_GAP or LOC_REC_NOT_GAP, LOCK_INSERT_INTENTION
+ @param[in]     block       buffer block containing the record
+ @param[in]     heap_no     heap number of the record
+ @param[in]     trx         our transaction
+ @return a pair, where:
+ the first element is a conflicting lock or null if no conflicting lock found,
+ the second element indicates if the trx has bypassed one of waiting locks.
+*/
+static locksys::Conflicting lock_rec_other_has_conflicting(
+    ulint mode, const buf_block_t *block, ulint heap_no, const trx_t *trx) {
   ut_ad(locksys::owns_page_shard(block->get_page_id()));
   ut_ad(!(mode & ~(ulint)(LOCK_MODE_MASK | LOCK_GAP | LOCK_REC_NOT_GAP |
                           LOCK_INSERT_INTENTION)));
   ut_ad(!(mode & LOCK_PREDICATE));
   ut_ad(!(mode & LOCK_PRDT_PAGE));
+  bool bypassed{false};
 
   RecID rec_id{block, heap_no};
   const bool is_supremum = rec_id.is_supremum();
   locksys::Trx_locks_cache trx_locks_cache{};
-  return Lock_iter::for_each(rec_id, [&](const lock_t *lock) {
-    return !locksys::rec_lock_has_to_wait(trx, mode, lock, is_supremum,
-                                          trx_locks_cache);
+  const lock_t *wait_for = Lock_iter::for_each(rec_id, [&](const lock_t *lock) {
+    const auto conflict = locksys::rec_lock_check_conflict(
+        trx, mode, lock, is_supremum, trx_locks_cache);
+    if (conflict == locksys::Conflict::CAN_BYPASS) {
+      bypassed = true;
+    }
+    return conflict != locksys::Conflict::HAS_TO_WAIT;
   });
+  return {wait_for, bypassed};
 }
 
 /** Checks if the (-infinity,max_old_active_id] range contains an id of
@@ -1765,7 +1791,8 @@ static void lock_reuse_for_next_key_lock(const lock_t *held_lock, ulint mode,
   that GAP Locks do not conflict with anything. Therefore a GAP Lock
   could be granted to us right now if we've requested: */
   mode |= LOCK_GAP;
-  ut_ad(nullptr == lock_rec_other_has_conflicting(mode, block, heap_no, trx));
+  ut_ad(nullptr ==
+        lock_rec_other_has_conflicting(mode, block, heap_no, trx).wait_for);
 
   /* It might be the case we already have one, so we first check that. */
   if (lock_rec_has_expl(mode, block, heap_no, trx) == nullptr) {
@@ -1776,7 +1803,7 @@ static void lock_reuse_for_next_key_lock(const lock_t *held_lock, ulint mode,
 low-level function which does NOT look at implicit locks! Checks lock
 compatibility within explicit locks. This function sets a normal next-key
 lock, or in the case of a page supremum record, a gap type lock.
-@param[in]      impl            if true, no lock is set if no wait is
+@param[in]      impl            if true, no lock might be set if no wait is
                                 necessary: we assume that the caller will
                                 set an implicit lock
 @param[in]      sel_mode        select mode: SELECT_ORDINARY,
@@ -1847,11 +1874,10 @@ static dberr_t lock_rec_lock_slow(bool impl, select_mode sel_mode, ulint mode,
     lock_reuse_for_next_key_lock(held_lock, mode, block, heap_no, index, trx);
     return (DB_SUCCESS);
   }
-
-  const lock_t *wait_for =
+  const auto conflicting =
       lock_rec_other_has_conflicting(mode, block, heap_no, trx);
 
-  if (wait_for != nullptr) {
+  if (conflicting.wait_for != nullptr) {
     switch (sel_mode) {
       case SELECT_SKIP_LOCKED:
         return (DB_SKIP_LOCKED);
@@ -1866,7 +1892,7 @@ static dberr_t lock_rec_lock_slow(bool impl, select_mode sel_mode, ulint mode,
 
         trx_mutex_enter(trx);
 
-        dberr_t err = rec_lock.add_to_waitq(wait_for);
+        dberr_t err = rec_lock.add_to_waitq(conflicting.wait_for);
 
         trx_mutex_exit(trx);
 
@@ -1875,7 +1901,9 @@ static dberr_t lock_rec_lock_slow(bool impl, select_mode sel_mode, ulint mode,
         return (err);
     }
   }
-  if (!impl) {
+  /* In case we've used a heuristic to bypass a conflicting waiter, we prefer to
+  create an explicit lock so it is easier to track the wait-for relation.*/
+  if (!impl || conflicting.bypassed) {
     /* Set the requested lock on the record. */
 
     lock_rec_add_to_queue(LOCK_REC | mode, block, heap_no, index, trx);
@@ -5441,15 +5469,21 @@ dberr_t lock_rec_insert_check_and_lock(
 
       const ulint type_mode = LOCK_X | LOCK_GAP | LOCK_INSERT_INTENTION;
 
-      const lock_t *wait_for =
+      const auto conflicting =
           lock_rec_other_has_conflicting(type_mode, block, heap_no, trx);
 
-      if (wait_for != nullptr) {
+      /* LOCK_INSERT_INTENTION locks can not be allowed to bypass waiting locks,
+      because they allow insertion of a record which splits the gap which would
+      lead to duplication of the waiting lock, violating the constraint that
+      each transaction can wait for at most one lock at any given time */
+      ut_a(!conflicting.bypassed);
+
+      if (conflicting.wait_for != nullptr) {
         RecLock rec_lock(thr, index, block, heap_no, type_mode);
 
         trx_mutex_enter(trx);
 
-        err = rec_lock.add_to_waitq(wait_for);
+        err = rec_lock.add_to_waitq(conflicting.wait_for);
 
         trx_mutex_exit(trx);
       }
