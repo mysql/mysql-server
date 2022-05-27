@@ -50,8 +50,9 @@
 // GCC defines __SANITIZE_ADDRESS
 // clang has __has_feature and 'address_sanitizer'
 #if defined(__SANITIZE_ADDRESS__) || (__has_feature(address_sanitizer)) || \
-    (__has_feature(thread_sanitizer))
-#define HAS_FEATURE_ASAN
+    (__has_feature(thread_sanitizer)) ||                                   \
+    (__has_feature(undefined_behavior_sanitizer))
+#define HAS_FEATURE_SANITIZER
 #endif
 
 namespace {
@@ -63,8 +64,8 @@ constexpr const int abrt_status{
 #endif
 };
 
-// only used for tests that we disable for ASAN
-#ifndef HAS_FEATURE_ASAN
+// only used for tests that we disable for ASAN and UBSAN
+#ifndef HAS_FEATURE_SANITIZER
 
 constexpr const int segv_status{
 #ifdef _WIN32
@@ -74,7 +75,7 @@ constexpr const int segv_status{
 #endif
 };
 
-#endif  // HAS_FEATURE_ASAN
+#endif  // HAS_FEATURE_SANITIZER
 
 }  // namespace
 
@@ -256,9 +257,9 @@ INSTANTIATE_TEST_SUITE_P(Spec, RouterStacktraceInvalidOptionTest,
                          ::testing::ValuesIn(invalid_options),
                          [](auto info) { return info.param.name; });
 
-// we skip those when ASAN is used as it marks them as failed seeing ABORT
-// signal
-#ifndef HAS_FEATURE_ASAN
+// we skip those when ASAN and UBSAN is used as it marks them as failed seeing
+// ABORT signal
+#ifndef HAS_FEATURE_SANITIZER
 
 // TS_3_1
 TEST_F(RouterStacktraceTest, crash_me_via_rest_signal_abort) {
@@ -326,7 +327,7 @@ TEST_F(RouterStacktraceTest, crash_me_via_rest_signal_abort) {
           ));
 }
 
-#endif  // HAS_FEATURE_ASAN
+#endif  // HAS_FEATURE_SANITIZER
 
 TEST_F(RouterStacktraceTest, crash_me_via_event) {
   TempDirectory tmp_dir;
@@ -388,9 +389,9 @@ TEST_F(RouterStacktraceTest, crash_me_via_event) {
           ));
 }
 
-// we skip those when ASAN is used as it marks them as failed seeing ABORT
-// signal
-#ifndef HAS_FEATURE_ASAN
+// we skip those when ASAN or UBSAN is used as it marks them as failed seeing
+// ABORT signal
+#ifndef HAS_FEATURE_SANITIZER
 
 // TS_3_1
 TEST_F(RouterStacktraceTest, crash_me_core_file_1) {
@@ -568,7 +569,7 @@ TEST_F(RouterStacktraceTest, core_file_0) {
   EXPECT_THAT(r.get_full_output(), ::testing::HasSubstr("my_print_stacktrace"));
 }
 
-#endif  // HAS_FEATURE_ASAN
+#endif  // HAS_FEATURE_SANITIZER
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

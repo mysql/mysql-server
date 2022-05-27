@@ -43,8 +43,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // GCC defines __SANITIZE_ADDRESS
 // clang has __has_feature and 'address_sanitizer'
 #if defined(__SANITIZE_ADDRESS__) || (__has_feature(address_sanitizer)) || \
-    (__has_feature(thread_sanitizer))
-#define HAS_FEATURE_ASAN
+    (__has_feature(thread_sanitizer)) ||                                   \
+    (__has_feature(undefined_behavior_sanitizer))
+#define HAS_FEATURE_SANITIZER
 #endif
 
 mysql_harness::Path g_origin_path;
@@ -94,7 +95,7 @@ TEST_F(StacktraceTest, spawn_signal_abrt) {
 
 // we skip that one when ASAN is used as it marks them as failed seeing ABORT
 // signal
-#ifndef HAS_FEATURE_ASAN
+#ifndef HAS_FEATURE_SANITIZER
 
 TEST_F(StacktraceTest, spawn_signal_segv) {
   auto executable = g_origin_path.join("signal_me").str();
@@ -115,7 +116,7 @@ TEST_F(StacktraceTest, spawn_signal_segv) {
   EXPECT_NO_THROW(proc.native_wait_for_exit());  // timeout throws
 }
 
-#endif  // HAS_FEATURE_ASAN
+#endif  // HAS_FEATURE_SANITIZER
 
 int main(int argc, char *argv[]) {
   g_origin_path = mysql_harness::Path(argv[0]).dirname();
