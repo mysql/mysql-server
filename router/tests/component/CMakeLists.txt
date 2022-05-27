@@ -71,6 +71,7 @@ FOREACH(test_file
     test_router_stacktrace.cc
     test_routing.cc
     test_routing_connection.cc
+    test_routing_connection_errors.cc
     test_routing_strategy.cc
     test_sd_notify.cc
     test_shutdown.cc
