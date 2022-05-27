@@ -1688,18 +1688,6 @@ void dd_copy_table_columns(const Alter_inplace_info *ha_alter_info,
 
     /* Skip the dropped column */
     if (is_dropped(ha_alter_info, old_col->name().c_str())) {
-      /* Either this is a virtual column in old table or this column is being
-      dropped instantly. Skip it. */
-      if (!old_col->is_virtual()) {
-        if (first_row_version) {
-          const char *s = dd_column_key_strings[DD_INSTANT_PHYSICAL_POS];
-          dict_col_t *col =
-              dict_table->get_col_by_name(old_col->name().c_str());
-          (const_cast<dd::Column *>(old_col))
-              ->se_private_data()
-              .set(s, col->get_phy_pos());
-        }
-      }
       continue;
     } else if (is_renamed(ha_alter_info, old_col->name().c_str(), new_name)) {
       IF_DEBUG(renamed = true;)
@@ -2000,10 +1988,16 @@ void dd_drop_instant_columns(
 
     uint32_t phy_pos = UINT32_UNDEFINED;
     const char *s = dd_column_key_strings[DD_INSTANT_PHYSICAL_POS];
-    /* Even for upgraded table, physical pos for this column would have been
-    set in dd_copy_table_columns(). */
-    ut_ad(private_data.exists(s));
-    private_data.get(s, &phy_pos);
+    if (!private_data.exists(s)) {
+      ut_ad(!dd_table_has_row_versions(*old_dd_table));
+      ut_ad(!new_dict_table->has_row_versions());
+      const dict_col_t *col =
+          new_dict_table->get_col_by_name(column->field_name);
+      phy_pos = col->get_phy_pos();
+    } else {
+      private_data.get(s, &phy_pos);
+    }
+
     ut_ad(phy_pos != UINT32_UNDEFINED);
 
     std::string dropped_col_name(col_to_drop->name().c_str());
@@ -3407,7 +3401,8 @@ void get_field_types(const dd::Table *dd_tab, const dict_table_t *m_table,
 template <typename Table>
 static inline void fill_dict_existing_column(
     const Table *dd_tab, const TABLE *m_form, dict_table_t *m_table,
-    IF_DEBUG(uint32_t &crv, ) mem_heap_t *heap, const uint32_t pos) {
+    IF_DEBUG(uint32_t &crv, ) mem_heap_t *heap, const uint32_t pos,
+    bool has_row_versions) {
   const Field *field = m_form->field[pos];
   unsigned col_len;
   ulint mtype;
@@ -3434,7 +3429,7 @@ static inline void fill_dict_existing_column(
 
     /* Get physical pos */
     uint32_t phy_pos = UINT32_UNDEFINED;
-    if (dd_table_has_row_versions(dd_tab->table())) {
+    if (has_row_versions) {
       ut_ad(!m_table->is_system_table && !m_table->is_fts_aux());
       const char *s = dd_column_key_strings[DD_INSTANT_PHYSICAL_POS];
 
@@ -3493,9 +3488,10 @@ static inline void fill_dict_columns(const Table *dd_table, const TABLE *m_form,
   IF_DEBUG(uint32_t crv = 0;)
 
   /* Add existing columns metadata information. */
+  bool has_row_versions = dd_table_has_row_versions(dd_table->table());
   for (unsigned i = 0; i < n_mysql_cols; i++) {
     fill_dict_existing_column(dd_table, m_form, dict_table,
-                              IF_DEBUG(crv, ) heap, i);
+                              IF_DEBUG(crv, ) heap, i, has_row_versions);
   }
 
   if (add_doc_id) {
