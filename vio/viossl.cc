@@ -266,7 +266,7 @@ size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size) {
 
   DBUG_TRACE;
 
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L && !defined(NDEBUG)
   // TODO: find out which of the openssl 3 functions makes this a requirement
   ERR_clear_error();
 #endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
@@ -313,7 +313,7 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size) {
 
   DBUG_TRACE;
 
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L && !defined(NDEBUG)
   // TODO: find out which of the openssl 3 functions makes this a requirement
   ERR_clear_error();
 #endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
@@ -430,7 +430,7 @@ static size_t ssl_handshake_loop(Vio *vio, SSL *ssl, ssl_handshake_func_t func,
 
   vio->ssl_arg = ssl;
 
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L && !defined(NDEBUG)
   // TODO: find out which of the openssl 3 functions makes this a requirement
   ERR_clear_error();
 #endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
