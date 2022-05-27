@@ -815,7 +815,7 @@ DuktapeStatementReader::server_greeting(bool with_tls) {
       classic_protocol::capabilities::no_schema |
       // compress (not yet)
       classic_protocol::capabilities::odbc |
-      // local_files (never)
+      classic_protocol::capabilities::local_files |
       // ignore_space (client only)
       classic_protocol::capabilities::protocol_41 |
       // interactive (client-only)
@@ -824,13 +824,14 @@ DuktapeStatementReader::server_greeting(bool with_tls) {
       classic_protocol::capabilities::transactions |
       classic_protocol::capabilities::secure_connection |
       // multi_statements (not yet)
+      classic_protocol::capabilities::multi_results |
       // multi_results (not yet)
       // ps_multi_results (not yet)
       classic_protocol::capabilities::plugin_auth |
       classic_protocol::capabilities::connect_attributes |
-      // client_auth_method_data_varint
+      classic_protocol::capabilities::client_auth_method_data_varint |
       classic_protocol::capabilities::expired_passwords |
-      // session_track (not yet)
+      classic_protocol::capabilities::session_track |
       classic_protocol::capabilities::text_result_with_session_tracking
       // optional_resultset_metadata (not yet)
       // compress_zstd (not yet)
