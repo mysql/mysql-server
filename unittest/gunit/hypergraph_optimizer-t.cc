@@ -3688,6 +3688,24 @@ TEST_F(HypergraphOptimizerTest, ElideRedundantPartsOfSortKey) {
   query_block->cleanup(/*full=*/true);
 }
 
+TEST_F(HypergraphOptimizerTest, ElideRedundantSortAfterGrouping) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 LEFT JOIN t2 ON t1.x = t2.x WHERE t2.x IS NULL "
+      "GROUP BY t1.x ORDER BY t2.x",
+      /*nullable=*/true);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // Expect that there is no SORT on top of the AGGREGATE node, because the
+  // ordering requested by the ORDER BY clause is ensured by the predicate.
+  EXPECT_EQ(AccessPath::AGGREGATE, root->type);
+}
+
 // This case is tricky; the order given by the index is (x, y), but the
 // interesting order is just (y). Normally, we only grow orders into interesting
 // orders, but here, we have to reduce them as well.

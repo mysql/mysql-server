@@ -5374,7 +5374,11 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
 
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
-      if (orderings.DoesFollowOrder(root_path->ordering_state,
+      // No sort is needed if the ORDER BY clause is completely redundant
+      // (final_order == nullptr), or if the candidate already follows the
+      // required ordering.
+      if (final_order == nullptr ||
+          orderings.DoesFollowOrder(root_path->ordering_state,
                                     order_by_ordering_idx)) {
         if (limit_rows != HA_POS_ERROR || offset_rows != 0) {
           root_path = NewLimitOffsetAccessPath(
