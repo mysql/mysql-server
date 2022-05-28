@@ -3552,3 +3552,125 @@ DROP TABLE t1;
 SET GLOBAL log_output=@old_log_output;
 TRUNCATE TABLE mysql.general_log;
 TRUNCATE TABLE mysql.slow_log;
+
+--echo # Bug#34213338: Broken integer value empty string validation with
+--echo #               bind vars (8.0.27 to 8.0.28)
+
+CREATE TABLE ints(i INTEGER);
+CREATE TABLE deci(d DECIMAL(12,4));
+CREATE TABLE dbls(r DOUBLE);
+CREATE TABLE flts(f FLOAT);
+
+SET @empty = '';
+SET @spaces = '   ';
+SET @intval = '666';
+SET @decval = '777.777';
+SET @dblval = '888.888e100';
+SET @fltval = '1e38';
+SET @intvalx = '  666  ';
+SET @decvalx = '  777.777  ';
+SET @dblvalx = '  888.888e100  ';
+SET @fltvalx = '  1e38  ';
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+INSERT INTO ints VALUES ('');
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+INSERT INTO deci VALUES ('');
+--error 1265
+INSERT INTO dbls VALUES ('');
+--error 1265
+INSERT INTO flts VALUES ('');
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+INSERT INTO ints VALUES ('   ');
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+INSERT INTO deci VALUES ('   ');
+--error 1265
+INSERT INTO dbls VALUES ('   ');
+--error 1265
+INSERT INTO flts VALUES ('   ');
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+INSERT INTO ints VALUES (@empty);
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+INSERT INTO deci VALUES (@empty);
+--error 1265
+INSERT INTO dbls VALUES (@empty);
+--error 1265
+INSERT INTO flts VALUES (@empty);
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+INSERT INTO ints VALUES (@spaces);
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+INSERT INTO deci VALUES (@spaces);
+--error 1265
+INSERT INTO dbls VALUES (@spaces);
+--error 1265
+INSERT INTO flts VALUES (@spaces);
+
+INSERT INTO ints VALUES ('666');
+INSERT INTO deci VALUES ('777.777');
+INSERT INTO dbls VALUES ('888.888e100');
+INSERT INTO flts VALUES ('1e38');
+
+INSERT INTO ints VALUES ('  666  ');
+INSERT INTO deci VALUES ('  777.777  ');
+INSERT INTO dbls VALUES ('  888.888e100  ');
+INSERT INTO flts VALUES ('  1e38  ');
+
+INSERT INTO ints VALUES (@intval);
+INSERT INTO deci VALUES (@decval);
+INSERT INTO dbls VALUES (@dblval);
+INSERT INTO flts VALUES (@fltval);
+
+INSERT INTO ints VALUES (@intvalx);
+INSERT INTO deci VALUES (@decvalx);
+INSERT INTO dbls VALUES (@dblvalx);
+INSERT INTO flts VALUES (@fltvalx);
+
+PREPARE ps1 FROM 'INSERT INTO ints VALUES (?)';
+PREPARE ps2 FROM 'INSERT INTO deci VALUES (?)';
+PREPARE ps3 FROM 'INSERT INTO dbls VALUES (?)';
+PREPARE ps4 FROM 'INSERT INTO flts VALUES (?)';
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+EXECUTE ps1 USING @empty;
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+EXECUTE ps2 USING @empty;
+--error 1265
+EXECUTE ps3 USING @empty;
+--error 1265
+EXECUTE ps4 USING @empty;
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+EXECUTE ps1 USING @spaces;
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+EXECUTE ps2 USING @spaces;
+--error 1265
+EXECUTE ps3 USING @spaces;
+--error 1265
+EXECUTE ps4 USING @spaces;
+
+EXECUTE ps1 USING @intval;
+EXECUTE ps1 USING @intvalx;
+
+EXECUTE ps2 USING @decval;
+EXECUTE ps2 USING @decvalx;
+
+EXECUTE ps3 USING @dblval;
+EXECUTE ps3 USING @dblvalx;
+
+EXECUTE ps4 USING @fltval;
+EXECUTE ps4 USING @fltvalx;
+
+DEALLOCATE PREPARE ps1;
+DEALLOCATE PREPARE ps2;
+DEALLOCATE PREPARE ps3;
+DEALLOCATE PREPARE ps4;
+
+SELECT * FROM ints;
+SELECT * FROM deci;
+SELECT * FROM dbls;
+SELECT * FROM flts;
+
+DROP TABLE ints, deci, dbls, flts;

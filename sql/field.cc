@@ -4049,12 +4049,16 @@ type_conversion_status Field_real::store_time(MYSQL_TIME *ltime, uint8) {
 
 type_conversion_status Field_float::store(const char *from, size_t len,
                                           const CHARSET_INFO *cs) {
+  THD *thd = current_thd;
+
   int conv_error;
   type_conversion_status err = TYPE_OK;
   const char *end;
   double nr = my_strntod(cs, from, len, &end, &conv_error);
-  if (conv_error || (!len || ((uint)(end - from) != len &&
-                              current_thd->check_for_truncated_fields))) {
+  if (conv_error != 0 || end == from ||
+      (((uint)(end - from) != len &&
+        !check_if_only_end_space(cs, end, from + len) &&
+        thd->check_for_truncated_fields))) {
     set_warning(Sql_condition::SL_WARNING,
                 (conv_error ? ER_WARN_DATA_OUT_OF_RANGE : WARN_DATA_TRUNCATED),
                 1);
@@ -4220,8 +4224,10 @@ type_conversion_status Field_double::store(const char *from, size_t len,
   type_conversion_status error = TYPE_OK;
   const char *end;
   double nr = my_strntod(cs, from, len, &end, &conv_error);
-  if (conv_error != 0 || len == 0 ||
-      (((uint)(end - from) != len && thd->check_for_truncated_fields))) {
+  if (conv_error != 0 || end == from ||
+      (((uint)(end - from) != len &&
+        !check_if_only_end_space(cs, end, from + len) &&
+        thd->check_for_truncated_fields))) {
     set_warning(Sql_condition::SL_WARNING,
                 (conv_error ? ER_WARN_DATA_OUT_OF_RANGE : WARN_DATA_TRUNCATED),
                 1);
