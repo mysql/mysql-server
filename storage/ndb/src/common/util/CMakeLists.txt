@@ -47,6 +47,7 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
   NdbSqlUtil.cpp
   ndb_az31.cpp
   ndb_ndbxfrm1.cpp
+  ndb_openssl3_compat.cpp
   ndb_openssl_evp.cpp
   ndb_zlib.cpp
   ndbxfrm_file.cpp
