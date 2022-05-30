@@ -4308,7 +4308,7 @@ static bool check_duplicate_key(THD *thd, const char *error_schema_name,
   @retval true           Field changes collation, and is indexed.
   @retval false          Otherwise.
  */
-static bool is_field_part_of_index(const Field &field,
+static bool is_field_part_of_index(const Field &field [[maybe_unused]],
                                    const Create_field &new_field,
                                    Alter_inplace_info *ha_alter_info) {
   assert(new_field.field == &field);
