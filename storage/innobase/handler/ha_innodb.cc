@@ -9462,7 +9462,7 @@ static dberr_t calc_row_difference(
         if (is_multi_value) {
           innobase_get_multi_value(prebuilt->m_mysql_table, i, vfield, nullptr,
                                    static_cast<uint>(old_row - new_row), comp,
-                                   uvect->heap);
+                                   uvect->per_stmt_heap);
         } else {
           buf = innodb_fill_old_vcol_val(prebuilt, vfield, o_len,
                                          old_mysql_row_col, col_pack_len, buf);
@@ -9479,6 +9479,8 @@ static dberr_t calc_row_difference(
       dfield_t old_field, new_field;
 
       ufield = uvect->fields + n_changed;
+
+      const auto old_old_v_val = ufield->old_v_val;
 
       UNIV_MEM_INVALID(ufield, sizeof *ufield);
 
@@ -9503,7 +9505,7 @@ static dberr_t calc_row_difference(
 
         innobase_get_multi_value_and_diff(
             prebuilt->m_mysql_table, i, &old_field, &new_field,
-            static_cast<uint>(old_row - new_row), comp, uvect->heap);
+            static_cast<uint>(old_row - new_row), comp, uvect->per_stmt_heap);
 
         multi_value_calc_by_diff = true;
       }
@@ -9513,7 +9515,7 @@ static dberr_t calc_row_difference(
 
         if (is_multi_value && !multi_value_calc_by_diff) {
           innobase_get_multi_value(prebuilt->m_mysql_table, i, &dfield, nullptr,
-                                   0, comp, uvect->heap);
+                                   0, comp, uvect->per_stmt_heap);
         } else {
           buf = row_mysql_store_col_in_innobase_format(&dfield, (byte *)buf,
                                                        true, new_mysql_row_col,
@@ -9541,8 +9543,13 @@ static dberr_t calc_row_difference(
         ufield->field_no = num_v;
 
         ut_ad(col->ord_part || online_ord_part);
-        ufield->old_v_val = static_cast<dfield_t *>(
-            mem_heap_alloc(uvect->heap, sizeof *ufield->old_v_val));
+        if (old_old_v_val == nullptr) {
+          ufield->old_v_val = static_cast<dfield_t *>(
+              mem_heap_alloc(uvect->heap, sizeof *ufield->old_v_val));
+        } else {
+          UNIV_MEM_VALID(ufield, sizeof *ufield);
+          ufield->old_v_val->reset();
+        }
 
         if (!field->is_null_in_record(old_row)) {
           if (n_len == UNIV_SQL_NULL) {
@@ -9550,9 +9557,10 @@ static dberr_t calc_row_difference(
           }
 
           if (is_multi_value && !multi_value_calc_by_diff) {
-            innobase_get_multi_value(
-                prebuilt->m_mysql_table, i, &dfield, nullptr,
-                static_cast<uint>(old_row - new_row), comp, uvect->heap);
+            innobase_get_multi_value(prebuilt->m_mysql_table, i, &dfield,
+                                     nullptr,
+                                     static_cast<uint>(old_row - new_row), comp,
+                                     uvect->per_stmt_heap);
           } else {
             buf = row_mysql_store_col_in_innobase_format(
                 &dfield, (byte *)buf, true, old_mysql_row_col, col_pack_len,
@@ -9621,7 +9629,7 @@ static dberr_t calc_row_difference(
       if (is_multi_value) {
         innobase_get_multi_value(prebuilt->m_mysql_table, i, vfield, nullptr,
                                  static_cast<uint>(old_row - new_row), comp,
-                                 uvect->heap);
+                                 uvect->per_stmt_heap);
       } else {
         buf = innodb_fill_old_vcol_val(prebuilt, vfield, o_len,
                                        old_mysql_row_col, col_pack_len, buf);
@@ -18372,6 +18380,8 @@ int ha_innobase::end_stmt() {
   if (m_prebuilt->blob_heap) {
     row_mysql_prebuilt_free_blob_heap(m_prebuilt);
   }
+
+  m_prebuilt->end_stmt();
 
   reset_template();
 
