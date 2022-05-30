@@ -154,7 +154,6 @@ bool Ack_receiver::add_slave(THD *thd) {
   slave.is_leaving = false;
   slave.vio = thd->get_protocol_classic()->get_vio();
   slave.vio->mysql_socket.m_psi = nullptr;
-  slave.vio->read_timeout = 1;
 
   /* push_back() may throw an exception */
   try {
