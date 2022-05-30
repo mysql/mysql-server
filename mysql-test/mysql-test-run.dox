@@ -3200,6 +3200,13 @@
     </li>
 
     <li>
+      <tt>`--init-command`=<b>str</b></tt>
+
+      SQL statement passed as an argument, to execute after connecting
+      to the MYSQL server. If auto-reconnect is enabled, the statement
+      is executed again after reconnection occurs.
+    </li>
+    <li>
       <tt>`--json-explain-protocol`</tt>
 
       Run <b>EXPLAIN EXTENDED</b> on all <b>SELECT</b>,
