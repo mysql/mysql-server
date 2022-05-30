@@ -105,7 +105,10 @@ void log_consumer_unregister(log_t &log, Log_consumer *log_consumer);
 /** Find the registered redo log consumer which has the smallest value
 reported by get_consumed_lsn() - ie. the most lagging consumer. When
 multiple consumers have the same value, any of them might be returned.
+@param[in]  log               the redo log
+@param[out] oldest_needed_lsn the oldest lsn needed by the most lagging consumer
 @return the most lagging consumer */
-Log_consumer *log_consumer_get_oldest(const log_t &log);
+Log_consumer *log_consumer_get_oldest(const log_t &log,
+                                      lsn_t &oldest_needed_lsn);
 
 #endif /* !log0consumer_h */

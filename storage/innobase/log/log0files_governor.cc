@@ -597,7 +597,9 @@ static dberr_t log_files_prepare_unused_file(log_t &log, Log_file_id file_id,
 
 static lsn_t log_files_oldest_needed_lsn(const log_t &log) {
   log_files_access_allowed_validate(log);
-  return log_consumer_get_oldest(log)->get_consumed_lsn();
+  lsn_t oldest_need_lsn;
+  log_consumer_get_oldest(log, oldest_need_lsn);
+  return oldest_need_lsn;
 }
 
 static lsn_t log_files_newest_needed_lsn(const log_t &log) {
@@ -1265,10 +1267,11 @@ static Log_files_governor_iteration_result log_files_governor_iteration_low(
       - requesting extra intake generated with usage of dummy redo records. */
 
     if (log_files_consuming_oldest_file_takes_too_long(log)) {
+      lsn_t oldest_needed_lsn;
       /* Note, that there is a possible race because the consumer
       has possibly already consumed what we wanted to request.
       Such spurious claims / requests are not considered dangerous. */
-      if (auto *consumer = log_consumer_get_oldest(log)) {
+      if (auto *consumer = log_consumer_get_oldest(log, oldest_needed_lsn)) {
         consumer->consumption_requested();
       }
     }
