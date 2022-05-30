@@ -5885,46 +5885,62 @@ static void set_session_binlog()
 
   @param[in]  mysql_con     connection to the server
 
-  @retval     FALSE         succesfully printed GTID_PURGED sets
-                             in the dump file.
+  @param[in]  flag          if FALST, get GTID_EXECUTED sets.
+                            if TRUE, print GTID_PURGED sets 
+                            to the dump file.
+
+  @retval     FALSE         succesfully got GTID_EXECUTED sets
+                            or printed GTID_PURGED sets.
   @retval     TRUE          failed.
 
 */
 
-static my_bool add_set_gtid_purged(MYSQL *mysql_con)
+static my_bool add_set_gtid_purged(MYSQL *mysql_con, my_bool flag)
 {
   MYSQL_RES  *gtid_purged_res;
   MYSQL_ROW  gtid_set;
   ulonglong  num_sets, idx;
+  static DYNAMIC_STRING set_gtid_purged_tmp;
 
-  /* query to get the GTID_EXECUTED */
-  if (mysql_query_with_error_report(mysql_con, &gtid_purged_res,
-                  "SELECT @@GLOBAL.GTID_EXECUTED"))
-    return TRUE;
-
-  /* Proceed only if gtid_purged_res is non empty */
-  if ((num_sets= mysql_num_rows(gtid_purged_res)) > 0)
+  if(!flag)
   {
-    if (opt_comments)
-      fprintf(md_result_file,
-          "\n--\n-- GTID state at the end of the backup \n--\n\n");
+    init_dynamic_string_checked(&set_gtid_purged_tmp, "", 1024, 1024);
 
-    fprintf(md_result_file,"SET @@GLOBAL.GTID_PURGED='");
+    /* query to get the GTID_EXECUTED */
+    if (mysql_query_with_error_report(mysql_con, &gtid_purged_res,
+                    "SELECT @@GLOBAL.GTID_EXECUTED"))
+      return TRUE;
 
-    /* formatting is not required, even for multiple gtid sets */
-    for (idx= 0; idx< num_sets-1; idx++)
+    /* Proceed only if gtid_purged_res is non empty */
+    if ((num_sets= mysql_num_rows(gtid_purged_res)) > 0)
     {
-      gtid_set= mysql_fetch_row(gtid_purged_res);
-      fprintf(md_result_file,"%s,", (char*)gtid_set[0]);
-    }
-    /* for the last set */
-    gtid_set= mysql_fetch_row(gtid_purged_res);
-    /* close the SET expression */
-    fprintf(md_result_file,"%s';\n", (char*)gtid_set[0]);
-  }
-  mysql_free_result(gtid_purged_res);
+      if (opt_comments)
+        dynstr_append_checked(&set_gtid_purged_tmp, "\n--\n-- GTID state at the end of the backup \n--\n\n");
 
-  return FALSE;  /*success */
+      dynstr_append_checked(&set_gtid_purged_tmp, "SET @@GLOBAL.GTID_PURGED='");
+
+      /* formatting is not required, even for multiple gtid sets */
+      for (idx= 0; idx< num_sets-1; idx++)
+      {
+        gtid_set= mysql_fetch_row(gtid_purged_res);
+        dynstr_append_checked(&set_gtid_purged_tmp, (char*)gtid_set[0]);
+        dynstr_append_checked(&set_gtid_purged_tmp, ",");
+      }
+      /* for the last set */
+      gtid_set= mysql_fetch_row(gtid_purged_res);
+      /* close the SET expression */
+      dynstr_append_checked(&set_gtid_purged_tmp, (char*)gtid_set[0]);
+      dynstr_append_checked(&set_gtid_purged_tmp, "';\n");
+    }
+    mysql_free_result(gtid_purged_res);
+
+    return FALSE;  /*success */
+  }
+  else
+  {
+    fprintf(md_result_file,"%s", set_gtid_purged_tmp.str);
+    return FALSE;  /*success */
+  }
 }
 
 
@@ -5937,12 +5953,12 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con)
   session binlog is restored if disabled previously.
 
   @param[in]          mysql_con     the connection to the server
-  @param[in]          flag          If FALSE, just disable binlog and not
-                                    set the gtid purged as it will be set
-                                    at a later point of time.
-                                    If TRUE, set the gtid purged and
-                                    restore the session binlog if disabled
-                                    previously.
+  @param[in]          flag          If FALSE, just disable binlog and 
+                                    store the SET @@GLOBAL.GTID_PURGED  
+                                    in memory.
+                                    If TRUE, wirte SET @@GLOBAL.GTID_PURGED
+                                    in the output and restore the session 
+                                    binlog if disabled previously.
 
   @retval             FALSE         successful according to the value
                                     of opt_set_gtid_purged.
@@ -5995,7 +6011,11 @@ static my_bool process_set_gtid_purged(MYSQL* mysql_con, my_bool flag)
        being AUTO or ON,  add GTID_PURGED in the output.
     */
     if (!flag)
+    {
       set_session_binlog();
+      if (add_set_gtid_purged(mysql_con,flag))
+        return TRUE;
+    }
     else
     {
       if (flag && (opt_databases || !opt_alldbs || !opt_dump_triggers
@@ -6008,8 +6028,8 @@ static my_bool process_set_gtid_purged(MYSQL* mysql_con, my_bool flag)
                        "--set-gtid-purged=OFF. To make a complete dump, pass "
                        "--all-databases --triggers --routines --events. \n");
       }
-
-      if (add_set_gtid_purged(mysql_con))
+            
+      if (add_set_gtid_purged(mysql_con,flag))
         return TRUE;
     }
   }
