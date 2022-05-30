@@ -902,6 +902,10 @@ struct row_prebuilt_t {
     dtuple_set_n_fields(m_stop_tuple, 0);
   }
 
+  /** Inside this function perform activity that needs to be done at the
+  end of statement.  */
+  void end_stmt();
+
   /** @return true iff the operation can skip concurrency ticket. */
   bool skip_concurrency_ticket() const;
 
