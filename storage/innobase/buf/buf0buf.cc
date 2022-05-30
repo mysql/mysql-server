@@ -4262,7 +4262,7 @@ buf_block_t *buf_page_get_gen(const page_id_t &page_id,
   const page_size_t &space_page_size =
       fil_space_get_page_size(page_id.space(), &found);
 
-  ut_ad(page_size.equals_to(space_page_size));
+  ut_ad(!found || page_size.equals_to(space_page_size));
 #endif /* UNIV_DEBUG */
 
   if (mode == Page_fetch::NORMAL && !fsp_is_system_temporary(page_id.space())) {
