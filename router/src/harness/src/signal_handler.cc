@@ -92,7 +92,7 @@ LONG WINAPI exception_filter_minidump(EXCEPTION_POINTERS *exp) {
 
 LONG WINAPI exception_filter_print_stacktrace(EXCEPTION_POINTERS *exp) {
   __try {
-    my_safe_printf_stderr("Application got fatal signal: 0x%x\n",
+    my_safe_printf_stderr("Application got fatal signal: 0x%lx\n",
                           exp->ExceptionRecord->ExceptionCode);
     my_print_stacktrace(nullptr, 0);
   } __except (EXCEPTION_EXECUTE_HANDLER) {
