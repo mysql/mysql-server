@@ -3547,8 +3547,7 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
         ulong db_rights = filtered_rights & DB_ACLS;
         if (db_rights == filtered_rights) {
           if ((ret = replace_db_table(thd, tables[ACL_TABLES::TABLE_DB].table,
-                                      db, *user, db_rights, revoke_grant,
-                                      grant_all_current_privileges))) {
+                                      db, *user, db_rights, revoke_grant))) {
             error = true;
             if (ret < 0) break;
 
@@ -4911,8 +4910,8 @@ static int remove_db_access_privileges(THD *thd, TABLE *table,
 
       if (!strcmp(lex_user.user.str, user) &&
           !strcmp(lex_user.host.str, host)) {
-        int ret = replace_db_table(thd, table, acl_db->db, lex_user, ~(ulong)0,
-                                   true, true);
+        int ret =
+            replace_db_table(thd, table, acl_db->db, lex_user, ~(ulong)0, true);
         if (!ret) {
           /*
             Don't increment loop variable as replace_db_table deleted the

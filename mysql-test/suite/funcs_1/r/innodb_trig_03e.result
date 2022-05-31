@@ -1551,6 +1551,8 @@ trig 2_1-yes
 select current_user;
 current_user
 root@localhost
+revoke UPDATE     on priv_db.*
+from test_yesprivs@localhost;
 revoke UPDATE(f1) on priv_db.t2
 from test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
