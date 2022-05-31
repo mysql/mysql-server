@@ -606,9 +606,10 @@ void recv_sys_init() {
   recv_sys->apply_file_operations = false;
 #endif /* !UNIV_HOTBACKUP */
 
+  recv_sys->buf_len =
+      std::min<unsigned long>(RECV_PARSING_BUF_SIZE, srv_log_buffer_size);
   recv_sys->buf = static_cast<byte *>(
-      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, RECV_PARSING_BUF_SIZE));
-  recv_sys->buf_len = RECV_PARSING_BUF_SIZE;
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, recv_sys->buf_len));
 
   recv_sys->len = 0;
   recv_sys->recovered_offset = 0;
@@ -3583,6 +3584,13 @@ bool meb_scan_log_recs(
       /* We were able to find more log data: add it to the
       parsing buffer if parse_start_lsn is already
       non-zero */
+
+      DBUG_EXECUTE_IF("simulate_3mb_mtr_recovery", {
+        uint saved_len = recv_sys->len;
+        recv_sys->len = 3 * 1024 * 1024;
+        recv_sys_resize_buf();
+        recv_sys->len = saved_len;
+      });
 
       if (recv_sys->len + 4 * OS_FILE_LOG_BLOCK_SIZE >= recv_sys->buf_len) {
         if (!recv_sys_resize_buf()) {
