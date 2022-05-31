@@ -1515,7 +1515,7 @@ class Query_block : public Query_term {
 
     @todo Integrate better with Query_expression::set_limit()
   */
-  ha_rows get_offset(THD *thd);
+  ha_rows get_offset(const THD *thd);
   /**
    Get limit.
 
@@ -1525,7 +1525,7 @@ class Query_block : public Query_term {
 
    @todo Integrate better with Query_expression::set_limit()
   */
-  ha_rows get_limit(THD *thd);
+  ha_rows get_limit(const THD *thd);
 
   /// Assign a default name resolution object for this query block.
   bool set_context(Name_resolution_context *outer_context);

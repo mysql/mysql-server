@@ -2412,14 +2412,14 @@ void Query_expression::set_explain_marker_from(THD *thd,
   thd->unlock_query_plan();
 }
 
-ha_rows Query_block::get_offset(THD *) {
+ha_rows Query_block::get_offset(const THD *) {
   if (offset_limit != nullptr)
     return ha_rows{offset_limit->val_uint()};
   else
     return ha_rows{0};
 }
 
-ha_rows Query_block::get_limit(THD *thd) {
+ha_rows Query_block::get_limit(const THD *thd) {
   /*
     If m_use_select_limit is set in the query block, return the value
     of the variable select_limit, unless an explicit limit is set.
