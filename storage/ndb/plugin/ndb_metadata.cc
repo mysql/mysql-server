@@ -613,8 +613,8 @@ bool Ndb_metadata::create_table_def(Ndb *ndb, dd::Table *table_def) const {
   // table_def->set_comment(some_comment);
 
   // se_private_id, se_private_data
-  ndb_dd_table_set_object_id_and_version(table_def, m_ndbtab->getObjectId(),
-                                         m_ndbtab->getObjectVersion());
+  ndb_dd_table_set_spi_and_version(table_def, m_ndbtab->getObjectId(),
+                                   m_ndbtab->getObjectVersion());
 
   // storage
   // no DD API setters or types available -> hardcode
@@ -872,12 +872,10 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1,
 
   // se_private_id and se_private_data.object_version (local)
   {
-    int t1_id, t1_version;
-    ndb_dd_table_get_object_id_and_version(t1, t1_id, t1_version);
-    int t2_id, t2_version;
-    ndb_dd_table_get_object_id_and_version(t2, t2_id, t2_version);
-    ctx.compare("se_private_id", t1_id, t2_id);
-    ctx.compare("object_version", t1_version, t2_version);
+    Ndb_dd_handle t1_handle = ndb_dd_table_get_spi_and_version(t1);
+    Ndb_dd_handle t2_handle = ndb_dd_table_get_spi_and_version(t2);
+    ctx.compare("se_private_id", t1_handle.spi, t2_handle.spi);
+    ctx.compare("object_version", t1_handle.version, t2_handle.version);
   }
 
   // storage
