@@ -48,12 +48,11 @@ disconnect conn3;
 
 connection default;
 
-# Bug #33897859 correction: remove previously revoked ALTER from the below
-revoke select,drop on mysqltest_1.* from mysqltest_1@localhost;
+revoke select,alter,drop on mysqltest_1.* from mysqltest_1@localhost;
 drop table t1;
 
 #
-# Bug #23675 Partitions: possible security breach via alter
+# Bug #23675 Partitions: possible security breach via alter 
 #
 
 create table t1 (s1 int);

@@ -599,13 +599,10 @@ DROP DATABASE robo;
 #
 # 13.1 Revoking DB level privilege multiple times should not
 #      create/affect the restrictions
-# Corrected due to bug#33897859:
-#      revoking for the second time should raise ERROR 1141
 CREATE USER foo;
 GRANT ALL ON mysql.* TO foo;
 REVOKE SELECT ON mysql.* FROM foo;
 REVOKE SELECT ON mysql.* FROM foo;
-ERROR 42000: There is no such grant defined for user 'foo' on host '%'
 SHOW GRANTS FOR foo;
 Grants for foo@%
 GRANT USAGE ON *.* TO `foo`@`%`
