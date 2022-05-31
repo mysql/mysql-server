@@ -3723,6 +3723,7 @@ SHOW CREATE TABLE t1;
 
 INSERT INTO t1 VALUES('a');
 
+--sorted_result
 SELECT partition_name, table_rows FROM
 information_schema.partitions WHERE table_name = 't1';
 
@@ -3737,6 +3738,7 @@ INSERT INTO t1 VALUES('a');
 
 ANALYZE TABLE t1;
 
+--sorted_result
 SELECT partition_name, table_rows FROM
 information_schema.partitions WHERE table_name = 't1';
 
