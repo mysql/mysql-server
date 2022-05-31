@@ -34,6 +34,7 @@
 #include <gtest/gtest.h>
 
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/tls_context.h"
 #include "test/helpers.h"
 #include "test/temp_directory.h"
 
@@ -143,6 +144,11 @@ TEST_F(CertificateHandlerTest, create_fail) {
 }
 
 int main(int argc, char *argv[]) {
+  // init openssl to avoid a crash with openssl-3.0.3:
+  //
+  // see https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1010958
+  TlsLibraryContext tls_lib_ctx;
+
   init_test_logger();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
