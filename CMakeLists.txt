@@ -247,9 +247,9 @@ ENDIF()
 
 IF(MY_HOST_SYSTEM_NAME MATCHES "Linux")
   # Trust 'rpm -qf /' rather than 'uname -s'
-  STRING(REGEX MATCH "\\.el([678])\\." MATCH_FSYS "${MY_HOST_FILESYSTEM_NAME}")
+  STRING(REGEX MATCH "\\.el([6789])\\." MATCH_FSYS "${MY_HOST_FILESYSTEM_NAME}")
 
-  # Set LINUX_RHEL6 or LINUX_RHEL7 or LINUX_RHEL8
+  # Set LINUX_RHEL6, LINUX_RHEL7, LINUX_RHEL8 or LINUX_RHEL9
   IF(CMAKE_MATCH_1)
     SET(LINUX_RHEL 1)
     SET(LINUX_RHEL${CMAKE_MATCH_1} 1)
@@ -315,6 +315,8 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
   IF (ENV_CC STREQUAL "" AND ENV_CXX STREQUAL "")
     IF(LINUX_RHEL)
       MESSAGE(STATUS "This is ${MATCH_FSYS} as found from 'rpm -qf /'")
+    ENDIF()
+    IF(LINUX_RHEL AND NOT LINUX_RHEL9)
       MESSAGE(STATUS "Looking for a devtoolset compiler")
       IF(LINUX_RHEL6)
         SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-8")
@@ -1356,10 +1358,8 @@ IF(CMAKE_C_LINK_FLAGS MATCHES "-fuse-ld=gold" OR
     "-fuse-ld=gold" "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
 ENDIF()
 
-# Linker/binutils bug in Fedora 28, undefined reference to symbol '__bss_start'
-# Similar bug on 32bit Ubuntu.
-# Fedora 34: undefined reference to symbol 'crc32_z@@ZLIB_1.2.9'
-IF(LINUX_FEDORA_28 OR LINUX_FEDORA_34 OR LINUX_UBUNTU_16_04)
+# Fedora 34, RHEL9: undefined reference to symbol 'crc32_z@@ZLIB_1.2.9'
+IF(LINUX_FEDORA_34 OR LINUX_RHEL9)
   IF(NOT CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld")
     STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--copy-dt-needed-entries")
   ENDIF()

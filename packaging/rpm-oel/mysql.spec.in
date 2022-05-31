@@ -62,6 +62,7 @@
 %{!?with_systemd:                %global systemd 0}
 %{?el7:                          %global systemd 1}
 %{?el8:                          %global systemd 1}
+%{?el9:                          %global systemd 1}
 
 # Two workarounds on el6 and el7
 %if 0%{?rhel} == 6 || 0%{?rhel} == 7
@@ -79,6 +80,7 @@
 %endif # rhel6|7
 
 %{?el8:                          %global with_debuginfo 1}
+%{?el9:                          %global with_debuginfo 1}
 %{!?with_debuginfo:              %global without_debuginfo 1}
 
 %{!?product_suffix:              %global product_suffix community}
@@ -162,11 +164,15 @@ BuildRequires:  cmake3 >= 3.6.1
 %{?el8:BuildRequires:  gcc-toolset-11-gcc}
 %{?el8:BuildRequires:  gcc-toolset-11-gcc-c++}
 %{?el8:BuildRequires:  gcc-toolset-11-binutils}
+%{?el9:BuildRequires:  gcc}
+%{?el9:BuildRequires:  gcc-c++}
+%{?el9:BuildRequires:  binutils}
 BuildRequires:  bison >= 2.1
 BuildRequires:  elfutils
 BuildRequires:  perl
 %{?el7:BuildRequires: perl(Env)}
 %{?el8:BuildRequires: perl(Env)}
+%{?el9:BuildRequires: perl(Env)}
 BuildRequires:  perl(Carp)
 BuildRequires:  perl(Config)
 BuildRequires:  perl(Cwd)
@@ -201,6 +207,7 @@ BuildRequires:  libaio-devel
 BuildRequires:  cyrus-sasl-gssapi
 %{?el7:BuildRequires: cyrus-sasl-scram}
 %{?el8:BuildRequires: cyrus-sasl-scram}
+%{?el9:BuildRequires: cyrus-sasl-scram}
 BuildRequires:  krb5-devel
 BuildRequires:  libcurl-devel
 %endif
@@ -500,6 +507,7 @@ Provides:       MySQL-devel = %{version}-%{release}
 Obsoletes:      MySQL-devel < %{version}-%{release}
 Obsoletes:      mysql-devel < %{version}-%{release}
 %{?el8:Obsoletes:      mariadb-embedded-devel}
+%{?el9:Obsoletes:      mariadb-embedded-devel}
 Obsoletes:      mariadb-devel
 Obsoletes:      mariadb-connector-c-devel
 Obsoletes:      mysql-connector-c-devel < 6.2
@@ -834,7 +842,7 @@ mkdir debug
 (
   cd debug
   # Attempt to remove any optimisation flags from the debug build
-  optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /')
+  optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /' -e 's/%{_lto_cflags}/ /')
   %{cmake3} ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
@@ -843,10 +851,11 @@ mkdir debug
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
            -DUSE_LD_LLD=0 \
+           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1 \
+           -DWITH_CURL=system \
 %if 0%{?systemd}
            -DWITH_SYSTEMD=1 \
 %endif
-           -DWITH_MEB=%{with_meb} \
            -DWITH_ROUTER=%{with_router} \
 %if 0%{?cluster}
            -DWITH_NDBCLUSTER=1 \
@@ -858,7 +867,7 @@ mkdir debug
            -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
 %endif
 %if 0%{?commercial}
-           -DWITH_CURL=system \
+           -DWITH_MEB=%{with_meb} \
            %{?aws_sdk_option} \
 %endif
            %{?ssl_option} \
@@ -866,7 +875,7 @@ mkdir debug
            -DWITH_INNODB_MEMCACHED=1 \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
-           -DWITH_NUMA=ON \
+           -DWITH_NUMA=1 \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_debug}" \
@@ -887,10 +896,11 @@ mkdir release
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
            -DUSE_LD_LLD=0 \
+           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1 \
+           -DWITH_CURL=system \
 %if 0%{?systemd}
            -DWITH_SYSTEMD=1 \
 %endif
-           -DWITH_MEB=%{with_meb} \
            -DWITH_ROUTER=%{with_router} \
 %if 0%{?cluster}
            -DWITH_NDBCLUSTER=1 \
@@ -902,7 +912,7 @@ mkdir release
            -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
 %endif
 %if 0%{?commercial}
-           -DWITH_CURL=system \
+           -DWITH_MEB=%{with_meb} \
            %{?aws_sdk_option} \
 %endif
            %{?ssl_option} \
@@ -910,7 +920,7 @@ mkdir release
            -DWITH_INNODB_MEMCACHED=1 \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
-           -DWITH_NUMA=ON \
+           -DWITH_NUMA=1 \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}" \
