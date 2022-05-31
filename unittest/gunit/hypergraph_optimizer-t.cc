@@ -3706,6 +3706,30 @@ TEST_F(HypergraphOptimizerTest, ElideRedundantSortAfterGrouping) {
   EXPECT_EQ(AccessPath::AGGREGATE, root->type);
 }
 
+TEST_F(HypergraphOptimizerTest, ElideRedundantSortForDistinct) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT DISTINCT t2.x FROM t1 LEFT JOIN t2 ON t1.x = t2.x "
+      "WHERE t2.x IS NULL",
+      /*nullable=*/true);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // Expect that there is no SORT for DISTINCT. Since the filter ensures that
+  // all rows have the same value, duplicate elimination can be done by adding
+  // LIMIT 1 on top of the filter.
+  ASSERT_EQ(AccessPath::LIMIT_OFFSET, root->type);
+  EXPECT_EQ(0, root->limit_offset().offset);
+  EXPECT_EQ(1, root->limit_offset().limit);
+  ASSERT_EQ(AccessPath::FILTER, root->limit_offset().child->type);
+  EXPECT_EQ("(t2.x is null)",
+            ItemToString(root->limit_offset().child->filter().condition));
+}
+
 // This case is tricky; the order given by the index is (x, y), but the
 // interesting order is just (y). Normally, we only grow orders into interesting
 // orders, but here, we have to reduce them as well.

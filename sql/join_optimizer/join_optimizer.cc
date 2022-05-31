@@ -5139,18 +5139,21 @@ void ApplyHavingCondition(THD *thd, Item *having_cond, Query_block *query_block,
 }
 
 /**
-  Builds an ORDER list for the final ordering in ORDER BY, in case a sort is
-  needed. It is assumed that all functional dependencies are active, and parts
-  of the ORDER BY clause that are made redundant by the functional dependencies,
-  are removed.
+  Creates a reduced ordering for the ordering or grouping specified by
+  "ordering_idx". It is assumed that the ordering happens after all joins and
+  filters, so that all functional dependencies are active. All parts of the
+  ordering that are made redundant by functional dependencies, are removed.
+
+  The returned ordering may be empty if all elements are redundant. This happens
+  if all elements are constants, or have predicates that ensure they are
+  constant.
  */
-ORDER *BuildFinalOrdering(THD *thd, const LogicalOrderings &orderings,
-                          int ordering_idx) {
+Ordering ReduceFinalOrdering(THD *thd, const LogicalOrderings &orderings,
+                             int ordering_idx) {
   Ordering full_ordering = orderings.ordering(ordering_idx);
-  Ordering reduced_ordering = orderings.ReduceOrdering(
+  return orderings.ReduceOrdering(
       full_ordering, /*all_fds=*/true,
       thd->mem_root->ArrayAlloc<OrderElement>(full_ordering.size()));
-  return BuildSortAheadOrdering(thd, &orderings, reduced_ordering);
 }
 
 AccessPath MakeSortPathForDistinct(
@@ -5266,9 +5269,14 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
       *trace += "Applying sort for DISTINCT\n";
     }
 
+    // Remove redundant elements from the grouping before it is applied.
+    // Specifically, we want to remove elements that are constant after all
+    // predicates have been applied.
+    const Ordering grouping =
+        ReduceFinalOrdering(thd, orderings, distinct_ordering_idx);
+
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
-      Ordering grouping = orderings.ordering(distinct_ordering_idx);
       if (grouping.empty()) {
         // Only const fields.
         AccessPath *limit_path = NewLimitOffsetAccessPath(
@@ -5362,8 +5370,9 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
 
     // Remove those parts of the final ordering that are redundant when all the
     // functional dependencies are applied.
-    ORDER *final_order =
-        BuildFinalOrdering(thd, orderings, order_by_ordering_idx);
+    ORDER *final_order = BuildSortAheadOrdering(
+        thd, &orderings,
+        ReduceFinalOrdering(thd, orderings, order_by_ordering_idx));
 
     // If we have LIMIT or OFFSET, we apply them here. This is done so that we
     // can push the LIMIT clause down to the SORT node in order to let Filesort
