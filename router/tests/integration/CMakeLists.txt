@@ -33,9 +33,5 @@ ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   mysqlxclient
   mysqlxmessages
   ${PROTOBUF_LIBRARY}
-
-  DEPENDS
-  mysqlrouter_all
-  mysqld
   )
 ENDFOREACH()
