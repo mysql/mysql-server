@@ -31,6 +31,7 @@
 
 #include "core_dumper.h"
 #include "core_finder.h"
+#include "my_config.h"  // HAVE_ASAN & HAVE_UBSAN
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/signal_handler.h"
 #include "mysql/harness/stdx/filesystem.h"
@@ -43,18 +44,6 @@
 #include "scope_guard.h"
 #include "test/temp_directory.h"
 
-#if !defined(__has_feature)
-#define __has_feature(x) 0
-#endif
-
-// GCC defines __SANITIZE_ADDRESS
-// clang has __has_feature and 'address_sanitizer'
-#if defined(__SANITIZE_ADDRESS__) || (__has_feature(address_sanitizer)) || \
-    (__has_feature(thread_sanitizer)) ||                                   \
-    (__has_feature(undefined_behavior_sanitizer))
-#define HAS_FEATURE_SANITIZER
-#endif
-
 namespace {
 constexpr const int abrt_status{
 #ifdef _WIN32
@@ -65,7 +54,7 @@ constexpr const int abrt_status{
 };
 
 // only used for tests that we disable for ASAN and UBSAN
-#ifndef HAS_FEATURE_SANITIZER
+#if !defined(HAVE_ASAN) && !defined(HAVE_UBSAN)
 
 constexpr const int segv_status{
 #ifdef _WIN32
@@ -75,7 +64,7 @@ constexpr const int segv_status{
 #endif
 };
 
-#endif  // HAS_FEATURE_SANITIZER
+#endif  // !defined(HAVE_ASAN) && !defined(HAVE_UBSAN)
 
 }  // namespace
 
@@ -259,7 +248,7 @@ INSTANTIATE_TEST_SUITE_P(Spec, RouterStacktraceInvalidOptionTest,
 
 // we skip those when ASAN and UBSAN is used as it marks them as failed seeing
 // ABORT signal
-#ifndef HAS_FEATURE_SANITIZER
+#if !defined(HAVE_ASAN) && !defined(HAVE_UBSAN)
 
 // TS_3_1
 TEST_F(RouterStacktraceTest, crash_me_via_rest_signal_abort) {
@@ -327,7 +316,7 @@ TEST_F(RouterStacktraceTest, crash_me_via_rest_signal_abort) {
           ));
 }
 
-#endif  // HAS_FEATURE_SANITIZER
+#endif  // !defined(HAVE_ASAN) && !defined(HAVE_UBSAN)
 
 TEST_F(RouterStacktraceTest, crash_me_via_event) {
   TempDirectory tmp_dir;
@@ -391,7 +380,7 @@ TEST_F(RouterStacktraceTest, crash_me_via_event) {
 
 // we skip those when ASAN or UBSAN is used as it marks them as failed seeing
 // ABORT signal
-#ifndef HAS_FEATURE_SANITIZER
+#if !defined(HAVE_ASAN) && !defined(HAVE_UBSAN)
 
 // TS_3_1
 TEST_F(RouterStacktraceTest, crash_me_core_file_1) {
@@ -569,7 +558,7 @@ TEST_F(RouterStacktraceTest, core_file_0) {
   EXPECT_THAT(r.get_full_output(), ::testing::HasSubstr("my_print_stacktrace"));
 }
 
-#endif  // HAS_FEATURE_SANITIZER
+#endif  // !defined(HAVE_ASAN) && !defined(HAVE_UBSAN)
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

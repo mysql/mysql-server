@@ -48,23 +48,13 @@
 #endif
 
 #include "harness_assert.h"
+#include "my_config.h"  // HAVE_ASAN
 #include "my_stacktrace.h"
 #include "my_thread.h"                 // my_thread_self_setname
 #include "mysql/harness/filesystem.h"  // Path
 #include "mysql/harness/logging/logging.h"
 
 IMPORT_LOG_FUNCTIONS()
-
-#if !defined(__has_feature)
-#define __has_feature(x) 0
-#endif
-
-// GCC defines __SANITIZE_ADDRESS
-// clang has __has_feature and 'address_sanitizer'
-#if defined(__SANITIZE_ADDRESS__) || (__has_feature(address_sanitizer)) || \
-    (__has_feature(thread_sanitizer))
-#define HAS_FEATURE_ASAN
-#endif
 
 namespace mysql_harness {
 SignalHandler *g_signal_handler = nullptr;
@@ -215,7 +205,7 @@ void SignalHandler::register_fatal_signal_handler(bool dump_core) {
   }
 
   // enable a crash handler on POSIX systems if not built with ASAN
-#if !defined(HAS_FEATURE_ASAN)
+#if !defined(HAVE_ASAN)
   struct sigaction sa;
   (void)sigemptyset(&sa.sa_mask);
   sa.sa_flags = SA_RESETHAND | SA_NODEFER;
@@ -246,7 +236,7 @@ void SignalHandler::register_fatal_signal_handler(bool dump_core) {
   for (auto sig : kFatalSignals) {
     (void)sigaction(sig, &sa, nullptr);
   }
-#endif
+#endif  // HAVE_ASAN
 
 #else
   _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
