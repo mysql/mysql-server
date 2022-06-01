@@ -1497,7 +1497,7 @@ int Clone_Handle::receive_data(Clone_Task *task, uint64_t offset,
   auto err = file_callback(callback, task, size, modify_buffer, offset
 #ifdef UNIV_PFS_IO
                            ,
-                           __FILE__, __LINE__
+                           UT_LOCATION_HERE
 #endif /* UNIV_PFS_IO */
   );
 

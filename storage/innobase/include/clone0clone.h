@@ -819,19 +819,18 @@ class Clone_Handle {
                                    const Clone_file_ctx *file_ctx);
 
   /** Callback providing the file reference and data length to copy
-  @param[in]    cbk     callback interface
-  @param[in]    task    clone task
-  @param[in]    len     data length
-  @param[in]    buf_cbk invoke buffer callback
-  @param[in]    offset  file offset
-  @param[in]    name    file name where func invoked
-  @param[in]    line    line where the func invoked
+  @param[in]    cbk             callback interface
+  @param[in]    task            clone task
+  @param[in]    len             data length
+  @param[in]    buf_cbk         invoke buffer callback
+  @param[in]    offset          file offset
+  @param[in]    location        location where func invoked
   @return error code */
   int file_callback(Ha_clone_cbk *cbk, Clone_Task *task, uint len, bool buf_cbk,
                     uint64_t offset
 #ifdef UNIV_PFS_IO
                     ,
-                    const char *name, uint line
+                    ut::Location location
 #endif /* UNIV_PFS_IO */
   );
 

@@ -719,13 +719,12 @@ void mtr_t::check_is_not_latching() const {
 /** Acquire a tablespace X-latch.
 NOTE: use mtr_x_lock_space().
 @param[in]      space           tablespace instance
-@param[in]      file            file name from where called
-@param[in]      line            line number in file */
-void mtr_t::x_lock_space(fil_space_t *space, const char *file, ulint line) {
+@param[in]      location        location from where called */
+void mtr_t::x_lock_space(fil_space_t *space, ut::Location location) {
   ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
   ut_ad(is_active());
 
-  x_lock(&space->latch, {file, line});
+  x_lock(&space->latch, location);
 }
 
 /** Release an object in the memo stack. */

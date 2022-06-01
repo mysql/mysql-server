@@ -120,13 +120,10 @@ extern ib_mutex_t rw_lock_list_mutex;
  @param[in] lock pointer to memory
  @param[in] level level
  @param[in] cmutex_name mutex name
- @param[in] cfile_name file name where created
- @param[in] cline line where created */
-void rw_lock_create_func(rw_lock_t *lock,
-                         IF_DEBUG(latch_level_t level,
-                                  const char *cmutex_name, )
-                             const char *cfile_name,
-                         ulint cline);
+ @param[in] clocation location where created */
+void rw_lock_create_func(rw_lock_t *lock, IF_DEBUG(latch_level_t level,
+                                                   const char *cmutex_name, )
+                                              ut::Location clocation);
 /** Calling this function is obligatory only if the memory buffer containing
  the rw-lock is freed. Removes an rw-lock object from the global list. The
  rw-lock is checked to be in the non-locked state. */
@@ -339,10 +336,8 @@ struct rw_lock_debug_t {
   ulint pass;
   /** Type of the lock: RW_LOCK_X, RW_LOCK_S, RW_LOCK_X_WAIT. */
   ulint lock_type;
-  /** File name where the lock was obtained. */
-  const char *file_name;
-  /** Line where the rw-lock was locked. */
-  ulint line;
+  /** Location where the rw-lock was locked. */
+  ut::Location location;
   /** Debug structs are linked in a two-way list. */
   UT_LIST_NODE_T(rw_lock_debug_t) list;
 };
@@ -409,17 +404,14 @@ struct rw_lock_t
   lock_word before waiting. */
   os_event_t wait_ex_event;
 
-  /** File name where lock created */
-  const char *cfile_name;
+  /** Location where lock created */
+  ut::Location clocation;
 
   /** last s-lock file/line is not guaranteed to be correct */
   const char *last_s_file_name;
 
   /** File name where last x-locked */
   const char *last_x_file_name;
-
-  /** Line where created */
-  uint16_t cline;
 
   /** If 1 then the rw-lock is a block lock */
   bool is_block_lock;
@@ -508,13 +500,11 @@ function!
 @param[in]      lock            rw lock
 @param[in]      level           level
 @param[in]      cmutex_name     mutex name
-@param[in]      cline           file line where created
-@param[in]      cfile_name      file name where created */
+@param[in]      clocation       location where created */
 static inline void pfs_rw_lock_create_func(mysql_pfs_key_t key, rw_lock_t *lock,
                                            IF_DEBUG(latch_level_t level,
                                                     const char *cmutex_name, )
-                                               const char *cfile_name,
-                                           ulint cline);
+                                               ut::Location clocation);
 
 /** Performance schema instrumented wrap function for rw_lock_x_lock_func()
 NOTE! Please use the corresponding macro rw_lock_x_lock(), not directly this
@@ -629,9 +619,9 @@ static inline void pfs_rw_lock_free_func(rw_lock_t *lock); /*!< in: rw-lock */
  defined, the rwlock are instrumented with performance schema probes. */
 #ifdef UNIV_DEBUG
 #define rw_lock_create(K, L, level) \
-  rw_lock_create_func((L), (level), #L, __FILE__, __LINE__)
+  rw_lock_create_func((L), (level), #L, UT_LOCATION_HERE)
 #else /* UNIV_DEBUG */
-#define rw_lock_create(K, L, level) rw_lock_create_func((L), __FILE__, __LINE__)
+#define rw_lock_create(K, L, level) rw_lock_create_func((L), UT_LOCATION_HERE)
 #endif /* UNIV_DEBUG */
 
 /** NOTE! The following macros should be used in rw locking and
@@ -717,10 +707,10 @@ static inline void rw_lock_x_unlock_gen(rw_lock_t *L, ulint P) {
 /* Following macros point to Performance Schema instrumented functions. */
 #ifdef UNIV_DEBUG
 #define rw_lock_create(K, L, level) \
-  pfs_rw_lock_create_func((K), (L), (level), #L, __FILE__, __LINE__)
+  pfs_rw_lock_create_func((K), (L), (level), #L, UT_LOCATION_HERE)
 #else /* UNIV_DEBUG */
 #define rw_lock_create(K, L, level) \
-  pfs_rw_lock_create_func((K), (L), __FILE__, __LINE__)
+  pfs_rw_lock_create_func((K), (L), UT_LOCATION_HERE)
 #endif /* UNIV_DEBUG */
 
 /******************************************************************
