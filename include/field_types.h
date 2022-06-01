@@ -50,7 +50,7 @@ extern "C" {
   Column types for MySQL
 */
 enum enum_field_types
-#if defined(__cplusplus) && __cplusplus > 201103L
+#if defined(__cplusplus)
     // N2764: Forward enum declarations, added in C++11
     : int
 #endif /* __cplusplus */
