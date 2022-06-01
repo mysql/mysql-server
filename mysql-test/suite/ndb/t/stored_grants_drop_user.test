@@ -1,0 +1,26 @@
+# Bug#34183149 Inconsistent DROP USER Outcome in Distributed Privileges
+
+--source include/have_ndb.inc
+--echo server 1:
+CREATE USER 'albus'@'%' IDENTIFIED BY 'xrm0Baa';
+GRANT SELECT, INSERT,UPDATE,DELETE,CREATE,REFERENCES,INDEX,ALTER,CREATE VIEW
+     ON *.* TO 'albus'@'%';
+GRANT NDB_STORED_USER ON *.* TO 'albus'@'%';
+
+# User has been created and distributed.
+# Switch to a different mysql server and drop the user.
+
+connect(mysqld2,127.0.0.1,root,,test,$MASTER_MYPORT1);
+
+--echo server 2:
+SELECT user FROM mysql.user WHERE user = "albus";
+DROP USER 'albus'@'%';
+SELECT user FROM mysql.user WHERE user = "albus";
+
+
+# SELECT from original node showed the user still existing!
+connection default;
+--echo server 1:
+SELECT user FROM mysql.user WHERE user = "albus";
+
+# No cleanup. The user has already been dropped globally.
