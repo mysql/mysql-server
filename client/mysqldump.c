@@ -5885,7 +5885,7 @@ static void set_session_binlog()
 
   @param[in]  mysql_con     connection to the server
 
-  @param[in]  flag          if FALST, get GTID_EXECUTED sets.
+  @param[in]  flag          if FALSE, get GTID_EXECUTED sets.
                             if TRUE, print GTID_PURGED sets 
                             to the dump file.
 
