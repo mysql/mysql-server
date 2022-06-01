@@ -6482,8 +6482,7 @@ void Ndb_binlog_thread::fix_per_epoch_trans_settings(THD *thd) {
 
   // Compression settings should take effect next binlog transaction
   thd->variables.binlog_trx_compression = opt_ndb_log_trx_compression;
-  thd->variables.binlog_trx_compression_type =
-      global_system_variables.binlog_trx_compression_type;
+  thd->variables.binlog_trx_compression_type = 0;  // zstd
   thd->variables.binlog_trx_compression_level_zstd =
       opt_ndb_log_trx_compression_level_zstd;
 
@@ -7240,13 +7239,43 @@ restart_cluster_failure:
 
   // Setup reference to ndb_apply_status share
   if (!acquire_apply_status_reference()) {
-    ndb_log_error("Failed to acquire ndb_apply_status reference");
+    log_error("Failed to acquire ndb_apply_status reference");
     goto err;
   }
 
   /* Apply privilege statements stored in snapshot */
   if (!Ndb_stored_grants::apply_stored_grants(thd)) {
     ndb_log_error("stored grants: failed to apply stored grants.");
+  }
+
+  /* Verify and warn binlog compression without using --ndb parameters */
+  if (!opt_ndb_log_trx_compression &&
+      global_system_variables.binlog_trx_compression) {
+    // The user has turned on --binlog-transaction-compression -> intialize
+    // default values for --ndb* compression settings from MySQL Server values
+    // NOTE! This will make it impossible to use the combination:
+    //   --ndb-log-transaction-compression=OFF
+    //   --binlog-transaction-compression=ON
+    const uint zstd_level =
+        opt_ndb_log_trx_compression_level_zstd == DEFAULT_ZSTD_COMPRESSION_LEVEL
+            ? global_system_variables.binlog_trx_compression_level_zstd
+            : opt_ndb_log_trx_compression_level_zstd;
+
+    opt_ndb_log_trx_compression = true;
+    opt_ndb_log_trx_compression_level_zstd = zstd_level;
+
+    log_info(
+        "Used --binlog-transaction-compression to configure compression "
+        "settings");
+  }
+
+  if (opt_ndb_log_trx_compression &&
+      global_system_variables.binlog_trx_compression_type != 0) {
+    // The binlog compression type of MySQL Server is currently hardcoded to
+    // zstd and there is no user variable to change it either. In case more
+    // compression types and a user variable is added in the future, this is an
+    // attempt at detecting it.
+    log_error("Only ZSTD compression algorithm supported");
   }
 
   schema_dist_data.init(g_ndb_cluster_connection);

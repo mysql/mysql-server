@@ -18173,11 +18173,11 @@ static MYSQL_SYSVAR_UINT(log_transaction_compression_level_zstd, /* name */
                          PLUGIN_VAR_OPCMDARG,
                          "Compression level for ZSTD transaction "
                          "compression in the NDB Binlog.",
-                         NULL, /* check func. */
-                         NULL, /* update func. */
-                         3,    /* default */
-                         1,    /* min */
-                         22,   /* max */
+                         NULL,                           /* check func. */
+                         NULL,                           /* update func. */
+                         DEFAULT_ZSTD_COMPRESSION_LEVEL, /* default */
+                         1,                              /* min */
+                         22,                             /* max */
                          0);
 
 bool opt_ndb_clear_apply_status;

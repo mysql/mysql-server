@@ -26,6 +26,8 @@
 
 #include <string>
 
+constexpr int DEFAULT_ZSTD_COMPRESSION_LEVEL = 3;
+
 class THD;
 struct SHOW_VAR;
 namespace dd {
