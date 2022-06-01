@@ -1282,10 +1282,23 @@ static void gc_subst_overlaps_contains(Item **func, Item **vals,
 
   After transformation comparators are updated to take into account the new
   field.
+
+  Note: Range optimizer is used with multi-value indexes and it prefers
+  constants. Outer references are not considered as constants in JSON functions.
+  However, range optimizer supports dynamic ranges, where ranges are
+  re-optimized for each row. But the range optimizer is currently not able to
+  handle multi-valued indexes with dynamic ranges, hence we use only constants
+  in these cases.
+
 */
 
 Item *Item_func::gc_subst_transformer(uchar *arg) {
   List<Field> *gc_fields = pointer_cast<List<Field> *>(arg);
+
+  auto is_const_or_outer_reference = [](const Item *item) {
+    return ((item->used_tables() & ~(OUTER_REF_TABLE_BIT | INNER_TABLE_BIT)) ==
+            0);
+  };
 
   switch (functype()) {
     case EQ_FUNC:
@@ -1300,11 +1313,11 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
       // predicate must be on the form <expr> OP <constant> or
       // <constant> OP <expr>.
       if (args[0]->can_be_substituted_for_gc() &&
-          args[1]->const_for_execution()) {
+          is_const_or_outer_reference(args[1])) {
         func = args;
         val = args[1];
       } else if (args[1]->can_be_substituted_for_gc() &&
-                 args[0]->const_for_execution()) {
+                 is_const_or_outer_reference(args[0])) {
         func = args + 1;
         val = args[0];
       } else {
@@ -1323,11 +1336,12 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
       // Can only substitute if all the operands on the right-hand
       // side are constants of the same type.
       Item_result type = args[1]->result_type();
-      if (!std::all_of(args + 1, args + arg_count,
-                       [type](const Item *item_arg) {
-                         return item_arg->const_for_execution() &&
-                                item_arg->result_type() == type;
-                       })) {
+      if (!std::all_of(
+              args + 1, args + arg_count,
+              [type, is_const_or_outer_reference](const Item *item_arg) {
+                return is_const_or_outer_reference(item_arg) &&
+                       item_arg->result_type() == type;
+              })) {
         break;
       }
       if (substitute_gc_expression(args, nullptr, gc_fields, type, this))
