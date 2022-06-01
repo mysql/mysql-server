@@ -147,26 +147,21 @@ INSERT INTO `v` VALUES
 ('just',NULL,'with',22,8,'rmap','something','something',4,NULL,'2006-01-14 09:08:21','or','mean',31,'frmapuikkd','here'),
 ('who','2000-07-21 09:51:12','or',28,10,'fcnuiisfrmapuikk','for','me',13,'2001-03-20 15:30:14','2003-09-12 10:09:54','is','qfcn',3,'when','well');
 
-analyze table i,v;
-
-#encourage usage of duplicate weedout algorithm:
 set ndb_join_pushdown = off;
-set optimizer_switch= 'firstmatch=off';
-set optimizer_switch= 'materialization=off';
 
 --replace_column 10 ###
 explain
 SELECT pk, col_int_key
   FROM v AS table1 
-  WHERE table1.col_int_key IN (SELECT col_int_key AS field2 FROM i as table1s)
+  WHERE table1.col_int_key IN (
+    SELECT /*+ SEMIJOIN(DUPSWEEDOUT) */ col_int_key AS field2 FROM i as table1s)
 ;
 --sorted_result
 SELECT pk, col_int_key
   FROM v AS table1 
-  WHERE table1.col_int_key IN (SELECT col_int_key AS field2 FROM i as table1s)
+  WHERE table1.col_int_key IN (
+    SELECT /*+ SEMIJOIN(DUPSWEEDOUT) */ col_int_key AS field2 FROM i as table1s)
 ;
-
-set optimizer_switch= default;
 
 DROP TABLE IF EXISTS i,v;
 
