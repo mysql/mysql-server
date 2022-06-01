@@ -485,11 +485,17 @@ int Arch_Log_Sys::stop(Arch_Group *group, lsn_t &stop_lsn, byte *log_blk,
   return (err);
 }
 
-/** Force to abort archiving (state becomes ARCH_STATE_IDLE). */
 void Arch_Log_Sys::force_abort() {
   lsn_t lsn_max = LSN_MAX; /* unused */
   uint to_archive = 0;     /* unused */
   check_set_state(true, &lsn_max, &to_archive);
+  /* Above line changes state to ARCH_STATE_PREPARE_IDLE or ARCH_STATE_ABORT.
+  Let us notify the background thread to give it chance to notice the change and
+  wait for it to transition to ARCH_STATE_IDLE before returning (in case of
+  ARCH_STATE_ABORT, wait_idle() does nothing).*/
+  arch_mutex_enter();
+  wait_idle();
+  arch_mutex_exit();
 }
 
 /** Release the current group from client.
