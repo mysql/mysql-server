@@ -1199,7 +1199,7 @@ class Dictionary_client {
     verifying that an object with the same id already exists. The old object,
     which may be present in the shared dictionary cache, is not modified. To
     make the changes visible in the shared cache, please call
-    remove_uncommuitted_objects().
+    remove_uncommitted_objects().
 
     @note A precondition is that the object has been acquired from the
           shared cache indirectly by acquire_for_modification(). For storing

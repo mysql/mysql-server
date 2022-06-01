@@ -11476,9 +11476,9 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
          hton->post_ddl != nullptr);
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Table *table_def = nullptr;
-  if (thd->dd_client()->acquire(table_list->db, table_list->table_name,
-                                &table_def))
+  dd::Table *table_def = nullptr;
+  if (thd->dd_client()->acquire_for_modification(
+          table_list->db, table_list->table_name, &table_def))
     return true;
 
   // Cleanup that must be done regardless of commit or rollback.
@@ -11524,6 +11524,11 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
   DEBUG_SYNC(thd, "secload_upgrade_mdl_x");
   if (thd->mdl_context.upgrade_shared_lock(mdl_ticket, SECLOAD_TDC_EVICT_MDL,
                                            thd->variables.lock_wait_timeout))
+    return true;
+
+  // Update the secondary_load flag based on the current operation.
+  if (table_def->options().set("secondary_load", is_load) ||
+      thd->dd_client()->update(table_def))
     return true;
 
   // Close primary table.

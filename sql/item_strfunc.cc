@@ -4620,6 +4620,16 @@ String *Item_func_get_dd_create_options::val_str(String *str) {
     }
   }
 
+  if (p->exists("secondary_load")) {
+    dd::String_type opt_value;
+    p->get("secondary_load", &opt_value);
+    if (!opt_value.empty()) {
+      ptr = my_stpcpy(ptr, " SECONDARY_LOAD=\"");
+      ptr = my_stpcpy(ptr, opt_value.c_str());
+      ptr = my_stpcpy(ptr, "\"");
+    }
+  }
+
   if (ptr == option_buff)
     oss << "";
   else
