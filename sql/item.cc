@@ -4534,8 +4534,10 @@ bool Item_param::convert_value() {
         }
         // Finally, check if it is a valid floating point value
         value.real = my_strntod(cs, ptr, length, &endptr, &error);
-        if (error == 0 && (length == static_cast<size_t>(endptr - ptr) ||
-                           check_if_only_end_space(cs, endptr, ptr + length))) {
+        if (error == 0 &&
+            endptr - ptr > 0 &&  // my_strntod() accepts empty string as 0.0e0
+            (length == static_cast<size_t>(endptr - ptr) ||
+             check_if_only_end_space(cs, endptr, ptr + length))) {
           set_data_type_actual(MYSQL_TYPE_DOUBLE);
           return false;
         }
