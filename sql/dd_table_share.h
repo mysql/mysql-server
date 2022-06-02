@@ -24,6 +24,7 @@
 
 #include <sys/types.h>
 
+#include "field_types.h"
 #include "m_ctype.h"
 #include "my_inttypes.h"
 #include "my_sys.h"            // get_charset
@@ -33,7 +34,6 @@ class Field;
 class KEY_PART_INFO;
 class THD;
 struct TABLE_SHARE;
-enum enum_field_types : int;
 
 namespace dd {
 class Table;

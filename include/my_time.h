@@ -48,10 +48,9 @@
 #include <winsock2.h>  // struct timeval
 #endif                 /* _WIN32 */
 
+#include "field_types.h"
 #include "my_time_t.h"
 #include "mysql_time.h"  // struct MYSQL_TIME, shared with client code
-
-enum enum_field_types : int;
 
 extern const unsigned long long int log_10_int[20];
 extern const unsigned char days_in_month[];

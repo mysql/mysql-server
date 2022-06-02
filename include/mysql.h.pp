@@ -1,8 +1,8 @@
 typedef uint64_t my_ulonglong;
 typedef int my_socket;
 #include "field_types.h"
-enum enum_field_types
-{ MYSQL_TYPE_DECIMAL,
+enum enum_field_types {
+  MYSQL_TYPE_DECIMAL,
   MYSQL_TYPE_TINY,
   MYSQL_TYPE_SHORT,
   MYSQL_TYPE_LONG,
@@ -35,7 +35,8 @@ enum enum_field_types
   MYSQL_TYPE_BLOB = 252,
   MYSQL_TYPE_VAR_STRING = 253,
   MYSQL_TYPE_STRING = 254,
-  MYSQL_TYPE_GEOMETRY = 255 };
+  MYSQL_TYPE_GEOMETRY = 255
+};
 typedef enum enum_field_types enum_field_types;
 #include "my_list.h"
 typedef struct LIST {

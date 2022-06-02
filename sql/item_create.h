@@ -32,6 +32,7 @@
 
 #include <cstddef>
 
+#include "field_types.h"
 #include "lex_string.h"
 #include "my_inttypes.h"         // uint
 #include "sql/parse_location.h"  // POS
@@ -47,7 +48,6 @@ class THD;
 struct Cast_type;
 struct CHARSET_INFO;
 struct udf_func;
-enum enum_field_types : int;
 enum class Json_on_response_type : uint16;
 
 /* For type casts */

@@ -136,7 +136,7 @@ struct st_lock_list {
 };
 
 struct THR_LOCK {
-  LIST list;
+  LIST list{nullptr, nullptr, nullptr};
   mysql_mutex_t mutex;
   struct st_lock_list read_wait;
   struct st_lock_list read;
