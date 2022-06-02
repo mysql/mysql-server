@@ -93,7 +93,7 @@ class Shard_naked_latch_guard : private ut::Non_copyable {
 
  public:
   explicit Shard_naked_latch_guard(ut::Location location,
-                                   const dict_table_t &table);
+                                   const table_id_t &table_id);
 
   explicit Shard_naked_latch_guard(ut::Location location,
                                    const page_id_t &page_id);
@@ -118,7 +118,7 @@ class Shard_latch_guard {
  public:
   explicit Shard_latch_guard(ut::Location location, const dict_table_t &table)
       : m_global_shared_latch_guard{location},
-        m_shard_naked_latch_guard{location, table} {}
+        m_shard_naked_latch_guard{location, table.id} {}
 
   explicit Shard_latch_guard(ut::Location location, const page_id_t &page_id)
       : m_global_shared_latch_guard{location},

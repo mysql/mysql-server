@@ -5170,9 +5170,15 @@ rec_loop:
         goto normal_return;
       }
     }
-
-    err = sel_set_rec_lock(pcur, rec, index, offsets, prebuilt->select_mode,
-                           prebuilt->select_lock_type, lock_type, thr, &mtr);
+    /* in case of semi-consistent read, we use SELECT_SKIP_LOCKED, so we don't
+    waste time on creating a WAITING lock, as we won't wait on it anyway */
+    const bool use_semi_consistent =
+        prebuilt->row_read_type == ROW_READ_TRY_SEMI_CONSISTENT &&
+        !unique_search && index == clust_index && !trx_is_high_priority(trx);
+    err = sel_set_rec_lock(
+        pcur, rec, index, offsets,
+        use_semi_consistent ? SELECT_SKIP_LOCKED : prebuilt->select_mode,
+        prebuilt->select_lock_type, lock_type, thr, &mtr);
 
     switch (err) {
       const rec_t *old_vers;
@@ -5191,54 +5197,22 @@ rec_loop:
         }
         break;
       case DB_SKIP_LOCKED:
-        goto next_rec;
-      case DB_LOCK_WAIT:
-        /* Lock wait for R-tree should already
-        be handled in sel_set_rtr_rec_lock() */
-        ut_ad(!dict_index_is_spatial(index));
-        /* Never unlock rows that were part of a conflict. */
-        prebuilt->new_rec_lock.reset();
-
-        if (UNIV_LIKELY(prebuilt->row_read_type !=
-                        ROW_READ_TRY_SEMI_CONSISTENT) ||
-            unique_search || index != clust_index) {
-          goto lock_wait_or_error;
+        if (prebuilt->select_mode == SELECT_SKIP_LOCKED) {
+          goto next_rec;
         }
+        DEBUG_SYNC_C("semi_consistent_read_would_wait");
+        ut_a(use_semi_consistent);
         ut_a(trx->allow_semi_consistent());
         /* The following call returns 'offsets' associated with 'old_vers' */
         row_sel_build_committed_vers_for_mysql(
             clust_index, prebuilt, rec, &offsets, &heap, &old_vers,
             need_vrow ? &vrow : nullptr, &mtr);
 
-        /* Check whether it was a deadlock or not, if not
-        a deadlock and the transaction had to wait then
-        release the lock it is waiting on. */
-
-        DEBUG_SYNC_C("semi_consistent_read_would_wait");
-        err = lock_trx_handle_wait(trx);
-
-        switch (err) {
-          case DB_SUCCESS:
-            /* The lock was granted while we were
-            searching for the last committed version.
-            Do a normal locking read. */
-
-            offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
-                                      UT_LOCATION_HERE, &heap);
-            goto locks_ok;
-          case DB_DEADLOCK:
-            goto lock_wait_or_error;
-          case DB_LOCK_WAIT:
-            ut_ad(!dict_index_is_spatial(index));
-            err = DB_SUCCESS;
-            break;
-          default:
-            ut_error;
-        }
+        ut_ad(!dict_index_is_spatial(index));
+        err = DB_SUCCESS;
 
         if (old_vers == nullptr) {
           /* The row was not yet committed */
-
           goto next_rec;
         }
 
@@ -5249,6 +5223,14 @@ rec_loop:
                  pcur, index, prev_rec, &prev_rec_debug_n_fields,
                  &prev_rec_debug_buf, &prev_rec_debug_buf_size));
         break;
+      case DB_LOCK_WAIT:
+        /* Lock wait for R-tree should already
+        be handled in sel_set_rtr_rec_lock() */
+        ut_ad(!dict_index_is_spatial(index));
+        /* Never unlock rows that were part of a conflict. */
+        prebuilt->new_rec_lock.reset();
+        ut_a(!use_semi_consistent);
+        goto lock_wait_or_error;
       case DB_RECORD_NOT_FOUND:
         if (dict_index_is_spatial(index)) {
           goto next_rec;
@@ -5257,10 +5239,9 @@ rec_loop:
         }
 
       default:
-
+        ut_a(!use_semi_consistent);
         goto lock_wait_or_error;
     }
-  locks_ok:
     if (err == DB_SUCCESS && !row_to_range_relation.row_can_be_in_range) {
       err = DB_RECORD_NOT_FOUND;
       goto normal_return;

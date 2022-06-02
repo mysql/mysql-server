@@ -62,20 +62,25 @@ Lock_mutex &Latches::Page_shards::get_mutex(const page_id_t &page_id) {
       const_cast<const Latches::Page_shards *>(this)->get_mutex(page_id));
 }
 
-size_t Latches::Table_shards::get_shard(const dict_table_t &table) {
-  return table.id % SHARDS_COUNT;
+size_t Latches::Table_shards::get_shard(const table_id_t table_id) {
+  return table_id % SHARDS_COUNT;
+}
+
+const Lock_mutex &Latches::Table_shards::get_mutex(
+    const table_id_t table_id) const {
+  return mutexes[get_shard(table_id)];
+}
+
+Lock_mutex &Latches::Table_shards::get_mutex(const table_id_t table_id) {
+  /* See "Effective C++ item 3: Use const whenever possible" for explanation of
+  this pattern, which avoids code duplication by reusing const version. */
+  return const_cast<Lock_mutex &>(
+      const_cast<const Latches::Table_shards *>(this)->get_mutex(table_id));
 }
 
 const Lock_mutex &Latches::Table_shards::get_mutex(
     const dict_table_t &table) const {
-  return mutexes[get_shard(table)];
-}
-
-Lock_mutex &Latches::Table_shards::get_mutex(const dict_table_t &table) {
-  /* See "Effective C++ item 3: Use const whenever possible" for explanation of
-  this pattern, which avoids code duplication by reusing const version. */
-  return const_cast<Lock_mutex &>(
-      const_cast<const Latches::Table_shards *>(this)->get_mutex(table));
+  return get_mutex(table.id);
 }
 
 thread_local size_t Latches::Unique_sharded_rw_lock::m_shard_id{NOT_IN_USE};

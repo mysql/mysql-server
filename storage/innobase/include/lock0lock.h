@@ -897,11 +897,27 @@ void lock_wait_suspend_thread(que_thr_t *thr); /*!< in: query thread associated
  function should be called at the the end of an SQL statement, by the
  connection thread that owns the transaction (trx->mysql_thd). */
 void lock_unlock_table_autoinc(trx_t *trx); /*!< in/out: transaction */
-/** Check whether the transaction has already been rolled back because it
- was selected as a deadlock victim, or if it has to wait then cancel
- the wait lock.
- @return DB_DEADLOCK, DB_LOCK_WAIT or DB_SUCCESS */
-dberr_t lock_trx_handle_wait(trx_t *trx); /*!< in/out: trx lock state */
+
+/** Cancels the waiting lock request of the trx, if any.
+If the transaction has already committed (trx->version has changed) or is no
+longer waiting for a lock (trx->lock.blocking_trx is nullptr) this function
+will not cancel the waiting lock.
+
+@note There is a possibility of ABA in which a waiting lock request was already
+granted or canceled and then the trx requested another lock and started waiting
+for it - in such case this function might either cancel or not the second
+request depending on timing. Currently all usages of this function ensure that
+this is impossible:
+- innodb_kill_connection ensures trx_is_interrupted(trx), thus upon first wake
+up it will realize it has to report an error and rollback
+- HP transaction marks the trx->in_innodb & TRX_FORCE_ROLLBACK flag which is
+checked when the trx attempts RecLock::add_to_waitq and reports DB_DEADLOCK
+
+@param[in]      trx_version   The trx we want to wake up and its expected
+                              version
+@return true iff the function did release a waiting lock
+*/
+bool lock_cancel_if_waiting_and_release(TrxVersion trx_version);
 
 /** Set the lock system timeout event. */
 void lock_set_timeout_event();

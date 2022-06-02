@@ -6210,7 +6210,7 @@ static void innobase_kill_connection(
 
   if (trx != nullptr) {
     /* Cancel a pending lock request if there are any */
-    lock_trx_handle_wait(trx);
+    lock_cancel_if_waiting_and_release({trx});
   }
 }
 

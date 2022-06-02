@@ -1076,7 +1076,7 @@ struct trx_t {
   instance is re-used in trx_start_low(). It is used to track
   whether a transaction has been restarted since it was tagged
   for asynchronous rollback. */
-  ulint version;
+  std::atomic_uint64_t version;
 
   XID *xid;                    /*!< X/Open XA transaction
                                identification to identify a
@@ -1344,10 +1344,11 @@ struct commit_node_t {
   enum commit_node_state state; /*!< node execution state */
 };
 
-/** Test if trx->mutex is owned by the current thread. */
-#define trx_mutex_own(t) mutex_own(&t->mutex)
-
 #ifdef UNIV_DEBUG
+
+/** Test if trx->mutex is owned by the current thread. */
+bool inline trx_mutex_own(const trx_t *trx) { return mutex_own(&trx->mutex); }
+
 /**
 Verifies the invariants and records debug state related to latching rules.
 Called during trx_mutex_enter before the actual mutex acquisition.
