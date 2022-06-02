@@ -8182,7 +8182,7 @@ static bool is_any_column_signaled_for_table(TABLE *table, MY_BITMAP *cols) {
 static bool are_all_columns_signaled_for_key(KEY *keyinfo, MY_BITMAP *cols) {
   DBUG_TRACE;
 
-  for (uint i = 0; i < keyinfo->user_defined_key_parts; i++) {
+  for (uint i = 0; i < keyinfo->actual_key_parts; i++) {
     uint fieldnr = keyinfo->key_part[i].fieldnr - 1;
     if (fieldnr >= cols->n_bits || !bitmap_is_set(cols, fieldnr)) return false;
   }
