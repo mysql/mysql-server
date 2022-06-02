@@ -15465,6 +15465,13 @@ enum_alter_inplace_result ha_ndbcluster::supported_inplace_field_change(
                                "Altering BLOB field is not supported");
   }
 
+  // Check that default value is not added or removed
+  if (old_field->is_flag_set(NO_DEFAULT_VALUE_FLAG) !=
+      new_field->is_flag_set(NO_DEFAULT_VALUE_FLAG)) {
+    return inplace_unsupported(
+        ha_alter_info, "Adding or removing default value is not supported");
+  }
+
   const enum enum_field_types mysql_type = old_field->real_type();
   char old_buf[MAX_ATTR_DEFAULT_VALUE_SIZE];
   char new_buf[MAX_ATTR_DEFAULT_VALUE_SIZE];

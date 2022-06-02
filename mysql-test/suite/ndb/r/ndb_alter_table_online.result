@@ -326,6 +326,24 @@ drop index i1 on t1;
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 DROP TABLE t1;
+#
+# Bug#34224193 Adding default value for not null column with
+#              ALTER TABLE have issues.
+#
+CREATE TABLE t1 (
+pk int AUTO_INCREMENT PRIMARY KEY,
+col1 int NOT NULL,
+col2 int NOT NULL DEFAULT 0
+) ENGINE=ndbcluster;
+ALTER TABLE t1 algorithm=inplace, CHANGE col1 col1 int NOT NULL DEFAULT 0;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding or removing default value is not supported. Try ALGORITHM=COPY.
+ALTER TABLE t1 CHANGE col1 col1 int NOT NULL DEFAULT 0;
+INSERT INTO t1() VALUE();
+SHOW WARNINGS;
+Level	Code	Message
+ALTER TABLE t1 algorithm=inplace, CHANGE col1 col1 int NOT NULL;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding or removing default value is not supported. Try ALGORITHM=COPY.
+DROP TABLE t1;
 ****************************************
 * Adding dropping primary key
 ****************************************
