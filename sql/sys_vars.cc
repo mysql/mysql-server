@@ -2186,7 +2186,7 @@ static bool check_expire_logs_seconds(sys_var *, THD *, set_var *var) {
   ulonglong expire_logs_seconds_value = var->save_result.ulonglong_value;
 
   if (expire_logs_days && expire_logs_seconds_value) {
-    my_error(ER_EXPIRE_LOGS_DAYS_IGNORED, MYF(0));
+    my_error(ER_DA_EXPIRE_LOGS_DAYS_IGNORED, MYF(0));
     return true;
   }
   return false;
