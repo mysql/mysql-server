@@ -20,6 +20,8 @@
 --echo # from NDB, find the ones that match the condition and then update those.
 --echo # In order to make it possible for NDB to return the first INSERT it
 --echo # need to be prepared/flushed before starting to read.
+# NOTE! There is no guarantee that the two statements are binlogged in a single
+# epoch transaction (and so testing the fix),
 --echo #
 --source include/rpl_connection_master.inc
 CREATE TABLE t1 (a INT, b INT) engine = NDB;
@@ -58,6 +60,8 @@ DELETE FROM t4_hidden_pk_index WHERE a = 5;
 --echo ## Case 1, pk table (the "normal" case)
 --echo ## - update row that does not exist on replica
 --echo ## - update pk table -> direct update
+# NOTE! relative order in binlog is not guaranteed, so whether the
+# error op is first or second in the batch is unknown.
 --source include/rpl_connection_master.inc
 BEGIN;
 UPDATE t1 SET b = 0 WHERE a = 5;
@@ -68,6 +72,8 @@ COMMIT;
 --echo ## Case 2, hidden pk table
 --echo ## - update row that does not exist on replica
 --echo ## - update hidden pk table -> uses scan
+# NOTE! relative order in binlog is not guaranteed, so whether the
+# error op is first or second in the batch is unknown.
 --source include/rpl_connection_master.inc
 BEGIN;
 UPDATE t1 SET b = 0 WHERE a = 5;
@@ -78,6 +84,8 @@ COMMIT;
 --echo ## Case 3, hidden pk table with unique index
 --echo ## - update row that does not exist on replica
 --echo ## - update hidden pk table with unique index -> uses index scan
+# NOTE! relative order in binlog is not guaranteed, so whether the
+# error op is first or second in the batch is unknown.
 --source include/rpl_connection_master.inc
 BEGIN;
 UPDATE t1 SET b = 0 WHERE a = 5;
@@ -88,6 +96,10 @@ COMMIT;
 --echo ## Case 4, hidden pk table with index
 --echo ## - update row that does not exist on replica
 --echo ## - update hidden pk table with index -> uses index scan
+# NOTE! relative order in binlog is not guaranteed, so whether the
+# error op is first or second in the batch is unknown. Howevere, the use
+# of < may mean that there are multiple 'keyless' events in the
+# epoch, so the chance of one of them following the failing pk op is higher
 --source include/rpl_connection_master.inc
 BEGIN;
 UPDATE t1 SET b = 0 WHERE a = 5;
