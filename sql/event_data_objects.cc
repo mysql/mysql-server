@@ -1066,8 +1066,6 @@ bool Event_job_data::execute(THD *thd, bool drop) {
     goto end;
   }
 
-  if (construct_sp_sql(thd, &sp_sql)) goto end;
-
   /*
     Set up global thread attributes to reflect the properties of
     this Event. We can simply reset these instead of usual
@@ -1078,6 +1076,33 @@ bool Event_job_data::execute(THD *thd, bool drop) {
 
   thd->variables.sql_mode = m_sql_mode;
   thd->variables.time_zone = m_time_zone;
+
+  if (construct_sp_sql(thd, &sp_sql)) goto end;
+
+  /*
+    If enabled, log the quoted form to performance_schema.error_log.
+    We enclose it in faux guillemets to differentiate the enclosing
+    quotation seen in the log from the SQL-level quotation from
+    construct_sp_sql()'s (which calls append_identifier() in sql_show,
+    and thus ultimately get_quote_char_for_identifier() which evaluates
+    thd->variables.sql_mode & MODE_ANSI_QUOTES).
+
+    We're logging with a priority of SYSTEM_LEVEL so we won't have to
+    worry abot log_error_verbosity. (ERROR_LEVEL would also achieve
+    that, but then mysql-test-run.pl would rightfully complain about
+    the error in the log.)
+  */
+  DBUG_EXECUTE_IF("log_event_query_string", {
+    LEX_STRING sm1;
+    LEX_STRING sm2;
+    sql_mode_string_representation(thd, thd->variables.sql_mode, &sm1);
+    sql_mode_string_representation(thd, m_sql_mode, &sm2);
+    LogEvent()
+        .errcode(ER_CONDITIONAL_DEBUG)
+        .prio(SYSTEM_LEVEL)
+        .message("Query string to be compiled: \"%s\"/\"%s\" >>%s<<\n", sm1.str,
+                 sm2.str, sp_sql.c_ptr_safe());
+  });
 
   thd->set_query(sp_sql.c_ptr_safe(), sp_sql.length());
 

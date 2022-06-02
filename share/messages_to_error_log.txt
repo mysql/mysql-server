@@ -11880,6 +11880,9 @@ ER_THREAD_POOL_CANNOT_REGISTER_DYNAMIC_PRIVILEGE
 ER_IB_MSG_LOG_WRITER_WAIT_ON_CONSUMER
   eng "Redo log writer is waiting for %s redo log consumer which is currently reading LSN=%llu preventing reclamation of subsequent portion of the redo log. Consider increasing innodb_redo_log_capacity."
 
+ER_CONDITIONAL_DEBUG
+  eng "%s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
