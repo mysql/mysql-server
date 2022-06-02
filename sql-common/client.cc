@@ -7760,6 +7760,8 @@ finish processing it.
 int STDCALL mysql_send_query(MYSQL *mysql, const char *query, ulong length) {
   DBUG_TRACE;
 
+  bool extension_was_present = (mysql->extension != nullptr);
+
   STATE_INFO *info;
   assert(mysql);
 
@@ -7769,8 +7771,24 @@ int STDCALL mysql_send_query(MYSQL *mysql, const char *query, ulong length) {
   if ((info = STATE_DATA(mysql))) free_state_change_info(ext);
   uchar *ret_data;
   unsigned long ret_data_length;
-  if (mysql_prepare_com_query_parameters(mysql, &ret_data, &ret_data_length))
-    return 1;
+  int retval =
+      mysql_prepare_com_query_parameters(mysql, &ret_data, &ret_data_length);
+  /*
+    mysql->extension is allocated memory inside mysql_init() before
+    establishing a client-server connection. When MYSQL_EXTENSION_PTR() is
+    called here in mysql_send_query() or in
+    mysql_prepare_com_query_parameters() it allocates memory to
+    mysql->extension if it is null (disconnected client). This memory is not
+    freed later. When another query is executed mysql->extension is reallocated
+    memory and this will cause a memory leak. To avoid this, mysql->extension
+    is freed here if it was null when mysql_send_query was called and client is
+    disconnected.
+  */
+  if (!extension_was_present && !mysql->net.vio) {
+    mysql_extension_free(static_cast<MYSQL_EXTENSION *>(mysql->extension));
+    mysql->extension = nullptr;
+  }
+  if (retval) return 1;
   int ret = (*mysql->methods->advanced_command)(
       mysql, COM_QUERY, ret_data, ret_data_length,
       pointer_cast<const uchar *>(query), length, true, nullptr);
