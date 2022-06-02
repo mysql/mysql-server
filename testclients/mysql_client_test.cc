@@ -23085,6 +23085,119 @@ static void test_bug34007830() {
   mysql_close(lmysql);
 }
 
+static void test_bug33535746() {
+  DBUG_TRACE;
+  myheader("test_bug33535746");
+
+  int rc;
+
+  rc = mysql_query(mysql, "create table t1 (id int primary key)");
+  myquery(rc);
+
+  rc = mysql_query(mysql, "insert into t1 values(1)");
+  myquery(rc);
+
+  const char *query = "select id from t1";
+
+  MYSQL_STMT *stmt = mysql_stmt_init(mysql);
+  DIE_UNLESS(stmt != nullptr);
+
+  ulong length[1];
+  bool is_null[1] = {false};
+  int32 id;
+
+  MYSQL_BIND bind[1];
+  memset(bind, 0, sizeof(bind));
+
+  bind[0].buffer_type = MYSQL_TYPE_LONG;
+  bind[0].buffer = (void *)&id;
+  bind[0].is_null = &is_null[0];
+  bind[0].length = &length[0];
+  bind[0].buffer_length = (ulong)sizeof(id);
+
+  ulong type;
+
+  rc = mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
+  check_execute(stmt, rc);
+
+  // First execution without cursor
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  mysql_stmt_bind_result(stmt, bind);
+
+  int row_count = 0;
+
+  while (!(rc = mysql_stmt_fetch(stmt))) row_count++;
+
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  assert(row_count == 1);
+
+  // Second execution with cursor
+
+  type = (ulong)CURSOR_TYPE_READ_ONLY;
+
+  mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, &type);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  mysql_stmt_bind_result(stmt, bind);
+
+  row_count = 0;
+
+  while (!(rc = mysql_stmt_fetch(stmt))) row_count++;
+
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  assert(row_count == 1);
+
+  // Third execution without cursor
+
+  type = (ulong)CURSOR_TYPE_NO_CURSOR;
+
+  mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, &type);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  mysql_stmt_bind_result(stmt, bind);
+
+  row_count = 0;
+
+  while (!(rc = mysql_stmt_fetch(stmt))) row_count++;
+
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  assert(row_count == 1);
+
+  // Fourth execution with cursor
+
+  type = (ulong)CURSOR_TYPE_READ_ONLY;
+
+  mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, &type);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  mysql_stmt_bind_result(stmt, bind);
+
+  row_count = 0;
+
+  while (!(rc = mysql_stmt_fetch(stmt))) row_count++;
+
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  assert(row_count == 1);
+
+  mysql_stmt_close(stmt);
+
+  rc = mysql_query(mysql, "drop table t1");
+  myquery(rc);
+}
+
 static struct my_tests_st my_tests[] = {
     {"test_bug5194", test_bug5194},
     {"disable_query_logs", disable_query_logs},
@@ -23396,6 +23509,7 @@ static struct my_tests_st my_tests[] = {
     {"test_bug32915973", test_bug32915973},
     {"test_wl13075", test_wl13075},
     {"test_bug34007830", test_bug34007830},
+    {"test_bug33535746", test_bug33535746},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

@@ -60,11 +60,12 @@ class Server_side_cursor {
  protected:
   Query_arena m_arena;
   /** Row destination used for fetch */
-  Query_result *result;
+  Query_result *m_result;
 
  public:
   Server_side_cursor(Query_result *result_arg)
-      : m_arena(&mem_root, Query_arena::STMT_INITIALIZED), result(result_arg) {}
+      : m_arena(&mem_root, Query_arena::STMT_INITIALIZED),
+        m_result(result_arg) {}
   virtual bool is_open() const = 0;
 
   virtual bool open(THD *thd) = 0;
@@ -81,7 +82,9 @@ class Server_side_cursor {
   }
 };
 
+Query_result *new_cursor_result(MEM_ROOT *mem_root, Query_result *result);
+
 bool mysql_open_cursor(THD *thd, Query_result *result,
                        Server_side_cursor **res);
 
-#endif /* _sql_cusor_h_ */
+#endif /* _sql_cursor_h_ */

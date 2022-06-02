@@ -3098,7 +3098,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
   Opt_trace_array trace_command_steps(&thd->opt_trace, "steps");
 
   if (lex->m_sql_cmd && lex->m_sql_cmd->owner())
-    lex->m_sql_cmd->owner()->trace_parameter_types();
+    lex->m_sql_cmd->owner()->trace_parameter_types(thd);
 
   assert(thd->get_transaction()->cannot_safely_rollback(
              Transaction_ctx::STMT) == false);

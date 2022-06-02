@@ -2027,7 +2027,7 @@ Prepared_statement_map::Prepared_statement_map()
       m_last_found_statement(nullptr) {}
 
 int Prepared_statement_map::insert(Prepared_statement *statement) {
-  st_hash.emplace(statement->id, unique_ptr<Prepared_statement>(statement));
+  st_hash.emplace(statement->id(), unique_ptr<Prepared_statement>(statement));
   if (statement->name().str) {
     names_hash.emplace(to_string(statement->name()), statement);
   }
@@ -2053,7 +2053,7 @@ int Prepared_statement_map::insert(Prepared_statement *statement) {
 
 err_max:
   if (statement->name().str) names_hash.erase(to_string(statement->name()));
-  st_hash.erase(statement->id);
+  st_hash.erase(statement->id());
   return 1;
 }
 
@@ -2063,7 +2063,7 @@ Prepared_statement *Prepared_statement_map::find_by_name(
 }
 
 Prepared_statement *Prepared_statement_map::find(ulong id) {
-  if (m_last_found_statement == nullptr || id != m_last_found_statement->id) {
+  if (m_last_found_statement == nullptr || id != m_last_found_statement->id()) {
     Prepared_statement *stmt = find_or_nullptr(st_hash, id);
     if (stmt && stmt->name().str) return nullptr;
     m_last_found_statement = stmt;
@@ -2075,7 +2075,7 @@ void Prepared_statement_map::erase(Prepared_statement *statement) {
   if (statement == m_last_found_statement) m_last_found_statement = nullptr;
   if (statement->name().str) names_hash.erase(to_string(statement->name()));
 
-  st_hash.erase(statement->id);
+  st_hash.erase(statement->id());
   mysql_mutex_lock(&LOCK_prepared_stmt_count);
   assert(prepared_stmt_count > 0);
   prepared_stmt_count--;

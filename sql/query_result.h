@@ -39,11 +39,12 @@ class Item;
 class Item_subselect;
 class PT_select_var;
 class Query_expression;
+class Query_term_set_op;
+class Server_side_cursor;
 class THD;
 struct CHARSET_INFO;
 template <class Element_type>
 class mem_root_deque;
-class Query_term_set_op;
 
 /*
   This is used to get result from a query
@@ -121,13 +122,11 @@ class Query_result {
   virtual bool send_data(THD *thd, const mem_root_deque<Item *> &items) = 0;
   virtual bool send_eof(THD *thd) = 0;
   /**
-    Check if this query returns a result set and therefore is allowed in
-    cursors and set an error message if it is not the case.
+    Check if this query result set supports cursors
 
-    @retval false     success
-    @retval true      error, an error message is set
+    @returns false if success, true if error
   */
-  virtual bool check_simple_query_block() const {
+  virtual bool check_supports_cursor() const {
     my_error(ER_SP_BAD_CURSOR_QUERY, MYF(0));
     return true;
   }
@@ -138,7 +137,7 @@ class Query_result {
     @returns true if error
   */
   virtual bool reset() {
-    assert(0);
+    assert(false);
     return false;
   }
   /**
@@ -154,6 +153,12 @@ class Query_result {
     @return true if it is an interceptor, false otherwise
   */
   virtual bool is_interceptor() const { return false; }
+
+  /// @returns server side cursor, if associated with query result
+  virtual Server_side_cursor *cursor() const {
+    assert(false);
+    return nullptr;
+  }
 };
 
 /*
@@ -187,7 +192,7 @@ class Query_result_send : public Query_result {
                                 uint flags) override;
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   bool send_eof(THD *thd) override;
-  bool check_simple_query_block() const override { return false; }
+  bool check_supports_cursor() const override { return false; }
   void abort_result_set(THD *thd) override;
   void cleanup() override { is_result_set_started = false; }
 };
@@ -210,7 +215,7 @@ class Query_result_to_file : public Query_result_interceptor {
   ~Query_result_to_file() override { assert(file < 0); }
 
   bool needs_file_privilege() const override { return true; }
-
+  bool check_supports_cursor() const override;
   bool send_eof(THD *thd) override;
   void cleanup() override;
 };
@@ -276,7 +281,7 @@ class Query_dumpvar final : public Query_result_interceptor {
                Query_expression *u) override;
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   bool send_eof(THD *thd) override;
-  bool check_simple_query_block() const override;
+  bool check_supports_cursor() const override;
   void cleanup() override { row_count = 0; }
 };
 

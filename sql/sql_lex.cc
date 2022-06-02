@@ -840,14 +840,14 @@ void LEX::new_static_query(Query_expression *sel_query_expression,
   @returns true if preparation state is invalid, false otherwise.
 */
 bool LEX::check_preparation_invalid(THD *thd_arg) {
-  DBUG_ENTER("LEX::check_preparation_invalid");
+  DBUG_TRACE;
 
   if (unlikely(is_broken())) {
     // Force a Reprepare, to get a fresh LEX
-    if (ask_to_reprepare(thd_arg)) DBUG_RETURN(true);
+    if (ask_to_reprepare(thd_arg)) return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 Yacc_state::~Yacc_state() {
