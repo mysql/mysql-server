@@ -819,8 +819,8 @@ sub main {
 
   if (@$completed != $num_tests) {
     # Not all tests completed, failure
-    mtr_report();
-    mtr_report("Only ", int(@$completed), " of $num_tests completed.");
+    mtr_print_line();
+    mtr_report(int(@$completed), " of $num_tests test(s) completed.");
     foreach (@tests_list) {
       $_->{key} = "$_" unless defined $_->{key};
     }
@@ -832,10 +832,15 @@ sub main {
       }
     }
     if (int(@not_completed) <= 100) {
-      mtr_error("Not all tests completed:", join(" ", @not_completed));
+      mtr_report("Not all tests completed:", join(" ", @not_completed));
     } else {
-      mtr_error("Not all tests completed:", join(" ", @not_completed[0...49]), "... and", int(@not_completed)-50, "more");
+      mtr_report("Not all tests completed:", join(" ", @not_completed[0...49]), "... and", int(@not_completed)-50, "more");
     }
+    mtr_report();
+    if(int(@$completed)) {
+      mtr_report_stats("In completed tests", $completed);
+    }
+    mtr_error("No test(s) completed");
   }
 
   mark_time_used('init');
