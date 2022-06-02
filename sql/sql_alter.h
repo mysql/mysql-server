@@ -31,6 +31,7 @@
 
 #include "lex_string.h"
 
+#include "field_types.h"
 #include "my_io.h"
 #include "my_sqlcommand.h"
 #include "mysql/components/services/bits/psi_bits.h"
@@ -53,8 +54,6 @@ class Key_spec;
 class String;
 class THD;
 struct TABLE_LIST;
-
-enum enum_field_types : int;
 
 /**
   Class representing DROP COLUMN, DROP KEY, DROP FOREIGN KEY, DROP CHECK

@@ -26,6 +26,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "field_types.h"
 #include "lex_string.h"
 #include "my_inttypes.h"
 #include "mysql/status_var.h"
@@ -51,7 +52,6 @@ struct TABLE_LIST;
 typedef enum enum_mysql_show_type SHOW_TYPE;
 enum enum_schema_tables : int;
 enum enum_var_type : int;
-enum enum_field_types : int;
 
 /** Characters shown for the command in 'show processlist'. */
 constexpr const size_t PROCESS_LIST_WIDTH{100};

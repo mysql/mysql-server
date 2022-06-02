@@ -49,12 +49,8 @@ extern "C" {
 /**
   Column types for MySQL
 */
-enum enum_field_types
-#if defined(__cplusplus)
-    // N2764: Forward enum declarations, added in C++11
-    : int
-#endif /* __cplusplus */
-{ MYSQL_TYPE_DECIMAL,
+enum enum_field_types {
+  MYSQL_TYPE_DECIMAL,
   MYSQL_TYPE_TINY,
   MYSQL_TYPE_SHORT,
   MYSQL_TYPE_LONG,
@@ -87,7 +83,8 @@ enum enum_field_types
   MYSQL_TYPE_BLOB = 252,
   MYSQL_TYPE_VAR_STRING = 253,
   MYSQL_TYPE_STRING = 254,
-  MYSQL_TYPE_GEOMETRY = 255 };
+  MYSQL_TYPE_GEOMETRY = 255
+};
 
 #ifdef __cplusplus
 }  // extern "C"

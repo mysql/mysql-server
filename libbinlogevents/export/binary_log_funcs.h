@@ -28,14 +28,8 @@
 #ifndef BINARY_LOG_FUNCS_INCLUDED
 #define BINARY_LOG_FUNCS_INCLUDED
 
-// We use cstdint if this is 2011 standard (or later)
-#if __cplusplus > 201100L
-#include <cstdint>
-enum enum_field_types : int;
-#else
 #include <stdint.h>
 #include "field_types.h"  // enum_field_types
-#endif
 
 #ifdef __cplusplus
 extern "C" {
