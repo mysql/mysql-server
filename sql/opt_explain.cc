@@ -298,6 +298,12 @@ class Explain {
   virtual bool can_walk_clauses() { return !explain_other; }
   virtual enum_parsing_context get_subquery_context(
       Query_expression *unit) const;
+
+ private:
+  /**
+    Returns true if EXPLAIN should not produce any information about subqueries.
+   */
+  virtual bool skip_subqueries() const { return false; }
 };
 
 enum_parsing_context Explain::get_subquery_context(
@@ -540,6 +546,41 @@ class Explain_table : public Explain_table_base {
   }
 };
 
+/**
+  This class outputs an empty plan for queries that use a secondary engine. It
+  is only used with the hypergraph optimizer, and only when the traditional
+  format is specified. The traditional format is not supported by the hypergraph
+  optimizer, so only an empty plan is shown, with extra information showing a
+  secondary engine is used.
+ */
+class Explain_secondary_engine final : public Explain {
+ public:
+  Explain_secondary_engine(THD *explain_thd_arg, const THD *query_thd_arg,
+                           Query_block *query_block_arg)
+      : Explain(CTX_JOIN, explain_thd_arg, query_thd_arg, query_block_arg) {}
+
+ protected:
+  bool explain_select_type() override {
+    fmt->entry()->col_select_type.set(enum_explain_type::EXPLAIN_NONE);
+    return false;
+  }
+
+  bool explain_extra() override {
+    StringBuffer<STRING_BUFFER_USUAL_SIZE> buffer;
+    bool error = false;
+    error |= buffer.append(STRING_WITH_LEN("Using secondary engine "));
+    error |= buffer.append(
+        ha_resolve_storage_engine_name(SecondaryEngineHandlerton(query_thd)));
+    error |= buffer.append(
+        STRING_WITH_LEN(". Use EXPLAIN FORMAT=TREE to show the plan."));
+    if (error) return error;
+    return fmt->entry()->col_message.set(buffer);
+  }
+
+ private:
+  bool skip_subqueries() const override { return true; }
+};
+
 }  // namespace
 
 /* Explain class functions ****************************************************/
@@ -563,7 +604,8 @@ bool Explain::shallow_explain() {
 */
 
 bool Explain::mark_subqueries(Item *item, qep_row *destination) {
-  if (item == nullptr || !fmt->is_hierarchical()) return false;
+  if (skip_subqueries() || item == nullptr || !fmt->is_hierarchical())
+    return false;
 
   item->compile(&Item::explain_subquery_checker,
                 reinterpret_cast<uchar **>(&destination),
@@ -612,6 +654,8 @@ enum_parsing_context Explain_no_table::get_subquery_context(
   @retval       true    Error (OOM)
 */
 bool Explain::explain_subqueries() {
+  if (skip_subqueries()) return false;
+
   /*
     Subqueries in empty queries are neither optimized nor executed. They are
     therefore not to be included in the explain output.
@@ -2183,12 +2227,10 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
   DBUG_TRACE;
 
   const bool other = (explain_thd != query_thd);
+  const bool secondary_engine = SecondaryEngineHandlerton(query_thd) != nullptr;
 
   LEX *lex = explain_thd->lex;
   if (lex->explain_format->is_tree()) {
-    const bool secondary_engine =
-        explain_thd->lex->m_sql_cmd != nullptr &&
-        explain_thd->lex->m_sql_cmd->using_secondary_storage_engine();
     if (lex->is_explain_analyze) {
       if (secondary_engine) {
         my_error(ER_NOT_SUPPORTED_YET, MYF(0),
@@ -2219,7 +2261,16 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
     return ExplainIterator(explain_thd, query_thd, unit);
   }
 
-  if (query_thd->lex->using_hypergraph_optimizer) {
+  // Non-tree formats are not supported with the hypergraph optimizer. But we
+  // still want to be able to use EXPLAIN with no format specified (implicitly
+  // the traditional format) to show if the query is offloaded to a secondary
+  // engine, so we return a fake plan with that information.
+  const bool fake_explain_for_secondary_engine =
+      query_thd->lex->using_hypergraph_optimizer && secondary_engine &&
+      !lex->explain_format->is_hierarchical();
+
+  if (query_thd->lex->using_hypergraph_optimizer &&
+      !fake_explain_for_secondary_engine) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
              "EXPLAIN with non-tree formats");
     return true;
@@ -2252,7 +2303,12 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
   explain_thd->lex->unit->offset_limit_cnt = 0;
   explain_thd->lex->unit->select_limit_cnt = 0;
 
-  const bool res = mysql_explain_query_expression(explain_thd, query_thd, unit);
+  const bool res =
+      fake_explain_for_secondary_engine
+          ? Explain_secondary_engine(explain_thd, query_thd,
+                                     unit->first_query_block())
+                .send()
+          : mysql_explain_query_expression(explain_thd, query_thd, unit);
   /*
     1) The code which prints the extended description is not robust
        against malformed queries, so skip it if we have an error.

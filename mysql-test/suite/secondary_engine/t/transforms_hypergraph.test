@@ -1,0 +1,3 @@
+# Test the subquery-to-derived transformations with the hypergraph optimizer.
+--source include/have_hypergraph.inc
+--source suite/secondary_engine/inc/transforms.inc
