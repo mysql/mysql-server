@@ -759,6 +759,12 @@ Lgman::execREAD_CONFIG_REQ(Signal* signal)
                            &disk_data_format);
   g_v2 = (disk_data_format == 1);
 #endif
+
+  Uint32 encrypted_filesystem = 0;
+  ndb_mgm_get_int_parameter(
+    p, CFG_DB_ENCRYPTED_FILE_SYSTEM, &encrypted_filesystem);
+  c_encrypted_filesystem = encrypted_filesystem;
+
   Pool_context pc;
   pc.m_block = this;
   m_log_waiter_pool.wo_pool_init(RT_LGMAN_LOG_WAITER, pc);
