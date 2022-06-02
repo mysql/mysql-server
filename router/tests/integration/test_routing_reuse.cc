@@ -249,9 +249,17 @@ class SharedServer {
   Procs &process_manager() { return procs_; }
 
   void initialize_server() {
+    auto bindir = process_manager().get_origin();
+    auto mysqld = bindir.join("mysqld");
+
+    if (!mysqld.exists()) {
+      mysqld_failed_to_start_ = true;
+      return;
+    }
+
     auto &proc =
         process_manager()
-            .spawner(process_manager().get_origin().join("mysqld").str())
+            .spawner(mysqld.str())
             .wait_for_sync_point(ProcessManager::Spawner::SyncPoint::NONE)
             .spawn({
                 "--initialize-insecure",
