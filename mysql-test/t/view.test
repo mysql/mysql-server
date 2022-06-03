@@ -6311,3 +6311,22 @@ DROP VIEW v1;
 EXPLAIN SELECT pk AS foo, col_int_key AS bar FROM t1;
 
 DROP TABLE t1;
+
+--echo # Bug#34239456: Assertion '!thd->is_error()' failed in MySQL 8.0.29
+
+CREATE TABLE t0 (c0 INTEGER, c1 INTEGER);
+
+CREATE VIEW v0 AS
+SELECT c0
+FROM t0
+WHERE c1 = (SELECT 1
+            UNION
+            SELECT c0 FROM t0
+            ORDER BY c1
+           );
+
+--error ER_TABLENAME_NOT_ALLOWED_HERE
+SELECT * FROM v0;
+
+DROP VIEW v0;
+DROP TABLE t0;
