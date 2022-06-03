@@ -1632,7 +1632,6 @@ bool log_slow_applicable(THD *thd) {
 */
 void log_slow_do(THD *thd) {
   THD_STAGE_INFO(thd, stage_logging_slow_query);
-  thd->status_var.long_query_count++;
 
   if (thd->rewritten_query().length())
     query_logger.slow_log_write(thd, thd->rewritten_query().ptr(),
@@ -1655,6 +1654,10 @@ void log_slow_do(THD *thd) {
   @param thd                 thread handle
 */
 void log_slow_statement(THD *thd) {
+  // The docs say slow queries must be counted even when the log is off.
+  if (thd->server_status & SERVER_QUERY_WAS_SLOW)
+    thd->status_var.long_query_count++;
+
   if (log_slow_applicable(thd)) log_slow_do(thd);
 }
 
