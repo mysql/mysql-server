@@ -253,6 +253,9 @@ static void dumpAccessPath(int level, AccessPath *p, std::ostringstream &buf) {
   while (p) {
     Mem_root_array<MaterializePathParameters::QueryBlock> *query_blocks =
         nullptr;
+    Mem_root_array<AppendPathParameters> *append_children = nullptr;
+    snprintf(buffer, sizeof(buffer), "AP: %p ", p);
+    str.append(buffer);
     switch (p->type) {
       case AccessPath::LIMIT_OFFSET:
         str.append("AccessPath::LIMIT_OFFSET ");
@@ -316,6 +319,33 @@ static void dumpAccessPath(int level, AccessPath *p, std::ostringstream &buf) {
                                                 : "<no alias>");
         p = nullptr;
         break;
+      case AccessPath::APPEND:
+        str.append("AccessPath::APPEND ");
+        append_children = p->append().children;
+        p = nullptr;
+        break;
+      case AccessPath::TEMPTABLE_AGGREGATE:
+        str.append("AccessPath::TEMPTABLE AGGREGATE ");
+        p = p->temptable_aggregate().subquery_path;
+        break;
+      case AccessPath::STREAM:
+        str.append("AccessPath::STREAM ");
+        p = p->stream().child;
+        break;
+      case AccessPath::WINDOW:
+        str.append("AccessPath::WINDOW ");
+        str.append(p->window().temp_table->alias ? p->window().temp_table->alias
+                                                 : "<no alias>");
+        p = p->window().child;
+        break;
+      case AccessPath::WEEDOUT:
+        str.append("AccessPath::WEEDOUT ");
+        p = p->weedout().child;
+        break;
+      case AccessPath::ZERO_ROWS:
+        str.append("AccessPath::ZeroRows");
+        p = p->zero_rows().child;
+        break;
       default:
         assert(false);
     }
@@ -331,6 +361,10 @@ static void dumpAccessPath(int level, AccessPath *p, std::ostringstream &buf) {
     if (query_blocks != nullptr)
       for (MaterializePathParameters::QueryBlock subp : *query_blocks) {
         dumpAccessPath(level + 1, subp.subquery_path, buf);
+      }
+    if (append_children != nullptr)
+      for (AppendPathParameters subp : *append_children) {
+        dumpAccessPath(level + 1, subp.path, buf);
       }
   }
 }
