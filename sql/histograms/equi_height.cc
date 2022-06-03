@@ -235,7 +235,33 @@ static ha_rows FindBucketMaxValues(const Value_map<T> &value_map,
   low frequency values can be between u and (1/s)*u. In order to minimize the
   worst-case relative error, we use the geometric mean of these two values.
 
-  Further considerations:
+  Important note:
+
+  This estimator was designed for uniform random sampling. We currently use
+  page-level sampling for histograms. This can cause us to underestimate the
+  number of distinct values by nearly a factor 1/s in the worst case. The
+  reason is that we only scale up the number of singleton values.
+  With page-level sampling we can have pairs of distinct values occuring
+  together so that we will have u=0 in the formula above.
+
+  For now, we opt to keep the formula as it is, since we would rather
+  underestimate than overestimate the number of distinct values. Potential
+  solutions:
+
+  1) Use a custom estimator for page-level sampling [3]. This requires changes
+     to the sampling interface to InnoDB to support counting the number of pages
+     a value appears in.
+
+  2) Use the simpler estimate of sqrt(1/s)*d, the geometric mean between the
+     lower bound of d and the upper bound of d/s. This has the downside of
+     overestimating the number of distinct values by sqrt(1/s) in cases where
+     the table only contains heavy hitters.
+
+  3) Simulate uniform random sampling on top of the page-level sampling.
+     Postgres does this, but it requires sampling as many pages as the target
+     number of rows.
+
+   Further considerations:
 
   It turns out that estimating the number of distinct values is a difficult
   problem. In [1] it is shown that for any estimator based on random sampling
@@ -271,6 +297,11 @@ static ha_rows FindBucketMaxValues(const Value_map<T> &value_map,
 
   [2] Haas, Peter J., et al. "Sampling-based estimation of the number of
   distinct values of an attribute." VLDB. Vol. 95. 1995.
+
+  [3] Chaudhuri, Surajit, Gautam Das, and Utkarsh Srivastava. "Effective use of
+  block-level sampling in statistics estimation." Proceedings of the 2004 ACM
+  SIGMOD international conference on Management of data. 2004.
+
 */
 static ha_rows EstimateDistinctValues(double sampling_rate,
                                       ha_rows bucket_distinct_values,
