@@ -3069,7 +3069,8 @@ class user_var_entry {
   bool mem_realloc(size_t length);
 
   /**
-    Check if m_ptr points to an external buffer previously allocated by realloc().
+    Check if m_ptr points to an external buffer previously allocated by
+    realloc().
     @retval true  - an external buffer is allocated.
     @retval false - m_ptr is null, or points to the internal buffer.
   */
@@ -3464,6 +3465,12 @@ class Item_func_get_system_var final : public Item_var_func {
   /* TODO: fix to support views */
   const char *func_name() const override { return "get_system_var"; }
   bool eq(const Item *item, bool binary_cmp) const override;
+  bool is_valid_for_pushdown(uchar *arg [[maybe_unused]]) override {
+    // Expressions which have system variables cannot be pushed as of
+    // now because Item_func_get_system_var::print does not print the
+    // original expression which leads to an incorrect clone.
+    return true;
+  }
 
   void cleanup() override;
 };
