@@ -49,8 +49,12 @@ ulint rec_get_nth_field_size(const dict_index_t *index, const rec_t *rec,
                              ulint n) {
   if (index) {
     ut_ad(!dict_table_is_comp(index->table));
-    uint8_t version = rec_get_instant_row_version_old(rec);
     if (index->has_row_versions()) {
+      uint8_t version = UINT8_UNDEFINED;
+      if (rec_old_is_versioned(rec)) {
+        version = rec_get_instant_row_version_old(rec);
+      }
+
       n = index->get_field_phy_pos(n, version);
     }
   }
@@ -71,8 +75,12 @@ ulint rec_get_nth_field_offs_old(const dict_index_t *index, const rec_t *rec,
                                  ulint n, ulint *len) {
   if (index) {
     ut_ad(!dict_table_is_comp(index->table));
-    uint8_t version = rec_get_instant_row_version_old(rec);
     if (index->has_row_versions()) {
+      uint8_t version = UINT8_UNDEFINED;
+      if (rec_old_is_versioned(rec)) {
+        version = rec_get_instant_row_version_old(rec);
+      }
+
       n = index->get_field_phy_pos(n, version);
     }
   }
@@ -138,8 +146,12 @@ ulint rec_2_is_field_extern(const dict_index_t *index, const rec_t *rec,
                             ulint n) {
   if (index) {
     ut_ad(!dict_table_is_comp(index->table));
-    uint8_t version = rec_get_instant_row_version_old(rec);
     if (index->has_row_versions()) {
+      uint8_t version = UINT8_UNDEFINED;
+      if (rec_old_is_versioned(rec)) {
+        version = rec_get_instant_row_version_old(rec);
+      }
+
       n = index->get_field_phy_pos(n, version);
     }
   }
