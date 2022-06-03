@@ -1799,6 +1799,115 @@ Update t1 set c2="r122222", c4="c44";
 alter table t1 drop column c2, algorithm=instant;
 SET GLOBAL innodb_purge_run_now=ON;
 DROP TABLE t1;
+# Scenario 66
+# Inplace update is failing
+# INSTANT ADD and INPLACE UPDATE
+CREATE TABLE t1 (c1 char(10), c2 char(10), c3 char(10)) ROW_FORMAT=REDUNDANT;
+Insert into t1 values ("r1c1", "r1c2", "r1c3");
+Select * from t1;
+c1	c2	c3
+r1c1	r1c2	r1c3
+Alter table t1 add column c4 char(10) after c1, ALGORITHM=INSTANT;
+Select * from t1;
+c1	c4	c2	c3
+r1c1	NULL	r1c2	r1c3
+Insert into t1 values ("r2c1", "r2c4", "r2c2", "r2c3");
+Select * from t1;
+c1	c4	c2	c3
+r1c1	NULL	r1c2	r1c3
+r2c1	r2c4	r2c2	r2c3
+# Disable flush to make sure REDO is applied after restart
+Update t1 set c2="r112" where c2="r1c2";
+Update t1 set c2="r212" where c2="r2c2";
+Select * from t1;
+c1	c4	c2	c3
+r1c1	NULL	r112	r1c3
+r2c1	r2c4	r212	r2c3
+# Kill the running server
+# Kill the server
+# Start the server
+Select * from t1;
+c1	c4	c2	c3
+r1c1	NULL	r112	r1c3
+r2c1	r2c4	r212	r2c3
+DROP TABLE t1;
+# INSTANT DROP and INPLACE UPDATE
+CREATE TABLE t1 (c1 char(10), c2 char(10), c3 char(10)) ROW_FORMAT=REDUNDANT;
+Insert into t1 values ("r1c1", "r1c2", "r1c3");
+Select * from t1;
+c1	c2	c3
+r1c1	r1c2	r1c3
+Alter table t1 drop column c1, algorithm=instant;
+Insert into t1 values ("r2c2", "r2c3");
+Select * from t1;
+c2	c3
+r1c2	r1c3
+r2c2	r2c3
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+Update t1 set c2="r112" where c2="r1c2";
+Update t1 set c2="r212" where c2="r2c2";
+Select * from t1;
+c2	c3
+r112	r1c3
+r212	r2c3
+# Kill the running server
+# Kill the server
+# Start the server
+Select * from t1;
+c2	c3
+r112	r1c3
+r212	r2c3
+DROP TABLE t1;
+# INSTANT ADD and DROP and INPLACE UPDATE
+CREATE TABLE t1 (c1 char(10), c2 char(10), c3 char(10)) ROW_FORMAT=REDUNDANT;
+Insert into t1 values ("r1c1", "r1c2", "r1c3");
+Select * from t1;
+c1	c2	c3
+r1c1	r1c2	r1c3
+Alter table t1 add column c4 char(10) after c1, ALGORITHM=INSTANT;
+Select * from t1;
+c1	c4	c2	c3
+r1c1	NULL	r1c2	r1c3
+Insert into t1 values ("r2c1", "r2c4", "r2c2", "r2c3");
+Select * from t1;
+c1	c4	c2	c3
+r1c1	NULL	r1c2	r1c3
+r2c1	r2c4	r2c2	r2c3
+Alter table t1 drop column c1, algorithm=instant;
+Select * from t1;
+c4	c2	c3
+NULL	r1c2	r1c3
+r2c4	r2c2	r2c3
+Insert into t1 values ("r3c4", "r3c2", "r3c3");
+Select * from t1;
+c4	c2	c3
+NULL	r1c2	r1c3
+r2c4	r2c2	r2c3
+r3c4	r3c2	r3c3
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+Update t1 set c2="r112" where c2="r1c2";
+Update t1 set c2="r212" where c2="r2c2";
+Update t1 set c2="r312" where c2="r3c2";
+Select * from t1;
+c4	c2	c3
+NULL	r112	r1c3
+r2c4	r212	r2c3
+r3c4	r312	r3c3
+# Kill the running server
+# Kill the server
+# Start the server
+Select * from t1;
+c4	c2	c3
+NULL	r112	r1c3
+r2c4	r212	r2c3
+r3c4	r312	r3c3
+DROP TABLE t1;
 ###########
 # CLEANUP #
 ###########
@@ -3603,6 +3712,115 @@ Update t1 set c2="r122222", c4="c44";
 alter table t1 drop column c2, algorithm=instant;
 SET GLOBAL innodb_purge_run_now=ON;
 DROP TABLE t1;
+# Scenario 66
+# Inplace update is failing
+# INSTANT ADD and INPLACE UPDATE
+CREATE TABLE t1 (c1 char(10), c2 char(10), c3 char(10)) ROW_FORMAT=DYNAMIC;
+Insert into t1 values ("r1c1", "r1c2", "r1c3");
+Select * from t1;
+c1	c2	c3
+r1c1	r1c2	r1c3
+Alter table t1 add column c4 char(10) after c1, ALGORITHM=INSTANT;
+Select * from t1;
+c1	c4	c2	c3
+r1c1	NULL	r1c2	r1c3
+Insert into t1 values ("r2c1", "r2c4", "r2c2", "r2c3");
+Select * from t1;
+c1	c4	c2	c3
+r1c1	NULL	r1c2	r1c3
+r2c1	r2c4	r2c2	r2c3
+# Disable flush to make sure REDO is applied after restart
+Update t1 set c2="r112" where c2="r1c2";
+Update t1 set c2="r212" where c2="r2c2";
+Select * from t1;
+c1	c4	c2	c3
+r1c1	NULL	r112	r1c3
+r2c1	r2c4	r212	r2c3
+# Kill the running server
+# Kill the server
+# Start the server
+Select * from t1;
+c1	c4	c2	c3
+r1c1	NULL	r112	r1c3
+r2c1	r2c4	r212	r2c3
+DROP TABLE t1;
+# INSTANT DROP and INPLACE UPDATE
+CREATE TABLE t1 (c1 char(10), c2 char(10), c3 char(10)) ROW_FORMAT=DYNAMIC;
+Insert into t1 values ("r1c1", "r1c2", "r1c3");
+Select * from t1;
+c1	c2	c3
+r1c1	r1c2	r1c3
+Alter table t1 drop column c1, algorithm=instant;
+Insert into t1 values ("r2c2", "r2c3");
+Select * from t1;
+c2	c3
+r1c2	r1c3
+r2c2	r2c3
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+Update t1 set c2="r112" where c2="r1c2";
+Update t1 set c2="r212" where c2="r2c2";
+Select * from t1;
+c2	c3
+r112	r1c3
+r212	r2c3
+# Kill the running server
+# Kill the server
+# Start the server
+Select * from t1;
+c2	c3
+r112	r1c3
+r212	r2c3
+DROP TABLE t1;
+# INSTANT ADD and DROP and INPLACE UPDATE
+CREATE TABLE t1 (c1 char(10), c2 char(10), c3 char(10)) ROW_FORMAT=DYNAMIC;
+Insert into t1 values ("r1c1", "r1c2", "r1c3");
+Select * from t1;
+c1	c2	c3
+r1c1	r1c2	r1c3
+Alter table t1 add column c4 char(10) after c1, ALGORITHM=INSTANT;
+Select * from t1;
+c1	c4	c2	c3
+r1c1	NULL	r1c2	r1c3
+Insert into t1 values ("r2c1", "r2c4", "r2c2", "r2c3");
+Select * from t1;
+c1	c4	c2	c3
+r1c1	NULL	r1c2	r1c3
+r2c1	r2c4	r2c2	r2c3
+Alter table t1 drop column c1, algorithm=instant;
+Select * from t1;
+c4	c2	c3
+NULL	r1c2	r1c3
+r2c4	r2c2	r2c3
+Insert into t1 values ("r3c4", "r3c2", "r3c3");
+Select * from t1;
+c4	c2	c3
+NULL	r1c2	r1c3
+r2c4	r2c2	r2c3
+r3c4	r3c2	r3c3
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+Update t1 set c2="r112" where c2="r1c2";
+Update t1 set c2="r212" where c2="r2c2";
+Update t1 set c2="r312" where c2="r3c2";
+Select * from t1;
+c4	c2	c3
+NULL	r112	r1c3
+r2c4	r212	r2c3
+r3c4	r312	r3c3
+# Kill the running server
+# Kill the server
+# Start the server
+Select * from t1;
+c4	c2	c3
+NULL	r112	r1c3
+r2c4	r212	r2c3
+r3c4	r312	r3c3
+DROP TABLE t1;
 ###########
 # CLEANUP #
 ###########
@@ -5406,6 +5624,115 @@ SET GLOBAL innodb_purge_stop_now=ON;
 Update t1 set c2="r122222", c4="c44";
 alter table t1 drop column c2, algorithm=instant;
 SET GLOBAL innodb_purge_run_now=ON;
+DROP TABLE t1;
+# Scenario 66
+# Inplace update is failing
+# INSTANT ADD and INPLACE UPDATE
+CREATE TABLE t1 (c1 char(10), c2 char(10), c3 char(10)) ROW_FORMAT=COMPACT;
+Insert into t1 values ("r1c1", "r1c2", "r1c3");
+Select * from t1;
+c1	c2	c3
+r1c1	r1c2	r1c3
+Alter table t1 add column c4 char(10) after c1, ALGORITHM=INSTANT;
+Select * from t1;
+c1	c4	c2	c3
+r1c1	NULL	r1c2	r1c3
+Insert into t1 values ("r2c1", "r2c4", "r2c2", "r2c3");
+Select * from t1;
+c1	c4	c2	c3
+r1c1	NULL	r1c2	r1c3
+r2c1	r2c4	r2c2	r2c3
+# Disable flush to make sure REDO is applied after restart
+Update t1 set c2="r112" where c2="r1c2";
+Update t1 set c2="r212" where c2="r2c2";
+Select * from t1;
+c1	c4	c2	c3
+r1c1	NULL	r112	r1c3
+r2c1	r2c4	r212	r2c3
+# Kill the running server
+# Kill the server
+# Start the server
+Select * from t1;
+c1	c4	c2	c3
+r1c1	NULL	r112	r1c3
+r2c1	r2c4	r212	r2c3
+DROP TABLE t1;
+# INSTANT DROP and INPLACE UPDATE
+CREATE TABLE t1 (c1 char(10), c2 char(10), c3 char(10)) ROW_FORMAT=COMPACT;
+Insert into t1 values ("r1c1", "r1c2", "r1c3");
+Select * from t1;
+c1	c2	c3
+r1c1	r1c2	r1c3
+Alter table t1 drop column c1, algorithm=instant;
+Insert into t1 values ("r2c2", "r2c3");
+Select * from t1;
+c2	c3
+r1c2	r1c3
+r2c2	r2c3
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+Update t1 set c2="r112" where c2="r1c2";
+Update t1 set c2="r212" where c2="r2c2";
+Select * from t1;
+c2	c3
+r112	r1c3
+r212	r2c3
+# Kill the running server
+# Kill the server
+# Start the server
+Select * from t1;
+c2	c3
+r112	r1c3
+r212	r2c3
+DROP TABLE t1;
+# INSTANT ADD and DROP and INPLACE UPDATE
+CREATE TABLE t1 (c1 char(10), c2 char(10), c3 char(10)) ROW_FORMAT=COMPACT;
+Insert into t1 values ("r1c1", "r1c2", "r1c3");
+Select * from t1;
+c1	c2	c3
+r1c1	r1c2	r1c3
+Alter table t1 add column c4 char(10) after c1, ALGORITHM=INSTANT;
+Select * from t1;
+c1	c4	c2	c3
+r1c1	NULL	r1c2	r1c3
+Insert into t1 values ("r2c1", "r2c4", "r2c2", "r2c3");
+Select * from t1;
+c1	c4	c2	c3
+r1c1	NULL	r1c2	r1c3
+r2c1	r2c4	r2c2	r2c3
+Alter table t1 drop column c1, algorithm=instant;
+Select * from t1;
+c4	c2	c3
+NULL	r1c2	r1c3
+r2c4	r2c2	r2c3
+Insert into t1 values ("r3c4", "r3c2", "r3c3");
+Select * from t1;
+c4	c2	c3
+NULL	r1c2	r1c3
+r2c4	r2c2	r2c3
+r3c4	r3c2	r3c3
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+Update t1 set c2="r112" where c2="r1c2";
+Update t1 set c2="r212" where c2="r2c2";
+Update t1 set c2="r312" where c2="r3c2";
+Select * from t1;
+c4	c2	c3
+NULL	r112	r1c3
+r2c4	r212	r2c3
+r3c4	r312	r3c3
+# Kill the running server
+# Kill the server
+# Start the server
+Select * from t1;
+c4	c2	c3
+NULL	r112	r1c3
+r2c4	r212	r2c3
+r3c4	r312	r3c3
 DROP TABLE t1;
 ###########
 # CLEANUP #

@@ -11883,6 +11883,9 @@ ER_IB_MSG_LOG_WRITER_WAIT_ON_CONSUMER
 ER_CONDITIONAL_DEBUG
   eng "%s"
 
+ER_IB_MSG_PARSE_OLD_REDO_INDEX_VERSION
+  eng "Recovery: Generating index information for INSTANT DDL Table in 8.0.29 format"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
