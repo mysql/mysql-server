@@ -397,7 +397,7 @@ static int configure_ssl_keys(SSL_CTX *ssl_ctx, const char *key_file,
   }
 
   if (cert_file &&
-      SSL_CTX_use_certificate_file(ssl_ctx, cert_file, SSL_FILETYPE_PEM) <= 0) {
+      SSL_CTX_use_certificate_chain_file(ssl_ctx, cert_file) <= 0) {
     G_ERROR("Error loading certification file %s", cert_file);
     goto error;
   }

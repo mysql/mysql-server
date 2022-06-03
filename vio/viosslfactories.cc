@@ -256,8 +256,7 @@ static int vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file,
 
   if (!key_file && cert_file) key_file = cert_file;
 
-  if (cert_file &&
-      SSL_CTX_use_certificate_file(ctx, cert_file, SSL_FILETYPE_PEM) <= 0) {
+  if (cert_file && SSL_CTX_use_certificate_chain_file(ctx, cert_file) <= 0) {
     *error = SSL_INITERR_CERT;
     DBUG_PRINT("error",
                ("%s from file '%s'", sslGetErrString(*error), cert_file));
