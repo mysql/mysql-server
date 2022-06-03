@@ -1423,6 +1423,19 @@ struct dict_index_t {
     return (fields + pos);
   }
 
+  /** Given the physical position, find the logical position of field.
+  @param[in]	phy_pos	physical position of field
+  @return logical position of field */
+  uint16_t get_logical_pos(uint16_t phy_pos) const {
+    for (size_t i = 0; i < n_def; i++) {
+      if (get_field(i)->get_phy_pos() == phy_pos) {
+        return i;
+      }
+    }
+    ut_ad(false);
+    return UINT16_UNDEFINED;
+  }
+
   /** Get the physical position of a field on a row. For table having INSTANT
   column, it might differ from field index (pos).
   @param[in]    pos     field index

@@ -941,6 +941,108 @@ SET GLOBAL innodb_purge_run_now=ON;
 
 DROP TABLE t1;
 
+--echo # Scenario 66
+--echo # Inplace update is failing
+--echo # INSTANT ADD and INPLACE UPDATE
+eval CREATE TABLE t1 (c1 char(10), c2 char(10), c3 char(10)) ROW_FORMAT=$row_format;
+
+Insert into t1 values ("r1c1", "r1c2", "r1c3");
+Select * from t1;
+
+Alter table t1 add column c4 char(10) after c1, ALGORITHM=INSTANT;
+Select * from t1;
+
+Insert into t1 values ("r2c1", "r2c4", "r2c2", "r2c3");
+Select * from t1;
+
+--echo # Disable flush to make sure REDO is applied after restart
+--disable_query_log
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+--enable_query_log
+
+Update t1 set c2="r112" where c2="r1c2";
+Update t1 set c2="r212" where c2="r2c2";
+Select * from t1;
+
+--echo # Kill the running server
+--source include/kill_mysqld.inc
+
+--echo # Start the server
+--source include/start_mysqld_no_echo.inc
+
+Select * from t1;
+
+DROP TABLE t1;
+
+--echo # INSTANT DROP and INPLACE UPDATE
+eval CREATE TABLE t1 (c1 char(10), c2 char(10), c3 char(10)) ROW_FORMAT=$row_format;
+
+Insert into t1 values ("r1c1", "r1c2", "r1c3");
+Select * from t1;
+
+Alter table t1 drop column c1, algorithm=instant;
+Insert into t1 values ("r2c2", "r2c3");
+Select * from t1;
+
+
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+
+Update t1 set c2="r112" where c2="r1c2";
+Update t1 set c2="r212" where c2="r2c2";
+Select * from t1;
+
+--echo # Kill the running server
+--source include/kill_mysqld.inc
+
+--echo # Start the server
+--source include/start_mysqld_no_echo.inc
+
+Select * from t1;
+
+DROP TABLE t1;
+
+--echo # INSTANT ADD and DROP and INPLACE UPDATE
+eval CREATE TABLE t1 (c1 char(10), c2 char(10), c3 char(10)) ROW_FORMAT=$row_format;
+
+Insert into t1 values ("r1c1", "r1c2", "r1c3");
+Select * from t1;
+
+Alter table t1 add column c4 char(10) after c1, ALGORITHM=INSTANT;
+Select * from t1;
+Insert into t1 values ("r2c1", "r2c4", "r2c2", "r2c3");
+Select * from t1;
+
+Alter table t1 drop column c1, algorithm=instant;
+Select * from t1;
+Insert into t1 values ("r3c4", "r3c2", "r3c3");
+Select * from t1;
+
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+
+Update t1 set c2="r112" where c2="r1c2";
+Update t1 set c2="r212" where c2="r2c2";
+Update t1 set c2="r312" where c2="r3c2";
+Select * from t1;
+
+--echo # Kill the running server
+--source include/kill_mysqld.inc
+
+--echo # Start the server
+--source include/start_mysqld_no_echo.inc
+
+Select * from t1;
+
+DROP TABLE t1;
+
 --echo ###########
 --echo # CLEANUP #
 --echo ###########

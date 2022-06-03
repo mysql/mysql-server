@@ -40,7 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 // Forward declaration
 struct dict_index_t;
 
-#define INDEX_LOG_VERSION 0x00
+#define INDEX_LOG_VERSION 0x01
 
 #define COMPACT_FLAG 0x01
 #define VERSION_FLAG 0x02
