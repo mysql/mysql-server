@@ -393,6 +393,7 @@ bool PTI_simple_ident_q_3d::itemize(Parse_context *pc, Item **res) {
                                                                    : db;
   if (pc->select->no_table_names_allowed) {
     my_error(ER_TABLENAME_NOT_ALLOWED_HERE, MYF(0), table, thd->where);
+    return true;
   }
   if ((pc->select->parsing_place != CTX_HAVING) ||
       (pc->select->get_in_sum_expr() > 0)) {
