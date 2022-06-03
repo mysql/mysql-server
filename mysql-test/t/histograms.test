@@ -1894,7 +1894,9 @@ EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 8;
 SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 <> 9;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 9;
 SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 0 AND 0;
-EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 0;
+# Using variable to skip transformation from 'between' to 'equal' function
+SET @const = 0;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN @const AND @const;
 SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 0 AND 1;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 1;
 SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 0 AND 2;
@@ -1932,7 +1934,9 @@ EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 7 AND 9;
 SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 8 AND 9;
 EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 8 AND 9;
 SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 9 AND 9;
-EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 9 AND 9;
+# Using variable to skip transformation from 'between' to 'equal' function
+SET @const = 9;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN @const AND @const;
 SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 IN (0,1,2,3,4,5,6,7,8,9);
 EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (0,1,2,3,4,5,6,7,8,9);
 SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 IN (2,3,4,5,6,7,8,9);
@@ -2093,7 +2097,9 @@ EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.8;
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col <> 0.9;
 EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.9;
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.0 AND 0.0;
-EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.0;
+# Using variable to skip transformation from 'between' to 'equal' function
+SET @const = 0.0e0;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN @const AND @const;
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.0 AND 0.1;
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.1;
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.0 AND 0.2;
@@ -2131,7 +2137,9 @@ EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.7 AND 0.9;
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.8 AND 0.9;
 EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.8 AND 0.9;
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.9 AND 0.9;
-EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.9 AND 0.9;
+# Using variable to skip transformation from 'between' to 'equal' function
+SET @const = 0.9;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN @const AND @const;
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col IN (0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9);
 EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9);
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col IN (0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9);

@@ -2963,6 +2963,16 @@ bool Item_func_between::fix_fields(THD *thd, Item **ref) {
 
   update_not_null_tables();
 
+  // if 'high' and 'low' are same, convert this to a _eq function
+  if (!negated && args[1]->const_item() && args[2]->const_item() &&
+      args[1]->eq(args[2], true)) {
+    Item *item = new (thd->mem_root) Item_func_eq(args[0], args[1]);
+    if (item == nullptr) return true;
+    item->item_name = item_name;
+    if (item->fix_fields(thd, ref)) return true;
+    *ref = item;
+  }
+
   return false;
 }
 

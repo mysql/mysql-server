@@ -2439,9 +2439,6 @@ static bool fix_value_generator_fields(THD *thd, TABLE *table,
   Item *new_func = val_generator_expr;
   int fix_fields_error = val_generator_expr->fix_fields(thd, &new_func);
 
-  // Virtual columns expressions that substitute themselves are invalid
-  assert(new_func == val_generator_expr);
-
   // Restore the current connection character set and collation.
   if (charset_switched)
     thd->variables.collation_connection = saved_collation_connection;

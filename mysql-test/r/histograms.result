@@ -2775,11 +2775,12 @@ Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`t
 SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 0 AND 0;
 COUNT(*)/10.0
 0.0000
-EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 0;
+SET @const = 0;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN @const AND @const;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	11.11	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between 0 and 0)
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between <cache>((@`const`)) and <cache>((@`const`)))
 SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 0 AND 1;
 COUNT(*)/10.0
 0.1000
@@ -2927,11 +2928,12 @@ Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`t
 SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 BETWEEN 9 AND 9;
 COUNT(*)/10.0
 0.0000
-EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 9 AND 9;
+SET @const = 9;
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN @const AND @const;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	11.11	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between 9 and 9)
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between <cache>((@`const`)) and <cache>((@`const`)))
 SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 IN (0,1,2,3,4,5,6,7,8,9);
 COUNT(*)/10.0
 0.8000
@@ -3534,11 +3536,12 @@ Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`t
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.0 AND 0.0;
 COUNT(*)/10.0
 0.0000
-EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.0;
+SET @const = 0.0e0;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN @const AND @const;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	11.11	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.0 and 0.0)
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between <cache>((@`const`)) and <cache>((@`const`)))
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.0 AND 0.1;
 COUNT(*)/10.0
 0.1000
@@ -3686,11 +3689,12 @@ Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`t
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col BETWEEN 0.9 AND 0.9;
 COUNT(*)/10.0
 0.0000
-EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.9 AND 0.9;
+SET @const = 0.9;
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN @const AND @const;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	11.11	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.9 and 0.9)
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between <cache>((@`const`)) and <cache>((@`const`)))
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col IN (0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9);
 COUNT(*)/10.0
 0.8000
