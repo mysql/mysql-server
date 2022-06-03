@@ -517,6 +517,7 @@ static bool row_ins_cascade_ancestor_updates_table(
 
         ufield->field_no =
             dict_table_get_nth_col_pos(table, dict_col_get_no(col));
+        IF_DEBUG(ufield->field_phy_pos = col->get_col_phy_pos());
 
         ufield->orig_len = 0;
         ufield->exp = nullptr;
