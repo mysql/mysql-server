@@ -1017,6 +1017,7 @@ static byte *parse_index_versioned_fields(byte *ptr, const byte *end_ptr,
                                           uint16_t &crv, size_t &n_dropped) {
   uint16_t n_inst = 0;
   ptr = read_2_bytes(ptr, end_ptr, n_inst);
+  if (ptr == nullptr) return (nullptr);
   ut_ad(n_inst > 0);
 
   for (auto i = n_inst; i > 0; --i) {
