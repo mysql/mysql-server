@@ -552,6 +552,7 @@ public:
   Transporter* get_node_transporter(NodeId nodeId) const;
   bool is_shm_transporter(NodeId nodeId);
   ndb_sockaddr get_connect_address(NodeId node_id) const;
+  bool is_encrypted_link(NodeId) const;
 
   Uint64 get_bytes_sent(NodeId nodeId) const;
   Uint64 get_bytes_received(NodeId nodeId) const;

@@ -565,6 +565,10 @@ Trpman::execDBINFO_SCANREQ(Signal *signal)
         row.write_uint32(globalTransporterRegistry.get_overload_count(rnode));
         row.write_uint32(globalTransporterRegistry.get_status_slowdown().get(rnode));
         row.write_uint32(globalTransporterRegistry.get_slowdown_count(rnode));
+
+        /* TLS */
+        row.write_uint32(globalTransporterRegistry.is_encrypted_link(rnode));
+
         ndbinfo_send_row(signal, req, row, rl);
         break;
       }

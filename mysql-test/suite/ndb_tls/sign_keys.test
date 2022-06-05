@@ -12,6 +12,10 @@
 # The MySQL server is up
 SELECT 1;
 
+# Look at the transporters table
+SELECT node_id, remote_node_id, encrypted from ndbinfo.transporters
+ORDER BY node_id;
+
 # On startup, none of the files exist
 --error 1
 --file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/NDB-Cluster-cert

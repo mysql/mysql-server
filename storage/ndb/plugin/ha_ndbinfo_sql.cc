@@ -660,7 +660,7 @@ static struct view {
      " END AS status, "
      " remote_address, bytes_sent, bytes_received, "
      " connect_count, "
-     " overloaded, overload_count, slowdown, slowdown_count "
+     " overloaded, overload_count, slowdown, slowdown_count, encrypted "
      "FROM `ndbinfo`.`ndb$transporters`"},
 };
 

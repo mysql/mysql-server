@@ -103,6 +103,8 @@ public:
     return m_inactive_transporters[index];
   }
 
+  bool is_encrypted() const override;
+
 private:
   /**
    * Allocate buffers for sending and receiving

@@ -202,3 +202,10 @@ Multi_Transporter::switch_active_trp()
   }
   m_num_inactive_transporters = save_num_active_transporters;
 }
+
+bool
+Multi_Transporter::is_encrypted() const {
+  if(m_num_active_transporters)
+    return m_active_transporters[0]->is_encrypted();
+  return false;
+}

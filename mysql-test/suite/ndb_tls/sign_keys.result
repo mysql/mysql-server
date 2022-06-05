@@ -1,6 +1,21 @@
 SELECT 1;
 1
 1
+SELECT node_id, remote_node_id, encrypted from ndbinfo.transporters
+ORDER BY node_id;
+node_id	remote_node_id	encrypted
+1	2	0
+1	3	0
+1	51	0
+1	52	0
+1	53	0
+1	54	0
+2	1	0
+2	3	0
+2	51	0
+2	52	0
+2	53	0
+2	54	0
 ndb-api-cert
 ndb-api-private-key
 ndb-data-node-cert

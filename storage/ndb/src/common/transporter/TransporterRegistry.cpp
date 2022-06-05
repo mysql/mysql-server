@@ -3738,6 +3738,12 @@ TransporterRegistry::is_shm_transporter(TrpId trp_id)
     return false;
 }
 
+bool
+TransporterRegistry::is_encrypted_link(NodeId nodeId) const
+{
+  return theNodeIdTransporters[nodeId]->is_encrypted();
+}
+
 Transporter*
 TransporterRegistry::get_transporter(TrpId trp_id) const
 {
