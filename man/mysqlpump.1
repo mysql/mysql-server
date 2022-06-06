@@ -2,12 +2,12 @@
 .\"     Title: mysqlpump
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/05/2022
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQLPUMP" "1" "03/05/2022" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQLPUMP" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1818,6 +1818,19 @@ Section\ \&25.6, \(lqStored Object Access Control\(rq\&.
 \fB\-\-skip\-dump\-rows\fR,
 \fB\-d\fR
 Do not dump table rows\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-skip\-generated\-invisible\-primary\-key\fR
+This option is available beginning with MySQL 8\&.0\&.30, and causes generated invisible primary keys (GIPKs) to be excluded from the dump\&. See
+Section\ \&13.1.20.11, \(lqGenerated Invisible Primary Keys\(rq, for more information about GIPKs and GIPK mode\&.
 .RE
 .sp
 .RS 4

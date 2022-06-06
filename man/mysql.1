@@ -2,12 +2,12 @@
 .\"     Title: mysql
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/05/2022
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQL" "1" "03/05/2022" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQL" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -975,7 +975,7 @@ The
 \fB\-\-fido\-register\-factor\fR
 option is only available for the
 \fBmysql\fR
-client\&. Other MySQL client programs do not support it\&.
+client and MySQL Shell\&. Other MySQL client programs do not support it\&.
 .sp
 For related information, see
 the section called \(lqUsing FIDO Authentication\(rq\&.
@@ -2368,8 +2368,10 @@ charset   (\eC) Switch to another charset\&. Might be needed for processing
 warnings  (\eW) Show warnings after every statement\&.
 nowarning (\ew) Don\*(Aqt show warnings after every statement\&.
 resetconnection(\ex) Clean session context\&.
-query_attributes(\e) Sets string parameters (name1 value1 name2 value2 \&.\&.\&.)
+query_attributes Sets string parameters (name1 value1 name2 value2 \&.\&.\&.)
 for the next query to pick up\&.
+ssl_session_data_print Serializes the current SSL session data to stdout 
+or file\&.
 For server side help, type \*(Aqhelp contents\*(Aq
 .fi
 .if n \{\
@@ -2917,6 +2919,28 @@ or
 \e\e\&.
 .sp
 Quote characters are taken as part of the file name itself\&. For best results, the name should not include space characters\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+ssl_session_data_print [\fIfile_name\fR]
+.sp
+Fetches, serializes, and optionally stores the session data of a successful connection\&. The optional file name and arguments may be given to specify the file to store serialized session data\&. If omitted, the session data is printed to
+stdout\&.
+.sp
+If the MySQL session is configured for reuse, session data from the file is deserialized and supplied to the
+connect
+command to reconnect\&. When the session is reused successfully, the
+status
+command contains a row showing
+SSL session reused: true
+while the client remains reconnected to the server\&.
 .RE
 .sp
 .RS 4
