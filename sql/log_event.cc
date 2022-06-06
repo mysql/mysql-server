@@ -11907,7 +11907,7 @@ int Write_rows_log_event::do_after_row_operations(
     bitmap_clear_bit(m_table->read_set,
                      m_table->next_number_field->field_index());
 
-    if (get_flags(STMT_END_F)) m_table->file->ha_release_auto_increment();
+    m_table->file->ha_release_auto_increment();
   }
   m_table->next_number_field = nullptr;
   m_table->autoinc_field_has_explicit_non_null_value = false;

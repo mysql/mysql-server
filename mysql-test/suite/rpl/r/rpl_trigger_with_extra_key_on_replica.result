@@ -1,0 +1,59 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+##############################################################
+# 1. Create a table t1 with a primary key on both source and replica
+#    Create a table t2 that only has an auto incremented PK in the replica
+#    Create a table t3 that only has an auto incremented KEY in the replica
+CREATE TABLE t1 (f1 INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (f1 INT) ENGINE=InnoDB;
+CREATE TABLE t3 (f1 TEXT);
+include/sync_slave_sql_with_master.inc
+ALTER TABLE t2 ADD f2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY AFTER f1;
+ALTER TABLE t3 ADD f2 INT NOT NULL AUTO_INCREMENT KEY AFTER f1;
+
+##############################################################
+# 2. Create a trigger that for inserts in t1, inserts something on t2
+#    Create a function that inserts 2 rows in t3 but one of the rows is
+#    too large to be grouped with other in a single log event
+[connection master]
+CREATE TRIGGER insert_trigger BEFORE INSERT ON t1
+FOR EACH ROW
+BEGIN
+INSERT INTO t2(f1) VALUES (1);
+INSERT INTO t2(f1) VALUES (2);
+END |
+CREATE FUNCTION multi_event_function() RETURNS INT BEGIN
+INSERT INTO t3 VALUES (REPEAT('a', 300));
+INSERT INTO t3 VALUES ('a');
+RETURN 0;
+END|
+include/sync_slave_sql_with_master.inc
+
+##############################################################
+# 3. Insert something on t1 on the source
+#    Validate that the table t2 on the replica has the expected values
+#    Execute the multi_event_function() on the source
+#    Validate that the table t3 on the replica has the expected values
+[connection master]
+INSERT INTO t1 VALUES (99);
+SELECT multi_event_function();
+multi_event_function()
+0
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The trigger associated table was updated]
+include/assert.inc [The function associated table was updated]
+
+##############################################################
+# 4. Cleanup
+[connection master]
+DROP FUNCTION multi_event_function;
+DROP TRIGGER insert_trigger;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

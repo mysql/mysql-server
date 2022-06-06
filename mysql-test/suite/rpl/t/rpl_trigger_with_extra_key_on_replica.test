@@ -1,0 +1,120 @@
+# === Purpose ===
+#
+# This test validates that when a single statament generates multiple write
+# row events for diferent tables, and one of thoese table contains an extra
+# auto incremented key in the replica, the generation of the auto
+# incremented key in the replica works correctly.
+#
+# ==== Requirements ====
+#
+# R1. Replication to a table with an extra auto-increment column should work
+# when a single statement updates multiple tables.
+#
+# === Implementation ====
+#
+# 1. Create a table t1 with a primary key on both source and replica
+#    Create a table t2 that only has an auto incremented PK in the replica
+#    Create a table t3 that only has an auto incremented KEY in the replica
+# 2. Create a trigger that for inserts in t1, inserts something on t2
+#    Create a function that inserts 2 rows in t3 but one of the rows is
+#    too large to be grouped with other in a single log event
+# 3. Insert something on t1 on the source
+#    Validate that the table t2 on the replica has the expected values
+#    Execute the multi_event_function() on the source
+#    Validate that the table t3 on the replica has the expected values
+# 4. Cleanup
+#
+# === References ===
+#
+# Bug#34095290: ha_external_lock(THD*, int): Assertion `next_insert_id == 0' failure
+#
+
+--source include/have_binlog_format_row.inc
+--source include/set_privilege_checks_user_as_system_user.inc
+--source include/master-slave.inc
+
+--echo
+--echo ##############################################################
+--echo # 1. Create a table t1 with a primary key on both source and replica
+--echo #    Create a table t2 that only has an auto incremented PK in the replica
+--echo #    Create a table t3 that only has an auto incremented KEY in the replica
+
+CREATE TABLE t1 (f1 INT PRIMARY KEY) ENGINE=InnoDB;
+
+CREATE TABLE t2 (f1 INT) ENGINE=InnoDB;
+
+CREATE TABLE t3 (f1 TEXT);
+
+--source include/sync_slave_sql_with_master.inc
+
+ALTER TABLE t2 ADD f2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY AFTER f1;
+
+ALTER TABLE t3 ADD f2 INT NOT NULL AUTO_INCREMENT KEY AFTER f1;
+
+--echo
+--echo ##############################################################
+--echo # 2. Create a trigger that for inserts in t1, inserts something on t2
+--echo #    Create a function that inserts 2 rows in t3 but one of the rows is
+--echo #    too large to be grouped with other in a single log event
+
+
+--source include/rpl_connection_master.inc
+
+--delimiter |
+CREATE TRIGGER insert_trigger BEFORE INSERT ON t1
+FOR EACH ROW
+BEGIN
+INSERT INTO t2(f1) VALUES (1);
+INSERT INTO t2(f1) VALUES (2);
+END |
+--delimiter ;
+
+--delimiter |
+CREATE FUNCTION multi_event_function() RETURNS INT BEGIN
+  INSERT INTO t3 VALUES (REPEAT('a', 300));
+  INSERT INTO t3 VALUES ('a');
+  RETURN 0;
+END|
+--delimiter ;
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo ##############################################################
+--echo # 3. Insert something on t1 on the source
+--echo #    Validate that the table t2 on the replica has the expected values
+--echo #    Execute the multi_event_function() on the source
+--echo #    Validate that the table t3 on the replica has the expected values
+
+--source include/rpl_connection_master.inc
+
+INSERT INTO t1 VALUES (99);
+
+SELECT multi_event_function();
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $column_count= `SELECT COUNT(*) FROM t2 WHERE f2 IN (1,2);`
+--let $assert_text= The trigger associated table was updated
+--let $assert_cond= $column_count = 2
+--source include/assert.inc
+
+--let $column_count= `SELECT COUNT(*) FROM t3 WHERE f2 IN (1,2);`
+--let $assert_text= The function associated table was updated
+--let $assert_cond= $column_count = 2
+--source include/assert.inc
+
+--echo
+--echo ##############################################################
+--echo # 4. Cleanup
+
+--source include/rpl_connection_master.inc
+
+DROP FUNCTION multi_event_function;
+DROP TRIGGER insert_trigger;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc
