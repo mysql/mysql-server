@@ -2,12 +2,12 @@
 .\"     Title: mysqldump
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/05/2022
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQLDUMP" "1" "03/05/2022" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQLDUMP" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -326,31 +326,21 @@ advantages include the convenience and flexibility of viewing or even editing th
 .PP
 For large\-scale backup and restore, a
 physical
-backup is more appropriate, to copy the data files in their original format that can be restored quickly:
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
+backup is more appropriate, to copy the data files in their original format so that they can be restored quickly\&.
+.PP
 If your tables are primarily
 InnoDB
 tables, or if you have a mix of
 InnoDB
 and
 MyISAM
-tables, consider using the
-\fBmysqlbackup\fR
-command of the MySQL Enterprise Backup product\&. (Available as part of the Enterprise subscription\&.) It provides the best performance for
+tables, consider using
+\fBmysqlbackup\fR, which is available as part of MySQL Enterprise\&. This tool provides high performance for
 InnoDB
 backups with minimal disruption; it can also back up tables from
 MyISAM
-and other storage engines; and it provides a number of convenient options to accommodate different backup scenarios\&. See
+and other storage engines; it also provides a number of convenient options to accommodate different backup scenarios\&. See
 Section\ \&30.2, \(lqMySQL Enterprise Backup Overview\(rq\&.
-.RE
 .PP
 \fBmysqldump\fR
 can retrieve and dump table contents row by row, or it can retrieve the entire content from a table and buffer it in memory before dumping it\&. Buffering in memory can be a problem if you are dumping large tables\&. To dump tables row by row, use the
@@ -403,7 +393,8 @@ option\&.
 To see a list of the options your version of
 \fBmysqldump\fR
 supports, issue the command
-\fBmysqldump \-\-help\fR\&.
+\fBmysqldump\fR
+\fB\-\-help\fR\&.
 Option Syntax \- Alphabetical Summary
 .PP
 \fBmysqldump\fR
@@ -1861,29 +1852,16 @@ system variable is not empty\&. A
 SET @@SESSION\&.sql_log_bin=0
 statement is also included if GTIDs are enabled on the server\&.
 .sp
-In MySQL 5\&.6 and 5\&.7, you can replace the value of
+You can either replace the value of
 gtid_purged
-with a specified GTID set, provided that
-gtid_executed
-and
-gtid_purged
-are empty\&. From MySQL 8\&.0, you can either replace the value of
-gtid_purged
-with a specified GTID set, or you can add a plus sign (+) to the statement to append a specified GTID set to the GTID set that is already held by
-gtid_purged\&.
-\fBmysqldump\fR\*(Aqs
+with a specified GTID set, or add a plus sign (+) to the statement to append a specified GTID set to the GTID set that is already held by
+gtid_purged\&. The
 SET @@GLOBAL\&.gtid_purged
-statement includes a plus sign (+) in a version comment that takes effect when the dump file is replayed on releases from MySQL 8\&.0, meaning that for these releases, the GTID set from the dump file is added to the existing
+statement recorded by
+\fBmysqldump\fR
+includes a plus sign (+) in a version\-specific comment, such that MySQL 8\&.0 (and later) adds the GTID set from the dump file to the existing
 gtid_purged
-value\&. For MySQL 5\&.6 and 5\&.7, the value of
-gtid_purged
-is replaced with the GTID set from the dump file, which can only happen when
-gtid_executed
-is the empty set (so when replication has not been started previously, or when replication was not previously using GTIDs)\&. For the exact details of how the
-SET @@GLOBAL\&.gtid_purged
-statement operates, see the
-gtid_purged
-description for the release where the dump file is to be replayed\&.
+value\&.
 .sp
 It is important to note that the value that is included by
 \fBmysqldump\fR
@@ -1896,23 +1874,16 @@ gtid_purged
 value has been updated on the server where the dump file is replayed, GTIDs are present that do not relate to any data on the target server\&. If you do not replay any further dump files on the target server, the extraneous GTIDs do not cause any problems with the future operation of the server, but they make it harder to compare or reconcile GTID sets on different servers in the replication topology\&. If you do replay a further dump file on the target server that contains the same GTIDs (for example, another partial dump from the same origin server), any
 SET @@GLOBAL\&.gtid_purged
 statement in the second dump file fails\&. In this case, either remove the statement manually before replaying the dump file, or output the dump file without the statement\&.
-.if n \{\
 .sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-For MySQL 5\&.6 and 5\&.7, it is not recommended to load a dump file when GTIDs are enabled on the server (gtid_mode=ON), if your dump file includes system tables\&.
+Using this option with the
+\fB\-\-single\-transaction\fR
+option can lead to inconsistencies in the output\&. If
+\fB\-\-set\-gtid\-purged=ON\fR
+is required, it can be used with
+\fB\-\-lock\-all\-tables\fR, but this can prevent parallel queries while
 \fBmysqldump\fR
-issues DML instructions for the system tables which use the non\-transactional MyISAM storage engine, and this combination is not permitted when GTIDs are enabled\&.
-.sp .5v
-.RE
+is being run\&.
+.sp
 If the
 SET @@GLOBAL\&.gtid_purged
 statement would not have the desired result on your target server, you can exclude the statement from the output, or (from MySQL 8\&.0\&.17) include it but comment it out so that it is not actioned automatically\&. You can also include the statement but manually edit it in the dump file to achieve the desired result\&.
@@ -2568,6 +2539,19 @@ statements to create the routines\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-skip\-generated\-invisible\-primary\-key\fR
+This option is available beginning with MySQL 8\&.0\&.30, and causes generated invisible primary keys to be excluded from the output\&. For more information, see
+Section\ \&13.1.20.11, \(lqGenerated Invisible Primary Keys\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-tables\fR
 Override the
 \fB\-\-databases\fR
@@ -2720,6 +2704,33 @@ statements\&.
 .\}
 \fB\-\-max\-allowed\-packet=\fR\fB\fIvalue\fR\fR
 The maximum size of the buffer for client/server communication\&. The default is 24MB, the maximum is 1GB\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-mysqld\-long\-query\-time=\fR\fB\fIvalue\fR\fR
+Set the session value of the
+long_query_time
+system variable\&. Use this option, which is available from MySQL 8\&.0\&.30, if you want to increase the time allowed for
+\fBmysqldump\fR\(cqs queries before they are logged to the slow query log file\&.
+\fBmysqldump\fR
+performs a full table scan, which means its queries can often exceed a global
+long_query_time
+setting that is useful for regular queries\&. The default global setting is 10 seconds\&.
+.sp
+You can use
+\fB\-\-mysqld\-long\-query\-time\fR
+to specify a session value from 0 (meaning that every query from
+\fBmysqldump\fR
+is logged to the slow query log) to 31536000, which is 365 days in seconds\&. For
+\fBmysqldump\fR\(cqs option, you can only specify whole seconds\&. When you do not specify this option, the server\(cqs global setting applies to
+\fBmysqldump\fR\(cqs queries\&.
 .RE
 .sp
 .RS 4
@@ -3059,6 +3070,13 @@ option are mutually exclusive because
 LOCK TABLES
 causes any pending transactions to be committed implicitly\&.
 .sp
+Using
+\fB\-\-single\-transaction\fR
+together with the
+\fB\-\-set\-gtid\-purged\fR
+option is not recommended; doing so can lead to inconsistencies in the output of
+\fBmysqldump\fR\&.
+.sp
 To dump large tables, combine the
 \fB\-\-single\-transaction\fR
 option with the
@@ -3284,7 +3302,7 @@ is on by default\&.)
 .\}
 To reverse
 \fB\-\-opt\fR
-for all features except index disabling and table locking, use
+for all features except disabling of indexes and table locking, use
 \fB\-\-skip\-opt\fR
 \fB\-\-disable\-keys\fR
 \fB\-\-lock\-tables\fR\&.

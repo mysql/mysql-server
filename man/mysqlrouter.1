@@ -2,12 +2,12 @@
 .\"     Title: mysqlrouter
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/02/2022
+.\"      Date: 06/02/2022
 .\"    Manual: MySQL Router
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQLROUTER" "1" "03/02/2022" "MySQL 8\&.0" "MySQL Router"
+.TH "MYSQLROUTER" "1" "06/02/2022" "MySQL 8\&.0" "MySQL Router"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -96,7 +96,7 @@ Displays the version number and related information of the application, and exit
 .\}
 .nf
 $> \fBmysqlrouter \-\-version\fR
-MySQL Router v8\&.0\&.28 on Linux (64\-bit) (GPL community edition)
+MySQL Router v8\&.0\&.29 on Linux (64\-bit) (GPL community edition)
 .fi
 .if n \{\
 .RE
@@ -734,9 +734,13 @@ option is also used\&. Example required permissions:
 .RS 4
 .\}
 .nf
-GRANT SELECT ON mysql_innodb_cluster_metadata\&.* TO `theuser`
-GRANT SELECT ON performance_schema\&.replication_group_members TO `theuser`
-GRANT SELECT ON performance_schema\&.replication_group_member_stats TO `theuser`
+GRANT USAGE ON *\&.* TO `theuser`@`%`
+GRANT SELECT, EXECUTE ON `mysql_innodb_cluster_metadata`\&.* TO `theuser`@`%`
+GRANT INSERT, UPDATE, DELETE ON `mysql_innodb_cluster_metadata`\&.`routers` TO `theuser`@`%`
+GRANT INSERT, UPDATE, DELETE ON `mysql_innodb_cluster_metadata`\&.`v2_routers` TO `theuser`@`%`
+GRANT SELECT ON `performance_schema`\&.`global_variables` TO `theuser`@`%`
+GRANT SELECT ON `performance_schema`\&.`replication_group_member_stats` TO `theuser`@`%`
+GRANT SELECT ON `performance_schema`\&.`replication_group_members` TO `theuser`@`%`
 .fi
 .if n \{\
 .RE
