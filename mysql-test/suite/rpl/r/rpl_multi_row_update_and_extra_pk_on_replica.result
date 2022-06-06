@@ -1,0 +1,44 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+##############################################################
+# 1. Create a table in the source with a single column, no PK
+#    Create a table in the replica with an extra column that is a PK
+include/disable_binlog.inc
+CREATE TABLE t1 (i INT NOT NULL);
+include/restore_binlog.inc
+[connection slave]
+include/disable_binlog.inc
+CREATE TABLE t1 (i INT NOT NULL, i2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+include/restore_binlog.inc
+
+##############################################################
+# 2. Create a function that allows us to update a row twice but encoded in a single log event
+[connection master]
+CREATE FUNCTION f1 () RETURNS INT BEGIN
+UPDATE t1 SET i = 2 WHERE i = 1;
+UPDATE t1 SET i = 3 WHERE i = 2;
+RETURN 0;
+END|
+include/sync_slave_sql_with_master.inc
+
+##############################################################
+# 3. Update a row twice in the source
+#    Check the updates are applied in the replica
+[connection master]
+INSERT INTO t1 VALUES (1);
+SELECT f1();
+f1()
+0
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The table was updated twice]
+
+##############################################################
+# 4. Cleanup
+[connection master]
+DROP FUNCTION f1;
+DROP TABLE t1;
+include/rpl_end.inc

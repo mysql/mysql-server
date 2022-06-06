@@ -9229,6 +9229,7 @@ int Rows_log_event::do_scan_and_update(Relay_log_info const *rli) {
   HASH_ROW_ENTRY *entry = nullptr;
   int idempotent_errors = 0;
   int i = 0;
+  bool is_pk_present{false};
 
   saved_last_m_curr_row = m_curr_row;
   saved_last_m_curr_row_end = m_curr_row_end;
@@ -9237,6 +9238,14 @@ int Rows_log_event::do_scan_and_update(Relay_log_info const *rli) {
 
   /* open table or index depending on whether we have set m_key_index or not. */
   if ((error = open_record_scan())) goto err;
+
+  /*
+    Check if a PK is present and we have a value for it.
+    In other words, check if we the position of the key that will be used
+    is equal to the position of the primary key.
+  */
+  is_pk_present = (table->s->primary_key < MAX_KEY) &&
+                  (m_key_index == table->s->primary_key);
 
   /*
      Scan the table only once and compare against entries in hash.
@@ -9322,8 +9331,7 @@ int Rows_log_event::do_scan_and_update(Relay_log_info const *rli) {
           }
         } while (this->get_general_type_code() ==
                      binary_log::UPDATE_ROWS_EVENT &&
-                 table->s->primary_key >= MAX_KEY &&
-                 (entry = m_hash.get(table, &m_cols)));
+                 !is_pk_present && (entry = m_hash.get(table, &m_local_cols)));
       } break;
 
       case HA_ERR_RECORD_DELETED:

@@ -1,0 +1,87 @@
+# === Purpose ===
+#
+# This test validates that when an event contains multiple updates to the same
+# row, and the replica has an extra primary key, updates still are applied
+# correctly.
+#
+# ==== Requirements ====
+#
+# R1. Replication should work correctly for tables having extra columns to the
+# right, and an extra primary key defined on those columns, even when an
+# event contains multiple updates of the same row.
+#
+# === Implementation ====
+#
+# 1. Create a table in the source with a single column, no PK
+#    Create a table in the replica with an extra column that is a PK
+# 2. Create a function that allows us to update a row twice but encoded in a single log event
+# 3. Update a row twice in the source
+#    Check the updates are applied in the replica
+# 4. Cleanup
+#
+# === References ===
+#
+# Bug#34114296: Update_rows apply failure if event updates same row twice and replica extra PK
+#
+
+--source include/have_binlog_format_row.inc
+--source include/set_privilege_checks_user_as_system_user.inc
+--source include/master-slave.inc
+
+--echo
+--echo ##############################################################
+--echo # 1. Create a table in the source with a single column, no PK
+--echo #    Create a table in the replica with an extra column that is a PK
+
+--source include/disable_binlog.inc
+CREATE TABLE t1 (i INT NOT NULL);
+--source include/restore_binlog.inc
+
+--source include/rpl_connection_slave.inc
+
+--source include/disable_binlog.inc
+CREATE TABLE t1 (i INT NOT NULL, i2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+--source include/restore_binlog.inc
+
+--echo
+--echo ##############################################################
+--echo # 2. Create a function that allows us to update a row twice but encoded in a single log event
+
+--source include/rpl_connection_master.inc
+
+--delimiter |
+CREATE FUNCTION f1 () RETURNS INT BEGIN
+  UPDATE t1 SET i = 2 WHERE i = 1;
+  UPDATE t1 SET i = 3 WHERE i = 2;
+  RETURN 0;
+END|
+--delimiter ;
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo ##############################################################
+--echo # 3. Update a row twice in the source
+--echo #    Check the updates are applied in the replica
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (1);
+
+SELECT f1();
+--source include/sync_slave_sql_with_master.inc
+
+--let $column_count= `SELECT COUNT(*) FROM t1 WHERE i=3;`
+--let $assert_text= The table was updated twice
+--let $assert_cond= $column_count = 1
+--source include/assert.inc
+
+--echo
+--echo ##############################################################
+--echo # 4. Cleanup
+
+--source include/rpl_connection_master.inc
+
+DROP FUNCTION f1;
+DROP TABLE t1;
+
+--source include/rpl_end.inc
