@@ -26,6 +26,7 @@ INCLUDE(ndb_downgrade_warnings)
 # if the compiler supports the flag
 FOREACH(warning
     "cast-qual"
+    "maybe-uninitialized"
     "unused-but-set-variable"
     "unused-parameter"
     )
