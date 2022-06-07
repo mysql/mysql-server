@@ -4118,7 +4118,7 @@ MgmtSrvr::build_node_list_from_config(NodeId node_id,
       if (node_id) {
         // Caller asked for this exact nodeid, but it is not the correct type.
         BaseString type_string, current_type_string;
-        const char *alias, *str;
+        const char *alias, *str = nullptr;
         alias = ndb_mgm_get_node_type_alias_string(type, &str);
         type_string.assfmt("%s(%s)", alias, str);
         alias = ndb_mgm_get_node_type_alias_string(
@@ -4212,7 +4212,7 @@ MgmtSrvr::find_node_type(NodeId node_id,
     error_code= NDB_MGM_ALLOCID_CONFIG_RETRY;
 
     BaseString type_string;
-    const char *alias, *str;
+    const char *alias, *str = nullptr;
     char addr_buf[NDB_ADDR_STRLEN];
     alias= ndb_mgm_get_node_type_alias_string(type, &str);
     type_string.assfmt("%s(%s)", alias, str);
@@ -4464,7 +4464,7 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
        * be backwards compatible wrt error messages
        */
       BaseString type_string, type_c_string;
-      const char *alias, *str;
+      const char *alias, *str = nullptr;
       alias= ndb_mgm_get_node_type_alias_string(type, &str);
       type_string.assfmt("%s(%s)", alias, str);
       alias= ndb_mgm_get_node_type_alias_string(NDB_MGM_NODE_TYPE_MGM, &str);
@@ -4607,7 +4607,7 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
     {
       if (error_code == 0)
       {
-        const char *alias, *str;
+        const char *alias, *str = nullptr;
         alias = ndb_mgm_get_node_type_alias_string(type, &str);
         error_string.appfmt("No free node id found for %s(%s).",
                             alias,
