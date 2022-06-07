@@ -3969,6 +3969,16 @@ dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
     if (prebuilt->m_temp_read_shared && !prebuilt->m_temp_tree_modified) {
       if (!mtr->is_active()) {
         mtr_start(mtr);
+
+        if (!pcur->m_block_when_stored.run_with_hint([&](buf_block_t *hint) {
+              return hint != nullptr &&
+                     buf_page_optimistic_get(
+                         RW_NO_LATCH, hint, pcur->m_modify_clock,
+                         Page_fetch::NORMAL, __FILE__, __LINE__, mtr);
+            })) {
+          /* block was relocated */
+          goto block_relocated;
+        }
       }
 
       /* This is an intrinsic table shared read, so we
@@ -3983,6 +3993,7 @@ dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
       }
 
     } else if (index->last_sel_cur->invalid || prebuilt->m_temp_tree_modified) {
+    block_relocated:
       /* Index tree has changed and so active cached cursor is no more valid.
       Re-set it based on the last selected position. */
       index->last_sel_cur->release();
@@ -4138,6 +4149,9 @@ dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
     pcur->m_old_rec = dict_index_copy_rec_order_prefix(
         index, rec, &pcur->m_old_n_fields, &pcur->m_old_rec_buf,
         &pcur->m_buf_size);
+
+    pcur->m_block_when_stored.store(pcur->get_block());
+    pcur->m_modify_clock = pcur->get_block()->get_modify_clock(IF_DEBUG(true));
 
     break;
   }

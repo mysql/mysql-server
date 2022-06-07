@@ -4297,7 +4297,8 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
                              uint64_t modify_clock, Page_fetch fetch_mode,
                              const char *file, ulint line, mtr_t *mtr) {
   ut_ad(mtr->is_active());
-  ut_ad(rw_latch == RW_S_LATCH || rw_latch == RW_X_LATCH);
+  ut_ad(rw_latch == RW_S_LATCH || rw_latch == RW_X_LATCH ||
+        rw_latch == RW_NO_LATCH);
 
   buf_page_mutex_enter(block);
 
@@ -4338,7 +4339,9 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
       fix_type = MTR_MEMO_PAGE_X_FIX;
       break;
     default:
-      ut_error; /* RW_SX_LATCH is not implemented yet */
+      ut_ad(rw_latch == RW_NO_LATCH);
+      fix_type = MTR_MEMO_BUF_FIX;
+      success = true;
   }
 
   if (!success) {
@@ -4351,7 +4354,7 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
 
     if (rw_latch == RW_S_LATCH) {
       rw_lock_s_unlock(&block->lock);
-    } else {
+    } else if (rw_latch == RW_X_LATCH) {
       rw_lock_x_unlock(&block->lock);
     }
 
