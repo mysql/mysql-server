@@ -8582,7 +8582,7 @@ static void run_query_normal(struct st_connection *cn,
     */
     if ((counter == 0) && mysql_read_query_result_wrapper(&cn->mysql)) {
       /* we've failed to collect the result set */
-      cn->pending = true;
+      cn->pending = mysql_more_results(&cn->mysql);
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
                    mysql_sqlstate(mysql), ds);
       goto end;
