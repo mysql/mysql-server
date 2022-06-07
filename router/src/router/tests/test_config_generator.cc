@@ -3158,7 +3158,8 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
         FAIL() << "Expected std::invalid_argument to be thrown";
       } catch (const std::runtime_error &e) {
         if (opt == "--ssl-mode") {
-          // The error for -ssl-mode is sligtly different than for other options
+          // The error for -ssl-mode is slightly different than for other
+          // options
           // - detected differently
           EXPECT_STREQ("Invalid value for --ssl-mode option", e.what());
         } else {

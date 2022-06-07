@@ -386,7 +386,8 @@ class ConfigGenerator {
 
   /** @brief Creates Router account (low-level function)
    *
-   * Creates Router accout using CREATE USER [IF NOT EXISTS] ang give it GRANTs.
+   * Creates Router account using CREATE USER [IF NOT EXISTS] and gives it
+   * GRANTs.
    *
    * @param username Router account to be created - the username part
    * @param hostnames Router accounts to be created - the hostnames part

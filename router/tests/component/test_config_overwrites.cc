@@ -361,8 +361,8 @@ class OverwriteErrorTest
     : public RouterConfigOwerwriteTest,
       public ::testing::WithParamInterface<OverwriteErrorTestParam> {};
 
-/* @test Check that overwriten option is validated properly if it is used and is
- * not going to be ignored */
+/* @test Check that overwritten option is validated properly if it is used and
+ * is not going to be ignored */
 TEST_P(OverwriteErrorTest, OverwriteError) {
   auto default_section = get_DEFAULT_defaults();
   init_keyring(default_section, conf_dir.name());

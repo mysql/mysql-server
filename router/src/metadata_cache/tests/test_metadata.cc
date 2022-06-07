@@ -1937,9 +1937,9 @@ TEST_F(MetadataTest, UpdateClusterStatus_SimpleSunnyDayScenario) {
       {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name"},
       cluster);
 
-  EXPECT_EQ(1,
-            session_factory
-                .create_cnt());  // should resuse localhost:3310 connection,
+  EXPECT_EQ(
+      1,
+      session_factory.create_cnt());  // should reuse localhost:3310 connection,
 
   // query_status reported back from instance-1
   EXPECT_EQ(3u, cluster.members.size());
