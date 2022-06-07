@@ -119,7 +119,7 @@ ERROR: Missing --plugin_dir option.
 # Show the help.
 #
 mysql_plugin  Ver V.V.VV Distrib XX.XX.XX
-Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
 
 Enable or disable plugins.
 

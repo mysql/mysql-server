@@ -4,7 +4,7 @@
 // Copyright (c) 2014 Adam Wulkiewicz, Lodz, Poland.
 
 // This file was modified by Oracle on 2014.
-// Modifications Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+// Modifications Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
 // Use, modification and distribution is subject to the Boost Software License,
 // Version 1.0. (See accompanying file LICENSE_1_0.txt or copy at

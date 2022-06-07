@@ -10,7 +10,7 @@ Introduction
    third-party software which may be included in this distribution of
    MySQL NDB Cluster 7.6.12 (and later).
 
-   Last updated: March 2022
+   Last updated: May 2022
 
 Licensing Information
 
@@ -5532,7 +5532,7 @@ code is licensed under the LGPLv2.1 license.
    ======================================================================
    ======================================================================
 
-OpenSSL License
+OpenSSL 1.x
 
    You are receiving a copy of OpenSSL as part of this product in object
    code form. The terms of the Oracle license do NOT apply to OpenSSL.
@@ -6156,7 +6156,7 @@ zlib
    and Mark Adler in creating the zlib general purpose compression library
    which is used in this product.
 
-(C) 1995-2017 Jean-loup Gailly and Mark Adler
+Copyright (C) 1995-2022 Jean-loup Gailly and Mark Adler
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages

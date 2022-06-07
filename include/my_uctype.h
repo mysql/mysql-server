@@ -1,7 +1,7 @@
 #ifndef MY_UCTYPE_INCLUDED
 #define MY_UCTYPE_INCLUDED
 
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
    Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify

@@ -598,13 +598,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/include
   ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
 # Add bundled or system zlib.
-MYSQL_CHECK_ZLIB_WITH_COMPRESS()
-IF(BUILD_BUNDLED_ZLIB)
-  INCLUDE_DIRECTORIES(SYSTEM
-    ${CMAKE_CURRENT_SOURCE_DIR}/zlib
-    ${CMAKE_CURRENT_BINARY_DIR}/zlib
-    )
-ENDIF()
+MYSQL_CHECK_ZLIB()
 # Add openssl.
 MYSQL_CHECK_SSL()
 # Add system/bundled editline.
