@@ -1,4 +1,4 @@
-# Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -1882,6 +1882,33 @@
    ...
    fun:ldap_int_tls_start
    fun:ldap_start_tls_s
+}
+
+{
+  AWS_SDK_1_9_s2n_init
+    Memcheck:Leak
+    match-leak-kinds: reachable,definite,indirect
+    ...
+    fun:s2n_init
+    ...
+}
+{
+  AWS_SDK_1_9_curl_init
+    Memcheck:Leak
+    match-leak-kinds: reachable
+    ...
+    fun:curl_global_init
+    ...
+    fun:_ZN3Aws7InitAPIERKNS_10SDKOptionsE
+}
+{
+  AWS_SDK_1_9_conf_modules_load
+    Memcheck:Leak
+    match-leak-kinds: reachable
+    ...
+    fun:CONF_modules_load_file
+    fun:_ZL12keyring_initPv
+    ...
 }
 
 #

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1000,7 +1000,7 @@ void Binlog_sender::init_checksum_alg()
 
   entry= (user_var_entry*) my_hash_search(&m_thd->user_vars,
                                           (uchar*) name.str, name.length);
-  if (entry)
+  if (entry && entry->ptr())
   {
     m_slave_checksum_alg=
       static_cast<enum_binlog_checksum_alg>(find_type((char*) entry->ptr(), &binlog_checksum_typelib, 1) - 1);

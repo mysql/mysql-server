@@ -3221,6 +3221,21 @@ when it try to get the value of TIME_ZONE global variable from master.";
   else
     mi->checksum_alg_before_fd= binary_log::BINLOG_CHECKSUM_ALG_OFF;
 
+  if (DBUG_EVALUATE_IF("bug32442749_simulate_null_checksum", 1, 0))
+  {
+    const char query[]= "SET @master_binlog_checksum= NULL";
+    int rc = mysql_real_query(mysql, query, static_cast<ulong>(strlen(query)));
+    if (rc != 0) {
+        errmsg= "The slave I/O thread stops because a fatal error is encountered "
+          "when it tried to SET @master_binlog_checksum.";
+        err_code= ER_SLAVE_FATAL_ERROR;
+        sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
+        mysql_free_result(mysql_store_result(mysql));
+        goto err;
+    }
+    mysql_free_result(mysql_store_result(mysql));
+  }
+
   if (DBUG_EVALUATE_IF("simulate_slave_unaware_gtid", 0, 1))
   {
     enum_gtid_mode master_gtid_mode= GTID_MODE_OFF;

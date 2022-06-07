@@ -3,7 +3,7 @@
 
    This file was modified by Oracle on 2015-05-18 for 32-bit compatibility.
 
-   Modifications Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights
+   Modifications Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights
    reserved. */
 
 #include <my_global.h>
