@@ -36,6 +36,7 @@ GRANT SELECT ON `performance_schema`.* TO 'mysql.session'@localhost;
 GRANT SUPER ON *.* TO 'mysql.session'@localhost;
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT AUTHENTICATION_POLICY_ADMIN  ON *.* TO 'mysql.session'@localhost;
 GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT CLONE_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT BACKUP_ADMIN ON *.* TO 'mysql.session'@localhost;

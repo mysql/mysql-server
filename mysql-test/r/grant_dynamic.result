@@ -18,6 +18,7 @@ mysql.infoschema	localhost	AUDIT_ABORT_EXEMPT	N
 mysql.infoschema	localhost	FIREWALL_EXEMPT	N
 mysql.infoschema	localhost	SYSTEM_USER	N
 mysql.session	localhost	AUDIT_ABORT_EXEMPT	N
+mysql.session	localhost	AUTHENTICATION_POLICY_ADMIN	N
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	CONNECTION_ADMIN	N
@@ -78,6 +79,7 @@ mysql.infoschema	localhost	AUDIT_ABORT_EXEMPT	N
 mysql.infoschema	localhost	FIREWALL_EXEMPT	N
 mysql.infoschema	localhost	SYSTEM_USER	N
 mysql.session	localhost	AUDIT_ABORT_EXEMPT	N
+mysql.session	localhost	AUTHENTICATION_POLICY_ADMIN	N
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	CONNECTION_ADMIN	N
@@ -137,6 +139,7 @@ mysql.infoschema	localhost	AUDIT_ABORT_EXEMPT	N
 mysql.infoschema	localhost	FIREWALL_EXEMPT	N
 mysql.infoschema	localhost	SYSTEM_USER	N
 mysql.session	localhost	AUDIT_ABORT_EXEMPT	N
+mysql.session	localhost	AUTHENTICATION_POLICY_ADMIN	N
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	CONNECTION_ADMIN	N
@@ -209,6 +212,7 @@ mysql.infoschema	localhost	AUDIT_ABORT_EXEMPT	N
 mysql.infoschema	localhost	FIREWALL_EXEMPT	N
 mysql.infoschema	localhost	SYSTEM_USER	N
 mysql.session	localhost	AUDIT_ABORT_EXEMPT	N
+mysql.session	localhost	AUTHENTICATION_POLICY_ADMIN	N
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	CONNECTION_ADMIN	N
@@ -273,6 +277,7 @@ mysql.infoschema	localhost	AUDIT_ABORT_EXEMPT	N
 mysql.infoschema	localhost	FIREWALL_EXEMPT	N
 mysql.infoschema	localhost	SYSTEM_USER	N
 mysql.session	localhost	AUDIT_ABORT_EXEMPT	N
+mysql.session	localhost	AUTHENTICATION_POLICY_ADMIN	N
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	CONNECTION_ADMIN	N
@@ -332,6 +337,7 @@ mysql.infoschema	localhost	AUDIT_ABORT_EXEMPT	N
 mysql.infoschema	localhost	FIREWALL_EXEMPT	N
 mysql.infoschema	localhost	SYSTEM_USER	N
 mysql.session	localhost	AUDIT_ABORT_EXEMPT	N
+mysql.session	localhost	AUTHENTICATION_POLICY_ADMIN	N
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	CONNECTION_ADMIN	N
@@ -414,6 +420,7 @@ mysql.infoschema	localhost	AUDIT_ABORT_EXEMPT	N
 mysql.infoschema	localhost	FIREWALL_EXEMPT	N
 mysql.infoschema	localhost	SYSTEM_USER	N
 mysql.session	localhost	AUDIT_ABORT_EXEMPT	N
+mysql.session	localhost	AUTHENTICATION_POLICY_ADMIN	N
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	CONNECTION_ADMIN	N
@@ -487,6 +494,7 @@ mysql.infoschema	localhost	AUDIT_ABORT_EXEMPT	N
 mysql.infoschema	localhost	FIREWALL_EXEMPT	N
 mysql.infoschema	localhost	SYSTEM_USER	N
 mysql.session	localhost	AUDIT_ABORT_EXEMPT	N
+mysql.session	localhost	AUTHENTICATION_POLICY_ADMIN	N
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	CONNECTION_ADMIN	N
@@ -568,6 +576,7 @@ mysql.infoschema	localhost	AUDIT_ABORT_EXEMPT	N
 mysql.infoschema	localhost	FIREWALL_EXEMPT	N
 mysql.infoschema	localhost	SYSTEM_USER	N
 mysql.session	localhost	AUDIT_ABORT_EXEMPT	N
+mysql.session	localhost	AUTHENTICATION_POLICY_ADMIN	N
 mysql.session	localhost	BACKUP_ADMIN	N
 mysql.session	localhost	CLONE_ADMIN	N
 mysql.session	localhost	CONNECTION_ADMIN	N
@@ -1094,6 +1103,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 # restore mysql.session privileges
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT AUTHENTICATION_POLICY_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT CLONE_ADMIN ON *.* TO 'mysql.session'@localhost;
