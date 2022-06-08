@@ -37,6 +37,7 @@ FOREACH(warning
     "class-memaccess"
     "format-overflow"
     "maybe-uninitialized"
+    "stringop-overflow"
     "unused-but-set-variable"
     "unused-parameter"
     )
