@@ -1,6 +1,7 @@
 # Test the detection of innodb_data_file_path mismatch.
 
 --source include/not_valgrind.inc
+--source include/have_innodb_16k.inc
 
 # Can be 0, depends on where the mysqld process was killed
 --disable_query_log
