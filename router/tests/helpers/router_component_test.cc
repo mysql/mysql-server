@@ -160,9 +160,9 @@ void RouterComponentBootstrapTest::bootstrap_failover(
   }
 
   if (getenv("WITH_VALGRIND")) {
-    // for the bootstrap tests that are using this method the "--disable-rest" is
-    // not relevant so we use it for VALGRIND testing as it saves huge amount of
-    // time that generating the certificates takes
+    // for the bootstrap tests that are using this method the "--disable-rest"
+    // is not relevant so we use it for VALGRIND testing as it saves huge amount
+    // of time that generating the certificates takes
     router_cmdline.emplace_back("--disable-rest");
   }
 

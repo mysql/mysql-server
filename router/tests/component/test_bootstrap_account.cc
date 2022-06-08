@@ -2273,8 +2273,8 @@ TEST_F(AccountReuseReconfigurationTest, account_then_noaccount) {
  * @test
  * bootstrap against existing config previously bootstrapped without --account
  * (user exists, Router is registered) verify that:
- * - bootstrap will re-use the account in the config (will NOT DROP and re-CREATE
- * it)
+ * - bootstrap will re-use the account in the config (will NOT DROP and
+ * re-CREATE it)
  * - password in the keyring will be preserved
  * - verify config is written again and contains the same username as before
  * - verify expected password prompts are presented
