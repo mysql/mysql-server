@@ -37,26 +37,6 @@
 
 namespace mysql_harness {
 
-// set when the Router receives a signal to shut down or some fatal error
-// condition occurred
-class HARNESS_EXPORT ShutdownPending {
- public:
-  /**
-   * Reason for shutdown.
-   */
-  enum class Reason { NONE, REQUESTED, FATAL_ERROR };
-
-  [[nodiscard]] std::string message() const { return message_; }
-  void message(const std::string &msg) { message_ = msg; }
-
-  [[nodiscard]] Reason reason() const { return reason_; }
-  void reason(Reason r) { reason_ = r; }
-
- private:
-  Reason reason_{Reason::NONE};
-  std::string message_;
-};
-
 class HARNESS_EXPORT SignalHandler {
  public:
   // mimick the MYSQLD_RESTART_EXIT values from sql/sql_const.h
@@ -95,27 +75,6 @@ class HARNESS_EXPORT SignalHandler {
 #endif
 
   /**
-   * request application shutdown.
-   *
-   * @param reason reason for the shutdown
-   * @param msg human readable reason of the shutdown
-   * @throws std::system_error same as std::unique_lock::lock does
-   */
-  void request_application_shutdown(
-      const ShutdownPending::Reason reason = ShutdownPending::Reason::REQUESTED,
-      const std::string &msg = {});
-
-  /**
-   * pending shutdown state.
-   *
-   * - synchronized
-   * - waitable
-   */
-  WaitableMonitor<ShutdownPending> &shutdown_pending() {
-    return shutdown_pending_;
-  }
-
-  /**
    * add signal handler for a signal
    *
    * @param signum signal number
@@ -137,15 +96,11 @@ class HARNESS_EXPORT SignalHandler {
   // signal handlers per signal number.
   Monitor<std::map<int, std::function<void(int)>>> sig_handlers_{{}};
 
-  WaitableMonitor<ShutdownPending> shutdown_pending_{{}};
-
   WaitableMonitor<bool> signal_thread_ready_{false};
 
   // sigwait thread
   std::thread signal_thread_;
 };
-
-HARNESS_EXPORT extern SignalHandler *g_signal_handler;
 
 }  // namespace mysql_harness
 #endif

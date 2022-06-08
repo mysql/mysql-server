@@ -83,15 +83,11 @@
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/process_state_component.h"
 #include "mysql/harness/signal_handler.h"
 #include "mysql/harness/utility/string.h"
 #include "test/helpers.h"
 #include "utilities.h"
-
-// see loader.cc for more info on this define
-#ifndef _WIN32
-#define USE_POSIX_SIGNALS
-#endif
 
 #define USE_DLCLOSE 1
 
@@ -159,16 +155,16 @@ auto has_stopping(Arg &&arg) {
 }
 
 Path g_here;
-mysql_harness::SignalHandler signal_handler;
 
 class TestLoader : public Loader {
  public:
   TestLoader(const std::string &program, mysql_harness::LoaderConfig &config)
-      : Loader(program, config, signal_handler) {
+      : Loader(program, config) {
     // unittest_backdoor::set_shutdown_pending(false);
-    signal_handler.shutdown_pending()([](auto &pending) {
-      pending.reason(mysql_harness::ShutdownPending::Reason::NONE);
-    });
+    mysql_harness::ProcessStateComponent::get_instance().shutdown_pending()(
+        [](auto &pending) {
+          pending.reason(mysql_harness::ShutdownPending::Reason::NONE);
+        });
   }
 
   void read(std::istream &stream) {
@@ -345,7 +341,8 @@ class LifecycleTest : public BasicConsoleOutputTest {
 
 void delayed_shutdown() {
   std::this_thread::sleep_for(ch::milliseconds(kSleepShutdown));
-  signal_handler.request_application_shutdown();
+  mysql_harness::ProcessStateComponent::get_instance()
+      .request_application_shutdown();
 }
 
 int time_diff(const ch::time_point<ch::steady_clock> &t0,
@@ -1752,16 +1749,19 @@ TEST_F(LifecycleTest, NoInstances) {
 
   EXPECT_THAT(log_lines_, IsSupersetOf({
                               has_init_plugins(init_plugins),
-                              HasSubstr("Waiting for readiness of: "),
+                              HasSubstr("Service ready!"),
                               HasSubstr("Shutting down."),
                           }));
 
-  EXPECT_THAT(log_lines_,
-              Not(IsSupersetOf({
-                  HasSubstr("Starting:"),  // no plugin with a start() method
-                  HasSubstr("Deinitializing"),  // no plugin with a deinit()
-                  HasSubstr("failed"),
-              })));
+  EXPECT_THAT(
+      log_lines_,
+      Not(IsSupersetOf({
+          HasSubstr("Starting:"),       // no plugin with a start() method
+          HasSubstr("Deinitializing"),  // no plugin with a deinit()
+          HasSubstr("Waiting for readiness of:"),  // no service that announces
+                                                   // readiness
+          HasSubstr("failed"),
+      })));
 }
 
 // note: we don't test an equivalent scenario when the plugin throws (an empty

@@ -28,7 +28,6 @@
 #include <sstream>
 #include <stdexcept>
 #include <system_error>
-#include "mysql/harness/signal_handler.h"
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -39,6 +38,8 @@
 #include "mysql/harness/loader.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/process_state_component.h"
+#include "mysql/harness/signal_handler.h"
 #include "mysql/harness/stdx/filesystem.h"
 #include "router_config.h"  // MYSQL_ROUTER_VERSION
 
@@ -240,14 +241,48 @@ class MysqlServerMockFrontend {
 
     std::unique_ptr<mysql_harness::Loader> loader_;
     try {
-      loader_ = std::make_unique<mysql_harness::Loader>(
-          "server-mock", *loader_config, signal_handler_);
+      loader_ = std::make_unique<mysql_harness::Loader>("server-mock",
+                                                        *loader_config);
     } catch (const std::runtime_error &err) {
       throw std::runtime_error(std::string("init-loader failed: ") +
                                err.what());
     }
 
     log_debug("Starting");
+
+#if !defined(_WIN32)
+    //
+    // reopen the logfile on SIGHUP.
+    //
+
+    static const char kSignalHandlerServiceName[]{"signal_handler"};
+
+    loader_->waitable_services().emplace_back(kSignalHandlerServiceName);
+
+    // as the LogReopener depends on the loggers being started, it must be
+    // initialized after Loader::start_all() has been called.
+    loader_->after_all_started([&]() {
+      signal_handler_.add_sig_handler(SIGTERM, [&](int /* sig */) {
+        mysql_harness::ProcessStateComponent::get_instance()
+            .request_application_shutdown(
+                mysql_harness::ShutdownPending::Reason::REQUESTED);
+      });
+
+      signal_handler_.add_sig_handler(SIGINT, [&](int /* sig */) {
+        mysql_harness::ProcessStateComponent::get_instance()
+            .request_application_shutdown(
+                mysql_harness::ShutdownPending::Reason::REQUESTED);
+      });
+
+      mysql_harness::on_service_ready(kSignalHandlerServiceName);
+    });
+
+    // after the first plugin finished, stop the log-reopener
+    loader_->after_first_finished([&]() {
+      signal_handler_.remove_sig_handler(SIGTERM);
+      signal_handler_.remove_sig_handler(SIGINT);
+    });
+#endif
 
     loader_->start();
   }

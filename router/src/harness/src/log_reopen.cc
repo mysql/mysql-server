@@ -149,6 +149,8 @@ void LogReopen::main_loop(LogReopen *self) {
     } catch (const std::exception &e) {
       // leave actions on error to the defined callback function
       errmsg = e.what();
+
+      self->thread_state_([&errmsg](auto &st) { st.errmsg(errmsg); });
     }
 
     // trigger the completion callback once mutex is not locked

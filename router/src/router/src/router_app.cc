@@ -34,6 +34,7 @@
 #include <cstring>
 #include <fstream>
 #include <initializer_list>
+#include <memory>  // unique_ptr
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -50,9 +51,11 @@
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/dynamic_state.h"
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/log_reopen_component.h"
 #include "mysql/harness/logging/logger_plugin.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/process_state_component.h"
 #include "mysql/harness/signal_handler.h"
 #include "mysql/harness/utility/string.h"  // string_format
 #include "mysql/harness/vt100.h"
@@ -62,6 +65,7 @@
 #include "mysqlrouter/utils.h"  // substitute_envvar
 #include "print_version.h"
 #include "router_config.h"  // MYSQL_ROUTER_VERSION
+#include "scope_guard.h"
 #include "welcome_copyright_notice.h"
 
 #ifndef _WIN32
@@ -503,8 +507,7 @@ void MySQLRouter::init_loader(mysql_harness::LoaderConfig &config) {
   std::string err_msg =
       "Configuration error: %s.";  // TODO: is this error message right?
   try {
-    loader_ = std::make_unique<mysql_harness::Loader>(kProgramName, config,
-                                                      signal_handler_);
+    loader_ = std::make_unique<mysql_harness::Loader>(kProgramName, config);
   } catch (const std::runtime_error &err) {
     throw std::runtime_error(string_format(err_msg.c_str(), err.what()));
   }
@@ -676,6 +679,69 @@ void MySQLRouter::start() {
 
   init_keyring(config);
   init_dynamic_state(config);
+
+#if !defined(_WIN32)
+  //
+  // reopen the logfile on SIGHUP.
+  // shutdown at SIGTERM|SIGINT
+  //
+
+  auto &log_reopener = mysql_harness::LogReopenComponent::get_instance();
+
+  static const char kLogReopenServiceName[]{"log_reopen"};
+  static const char kSignalHandlerServiceName[]{"signal_handler"};
+
+  // report readiness of all services only after the log-reopen handlers is
+  // installed ... after all plugins are started.
+  loader_->waitable_services().emplace_back(kLogReopenServiceName);
+
+  loader_->waitable_services().emplace_back(kSignalHandlerServiceName);
+
+  loader_->after_all_started([&]() {
+    // as the LogReopener depends on the loggers being started, it must be
+    // initialized after Loader::start_all() has been called.
+    log_reopener.init();
+
+    log_reopener->set_complete_callback([](const auto &errmsg) {
+      if (errmsg.empty()) return;
+
+      mysql_harness::ProcessStateComponent::get_instance()
+          .request_application_shutdown(
+              mysql_harness::ShutdownPending::Reason::FATAL_ERROR, errmsg);
+    });
+
+    signal_handler_.add_sig_handler(SIGHUP, [&log_reopener](int /* sig */) {
+      // is run by the signal-thread.
+      log_reopener->request_reopen();
+    });
+
+    mysql_harness::on_service_ready(kLogReopenServiceName);
+
+    // signal-handler
+    signal_handler_.add_sig_handler(SIGTERM, [](int /* sig */) {
+      mysql_harness::ProcessStateComponent::get_instance()
+          .request_application_shutdown(
+              mysql_harness::ShutdownPending::Reason::REQUESTED);
+    });
+
+    signal_handler_.add_sig_handler(SIGINT, [](int /* sig */) {
+      mysql_harness::ProcessStateComponent::get_instance()
+          .request_application_shutdown(
+              mysql_harness::ShutdownPending::Reason::REQUESTED);
+    });
+
+    mysql_harness::on_service_ready(kSignalHandlerServiceName);
+  });
+
+  // after the first plugin finished, stop the log-reopener and signal-handler
+  loader_->after_first_finished([&]() {
+    signal_handler_.remove_sig_handler(SIGTERM);
+    signal_handler_.remove_sig_handler(SIGINT);
+
+    signal_handler_.remove_sig_handler(SIGHUP);
+    log_reopener.reset();
+  });
+#endif
 
   loader_->start();
 }

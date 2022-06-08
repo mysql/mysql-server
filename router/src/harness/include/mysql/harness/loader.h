@@ -618,9 +618,7 @@ end). Actions taken for each plugin function are as follows:
 #include "filesystem.h"
 #include "mysql/harness/dynamic_loader.h"
 #include "mysql/harness/loader_config.h"
-#include "mysql/harness/log_reopen.h"
 #include "mysql/harness/plugin.h"
-#include "mysql/harness/signal_handler.h"
 
 #include "harness_export.h"
 
@@ -753,13 +751,9 @@ class HARNESS_EXPORT Loader {
    *
    * @param program Name of our program
    * @param config Router configuration
-   * @param signal_handler signal handler
    */
-  Loader(std::string program, LoaderConfig &config,
-         SignalHandler &signal_handler)
-      : config_(config),
-        program_(std::move(program)),
-        signal_handler_{signal_handler} {}
+  Loader(std::string program, LoaderConfig &config)
+      : config_(config), program_(std::move(program)) {}
 
   Loader(const Loader &) = delete;
   Loader &operator=(const Loader &) = delete;
@@ -799,6 +793,42 @@ class HARNESS_EXPORT Loader {
    * reference maintained by DIM, so this method will return this object.
    */
   LoaderConfig &get_config() { return config_; }
+
+  /**
+   * service names to wait on.
+   *
+   * add a service name and call on_service_ready() when the service ready().
+   *
+   * @see on_service_ready()
+   */
+  std::vector<std::string> &waitable_services() { return waitable_services_; }
+
+  /**
+   * service names to wait on.
+   *
+   * @see on_service_ready()
+   */
+  const std::vector<std::string> &waitable_services() const {
+    return waitable_services_;
+  }
+
+  /**
+   * set a function that's called after all plugins have been started.
+   *
+   * @see after_all_finished()
+   */
+  void after_all_started(std::function<void()> &&func) {
+    after_all_started_ = std::move(func);
+  }
+
+  /**
+   * set a function that's called after the first plugin exited.
+   *
+   * @see after_all_started()
+   */
+  void after_first_finished(std::function<void()> &&func) {
+    after_first_finished_ = std::move(func);
+  }
 
  private:
   enum class Status { UNVISITED, ONGOING, VISITED };
@@ -971,7 +1001,16 @@ class HARNESS_EXPORT Loader {
    */
   void check_default_config_options_supported();
 
-  SignalHandler &signal_handler_;
+  // service names that need to be waited on.
+  //
+  // @see on_service_ready()
+  std::vector<std::string> waitable_services_;
+
+  // called after "start_all()" succeeded.
+  std::function<void()> after_all_started_;
+
+  // called after "main_loop()" exited.
+  std::function<void()> after_first_finished_;
 
 #ifdef FRIEND_TEST
   friend class ::TestLoader;

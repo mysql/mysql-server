@@ -103,6 +103,8 @@ SET(harness_source
   keyring/keyring_memory.cc
   keyring/keyring_file.cc
   keyring/master_key_file.cc
+  process_state_component.cc
+  log_reopen_component.cc
   )
 
 IF(WIN32)

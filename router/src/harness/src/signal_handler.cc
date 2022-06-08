@@ -53,12 +53,9 @@
 #include "my_thread.h"                 // my_thread_self_setname
 #include "mysql/harness/filesystem.h"  // Path
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/process_state_component.h"
 
 IMPORT_LOG_FUNCTIONS()
-
-namespace mysql_harness {
-SignalHandler *g_signal_handler = nullptr;
-}
 
 namespace {
 
@@ -96,9 +93,9 @@ BOOL WINAPI ctrl_c_handler(DWORD ctrl_type) {
   if (ctrl_type == CTRL_C_EVENT || ctrl_type == CTRL_BREAK_EVENT) {
     // user pressed Ctrl+C or we got Ctrl+Break request
 
-    if (mysql_harness::g_signal_handler != nullptr) {
-      mysql_harness::g_signal_handler->request_application_shutdown();
-    }
+    mysql_harness::ProcessStateComponent::get_instance()
+        .request_application_shutdown();
+
     return TRUE;  // don't pass this event to further handlers
   } else {
     // some other event
@@ -259,9 +256,6 @@ void SignalHandler::register_fatal_signal_handler(bool dump_core) {
 
 #ifdef _WIN32
 void SignalHandler::register_ctrl_c_handler() {
-  if (g_signal_handler == nullptr) {
-    g_signal_handler = this;
-  }
   if (!SetConsoleCtrlHandler(ctrl_c_handler, TRUE)) {
     std::cerr << "Could not install Ctrl+C handler, exiting.\n";
     exit(1);
@@ -269,27 +263,9 @@ void SignalHandler::register_ctrl_c_handler() {
 }
 
 void SignalHandler::unregister_ctrl_c_handler() {
-  if (g_signal_handler == this) {
-    g_signal_handler = nullptr;
-  }
   SetConsoleCtrlHandler(ctrl_c_handler, FALSE);  // remove
 }
 #endif
-
-/**
- * request application shutdown.
- *
- * @throws std::system_error same as std::unique_lock::lock does
- */
-void SignalHandler::request_application_shutdown(
-    const ShutdownPending::Reason reason, const std::string &msg) {
-  shutdown_pending_.serialize_with_cv([reason, msg](auto &pending, auto &cv) {
-    pending.reason(reason);
-    pending.message(msg);
-
-    cv.notify_one();
-  });
-}
 
 void SignalHandler::spawn_signal_handler_thread() {
 #ifndef _WIN32

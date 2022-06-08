@@ -37,6 +37,7 @@
 #include "main-windows.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/eventlog_plugin.h"
+#include "mysql/harness/process_state_component.h"
 #include "mysql/harness/signal_handler.h"
 #include "mysqlrouter/default_paths.h"
 #include "mysqlrouter/utils.h"  // write_windows_event_log
@@ -346,10 +347,9 @@ int proxy_main(int (*real_main)(int, char **, bool), int argc, char **argv) {
         // as termination request)
         BOOL ok =
             g_service.Init(service_name.c_str(), (void *)router_service, []() {
-              if (mysql_harness::g_signal_handler != nullptr) {
-                mysql_harness::g_signal_handler->request_application_shutdown(
-                    mysql_harness::ShutdownPending::Reason::REQUESTED);
-              }
+              mysql_harness::ProcessStateComponent::get_instance()
+                  .request_application_shutdown(
+                      mysql_harness::ShutdownPending::Reason::REQUESTED);
             });
         if (!ok) {
           const std::error_code ec{static_cast<int>(GetLastError()),

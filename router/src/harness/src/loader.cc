@@ -62,12 +62,11 @@
 #include "my_thread.h"  // my_thread_self_setname
 #include "mysql/harness/dynamic_loader.h"
 #include "mysql/harness/filesystem.h"
-#include "mysql/harness/log_reopen.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/process_state_component.h"
 #include "mysql/harness/sd_notify.h"
-#include "mysql/harness/signal_handler.h"
 #include "mysql/harness/stdx/monitor.h"
 #include "mysql/harness/utility/string.h"  // join
 #include "scope_guard.h"
@@ -85,13 +84,7 @@ using mysql_harness::Path;
 
 using namespace std::chrono_literals;
 
-#if !defined(_WIN32)
-#define USE_POSIX_SIGNALS
-#endif
-
 static std::atomic<size_t> num_of_non_ready_services{0};
-
-static const char kLogReopenServiceName[] = "log_reopen";
 
 #ifdef _WIN32
 static constexpr size_t supported_global_options_size = 21;
@@ -656,41 +649,14 @@ std::exception_ptr Loader::run() {
   // run plugins if initialization didn't fail
   if (!first_eptr) {
     try {
-#ifndef _WIN32
-      Scope_guard exit_guard([&]() {
-        signal_handler_.remove_sig_handler(SIGHUP);
-        signal_handler_.remove_sig_handler(SIGTERM);
-        signal_handler_.remove_sig_handler(SIGINT);
-      });
-#endif
-
       start_all();  // if start() throws, exception is forwarded to
                     // main_loop()
 
-#ifndef _WIN32
-      LogReopen log_reopener;
-      log_reopener.set_complete_callback([this](const auto &errmsg) {
-        if (errmsg.empty()) return;
-
-        signal_handler_.request_application_shutdown(
-            mysql_harness::ShutdownPending::Reason::FATAL_ERROR, errmsg);
-      });
-      signal_handler_.add_sig_handler(SIGHUP, [&](int /* sig */) {
-        // is run by the signal-thread.
-        log_reopener.request_reopen();
+      Scope_guard exit_guard([&]() {
+        if (after_first_finished_) after_first_finished_();
       });
 
-      signal_handler_.add_sig_handler(SIGTERM, [&](int /* sig */) {
-        signal_handler_.request_application_shutdown(
-            mysql_harness::ShutdownPending::Reason::REQUESTED);
-      });
-
-      signal_handler_.add_sig_handler(SIGINT, [&](int /* sig */) {
-        signal_handler_.request_application_shutdown(
-            mysql_harness::ShutdownPending::Reason::REQUESTED);
-      });
-#endif
-      on_service_ready(kLogReopenServiceName);
+      if (after_all_started_) after_all_started_();
 
       first_eptr = main_loop();
     } catch (const std::exception &e) {
@@ -849,7 +815,6 @@ static std::string section_to_string(const ConfigSection *section) {
 // forwards first exception triggered by start() to main_loop()
 void Loader::start_all() {
   std::vector<std::string> startable_sections;
-  std::vector<std::string> waitable_sections;
 
   for (const ConfigSection *section : config_.sections()) {
     const auto &plugin = plugins_.at(section->name);
@@ -864,9 +829,7 @@ void Loader::start_all() {
       }
 
       if (declares_readiness) {
-        waitable_sections.push_back(section_name);
-
-        num_of_non_ready_services++;
+        waitable_services_.push_back(section_name);
       }
     }
   }
@@ -876,20 +839,17 @@ void Loader::start_all() {
               mysql_harness::join(startable_sections, ", ").c_str());
   }
 
-  // this one is for the log rotation handler that we also want to notify it is
-  // ready
-  num_of_non_ready_services++;
-  waitable_sections.emplace_back(kLogReopenServiceName);
-
   // if there are no services that we should wait for let's declare the
   // readiness right away
-  if (waitable_sections.empty()) {
+  if (waitable_services_.empty()) {
     log_debug("Service ready!");
     notify_ready();
-  }
+  } else {
+    log_debug("Waiting for readiness of: %s",
+              mysql_harness::join(waitable_services_, ", ").c_str());
 
-  log_debug("Waiting for readiness of: %s",
-            mysql_harness::join(waitable_sections, ", ").c_str());
+    num_of_non_ready_services = waitable_services_.size();
+  }
 
   try {
     // start all the plugins (call plugin's start() function)
@@ -922,8 +882,9 @@ void Loader::start_all() {
                              section->name.c_str(), section->key.c_str());
 
         // notify the signal-handler's cond-var about the plugin's exit-status
-        signal_handler_.shutdown_pending().serialize_with_cv(
-            [this, &eptr](auto /* pending */, auto &cv) {
+        ProcessStateComponent::get_instance()
+            .shutdown_pending()
+            .serialize_with_cv([this, &eptr](auto /* pending */, auto &cv) {
               plugin_threads_.push_exit_status(std::move(eptr));
               cv.notify_one();
             });
@@ -969,32 +930,33 @@ std::exception_ptr Loader::main_loop() {
   std::exception_ptr first_eptr;
 
   // wait for a reason to shutdown
-  signal_handler_.shutdown_pending().wait([&first_eptr, this](auto pending) {
-    // external shutdown
-    if (pending.reason() == ShutdownPending::Reason::REQUESTED) return true;
+  ProcessStateComponent::get_instance().shutdown_pending().wait(
+      [&first_eptr, this](auto pending) {
+        // external shutdown
+        if (pending.reason() == ShutdownPending::Reason::REQUESTED) return true;
 
-    // shutdown due to a fatal error originating from Loader and its callees
-    // (but NOT from plugins)
-    if (pending.reason() == ShutdownPending::Reason::FATAL_ERROR) {
-      // there is a request to shut down due to a fatal error; generate an
-      // exception with requested message so that it bubbles up and ends up on
-      // the console as an error message
-      try {
-        throw std::runtime_error(pending.message());
-      } catch (const std::exception &) {
-        first_eptr = std::current_exception();  // capture
-      }
-      return true;
-    }
+        // shutdown due to a fatal error originating from Loader and its callees
+        // (but NOT from plugins)
+        if (pending.reason() == ShutdownPending::Reason::FATAL_ERROR) {
+          // there is a request to shut down due to a fatal error; generate an
+          // exception with requested message so that it bubbles up and ends up
+          // on the console as an error message
+          try {
+            throw std::runtime_error(pending.message());
+          } catch (const std::exception &) {
+            first_eptr = std::current_exception();  // capture
+          }
+          return true;
+        }
 
-    plugin_threads_.try_stopped(first_eptr);
-    if (first_eptr) return true;
+        plugin_threads_.try_stopped(first_eptr);
+        if (first_eptr) return true;
 
-    // all plugins stop successfully
-    if (plugin_threads_.running() == 0) return true;
+        // all plugins stop successfully
+        if (plugin_threads_.running() == 0) return true;
 
-    return false;
-  });
+        return false;
+      });
 
   return value_or(first_eptr, stop_and_wait_all());
 }

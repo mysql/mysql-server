@@ -41,7 +41,6 @@
 
 ////////////////////////////////////////
 // Test system include files
-#include "mysql/harness/signal_handler.h"
 #include "test/helpers.h"
 
 using mysql_harness::Loader;
@@ -64,7 +63,7 @@ class KeepalivePluginTest : public ::testing::Test {
     config_ = std::make_unique<mysql_harness::LoaderConfig>(
         params, std::vector<std::string>(), mysql_harness::Config::allow_keys);
     config_->read(Path(test_data_dir_).join("keepalive.cfg"));
-    loader_ = std::make_unique<Loader>("harness", *config_, signal_handler_);
+    loader_ = std::make_unique<Loader>("harness", *config_);
   }
 
   void TearDown() override { std::cout.rdbuf(orig_cout_); }
@@ -74,7 +73,6 @@ class KeepalivePluginTest : public ::testing::Test {
   std::string test_data_dir_;
 
  private:
-  mysql_harness::SignalHandler signal_handler_;
   std::stringstream ssout;
   std::streambuf *orig_cout_;
 };
