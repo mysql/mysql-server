@@ -332,20 +332,24 @@ static std::pair<bool, int> check_purge_conditions(const MYSQL_BIN_LOG &log) {
 static time_t calculate_auto_purge_lower_time_bound() {
   if (DBUG_EVALUATE_IF("expire_logs_always", true, false)) return time(nullptr);
 
+  int64 expiration_time = 0;
+  int64 current_time = time(nullptr);
+
   if (binlog_expire_logs_seconds > 0)
-    return time(nullptr) - binlog_expire_logs_seconds;
+    expiration_time = current_time - binlog_expire_logs_seconds;
   else if (expire_logs_days > 0)
-    return time(nullptr) -
-           expire_logs_days * static_cast<time_t>(SECONDS_IN_24H);
+    expiration_time =
+        current_time - expire_logs_days * static_cast<int64>(SECONDS_IN_24H);
+
+  // check for possible overflow conditions (4 bytes time_t)
+  if (expiration_time < std::numeric_limits<time_t>::min())
+    expiration_time = std::numeric_limits<time_t>::min();
 
   // This function should only be called if binlog_expire_logs_seconds
-  // or expire_logs_days are greater than 0. In debug builds assert.
-  // In the event that on production builds there is ever a bug,
-  // that causes the caller to call this function with expire time set
-  // to 0, then do not purge - return 0 and thus file stat time is
-  // always greater than purge time.
-  assert(false); /* purecov: inspected */
-  return 0;      /* purecov: inspected */
+  // or expire_logs_days are greater than 0
+  assert(binlog_expire_logs_seconds > 0 || expire_logs_days > 0);
+
+  return static_cast<time_t>(expiration_time);
 }
 
 /**
@@ -360,9 +364,6 @@ static bool check_auto_purge_conditions() {
 
   // no retention window configured
   if (binlog_expire_logs_seconds == 0 && expire_logs_days == 0) return true;
-
-  // retention window is set, but we are still within the window
-  if (calculate_auto_purge_lower_time_bound() < 0) return true;
 
   // go ahead, validations checked successfully
   return false;

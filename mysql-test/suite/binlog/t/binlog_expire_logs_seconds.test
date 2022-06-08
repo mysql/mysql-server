@@ -4,10 +4,11 @@
 # ==== Purpose ====
 # The test case test the following:
 #
-# 1. If binlog_expire_logs_seconds == 0 and expire_logs_days == 0, no purge happens.
+# 1. If binlog_expire_logs_seconds == 0 and expire_logs_days == 0, no purge 
+#    happens.
 #
-# 2. In all the below listed cases it puges the binary logs older than the timeout
-#    and keeps the binary logs newer than the timeout.
+# 2. In all the below listed cases it puges the binary logs older than the
+#    timeout and keeps the binary logs newer than the timeout.
 #
 #    2.1. binlog_expire_logs_seconds > 0 and expire_logs_days > 0
 #    2.2. binlog_expire_logs_seconds > 0 and expire_logs_days == 0
@@ -15,6 +16,12 @@
 #
 # Additional tests for the boundaries of expire_logs_days already
 # exist on the sys_vars.expire_logs_days_basic test case.
+#
+# === References ===
+#
+# Bug#33670457: Incorrect result when `binlog_expire_logs_seconds` has maximum
+#               value in 32 bit
+#
 
 # Test in this file is binlog format agnostic, thus no need
 # to rerun it for every format.
@@ -35,7 +42,8 @@ CALL mtr.add_suppression("The option expire_logs_days cannot be used together*")
 SET GLOBAL binlog_expire_logs_seconds= 0;
 SET GLOBAL expire_logs_days= 0;
 
-# This will test the expire period for three scenarios, described in the .inc file.
+# This will test the expire period for three scenarios, described in the 
+# .inc file.
 --source suite/binlog/include/binlog_expire_logs_seconds.inc
 
 --echo ####
@@ -76,7 +84,8 @@ RESET MASTER;
 
 SET GLOBAL binlog_expire_logs_seconds= 3600;
 SET GLOBAL expire_logs_days= 0;
-# This will test the expire period for three scenarios, described in the .inc file.
+# This will test the expire period for three scenarios, described in the 
+# .inc file.
 
 --source suite/binlog/include/binlog_expire_logs_seconds.inc
 
@@ -87,25 +96,63 @@ SET GLOBAL expire_logs_days= 0;
 SET GLOBAL binlog_expire_logs_seconds= 0;
 SET GLOBAL expire_logs_days= 1;
 
-# This will test the expire period for three scenarios, described in the .inc file.
+# This will test the expire period for three scenarios, described in the 
+# .inc file.
 --source suite/binlog/include/binlog_expire_logs_seconds.inc
 
 # code coverage for WL#14930 boundary conditions
 # this will make the math output a negative purge
 # window, meaning that no purge can happen
 RESET MASTER;
-# there is a bug in 32 bit plaforms that prevents using
-# the max value, so we use this one that makes the test
-# run without changes in 32 and 64 bis platforms
-SET GLOBAL binlog_expire_logs_seconds=2147483647;
+SET GLOBAL binlog_expire_logs_seconds=2147483648;
 --let $file= query_get_value(SHOW MASTER STATUS, File, 1)
 FLUSH LOGS;
 --file_exists $MYSQLD_DATADIR/$file
-SET GLOBAL binlog_expire_logs_seconds=DEFAULT;
+RESET MASTER;
+
+# code coverage for WL#14930 boundary conditions
+# computations should be correct even if binlog_expire_logs_seconds 
+# is set to a very big value, effectively specifying that it should 
+# delete binary logs that have a unix timestamp smaller than -2^31. 
+# Before the bugfix, 32-bit platforms having time_t as 32-bit values 
+# would internally wrap around the integers, which would make the 
+# server purge files that are newer than what the user requested 
+# to purge.
+
+SET GLOBAL binlog_expire_logs_seconds=4294967295;
+--let $file= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOGS;
+--file_exists $MYSQLD_DATADIR/$file
+RESET MASTER;
+
+--echo ### Code coverage for WL#14930 boundary conditions
+--echo ### Expiration time < 0
+
+--echo ### Test case: binlog_expire_logs_seconds set to current time
+let $current_time=`SELECT UNIX_TIMESTAMP()`;
+--replace_result $current_time CURRENT_TIME
+--eval SET GLOBAL binlog_expire_logs_seconds= $current_time
+--let $file= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOGS;
+--file_exists $MYSQLD_DATADIR/$file
+RESET MASTER;
+
+--echo ### Test case: binlog_expire_logs_seconds set to current_time + 2^31
+--replace_result $current_time CURRENT_TIME
+--eval SET GLOBAL binlog_expire_logs_seconds=  2<<31+ $current_time
+--let $file= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOGS;
+--file_exists $MYSQLD_DATADIR/$file
+RESET MASTER;
+
+--echo ### Test case: binlog_expire_logs_seconds set to current_time + 2^30
+--replace_result $current_time CURRENT_TIME
+--eval SET GLOBAL binlog_expire_logs_seconds=  2<<30+ $current_time
+--let $file= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOGS;
+--file_exists $MYSQLD_DATADIR/$file
 RESET MASTER;
 
 # reset the variables
 --eval SET GLOBAL binlog_expire_logs_seconds= $saved_binlog_expire_logs_seconds
 --eval SET GLOBAL expire_logs_days= $saved_expire_logs_days
-
-

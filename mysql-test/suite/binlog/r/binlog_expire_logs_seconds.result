@@ -112,9 +112,25 @@ SET @@GLOBAL.MAX_BINLOG_SIZE= 1073741824;;
 DROP TABLE t1;
 RESET MASTER;
 RESET MASTER;
-SET GLOBAL binlog_expire_logs_seconds=2147483647;
+SET GLOBAL binlog_expire_logs_seconds=2147483648;
 FLUSH LOGS;
-SET GLOBAL binlog_expire_logs_seconds=DEFAULT;
+RESET MASTER;
+SET GLOBAL binlog_expire_logs_seconds=4294967295;
+FLUSH LOGS;
+RESET MASTER;
+### Code coverage for WL#14930 boundary conditions
+### Expiration time < 0
+### Test case: binlog_expire_logs_seconds set to current time
+SET GLOBAL binlog_expire_logs_seconds= CURRENT_TIME;
+FLUSH LOGS;
+RESET MASTER;
+### Test case: binlog_expire_logs_seconds set to current_time + 2^31
+SET GLOBAL binlog_expire_logs_seconds=  2<<31+ CURRENT_TIME;
+FLUSH LOGS;
+RESET MASTER;
+### Test case: binlog_expire_logs_seconds set to current_time + 2^30
+SET GLOBAL binlog_expire_logs_seconds=  2<<30+ CURRENT_TIME;
+FLUSH LOGS;
 RESET MASTER;
 SET GLOBAL binlog_expire_logs_seconds= 0;
 SET GLOBAL expire_logs_days= 0;
