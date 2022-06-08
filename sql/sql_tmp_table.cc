@@ -233,9 +233,15 @@ static Field *create_tmp_field_from_item(Item *item, TABLE *table) {
 
   switch (item->result_type()) {
     case REAL_RESULT:
-      new_field = new (*THR_MALLOC)
-          Field_double(item->max_length, maybe_null, item->item_name.ptr(),
-                       item->decimals, false, true);
+      if (item->data_type() == MYSQL_TYPE_FLOAT) {
+        new_field = new (*THR_MALLOC)
+            Field_float(item->max_length, maybe_null, item->item_name.ptr(),
+                        item->decimals, false);
+      } else {
+        new_field = new (*THR_MALLOC)
+            Field_double(item->max_length, maybe_null, item->item_name.ptr(),
+                         item->decimals, false, true);
+      }
       break;
     case INT_RESULT:
       /*

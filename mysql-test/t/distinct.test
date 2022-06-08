@@ -3,10 +3,6 @@
 # Bug with group by and not used fields
 #
 
---disable_warnings
-drop table if exists t1,t2,t3;
---enable_warnings
-
 CREATE TABLE t1 (id int,facility char(20));
 CREATE TABLE t2 (facility char(20));
 INSERT INTO t1 VALUES (NULL,NULL);
@@ -977,5 +973,19 @@ INSERT INTO t1 VALUES (1,100000), (2,100000);
 SELECT SQL_SMALL_RESULT DISTINCT t1.f1/t1.f2 FROM t1;
 
 SELECT SQL_BIG_RESULT DISTINCT t1.f1/t1.f2 FROM t1;
+
+DROP TABLE t1;
+
+--echo # Bug#34167787: Result mismatch with integer and cast as float
+
+CREATE TABLE t1(v INTEGER);
+
+INSERT INTO t1 VALUES
+ (-2007568257), (-2007568260), (-2007570000), (-2007567234), (-2007567230),
+ (2007568257), (2007568260), (2007570000), (2007567234), (2007567230);
+
+--skip_if_hypergraph  # Bug#34119506
+SELECT SQL_SMALL_RESULT DISTINCT CAST(v AS FLOAT) FROM t1;
+SELECT SQL_BIG_RESULT DISTINCT CAST(v AS FLOAT) FROM t1;
 
 DROP TABLE t1;
