@@ -72,7 +72,7 @@ class METADATA_CACHE_EXPORT ARClusterMetadata : public ClusterMetadata {
    * for writable node
    * @param cluster_type_specific_id  (GR ID for GR cluster, cluster_id for AR
    * cluster)
-   * @param [out] instance_id of the server the metadata was fetched from
+   * @param [out] instance_id id of the server the metadata was fetched from
    * @return object containing cluster topology information in case of success,
    * or error code in case of failure
    * @throws metadata_cache::metadata_error

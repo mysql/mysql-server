@@ -56,6 +56,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_metadata_v2_gr",
       "router_select_group_replication_primary_member",
       "router_update_last_check_in_v2",
+      "router_clusterset_present",
     ],
     options);
 

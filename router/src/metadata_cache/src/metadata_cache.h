@@ -379,8 +379,10 @@ class METADATA_CACHE_EXPORT MetadataCache
 
   Monitor<Stats> stats_{{}};
 
-  bool update_router_attributes_{true};
-  unsigned last_check_in_updated_{0};
+  bool initial_attributes_update_done_{false};
+  uint32_t periodic_stats_update_counter_{1};
+  std::chrono::steady_clock::time_point last_periodic_stats_update_timestamp_{
+      std::chrono::steady_clock::now()};
 
   bool ready_announced_{false};
 
@@ -391,6 +393,9 @@ class METADATA_CACHE_EXPORT MetadataCache
   std::atomic<bool> trigger_acceptor_update_on_next_refresh_{false};
 
   metadata_cache::RouterAttributes router_attributes_;
+
+  bool needs_initial_attributes_update();
+  bool needs_last_check_in_update();
 };
 
 std::string to_string(metadata_cache::ServerMode mode);

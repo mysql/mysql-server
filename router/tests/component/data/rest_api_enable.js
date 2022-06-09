@@ -74,6 +74,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_start_transaction",
       "router_commit",
       "router_select_rest_accounts_credentials",
+      "router_clusterset_present",
 
       // to fail account verification in some tests this is not added on
       // purpose

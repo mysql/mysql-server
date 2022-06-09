@@ -32,6 +32,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_start_transaction",
       "router_commit",
       "router_select_schema_version",
+      "router_clusterset_present",
     ],
     options);
 

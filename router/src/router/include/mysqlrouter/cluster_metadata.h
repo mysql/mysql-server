@@ -143,6 +143,8 @@ class MetadataUpgradeInProgressException : public std::exception {};
 stdx::expected<void, std::string> ROUTER_LIB_EXPORT
 setup_metadata_session(MySQLSession &session);
 
+bool ROUTER_LIB_EXPORT is_part_of_cluster_set(MySQLSession *mysql);
+
 class TargetCluster {
  public:
   enum class TargetType { ByUUID, ByName, ByPrimaryRole };
@@ -169,18 +171,11 @@ class TargetCluster {
     invalidated_cluster_routing_policy_ = value;
   }
 
-  std::string options_string() const { return options_string_; }
-  void options_string(const std::string &options_string) {
-    options_string_ = options_string;
-  }
-
  private:
   TargetType target_type_;
   std::string target_value_;
   InvalidatedClusterRoutingPolicy invalidated_cluster_routing_policy_{
       InvalidatedClusterRoutingPolicy::DropAll};
-
-  std::string options_string_{"{}"};
 };
 
 }  // namespace mysqlrouter

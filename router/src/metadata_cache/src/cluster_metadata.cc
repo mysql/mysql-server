@@ -280,7 +280,7 @@ bool ClusterMetadata::update_router_attributes(
   } else {
     query =
         "UPDATE mysql_innodb_cluster_metadata.v2_routers "
-        "SET version = ?, attributes = "
+        "SET version = ?, last_check_in = NOW(), attributes = "
         "JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET( "
         "IF(attributes IS NULL, '{}', attributes), "
         "'$.RWEndpoint', ?), "

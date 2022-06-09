@@ -41,6 +41,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <rapidjson/schema.h>
 #include <rapidjson/stringbuffer.h>
 
+#include "config_builder.h"
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
@@ -64,42 +65,38 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
  protected:
   void SetUp() override { RouterComponentTest::SetUp(); }
 
-  std::string get_metadata_cache_section(
-      const std::chrono::milliseconds ttl = kTTL,
-      const std::string &cluster_type_str = "gr") {
+  std::pair<std::string, std::map<std::string, std::string>>
+  metadata_cache_section(const std::chrono::milliseconds ttl = kTTL,
+                         const std::string &cluster_type_str = "gr") {
     auto ttl_str = std::to_string(std::chrono::duration<double>(ttl).count());
 
-    return "[metadata_cache:test]\n"
-           "cluster_type=" +
-           cluster_type_str +
-           "\n"
-           "router_id=1\n" +
-           "user=mysql_router1_user\n"
-           "metadata_cluster=test\n"
-           "connect_timeout=1\n"
-           "ttl=" +
-           ttl_str + "\n\n";
+    std::map<std::string, std::string> options{
+        {"cluster_type", cluster_type_str}, {"router_id", "1"},
+        {"user", "mysql_router1_user"},     {"metadata_cluster", "test"},
+        {"connect_timeout", "1"},           {"ttl", ttl_str}};
+
+    return {"metadata_cache:test", options};
   }
 
-  std::string get_metadata_cache_routing_section(uint16_t router_port,
-                                                 const std::string &role,
-                                                 const std::string &strategy) {
-    std::string result =
-        "[routing:test_default" + std::to_string(router_port) +
-        "]\n"
-        "bind_port=" +
-        std::to_string(router_port) + "\n" +
-        "destinations=metadata-cache://test/default?role=" + role +
-        /*disconnect_rules +*/ "\n" + "protocol=classic\n";
+  std::pair<std::string, std::map<std::string, std::string>> routing_section(
+      uint16_t router_port, const std::string &role,
+      const std::string &strategy) {
+    std::map<std::string, std::string> options{
+        {"bind_port", std::to_string(router_port)},
+        {"destinations", "metadata-cache://test/default?role=" + role},
+        {"protocol", "classic"}};
 
-    if (!strategy.empty())
-      result += std::string("routing_strategy=" + strategy + "\n");
+    if (!strategy.empty()) {
+      options["routing_strategy"] = strategy;
+    }
 
-    return result;
+    return {"routing:test_default" + std::to_string(router_port), options};
   }
 
-  auto &launch_router(int expected_errorcode = EXIT_SUCCESS,
-                      std::chrono::milliseconds wait_for_notify_ready = 30s) {
+  auto &launch_router(const int expected_errorcode = EXIT_SUCCESS,
+                      const std::chrono::milliseconds wait_for_notify_ready =
+                          kReadyNotifyTimeout,
+                      const std::chrono::milliseconds metadata_ttl = kTTL) {
     SCOPED_TRACE("// Prepare the dynamic state file for the Router");
     const auto clusterset_all_nodes_ports =
         clusterset_data_.get_all_nodes_classic_ports();
@@ -109,14 +106,16 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
                                                     clusterset_all_nodes_ports,
                                                     /*view_id*/ 1));
 
-    SCOPED_TRACE("// Prepare the config file for the Router");
-    const std::string metadata_cache_section = get_metadata_cache_section(kTTL);
     router_port_rw = port_pool_.get_next_available();
     router_port_ro = port_pool_.get_next_available();
-    const std::string routing_section_rw = get_metadata_cache_routing_section(
-        router_port_rw, "PRIMARY", "first-available");
-    const std::string routing_section_ro = get_metadata_cache_routing_section(
-        router_port_ro, "SECONDARY", "round-robin");
+
+    auto writer = config_writer(temp_test_dir.name())
+                      .section(routing_section(router_port_rw, "PRIMARY",
+                                               "first-available"))
+                      .section(routing_section(router_port_ro, "SECONDARY",
+                                               "round-robin"))
+                      .section(metadata_cache_section(metadata_ttl));
+
     const std::string masterkey_file =
         Path(temp_test_dir.name()).join("master.key").str();
     const std::string keyring_file =
@@ -128,17 +127,18 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
     mysql_harness::reset_keyring();
 
     // launch the router with metadata-cache configuration
-    auto default_section = get_DEFAULT_defaults();
+    auto &default_section = writer.sections()["DEFAULT"];
     default_section["keyring_path"] = keyring_file;
     default_section["master_key_path"] = masterkey_file;
     default_section["dynamic_state"] = router_state_file;
-    router_conf_file = create_config_file(
-        temp_test_dir.name(),
-        metadata_cache_section + routing_section_rw + routing_section_ro,
-        &default_section);
-    auto &router = ProcessManager::launch_router(
-        {"-c", router_conf_file}, expected_errorcode, /*catch_stderr=*/true,
-        /*with_sudo=*/false, wait_for_notify_ready);
+
+    auto &router =
+        router_spawner()
+            .expected_exit_code(expected_errorcode)
+            .wait_for_notify_ready(wait_for_notify_ready)
+            .wait_for_sync_point(ProcessManager::Spawner::SyncPoint::READY)
+            .spawn({"-c", writer.write()});
+
     return router;
   }
 
@@ -182,7 +182,7 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
     using NodeId = std::pair<unsigned, unsigned>;
     std::map<NodeId, size_t> count;
 
-    // in the first run pick up how many times the last_check_in updte was
+    // in the first run pick up how many times the last_check_in update was
     // performed on each node so far
     for (const auto &cluster : clusterset_data_.clusters) {
       unsigned node_id = 0;
@@ -236,6 +236,7 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
   uint16_t router_port_ro;
 
   static const std::chrono::milliseconds kTTL;
+  static const std::chrono::seconds kReadyNotifyTimeout;
   static const unsigned kRWNodeId = 0;
   static const unsigned kRONodeId = 1;
 
@@ -245,6 +246,7 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
 };
 
 const std::chrono::milliseconds ClusterSetTest::kTTL = 50ms;
+const std::chrono::seconds ClusterSetTest::kReadyNotifyTimeout = 30s;
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -789,7 +791,8 @@ TEST_F(ClusterSetTest, TargetClusterEmptyInMetadata) {
 TEST_F(ClusterSetTest, ClusterRolesChangeInTheRuntime) {
   // first cluster is a primary on start
   unsigned primary_cluster_id = 0;
-  const std::string router_options = R"({"target_cluster" : "primary"})";
+  const std::string router_options =
+      R"({"target_cluster" : "primary", "stats_updates_frequency": 1})";
 
   create_clusterset(view_id, /*target_cluster_id*/ primary_cluster_id,
                     /*primary_cluster_id*/ primary_cluster_id,
@@ -936,7 +939,8 @@ TEST_F(ClusterSetTest, TargetClusterStickToPrimaryUUID) {
   unsigned primary_cluster_id = 0;
   const unsigned target_cluster_id = 0;
   const std::string router_options =
-      R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g1"})";
+      R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g1",
+         "stats_updates_frequency": 1})";
 
   create_clusterset(view_id, /*target_cluster_id*/ target_cluster_id,
                     /*primary_cluster_id*/ primary_cluster_id,
@@ -1642,7 +1646,8 @@ TEST_P(ReplicaTargetClusterMarkedInvalidInTheMetadataTest,
       view_id, /*target_cluster_id*/ kFirstReplicaClusterId,
       /*primary_cluster_id*/ kPrimaryClusterId, "metadata_clusterset.js",
       /*router_options*/
-      R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g2"})");
+      R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g2",
+          "stats_updates_frequency": 1})");
   /* auto &router = */ launch_router();
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
@@ -1671,7 +1676,9 @@ TEST_P(ReplicaTargetClusterMarkedInvalidInTheMetadataTest,
         /*target_cluster_id*/ kFirstReplicaClusterId, http_port,
         clusterset_data_,
         /*router_options*/
-        R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g2", "invalidated_cluster_policy" : ")" +
+        R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g2",
+          "stats_updates_frequency": 1,
+          "invalidated_cluster_policy" : ")" +
             policy + "\" }");
   }
 
@@ -1989,6 +1996,122 @@ TEST_F(ClusterSetTest, SomeMetadataServerUnaccessible) {
                          clusterset_data_.clusters[kPrimaryClusterId]
                              .nodes[kRONodeId + 1]
                              .classic_port);
+}
+
+struct StatsUpdatesFrequencyNoUpdatesParam {
+  std::string router_options_json;
+  bool expect_parsing_error;
+};
+
+class StatsUpdatesFrequencyTest : public ClusterSetTest {};
+
+class StatsUpdatesFrequencyNoUpdatesTest
+    : public StatsUpdatesFrequencyTest,
+      public ::testing::WithParamInterface<
+          StatsUpdatesFrequencyNoUpdatesParam> {};
+
+/**
+ * @test Verifies that router_cs_options stats_updates_frequency field is
+ * honoured as expected
+ */
+TEST_P(StatsUpdatesFrequencyNoUpdatesTest, StatsUpdatesFrequencyNoUpdates) {
+  create_clusterset(view_id, /*target_cluster_id*/ 0,
+                    /*primary_cluster_id*/ 0, "metadata_clusterset.js",
+                    GetParam().router_options_json);
+
+  SCOPED_TRACE("// Launch the Router");
+  auto &router = launch_router();
+
+  const auto primary_node_http_port =
+      clusterset_data_.clusters[0].nodes[0].http_port;
+
+  EXPECT_TRUE(wait_for_transaction_count_increase(primary_node_http_port, 20));
+
+  const auto last_check_in_count = get_int_global_value(
+      primary_node_http_port, "update_last_check_in_count");
+
+  // no last_check_in updates expected
+  EXPECT_EQ(0, last_check_in_count);
+
+  const std::string log_content = router.get_logfile_content();
+  const std::string error =
+      "Error parsing stats_updates_frequency from the router.options";
+  if (GetParam().expect_parsing_error) {
+    EXPECT_TRUE(pattern_found(log_content, error));
+  } else {
+    EXPECT_FALSE(pattern_found(log_content, error));
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    StatsUpdatesFrequency, StatsUpdatesFrequencyNoUpdatesTest,
+    ::testing::Values(
+        // 0) explicit 0
+        StatsUpdatesFrequencyNoUpdatesParam{
+            /*router_options_json*/ R"({"stats_updates_frequency" : 0})",
+            /*expect_parsing_error*/ false},
+        // 1) field not present
+        StatsUpdatesFrequencyNoUpdatesParam{/*router_options_json*/ R"({})",
+                                            /*expect_parsing_error*/ false},
+        // 2) empty value
+        StatsUpdatesFrequencyNoUpdatesParam{
+            /*router_options_json*/ R"({"stats_updates_frequency" : ""})",
+            /*expect_parsing_error*/ true},
+        // 3) not a number
+        StatsUpdatesFrequencyNoUpdatesParam{
+            /*router_options_json*/ R"({"stats_updates_frequency" : "aaa"})",
+            /*expect_parsing_error*/ true},
+        // 4) negative number
+        StatsUpdatesFrequencyNoUpdatesParam{
+            /*router_options_json*/ R"({"stats_updates_frequency" : -1})",
+            /*expect_parsing_error*/ true}));
+
+/**
+ * @test The ttl = 50ms, stats_updates_frequency=1s, the stats updates
+         should happen ~1s
+ */
+TEST_F(StatsUpdatesFrequencyTest, StatsUpdatesFrequency1s) {
+  create_clusterset(view_id, /*target_cluster_id*/ 0,
+                    /*primary_cluster_id*/ 0, "metadata_clusterset.js",
+                    R"({"stats_updates_frequency" : 1})");
+
+  SCOPED_TRACE("// Launch the Router");
+  /*auto &router =*/launch_router();
+
+  const auto primary_node_http_port =
+      clusterset_data_.clusters[0].nodes[0].http_port;
+
+  EXPECT_TRUE(wait_for_transaction_count_increase(primary_node_http_port, 20));
+
+  const auto last_check_in_count = get_int_global_value(
+      primary_node_http_port, "update_last_check_in_count");
+
+  EXPECT_GE(last_check_in_count, 1);
+}
+
+/**
+ * @test ttl is high, stats_updates_frequency=1s, the stats updates
+        will happen in the same rate metadata refresh will (ttl)
+ */
+TEST_F(StatsUpdatesFrequencyTest, StatsUpdatesFrequencyHighTTL) {
+  create_clusterset(view_id, /*target_cluster_id*/ 0,
+                    /*primary_cluster_id*/ 0, "metadata_clusterset.js",
+                    R"({"stats_updates_frequency" : 1})");
+
+  SCOPED_TRACE("// Launch the Router");
+  /*auto &router =*/launch_router(EXIT_SUCCESS, kReadyNotifyTimeout, 30s);
+
+  const auto primary_node_http_port =
+      clusterset_data_.clusters[0].nodes[0].http_port;
+
+  // wait 2 seconds and see that there was no stats update as the TTL is high
+  // and the next update will be done along with the next metadata refresh
+  std::this_thread::sleep_for(1500ms);
+
+  const auto last_check_in_count = get_int_global_value(
+      primary_node_http_port, "update_last_check_in_count");
+
+  EXPECT_GE(last_check_in_count, 0);
 }
 
 int main(int argc, char *argv[]) {

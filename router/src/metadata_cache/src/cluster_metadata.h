@@ -123,6 +123,11 @@ class METADATA_CACHE_EXPORT ClusterMetadata : public MetaData {
   stdx::expected<metadata_cache::metadata_server_t, std::error_code>
   find_rw_server(const std::vector<metadata_cache::ManagedInstance> &instances);
 
+  std::optional<std::chrono::seconds>
+  get_periodic_stats_update_frequency() noexcept override {
+    return {};
+  }
+
  protected:
   /** Connects a MYSQL connection to the given instance
    */

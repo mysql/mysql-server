@@ -89,6 +89,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_commit",
       "router_select_schema_version",
       "router_select_cluster_type_v2",
+      "router_clusterset_present",
     ],
     options);
 

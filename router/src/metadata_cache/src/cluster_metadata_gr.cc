@@ -22,10 +22,15 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+// enable using Rapidjson library with std::string
+#define RAPIDJSON_HAS_STDSTRING 1
+
 #include "cluster_metadata_gr.h"
 
 #include <algorithm>
 #include <optional>
+
+#include <rapidjson/writer.h>
 
 #include "dim.h"
 #include "group_replication_metadata.h"
@@ -79,10 +84,17 @@ class GRMetadataBackend {
   virtual stdx::expected<metadata_cache::ClusterTopology, std::error_code>
   fetch_cluster_topology(
       MySQLSession::Transaction &transaction,
+      const mysqlrouter::MetadataSchemaVersion &schema_version,
       mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
       const metadata_cache::metadata_server_t &metadata_server,
       bool needs_writable_node, const std::string &group_name,
       const std::string &clusterset_id);
+
+  virtual void fetch_periodic_stats_update_frequency(
+      const mysqlrouter::MetadataSchemaVersion & /*schema_version*/,
+      const unsigned /*router_id*/) {
+    periodic_stats_update_frequency_ = std::nullopt;
+  }
 
   virtual std::vector<metadata_cache::metadata_servers_list_t>
   get_metadata_servers(
@@ -91,11 +103,17 @@ class GRMetadataBackend {
     return get_all_metadata_servers(metadata_servers);
   }
 
+  virtual std::optional<std::chrono::seconds>
+  get_periodic_stats_update_frequency() noexcept {
+    return periodic_stats_update_frequency_;
+  }
+
   virtual void reset() {}
 
  protected:
   GRClusterMetadata *metadata_;
   ConnectCallback connect_clb_;
+  std::optional<std::chrono::seconds> periodic_stats_update_frequency_{};
 };
 
 GRMetadataBackend::~GRMetadataBackend() = default;
@@ -137,6 +155,10 @@ class GRMetadataBackendV2 : public GRMetadataBackend {
     return mysqlrouter::ClusterType::GR_V2;
   }
 
+  virtual void fetch_periodic_stats_update_frequency(
+      const mysqlrouter::MetadataSchemaVersion &schema_version,
+      const unsigned router_id) override;
+
  protected:
   virtual std::string get_cluster_type_specific_id_limit_sql(
       const std::string &group_name,
@@ -159,6 +181,7 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
    *
    * @param transaction transaction to be used for SQL queries required by this
    * function
+   * @param schema_version current metadata schema version
    * @param [in,out] target_cluster object identifying the Cluster this
    * operation refers to
    * @param router_id id of the router in the cluster metadata
@@ -176,6 +199,7 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
   stdx::expected<metadata_cache::ClusterTopology, std::error_code>
   fetch_cluster_topology(
       MySQLSession::Transaction &transaction,
+      const mysqlrouter::MetadataSchemaVersion &schema_version,
       mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
       const metadata_cache::metadata_server_t &metadata_server,
       bool needs_writable_node, const std::string &group_name,
@@ -187,6 +211,13 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
       const metadata_cache::metadata_servers_list_t &metadata_servers)
       override {
     return clusterset_topology_.get_metadata_servers(metadata_servers);
+  }
+
+  virtual std::optional<std::chrono::seconds>
+  get_periodic_stats_update_frequency() noexcept override {
+    using namespace std::chrono_literals;
+    return periodic_stats_update_frequency_ ? periodic_stats_update_frequency_
+                                            : 0s;
   }
 
  private:
@@ -283,7 +314,179 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
       const ClusterSetTopology &topology, const std::string &target_cluster_id);
 
   ClusterSetTopology clusterset_topology_;
+
+  std::string router_cs_options_string{""};
 };
+
+namespace {
+
+// represents the Router options in v2_cs_router_options view in the metadata
+// schema
+class RouterClusterSetOptions {
+ public:
+  bool read_from_metadata(mysqlrouter::MySQLSession &session,
+                          const unsigned router_id) {
+    const std::string query =
+        "SELECT router_options FROM "
+        "mysql_innodb_cluster_metadata.v2_cs_router_options where router_id "
+        "= " +
+        std::to_string(router_id);
+
+    std::unique_ptr<MySQLSession::ResultRow> row(session.query_one(query));
+    if (!row) {
+      log_error(
+          "Error reading router.options from v2_cs_router_options: did not "
+          "find router entry for router_id '%u'",
+          router_id);
+      return false;
+    }
+
+    options_str_ = ::get_string((*row)[0]);
+
+    return true;
+  }
+
+  std::string get_string() const { return options_str_; }
+
+  std::optional<mysqlrouter::TargetCluster> get_target_cluster(
+      const unsigned router_id) const {
+    std::string out_error;
+    // check if we have a target cluster assigned in the metadata
+    std::string target_cluster_str =
+        get_router_option_str(options_str_, "target_cluster", "", out_error);
+    mysqlrouter::TargetCluster target_cluster;
+
+    if (!out_error.empty()) {
+      log_error("Error reading target_cluster from the router.options: %s",
+                out_error.c_str());
+      return {};
+    }
+
+    const std::string invalidated_cluster_routing_policy_str =
+        get_router_option_str(options_str_, "invalidated_cluster_policy", "",
+                              out_error);
+
+    if (invalidated_cluster_routing_policy_str == "accept_ro") {
+      target_cluster.invalidated_cluster_routing_policy(
+          mysqlrouter::TargetCluster::InvalidatedClusterRoutingPolicy::
+              AcceptRO);
+    } else {
+      // this is the default strategy
+      target_cluster.invalidated_cluster_routing_policy(
+          mysqlrouter::TargetCluster::InvalidatedClusterRoutingPolicy::DropAll);
+    }
+
+    const bool target_cluster_in_options = !target_cluster_str.empty();
+    const bool target_cluster_in_options_changed =
+        EventStateTracker::instance().state_changed(
+            target_cluster_in_options,
+            EventStateTracker::EventId::TargetClusterPresentInOptions);
+
+    if (!target_cluster_in_options) {
+      const auto log_level = target_cluster_in_options_changed
+                                 ? LogLevel::kWarning
+                                 : LogLevel::kDebug;
+      log_custom(log_level,
+                 "Target cluster for router_id=%d not set, using 'primary' as "
+                 "a target cluster",
+                 router_id);
+      target_cluster_str = "primary";
+    }
+
+    if (target_cluster_str == "primary") {
+      target_cluster.target_type(
+          mysqlrouter::TargetCluster::TargetType::ByPrimaryRole);
+      target_cluster.target_value("");
+    } else {
+      target_cluster.target_type(
+          mysqlrouter::TargetCluster::TargetType::ByUUID);
+      target_cluster.target_value(target_cluster_str);
+    }
+
+    return target_cluster;
+  }
+
+  std::chrono::seconds get_stats_updates_frequency() const {
+    using namespace std::chrono_literals;
+    std::string out_error;
+    auto stats_updates_frequency = std::chrono::seconds(get_router_option_uint(
+        options_str_, "stats_updates_frequency", 0, out_error));
+    if (!out_error.empty()) {
+      log_warning(
+          "Error parsing stats_updates_frequency from the router.options: %s. "
+          "Using default value %u",
+          out_error.c_str(), 0);
+      return 0s;
+    }
+
+    return stats_updates_frequency;
+  }
+
+ private:
+  std::string get_router_option_str(const std::string &options,
+                                    const std::string &name,
+                                    const std::string &default_value,
+                                    std::string &out_error) const {
+    out_error = "";
+    if (options.empty()) return default_value;
+
+    rapidjson::Document json_doc;
+    json_doc.Parse(options);
+
+    if (!json_doc.IsObject()) {
+      out_error = "not a valid JSON object";
+      return default_value;
+    }
+
+    const auto it = json_doc.FindMember(name);
+    if (it == json_doc.MemberEnd()) {
+      return default_value;
+    }
+
+    if (!it->value.IsString()) {
+      out_error = "options." + name + " not a string";
+      return default_value;
+    }
+
+    return it->value.GetString();
+  }
+
+  uint32_t get_router_option_uint(const std::string &options,
+                                  const std::string &name,
+                                  const uint32_t &default_value,
+                                  std::string &out_error) const {
+    out_error = "";
+    if (options.empty()) return default_value;
+
+    rapidjson::Document json_doc;
+    json_doc.Parse(options);
+
+    if (!json_doc.IsObject()) {
+      out_error = "not a valid JSON object";
+      return default_value;
+    }
+
+    const auto it = json_doc.FindMember(name);
+    if (it == json_doc.MemberEnd()) {
+      return default_value;
+    }
+
+    if (!it->value.IsUint()) {
+      rapidjson::StringBuffer sb;
+      rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
+      it->value.Accept(writer);
+      out_error =
+          "options." + name + "='" + sb.GetString() + "'; not an unsigned int";
+      return default_value;
+    }
+
+    return it->value.GetUint();
+  }
+
+  std::string options_str_;
+};
+
+}  // namespace
 
 GRClusterMetadata::GRClusterMetadata(
     const metadata_cache::MetadataCacheMySQLSessionConfig &session_config,
@@ -661,10 +864,18 @@ void GRClusterMetadata::update_backend(
   }
 }
 
+std::optional<std::chrono::seconds>
+GRClusterMetadata::get_periodic_stats_update_frequency() noexcept {
+  if (!metadata_backend_) return {};
+
+  return metadata_backend_->get_periodic_stats_update_frequency();
+}
+
 stdx::expected<metadata_cache::ClusterTopology, std::error_code>
 GRMetadataBackend::fetch_cluster_topology(
     MySQLSession::Transaction &transaction,
-    mysqlrouter::TargetCluster &target_cluster, const unsigned /*router_id*/,
+    const mysqlrouter::MetadataSchemaVersion &schema_version,
+    mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
     const metadata_cache::metadata_server_t & /*metadata_server*/,
     bool needs_writable_node, const std::string &group_name,
     const std::string &clusterset_id = "") {
@@ -676,6 +887,8 @@ GRMetadataBackend::fetch_cluster_topology(
   result.cluster_data = fetch_instances_from_metadata_server(
       target_cluster, group_name,
       clusterset_id);  // throws metadata_cache::metadata_error
+
+  fetch_periodic_stats_update_frequency(schema_version, router_id);
 
   // we are done with querying metadata
   transaction.commit();
@@ -767,7 +980,7 @@ GRClusterMetadata::fetch_cluster_topology(
         }
 
         result_tmp = metadata_backend_->fetch_cluster_topology(
-            transaction, target_cluster, router_id, metadata_server,
+            transaction, version, target_cluster, router_id, metadata_server,
             needs_writable_node, group_name, clusterset_id);
 
         last_fetch_cluster_id = i;
@@ -987,6 +1200,27 @@ GRMetadataBackendV2::fetch_instances_from_metadata_server(
   return result;
 }
 
+void GRMetadataBackendV2::fetch_periodic_stats_update_frequency(
+    const mysqlrouter::MetadataSchemaVersion &schema_version,
+    const unsigned router_id) {
+  if (schema_version >= mysqlrouter::kClusterSetsMetadataVersion) {
+    const auto connection = metadata_->get_connection();
+    const bool is_part_of_cluster_set =
+        mysqlrouter::is_part_of_cluster_set(connection.get());
+    if (is_part_of_cluster_set) {
+      RouterClusterSetOptions router_clusterset_options;
+      if (router_clusterset_options.read_from_metadata(*connection.get(),
+                                                       router_id)) {
+        periodic_stats_update_frequency_ =
+            router_clusterset_options.get_stats_updates_frequency();
+        return;
+      }
+    }
+  }
+
+  periodic_stats_update_frequency_ = std::nullopt;
+}
+
 GRClusterMetadata::~GRClusterMetadata() = default;
 
 //////////////////////////////////////
@@ -1045,109 +1279,6 @@ static stdx::expected<std::string, std::error_code> get_clusterset_id(
   }
 
   return get_string((*row)[0]);
-}
-
-static std::string get_router_option_str(const std::string &options,
-                                         const std::string &name,
-                                         const std::string &default_value,
-                                         std::string &out_error) {
-  out_error = "";
-  if (options.empty()) return default_value;
-
-  rapidjson::Document json_doc;
-  json_doc.Parse(options.c_str(), options.length());
-
-  if (!json_doc.IsObject()) {
-    out_error = "not a valid JSON object";
-    return default_value;
-  }
-
-  const auto it =
-      json_doc.FindMember(rapidjson::Value{name.data(), name.size()});
-  if (it == json_doc.MemberEnd()) {
-    return default_value;
-  }
-
-  if (!it->value.IsString()) {
-    out_error = "options." + name + " not a string";
-    return default_value;
-  }
-
-  return it->value.GetString();
-}
-
-static bool update_router_options_from_metadata(
-    mysqlrouter::MySQLSession &session, const unsigned router_id,
-    mysqlrouter::TargetCluster &target_cluster) {
-  // check if we have a target cluster assigned in the metadata
-  const std::string query =
-      "SELECT router_options FROM "
-      "mysql_innodb_cluster_metadata.v2_cs_router_options where router_id = " +
-      std::to_string(router_id);
-
-  std::unique_ptr<MySQLSession::ResultRow> row(session.query_one(query));
-  if (!row) {
-    log_error(
-        "Error reading target_cluster from the router.options: did not find "
-        "router entry for router_id '%u'",
-        router_id);
-    return false;
-  }
-
-  const std::string options_str = get_string((*row)[0]);
-  target_cluster.options_string(options_str);
-
-  std::string out_error;
-  std::string target_cluster_str =
-      get_router_option_str(options_str, "target_cluster", "", out_error);
-
-  if (!out_error.empty()) {
-    log_error("Error reading target_cluster from the router.options: %s",
-              out_error.c_str());
-    return false;
-  }
-
-  const std::string invalidated_cluster_routing_policy_str =
-      get_router_option_str(options_str, "invalidated_cluster_policy", "",
-                            out_error);
-
-  if (invalidated_cluster_routing_policy_str == "accept_ro") {
-    target_cluster.invalidated_cluster_routing_policy(
-        mysqlrouter::TargetCluster::InvalidatedClusterRoutingPolicy::AcceptRO);
-  } else {
-    // this is the default strategy
-    target_cluster.invalidated_cluster_routing_policy(
-        mysqlrouter::TargetCluster::InvalidatedClusterRoutingPolicy::DropAll);
-  }
-
-  const bool target_cluster_in_options = !target_cluster_str.empty();
-  const bool target_cluster_in_options_changed =
-      EventStateTracker::instance().state_changed(
-          target_cluster_in_options,
-          EventStateTracker::EventId::TargetClusterPresentInOptions);
-
-  if (!target_cluster_in_options) {
-    const auto log_level = target_cluster_in_options_changed
-                               ? LogLevel::kWarning
-                               : LogLevel::kDebug;
-    log_custom(
-        log_level,
-        "Target cluster for router_id=%d not set, using 'primary' as a target "
-        "cluster",
-        router_id);
-    target_cluster_str = "primary";
-  }
-
-  if (target_cluster_str == "primary") {
-    target_cluster.target_type(
-        mysqlrouter::TargetCluster::TargetType::ByPrimaryRole);
-    target_cluster.target_value("");
-  } else {
-    target_cluster.target_type(mysqlrouter::TargetCluster::TargetType::ByUUID);
-    target_cluster.target_value(target_cluster_str);
-  }
-
-  return true;
 }
 
 static std::string get_limit_target_cluster_clause(
@@ -1362,6 +1493,7 @@ std::optional<size_t> GRClusterSetMetadataBackend::target_cluster_pos(
 stdx::expected<metadata_cache::ClusterTopology, std::error_code>
 GRClusterSetMetadataBackend::fetch_cluster_topology(
     MySQLSession::Transaction &transaction,
+    const mysqlrouter::MetadataSchemaVersion & /*schema_version*/,
     mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
     const metadata_cache::metadata_server_t &metadata_server,
     bool needs_writable_node, const std::string &group_name,
@@ -1417,20 +1549,30 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
   }
 
   // check if router options did not change in the metadata
-  mysqlrouter::TargetCluster new_target_cluster;
-  if (!update_router_options_from_metadata(*connection, router_id,
-                                           new_target_cluster)) {
+  RouterClusterSetOptions router_clusterset_options;
+  if (!router_clusterset_options.read_from_metadata(*connection, router_id)) {
     return stdx::make_unexpected(make_error_code(
         metadata_cache::metadata_errc::no_metadata_read_successful));
   }
 
-  if (new_target_cluster.options_string() != target_cluster.options_string()) {
+  if (router_clusterset_options.get_string() != router_cs_options_string) {
     log_info("New router options read from the metadata '%s', was '%s'",
-             new_target_cluster.options_string().c_str(),
-             target_cluster.options_string().c_str());
+             router_clusterset_options.get_string().c_str(),
+             router_cs_options_string.c_str());
+    router_cs_options_string = router_clusterset_options.get_string();
   }
 
+  periodic_stats_update_frequency_ =
+      router_clusterset_options.get_stats_updates_frequency();
+
   // get target_cluster info
+  auto new_target_cluster_op =
+      router_clusterset_options.get_target_cluster(router_id);
+  if (!new_target_cluster_op) {
+    return stdx::make_unexpected(make_error_code(
+        metadata_cache::metadata_errc::no_metadata_read_successful));
+  }
+  auto new_target_cluster = *new_target_cluster_op;
   const auto target_cluster_id = get_target_cluster_info_from_metadata_server(
       *connection, new_target_cluster, cs_id);
 

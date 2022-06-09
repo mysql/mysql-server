@@ -96,13 +96,14 @@ void MetadataCache::refresh_thread() {
   bool auth_cache_force_update = true;
   while (!terminated_) {
     bool refresh_ok{false};
-    const bool needs_writable_node =
-        update_router_attributes_ || last_check_in_updated_ % 10 == 0;
+    const bool attributes_upd = needs_initial_attributes_update();
+    const bool last_check_in_upd = needs_last_check_in_update();
+    const bool needs_rw_node = attributes_upd || last_check_in_upd;
     try {
       // Component tests are using this log message as a indicator of metadata
       // refresh start
       log_debug("Started refreshing the cluster metadata");
-      refresh_ok = refresh(needs_writable_node);
+      refresh_ok = refresh(needs_rw_node);
       // Component tests are using this log message as a indicator of metadata
       // refresh finish
       log_debug("Finished refreshing the cluster metadata");
@@ -122,17 +123,20 @@ void MetadataCache::refresh_thread() {
             "metadata_cache:" +
             metadata_cache::MetadataCacheAPI::instance()->instance_name());
       }
-      // we want to update router attributes in the routers table once when we
-      // start
-      update_router_attributes();
+      // update router attributes in the routers table once when we start
+      if (attributes_upd) {
+        update_router_attributes();
+      }
 
       if (auth_cache_force_update) {
         update_auth_cache();
         auth_cache_force_update = false;
       }
 
-      // we want to update the router.last_check_in every 10 ttl queries
-      update_router_last_check_in();
+      // update the router.last_check_in
+      if (last_check_in_upd) {
+        update_router_last_check_in();
+      }
     }
 
     auto ttl_left = ttl_config_.ttl;
@@ -604,10 +608,6 @@ bool MetadataCache::update_auth_cache() {
 }
 
 void MetadataCache::update_router_attributes() {
-  if (!update_router_attributes_) {
-    return;
-  }
-
   if (cluster_topology_.cluster_data.writable_server) {
     const auto &rw_server =
         cluster_topology_.cluster_data.writable_server.value();
@@ -618,7 +618,7 @@ void MetadataCache::update_router_attributes() {
           "Successfully updated the Router attributes in the metadata using "
           "instance %s",
           rw_server.str().c_str());
-      update_router_attributes_ = false;
+      initial_attributes_update_done_ = true;
     } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
     } catch (const mysqlrouter::MySQLSession::Error &e) {
       if (e.code() == ER_TABLEACCESS_DENIED_ERROR) {
@@ -642,12 +642,12 @@ void MetadataCache::update_router_attributes() {
       } else {
         log_warning("Updating the router attributes in metadata failed: %s",
                     e.what());
-        update_router_attributes_ = false;
+        initial_attributes_update_done_ = true;
       }
     } catch (const std::exception &e) {
       log_warning("Updating the router attributes in metadata failed: %s",
                   e.what());
-      update_router_attributes_ = false;
+      initial_attributes_update_done_ = true;
     }
   } else {
     log_debug(
@@ -657,17 +657,35 @@ void MetadataCache::update_router_attributes() {
 }
 
 void MetadataCache::update_router_last_check_in() {
-  if (last_check_in_updated_ % 10 == 0) {
-    last_check_in_updated_ = 0;
-    if (cluster_topology_.cluster_data.writable_server) {
-      const auto &rw_server =
-          cluster_topology_.cluster_data.writable_server.value();
-      try {
-        meta_data_->update_router_last_check_in(rw_server, router_id_);
-      } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
-      } catch (...) {
-      }
+  if (cluster_topology_.cluster_data.writable_server) {
+    const auto &rw_server =
+        cluster_topology_.cluster_data.writable_server.value();
+    try {
+      meta_data_->update_router_last_check_in(rw_server, router_id_);
+    } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
+    } catch (...) {
+      // failing to update the last_check_in should not be treated as an error,
+      // let's try next time
     }
   }
-  ++last_check_in_updated_;
+
+  last_periodic_stats_update_timestamp_ = std::chrono::steady_clock::now();
+  periodic_stats_update_counter_ = 1;
+}
+
+bool MetadataCache::needs_initial_attributes_update() {
+  return !initial_attributes_update_done_;
+}
+
+bool MetadataCache::needs_last_check_in_update() {
+  const auto frequency = meta_data_->get_periodic_stats_update_frequency();
+  if (!frequency) {
+    return (periodic_stats_update_counter_++) % 10 == 0;
+  } else {
+    if (*frequency == 0s) return false;  // frequency == 0 means never update
+
+    const auto now = std::chrono::steady_clock::now();
+    return now > last_periodic_stats_update_timestamp_ +
+                     std::chrono::seconds(*frequency);
+  }
 }

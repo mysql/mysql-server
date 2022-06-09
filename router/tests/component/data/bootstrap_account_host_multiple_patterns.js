@@ -26,6 +26,7 @@ var common_stmts = require("common_statements");
           "router_select_cluster_instance_addresses_v2",
           "router_start_transaction",
           "router_commit",
+          "router_clusterset_present",
 
           // account verification
           "router_select_metadata_v2_gr",
