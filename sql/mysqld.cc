@@ -9458,9 +9458,17 @@ static int show_replica_open_temp_tables(THD *, SHOW_VAR *var, char *buf) {
   return 0;
 }
 
-/*
-  Variables shown by SHOW STATUS in alphabetical order
-*/
+static int show_tls_library_version(THD *, SHOW_VAR *var, char *buff) {
+#if OPENSSL_VERSION_NUMBER <= 0x10100000L
+  strncpy(buff, SSLeay_version(SSLEAY_VERSION), SHOW_VAR_FUNC_BUFF_SIZE);
+#else
+  strncpy(buff, OpenSSL_version(OPENSSL_VERSION), SHOW_VAR_FUNC_BUFF_SIZE);
+#endif
+  buff[SHOW_VAR_FUNC_BUFF_SIZE - 1] = 0;
+  var->type = SHOW_CHAR;
+  var->value = buff;
+  return 0;
+}
 
 SHOW_VAR status_vars[] = {
     {"Aborted_clients", (char *)&aborted_threads, SHOW_LONG, SHOW_SCOPE_GLOBAL},
@@ -9815,6 +9823,8 @@ SHOW_VAR status_vars[] = {
 #endif
     {"Ssl_session_cache_timeout",
      (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_timeout, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Tls_library_version", (char *)&show_tls_library_version, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_ALL}};
 
