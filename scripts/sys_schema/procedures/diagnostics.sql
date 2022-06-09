@@ -359,9 +359,9 @@ BEGIN
     SET @sys.diagnostics.sql_gen_query_delta = 'SELECT CONCAT(
            ''SELECT '',
            GROUP_CONCAT(
-               CASE WHEN FIND_IN_SET(COLUMN_NAME COLLATE utf8_general_ci, diag.pk)
+               CASE WHEN FIND_IN_SET(COLUMN_NAME COLLATE utf8mb3_general_ci, diag.pk)
                          THEN COLUMN_NAME
-                    WHEN diag.TABLE_NAME = ''io_global_by_file_by_bytes'' AND COLUMN_NAME COLLATE utf8_general_ci = ''write_pct''
+                    WHEN diag.TABLE_NAME = ''io_global_by_file_by_bytes'' AND COLUMN_NAME COLLATE utf8mb3_general_ci = ''write_pct''
                          THEN CONCAT(''IFNULL(ROUND(100-(((e.total_read-IFNULL(s.total_read, 0))'',
                                      ''/NULLIF(((e.total_read-IFNULL(s.total_read, 0))+(e.total_written-IFNULL(s.total_written, 0))), 0))*100), 2), 0.00) AS '',
                                      COLUMN_NAME)
@@ -372,7 +372,7 @@ BEGIN
                          THEN CONCAT(''format_bytes(e.'', COLUMN_NAME, ''-IFNULL(s.'', COLUMN_NAME, '', 0)) AS '', COLUMN_NAME)
                     WHEN SUBSTRING(COLUMN_NAME, 1, 4) IN (''max_'', ''min_'') AND SUBSTRING(COLUMN_NAME, -8) = ''_latency''
                          THEN CONCAT(''format_pico_time(e.'', COLUMN_NAME, '') AS '', COLUMN_NAME)
-                    WHEN COLUMN_NAME COLLATE utf8_general_ci = ''avg_latency''
+                    WHEN COLUMN_NAME COLLATE utf8mb3_general_ci = ''avg_latency''
                          THEN CONCAT(''format_pico_time((e.total_latency - IFNULL(s.total_latency, 0))'',
                                      ''/NULLIF(e.total - IFNULL(s.total, 0), 0)) AS '', COLUMN_NAME)
                     WHEN SUBSTRING(COLUMN_NAME, -12) = ''_avg_latency''
@@ -396,7 +396,7 @@ BEGIN
        LEFT OUTER JOIN tmp_'', diag.TABLE_NAME, ''_start s USING ('', diag.pk, '')''
        ) AS Query INTO @sys.diagnostics.sql_select
   FROM tmp_sys_views_delta diag
-       INNER JOIN information_schema.COLUMNS c ON c.TABLE_NAME COLLATE utf8_general_ci = CONCAT(''x$'', diag.TABLE_NAME)
+       INNER JOIN information_schema.COLUMNS c ON c.TABLE_NAME COLLATE utf8mb3_general_ci = CONCAT(''x$'', diag.TABLE_NAME)
  WHERE c.TABLE_SCHEMA = ''sys'' AND diag.TABLE_NAME = ?
  GROUP BY diag.TABLE_NAME';
 

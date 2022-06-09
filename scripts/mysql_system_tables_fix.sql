@@ -49,14 +49,14 @@ INSERT IGNORE INTO mysql.user
 (host, user, select_priv, plugin, authentication_string, ssl_cipher, x509_issuer, x509_subject)
 VALUES ('localhost','mysql.infoschema','Y','caching_sha2_password','$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED','','','');
 
-ALTER TABLE user add File_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
+ALTER TABLE user add File_priv enum('N','Y') COLLATE utf8mb3_general_ci NOT NULL;
 
 # Detect whether or not we had the Grant_priv column
 SET @hadGrantPriv:=0;
 SELECT @hadGrantPriv:=1 FROM user WHERE Grant_priv LIKE '%';
 
-ALTER TABLE user add Grant_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL,add References_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL,add Index_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL,add Alter_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
-ALTER TABLE db add Grant_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL,add References_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL,add Index_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL,add Alter_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
+ALTER TABLE user add Grant_priv enum('N','Y') COLLATE utf8mb3_general_ci NOT NULL,add References_priv enum('N','Y') COLLATE utf8mb3_general_ci NOT NULL,add Index_priv enum('N','Y') COLLATE utf8mb3_general_ci NOT NULL,add Alter_priv enum('N','Y') COLLATE utf8mb3_general_ci NOT NULL;
+ALTER TABLE db add Grant_priv enum('N','Y') COLLATE utf8mb3_general_ci NOT NULL,add References_priv enum('N','Y') COLLATE utf8mb3_general_ci NOT NULL,add Index_priv enum('N','Y') COLLATE utf8mb3_general_ci NOT NULL,add Alter_priv enum('N','Y') COLLATE utf8mb3_general_ci NOT NULL;
 
 # Fix privileges for old tables
 UPDATE user SET Grant_priv=File_priv,References_priv=Create_priv,Index_priv=Create_priv,Alter_priv=Create_priv WHERE @hadGrantPriv = 0;
@@ -67,7 +67,7 @@ UPDATE db SET References_priv=Create_priv,Index_priv=Create_priv,Alter_priv=Crea
 # Adding columns needed by GRANT .. REQUIRE (openssl)
 
 ALTER TABLE user
-ADD ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci NOT NULL,
+ADD ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8mb3_general_ci NOT NULL,
 ADD ssl_cipher BLOB NOT NULL,
 ADD x509_issuer BLOB NOT NULL,
 ADD x509_subject BLOB NOT NULL;
@@ -85,15 +85,15 @@ ALTER TABLE tables_priv
   MODIFY Db char(64) NOT NULL default '',
   MODIFY User char(32) NOT NULL default '',
   MODIFY Table_name char(64) NOT NULL default '',
-  CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+  CONVERT TO CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
 
 ALTER TABLE tables_priv
   MODIFY Column_priv set('Select','Insert','Update','References')
-    COLLATE utf8_general_ci DEFAULT '' NOT NULL,
+    COLLATE utf8mb3_general_ci DEFAULT '' NOT NULL,
   MODIFY Table_priv set('Select','Insert','Update','Delete','Create',
                         'Drop','Grant','References','Index','Alter',
                         'Create View','Show view','Trigger')
-    COLLATE utf8_general_ci DEFAULT '' NOT NULL,
+    COLLATE utf8mb3_general_ci DEFAULT '' NOT NULL,
   COMMENT='Table privileges';
 
 SET SESSION innodb_strict_mode=DEFAULT;
@@ -106,25 +106,25 @@ SET SESSION innodb_strict_mode=DEFAULT;
 #
 ALTER TABLE columns_priv
   CHANGE Type Column_priv set('Select','Insert','Update','References')
-    COLLATE utf8_general_ci DEFAULT '' NOT NULL;
+    COLLATE utf8mb3_general_ci DEFAULT '' NOT NULL;
 
 ALTER TABLE columns_priv
   MODIFY Db char(64) NOT NULL default '',
   MODIFY User char(32) NOT NULL default '',
   MODIFY Table_name char(64) NOT NULL default '',
   MODIFY Column_name char(64) NOT NULL default '',
-  CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin,
+  CONVERT TO CHARACTER SET utf8mb3 COLLATE utf8mb3_bin,
   COMMENT='Column privileges';
 
 ALTER TABLE columns_priv
   MODIFY Column_priv set('Select','Insert','Update','References')
-    COLLATE utf8_general_ci DEFAULT '' NOT NULL;
+    COLLATE utf8mb3_general_ci DEFAULT '' NOT NULL;
 
 #
 #  Add the new 'type' column to the func table.
 #
 
-ALTER TABLE func add type enum ('function','aggregate') COLLATE utf8_general_ci NOT NULL;
+ALTER TABLE func add type enum ('function','aggregate') COLLATE utf8mb3_general_ci NOT NULL;
 
 #
 #  Change the user and db tables to current format
@@ -135,13 +135,13 @@ SET @hadShowDbPriv:=0;
 SELECT @hadShowDbPriv:=1 FROM user WHERE Show_db_priv LIKE '%';
 
 ALTER TABLE user
-ADD Show_db_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Alter_priv,
-ADD Super_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Show_db_priv,
-ADD Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Super_priv,
-ADD Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Create_tmp_table_priv,
-ADD Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Lock_tables_priv,
-ADD Repl_slave_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Execute_priv,
-ADD Repl_client_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Repl_slave_priv;
+ADD Show_db_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Alter_priv,
+ADD Super_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Show_db_priv,
+ADD Create_tmp_table_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Super_priv,
+ADD Lock_tables_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Create_tmp_table_priv,
+ADD Execute_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Lock_tables_priv,
+ADD Repl_slave_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Execute_priv,
+ADD Repl_client_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Repl_slave_priv;
 
 # Convert privileges so that users have similar privileges as before
 
@@ -170,8 +170,8 @@ ALTER TABLE proxies_priv MODIFY Grantor varchar(288) DEFAULT '' NOT NULL;
 #
 
 ALTER TABLE db
-ADD Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-ADD Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
+ADD Create_tmp_table_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+ADD Lock_tables_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL;
 
 alter table user change max_questions max_questions int unsigned DEFAULT 0  NOT NULL;
 
@@ -184,52 +184,52 @@ alter table func comment='User defined functions';
 # and reset all char columns to correct width
 ALTER TABLE user
   MODIFY User char(32) NOT NULL default '',
-  CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+  CONVERT TO CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
 ALTER TABLE user
-  MODIFY Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY Delete_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY Create_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY Drop_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY Reload_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY Shutdown_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY Process_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY File_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY Grant_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY References_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY Index_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY Show_db_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY Super_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY Repl_slave_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY Repl_client_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL;
+  MODIFY Select_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY Insert_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY Update_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY Delete_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY Create_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY Drop_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY Reload_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY Shutdown_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY Process_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY File_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY Grant_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY References_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY Index_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY Alter_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY Show_db_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY Super_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY Create_tmp_table_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY Lock_tables_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY Execute_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY Repl_slave_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY Repl_client_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8mb3_general_ci DEFAULT '' NOT NULL;
 
 ALTER TABLE db
   MODIFY Db char(64) NOT NULL default '',
   MODIFY User char(32) NOT NULL default '',
-  CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+  CONVERT TO CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
 ALTER TABLE db
-  MODIFY  Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY  Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY  Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY  Delete_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY  Create_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY  Drop_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY  Grant_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY  References_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY  Index_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY  Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY  Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
-  MODIFY  Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
+  MODIFY  Select_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY  Insert_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY  Update_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY  Delete_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY  Create_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY  Drop_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY  Grant_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY  References_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY  Index_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY  Alter_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY  Create_tmp_table_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL,
+  MODIFY  Lock_tables_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL;
 
-ALTER TABLE func CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+ALTER TABLE func CONVERT TO CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
 ALTER TABLE func
-  MODIFY type enum ('function','aggregate') COLLATE utf8_general_ci NOT NULL;
+  MODIFY type enum ('function','aggregate') COLLATE utf8mb3_general_ci NOT NULL;
 
 #
 # Modify log tables.
@@ -274,7 +274,7 @@ SET @@session.sql_require_primary_key = @old_sql_require_primary_key;
 ALTER TABLE plugin
   MODIFY name varchar(64) DEFAULT '' NOT NULL,
   MODIFY dl varchar(128) DEFAULT '' NOT NULL,
-  CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
+  CONVERT TO CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci;
 
 #
 # Detect whether we had Create_view_priv
@@ -285,20 +285,20 @@ SELECT @hadCreateViewPriv:=1 FROM user WHERE Create_view_priv LIKE '%';
 #
 # Create VIEWs privileges (v5.0)
 #
-ALTER TABLE db ADD Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Lock_tables_priv;
-ALTER TABLE db MODIFY Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Lock_tables_priv;
+ALTER TABLE db ADD Create_view_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Lock_tables_priv;
+ALTER TABLE db MODIFY Create_view_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Lock_tables_priv;
 
-ALTER TABLE user ADD Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Repl_client_priv;
-ALTER TABLE user MODIFY Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Repl_client_priv;
+ALTER TABLE user ADD Create_view_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Repl_client_priv;
+ALTER TABLE user MODIFY Create_view_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Repl_client_priv;
 
 #
 # Show VIEWs privileges (v5.0)
 #
-ALTER TABLE db ADD Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Create_view_priv;
-ALTER TABLE db MODIFY Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Create_view_priv;
+ALTER TABLE db ADD Show_view_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Create_view_priv;
+ALTER TABLE db MODIFY Show_view_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Create_view_priv;
 
-ALTER TABLE user ADD Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Create_view_priv;
-ALTER TABLE user MODIFY Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Create_view_priv;
+ALTER TABLE user ADD Show_view_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Create_view_priv;
+ALTER TABLE user MODIFY Show_view_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Create_view_priv;
 
 #
 # Assign create/show view privileges to people who have create provileges
@@ -314,23 +314,23 @@ SELECT @hadCreateRoutinePriv:=1 FROM user WHERE Create_routine_priv LIKE '%';
 #
 # Create PROCEDUREs privileges (v5.0)
 #
-ALTER TABLE db ADD Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Show_view_priv;
-ALTER TABLE db MODIFY Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Show_view_priv;
+ALTER TABLE db ADD Create_routine_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Show_view_priv;
+ALTER TABLE db MODIFY Create_routine_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Show_view_priv;
 
-ALTER TABLE user ADD Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Show_view_priv;
-ALTER TABLE user MODIFY Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Show_view_priv;
+ALTER TABLE user ADD Create_routine_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Show_view_priv;
+ALTER TABLE user MODIFY Create_routine_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Show_view_priv;
 
 #
 # Alter PROCEDUREs privileges (v5.0)
 #
-ALTER TABLE db ADD Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Create_routine_priv;
-ALTER TABLE db MODIFY Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Create_routine_priv;
+ALTER TABLE db ADD Alter_routine_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Create_routine_priv;
+ALTER TABLE db MODIFY Alter_routine_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Create_routine_priv;
 
-ALTER TABLE user ADD Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Create_routine_priv;
-ALTER TABLE user MODIFY Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Create_routine_priv;
+ALTER TABLE user ADD Alter_routine_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Create_routine_priv;
+ALTER TABLE user MODIFY Alter_routine_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Create_routine_priv;
 
-ALTER TABLE db ADD Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Alter_routine_priv;
-ALTER TABLE db MODIFY Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Alter_routine_priv;
+ALTER TABLE db ADD Execute_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Alter_routine_priv;
+ALTER TABLE db MODIFY Execute_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Alter_routine_priv;
 
 #
 # Assign create/alter routine privileges to people who have create privileges
@@ -350,8 +350,8 @@ ALTER TABLE user ADD max_user_connections int unsigned DEFAULT '0' NOT NULL AFTE
 SET @hadCreateUserPriv:=0;
 SELECT @hadCreateUserPriv:=1 FROM user WHERE Create_user_priv LIKE '%';
 
-ALTER TABLE user ADD Create_user_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Alter_routine_priv;
-ALTER TABLE user MODIFY Create_user_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Alter_routine_priv;
+ALTER TABLE user ADD Create_user_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Alter_routine_priv;
+ALTER TABLE user MODIFY Create_user_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Alter_routine_priv;
 UPDATE user LEFT JOIN db USING (Host,User) SET Create_user_priv='Y'
   WHERE @hadCreateUserPriv = 0 AND
         (user.Grant_priv = 'Y' OR db.Grant_priv = 'Y');
@@ -363,15 +363,15 @@ UPDATE user LEFT JOIN db USING (Host,User) SET Create_user_priv='Y'
 SET SESSION innodb_strict_mode=OFF;
 ALTER TABLE procs_priv
   MODIFY User char(32) NOT NULL default '',
-  CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+  CONVERT TO CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
 
 ALTER TABLE procs_priv
   MODIFY Proc_priv set('Execute','Alter Routine','Grant')
-    COLLATE utf8_general_ci DEFAULT '' NOT NULL;
+    COLLATE utf8mb3_general_ci DEFAULT '' NOT NULL;
 
 ALTER TABLE procs_priv
   MODIFY Routine_name char(64)
-    COLLATE utf8_general_ci DEFAULT '' NOT NULL;
+    COLLATE utf8mb3_general_ci DEFAULT '' NOT NULL;
 
 ALTER TABLE procs_priv
   ADD Routine_type enum('FUNCTION','PROCEDURE')
@@ -388,13 +388,13 @@ SET SESSION innodb_strict_mode=DEFAULT;
 SET @hadEventPriv := 0;
 SELECT @hadEventPriv :=1 FROM user WHERE Event_priv LIKE '%';
 
-ALTER TABLE user add Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL AFTER Create_user_priv;
-ALTER TABLE user MODIFY Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL AFTER Create_user_priv;
+ALTER TABLE user add Event_priv enum('N','Y') character set utf8mb3 DEFAULT 'N' NOT NULL AFTER Create_user_priv;
+ALTER TABLE user MODIFY Event_priv enum('N','Y') character set utf8mb3 DEFAULT 'N' NOT NULL AFTER Create_user_priv;
 
 UPDATE user SET Event_priv=Super_priv WHERE @hadEventPriv = 0;
 
-ALTER TABLE db add Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL;
-ALTER TABLE db MODIFY Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL;
+ALTER TABLE db add Event_priv enum('N','Y') character set utf8mb3 DEFAULT 'N' NOT NULL;
+ALTER TABLE db MODIFY Event_priv enum('N','Y') character set utf8mb3 DEFAULT 'N' NOT NULL;
 
 #
 # TRIGGER privilege
@@ -403,11 +403,11 @@ ALTER TABLE db MODIFY Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NO
 SET @hadTriggerPriv := 0;
 SELECT @hadTriggerPriv :=1 FROM user WHERE Trigger_priv LIKE '%';
 
-ALTER TABLE user ADD Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Event_priv;
-ALTER TABLE user MODIFY Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Event_priv;
+ALTER TABLE user ADD Trigger_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Event_priv;
+ALTER TABLE user MODIFY Trigger_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Event_priv;
 
-ALTER TABLE db ADD Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
-ALTER TABLE db MODIFY Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
+ALTER TABLE db ADD Trigger_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL;
+ALTER TABLE db MODIFY Trigger_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL;
 
 UPDATE user SET Trigger_priv=Super_priv WHERE @hadTriggerPriv = 0;
 
@@ -418,8 +418,8 @@ UPDATE user SET Trigger_priv=Super_priv WHERE @hadTriggerPriv = 0;
 SET @hadCreateTablespacePriv := 0;
 SELECT @hadCreateTablespacePriv :=1 FROM user WHERE Create_tablespace_priv LIKE '%';
 
-ALTER TABLE user ADD Create_tablespace_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Trigger_priv;
-ALTER TABLE user MODIFY Create_tablespace_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Trigger_priv;
+ALTER TABLE user ADD Create_tablespace_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Trigger_priv;
+ALTER TABLE user MODIFY Create_tablespace_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Trigger_priv;
 
 UPDATE user SET Create_tablespace_priv = Super_priv WHERE @hadCreateTablespacePriv = 0;
 
@@ -460,11 +460,11 @@ ALTER TABLE user MODIFY authentication_string TEXT;
 SET @hadPasswordExpired:=0;
 SELECT @hadPasswordExpired:=1 FROM user WHERE password_expired LIKE '%';
 
-ALTER TABLE user ADD password_expired ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
+ALTER TABLE user ADD password_expired ENUM('N', 'Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL;
 UPDATE user SET password_expired = 'N' WHERE @hadPasswordExpired=0;
 
 -- need to compensate for the ALTER TABLE user .. CONVERT TO CHARACTER SET above
-ALTER TABLE user MODIFY password_expired ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
+ALTER TABLE user MODIFY password_expired ENUM('N', 'Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL;
 
 -- Need to pre-fill mysql.proxies_priv with access for root even when upgrading from
 -- older versions
@@ -591,11 +591,11 @@ ALTER TABLE user ADD password_lifetime smallint unsigned NULL;
 SET @hadAccountLocked:=0;
 SELECT @hadAccountLocked:=1 FROM user WHERE account_locked LIKE '%';
 
-ALTER TABLE user ADD account_locked ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
+ALTER TABLE user ADD account_locked ENUM('N', 'Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL;
 UPDATE user SET account_locked = 'N' WHERE @hadAccountLocked=0;
 
 -- need to compensate for the ALTER TABLE user .. CONVERT TO CHARACTER SET above
-ALTER TABLE user MODIFY account_locked ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
+ALTER TABLE user MODIFY account_locked ENUM('N', 'Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL;
 
 UPDATE user SET account_locked ='Y' WHERE host = 'localhost' AND user = 'mysql.infoschema';
 
@@ -819,8 +819,8 @@ COMMIT;
 # This should not be needed, but gives us some extra testing that the above
 # changes was correct
 
-ALTER TABLE slave_master_info ADD Ssl_crl TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)';
-ALTER TABLE slave_master_info ADD Ssl_crlpath TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files';
+ALTER TABLE slave_master_info ADD Ssl_crl TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The file used for the Certificate Revocation List (CRL)';
+ALTER TABLE slave_master_info ADD Ssl_crlpath TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The path used for Certificate Revocation List (CRL) files';
 ALTER TABLE slave_master_info STATS_PERSISTENT=0;
 ALTER TABLE slave_worker_info STATS_PERSISTENT=0;
 ALTER TABLE slave_relay_log_info STATS_PERSISTENT=0;
@@ -834,41 +834,41 @@ ALTER TABLE gtid_executed STATS_PERSISTENT=0;
 # This column is needed  for multi-source replication
 #
 ALTER TABLE slave_master_info
-  ADD Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  ADD Channel_name CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   DROP PRIMARY KEY,
   ADD PRIMARY KEY(Channel_name);
 
 ALTER TABLE slave_relay_log_info
-  ADD Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  ADD Channel_name CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   DROP PRIMARY KEY,
   ADD PRIMARY KEY(Channel_name);
 
 ALTER TABLE slave_worker_info
-  ADD Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  ADD Channel_name CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   DROP PRIMARY KEY,
   ADD PRIMARY KEY(Channel_name, Id);
 
 # The Tls_version field at slave_master_info should be added after the Channel_name field
-ALTER TABLE slave_master_info ADD Tls_version TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Tls version';
+ALTER TABLE slave_master_info ADD Tls_version TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'Tls version';
 
 # If the order of columns Channel_name and Tls_version is wrong, this will correct the order
 # in slave_master_info table.
 ALTER TABLE slave_master_info
-  MODIFY COLUMN Tls_version TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Tls version'
+  MODIFY COLUMN Tls_version TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'Tls version'
   AFTER Channel_name;
 
 # The Public_key_path field at slave_master_info should be added after the Tls_version field
-ALTER TABLE slave_master_info ADD Public_key_path TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file containing public key of master server.';
+ALTER TABLE slave_master_info ADD Public_key_path TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The file containing public key of master server.';
 
 # The Get_public_key field at slave_master_info should be added after the slave_master_info field
 ALTER TABLE slave_master_info ADD Get_public_key BOOLEAN NOT NULL COMMENT 'Preference to get public key from master.';
 
-ALTER TABLE slave_master_info ADD Network_namespace TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Network namespace used for communication with the master server.';
+ALTER TABLE slave_master_info ADD Network_namespace TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'Network namespace used for communication with the master server.';
 
-ALTER TABLE slave_master_info ADD Master_compression_algorithm CHAR(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'Compression algorithm supported for data transfer between master and slave.',
+ALTER TABLE slave_master_info ADD Master_compression_algorithm CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL COMMENT 'Compression algorithm supported for data transfer between master and slave.',
                               ADD Master_zstd_compression_level INTEGER UNSIGNED NOT NULL COMMENT 'Compression level associated with zstd compression algorithm.';
 
-ALTER TABLE slave_master_info ADD Tls_ciphersuites TEXT CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL COMMENT 'Ciphersuites used for TLS 1.3 communication with the master server.';
+ALTER TABLE slave_master_info ADD Tls_ciphersuites TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin DEFAULT NULL COMMENT 'Ciphersuites used for TLS 1.3 communication with the master server.';
 
 ALTER TABLE slave_master_info ADD Source_connection_auto_failover BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Indicates whether the channel connection failover is enabled.';
 
@@ -878,7 +878,7 @@ ALTER TABLE slave_master_info ADD Gtid_only BOOLEAN NOT NULL DEFAULT FALSE COMME
 -- replication_asynchronous_connection_failover table on upgrade from older
 -- mysql version.
 ALTER TABLE replication_asynchronous_connection_failover
-  ADD Managed_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '' COMMENT 'The name of the group which this server belongs to.',
+  ADD Managed_name CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL DEFAULT '' COMMENT 'The name of the group which this server belongs to.',
   DROP PRIMARY KEY,
   ADD PRIMARY KEY(Channel_name, Host, Port, Network_namespace, Managed_name),
   ADD KEY(Channel_name, Managed_name);
@@ -886,19 +886,19 @@ ALTER TABLE replication_asynchronous_connection_failover
 # If the order of column Public_key_path, Get_public_key is wrong, this will correct the order in
 # slave_master_info table.
 ALTER TABLE slave_master_info
-  MODIFY COLUMN Public_key_path TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file containing public key of master server.'
+  MODIFY COLUMN Public_key_path TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The file containing public key of master server.'
   AFTER Tls_version;
 ALTER TABLE slave_master_info
   MODIFY COLUMN Get_public_key BOOLEAN NOT NULL COMMENT 'Preference to get public key from master.'
   AFTER Public_key_path;
 
 ALTER TABLE slave_master_info
-  MODIFY COLUMN Network_namespace TEXT CHARACTER SET utf8 COLLATE utf8_bin
+  MODIFY COLUMN Network_namespace TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin
   COMMENT 'Network namespace used for communication with the master server.'
   AFTER Get_public_key;
 
 ALTER TABLE slave_master_info
-  MODIFY COLUMN Tls_ciphersuites TEXT CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL
+  MODIFY COLUMN Tls_ciphersuites TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin DEFAULT NULL
   COMMENT 'Ciphersuites used for TLS 1.3 communication with the master server.'
   AFTER Master_zstd_compression_level;
 
@@ -909,22 +909,22 @@ ALTER TABLE slave_master_info
 
 -- This would position the Managed_name column after Weight column.
 ALTER TABLE replication_asynchronous_connection_failover
-  MODIFY COLUMN Managed_name CHAR(64) CHARACTER SET utf8
-  COLLATE utf8_general_ci NOT NULL DEFAULT ''
+  MODIFY COLUMN Managed_name CHAR(64) CHARACTER SET utf8mb3
+  COLLATE utf8mb3_general_ci NOT NULL DEFAULT ''
   COMMENT 'The name of the group which this server belongs to.'
   AFTER Weight;
 
 # Columns added to keep information about the replication applier thread
 # privilege context user
-ALTER TABLE slave_relay_log_info ADD Privilege_checks_username CHAR(32) COLLATE utf8_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.' AFTER Channel_name,
+ALTER TABLE slave_relay_log_info ADD Privilege_checks_username CHAR(32) COLLATE utf8mb3_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.' AFTER Channel_name,
                                  ADD Privilege_checks_hostname CHAR(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.' AFTER Privilege_checks_username;
 
 # Columns added to keep information about REQUIRE_ROW_FORMAT replication field
 ALTER TABLE slave_relay_log_info ADD Require_row_format BOOLEAN NOT NULL COMMENT 'Indicates whether the channel shall only accept row based events.' AFTER Privilege_checks_hostname;
 
-ALTER TABLE slave_relay_log_info MODIFY Relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the current relay log file.',
+ALTER TABLE slave_relay_log_info MODIFY Relay_log_name TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The name of the current relay log file.',
                                  MODIFY Relay_log_pos BIGINT UNSIGNED COMMENT 'The relay log position of the last executed event.',
-                                 MODIFY Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the master binary log file from which the events in the relay log file were read.',
+                                 MODIFY Master_log_name TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The name of the master binary log file from which the events in the relay log file were read.',
                                  MODIFY Master_log_pos BIGINT UNSIGNED COMMENT 'The master log position of the last executed event.',
                                  MODIFY Sql_delay INTEGER COMMENT 'The number of seconds that the slave must lag behind the master.',
                                  MODIFY Number_of_workers INTEGER UNSIGNED,
@@ -935,7 +935,7 @@ ALTER TABLE slave_relay_log_info ADD Require_table_primary_key_check ENUM('STREA
 # Columns added to keep information about ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE replication field
 ALTER TABLE slave_relay_log_info ADD Assign_gtids_to_anonymous_transactions_type ENUM('OFF', 'LOCAL', 'UUID')  NOT NULL DEFAULT 'OFF' COMMENT 'Indicates whether the channel will generate a new GTID for anonymous transactions. OFF means that anonymous transactions will remain anonymous. LOCAL means that anonymous transactions will be assigned a newly generated GTID based on server_uuid. UUID indicates that anonymous transactions will be assigned a newly generated GTID based on Assign_gtids_to_anonymous_transactions_value' AFTER Require_table_primary_key_check;
 # Columns added to keep information about ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE replication field
-ALTER TABLE slave_relay_log_info ADD Assign_gtids_to_anonymous_transactions_value TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Indicates the UUID used while generating GTIDs for anonymous transactions' AFTER Assign_gtids_to_anonymous_transactions_type;
+ALTER TABLE slave_relay_log_info ADD Assign_gtids_to_anonymous_transactions_value TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'Indicates the UUID used while generating GTIDs for anonymous transactions' AFTER Assign_gtids_to_anonymous_transactions_type;
 
 #
 # Drop legacy NDB distributed privileges function & procedures
@@ -1013,12 +1013,12 @@ ALTER TABLE help_category MODIFY url TEXT NOT NULL;
 ALTER TABLE help_topic MODIFY url TEXT NOT NULL;
 
 --
--- Upgrade help tables character set to utf8
+-- Upgrade help tables character set to utf8mb3
 --
-ALTER TABLE help_topic CONVERT TO CHARACTER SET utf8;
-ALTER TABLE help_category CONVERT TO CHARACTER SET utf8;
-ALTER TABLE help_relation CONVERT TO CHARACTER SET utf8;
-ALTER TABLE help_keyword CONVERT TO CHARACTER SET utf8;
+ALTER TABLE help_topic CONVERT TO CHARACTER SET utf8mb3;
+ALTER TABLE help_category CONVERT TO CHARACTER SET utf8mb3;
+ALTER TABLE help_relation CONVERT TO CHARACTER SET utf8mb3;
+ALTER TABLE help_keyword CONVERT TO CHARACTER SET utf8mb3;
 
 --
 -- Upgrade a table engine from MyISAM to InnoDB for the system tables
@@ -1050,10 +1050,10 @@ ALTER TABLE proxies_priv ENGINE=InnoDB STATS_PERSISTENT=0;
 --
 -- CREATE_ROLE_ACL and DROP_ROLE_ACL
 --
-ALTER TABLE user ADD Create_role_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER account_locked;
-ALTER TABLE user MODIFY Create_role_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER account_locked;
-ALTER TABLE user ADD Drop_role_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Create_role_priv;
-ALTER TABLE user MODIFY Drop_role_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Create_role_priv;
+ALTER TABLE user ADD Create_role_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER account_locked;
+ALTER TABLE user MODIFY Create_role_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER account_locked;
+ALTER TABLE user ADD Drop_role_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Create_role_priv;
+ALTER TABLE user MODIFY Drop_role_priv enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL AFTER Create_role_priv;
 UPDATE user SET Create_role_priv= 'Y', Drop_role_priv= 'Y' WHERE Create_user_priv = 'Y';
 
 --
@@ -1061,8 +1061,8 @@ UPDATE user SET Create_role_priv= 'Y', Drop_role_priv= 'Y' WHERE Create_user_pri
 --
 ALTER TABLE user ADD Password_reuse_history smallint unsigned NULL DEFAULT NULL AFTER Drop_role_priv;
 ALTER TABLE user ADD Password_reuse_time smallint unsigned NULL DEFAULT NULL AFTER Password_reuse_history;
-ALTER TABLE user ADD Password_require_current enum('N', 'Y') COLLATE utf8_general_ci DEFAULT NULL AFTER Password_reuse_time;
-ALTER TABLE user MODIFY Password_require_current enum('N','Y') COLLATE utf8_general_ci DEFAULT NULL AFTER Password_reuse_time;
+ALTER TABLE user ADD Password_require_current enum('N', 'Y') COLLATE utf8mb3_general_ci DEFAULT NULL AFTER Password_reuse_time;
+ALTER TABLE user MODIFY Password_require_current enum('N','Y') COLLATE utf8mb3_general_ci DEFAULT NULL AFTER Password_reuse_time;
 ALTER TABLE user ADD User_attributes JSON DEFAULT NULL AFTER Password_require_current;
 
 --
@@ -1357,7 +1357,7 @@ ALTER TABLE mysql.engine_cost TABLESPACE = mysql;
 # Increase host name length. We need a separate ALTER TABLE to
 # alter the CHARACTER SET to ASCII, because the syntax
 # 'CONVERT TO CHARACTER...' above changes all field charset
-# to utf8_bin.
+# to utf8mb3_bin.
 
 ALTER TABLE db
   MODIFY Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL;
@@ -1476,34 +1476,34 @@ ALTER TABLE gtid_executed
   CONVERT TO CHARACTER SET utf8mb4;
 
 ALTER TABLE slave_master_info
-  MODIFY Channel_name VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the replica is connected to a source. Used in Multisource Replication',
-  MODIFY Bind TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Displays which interface is employed when connecting to the MySQL server',
-  MODIFY Ignored_server_ids TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The number of server IDs to be ignored, followed by the actual server IDs',
-  MODIFY Uuid TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The master server uuid.',
-  MODIFY Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log currently being read from the master.',
-  MODIFY Ssl_ca TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Authority (CA) certificate.',
-  MODIFY Ssl_capath TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path to the Certificate Authority (CA) certificates.',
-  MODIFY Ssl_cert TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the SSL certificate file.',
-  MODIFY Ssl_cipher TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the cipher in use for the SSL connection.',
-  MODIFY Ssl_key TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the SSL key file.',
-  MODIFY Ssl_crl TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)',
-  MODIFY Ssl_crlpath TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',
-  MODIFY User_name TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The user name used to connect to the master.',
-  MODIFY User_password TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The password used to connect to the master.',
+  MODIFY Channel_name VARCHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL COMMENT 'The channel on which the replica is connected to a source. Used in Multisource Replication',
+  MODIFY Bind TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'Displays which interface is employed when connecting to the MySQL server',
+  MODIFY Ignored_server_ids TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The number of server IDs to be ignored, followed by the actual server IDs',
+  MODIFY Uuid TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The master server uuid.',
+  MODIFY Master_log_name TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL COMMENT 'The name of the master binary log currently being read from the master.',
+  MODIFY Ssl_ca TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The file used for the Certificate Authority (CA) certificate.',
+  MODIFY Ssl_capath TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The path to the Certificate Authority (CA) certificates.',
+  MODIFY Ssl_cert TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The name of the SSL certificate file.',
+  MODIFY Ssl_cipher TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The name of the cipher in use for the SSL connection.',
+  MODIFY Ssl_key TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The name of the SSL key file.',
+  MODIFY Ssl_crl TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The file used for the Certificate Revocation List (CRL)',
+  MODIFY Ssl_crlpath TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',
+  MODIFY User_name TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The user name used to connect to the master.',
+  MODIFY User_password TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The password used to connect to the master.',
   MODIFY Host VARCHAR(255) CHARACTER SET ASCII COMMENT 'The host name of the source.',
-  MODIFY Master_compression_algorithm VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'Compression algorithm supported for data transfer between source and replica.';
+  MODIFY Master_compression_algorithm VARCHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL COMMENT 'Compression algorithm supported for data transfer between source and replica.';
 
 ALTER TABLE slave_relay_log_info
-  MODIFY Channel_name VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the replica is connected to a source. Used in Multisource Replication',
-  MODIFY Privilege_checks_username VARCHAR(32) COLLATE utf8_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.',
+  MODIFY Channel_name VARCHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL COMMENT 'The channel on which the replica is connected to a source. Used in Multisource Replication',
+  MODIFY Privilege_checks_username VARCHAR(32) COLLATE utf8mb3_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.',
   MODIFY Privilege_checks_hostname VARCHAR(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.';
 
 ALTER TABLE slave_worker_info
-  MODIFY Channel_name VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the replica is connected to a source. Used in Multisource Replication',
-  MODIFY Relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  MODIFY Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  MODIFY Checkpoint_relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  MODIFY Checkpoint_master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  MODIFY Channel_name VARCHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL COMMENT 'The channel on which the replica is connected to a source. Used in Multisource Replication',
+  MODIFY Relay_log_name TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL,
+  MODIFY Master_log_name TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL,
+  MODIFY Checkpoint_relay_log_name TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL,
+  MODIFY Checkpoint_master_log_name TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL,
   MODIFY Checkpoint_group_bitmap BLOB NOT NULL;
 
 ALTER TABLE slave_relay_log_info
@@ -1521,7 +1521,7 @@ ALTER TABLE user
   MODIFY x509_subject BLOB NOT NULL;
 
 ALTER TABLE time_zone
-  MODIFY Use_leap_seconds enum('Y','N') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
+  MODIFY Use_leap_seconds enum('Y','N') COLLATE utf8mb3_general_ci DEFAULT 'N' NOT NULL;
 
 -- grant AUDIT_ABORT_EXEMPT to all current holders of SYSTEM_USER
 SET @hadAuditAbortExempt = (SELECT COUNT(*) FROM global_grants WHERE priv = 'AUDIT_ABORT_EXEMPT');
