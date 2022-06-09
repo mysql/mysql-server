@@ -39,6 +39,7 @@
 
 #include "mysqlrouter/http_server_component.h"
 #include "mysqlrouter/rest_api_component.h"
+#include "mysqlrouter/supported_rest_options.h"
 
 #include "rest_router_status.h"
 IMPORT_LOG_FUNCTIONS()
@@ -52,13 +53,19 @@ std::string require_realm_router;
 
 using StringOption = mysql_harness::StringOption;
 
+#define GET_OPTION_CHECKED(option, section, name, value)                      \
+  static_assert(                                                              \
+      mysql_harness::str_in_collection(rest_plugin_supported_options, name)); \
+  option = get_option(section, name, value);
+
 class RestRouterPluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string require_realm;
 
   explicit RestRouterPluginConfig(const mysql_harness::ConfigSection *section)
-      : mysql_harness::BasePluginConfig(section),
-        require_realm(get_option(section, "require_realm", StringOption{})) {}
+      : mysql_harness::BasePluginConfig(section) {
+    GET_OPTION_CHECKED(require_realm, section, "require_realm", StringOption{});
+  }
 
   std::string get_default(const std::string & /* option */) const override {
     return {};
@@ -284,8 +291,6 @@ static const std::array<const char *, 2> rest_router_plugin_requires = {
     "rest_api",
 };
 
-static const std::array<const char *, 2> supported_options{"require_realm"};
-
 extern "C" {
 mysql_harness::Plugin DLLEXPORT harness_plugin_rest_router = {
     mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
@@ -303,7 +308,7 @@ mysql_harness::Plugin DLLEXPORT harness_plugin_rest_router = {
     start,    // start
     nullptr,  // stop
     true,     // declares_readiness
-    supported_options.size(),
-    supported_options.data(),
+    rest_plugin_supported_options.size(),
+    rest_plugin_supported_options.data(),
 };
 }

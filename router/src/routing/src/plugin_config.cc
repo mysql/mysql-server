@@ -39,9 +39,11 @@
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/string_utils.h"  // trim
-#include "mysql_router_thread.h"         // kDefaultStackSizeInKiloByte
-#include "mysqlrouter/routing.h"         // AccessMode
+#include "mysql/harness/utility/string.h"
+#include "mysql_router_thread.h"  // kDefaultStackSizeInKiloByte
+#include "mysqlrouter/routing.h"  // AccessMode
 #include "mysqlrouter/routing_component.h"
+#include "mysqlrouter/supported_routing_options.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"  // is_valid_socket_name
 #include "ssl_mode.h"
@@ -49,37 +51,6 @@
 
 using namespace std::string_view_literals;
 IMPORT_LOG_FUNCTIONS()
-
-const std::array<const char *, 29> routing_supported_options{
-    "protocol",
-    "destinations",
-    "bind_port",
-    "bind_address",
-    "socket",
-    "connect_timeout",
-    "mode",
-    "routing_strategy",
-    "max_connect_errors",
-    "max_connections",
-    "client_connect_timeout",
-    "net_buffer_length",
-    "thread_stack_size",
-    "client_ssl_mode",
-    "client_ssl_cert",
-    "client_ssl_key",
-    "client_ssl_cipher",
-    "client_ssl_curves",
-    "client_ssl_dh_params",
-    "server_ssl_mode",
-    "server_ssl_verify",
-    "disabled",
-    "server_ssl_cipher",
-    "server_ssl_ca",
-    "server_ssl_capath",
-    "server_ssl_crl",
-    "server_ssl_crlpath",
-    "server_ssl_curves",
-    "unreachable_destination_refresh_interval"};
 
 using StringOption = mysql_harness::StringOption;
 
@@ -422,68 +393,91 @@ class MaxConnectionsOption {
   }
 };
 
+#define GET_OPTION_CHECKED(option, section, name, value)                  \
+  static_assert(                                                          \
+      mysql_harness::str_in_collection(routing_supported_options, name)); \
+  option = get_option(section, name, value);
+
+#define GET_OPTION_NO_DEFAULT_CHECKED(option, section, name, value)       \
+  static_assert(                                                          \
+      mysql_harness::str_in_collection(routing_supported_options, name)); \
+  option = get_option_no_default(section, name, value);
+
 /** @brief Constructor
  *
  * @param section from configuration file provided as ConfigSection
  */
 RoutingPluginConfig::RoutingPluginConfig(
     const mysql_harness::ConfigSection *section)
-    : BasePluginConfig{section},
-      metadata_cache_(false),
-      protocol(get_option_no_default(section, "protocol", ProtocolOption{})),
-      destinations(get_option(section, "destinations",
-                              DestinationsOption{metadata_cache_})),
-      bind_port(get_option(section, "bind_port", BindPortOption{})),
-      bind_address(get_option(section, "bind_address",
-                              TCPAddressOption{false, bind_port})),
-      named_socket(get_option(section, "socket", NamedSocketOption{})),
-      connect_timeout(
-          get_option(section, "connect_timeout", IntOption<uint16_t>{1})),
-      mode(get_option_no_default(section, "mode", ModeOption{})),
-      routing_strategy(
-          get_option_no_default(section, "routing_strategy",
-                                RoutingStrategyOption{mode, metadata_cache_})),
-      max_connections(
-          get_option(section, "max_connections", MaxConnectionsOption{})),
-      max_connect_errors(get_option(section, "max_connect_errors",
-                                    IntOption<uint32_t>{1, UINT32_MAX})),
-      client_connect_timeout(get_option(section, "client_connect_timeout",
-                                        IntOption<uint32_t>{2, 31536000})),
-      net_buffer_length(get_option(section, "net_buffer_length",
-                                   IntOption<uint32_t>{1024, 1048576})),
-      thread_stack_size(get_option(section, "thread_stack_size",
-                                   IntOption<uint32_t>{1, 65535})),
-      source_ssl_mode{
-          get_option(section, "client_ssl_mode",
-                     SslModeOption{SslMode::kDisabled, SslMode::kPreferred,
-                                   SslMode::kRequired, SslMode::kPassthrough,
-                                   SslMode::kDefault})},
-      source_ssl_cert{get_option(section, "client_ssl_cert", StringOption{})},
-      source_ssl_key{get_option(section, "client_ssl_key", StringOption{})},
-      source_ssl_cipher{
-          get_option(section, "client_ssl_cipher", StringOption{})},
-      source_ssl_curves{
-          get_option(section, "client_ssl_curves", StringOption{})},
-      source_ssl_dh_params{
-          get_option(section, "client_ssl_dh_params", StringOption{})},
-      dest_ssl_mode{
-          get_option(section, "server_ssl_mode",
-                     SslModeOption{SslMode::kDisabled, SslMode::kPreferred,
-                                   SslMode::kRequired, SslMode::kAsClient})},
-      dest_ssl_verify{
-          get_option(section, "server_ssl_verify",
-                     SslVerifyOption{SslVerify::kDisabled, SslVerify::kVerifyCa,
-                                     SslVerify::kVerifyIdentity})},
-      dest_ssl_cipher{get_option(section, "server_ssl_cipher", StringOption{})},
-      dest_ssl_ca_file{get_option(section, "server_ssl_ca", StringOption{})},
-      dest_ssl_ca_dir{get_option(section, "server_ssl_capath", StringOption{})},
-      dest_ssl_crl_file{get_option(section, "server_ssl_crl", StringOption{})},
-      dest_ssl_crl_dir{
-          get_option(section, "server_ssl_crlpath", StringOption{})},
-      dest_ssl_curves{get_option(section, "server_ssl_curves", StringOption{})},
-      unreachable_destination_refresh_interval{
-          get_option(section, "unreachable_destination_refresh_interval",
-                     IntOption<uint32_t>{1, 65535})} {
+    : BasePluginConfig{section}, metadata_cache_(false) {
+  GET_OPTION_NO_DEFAULT_CHECKED(protocol, section, "protocol",
+                                ProtocolOption{});
+  GET_OPTION_CHECKED(destinations, section, "destinations",
+                     DestinationsOption{metadata_cache_});
+  GET_OPTION_CHECKED(bind_port, section, "bind_port", BindPortOption{});
+  auto bind_address_op = TCPAddressOption{false, bind_port};
+  GET_OPTION_CHECKED(bind_address, section, "bind_address", bind_address_op);
+  GET_OPTION_CHECKED(named_socket, section, "socket", NamedSocketOption{});
+  GET_OPTION_CHECKED(connect_timeout, section, "connect_timeout",
+                     IntOption<uint16_t>{1});
+  GET_OPTION_NO_DEFAULT_CHECKED(mode, section, "mode", ModeOption{});
+  auto routing_strategy_op = RoutingStrategyOption{mode, metadata_cache_};
+  GET_OPTION_NO_DEFAULT_CHECKED(routing_strategy, section, "routing_strategy",
+                                routing_strategy_op);
+  GET_OPTION_CHECKED(max_connections, section, "max_connections",
+                     MaxConnectionsOption{});
+  auto max_connect_errors_op = IntOption<uint32_t>{1, UINT32_MAX};
+  GET_OPTION_CHECKED(max_connect_errors, section, "max_connect_errors",
+                     max_connect_errors_op);
+  auto client_connect_timeout_op = IntOption<uint32_t>{2, 31536000};
+  GET_OPTION_CHECKED(client_connect_timeout, section, "client_connect_timeout",
+                     client_connect_timeout_op);
+  auto net_buffer_length_op = IntOption<uint32_t>{1024, 1048576};
+  GET_OPTION_CHECKED(net_buffer_length, section, "net_buffer_length",
+                     net_buffer_length_op);
+  auto thread_stack_size_op = IntOption<uint32_t>{1, 65535};
+  GET_OPTION_CHECKED(thread_stack_size, section, "thread_stack_size",
+                     thread_stack_size_op);
+  auto source_ssl_mode_op =
+      SslModeOption{SslMode::kDisabled, SslMode::kPreferred, SslMode::kRequired,
+                    SslMode::kPassthrough, SslMode::kDefault};
+  GET_OPTION_CHECKED(source_ssl_mode, section, "client_ssl_mode",
+                     source_ssl_mode_op);
+  GET_OPTION_CHECKED(source_ssl_cert, section, "client_ssl_cert",
+                     StringOption{});
+  GET_OPTION_CHECKED(source_ssl_key, section, "client_ssl_key", StringOption{});
+  GET_OPTION_CHECKED(source_ssl_cipher, section, "client_ssl_cipher",
+                     StringOption{});
+  GET_OPTION_CHECKED(source_ssl_curves, section, "client_ssl_curves",
+                     StringOption{});
+  GET_OPTION_CHECKED(source_ssl_dh_params, section, "client_ssl_dh_params",
+                     StringOption{});
+  auto dest_ssl_mode_op = SslModeOption{SslMode::kDisabled, SslMode::kPreferred,
+                                        SslMode::kRequired, SslMode::kAsClient};
+  GET_OPTION_CHECKED(dest_ssl_mode, section, "server_ssl_mode",
+                     dest_ssl_mode_op);
+  auto dest_ssl_verify_op = SslVerifyOption{
+      SslVerify::kDisabled, SslVerify::kVerifyCa, SslVerify::kVerifyIdentity};
+  GET_OPTION_CHECKED(dest_ssl_verify, section, "server_ssl_verify",
+                     dest_ssl_verify_op);
+  GET_OPTION_CHECKED(dest_ssl_cipher, section, "server_ssl_cipher",
+                     StringOption{});
+  GET_OPTION_CHECKED(dest_ssl_ca_file, section, "server_ssl_ca",
+                     StringOption{});
+  GET_OPTION_CHECKED(dest_ssl_ca_dir, section, "server_ssl_capath",
+                     StringOption{});
+  GET_OPTION_CHECKED(dest_ssl_crl_file, section, "server_ssl_crl",
+                     StringOption{});
+  GET_OPTION_CHECKED(dest_ssl_crl_dir, section, "server_ssl_crlpath",
+                     StringOption{});
+  GET_OPTION_CHECKED(dest_ssl_curves, section, "server_ssl_curves",
+                     StringOption{});
+  auto unreachable_destination_refresh_interval_op =
+      IntOption<uint32_t>{1, 65535};
+  GET_OPTION_CHECKED(unreachable_destination_refresh_interval, section,
+                     "unreachable_destination_refresh_interval",
+                     unreachable_destination_refresh_interval_op);
+
   using namespace std::string_literals;
 
   // either bind_address or socket needs to be set, or both

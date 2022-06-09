@@ -61,14 +61,19 @@ static constexpr const std::array supported_options{
 // one shared setting
 std::string require_realm_connection_pool;
 
+#define GET_OPTION_CHECKED(option, section, name, value)                    \
+  static_assert(mysql_harness::str_in_collection(supported_options, name)); \
+  option = get_option(section, name, value);
+
 class RestConnectionPoolPluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string require_realm;
 
   explicit RestConnectionPoolPluginConfig(
       const mysql_harness::ConfigSection *section)
-      : mysql_harness::BasePluginConfig(section),
-        require_realm(get_option(section, kRequireRealm, StringOption{})) {}
+      : mysql_harness::BasePluginConfig(section) {
+    GET_OPTION_CHECKED(require_realm, section, kRequireRealm, StringOption{});
+  }
 
   std::string get_default(const std::string & /* option */) const override {
     return {};

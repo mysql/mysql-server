@@ -25,10 +25,12 @@
 #ifndef ROUTER_CERTIFICATE_HANDLER_INCLUDED
 #define ROUTER_CERTIFICATE_HANDLER_INCLUDED
 
+#include "mysqlrouter/router_export.h"
+
 #include "certificate_generator.h"
 #include "mysql/harness/filesystem.h"
 
-class CertificateHandler {
+class ROUTER_LIB_EXPORT CertificateHandler {
  public:
   /**
    * Handle X.509 Router and CA keys and certificates.

@@ -72,16 +72,24 @@ using StringOption = mysql_harness::StringOption;
 template <class T>
 using IntOption = mysql_harness::IntOption<T>;
 
+static constexpr std::array<const char *, 2> supported_options{"backend",
+                                                               "threads"};
+
+#define GET_OPTION_CHECKED(option, section, name, value)                    \
+  static_assert(mysql_harness::str_in_collection(supported_options, name)); \
+  option = get_option(section, name, value);
+
 class IoPluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string backend;
   uint16_t num_threads;
 
   explicit IoPluginConfig(const mysql_harness::ConfigSection *section)
-      : mysql_harness::BasePluginConfig(section),
-        backend(get_option(section, "backend", StringOption{})),
-        num_threads(get_option(section, "threads",
-                               IntOption<uint32_t>{0, kMaxThreads})) {}
+      : mysql_harness::BasePluginConfig(section) {
+    GET_OPTION_CHECKED(backend, section, "backend", StringOption{});
+    auto num_threads_op = IntOption<uint32_t>{0, kMaxThreads};
+    GET_OPTION_CHECKED(num_threads, section, "threads", num_threads_op);
+  }
 
   std::string get_default(const std::string &option) const override {
     const std::map<std::string, std::string> defaults{
@@ -197,8 +205,6 @@ static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
 static std::array<const char *, 1> required = {{
     "logger",
 }};
-
-static std::array<const char *, 2> supported_options{"backend", "threads"};
 
 extern "C" {
 mysql_harness::Plugin IO_EXPORT harness_plugin_io = {

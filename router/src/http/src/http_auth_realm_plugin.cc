@@ -56,6 +56,7 @@
 #include "mysqlrouter/http_auth_backend_component.h"
 #include "mysqlrouter/http_auth_realm_component.h"
 #include "mysqlrouter/http_auth_realm_export.h"
+#include "mysqlrouter/supported_http_options.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -66,6 +67,11 @@ static std::vector<std::string> registered_realms;
 
 using StringOption = mysql_harness::StringOption;
 
+#define GET_OPTION_CHECKED(option, section, name, value) \
+  static_assert(mysql_harness::str_in_collection(        \
+      http_auth_realm_suported_options, name));          \
+  option = get_option(section, name, value);
+
 class HttpAuthRealmPluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string backend;
@@ -75,11 +81,12 @@ class HttpAuthRealmPluginConfig : public mysql_harness::BasePluginConfig {
 
   explicit HttpAuthRealmPluginConfig(
       const mysql_harness::ConfigSection *section)
-      : mysql_harness::BasePluginConfig(section),
-        backend(get_option(section, "backend", StringOption{})),
-        method(get_option(section, "method", StringOption{})),
-        require(get_option(section, "require", StringOption{})),
-        name(get_option(section, "name", StringOption{})) {}
+      : mysql_harness::BasePluginConfig(section) {
+    GET_OPTION_CHECKED(backend, section, "backend", StringOption{});
+    GET_OPTION_CHECKED(method, section, "method", StringOption{});
+    GET_OPTION_CHECKED(require, section, "require", StringOption{});
+    GET_OPTION_CHECKED(name, section, "name", StringOption{});
+  }
 
   std::string get_default(const std::string &option) const override {
     const std::map<std::string, std::string> defaults{
@@ -192,9 +199,6 @@ static const std::array<const char *, 1> required = {{
     "logger",
 }};
 
-static const std::array<const char *, 4> supported_options{"backend", "method",
-                                                           "require", "name"};
-
 extern "C" {
 mysql_harness::Plugin HTTP_AUTH_REALM_EXPORT harness_plugin_http_auth_realm = {
     mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
@@ -212,7 +216,7 @@ mysql_harness::Plugin HTTP_AUTH_REALM_EXPORT harness_plugin_http_auth_realm = {
     nullptr,  // start
     nullptr,  // stop
     false,    // declares_readiness
-    supported_options.size(),
-    supported_options.data(),
+    http_auth_realm_suported_options.size(),
+    http_auth_realm_suported_options.data(),
 };
 }

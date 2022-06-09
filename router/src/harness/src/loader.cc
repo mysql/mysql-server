@@ -64,6 +64,7 @@
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/sd_notify.h"
 #include "mysql/harness/stdx/monitor.h"
+#include "mysql/harness/supported_config_options.h"
 #include "mysql/harness/utility/string.h"  // join
 #include "utilities.h"                     // make_range
 IMPORT_LOG_FUNCTIONS()
@@ -89,38 +90,6 @@ static const char kLogReopenServiceName[] = "log_reopen";
 #if defined(USE_POSIX_SIGNALS)
 static const char kSignalHandlerServiceName[] = "signal_handler";
 #endif
-
-#ifdef _WIN32
-static constexpr size_t supported_global_options_size = 21;
-#else
-static constexpr size_t supported_global_options_size = 20;
-#endif
-
-static const std::array<const char *, supported_global_options_size>
-    supported_global_options{"origin",
-                             "program",
-                             "logging_folder",
-                             "runtime_folder",
-                             "data_folder",
-                             "plugin_folder",
-                             "config_folder",
-                             "keyring_path",
-                             "master_key_path",
-                             "connect_timeout",
-                             "read_timeout",
-                             "dynamic_state",
-                             "client_ssl_cert",
-                             "client_ssl_key",
-                             "client_ssl_mode",
-                             "server_ssl_mode",
-                             "server_ssl_verify",
-                             "max_total_connections",
-                             "pid_file",
-                             "unknown_config_option",
-#ifdef _WIN32
-                             "event_source_name"
-#endif
-    };
 
 /**
  * @defgroup Loader Plugin loader
@@ -1433,9 +1402,15 @@ void Loader::check_default_config_options_supported() {
   const bool error_out = config_.error_on_unsupported_option;
 
   for (const auto &option : default_section.get_options()) {
-    if (std::find(supported_global_options.begin(),
-                  supported_global_options.end(),
-                  option.first) != supported_global_options.end()) {
+    // this option is supported by the Loader
+    if (mysql_harness::str_in_collection(loader_supported_options,
+                                         option.first)) {
+      continue;
+    }
+
+    // this option is supported by the App{
+    if (mysql_harness::str_in_collection(supported_app_options_,
+                                         option.first)) {
       continue;
     }
 
@@ -1445,6 +1420,7 @@ void Loader::check_default_config_options_supported() {
       for (auto supported_option : make_range(
                plugin->supported_options, plugin->supported_options_length)) {
         if (supported_option != nullptr) {
+          // this option is supported by configured plugin
           if (option.first == supported_option) option_supported = true;
         }
       }

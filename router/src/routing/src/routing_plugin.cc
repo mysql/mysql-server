@@ -43,6 +43,7 @@
 #include "mysqlrouter/destination.h"
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/routing_component.h"
+#include "mysqlrouter/supported_routing_options.h"
 #include "plugin_config.h"
 #include "scope_guard.h"
 #include "ssl_mode.h"
@@ -419,7 +420,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
       r->set_destinations_from_csv(config.destinations);
     }
     MySQLRoutingComponent::get_instance().init(
-        section->key, r, config.unreachable_destination_refresh_interval);
+        section->key, r,
+        std::chrono::seconds(config.unreachable_destination_refresh_interval));
 
     Scope_guard guard{[section_key = section->key]() {
       MySQLRoutingComponent::get_instance().erase(section_key);

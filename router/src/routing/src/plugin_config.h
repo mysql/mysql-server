@@ -37,8 +37,6 @@
 #include "ssl_mode.h"
 #include "tcp_address.h"
 
-extern const std::array<const char *, 29> routing_supported_options;
-
 /**
  * route specific configuration.
  */
@@ -63,43 +61,41 @@ class ROUTING_PLUGIN_EXPORT RoutingPluginConfig
   uint16_t get_option_max_connections(
       const mysql_harness::ConfigSection *section);
 
-  const Protocol::Type protocol;                 //!< protocol (classic, x)
-  const std::string destinations;                //!< destinations
-  const int bind_port;                           //!< TCP port to bind to
-  const mysql_harness::TCPAddress bind_address;  //!< IP address to bind to
-  const mysql_harness::Path
-      named_socket;                //!< unix domain socket path to bind to
-  const int connect_timeout;       //!< connect-timeout in seconds
-  const routing::AccessMode mode;  //!< read-only/read-write
+  Protocol::Type protocol;                 //!< protocol (classic, x)
+  std::string destinations;                //!< destinations
+  int bind_port;                           //!< TCP port to bind to
+  mysql_harness::TCPAddress bind_address;  //!< IP address to bind to
+  mysql_harness::Path named_socket;  //!< unix domain socket path to bind to
+  int connect_timeout;               //!< connect-timeout in seconds
+  routing::AccessMode mode;          //!< read-only/read-write
   routing::RoutingStrategy
-      routing_strategy;       //!< routing strategy (next-avail, ...)
-  const int max_connections;  //!< max connections allowed
-  const unsigned long long max_connect_errors;  //!< max connect errors
-  const unsigned int
-      client_connect_timeout;            //!< client connect timeout in seconds
-  const unsigned int net_buffer_length;  //!< Size of buffer to receive packets
-  const unsigned int thread_stack_size;  //!< thread stack size in kilobytes
+      routing_strategy;  //!< routing strategy (next-avail, ...)
+  int max_connections;   //!< max connections allowed
+  unsigned long long max_connect_errors;  //!< max connect errors
+  unsigned int client_connect_timeout;    //!< client connect timeout in seconds
+  unsigned int net_buffer_length;         //!< Size of buffer to receive packets
+  unsigned int thread_stack_size;         //!< thread stack size in kilobytes
 
-  SslMode source_ssl_mode;  //!< SslMode of the client side connection.
-  const std::string source_ssl_cert;       //!< Cert file
-  const std::string source_ssl_key;        //!< Key file
-  const std::string source_ssl_cipher;     //!< allowed TLS ciphers
-  const std::string source_ssl_curves;     //!< allowed TLS curves
-  const std::string source_ssl_dh_params;  //!< DH params
+  SslMode source_ssl_mode;           //!< SslMode of the client side connection.
+  std::string source_ssl_cert;       //!< Cert file
+  std::string source_ssl_key;        //!< Key file
+  std::string source_ssl_cipher;     //!< allowed TLS ciphers
+  std::string source_ssl_curves;     //!< allowed TLS curves
+  std::string source_ssl_dh_params;  //!< DH params
 
-  const SslMode dest_ssl_mode;      //!< SslMode of the server side connection.
-  const SslVerify dest_ssl_verify;  //!< How to verify the server-side cert.
-  const std::string dest_ssl_cipher;  //!< allowed TLS ciphers
-  const std::string
+  SslMode dest_ssl_mode;        //!< SslMode of the server side connection.
+  SslVerify dest_ssl_verify;    //!< How to verify the server-side cert.
+  std::string dest_ssl_cipher;  //!< allowed TLS ciphers
+  std::string
       dest_ssl_ca_file;  //!< CA file to used to verify destinations' identity
-  const std::string dest_ssl_ca_dir;  //!< directory of CA files used to verify
-                                      //!< destinations' identity
-  const std::string
+  std::string dest_ssl_ca_dir;  //!< directory of CA files used to verify
+                                //!< destinations' identity
+  std::string
       dest_ssl_crl_file;  //!< CRL file used to check revoked certificates
-  const std::string dest_ssl_crl_dir;  //!< directory of CRL files
-  const std::string dest_ssl_curves;   //!< allowed TLS curves
+  std::string dest_ssl_crl_dir;  //!< directory of CRL files
+  std::string dest_ssl_curves;   //!< allowed TLS curves
 
-  const std::chrono::seconds unreachable_destination_refresh_interval;
+  unsigned int unreachable_destination_refresh_interval;
 };
 
 #endif  // PLUGIN_CONFIG_ROUTING_INCLUDED

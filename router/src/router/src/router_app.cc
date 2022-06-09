@@ -57,6 +57,7 @@
 #include "mysqlrouter/config_files.h"
 #include "mysqlrouter/default_paths.h"
 #include "mysqlrouter/mysql_session.h"
+#include "mysqlrouter/supported_router_options.h"
 #include "mysqlrouter/utils.h"  // substitute_envvar
 #include "print_version.h"
 #include "router_config.h"  // MYSQL_ROUTER_VERSION
@@ -499,6 +500,8 @@ void MySQLRouter::init_loader(mysql_harness::LoaderConfig &config) {
   } catch (const std::runtime_error &err) {
     throw std::runtime_error(string_format(err_msg.c_str(), err.what()));
   }
+
+  loader_->register_supported_app_options(router_supported_options);
 }
 
 void MySQLRouter::start() {

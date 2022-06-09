@@ -147,7 +147,7 @@ class ROUTER_LIB_EXPORT URI {
 
 std::ostream &operator<<(std::ostream &strm, const URI &uri);
 
-class URIParser {
+class ROUTER_LIB_EXPORT URIParser {
  public:
   static URI parse(const std::string &uri, bool allow_path_rootless = true);
   static URI parse_shorthand_uri(const std::string &uri,

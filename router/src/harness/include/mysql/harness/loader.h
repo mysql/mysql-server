@@ -796,6 +796,21 @@ class HARNESS_EXPORT Loader {
    */
   LoaderConfig &get_config() { return config_; }
 
+  /**
+   * Register global configuration options supported by the application. Will be
+   * used by the Loader to verify the [DEFAULT] options in the configuration.
+   *
+   * @param options array of global options supported by the applications
+   */
+  template <size_t N>
+  void register_supported_app_options(
+      const std::array<std::string_view, N> &options) {
+    supported_app_options_.clear();
+    for (const auto &option : options) {
+      supported_app_options_.emplace_back(std::string(option));
+    }
+  }
+
  private:
   enum class Status { UNVISITED, ONGOING, VISITED };
 
@@ -955,6 +970,8 @@ class HARNESS_EXPORT Loader {
   std::condition_variable signal_thread_ready_cond_;
   bool signal_thread_ready_{false};
   std::thread signal_thread_;
+
+  std::vector<std::string> supported_app_options_;
 
   /**
    * Checks if all the options in the configuration fed to the Loader are

@@ -36,6 +36,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/utility/string.h"  // string_format
 #include "mysqlrouter/metadata_cache.h"
+#include "mysqlrouter/supported_metadata_cache_options.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"  // ms_to_second_string
 IMPORT_LOG_FUNCTIONS()
@@ -49,28 +50,6 @@ using StringOption = mysql_harness::StringOption;
 
 template <typename T>
 using IntOption = mysql_harness::IntOption<T>;
-
-const std::array<const char *, 19> metadata_cache_supported_options{{
-    "user",
-    "ttl",
-    "auth_cache_ttl",
-    "auth_cache_refresh_interval",
-    "metadata_cluster",
-    "connect_timeout",
-    "read_timeout",
-    "router_id",
-    "thread_stack_size",
-    "use_gr_notifications",
-    "cluster_type",
-    "bootstrap_server_addresses",
-    "ssl_mode",
-    "ssl_cipher",
-    "tls_version",
-    "ssl_ca",
-    "ssl_capath",
-    "ssl_crl",
-    "ssl_crlpath",
-}};
 
 std::string MetadataCachePluginConfig::get_default(
     const std::string &option) const {
@@ -209,6 +188,11 @@ class ClusterTypeOption {
   }
 };
 
+#define GET_OPTION_CHECKED(option, section, name, value) \
+  static_assert(mysql_harness::str_in_collection(        \
+      metadata_cache_supported_options, name));          \
+  option = get_option(section, name, value);
+
 std::unique_ptr<ClusterMetadataDynamicState>
 MetadataCachePluginConfig::get_dynamic_state(
     const mysql_harness::ConfigSection *section) {
@@ -218,9 +202,11 @@ MetadataCachePluginConfig::get_dynamic_state(
   }
 
   auto &dynamic_state_base = mysql_harness::DIM::instance().get_DynamicState();
-  return std::make_unique<ClusterMetadataDynamicState>(
-      &dynamic_state_base,
-      get_option(section, "cluster_type", ClusterTypeOption{}));
+  mysqlrouter::ClusterType cluster_type;
+  GET_OPTION_CHECKED(cluster_type, section, "cluster_type",
+                     ClusterTypeOption{});
+  return std::make_unique<ClusterMetadataDynamicState>(&dynamic_state_base,
+                                                       cluster_type);
 }
 
 MetadataCachePluginConfig::MetadataCachePluginConfig(
@@ -228,24 +214,31 @@ MetadataCachePluginConfig::MetadataCachePluginConfig(
     : BasePluginConfig(section),
       metadata_cache_dynamic_state(get_dynamic_state(section)),
       metadata_servers_addresses(
-          get_metadata_servers(section, metadata_cache::kDefaultMetadataPort)),
-      user(get_option(section, "user", StringOption{})),
-      ttl(get_option(section, "ttl", MilliSecondsOption{0.0, 3600.0})),
-      auth_cache_ttl(get_option(section, "auth_cache_ttl",
-                                MilliSecondsOption{-1, 3600.0})),
-      auth_cache_refresh_interval(
-          get_option(section, "auth_cache_refresh_interval",
-                     MilliSecondsOption{0.001, 3600.0})),
-      cluster_name(get_option(section, "metadata_cluster", StringOption{})),
-      connect_timeout(
-          get_option(section, "connect_timeout", IntOption<uint16_t>{1})),
-      read_timeout(get_option(section, "read_timeout", IntOption<uint16_t>{1})),
-      thread_stack_size(get_option(section, "thread_stack_size",
-                                   IntOption<uint32_t>{1, 65535})),
-      use_gr_notifications(
-          get_option(section, "use_gr_notifications", IntOption<bool>{})),
-      cluster_type(get_option(section, "cluster_type", ClusterTypeOption{})),
-      router_id(get_option(section, "router_id", IntOption<uint32_t>{})) {
+          get_metadata_servers(section, metadata_cache::kDefaultMetadataPort)) {
+  GET_OPTION_CHECKED(user, section, "user", StringOption{});
+  auto ttl_op = MilliSecondsOption{0.0, 3600.0};
+  GET_OPTION_CHECKED(ttl, section, "ttl", ttl_op);
+  auto auth_cache_ttl_op = MilliSecondsOption{-1, 3600.0};
+  GET_OPTION_CHECKED(auth_cache_ttl, section, "auth_cache_ttl",
+                     auth_cache_ttl_op);
+  auto auth_cache_refresh_interval_op = MilliSecondsOption{0.001, 3600.0};
+  GET_OPTION_CHECKED(auth_cache_refresh_interval, section,
+                     "auth_cache_refresh_interval",
+                     auth_cache_refresh_interval_op);
+  GET_OPTION_CHECKED(cluster_name, section, "metadata_cluster", StringOption{});
+  GET_OPTION_CHECKED(connect_timeout, section, "connect_timeout",
+                     IntOption<uint16_t>{1});
+  GET_OPTION_CHECKED(read_timeout, section, "read_timeout",
+                     IntOption<uint16_t>{1});
+  auto thread_stack_size_op = IntOption<uint32_t>{1, 65535};
+  GET_OPTION_CHECKED(thread_stack_size, section, "thread_stack_size",
+                     thread_stack_size_op);
+  GET_OPTION_CHECKED(use_gr_notifications, section, "use_gr_notifications",
+                     IntOption<bool>{});
+  GET_OPTION_CHECKED(cluster_type, section, "cluster_type",
+                     ClusterTypeOption{});
+  GET_OPTION_CHECKED(router_id, section, "router_id", IntOption<uint32_t>{});
+
   if (cluster_type == mysqlrouter::ClusterType::RS_V2 &&
       section->has("use_gr_notifications")) {
     throw std::invalid_argument(
