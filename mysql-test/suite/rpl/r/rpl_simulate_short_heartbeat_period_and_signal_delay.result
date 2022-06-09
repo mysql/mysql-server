@@ -1,0 +1,36 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Set heartbeat to a small value.
+[connection slave]
+CHANGE REPLICATION SOURCE TO source_heartbeat_period = 0.1;
+include/start_slave.inc
+[connection master]
+CREATE TABLE t1 (a INT);
+include/sync_slave_sql_with_master.inc
+[connection master]
+
+# Simulate a delay before signal that binlog is updated
+# Adding debug point 'simulate_delay_in_binlog_signal_update' to @@GLOBAL.debug
+
+# Generate an update event - Insert value into t1
+INSERT INTO t1 VALUES (1);
+include/sync_slave_sql_with_master.inc
+
+# assertion: Table has been replicated successfully
+include/diff_tables.inc [master:t1,slave:t1]
+[connection master]
+
+# Turn off the delay.
+# Removing debug point 'simulate_delay_in_binlog_signal_update' from @@GLOBAL.debug
+
+# Clean up
+[connection slave]
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO source_heartbeat_period=HEARTBEAT_PERIOD;
+include/start_slave.inc
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

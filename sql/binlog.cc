@@ -6413,7 +6413,7 @@ void MYSQL_BIN_LOG::make_log_name(char *buf, const char *log_ident) {
   Check if we are writing/reading to the given log file.
 */
 
-bool MYSQL_BIN_LOG::is_active(const char *log_file_name_arg) {
+bool MYSQL_BIN_LOG::is_active(const char *log_file_name_arg) const {
   return !compare_log_name(log_file_name, log_file_name_arg);
 }
 
@@ -7615,31 +7615,20 @@ void MYSQL_BIN_LOG::report_binlog_write_error() {
          my_strerror(errbuf, sizeof(errbuf), errno));
 }
 
-/**
-  Wait until we get a signal that the binary log has been updated.
-  Applies to master only.
+int MYSQL_BIN_LOG::wait_for_update() {
+  DBUG_TRACE;
+  mysql_mutex_assert_owner(&LOCK_binlog_end_pos);
+  mysql_cond_wait(&update_cond, &LOCK_binlog_end_pos);
+  return 0;
+}
 
-  NOTES
-  @param[in] timeout    a pointer to a timespec;
-                        NULL means to wait w/o timeout.
-  @retval    0          if got signalled on update
-  @retval    non-0      if wait timeout elapsed
-  @note
-    LOCK_binlog_end_pos must be taken before calling this function.
-    LOCK_binlog_end_pos is being released while the thread is waiting.
-    LOCK_binlog_end_pos is released by the caller.
-*/
-
-int MYSQL_BIN_LOG::wait_for_update(const struct timespec *timeout) {
-  int ret = 0;
+int MYSQL_BIN_LOG::wait_for_update(const std::chrono::nanoseconds &timeout) {
   DBUG_TRACE;
 
-  if (!timeout)
-    mysql_cond_wait(&update_cond, &LOCK_binlog_end_pos);
-  else
-    ret = mysql_cond_timedwait(&update_cond, &LOCK_binlog_end_pos,
-                               const_cast<struct timespec *>(timeout));
-  return ret;
+  struct timespec ts;
+  set_timespec_nsec(&ts, timeout.count());
+  mysql_mutex_assert_owner(&LOCK_binlog_end_pos);
+  return mysql_cond_timedwait(&update_cond, &LOCK_binlog_end_pos, &ts);
 }
 
 /**
@@ -9202,6 +9191,14 @@ void MYSQL_BIN_LOG::report_missing_gtids(
 
   my_free(missing_gtids);
   my_free(slave_executed_gtids);
+}
+
+void MYSQL_BIN_LOG::signal_update() {
+  DBUG_TRACE;
+  DBUG_EXECUTE_IF("simulate_delay_in_binlog_signal_update",
+                  std::this_thread::sleep_for(std::chrono::milliseconds(120)););
+  mysql_cond_broadcast(&update_cond);
+  return;
 }
 
 void MYSQL_BIN_LOG::update_binlog_end_pos(bool need_lock) {

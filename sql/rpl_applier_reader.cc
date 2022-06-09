@@ -288,13 +288,13 @@ bool Rpl_applier_reader::wait_for_new_event() {
   if (m_rli->is_parallel_exec() &&
       (opt_mta_checkpoint_period != 0 ||
        DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0))) {
-    struct timespec waittime;
-    set_timespec_nsec(&waittime, opt_mta_checkpoint_period * 1000000ULL);
+    std::chrono::nanoseconds timeout =
+        std::chrono::nanoseconds{opt_mta_checkpoint_period * 1000000ULL};
     DBUG_EXECUTE_IF("check_replica_debug_group",
-                    { set_timespec_nsec(&waittime, 10000000); });
-    ret = m_rli->relay_log.wait_for_update(&waittime);
+                    { timeout = std::chrono::nanoseconds{10000000}; });
+    ret = m_rli->relay_log.wait_for_update(timeout);
   } else
-    ret = m_rli->relay_log.wait_for_update(nullptr);
+    ret = m_rli->relay_log.wait_for_update();
 
   // re-acquire data lock since we released it earlier
   mysql_mutex_lock(&m_rli->data_lock);
