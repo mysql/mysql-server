@@ -63,35 +63,40 @@ static bool opt_encrypt_backup = false;
 
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndb_mgm"),
+  NdbStdOpt::usage,
+  NdbStdOpt::help,
+  NdbStdOpt::version,
+  NdbStdOpt::ndb_connectstring,
+  NdbStdOpt::mgmd_host,
+  NdbStdOpt::connectstring,
+  NdbStdOpt::ndb_nodeid,
+  NdbStdOpt::connect_retry_delay,
+  NdbStdOpt::connect_retries,
+  NDB_STD_OPT_DEBUG
   { "backup-password", NDB_OPT_NOSHORT, "Encryption password for backup file",
-    nullptr, nullptr, 0,
-    GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0, &opt_backup_password},
+    nullptr, nullptr, nullptr, GET_PASSWORD, OPT_ARG,
+    0, 0, 0, nullptr, 0, &opt_backup_password},
   { "backup-password-from-stdin", NDB_OPT_NOSHORT,
     "Encryption password for backup file",
-    &opt_backup_password_from_stdin.opt_value, nullptr, 0,
+    &opt_backup_password_from_stdin.opt_value, nullptr, nullptr,
     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, &opt_backup_password_from_stdin},
   { "encrypt-backup", NDB_OPT_NOSHORT,
     "Treat START BACKUP as START BACKUP ENCRYPT",
-    &opt_encrypt_backup, &opt_encrypt_backup, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-  { "execute", 'e',
-    "execute command and exit", 
-    &opt_execute_str, &opt_execute_str, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "prompt", 'p',
-    "Set prompt to string specified",
-    &opt_prompt, &opt_prompt, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "verbose", 'v',
-    "Control the amount of printout",
-    &opt_verbose, &opt_verbose, 0,
-    GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0}, \
-  {"try-reconnect", 't', \
-    "Same as --connect-retries", \
-    &opt_connect_retries, &opt_connect_retries, 0, \
-    GET_INT, REQUIRED_ARG, 12, 0, INT_MAX, 0, 0, 0 }, \
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+    &opt_encrypt_backup, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr},
+  { "execute", 'e', "execute command and exit",
+    &opt_execute_str, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr},
+  { "prompt", 'p', "Set prompt to string specified",
+    &opt_prompt, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr},
+  { "verbose", 'v', "Control the amount of printout",
+    &opt_verbose, nullptr, nullptr, GET_UINT, REQUIRED_ARG,
+    1, 0, 0, nullptr, 0, nullptr},
+  {"try-reconnect", 't', "Same as --connect-retries",
+    &opt_connect_retries, nullptr, nullptr, GET_INT, REQUIRED_ARG,
+    12, 0, INT_MAX, nullptr, 0, nullptr},
+  NdbStdOpt::end_of_options
 };
 
 static void short_usage_sub(void)

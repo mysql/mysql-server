@@ -95,8 +95,6 @@ int g_errorInsert = 0;
     }\
   }
 
-extern "C" bool opt_core;
-
 void *
 MgmtSrvr::logLevelThread_C(void* m)
 {

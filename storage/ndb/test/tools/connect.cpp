@@ -37,7 +37,13 @@ static int opt_wait_all = 0;
 
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndb_connect"),
+  NdbStdOpt::usage,
+  NdbStdOpt::help,
+  NdbStdOpt::version,
+  NdbStdOpt::ndb_connectstring,
+  NdbStdOpt::connectstring,
+  NdbStdOpt::ndb_nodeid,
+  NDB_STD_OPT_DEBUG
   { "loop", 'l', "loops",
     &opt_loop, &opt_loop, 0,
     GET_INT, REQUIRED_ARG, opt_loop, 0, 0, 0, 0, 0 },

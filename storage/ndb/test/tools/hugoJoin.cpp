@@ -48,7 +48,16 @@ static const char * _db = "TEST_DB";
 
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("hugoJoin"),
+  NdbStdOpt::usage,
+  NdbStdOpt::help,
+  NdbStdOpt::version,
+  NdbStdOpt::ndb_connectstring,
+  NdbStdOpt::mgmd_host,
+  NdbStdOpt::connectstring,
+  NdbStdOpt::ndb_nodeid,
+  NdbStdOpt::connect_retry_delay,
+  NdbStdOpt::connect_retries,
+  NDB_STD_OPT_DEBUG
   { "database", 'd', "Database",
     &_db, &_db,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},

@@ -52,28 +52,36 @@ static NdbNodeBitmask nowait_nodes_bitmask;
 
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndb_waiter"),
+  NdbStdOpt::usage,
+  NdbStdOpt::help,
+  NdbStdOpt::version,
+  NdbStdOpt::ndb_connectstring,
+  NdbStdOpt::mgmd_host,
+  NdbStdOpt::connectstring,
+  NdbStdOpt::connect_retry_delay,
+  NdbStdOpt::connect_retries,
+  NDB_STD_OPT_DEBUG
   { "no-contact", 'n', "Wait for cluster no contact",
-    &_no_contact, &_no_contact, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+    &_no_contact, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
   { "not-started", NDB_OPT_NOSHORT, "Wait for cluster not started",
-    &_not_started, &_not_started, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+    &_not_started, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
   { "single-user", NDB_OPT_NOSHORT,
     "Wait for cluster to enter single user mode",
-    &_single_user, &_single_user, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+    &_single_user, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
   { "timeout", 't', "Timeout to wait in seconds",
-    &_timeout, &_timeout, 0,
-    GET_INT, REQUIRED_ARG, 120, 0, 0, 0, 0, 0 }, 
+    &_timeout, nullptr, nullptr, GET_INT, REQUIRED_ARG,
+    120, 0, 0, nullptr, 0, nullptr },
   { "wait-nodes", 'w', "Node ids to wait on, e.g. '1,2-4'",
-    &_wait_nodes, &_wait_nodes, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+    &_wait_nodes, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
   { "nowait-nodes", NDB_OPT_NOSHORT,
     "Nodes that will not be waited for, e.g. '2,3,4-7'",
-    &_nowait_nodes, &_nowait_nodes, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+    &_nowait_nodes, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
+  NdbStdOpt::end_of_options
 };
 
 extern "C"

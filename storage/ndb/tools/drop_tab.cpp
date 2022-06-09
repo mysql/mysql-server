@@ -35,11 +35,20 @@ static const char* _dbname = "TEST_DB";
 
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndb_drop_table"),
+  NdbStdOpt::usage,
+  NdbStdOpt::help,
+  NdbStdOpt::version,
+  NdbStdOpt::ndb_connectstring,
+  NdbStdOpt::mgmd_host,
+  NdbStdOpt::connectstring,
+  NdbStdOpt::ndb_nodeid,
+  NdbStdOpt::connect_retry_delay,
+  NdbStdOpt::connect_retries,
+  NDB_STD_OPT_DEBUG
   { "database", 'd', "Name of database table is in",
-    &_dbname, &_dbname, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+    &_dbname, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
+  NdbStdOpt::end_of_options
 };
 
 static void short_usage_sub() {

@@ -40,8 +40,8 @@
 
 #include <EventLogger.hpp>
 
-extern "C" const char* opt_ndb_connectstring;
-extern "C" int opt_ndb_nodeid;
+extern const char* opt_ndb_connectstring;
+extern int opt_ndb_nodeid;
 
 #if defined VM_TRACE || defined ERROR_INSERT
 extern int g_errorInsert;

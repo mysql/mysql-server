@@ -43,20 +43,29 @@ static bool _diskscan = 0;
 
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndb_desc"),
+  NdbStdOpt::usage,
+  NdbStdOpt::help,
+  NdbStdOpt::version,
+  NdbStdOpt::ndb_connectstring,
+  NdbStdOpt::mgmd_host,
+  NdbStdOpt::connectstring,
+  NdbStdOpt::ndb_nodeid,
+  NdbStdOpt::connect_retry_delay,
+  NdbStdOpt::connect_retries,
+  NDB_STD_OPT_DEBUG
   { "database", 'd', "Name of database table is in",
-    &_dbname, &_dbname, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+    &_dbname, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
   { "transactional", 't', "Single transaction (may run out of operations)",
-    &_transactional, &_transactional, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+    &_transactional, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
   { "tupscan", NDB_OPT_NOSHORT, "Run tupscan",
-    &_tupscan, &_tupscan, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+    &_tupscan, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
   { "diskscan", NDB_OPT_NOSHORT, "Run diskcan",
-    &_diskscan, &_diskscan, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+    &_diskscan, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
+  NdbStdOpt::end_of_options
 };
 
 int main(int argc, char** argv)

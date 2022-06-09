@@ -39,7 +39,13 @@
 
 #define JAM_FILE_ID 485
 
+#if defined VM_TRACE
+#define OPT_WANT_CORE_DEFAULT 1
+#else
+#define OPT_WANT_CORE_DEFAULT 0
+#endif
 
+bool opt_core;
 static int opt_daemon, opt_no_daemon, opt_foreground,
   opt_initialstart, opt_verbose;
 static const char* opt_nowait_nodes = 0;
@@ -55,67 +61,74 @@ extern NdbNodeBitmask g_nowait_nodes;
 
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndbd"),
+  NdbStdOpt::usage,
+  NdbStdOpt::help,
+  NdbStdOpt::version,
+  NdbStdOpt::ndb_connectstring ,
+  NdbStdOpt::mgmd_host,
+  NdbStdOpt::connectstring,
+  NdbStdOpt::ndb_nodeid,
+  NdbStdOpt::connect_retry_delay, //used
+  NdbStdOpt::connect_retries, // used
+  NDB_STD_OPT_DEBUG
+  { "core-file", NDB_OPT_NOSHORT, "Write core on errors.",\
+    &opt_core, nullptr, nullptr, GET_BOOL, NO_ARG,
+    OPT_WANT_CORE_DEFAULT, 0, 0, nullptr, 0, nullptr },
   { "initial", NDB_OPT_NOSHORT,
     "Perform initial start of ndbd, including cleaning the file system. "
     "Consult documentation before using this",
-    &opt_initial, &opt_initial, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+    &opt_initial, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
   { "nostart", 'n',
     "Don't start ndbd immediately. Ndbd will await command from ndb_mgmd",
-    &opt_no_start, &opt_no_start, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+    &opt_no_start, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
   { "daemon", 'd', "Start ndbd as daemon (default)",
-    &opt_daemon, &opt_daemon, 0,
-    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
+    &opt_daemon, nullptr, nullptr, GET_BOOL, NO_ARG,
+    1, 0, 0, nullptr, 0, nullptr },
   { "nodaemon", NDB_OPT_NOSHORT,
     "Do not start ndbd as daemon, provided for testing purposes",
-    &opt_no_daemon, &opt_no_daemon, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+    &opt_no_daemon, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
   { "foreground", NDB_OPT_NOSHORT,
     "Run real ndbd in foreground, provided for debugging purposes"
     " (implies --nodaemon)",
-    &opt_foreground, &opt_foreground, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+    &opt_foreground, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
   { "nowait-nodes", NDB_OPT_NOSHORT,
     "Nodes that will not be waited for during start",
-    &opt_nowait_nodes, &opt_nowait_nodes, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+    &opt_nowait_nodes, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
   { "initial-start", NDB_OPT_NOSHORT,
     "Perform a partial initial start of the cluster.  "
     "Each node should be started with this option, as well as --nowait-nodes",
-    &opt_initialstart, &opt_initialstart, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "bind-address", NDB_OPT_NOSHORT,
-    "Local bind address",
-    &opt_bind_address, &opt_bind_address, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "verbose", 'v',
-    "Write more log messages",
-    &opt_verbose, &opt_verbose, 0,
-    GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
-  { "report-fd", 256,
-    "INTERNAL: fd where to write extra shutdown status",
-    &opt_report_fd, &opt_report_fd, 0,
-    GET_UINT, REQUIRED_ARG, 0, 0, INT_MAX, 0, 0, 0 },
-  { "allocated-nodeid", 256,
-    "INTERNAL: nodeid allocated by angel process",
-    &opt_allocated_nodeid, &opt_allocated_nodeid, 0,
-    GET_UINT, REQUIRED_ARG, 0, 0, UINT_MAX, 0, 0, 0 },
-  { "angel-pid", NDB_OPT_NOSHORT,
-    "INTERNAL: angel process id",
-    &opt_angel_pid, &opt_angel_pid, 0,
-    GET_UINT, REQUIRED_ARG, 0, 0, UINT_MAX, 0, 0, 0 },
+    &opt_initialstart, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
+  { "bind-address", NDB_OPT_NOSHORT, "Local bind address",
+    &opt_bind_address, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
+  { "verbose", 'v', "Write more log messages",
+    &opt_verbose, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 1, nullptr, 0, nullptr },
+  { "report-fd", 256, "INTERNAL: fd where to write extra shutdown status",
+    &opt_report_fd, nullptr, nullptr, GET_UINT, REQUIRED_ARG,
+    0, 0, INT_MAX, nullptr, 0, nullptr },
+  { "allocated-nodeid", 256, "INTERNAL: nodeid allocated by angel process",
+    &opt_allocated_nodeid, nullptr, nullptr, GET_UINT, REQUIRED_ARG,
+    0, 0, UINT_MAX, nullptr, 0, nullptr },
+  { "angel-pid", NDB_OPT_NOSHORT, "INTERNAL: angel process id",
+    &opt_angel_pid, nullptr, nullptr, GET_UINT, REQUIRED_ARG,
+    0, 0, UINT_MAX, nullptr, 0, nullptr },
   { "logbuffer-size", NDB_OPT_NOSHORT,
     "Size of the log buffer for data node ndb_x_out.log",
-    &opt_logbuffer_size, &opt_logbuffer_size, 0,
+    &opt_logbuffer_size, nullptr, nullptr,
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
-    GET_ULONG, REQUIRED_ARG, 1024*1024, 2048, ULONG_MAX, 0, 0, 0
+    GET_ULONG, REQUIRED_ARG, 1024*1024, 2048, ULONG_MAX, nullptr, 0, nullptr
 #else
-    GET_ULONG, REQUIRED_ARG, 32768, 2048, ULONG_MAX, 0, 0, 0
+    GET_ULONG, REQUIRED_ARG, 32768, 2048, ULONG_MAX, nullptr, 0, nullptr
 #endif
   },
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+  NdbStdOpt::end_of_options
 };
 
 const char *load_default_groups[]= { "mysql_cluster", "ndbd", 0 };

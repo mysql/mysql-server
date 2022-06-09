@@ -39,14 +39,23 @@ const char *load_default_groups[]= { "mysql_cluster",0 };
 
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndbinfo_select_all"),
+  NdbStdOpt::usage,
+  NdbStdOpt::help,
+  NdbStdOpt::version,
+  NdbStdOpt::ndb_connectstring,
+  NdbStdOpt::mgmd_host,
+  NdbStdOpt::connectstring,
+  NdbStdOpt::ndb_nodeid,
+  NdbStdOpt::connect_retry_delay,
+  NdbStdOpt::connect_retries,
+  NDB_STD_OPT_DEBUG
   { "loops", 'l', "Run same select several times",
-    &loops, &loops, 0,
-    GET_INT, REQUIRED_ARG, loops, 0, 0, 0, 0, 0 },
+    &loops, nullptr, nullptr, GET_INT, REQUIRED_ARG,
+    loops, 0, 0, nullptr, 0, nullptr },
   { "delay", 256, "Delay between loops (in seconds)",
-    &delay, &delay, 0,
-    GET_INT, REQUIRED_ARG, delay, 0, 0, 0, 0, 0 },
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+    &delay, nullptr, nullptr, GET_INT, REQUIRED_ARG,
+    delay, 0, 0, nullptr, 0, nullptr },
+  NdbStdOpt::end_of_options,
 };
 
 int

@@ -1543,7 +1543,15 @@ static const char *load_default_groups[]= {
 
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS(""),
+  NdbStdOpt::usage,
+  NdbStdOpt::help,
+  NdbStdOpt::version,
+  NdbStdOpt::ndb_connectstring,
+  NdbStdOpt::mgmd_host,
+  NdbStdOpt::connectstring,
+  NdbStdOpt::ndb_nodeid,
+  NdbStdOpt::optimized_node_selection,
+  NDB_STD_OPT_DEBUG
   { "backup-password", NDB_OPT_NOSHORT,
     "Password to use for encrypted backup files",
     NULL, NULL, 0,

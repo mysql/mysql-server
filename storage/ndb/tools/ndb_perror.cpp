@@ -39,18 +39,19 @@ static bool opt_silent; // Overrides verbose and sets it to 0
 
 static struct my_option my_long_options[] =
 {
-  {"help", '?', "Displays this help and exits.", 0, 0, 0, GET_NO_ARG,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
+  NdbStdOpt::help,
   {"ndb", NDB_OPT_NOSHORT,
-   "For command line compatibility with 'perror --ndb', ignored.", 0,
-   0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  {"silent", 's', "Only print the error message.", &opt_silent,
-   &opt_silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"verbose", 'v', "Print error code and message (default).", &opt_verbose,
-   &opt_verbose, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-  {"version", 'V', "Displays version information and exits.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+   "For command line compatibility with 'perror --ndb', ignored.",
+   nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG,
+   0, 0, 0, nullptr, 0, nullptr },
+  {"silent", 's', "Only print the error message.",
+   &opt_silent, nullptr, nullptr, GET_BOOL, NO_ARG,
+   0, 0, 0, nullptr, 0, nullptr },
+  {"verbose", 'v', "Print error code and message (default).",
+   &opt_verbose, nullptr, nullptr, GET_BOOL, NO_ARG,
+   1, 0, 0, nullptr, 0, nullptr },
+  NdbStdOpt::version,
+  NdbStdOpt::end_of_options
 };
 
 const char *load_default_groups[] = { 0 };

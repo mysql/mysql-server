@@ -61,57 +61,49 @@ static int g_read_reverse = 0;
 
 static struct my_option my_long_options[] =
 {
-  // Generic options from NDB_STD_OPTS_COMMON
-  { "usage", '?', "Display this help and exit.", \
-    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }, \
-  { "help", '?', "Display this help and exit.", \
-    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }, \
-  { "version", 'V', "Output version information and exit.", 0, 0, 0, \
-    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }, \
+  NdbStdOpt::usage,
+  NdbStdOpt::help,
+  NdbStdOpt::version,
 
   // Specific options
   { "compress", 'c', "Compress file",
-    &g_compress, &g_compress, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+    &g_compress, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, 0, 0, 0 },
   { "decrypt-password", NDB_OPT_NOSHORT, "Decryption password",
-    nullptr, nullptr, 0,
-    GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0, &opt_decrypt_password},
+    nullptr, nullptr, 0, GET_PASSWORD, OPT_ARG,
+    0, 0, 0, nullptr, 0, &opt_decrypt_password},
   { "decrypt-password-from-stdin", NDB_OPT_NOSHORT, "Decryption password",
-    &opt_decrypt_password_from_stdin.opt_value, nullptr, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, &opt_decrypt_password_from_stdin},
+    &opt_decrypt_password_from_stdin.opt_value, nullptr, 0, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, &opt_decrypt_password_from_stdin},
   { "encrypt-block-size", NO_ARG,
     "Size of input data chunks that are encrypted as an unit. Used with XTS, "
     "zero for CBC mode.",
-    &g_encrypt_block_size, &g_encrypt_block_size, 0,
-    GET_INT, REQUIRED_ARG, 0, 0, INT_MAX,
-    0, 0, 0 },
+    &g_encrypt_block_size, nullptr, nullptr, GET_INT, REQUIRED_ARG,
+    0, 0, INT_MAX, nullptr, 0, nullptr },
   { "encrypt-cipher", NO_ARG, "Encrypt cipher: CBC(1), XTS(2).",
-    &g_encrypt_cipher, &g_encrypt_cipher, 0,
-    GET_INT, REQUIRED_ARG, ndb_ndbxfrm1::cipher_cbc, 0, INT_MAX,
-    0, 0, 0 },
+    &g_encrypt_cipher, nullptr, nullptr, GET_INT, REQUIRED_ARG,
+    ndb_ndbxfrm1::cipher_cbc, 0, INT_MAX, nullptr, 0, nullptr },
   { "encrypt-kdf-iter-count", 'k', "Iteration count to used in key definition",
-    &g_encrypt_kdf_iter_count, &g_encrypt_kdf_iter_count, 0,
-    GET_INT, REQUIRED_ARG, ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT, 0, INT_MAX,
-    0, 0, 0 },
+    &g_encrypt_kdf_iter_count, nullptr, nullptr, GET_INT, REQUIRED_ARG,
+    ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT, 0, INT_MAX, nullptr, 0, nullptr },
   { "encrypt-password", NDB_OPT_NOSHORT, "Encryption password",
-    nullptr, nullptr, 0,
-    GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0, &opt_encrypt_password},
+    nullptr, nullptr, nullptr, GET_PASSWORD, OPT_ARG,
+    0, 0, 0, nullptr, 0, &opt_encrypt_password},
   { "encrypt-password-from-stdin", NDB_OPT_NOSHORT, "Encryption password",
-    &opt_encrypt_password_from_stdin.opt_value, nullptr, 0,
+    &opt_encrypt_password_from_stdin.opt_value, nullptr, nullptr,
     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, &opt_encrypt_password_from_stdin},
   { "file-block-size", NO_ARG, "File block size.",
-    &g_file_block_size, &g_file_block_size, 0,
-    GET_INT, REQUIRED_ARG, 512, 0, INT_MAX,
-    0, 0, 0 },
+    &g_file_block_size, nullptr, nullptr, GET_INT, REQUIRED_ARG,
+    512, 0, INT_MAX, nullptr, 0, nullptr },
   { "info", 'i', "Print info about file",
-    &g_info, &g_info, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+    &g_info, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
 #if defined(TODO_READ_REVERSE)
   { "read-reverse", 'R', "Read file in reverse",
-    &g_read_reverse, &g_read_reverse, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+    &g_read_reverse, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
 #endif
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+  NdbStdOpt::end_of_options
 };
 
 static const char* load_defaults_groups[] = { "ndbxfrm", nullptr };

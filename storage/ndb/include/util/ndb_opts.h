@@ -32,10 +32,6 @@
 #include "my_getopt.h"
 #include "util/BaseString.hpp"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifdef OPTEXPORT
 #define OPT_EXTERN(T,V,I) T V I
 #else
@@ -45,82 +41,15 @@ extern "C" {
 #define NONE
 OPT_EXTERN(int,opt_ndb_nodeid,NONE);
 OPT_EXTERN(bool,opt_ndb_endinfo,=0);
-OPT_EXTERN(bool,opt_core,NONE);
 OPT_EXTERN(bool,opt_ndb_optimized_node_selection,NONE);
 OPT_EXTERN(const char *,opt_ndb_connectstring,=0);
 OPT_EXTERN(int, opt_connect_retry_delay,NONE);
 OPT_EXTERN(int, opt_connect_retries,NONE);
+OPT_EXTERN(const char *,opt_charsets_dir,=0);
 
 #ifndef NDEBUG
 OPT_EXTERN(const char *,opt_debug,= 0);
 #endif
-
-#if defined VM_TRACE
-#define OPT_WANT_CORE_DEFAULT 1
-#else
-#define OPT_WANT_CORE_DEFAULT 0
-#endif
-
-#define NDB_STD_OPTS_COMMON \
-  { "usage", '?', "Display this help and exit.", \
-    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }, \
-  { "help", '?', "Display this help and exit.", \
-    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }, \
-  { "version", 'V', "Output version information and exit.", 0, 0, 0, \
-    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }, \
-  { "ndb-connectstring", OPT_NDB_CONNECTSTRING, \
-    "Set connect string for connecting to ndb_mgmd. " \
-    "Syntax: \"[nodeid=<id>;][host=]<hostname>[:<port>]\". " \
-    "Overrides specifying entries in NDB_CONNECTSTRING and my.cnf", \
-    &opt_ndb_connectstring, &opt_ndb_connectstring, \
-    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
-  { "ndb-mgmd-host", NDB_OPT_NOSHORT, \
-    "same as --ndb-connectstring", \
-    &opt_ndb_connectstring, &opt_ndb_connectstring, 0, \
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
-  { "ndb-nodeid", NDB_OPT_NOSHORT, \
-    "Set node id for this node. Overrides node id specified " \
-    "in --ndb-connectstring.", \
-    &opt_ndb_nodeid, &opt_ndb_nodeid, 0, \
-    GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
-  {"ndb-optimized-node-selection", NDB_OPT_NOSHORT,\
-    "Select nodes for transactions in a more optimal way",\
-    &opt_ndb_optimized_node_selection,\
-    &opt_ndb_optimized_node_selection, 0,\
-    GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},\
-  { "connect-string", OPT_NDB_CONNECTSTRING, "same as --ndb-connectstring",\
-    &opt_ndb_connectstring, &opt_ndb_connectstring, \
-    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
-  { "core-file", NDB_OPT_NOSHORT, "Write core on errors.",\
-    &opt_core, &opt_core, 0,\
-    GET_BOOL, NO_ARG, OPT_WANT_CORE_DEFAULT, 0, 0, 0, 0, 0},\
-  {"character-sets-dir", NDB_OPT_NOSHORT,\
-     "Directory where character sets are.", &charsets_dir,\
-     &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},\
-  {"connect-retry-delay", NDB_OPT_NOSHORT, \
-     "Set connection time out." \
-     " This is the number of seconds after which the tool tries" \
-     " reconnecting to the cluster.", \
-     &opt_connect_retry_delay, &opt_connect_retry_delay, 0, GET_INT, \
-     REQUIRED_ARG, 5, 1, INT_MAX, 0, 0, 0},\
-  {"connect-retries", NDB_OPT_NOSHORT, \
-     "Set connection retries." \
-     " This is the number of times the tool tries connecting" \
-     " to the cluster. -1 for eternal retries", \
-     &opt_connect_retries, &opt_connect_retries, 0, GET_INT, \
-     REQUIRED_ARG, 12, -1, INT_MAX, 0, 0, 0}
-
-#ifndef NDEBUG
-#define NDB_STD_OPTS(prog_name) \
-  { "debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", \
-    &opt_debug, &opt_debug, \
-    0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0 }, \
-  NDB_STD_OPTS_COMMON
-#else
-#define NDB_STD_OPTS(prog_name) NDB_STD_OPTS_COMMON
-#endif
-
-void ndb_std_print_version();
 
 enum ndb_std_options {
   /*
@@ -142,6 +71,97 @@ enum ndb_std_options {
   NDB_STD_OPTIONS_LAST
 };
 
+
+namespace NdbStdOpt {
+
+static constexpr struct my_option usage =
+  { "usage", '?', "Display this help and exit.",
+    nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr };
+
+static constexpr struct my_option help =
+  { "help", '?', "Display this help and exit.",
+    nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr };
+
+static constexpr struct my_option version =
+  { "version", 'V', "Output version information and exit.",
+    nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr };
+
+static constexpr struct my_option ndb_connectstring =
+  { "ndb-connectstring", OPT_NDB_CONNECTSTRING,
+    "Set connect string for connecting to ndb_mgmd. "
+    "Syntax: \"[nodeid=<id>;][host=]<hostname>[:<port>]\". "
+    "Overrides specifying entries in NDB_CONNECTSTRING and my.cnf",
+    &opt_ndb_connectstring, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr };
+
+static constexpr struct my_option mgmd_host =
+  { "ndb-mgmd-host", NDB_OPT_NOSHORT, "",
+    &opt_ndb_connectstring, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr };
+
+static constexpr struct my_option connectstring =
+  { "connect-string", NDB_OPT_NOSHORT, "",
+    &opt_ndb_connectstring, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr };
+
+static constexpr struct my_option ndb_nodeid =
+  { "ndb-nodeid", NDB_OPT_NOSHORT,
+    "Set node id for this node. Overrides node id specified "
+    "in --ndb-connectstring.",
+    &opt_ndb_nodeid, nullptr, nullptr, GET_INT, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr };
+
+static constexpr struct my_option optimized_node_selection =
+  { "ndb-optimized-node-selection", NDB_OPT_NOSHORT,
+    "Select nodes for transactions in a more optimal way",
+    &opt_ndb_optimized_node_selection, nullptr, nullptr, GET_BOOL, OPT_ARG,
+    1, 0, 0, nullptr, 0, nullptr};
+
+static constexpr struct my_option charsets_dir =
+  { "character-sets-dir", NDB_OPT_NOSHORT, "Directory where character sets are.",
+    & opt_charsets_dir, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr};
+
+static constexpr struct my_option connect_retry_delay =
+  { "connect-retry-delay", NDB_OPT_NOSHORT,
+    "Set connection time out."
+    " This is the number of seconds after which the tool tries"
+    " reconnecting to the cluster.",
+    &opt_connect_retry_delay, nullptr, nullptr, GET_INT, REQUIRED_ARG,
+    5, 1, INT_MAX, nullptr, 0, nullptr};
+
+static constexpr struct my_option connect_retries =
+  { "connect-retries", NDB_OPT_NOSHORT, "Set connection retries."
+    " This is the number of times the tool tries connecting"
+    " to the cluster. -1 for eternal retries",
+    &opt_connect_retries, nullptr, nullptr, GET_INT, REQUIRED_ARG,
+    12, -1, INT_MAX, nullptr, 0, nullptr};
+
+#ifndef NDEBUG
+static constexpr struct my_option debug =
+  { "debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
+    &opt_debug, nullptr, nullptr, GET_STR, OPT_ARG,
+    0, 0, 0, nullptr, 0, nullptr };
+#endif
+
+static constexpr struct my_option end_of_options =
+  { nullptr, 0, nullptr,
+    nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr};
+
+} // namespace
+
+#ifdef NDEBUG
+#define NDB_STD_OPT_DEBUG
+#else
+#define NDB_STD_OPT_DEBUG NdbStdOpt::debug ,
+#endif
+
+void ndb_std_print_version();
+
 void ndb_opt_set_usage_funcs(void (*short_usage)(void),
                              void (*usage)(void));
 bool
@@ -153,8 +173,6 @@ void ndb_short_usage_sub(const char* extra);
 
 bool ndb_is_load_default_arg_separator(const char* arg);
 
-#ifdef __cplusplus
-}
 
 /*
  * ndb_option
@@ -351,7 +369,5 @@ private:
   struct my_option * options;
   void (*short_usage_fn)(void), (*long_usage_extra_fn)(void);
 };
-
-#endif
 
 #endif /*_NDB_OPTS_H */

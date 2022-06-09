@@ -36,8 +36,10 @@ static int g_loops = 7;
 
 struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndb_desc"),
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+  NdbStdOpt::ndb_connectstring,
+  NdbStdOpt::connectstring,
+  NdbStdOpt::ndb_nodeid,
+  NdbStdOpt::end_of_options
 };
 
 static const NdbDictionary::Table* create_random_table(Ndb*);

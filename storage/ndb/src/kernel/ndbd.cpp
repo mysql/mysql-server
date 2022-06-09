@@ -1365,8 +1365,7 @@ ndbd_run(bool foreground, int report_fd,
   ndbd_exit(0);
 }
 
-
-extern "C" bool opt_core;
+extern bool opt_core;
 
 // instantiated and updated in NdbcntrMain.cpp
 extern Uint32 g_currentStartPhase;

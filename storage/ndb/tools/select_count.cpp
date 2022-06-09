@@ -47,17 +47,26 @@ static int _lock = 0;
 
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndb_select_count"),
+  NdbStdOpt::usage,
+  NdbStdOpt::help,
+  NdbStdOpt::version,
+  NdbStdOpt::ndb_connectstring,
+  NdbStdOpt::mgmd_host,
+  NdbStdOpt::connectstring,
+  NdbStdOpt::ndb_nodeid,
+  NdbStdOpt::connect_retry_delay,
+  NdbStdOpt::connect_retries,
+  NDB_STD_OPT_DEBUG
   { "database", 'd', "Name of database table is in",
-    &_dbname, &_dbname, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+    &_dbname, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
   { "parallelism", 'p', "parallelism",
-    &_parallelism, &_parallelism, 0,
-    GET_INT, REQUIRED_ARG, 240, 0, 0, 0, 0, 0 }, 
+    &_parallelism, nullptr, nullptr, GET_INT, REQUIRED_ARG,
+    240, 0, 0, nullptr, 0, nullptr },
   { "lock", 'l', "Read(0), Read-hold(1), Exclusive(2)",
-    &_lock, &_lock, 0,
-    GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+    &_lock, nullptr, nullptr, GET_INT, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
+  NdbStdOpt::end_of_options
 };
 
 static void short_usage_sub(void)

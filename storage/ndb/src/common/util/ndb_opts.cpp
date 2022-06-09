@@ -33,31 +33,46 @@
 #include "portlib/ndb_password.h"
 #include "portlib/NdbMem.h"
 
-static const char *load_default_groups[]= { "mysql_cluster", 0 };
+using usage_fn = void (*)(void);
+
+static const char *load_default_groups[]= { "mysql_cluster", nullptr };
 
 static void default_ndb_opt_short(void)
 {
-  ndb_short_usage_sub(NULL);
+  ndb_short_usage_sub(nullptr);
 }
 
-extern "C"     /* declaration only */
-void ndb_usage(void (*usagefunc)(void), const char *load_default_groups[],
+/* declaration only */
+void ndb_usage(usage_fn,
+               const char *load_default_groups[],
                struct my_option *my_long_options);
+
 
 static void default_ndb_opt_usage(void)
 {
   struct my_option my_long_options[] =
     {
-      NDB_STD_OPTS("ndbapi_program")
+      NdbStdOpt::usage,
+      NdbStdOpt::help,
+      NdbStdOpt::version,
+      NdbStdOpt::ndb_connectstring,
+      NdbStdOpt::mgmd_host,
+      NdbStdOpt::connectstring,
+      NdbStdOpt::ndb_nodeid,
+      NdbStdOpt::optimized_node_selection,
+      NdbStdOpt::charsets_dir,
+      NdbStdOpt::connect_retry_delay,
+      NdbStdOpt::connect_retries,
+      NDB_STD_OPT_DEBUG
+      NdbStdOpt::end_of_options,
     };
 
   ndb_usage(default_ndb_opt_short, load_default_groups, my_long_options);
 }
 
-static void (*g_ndb_opt_short_usage)(void)= default_ndb_opt_short;
-static void (*g_ndb_opt_usage)(void)= default_ndb_opt_usage;
+static usage_fn g_ndb_opt_short_usage = default_ndb_opt_short;
+static usage_fn g_ndb_opt_usage = default_ndb_opt_usage;
 
-extern "C"
 void ndb_opt_set_usage_funcs(void (*short_usage)(void),
                              void (*usage)(void))
 {
@@ -78,7 +93,6 @@ const char* ndb_progname(void)
   return "<unknown program>";
 }
 
-extern "C"
 void ndb_short_usage_sub(const char* extra)
 {
   printf("Usage: %s [OPTIONS]%s%s\n", ndb_progname(),
@@ -86,8 +100,7 @@ void ndb_short_usage_sub(const char* extra)
          (extra)?extra:"");
 }
 
-extern "C"
-void ndb_usage(void (*usagefunc)(void), const char *load_default_groups[],
+void ndb_usage(usage_fn usagefunc, const char *load_default_groups[],
                struct my_option *my_long_options)
 {
   (*usagefunc)();
@@ -104,7 +117,6 @@ void empty_long_usage_extra_func()
 {
 }
 
-extern "C"
 bool
 ndb_std_get_one_option(int optid, const struct my_option *opt, char *argument)
 {
@@ -131,7 +143,6 @@ ndb_std_get_one_option(int optid, const struct my_option *opt, char *argument)
   return 0;
 }
 
-extern "C"
 void ndb_std_print_version()
 {
 #ifndef NDEBUG
@@ -143,7 +154,6 @@ void ndb_std_print_version()
          NDB_VERSION_STRING,suffix,SYSTEM_TYPE,MACHINE_TYPE);
 }
 
-extern "C"
 bool ndb_is_load_default_arg_separator(const char* arg)
 {
   /*
@@ -208,7 +218,7 @@ int Ndb_opts::handle_options(bool (*get_opt_fn)
 void Ndb_opts::set_usage_funcs(void (*short_fn)(void),
                                void (*long_fn)(void))
 {
-  short_usage_fn = short_fn;
+  if(short_fn) short_usage_fn = short_fn;
   if(long_fn) long_usage_extra_fn = long_fn;
 }
 

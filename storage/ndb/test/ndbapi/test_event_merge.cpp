@@ -2246,7 +2246,16 @@ runtest()
 static struct my_option
 my_long_options[] =
 {
-  NDB_STD_OPTS("test_event_merge"),
+ NdbStdOpt::usage,
+  NdbStdOpt::help,
+  NdbStdOpt::version,
+  NdbStdOpt::ndb_connectstring,
+  NdbStdOpt::mgmd_host,
+  NdbStdOpt::connectstring,
+  NdbStdOpt::ndb_nodeid,
+  NdbStdOpt::connect_retry_delay,
+  NdbStdOpt::connect_retries,
+  NDB_STD_OPT_DEBUG
   { "abort-on-error", NDB_OPT_NOSHORT, "Do abort() on any error",
     &g_opts.abort_on_error, &g_opts.abort_on_error, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },

@@ -267,26 +267,36 @@ static int _type;
 
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndb_show_tables"),
-  { "database", 'd', "Name of database table is in. Requires table-name in argument",
-    &_dbname, &_dbname, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  NdbStdOpt::usage,
+  NdbStdOpt::help,
+  NdbStdOpt::version,
+  NdbStdOpt::ndb_connectstring,
+  NdbStdOpt::mgmd_host,
+  NdbStdOpt::connectstring,
+  NdbStdOpt::ndb_nodeid,
+  NdbStdOpt::connect_retry_delay,
+  NdbStdOpt::connect_retries,
+  NDB_STD_OPT_DEBUG
+  { "database", 'd',
+    "Name of database table is in. Requires table-name in argument",
+    &_dbname, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+     0, 0, 0, nullptr, 0, nullptr },
   { "loops", 'l', "loops",
-    &_loops, &_loops, 0,
-    GET_INT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0 }, 
+    &_loops, nullptr, nullptr, GET_INT, REQUIRED_ARG,
+     1, 0, 0, nullptr, 0, nullptr },
   { "type", 't', "type",
-    &_type, &_type, 0,
-    GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
+    &_type, nullptr, nullptr, GET_INT, REQUIRED_ARG,
+     0, 0, 0, nullptr, 0, nullptr },
   { "fully-qualified", 'f', "Show fully qualified table names",
-    &_fully_qualified, &_fully_qualified, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+    &_fully_qualified, nullptr, nullptr, GET_BOOL, NO_ARG,
+     0, 0, 0, nullptr, 0, nullptr },
   { "parsable", 'p', "Return output suitable for mysql LOAD DATA INFILE",
-    &_parsable, &_parsable, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+    &_parsable,  nullptr, nullptr, GET_BOOL, NO_ARG,
+     0, 0, 0, nullptr, 0, nullptr },
   { "show-temp-status", NDB_OPT_NOSHORT, "Show table temporary flag",
-    &show_temp_status, &show_temp_status, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+    &show_temp_status, nullptr, nullptr, GET_BOOL, NO_ARG,
+     0, 0, 0, nullptr, 0, nullptr },
+  NdbStdOpt::end_of_options
 };
 
 static void short_usage_sub(void)

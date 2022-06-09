@@ -2168,7 +2168,16 @@ dodisconnect()
 static struct my_option
 my_long_options[] =
 {
-  NDB_STD_OPTS("testIndexStat"),
+  NdbStdOpt::usage,
+  NdbStdOpt::help,
+  NdbStdOpt::version,
+  NdbStdOpt::ndb_connectstring,
+  NdbStdOpt::mgmd_host,
+  NdbStdOpt::connectstring,
+  NdbStdOpt::ndb_nodeid,
+  NdbStdOpt::connect_retry_delay,
+  NdbStdOpt::connect_retries,
+  NDB_STD_OPT_DEBUG
   { "loglevel", NDB_OPT_NOSHORT,
     "Logging level in this program 0-3 (default 0)",
     &g_opts.loglevel, &g_opts.loglevel, 0,
@@ -2212,9 +2221,7 @@ my_long_options[] =
   { "dump", NDB_OPT_NOSHORT, "Write CSV files name.* of keys,ranges,stats",
     &g_opts.dump, &g_opts.dump, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { 0, 0, 0,
-    0, 0, 0,
-    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
+  NdbStdOpt::end_of_options
 };
 
 static void
