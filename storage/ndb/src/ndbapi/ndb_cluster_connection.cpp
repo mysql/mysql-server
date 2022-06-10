@@ -1277,12 +1277,18 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
       for (; iterall.valid(); iterall.next())
       {
         Uint32 tmp1 = 0, tmp2 = 0;
-        Uint32 nodeId = 0;
+        Uint32 nodeId;
         Uint32 location_domain_id = 0;
         Uint32 node_type;
         const char *host_str = nullptr;
-        iterall.get(CFG_NODE_ID, &nodeId);
-        iterall.get(CFG_TYPE_OF_SECTION, &node_type);
+
+        if (iterall.get(CFG_TYPE_OF_SECTION, &node_type) != 0 ||
+            iterall.get(CFG_NODE_ID, &nodeId) != 0)
+        {
+          // Node section missing mandatory type and node id
+          DBUG_RETURN(-1);
+        }
+
         if (node_type == NODE_TYPE_API)
         {
           if (max_node_id < nodeId)
@@ -1314,7 +1320,11 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
   // System name
   ndb_mgm_configuration_iterator s_iter(config, CFG_SECTION_SYSTEM);
   const char * tmp_system_name;
-  s_iter.get(CFG_SYS_NAME, & tmp_system_name);
+  if (s_iter.get(CFG_SYS_NAME, &tmp_system_name) != 0)
+  {
+    // Missing mandatory system name
+    DBUG_RETURN(-1);
+  }
   m_system_name.assign(tmp_system_name);
 
   // Save generation of the used config
