@@ -1604,20 +1604,23 @@ bool log_slow_applicable(THD *thd) {
       (unlikely(thd->get_stmt_da()->mysql_errno() == ER_PARSE_ERROR)))
     return false;
 
+  bool warn_no_index =
+      ((thd->server_status &
+        (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
+       opt_log_queries_not_using_indexes &&
+       !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND));
+  bool log_this_query =
+      ((thd->server_status & SERVER_QUERY_WAS_SLOW) || warn_no_index) &&
+      (thd->get_examined_row_count() >= thd->variables.min_examined_row_limit);
+
+  // The docs say slow queries must be counted even when the log is off.
+  if (log_this_query) thd->status_var.long_query_count++;
+
   /*
     Do not log administrative statements unless the appropriate option is
     set.
   */
   if (thd->enable_slow_log && opt_slow_log) {
-    bool warn_no_index =
-        ((thd->server_status &
-          (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
-         opt_log_queries_not_using_indexes &&
-         !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND));
-    bool log_this_query =
-        ((thd->server_status & SERVER_QUERY_WAS_SLOW) || warn_no_index) &&
-        (thd->get_examined_row_count() >=
-         thd->variables.min_examined_row_limit);
     bool suppress_logging = log_throttle_qni.log(thd, warn_no_index);
 
     if (!suppress_logging && log_this_query) return true;
@@ -1655,10 +1658,6 @@ void log_slow_do(THD *thd) {
   @param thd                 thread handle
 */
 void log_slow_statement(THD *thd) {
-  // The docs say slow queries must be counted even when the log is off.
-  if (thd->server_status & SERVER_QUERY_WAS_SLOW)
-    thd->status_var.long_query_count++;
-
   if (log_slow_applicable(thd)) log_slow_do(thd);
 }
 
