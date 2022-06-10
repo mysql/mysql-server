@@ -85,6 +85,11 @@ bool Ndb_record_layout::isNull(const char *data, int idx) const {
   return false;
 }
 
+void Ndb_record_layout::initRowBuffer(char *data) const {
+  // First four bytes is for null bits - clear them for sanity
+  memset(data, 0, 4);
+}
+
 void Ndb_record_layout::setValue(int idx, unsigned short value,
                                  char *data) const {
   assert(idx < (int)m_columns);

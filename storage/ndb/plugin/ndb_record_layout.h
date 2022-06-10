@@ -41,6 +41,7 @@ class Ndb_record_layout {
 
   void addColumn(const NdbDictionary::Column *);
 
+  void initRowBuffer(char *data) const;
   void setNull(int idx, char *data) const;
   void setNotNull(int idx, char *data) const;
   void setValue(int idx, unsigned short, char *data) const;
