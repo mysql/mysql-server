@@ -1,0 +1,62 @@
+#
+# Bug#33500956: ERROR 1156 (08S01): Got packets out of order;
+# Tests if federated engine correctly handles (with reconnect)
+# 5 different possible wait_timeout related errors.
+#
+-- echo # Setup
+
+--source include/have_debug.inc
+--source suite/federated/include/federated.inc
+
+# connect to remote.
+connection slave;
+--disable_warnings
+DROP TABLE IF EXISTS federated.t1;
+--enable_warnings
+
+CREATE TABLE federated.t1 (
+  a int
+  );
+
+# connect to local.
+connection master;
+
+--disable_warnings
+DROP TABLE IF EXISTS federated.t1;
+--enable_warnings
+
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE federated.t1 (
+    a int
+    ) ENGINE="FEDERATED"
+    CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+
+SELECT * FROM federated.t1;
+SET @debug_master_save= @@GLOBAL.DEBUG;
+
+# test on local, each SELECT query should pass by reconnecting
+--echo # 1. Test wait_timeout with ER_NET_PACKETS_OUT_OF_ORDER error
+SET @@GLOBAL.DEBUG='+d,bug33500956_simulate_out_of_order';
+SELECT * FROM federated.t1;
+
+--echo # 2. Test wait_timeout with ER_NET_ERROR_ON_WRITE error
+SET @@GLOBAL.DEBUG='+d,bug33500956_simulate_write_error';
+SELECT * FROM federated.t1;
+
+--echo # 3. Test wait_timeout with ER_NET_WRITE_INTERRUPTED error
+SET @@GLOBAL.DEBUG='+d,bug33500956_simulate_write_interrupted';
+SELECT * FROM federated.t1;
+
+--echo # 4. Test wait_timeout with ER_NET_READ_ERROR error
+SET @@GLOBAL.DEBUG='+d,bug33500956_simulate_read_error';
+SELECT * FROM federated.t1;
+
+--echo # 5. Test wait_timeout with ER_NET_READ_INTERRUPTED error
+SET @@GLOBAL.DEBUG='+d,bug33500956_simulate_read_interrupted';
+SELECT * FROM federated.t1;
+
+--echo # Cleanup
+SET @@GLOBAL.DEBUG= @debug_master_save;
+# connect to remote.
+connection slave;
+--source suite/federated/include/federated_cleanup.inc

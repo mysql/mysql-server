@@ -1,0 +1,41 @@
+# Setup
+CREATE DATABASE federated;
+CREATE DATABASE federated;
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+a int
+);
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+a int
+) ENGINE="FEDERATED"
+    CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+SELECT * FROM federated.t1;
+a
+SET @debug_master_save= @@GLOBAL.DEBUG;
+# 1. Test wait_timeout with ER_NET_PACKETS_OUT_OF_ORDER error
+SET @@GLOBAL.DEBUG='+d,bug33500956_simulate_out_of_order';
+SELECT * FROM federated.t1;
+a
+# 2. Test wait_timeout with ER_NET_ERROR_ON_WRITE error
+SET @@GLOBAL.DEBUG='+d,bug33500956_simulate_write_error';
+SELECT * FROM federated.t1;
+a
+# 3. Test wait_timeout with ER_NET_WRITE_INTERRUPTED error
+SET @@GLOBAL.DEBUG='+d,bug33500956_simulate_write_interrupted';
+SELECT * FROM federated.t1;
+a
+# 4. Test wait_timeout with ER_NET_READ_ERROR error
+SET @@GLOBAL.DEBUG='+d,bug33500956_simulate_read_error';
+SELECT * FROM federated.t1;
+a
+# 5. Test wait_timeout with ER_NET_READ_INTERRUPTED error
+SET @@GLOBAL.DEBUG='+d,bug33500956_simulate_read_interrupted';
+SELECT * FROM federated.t1;
+a
+# Cleanup
+SET @@GLOBAL.DEBUG= @debug_master_save;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE federated;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE federated;
