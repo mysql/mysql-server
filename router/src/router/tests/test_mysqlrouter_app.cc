@@ -963,7 +963,8 @@ TEST_F(AppTest, BootstrapSuperuserNoUserOption) {
                   mock_sys_user_operations.get());
     FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
-    EXPECT_THAT(exc.what(), StartsWith("You are bootstraping as a superuser."));
+    EXPECT_THAT(exc.what(),
+                StartsWith("You are bootstrapping as a superuser."));
   }
 }
 

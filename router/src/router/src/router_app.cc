@@ -251,7 +251,7 @@ void MySQLRouter::init(const std::string &program_name,
 
     if (superuser && !user_option) {
       std::string msg(
-          "You are bootstraping as a superuser.\n"
+          "You are bootstrapping as a superuser.\n"
           "This will make all the result files (config etc.) privately owned "
           "by the superuser.\n"
           "Please use --user=username option to specify the user that will be "

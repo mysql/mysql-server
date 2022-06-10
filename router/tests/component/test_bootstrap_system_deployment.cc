@@ -102,7 +102,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
       "dont.query.dns",
   });
 
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   check_exit_code(router, EXIT_SUCCESS);
 
   EXPECT_TRUE(

@@ -1266,9 +1266,9 @@ void ConfigGenerator::set_log_file_permissions(
   UNREFERENCED_PARAMETER(options);
 #else
   /* Currently at this point the logger is not yet initialized but while
-   * bootstraping with the --user=<user> option we need to create a log file and
-   * chown it to the <user>. Otherwise when the router gets launched later (not
-   * bootstrap) with the same --user=<user> option, the user might not have
+   * bootstrapping with the --user=<user> option we need to create a log file
+   * and chown it to the <user>. Otherwise when the router gets launched later
+   * (not bootstrap) with the same --user=<user> option, the user might not have
    * right to the logging directory.
    */
   out_stream_ << "- Adjusting permissions of generated files" << std::endl;
@@ -1535,8 +1535,8 @@ std::string ConfigGenerator::bootstrap_deployment(
 
   // return bootstrap report (several lines of human-readable text) if desired
   if (!quiet) {
-    const std::string cluster_type_name = [&]() -> auto {
-      switch (metadata_->get_type()) {
+    const std::string cluster_type_name = [](auto cluster_type) {
+      switch (cluster_type) {
         case ClusterType::RS_V2:
           return "InnoDB ReplicaSet";
         case ClusterType::GR_CS:
@@ -1544,8 +1544,7 @@ std::string ConfigGenerator::bootstrap_deployment(
         default:
           return "InnoDB Cluster";
       }
-    }
-    ();
+    }(metadata_->get_type());
 
     return get_bootstrap_report_text(
         program_name, config_file_path.str(), router_name, cluster_info.name,
