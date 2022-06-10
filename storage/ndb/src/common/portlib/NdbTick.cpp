@@ -198,7 +198,7 @@ const NDB_TICKS NdbTick_getCurrentTicks(void)
 
 #elif defined(_WIN32)
   LARGE_INTEGER t_cnt;
-  const BOOL res = QueryPerformanceCounter(&t_cnt);
+  const BOOL res [[maybe_unused]] = QueryPerformanceCounter(&t_cnt);
   /**
    * We tested support of QPC in NdbTick_Init().
    * Thus, it should not fail later.

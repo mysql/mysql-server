@@ -964,7 +964,7 @@ TransporterRegistry::createTCPTransporter(TransporterConfiguration *config) {
 }
 
 bool
-TransporterRegistry::createSHMTransporter(TransporterConfiguration *config)
+TransporterRegistry::createSHMTransporter(TransporterConfiguration *config [[maybe_unused]])
 {
 #ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   DBUG_ENTER("TransporterRegistry::createTransporter SHM");
@@ -1510,7 +1510,7 @@ TransporterRegistry::poll_SHM(TransporterReceiveHandle& recvdata,
 }
 
 Uint32
-TransporterRegistry::poll_SHM(TransporterReceiveHandle& recvdata,
+TransporterRegistry::poll_SHM(TransporterReceiveHandle& recvdata [[maybe_unused]],
                               bool &any_connected)
 {
   assert((receiveHandle == &recvdata) || (receiveHandle == 0));
@@ -1543,7 +1543,7 @@ TransporterRegistry::poll_SHM(TransporterReceiveHandle& recvdata,
 
 Uint32
 TransporterRegistry::spin_check_transporters(
-                          TransporterReceiveHandle& recvdata)
+                          TransporterReceiveHandle& recvdata [[maybe_unused]])
 {
   Uint32 res = 0;
 #ifdef NDB_SHM_TRANSPORTER_SUPPORTED
@@ -1582,9 +1582,9 @@ TransporterRegistry::spin_check_transporters(
 
 Uint32
 TransporterRegistry::pollReceive(Uint32 timeOutMillis,
-                                 TransporterReceiveHandle& recvdata)
+                                 TransporterReceiveHandle& recvdata [[maybe_unused]])
 {
-  bool sleep_state_set = false;
+  bool sleep_state_set [[maybe_unused]] = false;
   assert((receiveHandle == &recvdata) || (receiveHandle == 0));
 
   Uint32 retVal = 0;
@@ -1707,8 +1707,8 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis,
  * is sent on the SHM socket that wasn't absolutely needed.
  */
 int
-TransporterRegistry::reset_shm_awake_state(TransporterReceiveHandle& recvdata,
-                                       bool& sleep_state_set)
+TransporterRegistry::reset_shm_awake_state(TransporterReceiveHandle& recvdata [[maybe_unused]],
+                                       bool& sleep_state_set [[maybe_unused]])
 {
   int res = 0;
 #ifdef NDB_SHM_TRANSPORTER_SUPPORTED
@@ -1751,7 +1751,7 @@ TransporterRegistry::reset_shm_awake_state(TransporterReceiveHandle& recvdata,
  * need any socket communication to wake up.
  */
 void
-TransporterRegistry::set_shm_awake_state(TransporterReceiveHandle& recvdata)
+TransporterRegistry::set_shm_awake_state(TransporterReceiveHandle& recvdata [[maybe_unused]])
 {
 #ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   for (Uint32 i = 0; i < recvdata.nSHMTransporters; i++)

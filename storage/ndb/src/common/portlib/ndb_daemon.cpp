@@ -314,7 +314,7 @@ check_files(const char *pidfile_name,
 static int do_files(const char* pidfile_name,
                     const char* logfile_name [[maybe_unused]],
                     int pidfd,
-                    int logfd)
+                    int logfd [[maybe_unused]])
 {
   /* Lock the lock file */
   if (lockf(pidfd, F_LOCK, 0) == -1)
@@ -438,7 +438,7 @@ void ndb_service_wait_for_debugger(int timeout_sec [[maybe_unused]])
    if(!IsDebuggerPresent())
    {
      int i;
-     printf("Waiting for debugger to attach, pid=%u\n",GetCurrentProcessId());
+     printf("Waiting for debugger to attach, pid=%lu\n",GetCurrentProcessId());
      fflush(stdout);
      for(i= 0; i < timeout_sec; i++)
      {
@@ -450,7 +450,7 @@ void ndb_service_wait_for_debugger(int timeout_sec [[maybe_unused]])
          return;
        }
      }
-     printf("pid=%u, debugger not attached after %d seconds, resuming\n",GetCurrentProcessId(),
+     printf("pid=%lu, debugger not attached after %d seconds, resuming\n",GetCurrentProcessId(),
        timeout_sec);
      fflush(stdout);
    }

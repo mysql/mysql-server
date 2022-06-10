@@ -111,12 +111,6 @@ ssize_t ndb_send(ndb_socket_t s, const char* buf, size_t len, int flags)
 }
 
 static inline
-ssize_t ndb_socket_readv(ndb_socket_t s, const struct iovec *iov, int iovcnt)
-{
-  return readv(s.s, iov, iovcnt);
-}
-
-static inline
 ssize_t ndb_socket_writev(ndb_socket_t s, const struct iovec *iov, int iovcnt)
 {
   return writev(s.s, iov, iovcnt);

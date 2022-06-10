@@ -63,7 +63,8 @@ int NdbMem_MemUnlockAll(){
 #endif
 }
 
-int NdbMem_MemLock(const void * ptr, size_t len)
+int NdbMem_MemLock(const void * ptr [[maybe_unused]],
+                   size_t len [[maybe_unused]])
 {
 #if defined(HAVE_MLOCK)
   return mlock(ptr, len);

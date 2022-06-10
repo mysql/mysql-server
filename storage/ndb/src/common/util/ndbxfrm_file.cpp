@@ -929,7 +929,7 @@ int ndbxfrm_file::generate_keying_material(ndb_ndbxfrm1::header *ndbxfrm1,
 {
   require(pwd_key != nullptr);
 
-  const off_t estimated_data_size =
+  const Uint64 estimated_data_size =
       (m_payload_end == INDEFINITE_OFFSET) ? INDEFINITE_SIZE : m_data_size;
   constexpr size_t max_keying_material_size =
       ndb_ndbxfrm1::header::get_max_keying_material_size();

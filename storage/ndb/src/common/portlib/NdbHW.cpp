@@ -1260,8 +1260,7 @@ get_processor_data(LOGICAL_PROCESSOR_RELATIONSHIP relationship,
  * at least not outside its L3 cache, and these always reside
  * in the same CPU group in Windows.
  */
-int set_num_groups(struct ndb_hwinfo *hwinfo,
-                   Uint32 cpu_cnt)
+int set_num_groups(struct ndb_hwinfo *hwinfo)
 {
   DWORD buf_len = 0;
   PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX buf = nullptr;
@@ -1320,12 +1319,11 @@ Uint32 get_cpu_number(struct ndb_hwinfo *hwinfo,
 
 static int Ndb_ReloadHWInfo(struct ndb_hwinfo *hwinfo)
 {
-  if (set_num_groups(hwinfo, ncpu) == (int)-1)
+  if (set_num_groups(hwinfo) == (int)-1)
   {
     return -1;
   }
 
-  BOOL done = false;
   PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX buf = nullptr;
   PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX ptr = nullptr;
   DWORD buf_len = 0;
@@ -2904,8 +2902,8 @@ TAPTEST(NdbCPU)
 #endif
   printf("sysconf(_SC_NPROCESSORS_CONF) => %lu\n", sysconf_ncpu_conf);
 
-  long sysconf_ncpu_online = 0;
 #ifdef _SC_NPROCESSORS_ONLN
+  long sysconf_ncpu_online = 0;
   sysconf_ncpu_online = sysconf(_SC_NPROCESSORS_ONLN);
   printf("sysconf(_SC_NPROCESSORS_ONLN) => %lu\n", sysconf_ncpu_online);
 #endif

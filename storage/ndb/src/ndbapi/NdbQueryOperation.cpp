@@ -95,20 +95,17 @@ static const int Err_KeyIsNULL = 4316;
 static const int Err_FinaliseNotCalled = 4519;
 static const int Err_InterpretedCodeWrongTab = 4524;
 
-enum
-{
-  /**
-   * Set NdbQueryOperationImpl::m_parallelism to this value to indicate that
-   * scan parallelism should be adaptive.
-   */
-  Parallelism_adaptive = 0xffff0000,
+/**
+ * Set NdbQueryOperationImpl::m_parallelism to this value to indicate that
+ * scan parallelism should be adaptive.
+ */
+static constexpr const Uint32 Parallelism_adaptive = 0xffff0000;
 
-  /**
-   * Set NdbQueryOperationImpl::m_parallelism to this value to indicate that
-   * all fragments should be scanned in parallel.
-   */
-  Parallelism_max = 0xffff0001
-};
+/**
+ * Set NdbQueryOperationImpl::m_parallelism to this value to indicate that
+ * all fragments should be scanned in parallel.
+ */
+static constexpr const Uint32 Parallelism_max = 0xffff0001;
 
 /**
  * A class for accessing the correlation data at the end of a tuple (for 

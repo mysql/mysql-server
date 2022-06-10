@@ -122,16 +122,7 @@ struct iovec {
 };
 
 static inline
-ssize_t ndb_socket_readv(ndb_socket_t s, const struct iovec *iov, int iovcnt)
-{
-  DWORD rv=0;
-  if (WSARecv(s.s,(LPWSABUF)iov,iovcnt,&rv,0,0,0) == SOCKET_ERROR)
-    return -1;
-  return rv;
-}
-
-static inline
-ssize_t ndb_socket_writev(ndb_socket_t s, const struct iovec *iov, int iovcnt)
+ssize_t ndb_socket_writev(ndb_socket_t s, struct iovec *iov, int iovcnt)
 {
   DWORD rv=0;
   if (WSASend(s.s,(LPWSABUF)iov,iovcnt,&rv,0,0,0) == SOCKET_ERROR)

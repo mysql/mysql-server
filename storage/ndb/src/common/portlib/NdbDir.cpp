@@ -110,7 +110,7 @@ class DirIteratorImpl {
 public:
   DirIteratorImpl():
     m_first(true),
-    m_find_handle(INVALID_HANDLE_VALUE) {};
+    m_find_handle(INVALID_HANDLE_VALUE) {}
 
   ~DirIteratorImpl() {
     close();
@@ -205,7 +205,8 @@ mode_t NdbDir::o_x(void) { return IF_WIN(0, S_IXOTH); }
 
 
 bool
-NdbDir::create(const char *dir, mode_t mode, bool ignore_existing)
+NdbDir::create(const char *dir, mode_t mode [[maybe_unused]],
+               bool ignore_existing)
 {
 #ifdef _WIN32
   if (CreateDirectory(dir, NULL) == 0)
@@ -240,9 +241,10 @@ NdbDir::Temp::Temp()
 {
 #ifdef _WIN32
   DWORD len = GetTempPath(0, NULL);
-  m_path = new char[len];
-  if (GetTempPath(len, (char*)m_path) == 0)
+  char *tmp = new char[len];
+  if (GetTempPath(len, tmp) == 0)
     abort();
+  m_path = tmp;
 #else
   char* tmp = getenv("TMPDIR");
   if (tmp)

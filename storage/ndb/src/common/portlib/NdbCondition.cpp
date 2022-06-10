@@ -174,10 +174,10 @@ NdbCondition_WaitTimeout(struct NdbCondition* p_cond,
 void
 NdbCondition_ComputeAbsTime(struct timespec * abstime, unsigned msecs)
 {
-  int secs = 0;
 #ifdef _WIN32
   set_timespec_nsec(abstime, msecs * 1000000ULL);
 #else
+  int secs = 0;
 #ifdef HAVE_CLOCK_GETTIME
   clock_gettime(clock_id, abstime);
 #else

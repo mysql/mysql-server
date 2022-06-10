@@ -83,8 +83,10 @@ static NdbMutex *ndb_thread_mutex = 0;
 static struct NdbCondition * ndb_thread_condition = 0;
 
 static int f_high_prio_set = 0;
+#ifdef HAVE_PTHREAD_SETSCHEDPARAM
 static int f_high_prio_policy;
 static int f_high_prio_prio;
+#endif
 
 struct NdbThread 
 { 
@@ -489,7 +491,10 @@ void NdbThread_Destroy(struct NdbThread** p_thread)
 
 int NdbThread_WaitFor(struct NdbThread* p_wait_thread, void** status)
 {
-  if (p_wait_thread == NULL)
+  /* Always set status to nullptr, never used anyway */
+  if (status != nullptr) *status = nullptr;
+
+  if (p_wait_thread == nullptr)
     return 0;
 
   if (p_wait_thread->thread == 0)
@@ -510,8 +515,6 @@ int NdbThread_WaitFor(struct NdbThread* p_wait_thread, void** status)
     {
       return -1;
     }
-
-    /* Don't fill in "status", never used anyway */
 
     return 0;
   }
@@ -1213,7 +1216,7 @@ NdbThread_LockCPUSet(struct NdbThread* pThread,
   {
     return NON_EXCLUSIVE_CPU_SET_NOT_SUPPORTED_ERROR;
   }
-  unsigned int used_processor_group;
+  unsigned int used_processor_group = UINT_MAX;
   unsigned int *cpu_set_ptr = (unsigned int*)ndb_cpu_set;
   unsigned int *dynamic_part = &cpu_set_ptr[2];
   unsigned long long min_so_far = (unsigned long long)-1;
@@ -1237,6 +1240,8 @@ NdbThread_LockCPUSet(struct NdbThread* pThread,
     }
   }
   assert(found);
+  if (!found) return CPU_ID_MISSING_ERROR; // Processor group not found
+
   KAFFINITY mask;
   calculate_processor_mask(&mask,
                            used_processor_group,
@@ -1939,7 +1944,7 @@ NdbThread_SetHighPrioProperties(const char * spec)
 {
   char * copy = 0;
   char * prio = 0;
-  int found = 0;
+  int found [[maybe_unused]] = 0;
 
   if (spec == 0)
   {

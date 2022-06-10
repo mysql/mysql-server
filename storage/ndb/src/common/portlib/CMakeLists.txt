@@ -73,6 +73,10 @@ ADD_CONVENIENCE_LIBRARY(ndbportlib
   LINK_LIBRARIES mysys ${LIBSOCKET}
   )
 
+IF(WIN32_CLANG)
+  ADD_COMPILE_FLAGS(ndb_daemon.cpp COMPILE_FLAGS " -Wno-microsoft-cast")
+ENDIF()
+
 NDB_ADD_TEST(NdbHW-t NdbHW.cpp LIBS ndbmgmapi ndbgeneral ndbportlib)
 
 NDB_ADD_TEST(NdbDir-t NdbDir.cpp LIBS ndbmgmapi ndbgeneral ndbportlib)
