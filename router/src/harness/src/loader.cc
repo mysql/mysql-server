@@ -1196,10 +1196,10 @@ void Loader::check_config_options_supported() {
 }
 
 void Loader::check_default_config_options_supported() {
-  const auto &defult_section = config_.get_default_section();
+  const auto &default_section = config_.get_default_section();
   const bool error_out = config_.error_on_unsupported_option;
 
-  for (const auto &option : defult_section.get_options()) {
+  for (const auto &option : default_section.get_options()) {
     if (std::find(supported_global_options.begin(),
                   supported_global_options.end(),
                   option.first) != supported_global_options.end()) {

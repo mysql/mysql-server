@@ -236,7 +236,7 @@ TEST_F(MasterKeyReaderWriterTest,
       "--master-key-writer=" + script_generator.get_writer_script(),
   });
 
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 30000ms));
   EXPECT_TRUE(router.expect_output(
       "MySQL Router configured for the InnoDB Cluster 'my-cluster'"))
@@ -285,7 +285,7 @@ TEST_F(MasterKeyReaderWriterTest,
       "--bootstrap=127.0.0.1:" + std::to_string(server_port),
   });
 
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 30000ms));
   EXPECT_TRUE(
       router.expect_output("MySQL Router configured for the "
@@ -346,7 +346,7 @@ TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyReader) {
       },
       EXIT_FAILURE);
 
-  // check if the bootstraping failed
+  // check if the bootstrapping failed
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
   EXPECT_TRUE(router.expect_output(
       "Error: Cannot fetch master key file using master key reader"))
@@ -382,7 +382,7 @@ TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyWriter) {
       },
       EXIT_FAILURE);
 
-  // check if the bootstraping failed
+  // check if the bootstrapping failed
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
   EXPECT_TRUE(router.expect_output(
       "Error: Cannot write master key file using master key writer"))
@@ -423,7 +423,7 @@ TEST_F(MasterKeyReaderWriterTest, KeyringFileRestoredWhenBootstrapFails) {
       },
       EXIT_FAILURE);
 
-  // check if the bootstraping failed
+  // check if the bootstrapping failed
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
   ASSERT_THAT(keyring_path.str(), FileContentEqual("keyring file content"));
 }
@@ -454,7 +454,7 @@ TEST_F(MasterKeyReaderWriterTest, MasterKeyRestoredWhenBootstrapFails) {
       },
       EXIT_FAILURE);
 
-  // check if the bootstraping failed
+  // check if the bootstrapping failed
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
   ASSERT_THAT(master_key_path.str(), FileContentEqual(""));
 }
@@ -488,7 +488,7 @@ TEST_F(MasterKeyReaderWriterTest,
       "--master-key-writer=" + script_generator.get_writer_script(),
   });
 
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 30000ms));
   EXPECT_TRUE(
       router.expect_output("MySQL Router configured for the "
@@ -530,7 +530,7 @@ TEST_F(MasterKeyReaderWriterTest,
       "--master-key-writer=" + script_generator.get_writer_script(),
   });
 
-  // check if the bootstraping failed
+  // check if the bootstrapping failed
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router));
   ASSERT_THAT(Path(tmp_dir_.name()).join("master_key").str(),
               FileContentEqual("master key value"));
@@ -807,7 +807,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest, BootstrapPass) {
       "--master-key-writer=" + script_generator.get_writer_script(),
   });
 
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS));
 
   EXPECT_TRUE(
@@ -846,7 +846,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
       },
       EXIT_FAILURE);
 
-  // check if the bootstraping failed
+  // check if the bootstrapping failed
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
 
   EXPECT_TRUE(router.expect_output(
@@ -880,7 +880,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
       },
       EXIT_FAILURE);
 
-  // check if the bootstraping failed
+  // check if the bootstrapping failed
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
 
   EXPECT_TRUE(router.expect_output(
@@ -923,7 +923,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
       },
       EXIT_FAILURE);
 
-  // check if the bootstraping failed
+  // check if the bootstrapping failed
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
 
   ASSERT_THAT(keyring_path.str(), FileContentEqual("keyring file content"));
@@ -954,7 +954,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
       },
       EXIT_FAILURE);
 
-  // check if the bootstraping failed
+  // check if the bootstrapping failed
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
 
   ASSERT_THAT(master_key_path.str(), FileContentEqual(""));

@@ -978,7 +978,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_without_bootstrap_switch) {
       launch_router_for_bootstrap({"--account", "account1"}, EXIT_FAILURE);
 
   EXPECT_NO_THROW(router.wait_for_exit());
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   EXPECT_THAT(
       router.get_full_output(),
       ::testing::HasSubstr(
@@ -998,7 +998,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_argument_missing) {
       launch_router_for_bootstrap({"-B=0", "--account"}, EXIT_FAILURE);
 
   EXPECT_NO_THROW(router.wait_for_exit());
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   EXPECT_THAT(
       router.get_full_output(),
       ::testing::HasSubstr("option '--account' expects a value, got nothing"));
@@ -1016,7 +1016,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_argument_empty) {
       launch_router_for_bootstrap({"-B=0", "--account", ""}, EXIT_FAILURE);
 
   EXPECT_NO_THROW(router.wait_for_exit());
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   EXPECT_THAT(router.get_full_output(),
               ::testing::HasSubstr(
                   "Error: Value for --account option cannot be empty"));
@@ -1033,7 +1033,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_given_twice) {
       {"-B=0", "--account", "user1", "--account", "user2"}, EXIT_FAILURE);
 
   EXPECT_NO_THROW(router.wait_for_exit());
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   EXPECT_THAT(router.get_full_output(),
               ::testing::HasSubstr(" Option --account can only be given once"));
   check_exit_code(router, EXIT_FAILURE);
@@ -1052,7 +1052,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_create_without_account_switch) {
       {"-B=0", "--account-create", "never"}, EXIT_FAILURE);
 
   EXPECT_NO_THROW(router.wait_for_exit());
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   EXPECT_THAT(
       router.get_full_output(),
       ::testing::HasSubstr(
@@ -1073,7 +1073,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_create_argument_missing) {
       launch_router_for_bootstrap({"-B=0", "--account-create"}, EXIT_FAILURE);
 
   EXPECT_NO_THROW(router.wait_for_exit());
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   EXPECT_THAT(router.get_full_output(),
               ::testing::HasSubstr(
                   "option '--account-create' expects a value, got nothing"));
@@ -1093,7 +1093,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_create_illegal_value) {
       {"-B=0", "--account", "user1", "--account-create", "bla"}, EXIT_FAILURE);
 
   EXPECT_NO_THROW(router.wait_for_exit());
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   EXPECT_THAT(
       router.get_full_output(),
       ::testing::HasSubstr("Invalid value for --account-create option.  Valid "
@@ -1113,7 +1113,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_create_given_twice) {
       EXIT_FAILURE);
 
   EXPECT_NO_THROW(router.wait_for_exit());
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   EXPECT_THAT(
       router.get_full_output(),
       ::testing::HasSubstr("Option --account-create can only be given once"));
@@ -1137,7 +1137,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_create_never_and_account_host) {
       EXIT_FAILURE);
 
   EXPECT_NO_THROW(router.wait_for_exit());
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   EXPECT_THAT(
       router.get_full_output(),
       ::testing::HasSubstr("Option '--account-create never' cannot be used "
@@ -1156,7 +1156,7 @@ TEST_F(AccountReuseBadCmdlineTest, strict_without_bootstrap_switch) {
   auto &router = launch_router_for_bootstrap({"--strict"}, EXIT_FAILURE);
 
   EXPECT_NO_THROW(router.wait_for_exit());
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   EXPECT_THAT(
       router.get_full_output(),
       ::testing::HasSubstr(
@@ -4631,7 +4631,7 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
     auto &router = launch_router_for_bootstrap(cmdline, EXIT_SUCCESS, true);
 
     EXPECT_NO_THROW(router.wait_for_exit());
-    // check if the bootstraping was successful
+    // check if the bootstrapping was successful
     EXPECT_THAT(router.get_full_output(),
                 ::testing::HasSubstr(
                     "MySQL Router configured for the InnoDB Cluster 'test'"));
@@ -4684,7 +4684,7 @@ TEST_F(RouterAccountHostTest, argument_missing) {
       EXIT_FAILURE);
 
   EXPECT_NO_THROW(router.wait_for_exit());
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   EXPECT_THAT(router.get_full_output(),
               ::testing::HasSubstr(
                   "option '--account-host' expects a value, got nothing"));
@@ -4702,7 +4702,7 @@ TEST_F(RouterAccountHostTest, without_bootstrap_flag) {
       launch_router_for_bootstrap({"--account-host", "host1"}, EXIT_FAILURE);
 
   EXPECT_NO_THROW(router.wait_for_exit());
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   EXPECT_THAT(router.get_full_output(),
               ::testing::HasSubstr("Option --account-host can only be used "
                                    "together with -B/--bootstrap"));
@@ -4731,7 +4731,7 @@ TEST_F(RouterAccountHostTest, illegal_hostname) {
       EXIT_FAILURE, true);
 
   EXPECT_NO_THROW(router.wait_for_exit());
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   EXPECT_THAT(router.get_full_output(),
               ::testing::ContainsRegex(
                   "Error executing MySQL query \".*\": String "
@@ -4761,7 +4761,7 @@ TEST_F(RouterReportHostTest, typical_usage) {
     auto &router = launch_router_for_bootstrap(cmdline, EXIT_SUCCESS, true);
 
     EXPECT_NO_THROW(router.wait_for_exit());
-    // check if the bootstraping was successful
+    // check if the bootstrapping was successful
     EXPECT_THAT(router.get_full_output(),
                 ::testing::HasSubstr("MySQL Router configured for the "
                                      "InnoDB Cluster 'my-cluster'"));
@@ -4798,7 +4798,7 @@ TEST_F(RouterReportHostTest, multiple_hostnames) {
                                   EXIT_FAILURE);
 
   EXPECT_NO_THROW(router.wait_for_exit());
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   EXPECT_THAT(
       router.get_full_output(),
       ::testing::HasSubstr("Option --report-host can only be used once."));
@@ -4817,7 +4817,7 @@ TEST_F(RouterReportHostTest, argument_missing) {
       {"--bootstrap=1.2.3.4:5678", "--report-host"}, EXIT_FAILURE);
 
   EXPECT_NO_THROW(router.wait_for_exit());
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   EXPECT_THAT(router.get_full_output(),
               ::testing::HasSubstr(
                   "option '--report-host' expects a value, got nothing"));
@@ -4835,7 +4835,7 @@ TEST_F(RouterReportHostTest, without_bootstrap_flag) {
       launch_router_for_bootstrap({"--report-host", "host1"}, EXIT_FAILURE);
 
   EXPECT_NO_THROW(router.wait_for_exit());
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   EXPECT_THAT(router.get_full_output(),
               ::testing::HasSubstr("Option --report-host can only be used "
                                    "together with -B/--bootstrap"));
@@ -4860,7 +4860,7 @@ TEST_F(RouterReportHostTest, invalid_hostname) {
       EXIT_FAILURE);
 
   EXPECT_NO_THROW(router.wait_for_exit());
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   EXPECT_THAT(router.get_full_output(),
               ::testing::HasSubstr(
                   "Error: Option --report-host has an invalid value."));

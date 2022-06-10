@@ -1241,7 +1241,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 /**
  * @test
- *       verify that bootstraping via a unix-socket fails over to the
+ *       verify that bootstrapping via a unix-socket fails over to the
  * IP-addresses of the members
  * @test
  *       Group Replication roles:

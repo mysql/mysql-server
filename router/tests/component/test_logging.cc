@@ -1749,7 +1749,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_disabled_if_no_bootstrap_config_file) {
       EXIT_SUCCESS, true, false, -1s,
       RouterComponentBootstrapTest::kBootstrapOutputResponder);
 
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   check_exit_code(router, EXIT_SUCCESS);
   EXPECT_THAT(router.get_full_output(),
               testing::Not(testing::HasSubstr("SELECT ")));
@@ -1794,7 +1794,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
       EXIT_SUCCESS, true, false, -1s,
       RouterComponentBootstrapTest::kBootstrapOutputResponder);
 
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   check_exit_code(router, EXIT_SUCCESS);
 
   // check if log output contains the SQL queries.
@@ -1841,7 +1841,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
       EXIT_SUCCESS, true, false, -1s,
       RouterComponentBootstrapTest::kBootstrapOutputResponder);
 
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   check_exit_code(router, EXIT_SUCCESS);
 
   // check if log output contains the SQL queries.
@@ -1896,7 +1896,7 @@ TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
       EXIT_SUCCESS, /*catch_stderr=*/false, false, -1s,
       RouterComponentBootstrapTest::kBootstrapOutputResponder);
 
-  // check if the bootstraping was successful
+  // check if the bootstrapping was successful
   check_exit_code(router, EXIT_SUCCESS);
 
   // check if logs are not written to output

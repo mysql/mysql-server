@@ -68,7 +68,7 @@ TEST_P(BootstrapTlsEndpointFail, check) {
   EXPECT_NO_THROW(router.wait_for_exit());
 
   if (!GetParam().expected_result) {
-    // check if the bootstraping was successful
+    // check if the bootstrapping was successful
     EXPECT_THAT(router.get_full_output(),
                 ::testing::HasSubstr(GetParam().expected_result.error()));
   }
@@ -244,7 +244,7 @@ TEST_P(BootstrapTlsEndpointWithoutBootstrapFail, check) {
   EXPECT_NO_THROW(router.wait_for_exit());
 
   if (!GetParam().expected_result) {
-    // check if the bootstraping was successful
+    // check if the bootstrapping was successful
     EXPECT_THAT(router.get_full_output(),
                 ::testing::HasSubstr(GetParam().expected_result.error()));
   }
