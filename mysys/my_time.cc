@@ -2515,7 +2515,7 @@ bool datetime_add_nanoseconds_with_round(MYSQL_TIME *ltime, uint nanoseconds,
 }
 
 /**
-  Add nanoseconds to time and round or tuncate as indicated by argument.
+  Add nanoseconds to time and round or truncate as indicated by argument.
 
   @param [in,out] ltime        MYSQL_TIME variable to add to.
   @param          nanoseconds  Nanosecons value.
@@ -2533,7 +2533,7 @@ bool time_add_nanoseconds_adjust_frac(MYSQL_TIME *ltime, uint nanoseconds,
 }
 
 /**
-   Add nanoseconds to datetime and round or tuncate as indicated by argument.
+   Add nanoseconds to datetime and round or truncate as indicated by argument.
 
   @param [in,out] ltime        MYSQL_TIME variable to add to.
   @param          nanoseconds  Nanoseconds value.
