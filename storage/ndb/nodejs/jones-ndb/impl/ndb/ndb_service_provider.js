@@ -68,6 +68,7 @@ exports.loadRequiredModules = function() {
       "  libndbclient) will resolve the problem.\n\n";
       if(existsSync(gypConfigFile)) {
         try {
+	  /* 'utf8' here is a json, rather than MySQL, setting. */
           jsonconfig = fs.readFileSync(gypConfigFile, 'utf8');
           jsonconfig = JSON.parse(jsonconfig);
           libpath = path.join(jsonconfig.variables.mysql_path, "lib");

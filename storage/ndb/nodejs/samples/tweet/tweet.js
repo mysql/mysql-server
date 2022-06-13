@@ -562,7 +562,7 @@ function RunWebServerOperation(cli_params, cli_data) {
     params = url.parse(request.url).pathname.split("/");
     params.shift();
     
-    request.setEncoding('utf8');
+    request.setEncoding('utf8mb3');
     function gatherData(chunk) {    data += chunk;    }
     request.on('data', gatherData);
     request.on('end', runOperation);

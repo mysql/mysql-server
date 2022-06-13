@@ -7948,7 +7948,7 @@ runBug16895311_create(NDBT_Context* ctx, NDBT_Step* step)
     (void)pDic->dropTable(bug.tabname);
     NdbDictionary::Table tab;
     tab.setName(bug.tabname);
-    const char* csname = "utf8_unicode_ci";
+    const char* csname = "utf8mb3_unicode_ci";
     bug.cs = get_charset_by_name(csname, MYF(0));
     require(bug.cs != 0);
     // can hit too small xfrm buffer in 2 ways
@@ -9958,7 +9958,7 @@ int runCreateCharKeyTable(NDBT_Context* ctx, NDBT_Step* step)
     {
       ndbout_c("Using non case-sensitive charset");
       charsetName = "latin1_swedish_ci";
-//    charsetName = "utf8_unicode_ci";
+//    charsetName = "utf8mb3_unicode_ci";
     }
     else
     {

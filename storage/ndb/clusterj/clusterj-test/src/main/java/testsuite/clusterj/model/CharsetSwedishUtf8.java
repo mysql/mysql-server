@@ -32,7 +32,7 @@ drop table if exists charsetswedishutf8;
 create table charsetswedishutf8 (
  id int not null primary key,
  swedishcolumn char(4) COLLATE latin1_swedish_ci,
- utfcolumn char(4) COLLATE utf8_general_ci
+ utfcolumn char(4) COLLATE utf8mb3_general_ci
 ) ENGINE=ndbcluster;
 
 */

@@ -35,7 +35,7 @@ CREATE TABLE author (
   user_name varchar(20) CHARACTER SET UTF16LE not null,
   full_name varchar(250),
   tweet_count int unsigned not null default 0,
-  SPARSE_FIELDS varchar(4000) CHARACTER SET utf8,
+  SPARSE_FIELDS varchar(4000) CHARACTER SET utf8mb3,
   PRIMARY KEY(user_name)
 ) ;
 

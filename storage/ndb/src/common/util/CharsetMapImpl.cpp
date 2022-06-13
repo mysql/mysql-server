@@ -39,7 +39,6 @@ void CharsetMapImpl::build_map()
 {   
     int cs_ucs2 = 0;
     int cs_utf16 = 0;
-    int cs_utf8 = 0;
     int cs_utf8_3 = 0;
     int cs_utf8_4 = 0;
     
@@ -68,7 +67,6 @@ void CharsetMapImpl::build_map()
     put("tis620", "TIS-620");
     
     /* Unicode */
-    put("utf8", "UTF-8");
     put("utf8mb3", "UTF-8");
     put("utf8mb4", "UTF-8");
     put("ucs2", "UTF-16");
@@ -100,7 +98,6 @@ void CharsetMapImpl::build_map()
             mapped_name = get(mysql_name);
             if(! cs_ucs2 && ! strcmp(mysql_name, "ucs2"))       cs_ucs2 = i;
             if(! cs_utf16 && ! strcmp(mysql_name, "utf16"))     cs_utf16 = i;
-            if(! cs_utf8 && ! strcmp(mysql_name, "utf8"))       cs_utf8 = i;
             if(! cs_utf8_3 && ! strcmp(mysql_name, "utf8mb3"))  cs_utf8_3 = i;
             if(! cs_utf8_4 && ! strcmp(mysql_name, "utf8mb4"))  cs_utf8_4 = i;            
         }
@@ -120,8 +117,6 @@ void CharsetMapImpl::build_map()
         UTF8Charset = cs_utf8_4;
     else if(cs_utf8_3)
         UTF8Charset = cs_utf8_3;
-    else if(cs_utf8)
-        UTF8Charset = cs_utf8;
     else
         UTF8Charset = 0;
         

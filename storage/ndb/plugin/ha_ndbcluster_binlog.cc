@@ -340,7 +340,7 @@ THD *ndb_create_thd(char *stackptr) {
   thd->security_context()->skip_grants();
 
   CHARSET_INFO *charset_connection =
-      get_charset_by_csname("utf8", MY_CS_PRIMARY, MYF(MY_WME));
+      get_charset_by_csname("utf8mb3", MY_CS_PRIMARY, MYF(MY_WME));
   thd->variables.character_set_client = charset_connection;
   thd->variables.character_set_results = charset_connection;
   thd->variables.collation_connection = charset_connection;

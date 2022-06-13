@@ -77,6 +77,7 @@ public class CharsetTest extends AbstractClusterJTest {
         // Modify JDBC properties to add server character encoding
         Properties modifiedProps = new Properties();
         modifiedProps.putAll(props);
+        // "utf8" here is a Java, rather than MySQL, setting.
         modifiedProps.put("characterEncoding", "utf8");
         return modifiedProps;
     }

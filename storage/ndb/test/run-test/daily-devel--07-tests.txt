@@ -193,7 +193,7 @@ args: -n NodeFailLcpStall T1
 max-time: 360
 
 cmd: testBlobs
-args: -bug 28746560 -pk2cs utf8 -skip p -loop 10
+args: -bug 28746560 -pk2cs utf8mb3 -skip p -loop 10
 max-time: 900
 
 cmd: testLimits

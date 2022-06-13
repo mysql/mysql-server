@@ -49,10 +49,10 @@ CREATE TABLE b (
         cvarchar_def    VARCHAR(202),
         -- cvarchar_ascii  VARCHAR(202) CHARACTER SET ASCII,
         -- cvarchar_ucs2   VARCHAR(202) CHARACTER SET UCS2,
-        -- cvarchar_utf8   VARCHAR(202) CHARACTER SET UTF8,
+        -- cvarchar_utf8   VARCHAR(202) CHARACTER SET UTF8MB3,
         cblob_def       BLOB(1000004),
         ctext_def       TEXT(1000004),
-        -- ctext_utf8      TEXT(202) CHARACTER SET UTF8,
+        -- ctext_utf8      TEXT(202) CHARACTER SET UTF8MB3,
         CONSTRAINT FK_B_1 FOREIGN KEY (a_id) REFERENCES a (id),
         INDEX I_B_FK (a_id)
 );
