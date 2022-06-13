@@ -376,35 +376,52 @@ checkpart(const Blob &b,
       Uint32 bytesRead = partSize;
       if (partReadBlobHandle->readData(buf, bytesRead) != 0)
       {
-        g_info << "Failed to define read" << endl;
-        *partOk = false;
+	const NdbError error = tx->getNdbError();
+	if (error.status == NdbError::TemporaryError) {break;}
+
+        if (error.code == 4267 || error.code == 626) {
+          g_info << "Part not found" << endl;
+          /* Missing part */
+          *partOk = false;
+        }
+        else {
+          g_err << "Unexpected error on reading part"
+                << p
+                << endl;
+          g_err << error << endl;
+          ret = -1;
+        }
       }
       else
       {
         if (tx->execute(Commit) != 0)
         {
-          if (tx->getNdbError().code == 626)
+	  const NdbError error = tx->getNdbError();
+	  if (error.code == 4267 || error.code == 626)
           {
-            g_info << "Part not found (626)" << endl;
+	    g_info << "Part not found" << endl;
             /* Missing part */
             *partOk = false;
           }
           else
           {
-            g_err << "Unexpected error on reading part "
+            g_err << "Unexpected error on commiting read-part "
                   << p
                   << endl;
-            g_err << tx->getNdbError() << endl;
+            g_err << error << endl;
             ret = -1;
           }
         }
       }
     } while (false);
 
-    const NdbError error = tx->getNdbError();
-    tx->close();
-    if (error.code == 0 || error.status != NdbError::TemporaryError)
-      break;
+    if (tx != nullptr) {
+      const NdbError error = tx->getNdbError();
+      tx->close();
+
+      if (error.code == 0 || error.status != NdbError::TemporaryError)
+	break;
+    }
   }
   return ret; // set to -1 on error in CHK2
 }
