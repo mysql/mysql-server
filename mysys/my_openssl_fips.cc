@@ -111,6 +111,9 @@ bool set_fips_mode(const int fips_mode, char err_string[OPENSSL_ERROR_LENGTH]) {
     ERR_error_string_n(err_library, err_string, OPENSSL_ERROR_LENGTH - 1);
     err_string[OPENSSL_ERROR_LENGTH - 1] = '\0';
 
+    /* clear the rest of the error stack */
+    ERR_clear_error();
+
     return true;
   }
   return false;
@@ -128,6 +131,8 @@ int test_ssl_fips_mode(char err_string[OPENSSL_ERROR_LENGTH]) {
 
   if (err != 0) {
     ERR_error_string_n(err, err_string, OPENSSL_ERROR_LENGTH - 1);
+    /* clear the rest of the error stack */
+    ERR_clear_error();
   }
   return ret;
 }

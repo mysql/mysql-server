@@ -266,11 +266,6 @@ size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size) {
 
   DBUG_TRACE;
 
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L && !defined(NDEBUG)
-  // TODO: find out which of the openssl 3 functions makes this a requirement
-  ERR_clear_error();
-#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
-
   while (true) {
     enum enum_vio_io_event event;
 
@@ -283,7 +278,7 @@ size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size) {
 
     ret = SSL_read(ssl, buf, (int)size);
 
-    if (ret >= 0) break;
+    if (ret > 0) break;
 
     /* Process the SSL I/O error. */
     if (!ssl_should_retry(vio, ret, &event, &ssl_errno_not_used)) break;
@@ -313,11 +308,6 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size) {
 
   DBUG_TRACE;
 
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L && !defined(NDEBUG)
-  // TODO: find out which of the openssl 3 functions makes this a requirement
-  ERR_clear_error();
-#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
-
   while (true) {
     enum enum_vio_io_event event;
 
@@ -330,7 +320,7 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size) {
 
     ret = SSL_write(ssl, buf, (int)size);
 
-    if (ret >= 0) break;
+    if (ret > 0) break;
 
     /* Process the SSL I/O error. */
     if (!ssl_should_retry(vio, ret, &event, &ssl_errno_not_used)) break;
@@ -383,6 +373,12 @@ int vio_ssl_shutdown(Vio *vio) {
       default: /* Shutdown failed */
         DBUG_PRINT("vio_error",
                    ("SSL_shutdown() failed, error: %d", SSL_get_error(ssl, r)));
+#ifndef NDEBUG /* Debug build */
+        /* Note: the OpenSSL error queue gets cleared in report_errors(). */
+        report_errors(ssl);
+#else /* Release build */
+        ERR_clear_error();
+#endif
         break;
     }
   }
@@ -429,11 +425,6 @@ static size_t ssl_handshake_loop(Vio *vio, SSL *ssl, ssl_handshake_func_t func,
   size_t ret = -1;
 
   vio->ssl_arg = ssl;
-
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L && !defined(NDEBUG)
-  // TODO: find out which of the openssl 3 functions makes this a requirement
-  ERR_clear_error();
-#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   /* Initiate the SSL handshake. */
   while (true) {
