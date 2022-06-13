@@ -47,7 +47,7 @@ Get char with index > strlen passed.
 Get byte with index strlen failed.
 Destroy string object.
 -------------------------------------------------------------
-Charset: utf8
+Charset: utf8mb3
 Greetings from  beautiful Austria at March, 9th!
 Destroy string object.
 Convert from buffer passed.
@@ -62,7 +62,7 @@ Get char with index > strlen passed.
 Get byte with index strlen passed.
 Destroy string object.
 -------------------------------------------------------------
-Charset: utf8
+Charset: utf8mb3
 Grüße  aus  dem  schönen  Österreich am 9. März!
 Destroy string object.
 Convert from buffer passed.
@@ -77,7 +77,7 @@ Get char with index > strlen passed.
 Get byte with index strlen failed.
 Destroy string object.
 -------------------------------------------------------------
-Charset: utf8
+Charset: utf8mb3
 遥想公瑾当年，小乔初嫁了，雄姿英发
 Destroy string object.
 Convert from buffer passed.

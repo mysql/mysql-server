@@ -134,6 +134,7 @@ DEFINE_BOOL_METHOD(mysql_string_imp::toupper,
 DEFINE_BOOL_METHOD(mysql_string_imp::convert_from_buffer,
                    (my_h_string * out_string, const char *in_buffer,
                     uint64 length, const char *charset_name)) {
+  assert(0 != strcmp(charset_name, "utf8"));
   try {
     if (in_buffer == nullptr || length == 0 || length > strlen(in_buffer))
       return true;
@@ -154,6 +155,7 @@ DEFINE_BOOL_METHOD(mysql_string_imp::convert_from_buffer,
 DEFINE_BOOL_METHOD(mysql_string_imp::convert_to_buffer,
                    (my_h_string in_string, char *out_buffer, uint64 length,
                     const char *charset_name)) {
+  assert(0 != strcmp(charset_name, "utf8"));
   try {
     String *str = reinterpret_cast<String *>(in_string);
     uint error;

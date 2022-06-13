@@ -85,7 +85,7 @@ mysql_service_status_t test_string_service_init() {
     if (mysql_service_mysql_string_converter->convert_from_buffer(
             &out_string,
             test_text,  // its a input buffer
-            strlen(test_text) + 10, "utf8")) {
+            strlen(test_text) + 10, "utf8mb3")) {
       WRITE_LOG("%s\n",
                 "Length too high for buffer in convert from buffer: passed.");
     }
@@ -93,7 +93,7 @@ mysql_service_status_t test_string_service_init() {
     if (mysql_service_mysql_string_converter->convert_from_buffer(
             &out_string,
             test_text,  // its a input buffer
-            0, "utf8")) {
+            0, "utf8mb3")) {
       WRITE_LOG("%s\n",
                 "Length is zero for buffer in convert from buffer: failed.");
     } else {
@@ -104,7 +104,7 @@ mysql_service_status_t test_string_service_init() {
     if (mysql_service_mysql_string_converter->convert_from_buffer(
             &out_string,
             test_text,  // its a input buffer
-            strlen(test_text), "utf8")) {
+            strlen(test_text), "utf8mb3")) {
       WRITE_LOG("%s\n", "Convert from buffer failed.");
     } else {
       uint out_length = 0;
@@ -135,7 +135,7 @@ mysql_service_status_t test_string_service_init() {
           WRITE_LOG("%s\n", "Tolower passed:");
           // Convert low string to buffer
           if (mysql_service_mysql_string_converter->convert_to_buffer(
-                  low_string, low_test_text, MAX_BUFFER_LENGTH, "utf8")) {
+                  low_string, low_test_text, MAX_BUFFER_LENGTH, "utf8mb3")) {
             WRITE_LOG("%s\n", "Convert to buffer failed.");
           } else {
             WRITE_LOG("%s\n", low_test_text);
@@ -154,7 +154,8 @@ mysql_service_status_t test_string_service_init() {
         } else {
           WRITE_LOG("%s\n", "Toupper passed:");
           if (mysql_service_mysql_string_converter->convert_to_buffer(
-                  upper_string, upper_test_text, MAX_BUFFER_LENGTH, "utf8")) {
+                  upper_string, upper_test_text, MAX_BUFFER_LENGTH,
+                  "utf8mb3")) {
             WRITE_LOG("%s\n", "Convert to buffer failed.");
           } else {
             WRITE_LOG("%s\n", upper_test_text);

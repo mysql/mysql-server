@@ -244,7 +244,7 @@ static int validate_dictionary_check(my_h_string password) {
     return (0);
 
   if (mysql_service_mysql_string_converter->convert_to_buffer(
-          lower_string_handle, buffer, MAX_PASSWORD_LENGTH, "utf8")) {
+          lower_string_handle, buffer, MAX_PASSWORD_LENGTH, "utf8mb3")) {
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
@@ -374,7 +374,7 @@ static bool is_valid_password_by_user_name(void *thd, my_h_string password) {
   }
 
   if (mysql_service_mysql_string_converter->convert_to_buffer(
-          password, buffer, MAX_PASSWORD_LENGTH, "utf8")) {
+          password, buffer, MAX_PASSWORD_LENGTH, "utf8mb3")) {
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(WARNING_LEVEL)

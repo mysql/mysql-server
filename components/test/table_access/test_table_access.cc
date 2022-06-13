@@ -74,7 +74,7 @@ const char *common_insert_customer(char * /* out */, size_t num_tables,
   size_t ticket;
   int rc;
 
-  CHARSET_INFO_h utf8 = charset_srv->get_utf8mb4();
+  CHARSET_INFO_h utf8mb4_h = charset_srv->get_utf8mb4();
   MYSQL_THD thd;
   current_thd_srv->get(&thd);
 
@@ -113,7 +113,8 @@ const char *common_insert_customer(char * /* out */, size_t num_tables,
     goto cleanup;
   }
 
-  string_converter_srv->convert_from_buffer(name_value, "John Doe", 8, utf8);
+  string_converter_srv->convert_from_buffer(name_value, "John Doe", 8,
+                                            utf8mb4_h);
 
   if (fa_varchar_srv->set(access, table, NAME_COL, name_value)) {
     result = "set(name) failed";
@@ -234,7 +235,7 @@ const char *common_fetch_order(char *out, int order_num) {
   size_t ticket_order_line;
   int rc;
 
-  CHARSET_INFO_h utf8 = charset_srv->get_utf8mb4();
+  CHARSET_INFO_h utf8mb4_h = charset_srv->get_utf8mb4();
   MYSQL_THD thd;
   current_thd_srv->get(&thd);
 
@@ -310,9 +311,9 @@ const char *common_fetch_order(char *out, int order_num) {
       goto cleanup_index;
     }
 
-    string_converter_srv->convert_to_buffer(order_comment_value,
-                                            buff_order_comment,
-                                            sizeof(buff_order_comment), utf8);
+    string_converter_srv->convert_to_buffer(
+        order_comment_value, buff_order_comment, sizeof(buff_order_comment),
+        utf8mb4_h);
   }
 
   if (ta_index_srv->end(access, table_order, order_pk)) {
@@ -572,7 +573,7 @@ const char *test_index_fetch_bfas(char *out) {
   return common_index(out, false, 100, 1005, 5, 5, 5);
 }
 
-const char *test_math_insert(char * /* out */, bool utf8mb4) {
+const char *test_math_insert(char * /* out */, bool is_utf8mb4) {
   static const char *schema_name =
       "\xE2" /* for each */
       "\x88"
@@ -639,7 +640,7 @@ const char *test_math_insert(char * /* out */, bool utf8mb4) {
   const char *table_name;
   size_t table_name_length;
 
-  CHARSET_INFO_h utf8 = charset_srv->get_utf8mb4();
+  CHARSET_INFO_h utf8mb4_h = charset_srv->get_utf8mb4();
   MYSQL_THD thd;
   current_thd_srv->get(&thd);
 
@@ -651,7 +652,7 @@ const char *test_math_insert(char * /* out */, bool utf8mb4) {
     goto cleanup;
   }
 
-  if (utf8mb4) {
+  if (is_utf8mb4) {
     table_name = table_name_utf8mb4;
     table_name_length = table_name_utf8mb4_length;
   } else {
@@ -698,7 +699,7 @@ const char *test_math_insert(char * /* out */, bool utf8mb4) {
   ptr += column_name_length;
 
   string_converter_srv->convert_from_buffer(row_value, value_buffer,
-                                            value_length, utf8);
+                                            value_length, utf8mb4_h);
 
   if (fa_varchar_srv->set(access, table, 0, row_value)) {
     result = "set() failed";

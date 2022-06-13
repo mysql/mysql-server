@@ -207,7 +207,7 @@ static bool set_args_charset_info(UDF_ARGS *args, IError_handler &handler) {
 }
 
 /**
-  Sets the charset info of the return value to utf8.
+  Sets the charset info of the return value to utf8mb4.
 
   @param [in, out]  initid    A pointer to the UDF_INIT structure
   @param [out]      handler   Error handler that keeps the error message

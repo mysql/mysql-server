@@ -161,7 +161,7 @@ bool test_charset(const char *charset, const char *text, int buff_len) {
 */
 mysql_service_status_t test_string_service_init() {
   const char *chs_latin1 = "latin1";
-  const char *chs_utf8 = "utf8";
+  const char *chs_utf8mb3 = "utf8mb3";
   const char *chs_gb18030 = "gb18030";
   //  const char* charset="utf8mb4";
 
@@ -180,9 +180,9 @@ mysql_service_status_t test_string_service_init() {
 
   retcode = test_charset(chs_latin1, test_text_eng, TEST_TEXT_LIT_LENGTH);
   retcode = test_charset(chs_latin1, test_text_ger, TEST_TEXT_LIT_LENGTH);
-  retcode = test_charset(chs_utf8, test_text_eng, TEST_TEXT_LIT_LENGTH);
-  retcode = test_charset(chs_utf8, test_text_ger, TEST_TEXT_LIT_LENGTH);
-  retcode = test_charset(chs_utf8, test_text_chinese, TEST_TEXT_LIT_LENGTH);
+  retcode = test_charset(chs_utf8mb3, test_text_eng, TEST_TEXT_LIT_LENGTH);
+  retcode = test_charset(chs_utf8mb3, test_text_ger, TEST_TEXT_LIT_LENGTH);
+  retcode = test_charset(chs_utf8mb3, test_text_chinese, TEST_TEXT_LIT_LENGTH);
   retcode = test_charset(chs_gb18030, test_text_chinese, TEST_TEXT_LIT_LENGTH);
 
   WRITE_LOG("%s\n", "End of init");
