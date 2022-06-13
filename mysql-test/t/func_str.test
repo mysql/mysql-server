@@ -1977,8 +1977,7 @@ BEGIN
   DECLARE i INT DEFAULT ofs;
   WHILE i < count DO
     SELECT i AS i;
-    IF LOWER(CHAR(i USING utf8) COLLATE utf8_tolower_ci) !=
-       LOWER(CHAR(i USING utf8mb4) COLLATE utf8mb4_0900_as_ci) THEN
+    IF LOWER(CHAR(i USING utf8)) <> LOWER(CHAR(i USING utf8mb4)) THEN
       SELECT i AS 'found funny character';
     END IF;
     SET i = i + 1;
@@ -2486,3 +2485,26 @@ INSERT INTO t0 VALUES(NULL);
 --error ER_TRUNCATED_WRONG_VALUE
 UPDATE t0 SET c0 = 1 WHERE (t0.c0 IS NULL)>>('' COLLATE 'utf8mb4_0900_ai_ci');
 DROP TABLE t0;
+
+--echo # Bug#34274525: Two string values with explicit collate clauses
+--echo #               should not be implicitly coerced
+
+# Explicit COLLATE clause and different collations is not allowed
+--error ER_CANT_AGGREGATE_2COLLATIONS
+SELECT _latin1 'ß' COLLATE latin1_general_ci = _utf8mb4 'ss' COLLATE utf8mb4_0900_ai_ci AS c;
+
+# Same collation is OK
+SELECT _utf8mb4 'ß' COLLATE utf8mb4_0900_ai_ci = _utf8mb4 'ss' COLLATE utf8mb4_0900_ai_ci AS c;
+
+SELECT _latin1 'ß' COLLATE latin1_general_ci = _latin1 'ss' COLLATE latin1_general_ci AS c;
+
+# Default collations are OK:
+
+SELECT _latin1 'ß' = _utf8mb4 'ss' AS c;
+
+SELECT _utf8mb4 'ss' = _latin1 'ß' AS c;
+
+--echo Note that following results are different due to bug#33801312
+SELECT _utf8mb4 'ss' = _utf8mb3 'ß' AS c;
+
+SELECT _utf8mb3 'ß' = _utf8mb4 'ss' AS c;

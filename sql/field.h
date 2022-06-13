@@ -174,6 +174,7 @@ enum enum_check_fields : int {
   CHECK_FIELD_ERROR_FOR_NULL
 };
 
+/// For use @see DTCollation::aggregate()
 enum Derivation {
   DERIVATION_IGNORABLE = 6,
   DERIVATION_NUMERIC = 5,

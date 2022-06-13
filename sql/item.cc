@@ -2309,14 +2309,25 @@ static bool left_is_superset(DTCollation *left, DTCollation *right) {
   Aggregate two collations together taking
   into account their coercibility (aka derivation):.
 
-  0 == DERIVATION_EXPLICIT  - an explicitly written COLLATE clause @n
-  1 == DERIVATION_NONE      - a mix of two different collations @n
-  2 == DERIVATION_IMPLICIT  - a column @n
-  3 == DERIVATION_COERCIBLE - a string constant.
+  DERIVATION_EXPLICIT  - an explicitly written COLLATE clause @n
+  DERIVATION_NONE      - a mix of two different collations @n
+  DERIVATION_IMPLICIT  - a column @n
+  DERIVATION_SYSCONST  - a system function @n
+  DERIVATION_COERCIBLE - a string constant @n
+  DERIVATION_NUMERIC   - a numeric constant coerced to a character string @n
+  DERIVATION_IGNORABLE - a NULL value.
+
+  These are ordered by strength from highest (DERIVATION_EXPLICIT) to
+  lowest (DERIVATION_IGNORABLE), and a low enum value means higher strength.
+
+  Note that MySQL supports more coercibility types than the SQL standard,
+  which only has explicit, implicit and none collation derivations.
+  Explicit collation derivation are applied by specifying a COLLATE clause
+  to a character string expression.
 
   The most important rules are:
   -# If collations are the same:
-  chose this collation, and the strongest derivation.
+  choose this collation, and the strongest derivation.
   -# If collations are different:
   - Character sets may differ, but only if conversion without
   data loss is possible. The caller provides flags whether
@@ -2345,10 +2356,14 @@ static bool left_is_superset(DTCollation *left, DTCollation *right) {
   @retval false If the two collations can be aggregated, possibly with
   DERIVATION_NONE to indicate that they need a third explicit collation as a
   tiebreaker.
-
 */
 
 bool DTCollation::aggregate(DTCollation &dt, uint flags) {
+  // With two EXPLICIT derivations, collations must be equal:
+  if (collation != dt.collation && derivation == DERIVATION_EXPLICIT &&
+      dt.derivation == DERIVATION_EXPLICIT) {
+    return true;
+  }
   if (!my_charset_same(collation, dt.collation)) {
     /*
        We do allow to use binary strings (like BLOBS)

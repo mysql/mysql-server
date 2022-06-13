@@ -5039,8 +5039,7 @@ BEGIN
 DECLARE i INT DEFAULT ofs;
 WHILE i < count DO
 SELECT i AS i;
-IF LOWER(CHAR(i USING utf8) COLLATE utf8_tolower_ci) !=
-LOWER(CHAR(i USING utf8mb4) COLLATE utf8mb4_0900_as_ci) THEN
+IF LOWER(CHAR(i USING utf8)) <> LOWER(CHAR(i USING utf8mb4)) THEN
 SELECT i AS 'found funny character';
 END IF;
 SET i = i + 1;
@@ -5675,3 +5674,30 @@ INSERT INTO t0 VALUES(NULL);
 UPDATE t0 SET c0 = 1 WHERE (t0.c0 IS NULL)>>('' COLLATE 'utf8mb4_0900_ai_ci');
 ERROR 22007: Truncated incorrect INTEGER value: ''
 DROP TABLE t0;
+# Bug#34274525: Two string values with explicit collate clauses
+#               should not be implicitly coerced
+SELECT _latin1 'ß' COLLATE latin1_general_ci = _utf8mb4 'ss' COLLATE utf8mb4_0900_ai_ci AS c;
+ERROR HY000: Illegal mix of collations (latin1_general_ci,EXPLICIT) and (utf8mb4_0900_ai_ci,EXPLICIT) for operation '='
+SELECT _utf8mb4 'ß' COLLATE utf8mb4_0900_ai_ci = _utf8mb4 'ss' COLLATE utf8mb4_0900_ai_ci AS c;
+c
+1
+SELECT _latin1 'ß' COLLATE latin1_general_ci = _latin1 'ss' COLLATE latin1_general_ci AS c;
+c
+0
+SELECT _latin1 'ß' = _utf8mb4 'ss' AS c;
+c
+0
+SELECT _utf8mb4 'ss' = _latin1 'ß' AS c;
+c
+0
+Note that following results are different due to bug#33801312
+SELECT _utf8mb4 'ss' = _utf8mb3 'ß' AS c;
+c
+1
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SELECT _utf8mb3 'ß' = _utf8mb4 'ss' AS c;
+c
+0
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
