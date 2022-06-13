@@ -4335,6 +4335,15 @@ int mysql_execute_command(THD *thd, bool first_level) {
       char *name;
 
       assert(lex->sphead != nullptr);
+
+      if (!lex->sphead->is_sql()) {
+        // Currently, we only support SQL routines
+        // TODO: Check if language is supported
+        my_error(ER_SP_UNSUPPORTED_LANGUAGE, MYF(0),
+                 lex->sphead->m_chistics->language);
+        goto error;
+      }
+
       assert(lex->sphead->m_db.str); /* Must be initialized in the parser */
       /*
         Verify that the database name is allowed, optionally

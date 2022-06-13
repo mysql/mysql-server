@@ -548,6 +548,15 @@ class sp_head {
   bool is_invoked() const { return m_flags & IS_INVOKED; }
 
   /**
+    @returns true if this is an SQL routine, and
+             false if it is an external routine
+  */
+  bool is_sql() const {
+    assert(m_chistics->language.length > 0);
+    return native_strcasecmp(m_chistics->language.str, "SQL") == 0;
+  }
+
+  /**
     Get the value of the SP cache version, as remembered
     when the routine was inserted into the cache.
   */

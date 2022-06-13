@@ -2454,6 +2454,7 @@ struct st_sp_chistics {
   enum enum_sp_suid_behaviour suid;
   bool detistic;
   enum enum_sp_data_access daccess;
+  LEX_CSTRING language;  ///< CREATE|ALTER ... LANGUAGE <language>
 };
 
 extern const LEX_STRING null_lex_str;

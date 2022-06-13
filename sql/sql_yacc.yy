@@ -3865,6 +3865,9 @@ ev_sql_stmt:
             memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
             sp->m_chistics= &lex->sp_chistics;
 
+            // Default language is SQL
+            lex->sp_chistics.language = {"SQL",3};
+
             /*
               Set a body start to the end of the last preprocessed token
               before ev_sql_stmt:
@@ -3947,7 +3950,9 @@ sp_chistic:
           COMMENT_SYM TEXT_STRING_sys
           { Lex->sp_chistics.comment= to_lex_cstring($2); }
         | LANGUAGE_SYM SQL_SYM
-          { /* Just parse it, we only have one language for now. */ }
+          { Lex->sp_chistics.language= {"SQL",3}; }
+        | LANGUAGE_SYM ident
+          { Lex->sp_chistics.language= to_lex_cstring($2); }
         | NO_SYM SQL_SYM
           { Lex->sp_chistics.daccess= SP_NO_SQL; }
         | CONTAINS_SYM SQL_SYM
@@ -17627,6 +17632,10 @@ trigger_tail:
 
             memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
             sp->m_chistics= &lex->sp_chistics;
+
+            // Default language is SQL
+            lex->sp_chistics.language = {"SQL",3};
+
             sp->set_body_start(thd, @11.cpp.end);
           }
           sp_proc_stmt                    /* $13 */
@@ -17810,6 +17819,9 @@ sf_tail:
               MYSQL_YYABORT;
 
             memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
+
+            // Default language is SQL
+            lex->sp_chistics.language = {"SQL",3};
           }
           sp_c_chistics         /* $13 */
           {                     /* $14 */
@@ -17819,7 +17831,7 @@ sf_tail:
             lex->sphead->m_chistics= &lex->sp_chistics;
             lex->sphead->set_body_start(thd, yylloc.cpp.start);
           }
-          sp_proc_stmt          /* $15 */
+          stored_routine_body   /* $15 */
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
@@ -17827,8 +17839,6 @@ sf_tail:
 
             if (sp->is_not_allowed_in_function("function"))
               MYSQL_YYABORT;
-
-            sp_finish_parsing(thd);
 
             lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
 
@@ -17876,6 +17886,23 @@ sf_tail:
           }
         ;
 
+stored_routine_body:
+          sp_proc_stmt
+          {
+            // Currently, we only support SQL routines
+            // TODO: Check if language is supported
+            if (my_strcasecmp(system_charset_info,
+                              Lex->sphead->m_chistics->language.str, "SQL")) {
+              my_error(ER_SP_UNSUPPORTED_LANGUAGE, MYF(0),
+                       Lex->sphead->m_chistics->language);
+              MYSQL_YYABORT;
+            }
+
+            THD *thd = YYTHD;
+            sp_finish_parsing(thd);
+          }
+        ;
+
 sp_tail:
           PROCEDURE_SYM         /*$1*/
           opt_if_not_exists     /*$2*/
@@ -17912,6 +17939,9 @@ sp_tail:
 
             lex->sphead->m_parser_data.set_parameter_end_ptr(@8.cpp.start);
             memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
+
+            // Default language is SQL
+            lex->sp_chistics.language = {"SQL",3};
           }
           sp_c_chistics         /*$10*/
           {                     /*$11*/
@@ -17921,13 +17951,9 @@ sp_tail:
             lex->sphead->m_chistics= &lex->sp_chistics;
             lex->sphead->set_body_start(thd, yylloc.cpp.start);
           }
-          sp_proc_stmt          /*$12*/
+          stored_routine_body   /*$12*/
           {                     /*$13*/
-            THD *thd= YYTHD;
             LEX *lex= Lex;
-
-            sp_finish_parsing(thd);
-
             lex->sql_command= SQLCOM_CREATE_PROCEDURE;
           }
         ;
