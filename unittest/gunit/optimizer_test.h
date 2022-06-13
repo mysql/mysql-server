@@ -249,6 +249,9 @@ static void ResolveQueryBlock(
   query_block->join->fields = &query_block->fields;
   query_block->join->alloc_func_list();
   SetJoinConditions(query_block->top_join_list);
+  count_field_types(query_block, &query_block->join->tmp_table_param,
+                    query_block->fields, /*reset_with_sum_func=*/false,
+                    /*save_sum_fields=*/false);
 
   if (query_block->select_limit != nullptr) {
     query_block->master_query_expression()->select_limit_cnt =

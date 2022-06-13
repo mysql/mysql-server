@@ -775,11 +775,7 @@ AccessPath *PossiblyAttachFilter(AccessPath *path,
           // Keep the condition. See comment on ContainsAnyMRRPaths().
           items.push_back(cond);
         } else {
-          AccessPath *zero_path =
-              NewZeroRowsAccessPath(thd, path, "Impossible filter");
-          zero_path->num_output_rows = 0.0;
-          zero_path->cost = 0.0;
-          return zero_path;
+          return NewZeroRowsAccessPath(thd, path, "Impossible filter");
         }
       } else {
         // Known to be always true, so skip it.
@@ -2098,8 +2094,6 @@ static AccessPath *CreateHashJoinAccessPath(
                        " requires pruned table";
         build_path = NewZeroRowsAccessPath(
             thd, build_path, strdup_root(thd->mem_root, cause.c_str()));
-        build_path->cost = 0.0;
-        build_path->num_output_rows = 0;
       }
       expr->equijoin_conditions.clear();
       break;

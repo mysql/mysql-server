@@ -694,8 +694,6 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
             NewTableScanAccessPath(m_thd, table, /*count_examined_rows=*/false);
         AccessPath *zero_path = NewZeroRowsAccessPath(
             m_thd, table_path, "Impossible WHERE condition");
-        zero_path->num_output_rows_before_filter = 0.0;
-        zero_path->cost_before_filter = 0.0;
 
         // We need to get the set of functional dependencies right,
         // even though we don't need to actually apply any filters.

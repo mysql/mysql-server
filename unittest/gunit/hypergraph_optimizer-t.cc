@@ -4003,6 +4003,40 @@ TEST_F(HypergraphOptimizerTest, ImpossibleWhereInJoinGivesZeroRows) {
   EXPECT_EQ(AccessPath::ZERO_ROWS, root->type);
 }
 
+TEST_F(HypergraphOptimizerTest, ImpossibleRangeInJoinWithFilterAndAggregation) {
+  // Test a query with an impossible range condition (t2.y IS NULL AND t2.y IN
+  // (1, 2)) and a non-pushable condition that has to stay in a post-join filter
+  // (RAND(0) < 0.5), and which is implicitly grouped so that it has to return
+  // one row even if the join result is empty. Optimizing this query used to hit
+  // an assert failure due to inconsistent cost estimates.
+  Query_block *query_block = ParseAndResolve(
+      "SELECT COUNT(*) FROM t1, t2 WHERE t1.x = t2.x AND "
+      "t2.y IS NULL AND t2.y IN (1, 2) AND RAND(0) < 0.5",
+      /*nullable=*/true);
+
+  // Create an index on t2.y so that the range optimizer analyzes the WHERE
+  // clause and detects that it always evaluates to FALSE.
+  Fake_TABLE *t2 = m_fake_tables["t2"];
+  t2->create_index(t2->field[1],
+                   /*column2=*/nullptr,
+                   /*unique=*/false);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::AGGREGATE, root->type);
+  // The filter on top of the ZERO_ROWS access path is redundant, but harmless.
+  ASSERT_EQ(AccessPath::FILTER, root->aggregate().child->type);
+  EXPECT_EQ("(rand(0) < 0.5)",
+            ItemToString(root->aggregate().child->filter().condition));
+  EXPECT_EQ(AccessPath::ZERO_ROWS,
+            root->aggregate().child->filter().child->type);
+}
+
 TEST_F(HypergraphOptimizerTest, SimpleRangeScan) {
   Query_block *query_block = ParseAndResolve("SELECT 1 FROM t1 WHERE t1.x < 3",
                                              /*nullable=*/false);

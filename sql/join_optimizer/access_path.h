@@ -1498,6 +1498,8 @@ inline AccessPath *NewZeroRowsAccessPath(THD *thd, AccessPath *child,
   path->cost = 0.0;
   path->init_cost = 0.0;
   path->init_once_cost = 0.0;
+  path->num_output_rows_before_filter = 0.0;
+  path->cost_before_filter = 0.0;
   return path;
 }
 
