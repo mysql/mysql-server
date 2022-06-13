@@ -228,6 +228,10 @@ IF(MSVC)
   STRING_APPEND(CMAKE_C_FLAGS " /wd4244")
   STRING_APPEND(CMAKE_CXX_FLAGS " /wd4244")
 
+  # 'Enumeration was previously declared without a fixed underlying type.'
+  STRING_APPEND(CMAKE_C_FLAGS " /wd5257")
+  STRING_APPEND(CMAKE_CXX_FLAGS " /wd5257")
+
   # Enable stricter standards conformance when using Visual Studio
   STRING_APPEND(CMAKE_CXX_FLAGS " /permissive-")
 ENDIF()
