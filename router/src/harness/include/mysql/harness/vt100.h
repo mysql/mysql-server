@@ -28,6 +28,7 @@
 #include "harness_export.h"
 
 #include <array>
+#include <cstdint>
 #include <string>
 #include <tuple>
 

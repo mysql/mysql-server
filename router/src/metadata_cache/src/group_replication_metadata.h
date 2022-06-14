@@ -25,6 +25,7 @@
 #ifndef GROUP_REPLICATION_METADATA_INCLUDED
 #define GROUP_REPLICATION_METADATA_INCLUDED
 
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>

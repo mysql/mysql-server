@@ -24,6 +24,7 @@
 #define GCS_LOGGING_INCLUDED
 
 #include <atomic>
+#include <cstdint>
 #include <string>
 
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"

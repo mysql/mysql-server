@@ -37,6 +37,7 @@ FOREACH(warning
     "class-memaccess"
     "format-overflow"
     "maybe-uninitialized"
+    "uninitialized"      # RedoPageCache CTOR: m_hash(m_pool) with gcc 13
     "stringop-overflow"
     "unused-but-set-variable"
     "unused-parameter"

@@ -24,6 +24,7 @@
 #include "util/ndb_zlib.h"
 
 #include <assert.h> // assert()
+#include <cstdint>
 #include <stdlib.h> // abort()
 
 #include "zlib.h"

@@ -31,6 +31,10 @@
 #include <sys/select.h>
 #endif
 
+#if defined(HAVE_NANOSLEEP)
+#include <time.h>
+#endif
+
 static inline void NdbSleep_MilliSleep(int milliseconds);
 
 static inline
