@@ -53,7 +53,7 @@ Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 3;
 EXPLAIN
--> Filter: (t1.x = 3)  (rows=1)
+-> Filter: (t1.x = 3)  (rows=0.01)
     -> Table scan on t1  (rows=10)
 
 Warnings:
@@ -113,7 +113,7 @@ Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 3;
 EXPLAIN
--> Filter: (t1.x = 3)  (rows=1)
+-> Filter: (t1.x = 3)  (rows=0.01)
     -> Table scan on t1  (rows=10)
 
 Warnings:

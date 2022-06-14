@@ -1,2 +1,2 @@
---source include/not_hypergraph.inc
+--source include/have_hypergraph.inc
 --source suite/secondary_engine/inc/histogram.inc
