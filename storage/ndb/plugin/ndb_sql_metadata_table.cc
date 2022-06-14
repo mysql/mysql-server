@@ -196,6 +196,7 @@ void Ndb_sql_metadata_api::clear(NdbDictionary::Dictionary *dict) {
 */
 void Ndb_sql_metadata_api::writeSnapshotLockRow(NdbTransaction *tx) {
   char row[16384];
+  initRowBuffer(row);
   setType(row, TYPE_LOCK);
   setName(row, "snapshot");
   setSeq(row, 0);
@@ -211,6 +212,7 @@ void Ndb_sql_metadata_api::writeSnapshotLockRow(NdbTransaction *tx) {
 */
 const NdbError &Ndb_sql_metadata_api::initializeSnapshotLock(Ndb *ndb) {
   char key[512], row[512];
+  initRowBuffer(key);
   setType(key, TYPE_LOCK);
   setName(key, "snapshot");
   setSeq(key, 0);
@@ -254,6 +256,7 @@ const NdbError &Ndb_sql_metadata_api::initializeSnapshotLock(Ndb *ndb) {
 const NdbError &Ndb_sql_metadata_api::acquireSnapshotLock(Ndb *ndb,
                                                           NdbTransaction *&tx) {
   char key[512], row[512];
+  initRowBuffer(key);
   setType(key, TYPE_LOCK);
   setName(key, "snapshot");
   setSeq(key, 0);

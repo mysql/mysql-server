@@ -87,6 +87,7 @@ class Ndb_sql_metadata_api {
   size_t getNoteSize() const { return m_note_record_size; }
   size_t getKeySize() const { return m_key_record_size; }
 
+  void initRowBuffer(char *buf) { layout().initRowBuffer(buf); }
   void setType(char *buf, short a) { layout().setValue(0, a, buf); }
   void setName(char *buf, std::string a) { layout().setValue(1, a, buf); }
   void packName(char *buf, std::string a) { layout().packValue(1, a, buf); }
