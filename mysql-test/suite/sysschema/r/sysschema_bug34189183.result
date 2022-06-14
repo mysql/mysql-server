@@ -1,0 +1,16 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE USER 'test'@'localhost' IDENTIFIED BY '';
+GRANT ALL ON *.* TO 'test'@'localhost';
+REVOKE SUPER ON *.* FROM 'test'@'localhost';
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM 'test'@'localhost';
+REVOKE SESSION_VARIABLES_ADMIN ON *.* FROM 'test'@'localhost';
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'test'@'localhost';
+DROP USER test@localhost;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc
